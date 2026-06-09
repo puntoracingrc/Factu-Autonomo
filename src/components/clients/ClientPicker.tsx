@@ -8,16 +8,26 @@ import { useAppStore } from "@/context/AppStore";
 import {
   customerToClient,
   filterCustomers,
+  getCustomerDisplayName,
   sortCustomersByName,
 } from "@/lib/customers";
 import type { Client, Customer } from "@/lib/types";
 
+export interface ClientFormValues {
+  firstName: string;
+  lastName: string;
+  nif: string;
+  email: string;
+  phone: string;
+  address: string;
+}
+
 interface ClientPickerProps {
-  values: Client;
+  values: ClientFormValues;
   selectedCustomerId: string | null;
   onSelectCustomer: (customer: Customer) => void;
   onClearSelection: () => void;
-  onChange: (field: keyof Client, value: string) => void;
+  onChange: (field: keyof ClientFormValues, value: string) => void;
 }
 
 export function ClientPicker({
@@ -62,7 +72,7 @@ export function ClientPicker({
 
   function applyCustomer(customer: Customer) {
     onSelectCustomer(customer);
-    setSearch(customer.name);
+    setSearch(getCustomerDisplayName(customer));
     setOpen(false);
   }
 
@@ -95,12 +105,10 @@ export function ClientPicker({
       return;
     }
     const customer = data.customers.find((c) => c.id === customerId);
-    if (customer) {
-      applyCustomer(customer);
-    }
+    if (customer) applyCustomer(customer);
   }
 
-  function handleFieldChange(field: keyof Client, value: string) {
+  function handleFieldChange(field: keyof ClientFormValues, value: string) {
     if (selectedCustomerId) onClearSelection();
     onChange(field, value);
   }
@@ -115,7 +123,7 @@ export function ClientPicker({
         <>
           <Field
             label="Elegir cliente de la lista"
-            hint="Ordenados alfabéticamente"
+            hint="Ordenados alfabéticamente por apellidos"
           >
             <Select
               value={selectedCustomerId ?? ""}
@@ -124,7 +132,7 @@ export function ClientPicker({
               <option value="">— Selecciona un cliente —</option>
               {sorted.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {getCustomerDisplayName(c)}
                   {c.nif ? ` (${c.nif})` : ""}
                 </option>
               ))}
@@ -133,7 +141,7 @@ export function ClientPicker({
 
           <div className="relative" ref={containerRef}>
             <Field
-              label="O buscar por nombre, NIF, teléfono..."
+              label="O buscar por nombre, apellidos, NIF..."
               hint="Escribe y pulsa Intro para rellenar los datos"
             >
               <div className="relative">
@@ -147,7 +155,7 @@ export function ClientPicker({
                   }}
                   onFocus={() => search.trim() && setOpen(true)}
                   onKeyDown={handleSearchKeyDown}
-                  placeholder="Ej: María, 12345678A, 600..."
+                  placeholder="Ej: García, Ana, 12345678A..."
                   className="pl-10"
                 />
               </div>
@@ -173,7 +181,7 @@ export function ClientPicker({
                         }`}
                       >
                         <p className="font-semibold text-slate-900">
-                          {customer.name}
+                          {getCustomerDisplayName(customer)}
                         </p>
                         <p className="text-sm text-slate-500">
                           {[customer.nif, customer.phone, customer.email]
@@ -190,43 +198,56 @@ export function ClientPicker({
 
           {selectedCustomer && (
             <p className="rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
-              Cliente seleccionado: {selectedCustomer.name}
+              Cliente seleccionado: {getCustomerDisplayName(selectedCustomer)}
             </p>
           )}
         </>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
           <p className="text-sm text-slate-600">
-            Aún no tienes clientes guardados.
+            Aún no tienes clientes guardados. Puedes crearlos aquí abajo o en
+            la sección Clientes.
           </p>
           <Link
             href="/clientes"
             className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-600"
           >
             <UserPlus className="h-4 w-4" />
-            Crear primer cliente
+            Ir a Clientes
           </Link>
         </div>
       )}
 
+      <p className="text-sm text-slate-500">
+        Si escribes un cliente nuevo, se guardará automáticamente al crear la
+        factura, recibo o presupuesto. Nombre y apellidos deben ser únicos.
+      </p>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nombre o empresa *">
+        <Field label="Nombre *">
           <Input
-            value={values.name}
-            onChange={(e) => handleFieldChange("name", e.target.value)}
-            placeholder="Ej: María López"
+            value={values.firstName}
+            onChange={(e) => handleFieldChange("firstName", e.target.value)}
+            placeholder="Ej: María"
+          />
+        </Field>
+        <Field label="Apellidos *">
+          <Input
+            value={values.lastName}
+            onChange={(e) => handleFieldChange("lastName", e.target.value)}
+            placeholder="Ej: López García"
           />
         </Field>
         <Field label="NIF / CIF">
           <Input
-            value={values.nif ?? ""}
+            value={values.nif}
             onChange={(e) => handleFieldChange("nif", e.target.value)}
             placeholder="12345678A"
           />
         </Field>
         <Field label="Teléfono">
           <Input
-            value={values.phone ?? ""}
+            value={values.phone}
             onChange={(e) => handleFieldChange("phone", e.target.value)}
             placeholder="600 000 000"
           />
@@ -234,7 +255,7 @@ export function ClientPicker({
         <Field label="Email">
           <Input
             type="email"
-            value={values.email ?? ""}
+            value={values.email}
             onChange={(e) => handleFieldChange("email", e.target.value)}
             placeholder="cliente@email.com"
           />
@@ -242,7 +263,7 @@ export function ClientPicker({
         <div className="sm:col-span-2">
           <Field label="Dirección" hint="Opcional">
             <Input
-              value={values.address ?? ""}
+              value={values.address}
               onChange={(e) => handleFieldChange("address", e.target.value)}
               placeholder="Calle, número, ciudad"
             />
@@ -253,5 +274,18 @@ export function ClientPicker({
   );
 }
 
-// Re-export helper for forms that need full customer address
+export function clientToFormValues(client: Client): ClientFormValues {
+  return {
+    firstName: client.firstName ?? client.name?.split(" ")[0] ?? "",
+    lastName:
+      client.lastName ??
+      client.name?.split(" ").slice(1).join(" ") ??
+      "",
+    nif: client.nif ?? "",
+    email: client.email ?? "",
+    phone: client.phone ?? "",
+    address: client.address ?? "",
+  };
+}
+
 export { customerToClient };

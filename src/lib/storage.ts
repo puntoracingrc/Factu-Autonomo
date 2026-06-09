@@ -1,14 +1,25 @@
+import { migrateCustomer } from "./customers";
 import type { AppData, DocumentType } from "./types";
 import { EMPTY_DATA } from "./types";
 
 const STORAGE_KEY = "factura-autonomo-data";
+
+function normalizeLoadedData(parsed: Partial<AppData>): AppData {
+  return {
+    ...EMPTY_DATA,
+    ...parsed,
+    customers: (parsed.customers ?? []).map((customer) =>
+      migrateCustomer(customer as AppData["customers"][number]),
+    ),
+  };
+}
 
 export function loadData(): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_DATA;
-    return { ...EMPTY_DATA, ...JSON.parse(raw) };
+    return normalizeLoadedData(JSON.parse(raw));
   } catch {
     return EMPTY_DATA;
   }

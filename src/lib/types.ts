@@ -11,6 +11,8 @@ export interface LineItem {
 }
 
 export interface Client {
+  firstName?: string;
+  lastName?: string;
   name: string;
   nif?: string;
   email?: string;
@@ -20,6 +22,8 @@ export interface Client {
 
 export interface Customer {
   id: string;
+  firstName: string;
+  lastName: string;
   name: string;
   nif?: string;
   email?: string;

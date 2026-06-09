@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
-import { sortCustomersByName } from "@/lib/customers";
+import {
+  customerFullName,
+  customerPayloadFromInput,
+  getCustomerDisplayName,
+  sortCustomersByName,
+  validateUniqueCustomer,
+} from "@/lib/customers";
 import type { Customer } from "@/lib/types";
 
 const EMPTY_FORM = {
-  name: "",
+  firstName: "",
+  lastName: "",
   nif: "",
   email: "",
   phone: "",
@@ -31,7 +38,8 @@ export default function ClientesPage() {
   function startEdit(customer: Customer) {
     setEditingId(customer.id);
     setForm({
-      name: customer.name,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
       nif: customer.nif ?? "",
       email: customer.email ?? "",
       phone: customer.phone ?? "",
@@ -49,17 +57,26 @@ export default function ClientesPage() {
   }
 
   function handleSave() {
-    if (!form.name.trim()) {
-      alert("Escribe el nombre del cliente");
+    const validation = validateUniqueCustomer(
+      data.customers,
+      form.firstName,
+      form.lastName,
+      editingId ?? undefined,
+    );
+    if (!validation.ok) {
+      alert(validation.error);
       return;
     }
 
     const payload = {
-      name: form.name.trim(),
-      nif: form.nif || undefined,
-      email: form.email || undefined,
-      phone: form.phone || undefined,
-      address: form.address || undefined,
+      ...customerPayloadFromInput({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        nif: form.nif,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+      }),
       city: form.city || undefined,
       postalCode: form.postalCode || undefined,
       notes: form.notes || undefined,
@@ -82,7 +99,7 @@ export default function ClientesPage() {
     <div>
       <PageHeader
         title="Clientes"
-        subtitle="Guarda tus clientes y reutilízalos en facturas, recibos y presupuestos"
+        subtitle="Nombre y apellidos únicos. Se usan en facturas, recibos y presupuestos"
       />
 
       <Card className="mb-6 space-y-4">
@@ -102,11 +119,22 @@ export default function ClientesPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre o empresa *">
+          <Field label="Nombre *">
             <Input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Ej: María López"
+              value={form.firstName}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, firstName: e.target.value }))
+              }
+              placeholder="Ej: María"
+            />
+          </Field>
+          <Field label="Apellidos *" hint="No se pueden repetir con el mismo nombre">
+            <Input
+              value={form.lastName}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, lastName: e.target.value }))
+              }
+              placeholder="Ej: López García"
             />
           </Field>
           <Field label="NIF / CIF">
@@ -165,6 +193,15 @@ export default function ClientesPage() {
           </Field>
         </div>
 
+        {form.firstName && form.lastName && (
+          <p className="text-sm text-slate-500">
+            Se guardará como:{" "}
+            <strong>
+              {customerFullName(form.firstName, form.lastName)}
+            </strong>
+          </p>
+        )}
+
         <Button onClick={handleSave} fullWidth>
           {editingId ? "Guardar cambios" : "Guardar cliente"}
         </Button>
@@ -191,7 +228,9 @@ export default function ClientesPage() {
               className="flex items-start justify-between gap-3"
             >
               <div>
-                <p className="font-bold text-slate-900">{customer.name}</p>
+                <p className="font-bold text-slate-900">
+                  {getCustomerDisplayName(customer)}
+                </p>
                 {customer.nif && (
                   <p className="text-sm text-slate-500">NIF: {customer.nif}</p>
                 )}
@@ -216,7 +255,7 @@ export default function ClientesPage() {
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm(`¿Borrar a ${customer.name}?`))
+                    if (confirm(`¿Borrar a ${getCustomerDisplayName(customer)}?`))
                       deleteCustomer(customer.id);
                   }}
                   className="rounded-xl bg-red-50 p-2 text-red-600"

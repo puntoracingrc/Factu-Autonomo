@@ -17,6 +17,8 @@ import type {
   Supplier,
   BusinessProfile,
 } from "@/lib/types";
+import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
+import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { loadData, saveData, nextDocumentNumber } from "@/lib/storage";
 
@@ -34,6 +36,12 @@ interface AppStoreValue {
   addCustomer: (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Customer;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
+  upsertCustomerForDocument: (
+    input: ClientInput,
+    selectedCustomerId: string | null,
+  ) =>
+    | { ok: true; customerId: string; client: Client }
+    | { ok: false; error: string };
   getDocumentsByType: (type: DocumentType) => Document[];
 }
 
@@ -185,6 +193,43 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const upsertCustomerForDocument = useCallback(
+    (
+      input: ClientInput,
+      selectedCustomerId: string | null,
+    ):
+      | { ok: true; customerId: string; client: Client }
+      | { ok: false; error: string } => {
+      const result = ensureCustomerForDocument(
+        data.customers,
+        input,
+        selectedCustomerId,
+      );
+      if (!result.ok) return result;
+
+      if (result.created) {
+        const created = addCustomer({
+          firstName: result.customer.firstName,
+          lastName: result.customer.lastName,
+          name: result.customer.name,
+          nif: result.customer.nif,
+          email: result.customer.email,
+          phone: result.customer.phone,
+          address: result.customer.address,
+        });
+        return { ok: true, customerId: created.id, client: result.client };
+      }
+
+      updateCustomer(result.customer);
+      return {
+        ok: true,
+        customerId: result.customer.id,
+        client: result.client,
+      };
+    },
+    [data.customers, addCustomer, updateCustomer],
+  );
+
   const getDocumentsByType = useCallback(
     (type: DocumentType) => data.documents.filter((d) => d.type === type),
     [data.documents],
@@ -205,6 +250,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addCustomer,
       updateCustomer,
       deleteCustomer,
+      upsertCustomerForDocument,
       getDocumentsByType,
     }),
     [
@@ -221,6 +267,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addCustomer,
       updateCustomer,
       deleteCustomer,
+      upsertCustomerForDocument,
       getDocumentsByType,
     ],
   );

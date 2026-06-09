@@ -3,15 +3,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import { ClientPicker } from "@/components/clients/ClientPicker";
-import { customerToClient, findCustomerByClient } from "@/lib/customers";
+import {
+  ClientPicker,
+  clientToFormValues,
+  customerToClient,
+} from "@/components/clients/ClientPicker";
+import type { ClientFormValues } from "@/components/clients/ClientPicker";
+import { findCustomerByClient } from "@/lib/customers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { documentTotals, formatMoney, todayISO } from "@/lib/calculations";
 import { downloadDocumentPdf } from "@/lib/pdf";
-import type { Client, Document, DocumentType, LineItem, Customer } from "@/lib/types";
+import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
 function emptyLine(): LineItem {
   return {
@@ -29,6 +34,15 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   recibo: "recibo",
 };
 
+const EMPTY_CLIENT: ClientFormValues = {
+  firstName: "",
+  lastName: "",
+  nif: "",
+  email: "",
+  phone: "",
+  address: "",
+};
+
 interface DocumentFormProps {
   type: DocumentType;
   existing?: Document;
@@ -36,11 +50,12 @@ interface DocumentFormProps {
 
 export function DocumentForm({ type, existing }: DocumentFormProps) {
   const router = useRouter();
-  const { data, ready, addDocument, updateDocument } = useAppStore();
+  const { data, ready, addDocument, updateDocument, upsertCustomerForDocument } =
+    useAppStore();
   const label = TYPE_LABELS[type];
 
-  const [client, setClient] = useState<Client>(
-    existing?.client ?? { name: "" },
+  const [clientForm, setClientForm] = useState<ClientFormValues>(
+    existing ? clientToFormValues(existing.client) : EMPTY_CLIENT,
   );
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
@@ -51,6 +66,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     const match = findCustomerByClient(data.customers, existing.client);
     if (match) setSelectedCustomerId(match.id);
   }, [existing, ready, data.customers]);
+
   const [date, setDate] = useState(existing?.date ?? todayISO());
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
@@ -67,7 +83,15 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     number: existing?.number ?? "BORRADOR",
     date,
     dueDate: dueDate || undefined,
-    client,
+    client: {
+      firstName: clientForm.firstName,
+      lastName: clientForm.lastName,
+      name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+      nif: clientForm.nif || undefined,
+      email: clientForm.email || undefined,
+      phone: clientForm.phone || undefined,
+      address: clientForm.address || undefined,
+    },
     items,
     notes,
     status,
@@ -85,20 +109,36 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
   function handleSelectCustomer(customer: Customer) {
     setSelectedCustomerId(customer.id);
-    setClient(customerToClient(customer));
+    setClientForm(clientToFormValues(customerToClient(customer)));
   }
 
-  function handleClientFieldChange(field: keyof Client, value: string) {
-    setClient((prev) => ({ ...prev, [field]: value || undefined }));
+  function handleClientFieldChange(
+    field: keyof ClientFormValues,
+    value: string,
+  ) {
+    setClientForm((prev) => ({ ...prev, [field]: value }));
   }
 
   function handleSave(download = false) {
-    if (!client.name?.trim()) {
-      alert("Escribe o selecciona un cliente");
-      return;
-    }
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
+      return;
+    }
+
+    const customerResult = upsertCustomerForDocument(
+      {
+        firstName: clientForm.firstName,
+        lastName: clientForm.lastName,
+        nif: clientForm.nif,
+        email: clientForm.email,
+        phone: clientForm.phone,
+        address: clientForm.address,
+      },
+      selectedCustomerId,
+    );
+
+    if (!customerResult.ok) {
+      alert(customerResult.error);
       return;
     }
 
@@ -106,13 +146,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       type,
       date,
       dueDate: dueDate || undefined,
-      client: {
-        name: client.name.trim(),
-        nif: client.nif || undefined,
-        email: client.email || undefined,
-        phone: client.phone || undefined,
-        address: client.address || undefined,
-      },
+      client: customerResult.client,
       items: items.filter((i) => i.description.trim()),
       notes: notes || undefined,
       status,
@@ -146,13 +180,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           Datos del cliente
         </h2>
         <ClientPicker
-          values={{
-            name: client.name ?? "",
-            nif: client.nif ?? "",
-            email: client.email ?? "",
-            phone: client.phone ?? "",
-            address: client.address ?? "",
-          }}
+          values={clientForm}
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
           onClearSelection={() => setSelectedCustomerId(null)}
