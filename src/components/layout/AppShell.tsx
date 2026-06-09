@@ -15,15 +15,25 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Inicio", icon: Home },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/facturas", label: "Facturas", icon: FileText },
-  { href: "/presupuestos", label: "Presupuestos", icon: Wallet },
-  { href: "/recibos", label: "Recibos", icon: Receipt },
-  { href: "/gastos", label: "Gastos", icon: ShoppingCart },
-  { href: "/proveedores", label: "Proveedores", icon: Truck },
-  { href: "/asistente", label: "Asistente", icon: Bot },
-  { href: "/configuracion", label: "Ajustes", icon: Settings },
+  { href: "/", label: "Inicio", shortLabel: "Inicio", icon: Home },
+  { href: "/clientes", label: "Clientes", shortLabel: "Clientes", icon: Users },
+  { href: "/facturas", label: "Facturas", shortLabel: "Facturas", icon: FileText },
+  {
+    href: "/presupuestos",
+    label: "Presupuestos",
+    shortLabel: "Presup.",
+    icon: Wallet,
+  },
+  { href: "/recibos", label: "Recibos", shortLabel: "Recibos", icon: Receipt },
+  { href: "/gastos", label: "Gastos", shortLabel: "Gastos", icon: ShoppingCart },
+  {
+    href: "/proveedores",
+    label: "Proveedores",
+    shortLabel: "Prov.",
+    icon: Truck,
+  },
+  { href: "/asistente", label: "Asistente", shortLabel: "Asistente", icon: Bot },
+  { href: "/configuracion", label: "Ajustes", shortLabel: "Ajustes", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -54,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
         <div className="nav-scroll mx-auto max-w-3xl overflow-x-auto px-2 py-2">
           <div className="flex w-max min-w-full items-stretch justify-start gap-1 sm:justify-center">
-            {navItems.map(({ href, label, icon: Icon }) => {
+            {navItems.map(({ href, label, shortLabel, icon: Icon }) => {
               const active =
                 href === "/"
                   ? pathname === "/"
@@ -70,7 +80,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-                  <span className="w-full truncate text-center text-[10px] font-semibold leading-tight sm:text-[11px]">
+                  <span className="w-full text-center text-[10px] font-semibold leading-tight sm:hidden">
+                    {shortLabel}
+                  </span>
+                  <span className="hidden w-full text-center text-[11px] font-semibold leading-tight sm:inline">
                     {label}
                   </span>
                 </Link>
