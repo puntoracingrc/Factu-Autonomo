@@ -35,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geist.variable} h-full`}>
-      <body className="min-h-full bg-slate-50 font-sans text-slate-900 antialiased">
+      <body className="min-h-full bg-slate-100 font-sans text-slate-900 antialiased">
         <AppStoreProvider>
           <AppShell>{children}</AppShell>
         </AppStoreProvider>

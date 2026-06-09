@@ -73,10 +73,11 @@ function newId(): string {
 }
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<AppData>(() => loadData());
+  const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    setData(loadData());
     setReady(true);
   }, []);
 

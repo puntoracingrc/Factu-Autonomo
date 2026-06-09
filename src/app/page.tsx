@@ -126,14 +126,16 @@ export default function HomePage() {
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
       </h2>
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {quickActions.map(({ href, label, icon: Icon, color }) => (
+      <div className="mb-8 grid grid-cols-2 gap-3">
+        {quickActions.map(({ href, label, icon: Icon, color }, index) => (
           <Link
             key={href}
             href={href}
-            className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-sm transition-transform active:scale-[0.98] ${color}`}
+            className={`flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform active:scale-[0.98] ${color} ${
+              index === quickActions.length - 1 ? "col-span-2" : ""
+            }`}
           >
-            <Icon className="h-7 w-7" />
+            <Icon className="h-6 w-6" />
             <span className="text-sm leading-tight">{label}</span>
           </Link>
         ))}
