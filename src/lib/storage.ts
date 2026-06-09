@@ -1,16 +1,24 @@
 import { migrateCustomer } from "./customers";
+import { countersFromDocuments } from "./documents";
 import type { AppData, DocumentType } from "./types";
 import { EMPTY_DATA } from "./types";
 
 const STORAGE_KEY = "factura-autonomo-data";
 
 function normalizeLoadedData(parsed: Partial<AppData>): AppData {
+  const documents = parsed.documents ?? [];
   return {
     ...EMPTY_DATA,
     ...parsed,
     customers: (parsed.customers ?? []).map((customer) =>
       migrateCustomer(customer as AppData["customers"][number]),
     ),
+    documents,
+    counters: {
+      ...EMPTY_DATA.counters,
+      ...parsed.counters,
+      ...countersFromDocuments(documents),
+    },
   };
 }
 
@@ -30,6 +38,7 @@ export function saveData(data: AppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+/** @deprecated Usar assignNextDocumentNumber desde documents.ts */
 export function nextDocumentNumber(
   type: DocumentType,
   counters: AppData["counters"],

@@ -1,6 +1,22 @@
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
-export type DocumentStatus = "borrador" | "enviado" | "pagado" | "vencido";
+export type DocumentStatus =
+  | "borrador"
+  | "enviado"
+  | "pagado"
+  | "vencido"
+  | "rectificada"
+  | "anulada";
+
+export type RectificationType = "anulacion" | "correccion";
+
+export interface RectificationInfo {
+  originalDocumentId: string;
+  originalNumber: string;
+  originalDate: string;
+  reason: string;
+  type: RectificationType;
+}
 
 export interface LineItem {
   id: string;
@@ -46,6 +62,8 @@ export interface Document {
   items: LineItem[];
   notes?: string;
   status: DocumentStatus;
+  rectification?: RectificationInfo;
+  rectifiedById?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +113,7 @@ export interface AppData {
   customers: Customer[];
   counters: {
     factura: number;
+    factura_rectificativa: number;
     presupuesto: number;
     recibo: number;
   };
@@ -116,8 +135,21 @@ export const EMPTY_DATA: AppData = {
   expenses: [],
   suppliers: [],
   customers: [],
-  counters: { factura: 0, presupuesto: 0, recibo: 0 },
+  counters: {
+    factura: 0,
+    factura_rectificativa: 0,
+    presupuesto: 0,
+    recibo: 0,
+  },
 };
+
+export const RECTIFICATION_REASONS = [
+  "Error en el importe",
+  "Error en los datos del cliente",
+  "Error en el concepto o descripción",
+  "Devolución total de la operación",
+  "Otros motivos",
+] as const;
 
 export const EXPENSE_CATEGORIES = [
   "Material",

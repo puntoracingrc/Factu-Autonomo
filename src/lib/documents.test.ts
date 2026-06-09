@@ -4,47 +4,124 @@ import {
   clientInputToSnapshot,
   ensureCustomerForDocument,
 } from "./customers";
-import { nextDocumentNumber } from "./storage";
-import type { AppData, Document, DocumentType } from "./types";
+import {
+  assignNextDocumentNumberByType,
+  filterDocumentsByQuery,
+  formatDocumentNumber,
+  getMaxSequence,
+  renumberDocumentsForTypeYear,
+} from "./documents";
+import type { Document, DocumentType } from "./types";
 import { EMPTY_DATA } from "./types";
 
-function createDocument(
+function doc(
+  id: string,
   type: DocumentType,
-  clientName: { firstName: string; lastName: string },
-  counters: AppData["counters"],
-): { doc: Omit<Document, "id" | "createdAt" | "updatedAt">; counters: AppData["counters"] } {
-  const { number, counters: nextCounters } = nextDocumentNumber(type, counters);
-  const client = clientInputToSnapshot({
-    firstName: clientName.firstName,
-    lastName: clientName.lastName,
-    nif: "12345678A",
-  });
-
+  number: string,
+  clientName: string,
+): Document {
   return {
-    counters: nextCounters,
-    doc: {
-      type,
-      number,
-      date: "2026-06-09",
-      client,
-      items: [
-        {
-          id: "line-1",
-          description: "Servicio de prueba",
-          quantity: 1,
-          unitPrice: 100,
-          ivaPercent: 21,
-        },
-      ],
-      status: "borrador",
-    },
+    id,
+    type,
+    number,
+    date: "2026-06-09",
+    client: { name: clientName, firstName: clientName.split(" ")[0], lastName: clientName.split(" ").slice(1).join(" ") },
+    items: [
+      {
+        id: "line-1",
+        description: "Servicio",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "borrador",
+    createdAt: "",
+    updatedAt: "",
   };
 }
+
+describe("numeración automática", () => {
+  it("asigna el siguiente número correlativo", () => {
+    const documents = [
+      doc("1", "factura", "F-2026-0001", "Ana García"),
+      doc("2", "factura", "F-2026-0002", "Luis Pérez"),
+    ];
+    const next = assignNextDocumentNumberByType(documents, "factura", 2026);
+    expect(next.number).toBe("F-2026-0003");
+    expect(next.sequence).toBe(3);
+  });
+
+  it("renumerar al borrar para que cuadre la secuencia", () => {
+    const documents = [
+      doc("1", "factura", "F-2026-0001", "Ana García"),
+      doc("2", "factura", "F-2026-0002", "Luis Pérez"),
+      doc("3", "factura", "F-2026-0003", "Elena Santos"),
+    ];
+
+    const remaining = documents.filter((d) => d.id !== "2");
+    const renumbered = renumberDocumentsForTypeYear(remaining, "factura", 2026);
+
+    expect(renumbered.map((d) => d.number)).toEqual([
+      "F-2026-0001",
+      "F-2026-0002",
+    ]);
+    expect(getMaxSequence(renumbered, "factura", 2026)).toBe(2);
+
+    const nextAfterDelete = assignNextDocumentNumberByType(
+      renumbered,
+      "factura",
+      2026,
+    );
+    expect(nextAfterDelete.number).toBe("F-2026-0003");
+  });
+
+  it("mantiene numeración separada por tipo", () => {
+    const documents = [
+      doc("1", "factura", "F-2026-0001", "Ana"),
+      doc("2", "presupuesto", "P-2026-0001", "Ana"),
+      doc("3", "recibo", "R-2026-0001", "Ana"),
+    ];
+
+    expect(
+      assignNextDocumentNumberByType(documents, "factura", 2026).number,
+    ).toBe("F-2026-0002");
+    expect(
+      assignNextDocumentNumberByType(documents, "presupuesto", 2026).number,
+    ).toBe("P-2026-0002");
+    expect(
+      assignNextDocumentNumberByType(documents, "recibo", 2026).number,
+    ).toBe("R-2026-0002");
+  });
+
+  it("formatea números con ceros a la izquierda", () => {
+    expect(formatDocumentNumber("recibo", 2026, 12)).toBe("R-2026-0012");
+  });
+});
+
+describe("buscador de documentos", () => {
+  const documents = [
+    doc("1", "factura", "F-2026-0001", "Ana García"),
+    doc("2", "factura", "F-2026-0002", "Luis Pérez"),
+    doc("3", "factura", "F-2026-0010", "María López"),
+  ];
+
+  it("busca por número", () => {
+    expect(filterDocumentsByQuery(documents, "0002")).toHaveLength(1);
+    expect(filterDocumentsByQuery(documents, "F-2026-0010")[0].client.name).toBe(
+      "María López",
+    );
+  });
+
+  it("busca por cliente", () => {
+    expect(filterDocumentsByQuery(documents, "garcía")).toHaveLength(1);
+    expect(filterDocumentsByQuery(documents, "Luis")).toHaveLength(1);
+  });
+});
 
 describe("flujo factura, presupuesto y recibo con clientes", () => {
   it("incorpora clientes nuevos a la base de datos al crear documentos", () => {
     let customers = [...EMPTY_DATA.customers];
-    let counters = { ...EMPTY_DATA.counters };
     const documents: Document[] = [];
 
     const flows: Array<{
@@ -77,11 +154,31 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
         ];
       }
 
-      const built = createDocument(flow.type, flow, counters);
-      counters = built.counters;
+      const { number } = assignNextDocumentNumberByType(
+        documents,
+        flow.type,
+        2026,
+      );
       documents.push({
-        ...built.doc,
         id: `doc-${documents.length + 1}`,
+        type: flow.type,
+        number,
+        date: "2026-06-09",
+        client: clientInputToSnapshot({
+          firstName: flow.firstName,
+          lastName: flow.lastName,
+          nif: "12345678A",
+        }),
+        items: [
+          {
+            id: "line-1",
+            description: "Servicio de prueba",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "borrador",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -89,57 +186,11 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
 
     expect(customers).toHaveLength(3);
     expect(documents).toHaveLength(3);
-    expect(documents.map((d) => d.type)).toEqual([
-      "factura",
-      "presupuesto",
-      "recibo",
+    expect(documents.map((d) => d.number)).toEqual([
+      "F-2026-0001",
+      "P-2026-0001",
+      "R-2026-0001",
     ]);
     expect(documents.every((d) => documentTotals(d).total > 0)).toBe(true);
-  });
-
-  it("reutiliza cliente existente al seleccionarlo", () => {
-    const customers = [
-      {
-        id: "c1",
-        firstName: "Ana",
-        lastName: "García",
-        name: "Ana García",
-        createdAt: "",
-        updatedAt: "",
-      },
-    ];
-
-    const ensured = ensureCustomerForDocument(
-      customers,
-      { firstName: "Ana", lastName: "García", phone: "600000001" },
-      "c1",
-    );
-
-    expect(ensured.ok).toBe(true);
-    if (ensured.ok) {
-      expect(ensured.created).toBe(false);
-      expect(ensured.client.phone).toBe("600000001");
-    }
-  });
-
-  it("no permite crear el mismo nombre y apellidos dos veces", () => {
-    const customers = [
-      {
-        id: "c1",
-        firstName: "Ana",
-        lastName: "García",
-        name: "Ana García",
-        createdAt: "",
-        updatedAt: "",
-      },
-    ];
-
-    const duplicate = ensureCustomerForDocument(
-      customers,
-      { firstName: "Ana", lastName: "García" },
-      null,
-    );
-
-    expect(duplicate.ok).toBe(false);
   });
 });

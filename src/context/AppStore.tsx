@@ -14,21 +14,42 @@ import type {
   Document,
   DocumentType,
   Expense,
+  RectificationInfo,
   Supplier,
   BusinessProfile,
 } from "@/lib/types";
 import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
-import { loadData, saveData, nextDocumentNumber } from "@/lib/storage";
+import {
+  assignNextDocumentNumber,
+  assignNextDocumentNumberByType,
+  countersFromDocuments,
+  getDocumentYear,
+  getFacturasIncludingRectificativas,
+  renumberDocumentsForKindYear,
+} from "@/lib/documents";
+import {
+  canDeleteDocument,
+  canRectifyInvoice,
+  originalStatusAfterRectification,
+} from "@/lib/rectificativas";
+import { loadData, saveData } from "@/lib/storage";
 
 interface AppStoreValue {
   data: AppData;
   ready: boolean;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
+  addRectificativa: (
+    originalId: string,
+    doc: Omit<
+      Document,
+      "id" | "number" | "type" | "createdAt" | "updatedAt" | "rectification"
+    > & { rectification: RectificationInfo },
+  ) => Document | null;
   updateDocument: (doc: Document) => void;
-  deleteDocument: (id: string) => void;
+  deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   deleteExpense: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
@@ -73,22 +94,28 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ): Document => {
       let created!: Document;
       setData((prev) => {
-        const { number, counters } = nextDocumentNumber(
+        const year = new Date(doc.date).getFullYear();
+        const { number } = assignNextDocumentNumberByType(
+          prev.documents,
           doc.type,
-          prev.counters,
+          year,
         );
         const now = new Date().toISOString();
-        created = {
-          ...doc,
-          id: newId(),
-          number,
-          createdAt: now,
-          updatedAt: now,
-        };
+        const nextDocuments = [
+          ...prev.documents,
+          {
+            ...doc,
+            id: newId(),
+            number,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ];
+        created = nextDocuments[nextDocuments.length - 1];
         return {
           ...prev,
-          counters,
-          documents: [...prev.documents, created],
+          documents: nextDocuments,
+          counters: countersFromDocuments(nextDocuments, year),
         };
       });
       return created;
@@ -107,11 +134,84 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const deleteDocument = useCallback((id: string) => {
-    setData((prev) => ({
-      ...prev,
-      documents: prev.documents.filter((d) => d.id !== id),
-    }));
+  const addRectificativa = useCallback(
+    (
+      originalId: string,
+      doc: Omit<
+        Document,
+        "id" | "number" | "type" | "createdAt" | "updatedAt" | "rectification"
+      > & { rectification: RectificationInfo },
+    ): Document | null => {
+      let created: Document | null = null;
+      setData((prev) => {
+        const original = prev.documents.find((d) => d.id === originalId);
+        if (!original || !canRectifyInvoice(original)) return prev;
+
+        const year = new Date(doc.date).getFullYear();
+        const { number } = assignNextDocumentNumber(
+          prev.documents,
+          "factura_rectificativa",
+          year,
+        );
+        const now = new Date().toISOString();
+        const rectificativa: Document = {
+          ...doc,
+          type: "factura",
+          id: newId(),
+          number,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const nextDocuments = prev.documents.map((d) =>
+          d.id === originalId
+            ? {
+                ...d,
+                status: originalStatusAfterRectification(doc.rectification.type),
+                rectifiedById: rectificativa.id,
+                updatedAt: now,
+              }
+            : d,
+        );
+        nextDocuments.push(rectificativa);
+        created = rectificativa;
+
+        return {
+          ...prev,
+          documents: nextDocuments,
+          counters: countersFromDocuments(nextDocuments, year),
+        };
+      });
+      return created;
+    },
+    [],
+  );
+
+  const deleteDocument = useCallback((id: string): boolean => {
+    let deleted = false;
+    setData((prev) => {
+      const target = prev.documents.find((d) => d.id === id);
+      if (!target || !canDeleteDocument(target)) return prev;
+
+      deleted = true;
+      const year = getDocumentYear(target);
+      const kind = target.rectification
+        ? "factura_rectificativa"
+        : target.type === "factura"
+          ? "factura"
+          : target.type === "presupuesto"
+            ? "presupuesto"
+            : "recibo";
+      const remaining = prev.documents.filter((d) => d.id !== id);
+      const renumbered = renumberDocumentsForKindYear(remaining, kind, year);
+
+      return {
+        ...prev,
+        documents: renumbered,
+        counters: countersFromDocuments(renumbered, year),
+      };
+    });
+    return deleted;
   }, []);
 
   const addExpense = useCallback(
@@ -231,7 +331,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const getDocumentsByType = useCallback(
-    (type: DocumentType) => data.documents.filter((d) => d.type === type),
+    (type: DocumentType) => {
+      if (type === "factura") {
+        return getFacturasIncludingRectificativas(data.documents);
+      }
+      return data.documents.filter((d) => d.type === type);
+    },
     [data.documents],
   );
 
@@ -241,6 +346,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ready,
       updateProfile,
       addDocument,
+      addRectificativa,
       updateDocument,
       deleteDocument,
       addExpense,
@@ -258,6 +364,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ready,
       updateProfile,
       addDocument,
+      addRectificativa,
       updateDocument,
       deleteDocument,
       addExpense,

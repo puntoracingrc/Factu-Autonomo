@@ -2,12 +2,17 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { BusinessProfile, Document } from "./types";
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
+import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 
-const TYPE_LABELS: Record<Document["type"], string> = {
-  factura: "FACTURA",
-  presupuesto: "PRESUPUESTO",
-  recibo: "RECIBO",
-};
+function documentLabel(doc: Document): string {
+  if (isRectificativa(doc)) return "FACTURA RECTIFICATIVA";
+  const labels: Record<Document["type"], string> = {
+    factura: "FACTURA",
+    presupuesto: "PRESUPUESTO",
+    recibo: "RECIBO",
+  };
+  return labels[doc.type];
+}
 
 export function downloadDocumentPdf(
   doc: Document,
@@ -15,10 +20,11 @@ export function downloadDocumentPdf(
 ): void {
   const pdf = new jsPDF();
   const { subtotal, iva, total } = documentTotals(doc);
-  const label = TYPE_LABELS[doc.type];
+  const label = documentLabel(doc);
+  const isRect = isRectificativa(doc);
 
   pdf.setFontSize(20);
-  pdf.setTextColor(37, 99, 235);
+  pdf.setTextColor(isRect ? 180 : 37, isRect ? 83 : 99, isRect ? 9 : 235);
   pdf.text(label, 14, 20);
 
   pdf.setFontSize(10);
@@ -35,21 +41,39 @@ export function downloadDocumentPdf(
   pdf.setTextColor(0, 0, 0);
   pdf.text(`Nº ${doc.number}`, 140, 30);
   pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, 36);
-  if (doc.dueDate && doc.type === "factura") {
+  if (doc.dueDate && doc.type === "factura" && !isRect) {
     pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, 42);
   }
 
+  let clientBoxY = 68;
+  if (isRect && doc.rectification) {
+    pdf.setFontSize(9);
+    pdf.setTextColor(120, 53, 15);
+    pdf.text(
+      `Rectifica factura: ${doc.rectification.originalNumber} (${formatShortDate(doc.rectification.originalDate)})`,
+      14,
+      68,
+    );
+    pdf.text(
+      `Tipo: ${rectificationTypeLabel(doc.rectification.type)} · Motivo: ${doc.rectification.reason}`,
+      14,
+      74,
+    );
+    clientBoxY = 82;
+  }
+
   pdf.setFillColor(243, 244, 246);
-  pdf.rect(14, 68, 182, 28, "F");
+  pdf.rect(14, clientBoxY, 182, 28, "F");
   pdf.setFontSize(10);
-  pdf.text("Cliente:", 18, 76);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text("Cliente:", 18, clientBoxY + 8);
   pdf.setFontSize(11);
-  pdf.text(doc.client.name, 18, 84);
-  if (doc.client.nif) pdf.text(`NIF: ${doc.client.nif}`, 18, 90);
-  if (doc.client.address) pdf.text(doc.client.address, 100, 84);
+  pdf.text(doc.client.name, 18, clientBoxY + 16);
+  if (doc.client.nif) pdf.text(`NIF: ${doc.client.nif}`, 18, clientBoxY + 22);
+  if (doc.client.address) pdf.text(doc.client.address, 100, clientBoxY + 16);
 
   autoTable(pdf, {
-    startY: 102,
+    startY: clientBoxY + 34,
     head: [["Concepto", "Cant.", "Precio", "IVA", "Total"]],
     body: doc.items.map((item) => [
       item.description,
@@ -59,7 +83,7 @@ export function downloadDocumentPdf(
       formatMoney(item.quantity * item.unitPrice * (1 + item.ivaPercent / 100)),
     ]),
     styles: { fontSize: 9 },
-    headStyles: { fillColor: [37, 99, 235] },
+    headStyles: { fillColor: isRect ? [180, 83, 9] : [37, 99, 235] },
   });
 
   const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } })
@@ -77,7 +101,7 @@ export function downloadDocumentPdf(
     pdf.text(`Notas: ${doc.notes}`, 14, finalY + 24);
   }
 
-  if (profile.iban && doc.type === "factura") {
+  if (profile.iban && doc.type === "factura" && !isRect) {
     pdf.setFontSize(9);
     pdf.text(`IBAN: ${profile.iban}`, 14, finalY + 32);
   }
