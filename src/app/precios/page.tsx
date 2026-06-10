@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { PricingComparisonPanel } from "@/components/billing/PricingComparisonPanel";
 import {
   formatPlanPrice,
   PLANS,
   yearlySavingsPercent,
 } from "@/lib/billing/plans";
+import { getPricingRankingSummary } from "@/lib/billing/competitor-pricing";
 import { subscriptionLabel } from "@/lib/billing/subscription";
 
 const FREE_FEATURES = [
@@ -61,6 +63,7 @@ function CheckoutNotice() {
 }
 
 export default function PreciosPage() {
+  const rankingSummary = getPricingRankingSummary();
   const { plan, isPro, checkout, openPortal, billingEnabled, trialDaysLeft } =
     useBilling();
   const { user } = useCloudSync();
@@ -87,7 +90,7 @@ export default function PreciosPage() {
     <div>
       <PageHeader
         title="Planes y precios"
-        subtitle="Más barato que Quipu o Contasimple ilimitado, pensado solo para facturar sin complicaciones"
+        subtitle={rankingSummary.subtitle}
       />
 
       <CheckoutNotice />
@@ -181,16 +184,7 @@ export default function PreciosPage() {
         </Card>
       </div>
 
-      <Card className="mb-6">
-        <h2 className="mb-2 font-bold text-slate-900">¿Por qué este precio?</h2>
-        <p className="text-sm leading-relaxed text-slate-600">
-          Quipu cobra desde ~16 €/mes y Contasimple ilimitado ~18 €/mes. Factura
-          Autónomo no incluye banca, nóminas ni modelos AEAT automáticos: solo
-          facturación clara, gastos y resumen fiscal. Por eso Pro está en{" "}
-          <strong>5,99 €/mes</strong> — por debajo del mercado para autónomos que
-          solo necesitan facturar bien.
-        </p>
-      </Card>
+      <PricingComparisonPanel />
 
       {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 

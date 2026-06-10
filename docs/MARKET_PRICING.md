@@ -11,6 +11,19 @@
 
 Fuentes: declarando.es, guiafiscal.es, rankiabusiness.com (comparativas 2026).
 
+## Mantenimiento de la comparativa en la app
+
+Los datos que alimentan `/precios` viven en `src/lib/billing/competitor-pricing.ts`.
+
+**Revisión trimestral (o al cambiar nuestro precio):**
+
+1. Comprobar tarifas en las URLs de `COMPARABLE_COMPETITORS`.
+2. Actualizar `referenceMonthlyEur`, promos y `PRICING_REVIEW.lastVerified`.
+3. Ejecutar tests (`competitor-pricing.test.ts` falla si `lastVerified` > 90 días).
+4. Actualizar esta tabla si cambia el posicionamiento.
+
+Criterio de inclusión: facturación ligera para autónomos (facturas, presupuestos, gastos). Excluir ERP, banca, nóminas y contabilidad completa.
+
 ## Posicionamiento de Factura Autónomo
 
 **Qué somos:** facturación sencilla (facturas, presupuestos, recibos, gastos, resumen fiscal).  
