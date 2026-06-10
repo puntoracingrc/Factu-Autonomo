@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { IconActionButton } from "@/components/ui/IconAction";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
@@ -36,13 +37,14 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
 
   return (
     <>
-      <button
+      <IconActionButton
+        label="Borrar"
+        tooltip="Borrar"
         onClick={() => setOpen(true)}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 text-red-600"
-        title="Borrar"
+        className="bg-red-50 text-red-600 hover:bg-red-100"
       >
         <Trash2 className="h-5 w-5" />
-      </button>
+      </IconActionButton>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">

@@ -38,12 +38,27 @@ export default function ClientesPage() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const customers = sortCustomersByName(data.customers);
 
+  function openNewForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormOpen(false);
+  }
+
   function startEdit(customer: Customer) {
     setEditingId(customer.id);
+    setFormOpen(true);
     setForm({
       firstName: customer.firstName,
       lastName: customer.lastName,
@@ -59,8 +74,7 @@ export default function ClientesPage() {
   }
 
   function cancelEdit() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
+    closeForm();
   }
 
   function handleSave() {
@@ -103,8 +117,7 @@ export default function ClientesPage() {
       addCustomer(payload);
     }
 
-    setForm(EMPTY_FORM);
-    setEditingId(null);
+    closeForm();
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -116,20 +129,33 @@ export default function ClientesPage() {
         subtitle="Nombre y apellidos únicos. Se usan en facturas, recibos y presupuestos"
       />
 
+      {!formOpen && (
+        <Button onClick={openNewForm} fullWidth className="mb-6 gap-2">
+          <UserPlus className="h-5 w-5" />
+          Nuevo cliente
+        </Button>
+      )}
+
+      {saved && !formOpen && (
+        <p className="mb-4 text-center text-sm font-medium text-green-600">
+          Cliente guardado correctamente
+        </p>
+      )}
+
+      {formOpen && (
       <Card className="mb-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-bold text-slate-900">
             <UserPlus className="h-5 w-5 text-blue-600" />
             {editingId ? "Editar cliente" : "Nuevo cliente"}
           </h2>
-          {editingId && (
-            <button
-              onClick={cancelEdit}
-              className="flex items-center gap-1 text-sm text-slate-500"
-            >
-              <X className="h-4 w-4" /> Cancelar
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={cancelEdit}
+            className="flex items-center gap-1 text-sm text-slate-500"
+          >
+            <X className="h-4 w-4" /> Cancelar
+          </button>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -220,16 +246,20 @@ export default function ClientesPage() {
           {editingId ? "Guardar cambios" : "Guardar cliente"}
         </Button>
 
-        {saved && (
-          <p className="text-center text-sm font-medium text-green-600">
-            Cliente guardado correctamente
-          </p>
-        )}
       </Card>
+      )}
 
-      {customers.length === 0 ? (
-        <FactuEmptyState variant="cliente" />
-      ) : (
+      {customers.length === 0 && !formOpen ? (
+        <FactuEmptyState
+          variant="cliente"
+          action={
+            <Button onClick={openNewForm} className="gap-2">
+              <UserPlus className="h-5 w-5" />
+              Nuevo cliente
+            </Button>
+          }
+        />
+      ) : customers.length > 0 ? (
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-500">
             {customers.length} cliente(s) — orden alfabético
@@ -279,7 +309,7 @@ export default function ClientesPage() {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
       <UpgradeModal
         open={upgradeOpen}
         onClose={() => setUpgradeOpen(false)}

@@ -28,7 +28,7 @@ import {
 const quickActions = [
   {
     href: "/clientes",
-    label: "Mis clientes",
+    label: "Clientes",
     icon: Users,
     color: "bg-sky-600 text-white",
   },

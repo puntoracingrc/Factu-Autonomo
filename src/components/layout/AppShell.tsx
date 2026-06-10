@@ -55,7 +55,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-slate-100">
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/"
+            aria-label="Ir al inicio"
+            className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
               FA
             </div>
@@ -67,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Tu negocio, simple y claro
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex shrink-0 items-center gap-2">
             {billingEnabled && !isPro && (
               <Link

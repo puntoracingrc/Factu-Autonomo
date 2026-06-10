@@ -44,6 +44,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
 
@@ -79,6 +80,8 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     reason === "Otros motivos" ? customReason.trim() : reason;
 
   async function handleSave(download = false) {
+    if (saving) return;
+
     if (!finalReason) {
       alert("Indica el motivo de la rectificación");
       return;
@@ -88,10 +91,13 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       return;
     }
 
+    setSaving(true);
+
     const gate = checkCanCreateDocument(data.customers.length);
     if (!gate.allowed) {
       setUpgradeReason(gate.reason);
       setUpgradeOpen(true);
+      setSaving(false);
       return;
     }
 
@@ -109,6 +115,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     );
     if (!emissionCheck.ok) {
       alert(emissionCheck.message);
+      setSaving(false);
       return;
     }
 
@@ -139,6 +146,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
 
     if (!saved) {
       alert("No se pudo crear la factura rectificativa");
+      setSaving(false);
       return;
     }
 
@@ -146,16 +154,30 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
 
     saved = attachIssuerSnapshot(saved, data.profile);
 
-    const finalized = await finalizeVerifactuDocument({
-      doc: saved,
-      profile: data.profile,
-      chain: data.verifactuChain,
-      registerLocal: registerVerifactuForDocument,
-    });
+    try {
+      const finalized = await finalizeVerifactuDocument({
+        doc: saved,
+        profile: data.profile,
+        chain: data.verifactuChain,
+        registerLocal: registerVerifactuForDocument,
+      });
 
-    if (download) await downloadDocumentPdf(finalized, data.profile);
-    maybeCelebrateFirstRectificativa(data.documents, finalized);
-    router.push("/facturas");
+      if (download) {
+        await downloadDocumentPdf(finalized, data.profile);
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+
+      maybeCelebrateFirstRectificativa(data.documents, finalized);
+      setSaving(false);
+      router.push("/facturas");
+    } catch (error) {
+      setSaving(false);
+      alert(
+        error instanceof Error
+          ? `No se pudo guardar o generar el PDF: ${error.message}`
+          : "No se pudo guardar o generar el PDF. Prueba «Descargar PDF» desde el listado.",
+      );
+    }
   }
 
   return (
@@ -366,11 +388,16 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button fullWidth onClick={() => handleSave(false)}>
-          Guardar factura rectificativa
+        <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
+          {saving ? "Guardando…" : "Guardar factura rectificativa"}
         </Button>
-        <Button variant="secondary" fullWidth onClick={() => handleSave(true)}>
-          Guardar y descargar PDF
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={() => void handleSave(true)}
+          disabled={saving}
+        >
+          {saving ? "Generando PDF…" : "Guardar y descargar PDF"}
         </Button>
       </div>
 

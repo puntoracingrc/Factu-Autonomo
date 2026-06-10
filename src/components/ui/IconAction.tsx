@@ -1,0 +1,79 @@
+"use client";
+
+import Link from "next/link";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
+function actionShellClass(className?: string) {
+  return `group relative flex min-h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:min-w-11 sm:px-0 ${className ?? ""}`;
+}
+
+function TooltipBubble({ text }: { text: string }) {
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:block"
+    >
+      {text}
+      <span
+        aria-hidden
+        className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800"
+      />
+    </span>
+  );
+}
+
+function MobileLabel({ text }: { text: string }) {
+  return (
+    <span className="max-w-[4.5rem] truncate text-center text-[10px] font-semibold leading-tight sm:hidden">
+      {text}
+    </span>
+  );
+}
+
+type IconActionCommon = {
+  label: string;
+  tooltip?: string;
+  children: ReactNode;
+  className?: string;
+};
+
+export function IconActionButton({
+  label,
+  tooltip,
+  children,
+  className,
+  ...props
+}: IconActionCommon & ButtonHTMLAttributes<HTMLButtonElement>) {
+  const tip = tooltip ?? label;
+
+  return (
+    <button
+      type="button"
+      aria-label={tip}
+      className={actionShellClass(className)}
+      {...props}
+    >
+      <TooltipBubble text={tip} />
+      {children}
+      <MobileLabel text={label} />
+    </button>
+  );
+}
+
+export function IconActionLink({
+  label,
+  tooltip,
+  children,
+  className,
+  href,
+}: IconActionCommon & { href: string }) {
+  const tip = tooltip ?? label;
+
+  return (
+    <Link href={href} aria-label={tip} className={actionShellClass(className)}>
+      <TooltipBubble text={tip} />
+      {children}
+      <MobileLabel text={label} />
+    </Link>
+  );
+}

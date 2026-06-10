@@ -248,10 +248,39 @@ export async function buildDocumentPdfBlob(
   return buildDocumentPdf(doc, profile, artifacts).output("blob");
 }
 
+function pdfFilename(doc: Document): string {
+  const base = doc.number.replace(/[^\w.-]+/g, "_").trim() || "documento";
+  return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
+}
+
+/** Descarga fiable en móvil (Safari bloquea jsPDF.save tras async largos). */
+export function triggerPdfBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // En iOS/PWA a veces solo abre en pestaña nueva.
+  const isMobile =
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+  if (isMobile) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
 export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
   const artifacts = await preparePdfArtifacts(doc);
-  buildDocumentPdf(doc, profile, artifacts).save(`${doc.number}.pdf`);
+  const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
+  triggerPdfBlobDownload(blob, pdfFilename(doc));
 }

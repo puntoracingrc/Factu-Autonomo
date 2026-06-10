@@ -88,12 +88,24 @@ describe("buildMailtoUrl", () => {
 });
 
 describe("buildShareMessage", () => {
-  it("incluye número e importe en facturas", () => {
-    const message = buildShareMessage(sampleDoc, profile);
+  it("incluye número e importe en facturas pendientes de cobro", () => {
+    const message = buildShareMessage(
+      { ...sampleDoc, status: "enviado" },
+      profile,
+    );
     expect(message).toContain("F-2025-001");
     expect(message).toContain("la factura");
     expect(message).toContain("Mi Negocio");
     expect(message).toContain("IBAN:");
+  });
+
+  it("no incluye IBAN si la factura ya está cobrada", () => {
+    const message = buildShareMessage(
+      { ...sampleDoc, status: "pagado" },
+      profile,
+    );
+    expect(message).toContain("F-2025-001");
+    expect(message).not.toContain("IBAN:");
   });
 
   it("adapta el mensaje a presupuestos", () => {

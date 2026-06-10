@@ -34,6 +34,15 @@ button {
   font-size: 16px;
 }
 
+button:not(:disabled),
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .nav-safe-bottom {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }

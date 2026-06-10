@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Mail, MessageCircle } from "lucide-react";
+import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
 import {
   hasClientEmail,
@@ -59,44 +60,43 @@ export function DocumentShareActions({
     }
   }
 
+  const emailTooltip = canEmail
+    ? `Enviar por email a ${doc.client.email}`
+    : "Añade el email del cliente para enviar";
+  const whatsappTooltip = canWhatsApp
+    ? `Enviar por WhatsApp a ${doc.client.phone}`
+    : "Añade el teléfono del cliente para enviar";
+
   return (
     <>
-      <button
-        type="button"
+      <IconActionButton
+        label="Email"
+        tooltip={emailTooltip}
         onClick={() => void handleEmail()}
         disabled={!canEmail || busy !== null}
-        className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl ${
+        className={
           canEmail
             ? "bg-violet-50 text-violet-700 hover:bg-violet-100"
             : "cursor-not-allowed bg-slate-100 text-slate-300"
-        }`}
-        title={
-          canEmail
-            ? `Enviar por email a ${doc.client.email}`
-            : "Añade el email del cliente para enviar"
         }
       >
         <Mail className={`h-5 w-5 ${busy === "email" ? "animate-pulse" : ""}`} />
-      </button>
-      <button
-        type="button"
+      </IconActionButton>
+      <IconActionButton
+        label="WhatsApp"
+        tooltip={whatsappTooltip}
         onClick={() => void handleWhatsApp()}
         disabled={!canWhatsApp || busy !== null}
-        className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl ${
+        className={
           canWhatsApp
             ? "bg-green-50 text-green-700 hover:bg-green-100"
             : "cursor-not-allowed bg-slate-100 text-slate-300"
-        }`}
-        title={
-          canWhatsApp
-            ? `Enviar por WhatsApp a ${doc.client.phone}`
-            : "Añade el teléfono del cliente para enviar"
         }
       >
         <MessageCircle
           className={`h-5 w-5 ${busy === "whatsapp" ? "animate-pulse" : ""}`}
         />
-      </button>
+      </IconActionButton>
     </>
   );
 }

@@ -74,6 +74,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
   const label = TYPE_LABELS[type];
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
@@ -163,16 +164,21 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   }
 
   async function handleSave(download = false) {
+    if (saving) return;
+
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
       return;
     }
+
+    setSaving(true);
 
     if (!existing) {
       const gate = checkCanCreateDocument(data.customers.length);
       if (!gate.allowed) {
         setUpgradeReason(gate.reason);
         setUpgradeOpen(true);
+        setSaving(false);
         return;
       }
     }
@@ -191,6 +197,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
     if (!customerResult.ok) {
       alert(customerResult.error);
+      setSaving(false);
       return;
     }
 
@@ -213,6 +220,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     );
     if (!emissionCheck.ok) {
       alert(emissionCheck.message);
+      setSaving(false);
       return;
     }
 
@@ -231,20 +239,35 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
     saved = attachIssuerSnapshot(saved, data.profile);
 
-    saved = await finalizeVerifactuDocument({
-      doc: saved,
-      profile: data.profile,
-      chain: data.verifactuChain,
-      registerLocal: registerVerifactuForDocument,
-    });
+    try {
+      saved = await finalizeVerifactuDocument({
+        doc: saved,
+        profile: data.profile,
+        chain: data.verifactuChain,
+        registerLocal: registerVerifactuForDocument,
+      });
 
-    if (download) await downloadDocumentPdf(saved, data.profile);
+      if (download) {
+        await downloadDocumentPdf(saved, data.profile);
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      setSaving(false);
+      alert(
+        error instanceof Error
+          ? `No se pudo guardar o generar el PDF: ${error.message}`
+          : "No se pudo guardar o generar el PDF. Prueba «Descargar PDF» desde el listado.",
+      );
+      return;
+    }
+
     maybeCelebrateFirstInvoice(data.documents, saved);
     const paths = {
       factura: "facturas",
       presupuesto: "presupuestos",
       recibo: "recibos",
     };
+    setSaving(false);
     router.push(`/${paths[type]}`);
   }
 
@@ -421,11 +444,16 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button fullWidth onClick={() => handleSave(false)}>
-          Guardar {label}
+        <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
+          {saving ? "Guardando…" : `Guardar ${label}`}
         </Button>
-        <Button variant="secondary" fullWidth onClick={() => handleSave(true)}>
-          Guardar y descargar PDF
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={() => void handleSave(true)}
+          disabled={saving}
+        >
+          {saving ? "Generando PDF…" : "Guardar y descargar PDF"}
         </Button>
       </div>
 

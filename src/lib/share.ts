@@ -1,6 +1,7 @@
 import type { BusinessProfile, Document } from "./types";
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
 import { resolveIssuerForDocument } from "./issuer-snapshot";
+import { isCollectedDocument } from "./income";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 
@@ -30,7 +31,13 @@ export function buildShareMessage(doc: Document, profile: BusinessProfile): stri
     lines.push(`Vencimiento: ${formatShortDate(doc.dueDate)}`);
   }
 
-  if (issuer.iban && doc.type === "factura" && !isRectificativa(doc)) {
+  const pendingPayment =
+    doc.type === "factura" &&
+    !isRectificativa(doc) &&
+    !isCollectedDocument(doc) &&
+    doc.status !== "anulada";
+
+  if (pendingPayment && issuer.iban) {
     lines.push(`IBAN: ${issuer.iban}`);
   }
 

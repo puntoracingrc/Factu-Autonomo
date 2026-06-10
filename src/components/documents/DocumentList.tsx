@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
@@ -176,43 +176,47 @@ export function DocumentList({
                     </p>
                   )}
                 </div>
-                <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+                <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
                   {(type === "factura" || type === "recibo") && (
                     <MarkAsPaidButton doc={doc} />
                   )}
-                  <button
-                    onClick={() => downloadDocumentPdf(doc, data.profile)}
-                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700"
-                    title="Descargar PDF"
+                  <IconActionButton
+                    label="PDF"
+                    tooltip="Descargar PDF"
+                    onClick={() => void downloadDocumentPdf(doc, data.profile)}
+                    className="bg-blue-50 text-blue-700 hover:bg-blue-100"
                   >
                     <Download className="h-5 w-5" />
-                  </button>
+                  </IconActionButton>
                   <DocumentShareActions doc={doc} profile={data.profile} />
                   {rectifiable && (
-                    <Link
+                    <IconActionLink
                       href={`${basePath}/${doc.id}/rectificar`}
-                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-700"
-                      title="Rectificar factura"
+                      label="Rectificar"
+                      tooltip="Rectificar factura"
+                      className="bg-orange-50 text-orange-700 hover:bg-orange-100"
                     >
                       <FileWarning className="h-5 w-5" />
-                    </Link>
+                    </IconActionLink>
                   )}
                   {editable ? (
-                    <Link
+                    <IconActionLink
                       href={`${basePath}/${doc.id}`}
-                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
-                      title="Editar"
+                      label="Editar"
+                      tooltip="Editar"
+                      className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                     >
                       <Pencil className="h-5 w-5" />
-                    </Link>
+                    </IconActionLink>
                   ) : (
-                    <Link
+                    <IconActionLink
                       href={`${basePath}/${doc.id}`}
-                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
-                      title="Ver y enviar"
+                      label="Ver"
+                      tooltip="Ver y enviar"
+                      className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                     >
                       <Eye className="h-5 w-5" />
-                    </Link>
+                    </IconActionLink>
                   )}
                   <DeleteDocumentButton doc={doc} />
                 </div>

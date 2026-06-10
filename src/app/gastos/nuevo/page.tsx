@@ -15,6 +15,12 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/types";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
+import {
+  decimalInputFromNumber,
+  parseDecimalInput,
+  sanitizeDecimalTyping,
+  selectInputOnFocus,
+} from "@/lib/decimal-input";
 
 export default function NuevoGastoPage() {
   const router = useRouter();
@@ -23,7 +29,7 @@ export default function NuevoGastoPage() {
   const [date, setDate] = useState(todayISO());
   const [supplierName, setSupplierName] = useState("");
   const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState(0);
+  const [amountText, setAmountText] = useState("");
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = data.profile.iva?.defaultRate ?? 21;
   const [ivaPercent, setIvaPercent] = useState(defaultIva);
@@ -40,7 +46,7 @@ export default function NuevoGastoPage() {
     setSupplierName(payload.supplier.name);
     setSupplierNif(payload.supplier.nif ?? undefined);
     setDescription(payload.expense.description);
-    setAmount(payload.expense.amount);
+    setAmountText(decimalInputFromNumber(payload.expense.amount));
     setDate(payload.expense.date);
     if (!vatExempt) setIvaPercent(payload.expense.ivaPercent);
     setCategory(payload.expense.category);
@@ -59,6 +65,8 @@ export default function NuevoGastoPage() {
   }
 
   function handleSubmit() {
+    const amount = parseDecimalInput(amountText);
+
     if (!supplierName.trim() || !description.trim() || amount <= 0) {
       alert("Completa proveedor, descripción y cantidad");
       return;
@@ -145,11 +153,14 @@ export default function NuevoGastoPage() {
           </Field>
           <Field label={vatExempt ? "Importe *" : "Importe (sin IVA) *"}>
             <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={amountText}
+              onChange={(e) =>
+                setAmountText(sanitizeDecimalTyping(e.target.value))
+              }
+              onFocus={selectInputOnFocus}
             />
           </Field>
           {vatExempt ? (
