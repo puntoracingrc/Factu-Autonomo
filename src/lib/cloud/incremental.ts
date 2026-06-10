@@ -1,4 +1,4 @@
-import { normalizeLoadedData } from "../storage";
+import { getDataTimestamp, normalizeLoadedData } from "../storage";
 import type { AppData } from "../types";
 import {
   applySyncChanges,
@@ -54,13 +54,35 @@ export function markChangesSynced(
   syncedChanges: SyncChange[],
   syncedAt: string,
 ): AppData {
-  return {
+  const next: AppData = {
     ...data,
     meta: {
       ...data.meta,
       lastModified: data.meta?.lastModified ?? syncedAt,
       lastSyncedAt: syncedAt,
       pendingChanges: clearSyncedChanges(data.meta?.pendingChanges, syncedChanges),
+    },
+  };
+  return markFullySynced(next, syncedAt);
+}
+
+/** Alinea lastSyncedAt con lastModified cuando no quedan cambios en cola. */
+export function markFullySynced(
+  data: AppData,
+  syncedAt = new Date().toISOString(),
+): AppData {
+  if (hasPendingSyncChanges(data)) return data;
+
+  const lastModified = getDataTimestamp(data);
+  const aligned = lastModified > syncedAt ? lastModified : syncedAt;
+
+  return {
+    ...data,
+    meta: {
+      ...data.meta,
+      lastModified: aligned,
+      lastSyncedAt: aligned,
+      pendingChanges: undefined,
     },
   };
 }

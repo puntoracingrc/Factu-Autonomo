@@ -16,6 +16,7 @@ import { appDataToSyncChanges } from "@/lib/cloud/diff";
 import {
   hasPendingSyncChanges,
   markChangesSynced,
+  markFullySynced,
   mergeRemoteOntoLocal,
 } from "@/lib/cloud/incremental";
 import {
@@ -88,10 +89,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulledForUser = useRef<string | null>(null);
   const syncing = useRef(false);
+  const dataRef = useRef(data);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
   const pendingUpload =
-    hasUnsyncedChanges(data) || isSyncPendingFlag();
+    hasPendingSyncChanges(data) ||
+    isSyncPendingFlag() ||
+    hasUnsyncedChanges(data);
 
   const updatePendingStatus = useCallback(() => {
     if (!user || !cloudEnabled) return;
@@ -111,6 +119,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("synced");
     }
   }, [cloudEnabled, data, pendingChangeCount, syncStatus, user]);
+
+  const finalizeSyncState = useCallback(
+    (payload: typeof data) => {
+      clearSyncPending();
+      if (!hasPendingSyncChanges(payload)) {
+        skipPush.current = true;
+        replaceData(markFullySynced(payload), { fromRemote: true });
+        skipPush.current = false;
+      }
+    },
+    [replaceData],
+  );
 
   const pushToCloud = useCallback(
     async (payload = data, silent = false): Promise<boolean> => {
@@ -139,12 +159,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!silent) setSyncStatus("syncing");
       try {
         const syncedAt = await pushSyncChanges(user.id, changes);
-        clearSyncPending();
+        const synced = markChangesSynced(payload, changes, syncedAt);
         skipPush.current = true;
-        replaceData(markChangesSynced(payload, changes, syncedAt), {
-          fromRemote: true,
-        });
+        replaceData(synced, { fromRemote: true });
         skipPush.current = false;
+        clearSyncPending();
         setSyncStatus("synced");
         setSyncMessage(
           silent
@@ -169,17 +188,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
 
   const flushPendingUpload = useCallback(
-    async (silent = true) => {
-      if (!user || !hasPendingSyncChanges(data)) {
-        if (!hasUnsyncedChanges(data)) return true;
+    async (silent = true, payload = dataRef.current) => {
+      if (!user || !hasPendingSyncChanges(payload)) {
+        if (!hasUnsyncedChanges(payload)) return true;
       }
       if (syncing.current) return false;
       syncing.current = true;
-      const ok = await pushToCloud(data, silent);
+      const ok = await pushToCloud(payload, silent);
       syncing.current = false;
       return ok;
     },
-    [data, pushToCloud, user],
+    [pushToCloud, user],
   );
 
   const pullFromCloud = useCallback(async () => {
@@ -198,14 +217,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (hasPendingSyncChanges(data)) {
-      const uploaded = await flushPendingUpload(true);
-      if (!uploaded && hasPendingSyncChanges(data)) return;
+    let workingData = dataRef.current;
+
+    if (hasPendingSyncChanges(workingData)) {
+      const uploaded = await flushPendingUpload(true, workingData);
+      workingData = dataRef.current;
+      if (!uploaded && hasPendingSyncChanges(workingData)) return;
     }
 
     setSyncStatus("syncing");
     try {
-      const since = data.meta?.lastSyncedAt;
+      const since = workingData.meta?.lastSyncedAt;
       let remoteChanges = await pullSyncChanges(user.id, since);
 
       if (remoteChanges.length === 0) {
@@ -213,21 +235,30 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         if (entityCount === 0) {
           const legacy = await fetchLegacyCloudBackup(user.id);
           if (legacy) {
-            const picked = pickNewerAppData(data, legacy.data, legacy.updated_at);
+            const picked = pickNewerAppData(
+              workingData,
+              legacy.data,
+              legacy.updated_at,
+            );
+            workingData = picked.data;
             skipPush.current = true;
-            replaceData(picked.data, { fromRemote: true });
+            replaceData(workingData, { fromRemote: true });
             skipPush.current = false;
-            await migrateLegacyBackupToEntities(user.id, picked.data);
-            remoteChanges = appDataToSyncChanges(picked.data);
+            await migrateLegacyBackupToEntities(user.id, workingData);
+            remoteChanges = appDataToSyncChanges(workingData);
             setSyncMessage("Copia antigua migrada a sincronización por cambios");
           }
         }
       }
 
       if (remoteChanges.length > 0) {
+        const { data: merged, applied } = mergeRemoteOntoLocal(
+          workingData,
+          remoteChanges,
+        );
+        workingData = merged;
         skipPush.current = true;
-        const { data: merged, applied } = mergeRemoteOntoLocal(data, remoteChanges);
-        replaceData(merged, { fromRemote: true });
+        replaceData(workingData, { fromRemote: true });
         skipPush.current = false;
         setSyncStatus("synced");
         setSyncMessage(
@@ -236,14 +267,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             : "Ya estabas al día",
         );
       } else if (!since) {
-        const initial = appDataToSyncChanges(data);
+        const initial = appDataToSyncChanges(workingData);
         if (initial.length > 0) {
+          const syncedAt = new Date().toISOString();
           await pushSyncChanges(user.id, initial);
+          workingData = markChangesSynced(workingData, initial, syncedAt);
           skipPush.current = true;
-          replaceData(
-            markChangesSynced(data, initial, new Date().toISOString()),
-            { fromRemote: true },
-          );
+          replaceData(workingData, { fromRemote: true });
           skipPush.current = false;
         }
         setSyncStatus("synced");
@@ -253,8 +283,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncMessage("Todo sincronizado");
       }
 
-      if (hasPendingSyncChanges(data)) {
-        await flushPendingUpload(true);
+      workingData = dataRef.current;
+
+      if (hasPendingSyncChanges(workingData)) {
+        await flushPendingUpload(true, workingData);
+        workingData = dataRef.current;
+      }
+
+      if (!hasPendingSyncChanges(workingData)) {
+        finalizeSyncState(workingData);
       }
     } catch (error) {
       setSyncStatus("error");
@@ -263,7 +300,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
       skipPush.current = false;
     }
-  }, [data, flushPendingUpload, replaceData, user]);
+  }, [finalizeSyncState, flushPendingUpload, replaceData, user]);
 
   const schedulePush = useCallback(() => {
     if (!ready || !user || skipPush.current) return;
@@ -433,10 +470,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (error) return error.message;
 
       pulledForUser.current = null;
-      setSyncMessage("Sesión iniciada");
+      setSyncMessage("Sesión iniciada — sincronizando…");
+      if (ready) {
+        void pullFromCloud();
+      }
       return null;
     },
-    [email],
+    [email, pullFromCloud, ready],
   );
 
   const resendConfirmationEmail = useCallback(async () => {

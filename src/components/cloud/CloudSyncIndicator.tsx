@@ -12,6 +12,13 @@ function shouldShowIndicator(
   syncStatus: SyncStatus,
 ): boolean {
   if (!cloudEnabled || !user) return false;
+  if (
+    syncStatus === "synced" &&
+    pendingChangeCount === 0 &&
+    !pendingUpload
+  ) {
+    return false;
+  }
   return (
     pendingChangeCount > 0 ||
     pendingUpload ||

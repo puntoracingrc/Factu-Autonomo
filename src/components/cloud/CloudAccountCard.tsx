@@ -172,10 +172,25 @@ export function CloudAccountCard() {
           </p>
           {pendingUpload && syncStatus !== "syncing" && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {pendingChangeCount > 0
-                ? `${pendingChangeCount} cambio(s) pendiente(s) de subir (solo lo modificado, no toda la base).`
-                : "Hay cambios guardados en este dispositivo que aún no están en la nube."}{" "}
-              Se subirán solos al recuperar internet.
+              {syncStatus === "offline" ? (
+                <>
+                  {pendingChangeCount > 0
+                    ? `${pendingChangeCount} cambio(s) en cola.`
+                    : "Hay cambios guardados en este dispositivo."}{" "}
+                  Se subirán al recuperar internet.
+                </>
+              ) : pendingChangeCount > 0 ? (
+                <>
+                  {pendingChangeCount} cambio(s) pendiente(s) de subir (solo lo
+                  modificado). Se suben solos en unos segundos o pulsa
+                  Sincronizar ahora.
+                </>
+              ) : (
+                <>
+                  Quedan cambios locales por confirmar en la nube. Pulsa
+                  Sincronizar ahora.
+                </>
+              )}
             </p>
           )}
           <div className="flex flex-wrap gap-3">
