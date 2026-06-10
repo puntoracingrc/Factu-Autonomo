@@ -5,6 +5,8 @@ import { normalizeIvaSettings } from "./iva";
 import { normalizeIrpfPercent } from "./taxes";
 import { normalizeVatExempt } from "./vat-regime";
 import { normalizeNumbering } from "./numbering";
+import { normalizeDocumentPhrases } from "./document-phrases";
+import { normalizeDocumentPaymentMethods } from "./document-payment-methods";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import type { AppData, BusinessProfile, DocumentType } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
@@ -18,6 +20,10 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     vatExempt: normalizeVatExempt(profile?.vatExempt),
     numbering: normalizeNumbering(profile?.numbering),
     verifactu: normalizeVerifactuSettings(profile?.verifactu),
+    documentPhrases: normalizeDocumentPhrases(profile?.documentPhrases),
+    documentPaymentMethods: normalizeDocumentPaymentMethods(
+      profile?.documentPaymentMethods,
+    ),
   };
 }
 

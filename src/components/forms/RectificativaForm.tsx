@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -23,7 +23,13 @@ import {
 } from "@/lib/vat-regime";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
+import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
+import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
+import {
+  defaultPaymentMethodForType,
+  normalizeDocumentPaymentMethods,
+} from "@/lib/document-payment-methods";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
@@ -56,12 +62,21 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const [customReason, setCustomReason] = useState("");
   const [date, setDate] = useState(todayISO());
   const [notes, setNotes] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     clientToFormValues(original.client),
   );
   const [items, setItems] = useState<LineItem[]>(
     itemsForAnulacion(original.items),
   );
+
+  useEffect(() => {
+    const method = defaultPaymentMethodForType(
+      normalizeDocumentPaymentMethods(data.profile.documentPaymentMethods),
+      "factura",
+    );
+    if (method) setPaymentTerms(method.text);
+  }, [data.profile.documentPaymentMethods]);
 
   function handleTypeChange(type: RectificationType) {
     setRectType(type);
@@ -137,6 +152,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         i.description.trim(),
       ),
       notes: notes || undefined,
+      paymentTerms: paymentTerms.trim() || undefined,
       status: "enviado",
       rectification: {
         originalDocumentId: original.id,
@@ -381,7 +397,18 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         </div>
       </Card>
 
-      <Card>
+      <Card className="space-y-4">
+        <DocumentPaymentPicker
+          documentType="factura"
+          settings={data.profile.documentPaymentMethods}
+          value={paymentTerms}
+          onChange={setPaymentTerms}
+        />
+        <DocumentPhrasePicker
+          documentType="factura"
+          settings={data.profile.documentPhrases}
+          onSelect={setNotes}
+        />
         <Field label="Notas adicionales">
           <Textarea
             value={notes}

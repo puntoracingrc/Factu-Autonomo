@@ -58,6 +58,8 @@ import {
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import { normalizeDocumentPhrases } from "@/lib/document-phrases";
+import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
@@ -173,6 +175,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...profile,
         iva: normalizeIvaSettings(profile.iva),
         numbering: normalizeNumbering(profile.numbering),
+        documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
+        documentPaymentMethods: normalizeDocumentPaymentMethods(
+          profile.documentPaymentMethods,
+        ),
       },
     }));
   }, [setAppData]);

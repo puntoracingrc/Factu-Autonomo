@@ -238,15 +238,25 @@ export function buildDocumentPdf(
     totalsY += 10;
   }
 
+  let footerY = totalsY + 10;
+
+  if (doc.paymentTerms) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.text(`Forma de pago: ${doc.paymentTerms}`, 14, footerY);
+    footerY += 8;
+  }
+
   if (doc.notes) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
-    pdf.text(`Notas: ${doc.notes}`, 14, totalsY + 14);
+    pdf.text(`Notas: ${doc.notes}`, 14, footerY + 4);
+    footerY += 10;
   }
 
   if (issuer.iban && doc.type === "factura" && !isRect) {
     pdf.setFontSize(9);
-    pdf.text(`IBAN: ${issuer.iban}`, 14, totalsY + 22);
+    pdf.text(`IBAN: ${issuer.iban}`, 14, footerY + 4);
   }
 
   return pdf;

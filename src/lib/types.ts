@@ -81,6 +81,8 @@ export interface Document {
   client: Client;
   items: LineItem[];
   notes?: string;
+  /** Forma de pago visible en el PDF (transferencia, Bizum, etc.) */
+  paymentTerms?: string;
   status: DocumentStatus;
   /** Encabezado del emisor congelado al emitir (no cambia si editas Configuración). */
   issuer?: IssuerSnapshot;
@@ -222,6 +224,28 @@ export interface VerifactuInfo {
   errorMessage?: string;
 }
 
+export interface DocumentPhrase {
+  id: string;
+  text: string;
+  documentType: DocumentType;
+}
+
+export interface DocumentPhrasesSettings {
+  phrases: DocumentPhrase[];
+  defaultPhraseId: Partial<Record<DocumentType, string>>;
+}
+
+export interface DocumentPaymentMethod {
+  id: string;
+  text: string;
+  documentType: DocumentType;
+}
+
+export interface DocumentPaymentMethodsSettings {
+  methods: DocumentPaymentMethod[];
+  defaultMethodId: Partial<Record<DocumentType, string>>;
+}
+
 export interface BusinessProfile {
   name: string;
   nif: string;
@@ -232,6 +256,10 @@ export interface BusinessProfile {
   email: string;
   iban?: string;
   logoUrl?: string;
+  /** Frases reutilizables en notas de facturas, presupuestos y recibos */
+  documentPhrases?: DocumentPhrasesSettings;
+  /** Formas de pago reutilizables en facturas, presupuestos y recibos */
+  documentPaymentMethods?: DocumentPaymentMethodsSettings;
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;

@@ -8,7 +8,11 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
+import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
+import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
+import { normalizeDocumentPhrases } from "@/lib/document-phrases";
+import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
 import { getMaxSequence } from "@/lib/documents";
@@ -69,6 +73,10 @@ export default function ConfiguracionPage() {
       ...next,
       numbering: normalizeNumbering(next.numbering),
       verifactu: normalizeVerifactuSettings(next.verifactu),
+      documentPhrases: normalizeDocumentPhrases(next.documentPhrases),
+      documentPaymentMethods: normalizeDocumentPaymentMethods(
+        next.documentPaymentMethods,
+      ),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -224,6 +232,20 @@ export default function ConfiguracionPage() {
           </div>
         </Field>
       </Card>
+
+      <DocumentPhrasesCard
+        settings={normalizeDocumentPhrases(form.documentPhrases)}
+        onChange={(documentPhrases) =>
+          setForm((prev) => ({ ...prev, documentPhrases }))
+        }
+      />
+
+      <DocumentPaymentMethodsCard
+        settings={normalizeDocumentPaymentMethods(form.documentPaymentMethods)}
+        onChange={(documentPaymentMethods) =>
+          setForm((prev) => ({ ...prev, documentPaymentMethods }))
+        }
+      />
 
       <Card className="mb-6 space-y-4">
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">

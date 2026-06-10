@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -23,7 +23,14 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "@/lib/vat-regime";
+import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
+import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { defaultPhraseForType, normalizeDocumentPhrases } from "@/lib/document-phrases";
+import {
+  defaultPaymentMethodForType,
+  normalizeDocumentPaymentMethods,
+} from "@/lib/document-payment-methods";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
@@ -96,6 +103,9 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const [date, setDate] = useState(existing?.date ?? todayISO());
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
+  const defaultNotesApplied = useRef(Boolean(existing?.notes));
+  const [paymentTerms, setPaymentTerms] = useState(existing?.paymentTerms ?? "");
+  const defaultPaymentApplied = useRef(Boolean(existing?.paymentTerms));
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
   );
@@ -115,6 +125,28 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     setItems((prev) => zeroIvaItems(prev));
   }, [vatExempt]);
 
+  useEffect(() => {
+    if (existing || defaultNotesApplied.current) return;
+    const phrase = defaultPhraseForType(
+      normalizeDocumentPhrases(data.profile.documentPhrases),
+      type,
+    );
+    if (!phrase) return;
+    setNotes(phrase.text);
+    defaultNotesApplied.current = true;
+  }, [existing, type, data.profile.documentPhrases]);
+
+  useEffect(() => {
+    if (existing || defaultPaymentApplied.current) return;
+    const method = defaultPaymentMethodForType(
+      normalizeDocumentPaymentMethods(data.profile.documentPaymentMethods),
+      type,
+    );
+    if (!method) return;
+    setPaymentTerms(method.text);
+    defaultPaymentApplied.current = true;
+  }, [existing, type, data.profile.documentPaymentMethods]);
+
   const previewDoc: Document = {
     id: existing?.id ?? "preview",
     type,
@@ -132,6 +164,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     },
     items,
     notes,
+    paymentTerms: paymentTerms || undefined,
     status,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -216,6 +249,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
         i.description.trim(),
       ),
       notes: notes || undefined,
+      paymentTerms: paymentTerms.trim() || undefined,
       status: resolvedStatus,
     };
 
@@ -413,7 +447,18 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
         </div>
       </Card>
 
-      <Card>
+      <Card className="space-y-4">
+        <DocumentPaymentPicker
+          documentType={type}
+          settings={data.profile.documentPaymentMethods}
+          value={paymentTerms}
+          onChange={setPaymentTerms}
+        />
+        <DocumentPhrasePicker
+          documentType={type}
+          settings={data.profile.documentPhrases}
+          onSelect={setNotes}
+        />
         <Field label="Notas (opcional)">
           <Textarea
             value={notes}

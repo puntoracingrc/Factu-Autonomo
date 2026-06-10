@@ -13,6 +13,7 @@ export function buildReceiptFromInvoice(
       id: crypto.randomUUID(),
     })),
     notes: `Pago de la factura ${invoice.number}`,
+    paymentTerms: invoice.paymentTerms,
     status: "pagado",
     sourceDocumentId: invoice.id,
   };
