@@ -66,9 +66,16 @@ export function SignupSuccessPanel({
             </strong>
             <br />
             <span className="text-emerald-800">
-              {needsEmailConfirmation
-                ? "Revisa tu bandeja (y spam) y pulsa el enlace de confirmación."
-                : "No hace falta confirmar el email en este servidor."}
+              {needsEmailConfirmation ? (
+                <>
+                  Busca <strong>otro email aparte del de Factu</strong> (remitente
+                  Supabase, asunto tipo «Confirm your signup»). Pulsa{" "}
+                  <strong>Confirmar cuenta</strong> — no el botón del panel de
+                  Factu.
+                </>
+              ) : (
+                "No hace falta confirmar el email en este servidor."
+              )}
             </span>
           </span>
         </li>
@@ -84,8 +91,10 @@ export function SignupSuccessPanel({
         </li>
       </ol>
 
-      <p className="text-xs text-emerald-700">
-        Si todo va bien, Factu te envía un email de bienvenida a {email}.
+      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <strong>Importante:</strong> el email de Factu es solo bienvenida. La
+        activación de la cuenta llega en un <strong>segundo correo de Supabase</strong>{" "}
+        a {email}.
       </p>
 
       <Button fullWidth onClick={onContinueToSignIn}>

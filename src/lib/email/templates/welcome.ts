@@ -38,7 +38,9 @@ Nuestro trato a partir de ahora es muy sencillo:
 - Tú descansas y ganas mucho money.
 - Yo me peleo con el papeleo, pico los datos y vigilo que todo sea Veri Legal.
 
-Para que empecemos con buen pie y tu negocio quede Very Bonito, crea tu primera factura de prueba (yo la dejo en borrador para que Hacienda no se entere todavía):
+IMPORTANTE: si aún no has confirmado la cuenta, busca OTRO email de Supabase (no este) con el enlace «Confirmar cuenta». Este mensaje de Factu es solo de bienvenida.
+
+Cuando ya hayas confirmado, crea tu primera factura de prueba aquí:
 
 ${panelUrl}
 
@@ -78,7 +80,8 @@ Tu asistente inteligente de confianza.`;
                   <li style="margin-bottom:8px;">Tú descansas y ganas mucho money.</li>
                   <li>Yo me peleo con el papeleo, pico los datos y vigilo que todo sea <strong>Veri Legal</strong>.</li>
                 </ul>
-                <p style="margin:0 0 24px;">Para que empecemos con buen pie y tu negocio quede <strong>Very Bonito</strong>, crea tu primera factura de prueba (no te preocupes, que yo la meto en modo borrador para que Hacienda no se entere todavía):</p>
+                <p style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:14px;"><strong>Importante:</strong> si aún no confirmaste la cuenta, busca <strong>otro email de Supabase</strong> (no este) con «Confirmar cuenta». Este correo de Factu es solo bienvenida.</p>
+                <p style="margin:0 0 24px;">Cuando ya estés confirmado, crea tu primera factura de prueba (en borrador, para que Hacienda no se entere todavía):</p>
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 28px;">
                   <tr>
                     <td align="center" style="border-radius:14px;background-color:#2563eb;">

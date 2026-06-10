@@ -33,6 +33,7 @@ import {
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
+import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled } from "@/lib/supabase/config";
 import { pickNewerAppData } from "@/lib/cloud/sync";
@@ -61,6 +62,7 @@ interface CloudSyncValue {
   setEmail: (value: string) => void;
   signUp: (password: string) => Promise<SignUpResult>;
   signIn: (password: string) => Promise<string | null>;
+  resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
   exportBackup: () => void;
@@ -380,7 +382,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, error: "Introduce tu email" };
       }
 
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: getAuthCallbackUrl() },
+      });
       if (error) return { ok: false, error: error.message };
 
       const registeredEmail = data.user?.email ?? email.trim();
@@ -433,6 +439,21 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [email],
   );
 
+  const resendConfirmationEmail = useCallback(async () => {
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) return "La nube no está configurada en este servidor";
+    if (!email.trim()) return "Introduce tu email";
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: getAuthCallbackUrl() },
+    });
+    if (error) return error.message;
+
+    return null;
+  }, [email]);
+
   const signOut = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
     if (supabase) await supabase.auth.signOut();
@@ -482,6 +503,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setEmail,
       signUp,
       signIn,
+      resendConfirmationEmail,
       signOut,
       syncNow: pullFromCloud,
       exportBackup: () => downloadBackup(data),
@@ -497,6 +519,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       pendingChangeCount,
       signUp,
       signIn,
+      resendConfirmationEmail,
       signOut,
       pullFromCloud,
       data,

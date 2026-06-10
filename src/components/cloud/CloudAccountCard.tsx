@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cloud, Download, RefreshCw, Upload } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Cloud, Download, Mail, RefreshCw, Upload } from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -9,6 +10,10 @@ import { Field, Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { SignUpResult } from "@/context/CloudSyncContext";
+import {
+  friendlyAuthError,
+  isEmailNotConfirmedError,
+} from "@/lib/supabase/auth-errors";
 
 const STATUS_LABELS = {
   disabled: "Nube no configurada en el servidor",
@@ -28,6 +33,7 @@ export function CloudAccountCard() {
     setEmail,
     signUp,
     signIn,
+    resendConfirmationEmail,
     signOut,
     syncNow,
     exportBackup,
@@ -46,6 +52,9 @@ export function CloudAccountCard() {
     { ok: true }
   > | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const authStatus = searchParams.get("auth");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -78,8 +87,21 @@ export function CloudAccountCard() {
 
     const error = await signIn(password);
     setBusy(false);
-    if (error) setAuthError(error);
+    if (error) setAuthError(friendlyAuthError(error));
     else setPassword("");
+  }
+
+  async function handleResendConfirmation() {
+    setResendNotice(null);
+    setBusy(true);
+    const error = await resendConfirmationEmail();
+    setBusy(false);
+    if (error) setAuthError(error);
+    else {
+      setResendNotice(
+        "Email de confirmación reenviado. Busca el correo de Supabase (no el de Factu).",
+      );
+    }
   }
 
   async function handleImport(file: File | undefined) {
@@ -168,6 +190,12 @@ export function CloudAccountCard() {
         </div>
       ) : (
         <div className="space-y-3">
+          {authStatus === "confirmed" ? (
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+              Cuenta confirmada. Ya puedes iniciar sesión con tu contraseña.
+            </p>
+          ) : null}
+
           {signupSuccess ? (
             <div ref={signupSuccessRef}>
               <SignupSuccessPanel
@@ -223,8 +251,33 @@ export function CloudAccountCard() {
       )}
 
       {authError && (
-        <p className="text-sm font-medium text-red-600">{authError}</p>
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-red-600">{authError}</p>
+          {isEmailNotConfirmedError(authError) ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">¿Solo viste el email de Factu?</p>
+              <p className="mt-1">
+                Ese correo es de bienvenida. Necesitas el de{" "}
+                <strong>Supabase</strong> con el enlace «Confirmar cuenta».
+                Revisa spam y promociones.
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-3"
+                onClick={() => void handleResendConfirmation()}
+                disabled={busy || !email.trim()}
+              >
+                <Mail className="h-4 w-4" />
+                Reenviar email de confirmación
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )}
+
+      {resendNotice ? (
+        <p className="text-sm font-medium text-emerald-700">{resendNotice}</p>
+      ) : null}
     </Card>
   );
 }

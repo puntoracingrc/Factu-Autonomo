@@ -14,6 +14,18 @@ Solo la migración que falte, por ejemplo:
 - **Escáner de gastos:** `billing-scans.sql`
 - **Veri*Factu (registros servidor):** `verifactu.sql`
 
+## Auth — confirmación de email
+
+Si **Confirm email** está activado en Supabase → Authentication → Providers → Email:
+
+1. El usuario recibe **dos correos**: confirmación (Supabase) y bienvenida (Factu). El de Factu **no** activa la cuenta.
+2. En Supabase → Authentication → **URL Configuration**, añade en **Redirect URLs**:
+   - `https://factu-autonomo.vercel.app/auth/callback`
+   - `http://localhost:3000/auth/callback` (desarrollo)
+3. Tras confirmar, la app redirige a Configuración con sesión lista.
+
+Para entrar sin confirmar email (solo desarrollo): desactiva **Confirm email** en el mismo panel.
+
 ## Errores tipo «policy already exists»
 
 Significa que ese script ya se aplicó. Usa el archivo de migración pequeño (`billing-scans.sql`), no el script completo.
