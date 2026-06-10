@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import { AppShell } from "@/components/layout/AppShell";
+import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
@@ -41,7 +41,7 @@ export default function RootLayout({
         <AppStoreProvider>
           <CloudSyncProvider>
             <BillingProvider>
-              <AppShell>{children}</AppShell>
+              <ConditionalAppShell>{children}</ConditionalAppShell>
             </BillingProvider>
           </CloudSyncProvider>
         </AppStoreProvider>

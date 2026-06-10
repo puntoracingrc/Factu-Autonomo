@@ -19,10 +19,14 @@ Solo la migración que falte, por ejemplo:
 Si **Confirm email** está activado en Supabase → Authentication → Providers → Email:
 
 1. El usuario recibe **dos correos**: confirmación (Supabase) y bienvenida (Factu). El de Factu **no** activa la cuenta.
-2. En Supabase → Authentication → **URL Configuration**, añade en **Redirect URLs**:
-   - `https://factu-autonomo.vercel.app/auth/callback`
-   - `http://localhost:3000/auth/callback` (desarrollo)
+2. En Supabase → Authentication → **URL Configuration**:
+   - **Site URL:** `https://factu-autonomo.vercel.app` (no dejes `localhost` si pruebas en producción)
+   - **Redirect URLs:**
+     - `https://factu-autonomo.vercel.app/auth/callback`
+     - `http://localhost:3000/auth/callback` (solo desarrollo local)
 3. Tras confirmar, la app redirige a Configuración con sesión lista.
+
+Si en local ves `Cannot find module './611.js'`, para el servidor y ejecuta `npm run dev:clean`.
 
 Para entrar sin confirmar email (solo desarrollo): desactiva **Confirm email** en el mismo panel.
 

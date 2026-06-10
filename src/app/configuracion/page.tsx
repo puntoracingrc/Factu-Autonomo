@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -171,7 +171,13 @@ export default function ConfiguracionPage() {
           Cuando termines una fase, dímelo y seguimos.
         </p>
       </Card>
-      <CloudAccountCard />
+      <Suspense
+        fallback={
+          <p className="mb-6 text-sm text-slate-500">Cargando cuenta y copia…</p>
+        }
+      >
+        <CloudAccountCard />
+      </Suspense>
 
       <Card className="mb-6 space-y-4">
         <Field
