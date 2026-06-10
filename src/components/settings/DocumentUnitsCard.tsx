@@ -34,7 +34,7 @@ export function DocumentUnitsCard({
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {DOCUMENT_UNIT_CATALOG.map((unit) => {
           const checked = normalized.enabledUnitIds.includes(unit.id);
           const onlyOneLeft = normalized.enabledUnitIds.length === 1 && checked;

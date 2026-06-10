@@ -21,6 +21,9 @@ describe("document-units", () => {
   it("formatea cantidad con unidad en PDF", () => {
     expect(formatQuantityWithUnit(5, "m2")).toBe("5 m²");
     expect(formatQuantityWithUnit(2.5, "m")).toBe("2.5 m");
+    expect(formatQuantityWithUnit(3, "und")).toBe("3 und");
+    expect(formatQuantityWithUnit(250, "ml")).toBe("250 ml");
+    expect(formatQuantityWithUnit(12, "km")).toBe("12 km");
   });
 
   it("normaliza líneas antiguas sin unidad", () => {

@@ -8,11 +8,21 @@ export interface DocumentUnitDefinition {
 
 export const DOCUMENT_UNIT_CATALOG: DocumentUnitDefinition[] = [
   { id: "ud", label: "Unidad", shortLabel: "ud" },
+  { id: "und", label: "Unidad (und)", shortLabel: "und" },
   { id: "m", label: "Metro", shortLabel: "m" },
+  { id: "cm", label: "Centímetro", shortLabel: "cm" },
+  { id: "mm", label: "Milímetro", shortLabel: "mm" },
+  { id: "km", label: "Kilómetro", shortLabel: "km" },
   { id: "m2", label: "Metro cuadrado", shortLabel: "m²" },
+  { id: "cm2", label: "Centímetro cuadrado", shortLabel: "cm²" },
   { id: "h", label: "Hora", shortLabel: "h" },
+  { id: "dia", label: "Día", shortLabel: "día" },
+  { id: "mes", label: "Mes", shortLabel: "mes" },
+  { id: "serv", label: "Servicio", shortLabel: "serv." },
   { id: "kg", label: "Kilogramo", shortLabel: "kg" },
+  { id: "t", label: "Tonelada", shortLabel: "t" },
   { id: "l", label: "Litro", shortLabel: "l" },
+  { id: "ml", label: "Mililitro", shortLabel: "ml" },
   { id: "paq", label: "Paquete", shortLabel: "paq" },
 ];
 
