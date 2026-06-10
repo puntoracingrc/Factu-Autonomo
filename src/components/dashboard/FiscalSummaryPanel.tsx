@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
+import { downloadAnnualSummaryPdf } from "@/lib/billing/export-annual-pdf";
 import {
   buildQuarterlyExportCsv,
   downloadQuarterlyCsv,
@@ -90,7 +91,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
         ? `Movimientos con fecha en ${year}.`
         : `Facturas, recibos y gastos con fecha en ${quarterLabel(year, quarter).toLowerCase()}.`;
 
-  function handleExport() {
+  function handleExportCsv() {
     const csv = buildQuarterlyExportCsv(
       data.documents,
       data.expenses,
@@ -99,6 +100,15 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       quarter,
     );
     downloadQuarterlyCsv(csv, year, quarter);
+  }
+
+  function handleExportAnnualPdf() {
+    downloadAnnualSummaryPdf(
+      data.documents,
+      data.expenses,
+      data.profile,
+      year,
+    );
   }
 
   if (locked) {
@@ -187,9 +197,15 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
                 </select>
               )}
               {mode === "quarter" && limits.quarterlyExport && (
-                <Button variant="secondary" onClick={handleExport}>
+                <Button variant="secondary" onClick={handleExportCsv}>
                   <Download className="h-4 w-4" />
                   CSV
+                </Button>
+              )}
+              {mode === "year" && limits.quarterlyExport && (
+                <Button variant="secondary" onClick={handleExportAnnualPdf}>
+                  <Download className="h-4 w-4" />
+                  PDF
                 </Button>
               )}
             </div>
