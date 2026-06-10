@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
+import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -98,6 +99,7 @@ export default function ClientesPage() {
         setUpgradeOpen(true);
         return;
       }
+      maybeCelebrateFirstCustomer(data.customers.length);
       addCustomer(payload);
     }
 

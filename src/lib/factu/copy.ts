@@ -29,6 +29,33 @@ export const FACTU_EMPTY_MESSAGES: Record<FactuEmptyVariant, string> = {
     "Ningún proveedor por aquí. Cuando sepamos quién te vende cosas, lo apuntamos juntos.",
 };
 
+export const FACTU_DAILY_GREETINGS = [
+  "Buenos días, jefe. Hoy el negocio huele a Veri Legal.",
+  "Aquí estoy, en silencio. Cuando me necesites, me tocas.",
+  "Todo en orden por mi lado. Tú sigue facturando.",
+  "Otro día, otra oportunidad de cobrar. Very Bonito.",
+] as const;
+
+export type FactuMilestoneId =
+  | "first-invoice"
+  | "first-rectificativa"
+  | "first-customer";
+
+export const FACTU_MILESTONE_MESSAGES: Record<FactuMilestoneId, string> = {
+  "first-invoice":
+    "¡Primera factura emitida! Veri Legal y Very Bonito. Guarda el PDF por si acaso.",
+  "first-rectificativa":
+    "Primera rectificativa creada. Así se corrige sin borrar — bien hecho, jefe.",
+  "first-customer":
+    "Primer cliente guardado. Ya tengo a quién facturar.",
+};
+
 export function pickFactuJoke(): string {
   return FACTU_JOKES[Math.floor(Math.random() * FACTU_JOKES.length)];
+}
+
+export function pickDailyGreeting(): string {
+  return FACTU_DAILY_GREETINGS[
+    Math.floor(Math.random() * FACTU_DAILY_GREETINGS.length)
+  ];
 }

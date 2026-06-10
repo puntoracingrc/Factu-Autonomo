@@ -24,6 +24,7 @@ import {
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { downloadDocumentPdf } from "@/lib/pdf";
+import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
   cloneItemsForCorreccion,
@@ -153,6 +154,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     });
 
     if (download) await downloadDocumentPdf(finalized, data.profile);
+    maybeCelebrateFirstRectificativa(data.documents, finalized);
     router.push("/facturas");
   }
 

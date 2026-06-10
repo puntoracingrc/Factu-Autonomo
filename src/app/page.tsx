@@ -8,6 +8,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
 import { UsageBanner } from "@/components/billing/UsageBanner";
 import { QuarterlyTaxSummaryCard } from "@/components/dashboard/QuarterlyTaxSummaryCard";
@@ -81,6 +82,7 @@ export default function HomePage() {
 
   return (
     <div>
+      <FactuDailyGreeting enabled={ready} />
       <PageHeader
         title={`Hola${data.profile.name ? `, ${data.profile.name}` : ""}`}
         subtitle="Aquí tienes un resumen de tu negocio"

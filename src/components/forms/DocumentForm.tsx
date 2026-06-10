@@ -27,6 +27,7 @@ import { DocumentShareActions } from "@/components/documents/DocumentShareAction
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { downloadDocumentPdf } from "@/lib/pdf";
+import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
@@ -238,6 +239,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     });
 
     if (download) await downloadDocumentPdf(saved, data.profile);
+    maybeCelebrateFirstInvoice(data.documents, saved);
     const paths = {
       factura: "facturas",
       presupuesto: "presupuestos",
