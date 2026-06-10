@@ -163,6 +163,14 @@ export default function ConfiguracionPage() {
       />
 
       <PlanStatusCard />
+      <Card className="mb-6 border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p className="font-semibold">Plan por fases (solo tú puedes hacer)</p>
+        <p className="mt-2 leading-relaxed">
+          Sigue la guía <code className="rounded bg-white/70 px-1">docs/FASES.md</code>{" "}
+          en el repositorio: Supabase → Vercel → Stripe → pruebas Veri*Factu.
+          Cuando termines una fase, dímelo y seguimos.
+        </p>
+      </Card>
       <CloudAccountCard />
 
       <Card className="mb-6 space-y-4">

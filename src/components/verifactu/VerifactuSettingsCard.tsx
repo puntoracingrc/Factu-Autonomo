@@ -1,9 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { useAppStore } from "@/context/AppStore";
+import { verifyDocumentHashChain } from "@/lib/verifactu/chain-verify";
+import { getProducerConfigStatus } from "@/lib/verifactu/producer-config";
 import { VERIFACTU_SOFTWARE } from "@/lib/verifactu/constants";
 import type { BusinessProfile, VerifactuSettings } from "@/lib/types";
 
@@ -13,7 +18,37 @@ interface Props {
 }
 
 export function VerifactuSettingsCard({ form, onChange }: Props) {
+  const { data } = useAppStore();
   const settings = form.verifactu ?? { enabled: true, environment: "test" };
+  const producer = getProducerConfigStatus();
+  const [chainStatus, setChainStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function handleVerifyChain() {
+    setChecking(true);
+    setChainStatus(null);
+    try {
+      const result = await verifyDocumentHashChain({
+        documents: data.documents,
+        profile: data.profile,
+      });
+      if (result.checked === 0) {
+        setChainStatus("No hay facturas con registro Veri*Factu todavía.");
+        return;
+      }
+      if (result.ok) {
+        setChainStatus(
+          `Cadena OK: ${result.checked} registro(s) verificados según spec AEAT v0.1.2.`,
+        );
+        return;
+      }
+      setChainStatus(
+        `Problemas en la cadena (${result.checked} registros):\n${result.errors.join("\n")}`,
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <Card className="mb-6 space-y-4">
@@ -27,6 +62,37 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
             <strong>1 julio 2027</strong>.
           </p>
         </div>
+      </div>
+
+      <div
+        className={`rounded-xl border px-4 py-3 text-sm ${
+          producer.complete
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+            : "border-amber-200 bg-amber-50 text-amber-900"
+        }`}
+      >
+        <p className="font-semibold">
+          Productor del software:{" "}
+          {producer.complete ? "configuración completa" : "faltan datos en Vercel"}
+        </p>
+        {!producer.complete && (
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            {producer.missing.map((item) => (
+              <li key={item}>
+                <code className="text-xs">{item}</code>
+              </li>
+            ))}
+          </ul>
+        )}
+        {producer.warnings.length > 0 && (
+          <p className="mt-2 text-xs opacity-90">
+            Recomendado: {producer.warnings.join(", ")}
+          </p>
+        )}
+        <p className="mt-2 text-xs">
+          Guía paso a paso:{" "}
+          <code className="rounded bg-white/60 px-1">docs/FASES.md</code>
+        </p>
       </div>
 
       <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -75,12 +141,28 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         </ul>
       </div>
 
-      <Link
-        href="/legal/declaracion-responsable"
-        className="inline-block text-sm font-semibold text-blue-600 hover:underline"
-      >
-        Ver declaración responsable del SIF →
-      </Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleVerifyChain}
+          disabled={checking}
+        >
+          {checking ? "Verificando…" : "Verificar cadena de huellas"}
+        </Button>
+        <Link
+          href="/legal/declaracion-responsable"
+          className="text-sm font-semibold text-blue-600 hover:underline"
+        >
+          Declaración responsable del SIF →
+        </Link>
+      </div>
+
+      {chainStatus && (
+        <p className="whitespace-pre-line rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          {chainStatus}
+        </p>
+      )}
     </Card>
   );
 }

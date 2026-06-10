@@ -1,5 +1,7 @@
 # ✅ Lo que solo tú puedes hacer
 
+**Hoja de ruta por fases:** [`docs/FASES.md`](FASES.md) ← empieza aquí.
+
 El código de monetización está implementado y probado. Para **cobrar dinero real**, completa esta lista en orden.
 
 ## Obligatorio (sin esto no hay ingresos)

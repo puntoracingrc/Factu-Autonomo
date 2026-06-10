@@ -87,7 +87,7 @@ Debe estar **dentro del producto**, accesible de forma rápida e intuitiva, y di
 | XML registro según XSD AEAT | ⚠️ Aproximado; falta alineación XSD completa |
 | Remisión real a AEAT | ⚠️ Simulada sin certificado |
 | Registro de eventos | ❌ Pendiente |
-| Comprobación de cadena bajo demanda | ❌ Pendiente |
+| Comprobación de cadena bajo demanda | ✅ En Configuración → Veri*Factu |
 
 Detalle técnico: `docs/VERIFACTU.md`.
 

@@ -92,8 +92,8 @@ function buildComplianceAnnexNotes(): string {
     "Encadenamiento de registros de facturación de alta; rectificativas como alta (F1/R1/R4).",
     "Verificación in situ en Configuración → Veri*Factu (productor, NIF, software, versión).",
     "Remisión a AEAT: implementación preparada; requiere certificado y VERIFACTU_AEAT_SUBMIT=true.",
-    "Pendiente de cierre para producción comercial: registro de eventos completo, firma electrónica",
-    "de registros si se activara modalidad distinta, y homologación de remisión en entorno real.",
+    "Comprobación de cadena de huellas bajo demanda en Configuración → Veri*Factu.",
+    "Pendiente: registro de eventos completo, mTLS con certificado P12, y XML 100 % XSD AEAT.",
   ].join(" ");
 }
 
