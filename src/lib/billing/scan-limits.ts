@@ -2,8 +2,8 @@ import { isBillingEnforced } from "./config";
 import { isProPlan, PLANS, type PlanId } from "./plans";
 import { SCAN_PACK_SIZE, formatScanPackPrice } from "./scan-packs";
 
-/** Escaneos/mes en Pro (margen ~99% sobre 5,99 € con gpt-4o-mini). */
-export const PRO_EXPENSE_SCANS_PER_MONTH = 15;
+/** Escaneos/mes en Pro (margen ~95% incluso si se agota el cupo con gpt-4o-mini). */
+export const PRO_EXPENSE_SCANS_PER_MONTH = 30;
 
 /** Escaneos de regalo al crear cuenta (plan Gratis). */
 export const FREE_EXPENSE_SCAN_TRIAL = 2;

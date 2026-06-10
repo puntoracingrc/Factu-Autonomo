@@ -55,7 +55,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
-      expenseScansPerMonth: 15,
+      expenseScansPerMonth: 30,
       cloudSync: true,
       quarterlySummary: true,
       quarterlyExport: true,
@@ -72,7 +72,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
-      expenseScansPerMonth: 15,
+      expenseScansPerMonth: 30,
       cloudSync: true,
       quarterlySummary: true,
       quarterlyExport: true,

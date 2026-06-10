@@ -14,6 +14,7 @@ import {
   PLANS,
   yearlySavingsPercent,
 } from "@/lib/billing/plans";
+import { PRO_EXPENSE_SCANS_PER_MONTH } from "@/lib/billing/scan-limits";
 import { getPricingRankingSummary } from "@/lib/billing/competitor-pricing";
 import { subscriptionLabel } from "@/lib/billing/subscription";
 
@@ -28,7 +29,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",
-  "Escanear facturas de gasto (15 escaneos/mes incluidos; packs extra opcionales)",
+  `Escanear facturas de gasto (${PRO_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos; packs extra opcionales)`,
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",
   "14 días de prueba al crear cuenta",
