@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
+import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { UsageBanner } from "@/components/billing/UsageBanner";
 import { FiscalSummaryTeaser } from "@/components/dashboard/FiscalSummaryTeaser";
 import { ButtonLink } from "@/components/ui/Button";
@@ -98,6 +99,7 @@ export default function HomePage() {
 
       <UsageBanner />
       <TaxDeadlineBanner />
+      <RecurringDueBanner data={data} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Card className="border-green-200 bg-green-50">

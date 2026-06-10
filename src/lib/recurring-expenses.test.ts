@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectRecurringOccurrencePreviews,
+  getDueSoonRecurringAlerts,
   listRecurringOccurrenceDates,
   resolveDueDate,
   syncRecurringExpenses,
@@ -75,6 +77,42 @@ describe("listRecurringOccurrenceDates", () => {
       "2028-12-31",
     );
     expect(dates).toEqual(["2026-03-15", "2027-03-15", "2028-03-15"]);
+  });
+});
+
+describe("collectRecurringOccurrencePreviews", () => {
+  it("lista cargos futuros no generados", () => {
+    const recurring = template({
+      frequency: "monthly",
+      dueTiming: { kind: "day_of_month", day: 20 },
+      startDate: "2026-06-01",
+    });
+    const previews = collectRecurringOccurrencePreviews(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-06-10",
+      60,
+    );
+    expect(previews.some((p) => p.date === "2026-06-20" && !p.generated)).toBe(
+      true,
+    );
+  });
+});
+
+describe("getDueSoonRecurringAlerts", () => {
+  it("avisa de cargos en los próximos 7 días", () => {
+    const recurring = template({
+      frequency: "monthly",
+      dueTiming: { kind: "day_of_month", day: 15 },
+      startDate: "2026-06-01",
+    });
+    const alerts = getDueSoonRecurringAlerts(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-06-10",
+      7,
+    );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.date).toBe("2026-06-15");
+    expect(alerts[0]?.daysUntil).toBe(5);
   });
 });
 

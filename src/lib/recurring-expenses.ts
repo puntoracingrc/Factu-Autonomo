@@ -228,3 +228,90 @@ export function recurringDurationLabel(template: RecurringExpense): string {
   }
   return `${duration.count} ${template.frequency === "monthly" ? "meses" : "veces"}`;
 }
+
+export const RECURRING_DUE_SOON_DAYS = 7;
+export const RECURRING_PREVIEW_HORIZON_DAYS = 90;
+
+export function addDaysIso(iso: string, days: number): string {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split("T")[0];
+}
+
+export function daysBetweenIso(from: string, to: string): number {
+  const start = new Date(`${from}T12:00:00`).getTime();
+  const end = new Date(`${to}T12:00:00`).getTime();
+  return Math.round((end - start) / 86_400_000);
+}
+
+export interface RecurringOccurrencePreview {
+  templateId: string;
+  supplierName: string;
+  description: string;
+  amount: number;
+  date: string;
+  daysUntil: number;
+  generated: boolean;
+}
+
+function existingOccurrenceKeys(expenses: Expense[]): Set<string> {
+  return new Set(
+    expenses
+      .map((expense) => expense.recurringOccurrenceKey)
+      .filter(Boolean) as string[],
+  );
+}
+
+export function collectRecurringOccurrencePreviews(
+  data: AppData,
+  referenceDate: string,
+  horizonDays = RECURRING_PREVIEW_HORIZON_DAYS,
+): RecurringOccurrencePreview[] {
+  const horizonEnd = addDaysIso(referenceDate, horizonDays);
+  const existingKeys = existingOccurrenceKeys(data.expenses);
+  const previews: RecurringOccurrencePreview[] = [];
+
+  for (const template of data.recurringExpenses) {
+    if (!template.enabled) continue;
+
+    for (const date of listRecurringOccurrenceDates(template, horizonEnd)) {
+      if (compareIso(date, referenceDate) < 0) continue;
+
+      previews.push({
+        templateId: template.id,
+        supplierName: template.supplierName,
+        description: template.description,
+        amount: template.amount,
+        date,
+        daysUntil: daysBetweenIso(referenceDate, date),
+        generated: existingKeys.has(occurrenceKey(template.id, date)),
+      });
+    }
+  }
+
+  return previews.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function getDueSoonRecurringAlerts(
+  data: AppData,
+  referenceDate: string,
+  withinDays = RECURRING_DUE_SOON_DAYS,
+): RecurringOccurrencePreview[] {
+  return collectRecurringOccurrencePreviews(
+    data,
+    referenceDate,
+    withinDays + 45,
+  ).filter(
+    (preview) =>
+      !preview.generated &&
+      preview.daysUntil >= 0 &&
+      preview.daysUntil <= withinDays,
+  );
+}
+
+export function dueSoonLabel(daysUntil: number): string {
+  if (daysUntil < 0) return `Venció hace ${Math.abs(daysUntil)} día(s)`;
+  if (daysUntil === 0) return "Vence hoy";
+  if (daysUntil === 1) return "Vence mañana";
+  return `Vence en ${daysUntil} días`;
+}

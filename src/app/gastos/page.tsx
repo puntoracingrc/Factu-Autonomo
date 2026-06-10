@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -33,6 +34,8 @@ export default function GastosPage() {
           </div>
         }
       />
+
+      <RecurringDueBanner data={data} />
 
       <Card className="mb-6 border-emerald-200 bg-emerald-50">
         <p className="text-sm text-emerald-700">Total gastado</p>

@@ -15,6 +15,8 @@ import {
   sanitizeDecimalTyping,
   selectInputOnFocus,
 } from "@/lib/decimal-input";
+import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
+import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
 import {
   recurringDueLabel,
   recurringDurationLabel,
@@ -186,6 +188,9 @@ export default function GastosFijosPage() {
           </ButtonLink>
         }
       />
+
+      <RecurringDueBanner data={data} />
+      <RecurringUpcomingList data={data} />
 
       <Card className="mb-6 border-sky-200 bg-sky-50">
         <p className="text-sm text-sky-900">
