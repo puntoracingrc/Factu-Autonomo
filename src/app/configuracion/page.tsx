@@ -65,8 +65,8 @@ export default function ConfiguracionPage() {
 
   function handleLogoFile(file: File | undefined) {
     if (!file) return;
-    if (!limits.customLogo) {
-      alert("El logo en PDF está disponible en el plan Pro.");
+    if (file.size > 2 * 1024 * 1024) {
+      alert("El logo debe pesar menos de 2 MB.");
       return;
     }
     const reader = new FileReader();
@@ -80,11 +80,8 @@ export default function ConfiguracionPage() {
   }
 
   function handleSave() {
-    const logoUrl =
-      billingEnabled && !limits.customLogo ? undefined : form.logoUrl;
     updateProfile({
       ...form,
-      logoUrl,
       numbering: normalizeNumbering(form.numbering),
     });
     setSaved(true);
@@ -170,20 +167,22 @@ export default function ConfiguracionPage() {
       <Card className="mb-6 space-y-4">
         <Field
           label="Logo en PDF"
-          hint={
-            limits.customLogo
-              ? "PNG o JPG. Aparece en tus facturas y presupuestos."
-              : "Disponible con plan Pro — ve a Precios."
-          }
+          hint="PNG, JPG o WebP (máx. 2 MB). Aparece en facturas, presupuestos y recibos."
         >
-          {limits.customLogo ? (
-            <div className="space-y-2">
-              <Input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => handleLogoFile(e.target.files?.[0])}
-              />
-              {form.logoUrl && (
+          <div className="space-y-3">
+            <Input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/*"
+              onChange={(e) => handleLogoFile(e.target.files?.[0])}
+            />
+            {form.logoUrl && (
+              <div className="flex flex-wrap items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={form.logoUrl}
+                  alt="Vista previa de tu logo"
+                  className="h-14 max-w-[180px] rounded-lg border border-slate-200 bg-white object-contain p-1"
+                />
                 <button
                   type="button"
                   className="text-sm font-semibold text-red-600"
@@ -191,13 +190,9 @@ export default function ConfiguracionPage() {
                 >
                   Quitar logo
                 </button>
-              )}
-            </div>
-          ) : (
-            <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              Sube tu logo y personaliza los PDF con Pro.
-            </p>
-          )}
+              </div>
+            )}
+          </div>
         </Field>
       </Card>
 

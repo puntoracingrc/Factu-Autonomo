@@ -42,7 +42,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       cloudSync: false,
       quarterlySummary: false,
       quarterlyExport: false,
-      customLogo: false,
+      customLogo: true,
       prioritySupport: false,
     },
   },

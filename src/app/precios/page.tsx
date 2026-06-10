@@ -19,6 +19,7 @@ const FREE_FEATURES = [
   "Hasta 10 documentos al mes",
   "Hasta 15 clientes",
   "Facturas, presupuestos y recibos en PDF",
+  "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
   "Copia manual export/import",
 ];
@@ -28,7 +29,6 @@ const PRO_FEATURES = [
   "Escanear facturas de gasto (15/mes)",
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",
-  "Logo en PDF",
   "14 días de prueba al crear cuenta",
 ];
 

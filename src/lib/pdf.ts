@@ -5,6 +5,15 @@ import { formatMoney, formatShortDate, lineSubtotal } from "./calculations";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 import { documentAmounts, isVatExempt } from "./vat-regime";
 
+function logoFormat(dataUrl: string): "PNG" | "JPEG" | "WEBP" | null {
+  if (dataUrl.includes("image/png")) return "PNG";
+  if (dataUrl.includes("image/webp")) return "WEBP";
+  if (dataUrl.includes("image/jpeg") || dataUrl.includes("image/jpg")) {
+    return "JPEG";
+  }
+  return null;
+}
+
 function documentLabel(doc: Document): string {
   if (isRectificativa(doc)) return "FACTURA RECTIFICATIVA";
   const labels: Record<Document["type"], string> = {
@@ -28,12 +37,14 @@ export function buildDocumentPdf(
   let contentStartY = 20;
 
   if (profile.logoUrl?.startsWith("data:image/")) {
-    try {
-      const format = profile.logoUrl.includes("image/png") ? "PNG" : "JPEG";
-      pdf.addImage(profile.logoUrl, format, 14, 12, 36, 18);
-      contentStartY = 36;
-    } catch {
-      // Logo opcional: si falla la decodificación, seguimos sin imagen
+    const format = logoFormat(profile.logoUrl);
+    if (format) {
+      try {
+        pdf.addImage(profile.logoUrl, format, 14, 12, 36, 18);
+        contentStartY = 36;
+      } catch {
+        // Logo opcional: si falla la decodificación, seguimos sin imagen
+      }
     }
   }
 
