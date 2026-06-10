@@ -23,11 +23,9 @@ export function canRectifyInvoice(doc: Document): boolean {
   );
 }
 
-const LEGAL_BASE = `Según la normativa española de facturación, las facturas emitidas deben conservarse durante al menos 4 años y no deberían eliminarse si ya se entregaron al cliente o a Hacienda.
+const RECTIFICAR_EN_LUGAR_DE_BORRAR = `Las facturas emitidas deben conservarse (mínimo 4 años) y no se pueden eliminar.
 
-Lo correcto ante un error es emitir una factura rectificativa, no borrar la factura.
-
-Si la eliminas igualmente, lo haces bajo tu propia responsabilidad.`;
+Ante un error, la vía correcta según Hacienda es emitir una factura rectificativa: anulación total (R1) o corrección de importes (R4). Usa el botón «Rectificar» en el listado.`;
 
 export function getDeletePolicy(doc: Document): DeletePolicy {
   if (doc.type !== "factura") {
@@ -40,29 +38,11 @@ export function getDeletePolicy(doc: Document): DeletePolicy {
     };
   }
 
-  if (doc.rectification) {
-    return {
-      allowed: true,
-      level: "legal_strict",
-      title: `¿Borrar factura rectificativa ${doc.number}?`,
-      message: `${LEGAL_BASE}
-
-Esta es una factura rectificativa vinculada a ${doc.rectification.originalNumber}. Borrarla puede dejar incoherente tu historial fiscal.`,
-    };
-  }
-
-  if (doc.rectifiedById) {
-    return {
-      allowed: true,
-      level: "legal_strict",
-      title: `¿Borrar factura ${doc.number}?`,
-      message: `${LEGAL_BASE}
-
-Esta factura tiene una rectificativa asociada. Borrarla puede dejar incoherente tu historial.`,
-    };
-  }
-
-  if (doc.status === "borrador") {
+  if (
+    doc.status === "borrador" &&
+    !doc.rectification &&
+    !doc.rectifiedById
+  ) {
     return {
       allowed: true,
       level: "simple",
@@ -71,11 +51,33 @@ Esta factura tiene una rectificativa asociada. Borrarla puede dejar incoherente 
     };
   }
 
+  if (doc.rectification) {
+    return {
+      allowed: false,
+      level: "legal_strict",
+      title: "No se puede borrar",
+      message: `Esta factura rectificativa (${doc.number}) es un registro fiscal vinculado a ${doc.rectification.originalNumber}.
+
+${RECTIFICAR_EN_LUGAR_DE_BORRAR}`,
+    };
+  }
+
+  if (doc.rectifiedById) {
+    return {
+      allowed: false,
+      level: "legal_strict",
+      title: "No se puede borrar",
+      message: `Esta factura ya tiene una rectificativa asociada.
+
+${RECTIFICAR_EN_LUGAR_DE_BORRAR}`,
+    };
+  }
+
   return {
-    allowed: true,
+    allowed: false,
     level: "legal",
-    title: `¿Borrar factura emitida ${doc.number}?`,
-    message: LEGAL_BASE,
+    title: "No se puede borrar",
+    message: RECTIFICAR_EN_LUGAR_DE_BORRAR,
   };
 }
 

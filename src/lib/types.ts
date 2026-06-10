@@ -162,6 +162,10 @@ export interface VerifactuInfo {
   status: VerifactuSubmissionStatus;
   recordType: "alta" | "anulacion";
   environment: "test" | "production";
+  /** Código AEAT: F1, R1, R4… */
+  tipoFactura?: string;
+  cuotaTotal?: string;
+  importeTotal?: string;
   submittedAt?: string;
   errorMessage?: string;
 }

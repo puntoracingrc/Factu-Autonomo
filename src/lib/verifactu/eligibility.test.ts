@@ -35,7 +35,7 @@ describe("verifactu eligibility", () => {
     ).toBe(false);
   });
 
-  it("detects anulacion rectificativa", () => {
+  it("treats rectificativa anulacion as alta (R1 in TipoFactura)", () => {
     expect(
       verifactuRecordType({
         ...factura,
@@ -47,6 +47,6 @@ describe("verifactu eligibility", () => {
           type: "anulacion",
         },
       }),
-    ).toBe("anulacion");
+    ).toBe("alta");
   });
 });

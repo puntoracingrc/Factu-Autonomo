@@ -2,12 +2,46 @@
 
 ## Qué incluye la app
 
-- Registro encadenado (huella SHA-256) por factura emitida
+- Registro encadenado (huella SHA-256 **spec AEAT v0.1.2**) por factura emitida
 - QR tributario en PDF según especificación AEAT
-- XML de registro de facturación
+- XML de registro de facturación (alta / anulación)
 - API `/api/verifactu/register` (con cuenta Supabase)
 - Declaración responsable en `/legal/declaracion-responsable`
 - Pantalla de verificación in situ en **Configuración → Veri*Factu**
+
+## Documentación oficial AEAT (desarrolladores)
+
+| Recurso | URL |
+|---------|-----|
+| Portal Veri\*Factu / SIF | https://www.agenciatributaria.es/AEAT.desarrolladores/Desarrolladores/_menu_/Documentacion/Sistemas_Informaticos_de_Facturacion_y_Sistemas_VERI_FACTU/Sistemas_Informaticos_de_Facturacion_y_Sistemas_VERI_FACTU.html |
+| Spec huella hash **v0.1.2** (PDF) | https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/Veri-Factu_especificaciones_huella_hash_registros.pdf |
+| FAQ huella hash | https://www3.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/huella-hash.html |
+| FAQ procedimientos facturación (F1, R1, R4…) | https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/procedimientos-facturacion.html |
+| FAQ empresas de desarrollo (dic 2025) | Portal desarrolladores → documentación Veri\*Factu |
+
+## Algoritmo de huella (v0.1.2)
+
+**Registro de alta** — campos concatenados en orden:
+
+`IDEmisorFactura`, `NumSerieFactura`, `FechaExpedicionFactura`, `TipoFactura`, `CuotaTotal`, `ImporteTotal`, `Huella` (anterior), `FechaHoraHusoGenRegistro`
+
+**Registro de anulación** — campos distintos:
+
+`IDEmisorFacturaAnulada`, `NumSerieFacturaAnulada`, `FechaExpedicionFacturaAnulada`, `Huella`, `FechaHoraHusoGenRegistro`
+
+Reglas: SHA-256 → hex **mayúsculas** (64 caracteres); formato `campo=valor&campo2=valor2`; trim en valores; huella anterior vacía → `Huella=`; UTF-8 sin BOM.
+
+Los tests unitarios validan los **tres vectores oficiales** del Anexo II de la spec.
+
+### TipoFactura en esta app
+
+| Documento | Código |
+|-----------|--------|
+| Factura ordinaria | F1 |
+| Rectificativa por anulación (art. 80) | R1 |
+| Otras rectificativas | R4 |
+
+Las rectificativas se registran como **alta** (no como `RegistroAnulacion`). El registro de anulación AEAT es para revocar un registro ya remitido al SIF.
 
 ## SQL en Supabase
 

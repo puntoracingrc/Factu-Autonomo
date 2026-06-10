@@ -1,6 +1,6 @@
 import type { BusinessProfile, Document } from "../types";
 import { GENESIS_HASH } from "./constants";
-import { computeRecordHash } from "./hash";
+import { normalizeHuellaAnterior } from "./hash";
 import {
   documentTotalForVerifactu,
   getVerifactuEnvironment,
@@ -9,16 +9,26 @@ import {
   verifactuRecordType,
 } from "./eligibility";
 import { buildQrUrl } from "./qr";
+import { computeDocumentRecordHash } from "./record-input";
+import { formatAeatRecordTimestamp } from "./timestamp";
+import { resolveTipoFactura } from "./tipo-factura";
 import type {
   VerifactuChainState,
   VerifactuInfo,
   VerifactuRegisterResult,
 } from "./types";
 import { buildRegistroFacturacionXml } from "./xml";
+import { documentAmounts, isVatExempt } from "../vat-regime";
+import { formatQrAmount } from "./qr";
 
 function generateTestCsv(numserie: string): string {
   const suffix = numserie.replace(/[^A-Z0-9]/gi, "").slice(-8).toUpperCase();
   return `A-TEST${suffix.padStart(8, "0").slice(0, 8)}`;
+}
+
+function normalizeChainHash(hash: string | null | undefined): string {
+  const normalized = normalizeHuellaAnterior(hash);
+  return normalized ?? "";
 }
 
 export function resolveChainState(
@@ -26,14 +36,16 @@ export function resolveChainState(
   chain?: VerifactuChainState | null,
 ): VerifactuChainState {
   if (!profile.nif?.trim()) {
-    return { issuerNif: "", lastHash: GENESIS_HASH, recordCount: 0 };
+    return { issuerNif: "", lastHash: "", recordCount: 0 };
   }
   const base = initialChainState(profile);
   if (!chain) return base;
   if (chain.issuerNif !== base.issuerNif) return base;
   return {
     issuerNif: chain.issuerNif,
-    lastHash: chain.lastHash || GENESIS_HASH,
+    lastHash: normalizeChainHash(
+      chain.lastHash === GENESIS_HASH ? "" : chain.lastHash,
+    ),
     recordCount: chain.recordCount ?? 0,
   };
 }
@@ -52,16 +64,15 @@ export async function registerDocumentVerifactu(input: {
   const chain = resolveChainState(profile, input.chain);
   const recordType = verifactuRecordType(doc);
   const importe = documentTotalForVerifactu(doc, profile);
-  const recordTimestamp = new Date().toISOString();
-  const previousHash = chain.lastHash;
+  const recordTimestamp = formatAeatRecordTimestamp();
+  const previousHash = normalizeHuellaAnterior(chain.lastHash);
 
-  const recordHash = await computeRecordHash({
-    issuerNif: profile.nif,
-    numserie: doc.number,
-    fecha: doc.date,
-    importe,
+  const recordHash = await computeDocumentRecordHash({
+    doc,
+    profile,
     recordType,
     previousHash,
+    recordTimestamp,
   });
 
   const qrUrl = buildQrUrl({
@@ -77,9 +88,12 @@ export async function registerDocumentVerifactu(input: {
     input.status ??
     (environment === "test" ? "test_registered" : "registered");
 
+  const vatExempt = isVatExempt(profile);
+  const amounts = documentAmounts(doc, vatExempt);
+
   const verifactu: VerifactuInfo = {
     recordHash,
-    previousHash,
+    previousHash: chain.lastHash,
     recordTimestamp,
     qrUrl,
     csv,
@@ -87,16 +101,21 @@ export async function registerDocumentVerifactu(input: {
     recordType,
     environment,
     submittedAt: new Date().toISOString(),
+    tipoFactura: resolveTipoFactura(doc),
+    cuotaTotal: formatQrAmount(amounts.iva),
+    importeTotal: formatQrAmount(amounts.total),
   };
 
   const xml = buildRegistroFacturacionXml({
     issuerNif: profile.nif,
     numserie: doc.number,
     fecha: doc.date,
-    importe,
+    importe: amounts.total,
+    cuotaTotal: amounts.iva,
+    tipoFactura: verifactu.tipoFactura ?? "F1",
     recordType,
     recordHash,
-    previousHash,
+    previousHash: chain.lastHash,
     recordTimestamp,
     csv,
   });

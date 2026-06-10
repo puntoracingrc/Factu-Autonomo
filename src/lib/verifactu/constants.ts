@@ -19,5 +19,6 @@ export const AEAT_WS_HOSTS = {
   production: "https://www10.agenciatributaria.gob.es",
 } as const;
 
+/** Huella genesis legacy (pre-v0.1.2). Primer registro usa cadena vacía. */
 export const GENESIS_HASH =
   "0000000000000000000000000000000000000000000000000000000000000000";

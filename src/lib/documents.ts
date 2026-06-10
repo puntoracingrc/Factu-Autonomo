@@ -259,7 +259,7 @@ export function getDocumentReadOnlyMessage(doc: Document): string {
   }
 
   if (doc.type === "factura" && doc.status !== "borrador") {
-    return "Las facturas emitidas no se editan. Compártelas por email o WhatsApp, o rectifícalas desde el listado.";
+    return "Las facturas emitidas no se editan ni se borran. Compártelas por email o WhatsApp, o rectifícalas (anulación o corrección) desde el listado.";
   }
   if (doc.type === "presupuesto" && doc.status !== "borrador") {
     return "Este presupuesto ya no está en borrador. Compártelo por email o WhatsApp, o descárgalo en PDF.";

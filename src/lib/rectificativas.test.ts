@@ -86,13 +86,33 @@ describe("facturas rectificativas", () => {
     expect(formatDocumentNumber("factura", 2026, 2)).toBe("F-2026-0002");
   });
 
-  it("permite borrar facturas emitidas con aviso legal", () => {
+  it("no permite borrar facturas emitidas (solo rectificar)", () => {
     const emitida = getDeletePolicy(invoice("1", "F-2026-0001", "pagado"));
-    expect(emitida.allowed).toBe(true);
-    expect(emitida.level).toBe("legal");
-    expect(emitida.message).toContain("4 años");
+    expect(emitida.allowed).toBe(false);
+    expect(emitida.message).toContain("rectificativa");
 
     const borrador = getDeletePolicy(invoice("1", "F-2026-0001", "borrador"));
+    expect(borrador.allowed).toBe(true);
     expect(borrador.level).toBe("simple");
+  });
+
+  it("no permite borrar rectificativas ni facturas ya rectificadas", () => {
+    const rectificativa = getDeletePolicy(
+      invoice("2", "FR-2026-0001", "enviado", {
+        rectification: {
+          originalDocumentId: "1",
+          originalNumber: "F-2026-0001",
+          originalDate: "2026-06-01",
+          reason: "Error",
+          type: "anulacion",
+        },
+      }),
+    );
+    expect(rectificativa.allowed).toBe(false);
+
+    const rectificada = getDeletePolicy(
+      invoice("1", "F-2026-0001", "anulada", { rectifiedById: "2" }),
+    );
+    expect(rectificada.allowed).toBe(false);
   });
 });

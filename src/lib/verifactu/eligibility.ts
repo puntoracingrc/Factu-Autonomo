@@ -1,7 +1,7 @@
 import type { BusinessProfile, Document } from "../types";
-import { isRectificativa } from "../rectificativas";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { normalizeIssuerNif } from "./qr";
+import { documentRecordType } from "./record-input";
 import type { VerifactuRecordType, VerifactuSettings } from "./types";
 
 export const DEFAULT_VERIFACTU_SETTINGS: VerifactuSettings = {
@@ -44,11 +44,9 @@ export function needsVerifactuRegistration(
   return true;
 }
 
+/** Tipo de registro para huella/XML. Rectificativas van como alta (F1/R1/R4). */
 export function verifactuRecordType(doc: Document): VerifactuRecordType {
-  if (isRectificativa(doc) && doc.rectification?.type === "anulacion") {
-    return "anulacion";
-  }
-  return "alta";
+  return documentRecordType(doc);
 }
 
 export function documentTotalForVerifactu(
@@ -65,7 +63,7 @@ export function initialChainState(profile: BusinessProfile): {
 } {
   return {
     issuerNif: normalizeIssuerNif(profile.nif),
-    lastHash: "0000000000000000000000000000000000000000000000000000000000000000",
+    lastHash: "",
     recordCount: 0,
   };
 }
