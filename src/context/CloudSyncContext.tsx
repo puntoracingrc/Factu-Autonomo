@@ -46,6 +46,10 @@ export type SyncStatus =
   | "synced"
   | "error";
 
+export type SignUpResult =
+  | { ok: true; email: string; needsEmailConfirmation: boolean }
+  | { ok: false; error: string };
+
 interface CloudSyncValue {
   cloudEnabled: boolean;
   user: User | null;
@@ -55,7 +59,7 @@ interface CloudSyncValue {
   pendingUpload: boolean;
   pendingChangeCount: number;
   setEmail: (value: string) => void;
-  signUp: (password: string) => Promise<string | null>;
+  signUp: (password: string) => Promise<SignUpResult>;
   signIn: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
@@ -367,13 +371,20 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [updatePendingStatus, pendingUpload, online, pendingChangeCount]);
 
   const signUp = useCallback(
-    async (password: string) => {
+    async (password: string): Promise<SignUpResult> => {
       const supabase = await getSupabaseClientAsync();
-      if (!supabase) return "La nube no está configurada en este servidor";
-      if (!email.trim()) return "Introduce tu email";
+      if (!supabase) {
+        return { ok: false, error: "La nube no está configurada en este servidor" };
+      }
+      if (!email.trim()) {
+        return { ok: false, error: "Introduce tu email" };
+      }
 
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) return error.message;
+      if (error) return { ok: false, error: error.message };
+
+      const registeredEmail = data.user?.email ?? email.trim();
+      const needsEmailConfirmation = Boolean(data.user && !data.session);
 
       if (data.user?.id && data.user.email) {
         void fetch("/api/email/welcome", {
@@ -386,10 +397,22 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => undefined);
       }
 
-      setSyncMessage(
-        "Cuenta creada. Si hace falta, confirma el email y luego inicia sesión.",
-      );
-      return null;
+      if (data.session?.user) {
+        setUser(data.session.user);
+        setSyncMessage("Cuenta creada e iniciada");
+      } else {
+        setSyncMessage(
+          needsEmailConfirmation
+            ? "Cuenta creada. Confirma el email y luego inicia sesión."
+            : "Cuenta creada. Ya puedes iniciar sesión.",
+        );
+      }
+
+      return {
+        ok: true,
+        email: registeredEmail,
+        needsEmailConfirmation,
+      };
     },
     [email],
   );

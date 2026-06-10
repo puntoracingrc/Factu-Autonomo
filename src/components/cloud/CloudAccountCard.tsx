@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Cloud, Download, RefreshCw, Upload } from "lucide-react";
+import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import type { SignUpResult } from "@/context/CloudSyncContext";
 
 const STATUS_LABELS = {
   disabled: "Nube no configurada en el servidor",
@@ -39,14 +41,42 @@ export function CloudAccountCard() {
 
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState<Extract<
+    SignUpResult,
+    { ok: true }
+  > | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const signupSuccessRef = useRef<HTMLDivElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (signupSuccess && signupSuccessRef.current) {
+      signupSuccessRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [signupSuccess]);
 
   async function runAuth(action: "signup" | "signin") {
     setAuthError(null);
+    if (action === "signin") setSignupSuccess(null);
     setBusy(true);
-    const error =
-      action === "signup" ? await signUp(password) : await signIn(password);
+
+    if (action === "signup") {
+      const result = await signUp(password);
+      setBusy(false);
+      if (!result.ok) {
+        setAuthError(result.error);
+        return;
+      }
+      setSignupSuccess(result);
+      setPassword("");
+      return;
+    }
+
+    const error = await signIn(password);
     setBusy(false);
     if (error) setAuthError(error);
     else setPassword("");
@@ -137,35 +167,57 @@ export function CloudAccountCard() {
           </div>
         </div>
       ) : (
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <Field label="Email">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-            />
-          </Field>
-          <Field label="Contraseña" hint="Mínimo 6 caracteres">
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button fullWidth onClick={() => void runAuth("signin")} disabled={busy}>
-              Iniciar sesión
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => void runAuth("signup")}
-              disabled={busy}
-            >
-              Crear cuenta
-            </Button>
+        <div className="space-y-3">
+          {signupSuccess ? (
+            <div ref={signupSuccessRef}>
+              <SignupSuccessPanel
+                email={signupSuccess.email}
+                needsEmailConfirmation={signupSuccess.needsEmailConfirmation}
+                onContinueToSignIn={() => {
+                  setSignupSuccess(null);
+                  passwordInputRef.current?.focus();
+                }}
+              />
+            </div>
+          ) : null}
+
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <Field label="Email">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+              />
+            </Field>
+            <Field label="Contraseña" hint="Mínimo 6 caracteres">
+              <Input
+                ref={passwordInputRef}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={
+                  signupSuccess ? "current-password" : "new-password"
+                }
+              />
+            </Field>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                fullWidth
+                onClick={() => void runAuth("signin")}
+                disabled={busy}
+              >
+                {busy ? "Comprobando…" : "Iniciar sesión"}
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => void runAuth("signup")}
+                disabled={busy}
+              >
+                {busy ? "Creando cuenta…" : "Crear cuenta"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
