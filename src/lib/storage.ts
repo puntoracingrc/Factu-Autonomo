@@ -32,6 +32,7 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     customers: (parsed.customers ?? []).map((customer) =>
       migrateCustomer(customer as AppData["customers"][number]),
     ),
+    recurringExpenses: parsed.recurringExpenses ?? [],
     documents,
     counters: {
       ...EMPTY_DATA.counters,

@@ -24,7 +24,14 @@ export default function GastosPage() {
       <PageHeader
         title="Gastos y compras"
         subtitle="Registra lo que gastas en tu negocio"
-        action={<ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>}
+        action={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <ButtonLink href="/gastos/fijos" variant="secondary">
+              Gastos fijos
+            </ButtonLink>
+            <ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>
+          </div>
+        }
       />
 
       <Card className="mb-6 border-emerald-200 bg-emerald-50">
@@ -60,6 +67,7 @@ export default function GastosPage() {
                 </p>
                 <p className="text-xs text-slate-400">
                   {expense.category} · {expense.paymentMethod}
+                  {expense.recurringExpenseId && " · Gasto fijo"}
                 </p>
               </div>
               <div className="flex items-center gap-2">

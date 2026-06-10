@@ -18,7 +18,9 @@ import type {
   RectificationInfo,
   Supplier,
   BusinessProfile,
+  RecurringExpense,
 } from "@/lib/types";
+import { syncRecurringExpenses } from "@/lib/recurring-expenses";
 import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
@@ -76,6 +78,11 @@ interface AppStoreValue {
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   deleteExpense: (id: string) => void;
+  addRecurringExpense: (
+    item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
+  ) => RecurringExpense;
+  updateRecurringExpense: (item: RecurringExpense) => void;
+  deleteRecurringExpense: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
   deleteSupplier: (id: string) => void;
   addCustomer: (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Customer;
@@ -121,7 +128,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    setData(loadData());
+    setData(syncRecurringExpenses(loadData()));
     setReady(true);
   }, []);
 
@@ -506,6 +513,51 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const addRecurringExpense = useCallback(
+    (
+      item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
+    ): RecurringExpense => {
+      const now = new Date().toISOString();
+      const created: RecurringExpense = {
+        ...item,
+        id: newId(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      setAppData((prev) =>
+        syncRecurringExpenses({
+          ...prev,
+          recurringExpenses: [...prev.recurringExpenses, created],
+        }),
+      );
+      return created;
+    },
+    [setAppData],
+  );
+
+  const updateRecurringExpense = useCallback(
+    (item: RecurringExpense) => {
+      setAppData((prev) =>
+        syncRecurringExpenses({
+          ...prev,
+          recurringExpenses: prev.recurringExpenses.map((entry) =>
+            entry.id === item.id
+              ? { ...item, updatedAt: new Date().toISOString() }
+              : entry,
+          ),
+        }),
+      );
+    },
+    [setAppData],
+  );
+
+  const deleteRecurringExpense = useCallback((id: string) => {
+    setAppData((prev) => ({
+      ...prev,
+      recurringExpenses: prev.recurringExpenses.filter((entry) => entry.id !== id),
+    }));
+  }, [setAppData]);
+
   const addSupplier = useCallback(
     (supplier: Omit<Supplier, "id" | "createdAt">): Supplier => {
       const created: Supplier = {
@@ -659,6 +711,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteDocument,
       addExpense,
       deleteExpense,
+      addRecurringExpense,
+      updateRecurringExpense,
+      deleteRecurringExpense,
       addSupplier,
       deleteSupplier,
       addCustomer,
@@ -681,6 +736,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteDocument,
       addExpense,
       deleteExpense,
+      addRecurringExpense,
+      updateRecurringExpense,
+      deleteRecurringExpense,
       addSupplier,
       deleteSupplier,
       addCustomer,

@@ -58,6 +58,12 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
     ...diffById("document", prev.documents, next.documents, timestamp),
     ...diffById("customer", prev.customers, next.customers, timestamp),
     ...diffById("expense", prev.expenses, next.expenses, timestamp),
+    ...diffById(
+      "recurring_expense",
+      prev.recurringExpenses,
+      next.recurringExpenses,
+      timestamp,
+    ),
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
   ];
 
@@ -122,6 +128,13 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: expense,
       updatedAt: expense.createdAt || timestamp,
     })),
+    ...data.recurringExpenses.map((item) => ({
+      entityType: "recurring_expense" as const,
+      entityId: item.id,
+      deleted: false,
+      payload: item,
+      updatedAt: item.updatedAt || timestamp,
+    })),
     ...data.suppliers.map((supplier) => ({
       entityType: "supplier" as const,
       entityId: supplier.id,
@@ -179,6 +192,11 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
       return {
         ...data,
         expenses: applyListChange(data.expenses, change),
+      };
+    case "recurring_expense":
+      return {
+        ...data,
+        recurringExpenses: applyListChange(data.recurringExpenses, change),
       };
     case "supplier":
       return {

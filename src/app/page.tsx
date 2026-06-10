@@ -11,14 +11,12 @@ import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
 import { UsageBanner } from "@/components/billing/UsageBanner";
-import { QuarterlyTaxSummaryCard } from "@/components/dashboard/QuarterlyTaxSummaryCard";
-import { TaxSummaryCard } from "@/components/dashboard/TaxSummaryCard";
+import { FiscalSummaryTeaser } from "@/components/dashboard/FiscalSummaryTeaser";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { isCollectedDocument, pendingCollection } from "@/lib/income";
-import { calculateTaxSummary } from "@/lib/taxes";
 import {
   collectedSalesTotal,
   isVatExempt,
@@ -70,10 +68,6 @@ export default function HomePage() {
   const pending = pendingCollection(data.documents);
   const expenses = totalExpensesAmount(data.expenses, vatExempt);
   const balance = income - expenses;
-  const taxes = calculateTaxSummary(data.documents, data.expenses, {
-    irpfPercent: data.profile.irpfPercent,
-    vatExempt,
-  });
   const profileReady = Boolean(data.profile.name && data.profile.nif);
 
   if (!ready) {
@@ -132,11 +126,7 @@ export default function HomePage() {
         </Card>
       </div>
 
-      <TaxSummaryCard
-        taxes={taxes}
-        subtitle="Todo lo registrado desde el inicio. Orientativo — consulta con tu gestor."
-      />
-      <QuarterlyTaxSummaryCard data={data} />
+      <FiscalSummaryTeaser data={data} />
 
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?

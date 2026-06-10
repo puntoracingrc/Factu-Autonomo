@@ -59,6 +59,24 @@ export function filterExpensesByQuarter(
   );
 }
 
+export function isDateInYear(date: string, year: number): boolean {
+  return getQuarterFromDate(date).year === year;
+}
+
+export function filterDocumentsByYear(
+  documents: Document[],
+  year: number,
+): Document[] {
+  return documents.filter((doc) => isDateInYear(doc.date, year));
+}
+
+export function filterExpensesByYear(
+  expenses: Expense[],
+  year: number,
+): Expense[] {
+  return expenses.filter((expense) => isDateInYear(expense.date, year));
+}
+
 export function availableSummaryYears(
   documents: Document[],
   expenses: Expense[],

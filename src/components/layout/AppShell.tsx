@@ -16,6 +16,7 @@ import { shouldShowFactuWidget } from "@/lib/factu/occasional";
 import {
   FileText,
   Home,
+  Landmark,
   Receipt,
   Settings,
   ShoppingCart,
@@ -36,6 +37,12 @@ const navItems = [
   },
   { href: "/recibos", label: "Recibos", shortLabel: "Recibos", icon: Receipt },
   { href: "/gastos", label: "Gastos", shortLabel: "Gastos", icon: ShoppingCart },
+  {
+    href: "/impuestos",
+    label: "Impuestos",
+    shortLabel: "Impuestos",
+    icon: Landmark,
+  },
   {
     href: "/proveedores",
     label: "Proveedores",

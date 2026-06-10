@@ -203,11 +203,8 @@ function ProfitBridge({ taxes }: { taxes: TaxSummary }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Puente entre impuestos
-        </p>
-        <p className="mt-0.5 text-sm font-semibold text-slate-800">
-          Beneficio antes de impuestos
+        <p className="text-sm font-semibold text-slate-800">
+          Beneficio antes del IRPF
         </p>
         <p className="text-xs text-slate-500">
           {taxes.vatExempt

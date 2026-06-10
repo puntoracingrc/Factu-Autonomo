@@ -106,6 +106,37 @@ export interface Supplier {
   createdAt: string;
 }
 
+export type RecurringExpenseFrequency = "monthly" | "quarterly" | "annual";
+
+export type RecurringDueTiming =
+  | { kind: "end_of_month" }
+  | { kind: "day_of_month"; day: number };
+
+export type RecurringDuration =
+  | { kind: "indefinite" }
+  | { kind: "until_date"; endDate: string }
+  | { kind: "occurrences"; count: number };
+
+export interface RecurringExpense {
+  id: string;
+  supplierName: string;
+  description: string;
+  amount: number;
+  ivaPercent: number;
+  category: string;
+  paymentMethod: string;
+  frequency: RecurringExpenseFrequency;
+  dueTiming: RecurringDueTiming;
+  /** Mes 1-12 para gastos anuales */
+  dueMonth?: number;
+  duration: RecurringDuration;
+  startDate: string;
+  enabled: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -117,6 +148,9 @@ export interface Expense {
   category: string;
   paymentMethod: string;
   notes?: string;
+  /** Gasto generado desde un gasto fijo */
+  recurringExpenseId?: string;
+  recurringOccurrenceKey?: string;
   createdAt: string;
 }
 
@@ -209,6 +243,7 @@ export type SyncEntityType =
   | "document"
   | "customer"
   | "expense"
+  | "recurring_expense"
   | "supplier"
   | "profile"
   | "counters";
@@ -231,6 +266,7 @@ export interface AppData {
   profile: BusinessProfile;
   documents: Document[];
   expenses: Expense[];
+  recurringExpenses: RecurringExpense[];
   suppliers: Supplier[];
   customers: Customer[];
   counters: {
@@ -283,6 +319,7 @@ export const EMPTY_DATA: AppData = {
   profile: DEFAULT_PROFILE,
   documents: [],
   expenses: [],
+  recurringExpenses: [],
   suppliers: [],
   customers: [],
   counters: {
