@@ -1,3 +1,4 @@
+import { resolveIssuerNif } from "../issuer-snapshot";
 import type { BusinessProfile, Document } from "../types";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import {
@@ -21,7 +22,9 @@ export function buildAltaHashInput(input: {
   const { total, iva } = documentAmounts(input.doc, vatExempt);
 
   return {
-    idEmisorFactura: normalizeIssuerNif(input.profile.nif),
+    idEmisorFactura: normalizeIssuerNif(
+      resolveIssuerNif(input.doc, input.profile),
+    ),
     numSerieFactura: input.doc.number.trim(),
     fechaExpedicionFactura: formatQrDate(input.doc.date),
     tipoFactura: resolveTipoFactura(input.doc),
@@ -45,7 +48,9 @@ export function buildAnulacionHashInput(input: {
   }
 
   return {
-    idEmisorFacturaAnulada: normalizeIssuerNif(input.profile.nif),
+    idEmisorFacturaAnulada: normalizeIssuerNif(
+      resolveIssuerNif(input.doc, input.profile),
+    ),
     numSerieFacturaAnulada: original.originalNumber.trim(),
     fechaExpedicionFacturaAnulada: formatQrDate(original.originalDate),
     huellaAnterior: normalizeHuellaAnterior(input.previousHash),

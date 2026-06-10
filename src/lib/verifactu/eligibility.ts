@@ -1,3 +1,4 @@
+import { resolveIssuerNif } from "../issuer-snapshot";
 import type { BusinessProfile, Document } from "../types";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { normalizeIssuerNif } from "./qr";
@@ -37,7 +38,7 @@ export function needsVerifactuRegistration(
   if (!isVerifactuEnabled(profile)) return false;
   if (doc.type !== "factura") return false;
   if (doc.status === "borrador") return false;
-  if (!profile.nif?.trim()) return false;
+  if (!resolveIssuerNif(doc, profile)) return false;
   if (doc.verifactu?.status === "registered" || doc.verifactu?.status === "test_registered") {
     return false;
   }

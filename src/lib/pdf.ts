@@ -2,6 +2,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { BusinessProfile, Document } from "./types";
 import { formatMoney, formatShortDate, lineSubtotal } from "./calculations";
+import { ivaBreakdownByRate } from "./invoice-compliance";
+import { resolveIssuerForDocument } from "./issuer-snapshot";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 import { documentAmounts, isVatExempt } from "./vat-regime";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
@@ -81,6 +83,7 @@ export function buildDocumentPdf(
   artifacts: PdfArtifacts = {},
 ): jsPDF {
   const pdf = new jsPDF();
+  const issuer = resolveIssuerForDocument(doc, profile);
   const vatExempt = isVatExempt(profile);
   const { subtotal, iva, total } = documentAmounts(doc, vatExempt);
   const label = documentLabel(doc);
@@ -93,11 +96,11 @@ export function buildDocumentPdf(
 
   let contentStartY = y + 6;
 
-  if (profile.logoUrl?.startsWith("data:image/")) {
-    const format = logoFormat(profile.logoUrl);
+  if (issuer.logoUrl?.startsWith("data:image/")) {
+    const format = logoFormat(issuer.logoUrl);
     if (format) {
       try {
-        pdf.addImage(profile.logoUrl, format, 14, y, 36, 18);
+        pdf.addImage(issuer.logoUrl, format, 14, y, 36, 18);
         contentStartY = Math.max(contentStartY, y + 22);
       } catch {
         // Logo opcional: si falla la decodificación, seguimos sin imagen
@@ -111,14 +114,14 @@ export function buildDocumentPdf(
 
   pdf.setFontSize(10);
   pdf.setTextColor(60, 60, 60);
-  pdf.text(profile.name || "Tu negocio", 14, contentStartY + 10);
+  pdf.text(issuer.name || "Tu negocio", 14, contentStartY + 10);
   const baseY = contentStartY + 10;
-  if (profile.nif) pdf.text(`NIF: ${profile.nif}`, 14, baseY + 6);
-  if (profile.address) pdf.text(profile.address, 14, baseY + 12);
-  if (profile.city)
-    pdf.text(`${profile.postalCode} ${profile.city}`, 14, baseY + 18);
-  if (profile.phone) pdf.text(`Tel: ${profile.phone}`, 14, baseY + 24);
-  if (profile.email) pdf.text(profile.email, 14, baseY + 30);
+  if (issuer.nif) pdf.text(`NIF: ${issuer.nif}`, 14, baseY + 6);
+  if (issuer.address) pdf.text(issuer.address, 14, baseY + 12);
+  if (issuer.city)
+    pdf.text(`${issuer.postalCode} ${issuer.city}`, 14, baseY + 18);
+  if (issuer.phone) pdf.text(`Tel: ${issuer.phone}`, 14, baseY + 24);
+  if (issuer.email) pdf.text(issuer.email, 14, baseY + 30);
 
   pdf.setFontSize(11);
   pdf.setTextColor(0, 0, 0);
@@ -191,30 +194,47 @@ export function buildDocumentPdf(
   const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } })
     .lastAutoTable.finalY + 10;
 
+  let totalsY = finalY;
+
   if (vatExempt) {
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
-    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, finalY);
+    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
-    pdf.text("Operación exenta de IVA", 120, finalY + 8);
+    pdf.text("Operación exenta de IVA", 120, totalsY + 8);
+    totalsY += 8;
   } else {
-    pdf.text(`Base imponible: ${formatMoney(subtotal)}`, 120, finalY);
-    pdf.text(`IVA: ${formatMoney(iva)}`, 120, finalY + 6);
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    const breakdown = ivaBreakdownByRate(doc.items);
+    for (const row of breakdown) {
+      pdf.text(
+        `IVA ${row.rate}% — Base: ${formatMoney(row.base)} · Cuota: ${formatMoney(row.quota)}`,
+        120,
+        totalsY,
+      );
+      totalsY += 6;
+    }
+    pdf.text(`Base imponible: ${formatMoney(subtotal)}`, 120, totalsY);
+    totalsY += 6;
+    pdf.text(`IVA total: ${formatMoney(iva)}`, 120, totalsY);
+    totalsY += 6;
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
-    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, finalY + 14);
+    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY + 4);
+    totalsY += 10;
   }
 
   if (doc.notes) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
-    pdf.text(`Notas: ${doc.notes}`, 14, finalY + 24);
+    pdf.text(`Notas: ${doc.notes}`, 14, totalsY + 14);
   }
 
-  if (profile.iban && doc.type === "factura" && !isRect) {
+  if (issuer.iban && doc.type === "factura" && !isRect) {
     pdf.setFontSize(9);
-    pdf.text(`IBAN: ${profile.iban}`, 14, finalY + 32);
+    pdf.text(`IBAN: ${issuer.iban}`, 14, totalsY + 22);
   }
 
   return pdf;

@@ -50,6 +50,7 @@ import {
   findReceiptForInvoice,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
+import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { withVerifactuOnDocument } from "@/lib/verifactu/store";
 
 interface ReplaceDataOptions {
@@ -281,6 +282,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           ...receiptDraft,
           id: newId(),
           number,
+          issuer: doc.issuer ?? captureIssuerSnapshot(prev.profile),
           createdAt: now,
           updatedAt: now,
         };

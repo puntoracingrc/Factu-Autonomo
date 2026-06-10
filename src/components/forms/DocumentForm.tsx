@@ -24,6 +24,8 @@ import {
   zeroIvaItems,
 } from "@/lib/vat-regime";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
+import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
@@ -203,6 +205,16 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       status,
     };
 
+    const emissionCheck = validateDocumentEmission(
+      { ...payload, type },
+      data.profile,
+      type,
+    );
+    if (!emissionCheck.ok) {
+      alert(emissionCheck.message);
+      return;
+    }
+
     let saved: Document;
     if (existing) {
       saved = {
@@ -215,6 +227,8 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       saved = addDocument(payload);
       recordDocumentCreated();
     }
+
+    saved = attachIssuerSnapshot(saved, data.profile);
 
     saved = await finalizeVerifactuDocument({
       doc: saved,

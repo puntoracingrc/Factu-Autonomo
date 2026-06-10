@@ -159,7 +159,7 @@ export default function ConfiguracionPage() {
     <div>
       <PageHeader
         title="Configuración"
-        subtitle="Tus datos aparecerán en facturas y recibos"
+        subtitle="Encabezado de tus facturas: se congela al emitir cada documento"
       />
 
       <PlanStatusCard />
@@ -198,6 +198,17 @@ export default function ConfiguracionPage() {
       </Card>
 
       <Card className="mb-6 space-y-4">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-semibold">Encabezado y Hacienda</p>
+          <p className="mt-2 leading-relaxed">
+            Puedes personalizar logo, nombre, NIF y dirección. Al <strong>emitir</strong> una
+            factura esos datos quedan guardados en el documento: si cambias la configuración
+            después, las facturas ya emitidas conservan el encabezado original (como exige la
+            normativa). Para corregir errores en facturas emitidas usa{" "}
+            <strong>Rectificar</strong>, no borrar.
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre o razón social *">
             <Input
@@ -226,19 +237,19 @@ export default function ConfiguracionPage() {
               onChange={(e) => update("email", e.target.value)}
             />
           </Field>
-          <Field label="Dirección">
+          <Field label="Dirección *" hint="Obligatoria en facturas emitidas">
             <Input
               value={form.address}
               onChange={(e) => update("address", e.target.value)}
             />
           </Field>
-          <Field label="Código postal">
+          <Field label="Código postal *">
             <Input
               value={form.postalCode}
               onChange={(e) => update("postalCode", e.target.value)}
             />
           </Field>
-          <Field label="Ciudad">
+          <Field label="Ciudad *">
             <Input
               value={form.city}
               onChange={(e) => update("city", e.target.value)}

@@ -1,3 +1,4 @@
+import { resolveIssuerNif } from "../issuer-snapshot";
 import type { BusinessProfile, Document } from "../types";
 import { GENESIS_HASH } from "./constants";
 import { normalizeHuellaAnterior } from "./hash";
@@ -75,8 +76,10 @@ export async function registerDocumentVerifactu(input: {
     recordTimestamp,
   });
 
+  const issuerNif = resolveIssuerNif(doc, profile);
+
   const qrUrl = buildQrUrl({
-    nif: profile.nif,
+    nif: issuerNif,
     numserie: doc.number,
     fecha: doc.date,
     importe,
@@ -107,7 +110,7 @@ export async function registerDocumentVerifactu(input: {
   };
 
   const xml = buildRegistroFacturacionXml({
-    issuerNif: profile.nif,
+    issuerNif: issuerNif,
     numserie: doc.number,
     fecha: doc.date,
     importe: amounts.total,

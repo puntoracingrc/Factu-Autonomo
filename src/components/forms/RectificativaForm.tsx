@@ -21,6 +21,8 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "@/lib/vat-regime";
+import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
@@ -92,7 +94,24 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       return;
     }
 
-    const saved = addRectificativa(original.id, {
+    const emissionCheck = validateDocumentEmission(
+      {
+        type: "factura",
+        status: "enviado",
+        client: {
+          name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+        },
+        items,
+      },
+      data.profile,
+      "factura",
+    );
+    if (!emissionCheck.ok) {
+      alert(emissionCheck.message);
+      return;
+    }
+
+    let saved = addRectificativa(original.id, {
       date,
       client: {
         firstName: clientForm.firstName,
@@ -123,6 +142,8 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     }
 
     recordDocumentCreated();
+
+    saved = attachIssuerSnapshot(saved, data.profile);
 
     const finalized = await finalizeVerifactuDocument({
       doc: saved,

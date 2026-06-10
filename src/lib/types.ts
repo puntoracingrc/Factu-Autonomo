@@ -58,6 +58,19 @@ export interface Customer {
   updatedAt: string;
 }
 
+export interface IssuerSnapshot {
+  name: string;
+  nif: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  phone?: string;
+  email?: string;
+  iban?: string;
+  logoUrl?: string;
+  capturedAt: string;
+}
+
 export interface Document {
   id: string;
   type: DocumentType;
@@ -68,6 +81,8 @@ export interface Document {
   items: LineItem[];
   notes?: string;
   status: DocumentStatus;
+  /** Encabezado del emisor congelado al emitir (no cambia si editas Configuración). */
+  issuer?: IssuerSnapshot;
   rectification?: RectificationInfo;
   rectifiedById?: string;
   /** Registro Veri*Factu (hash encadenado, QR, CSV) */

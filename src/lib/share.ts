@@ -1,5 +1,6 @@
 import type { BusinessProfile, Document } from "./types";
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
+import { resolveIssuerForDocument } from "./issuer-snapshot";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 
@@ -14,9 +15,10 @@ function documentTypeLabel(doc: Document): string {
 }
 
 export function buildShareMessage(doc: Document, profile: BusinessProfile): string {
+  const issuer = resolveIssuerForDocument(doc, profile);
   const { total } = documentTotals(doc);
   const typeLabel = documentTypeLabel(doc);
-  const business = profile.name || "Tu negocio";
+  const business = issuer.name || "Tu negocio";
   const lines = [
     `Hola${doc.client.name ? ` ${doc.client.name.split(" ")[0]}` : ""},`,
     "",
@@ -28,8 +30,8 @@ export function buildShareMessage(doc: Document, profile: BusinessProfile): stri
     lines.push(`Vencimiento: ${formatShortDate(doc.dueDate)}`);
   }
 
-  if (profile.iban && doc.type === "factura" && !isRectificativa(doc)) {
-    lines.push(`IBAN: ${profile.iban}`);
+  if (issuer.iban && doc.type === "factura" && !isRectificativa(doc)) {
+    lines.push(`IBAN: ${issuer.iban}`);
   }
 
   lines.push("", "Un saludo,", business);
