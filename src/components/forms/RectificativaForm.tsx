@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -364,13 +365,10 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   />
                 </Field>
                 <Field label="Cantidad">
-                  <Input
-                    type="number"
+                  <NumericFieldInput
                     value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        quantity: Number(e.target.value),
-                      })
+                    onChange={(quantity) =>
+                      updateItem(item.id, { quantity })
                     }
                     disabled={rectType === "anulacion"}
                   />
@@ -383,13 +381,10 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   />
                 </Field>
                 <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
-                  <Input
-                    type="number"
+                  <NumericFieldInput
                     value={item.unitPrice}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        unitPrice: Number(e.target.value),
-                      })
+                    onChange={(unitPrice) =>
+                      updateItem(item.id, { unitPrice })
                     }
                     disabled={rectType === "anulacion"}
                   />

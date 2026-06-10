@@ -30,8 +30,9 @@ export function DocumentPhrasesCard({
       <div>
         <h2 className="font-bold text-slate-900">Frases en documentos</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Guarda textos habituales para notas del PDF. Al crear una factura o
-          presupuesto podrás elegir una frase o usar la predeterminada.
+          Guarda textos habituales para notas del PDF. Al crear facturas,
+          presupuestos o recibos podrás elegir una frase o usar la
+          predeterminada.
         </p>
       </div>
 

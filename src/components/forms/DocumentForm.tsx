@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import {
   ClientPicker,
   clientToFormValues,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -39,6 +40,7 @@ import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
+import { openDocumentPdfPreview } from "@/lib/pdf";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
@@ -90,6 +92,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
     "idle",
   );
+  const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
 
@@ -213,6 +216,29 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     value: string,
   ) {
     setClientForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handlePreview() {
+    if (saving || previewLoading) return;
+
+    if (items.every((i) => !i.description.trim())) {
+      alert("Añade al menos un concepto para la vista previa");
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const doc = attachIssuerSnapshot(previewDoc, data.profile);
+      await openDocumentPdfPreview(doc, data.profile);
+    } catch (error) {
+      alert(
+        error instanceof Error && error.message === "popup_blocked"
+          ? "Permite ventanas emergentes para ver la vista previa, o usa «Guardar y descargar PDF»."
+          : "No se pudo generar la vista previa del PDF.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
   }
 
   async function handleSave(download = false) {
@@ -427,15 +453,10 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                   />
                 </Field>
                 <Field label="Cantidad">
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                  <NumericFieldInput
                     value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        quantity: Number(e.target.value),
-                      })
+                    onChange={(quantity) =>
+                      updateItem(item.id, { quantity })
                     }
                   />
                 </Field>
@@ -447,15 +468,10 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                   />
                 </Field>
                 <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                  <NumericFieldInput
                     value={item.unitPrice}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        unitPrice: Number(e.target.value),
-                      })
+                    onChange={(unitPrice) =>
+                      updateItem(item.id, { unitPrice })
                     }
                   />
                 </Field>
@@ -521,20 +537,31 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
         </Card>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
-          {saveAction === "save" ? "Guardando…" : `Guardar ${label}`}
-        </Button>
+      <div className="flex flex-col gap-3">
         <Button
           variant="secondary"
           fullWidth
-          onClick={() => void handleSave(true)}
-          disabled={saving}
+          onClick={() => void handlePreview()}
+          disabled={saving || previewLoading}
         >
-          {saveAction === "save-pdf"
-            ? "Guardando y preparando PDF…"
-            : "Guardar y descargar PDF"}
+          <Eye className="h-5 w-5" />
+          {previewLoading ? "Generando vista previa…" : "Vista previa PDF"}
         </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button fullWidth onClick={() => void handleSave(false)} disabled={saving || previewLoading}>
+            {saveAction === "save" ? "Guardando…" : `Guardar ${label}`}
+          </Button>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => void handleSave(true)}
+            disabled={saving || previewLoading}
+          >
+            {saveAction === "save-pdf"
+              ? "Guardando y preparando PDF…"
+              : "Guardar y descargar PDF"}
+          </Button>
+        </div>
       </div>
 
       <UpgradeModal

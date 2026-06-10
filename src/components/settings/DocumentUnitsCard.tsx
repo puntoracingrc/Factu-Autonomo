@@ -28,9 +28,9 @@ export function DocumentUnitsCard({
       <div>
         <h2 className="font-bold text-slate-900">Unidades de medida</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Activa las unidades que uses en facturas y presupuestos (ud, m²,
-          metros, horas…). Al crear documentos podrás elegir la unidad en cada
-          línea.
+          Activa las unidades que uses en facturas, presupuestos y recibos (ud,
+          m², metros, horas…). Al crear documentos podrás elegir la unidad en
+          cada línea.
         </p>
       </div>
 

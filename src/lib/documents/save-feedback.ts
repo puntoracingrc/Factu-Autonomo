@@ -11,6 +11,12 @@ const SAVED_LABELS: Record<DocumentType, string> = {
   recibo: "Recibo",
 };
 
+const SAVED_PARTICIPLE: Record<DocumentType, string> = {
+  factura: "guardada",
+  presupuesto: "guardado",
+  recibo: "guardado",
+};
+
 const LIST_PATHS: Record<DocumentType, string> = {
   factura: "/facturas",
   presupuesto: "/presupuestos",
@@ -19,7 +25,7 @@ const LIST_PATHS: Record<DocumentType, string> = {
 
 export function toastDocumentSaved(type: DocumentType, number: string): void {
   showFactuToast(
-    `${SAVED_LABELS[type]} ${number} guardada correctamente`,
+    `${SAVED_LABELS[type]} ${number} ${SAVED_PARTICIPLE[type]} correctamente`,
     4000,
   );
 }

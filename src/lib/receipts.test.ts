@@ -13,11 +13,13 @@ const invoice: Document = {
     {
       id: "l1",
       description: "Servicio",
-      quantity: 1,
+      quantity: 2,
+      unit: "m2",
       unitPrice: 100,
       ivaPercent: 21,
     },
   ],
+  paymentTerms: "Transferencia bancaria",
   status: "enviado",
   createdAt: "2026-06-09",
   updatedAt: "2026-06-09",
@@ -32,6 +34,9 @@ describe("buildReceiptFromInvoice", () => {
     expect(receipt.notes).toContain("F-2026-0001");
     expect(receipt.items).toHaveLength(1);
     expect(receipt.items[0].id).not.toBe("l1");
+    expect(receipt.items[0].unit).toBe("m2");
+    expect(receipt.items[0].quantity).toBe(2);
+    expect(receipt.paymentTerms).toBe("Transferencia bancaria");
   });
 });
 

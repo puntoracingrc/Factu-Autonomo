@@ -30,8 +30,8 @@ export function DocumentPaymentMethodsCard({
       <div>
         <h2 className="font-bold text-slate-900">Formas de pago</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Configura textos como transferencia, efectivo o Bizum. Al crear una
-          factura o presupuesto podrás elegirlos o editarlos.
+          Configura textos como transferencia, efectivo o Bizum. Al crear
+          facturas, presupuestos o recibos podrás elegirlos o editarlos.
         </p>
       </div>
 

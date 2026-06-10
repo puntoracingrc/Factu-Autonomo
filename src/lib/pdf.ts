@@ -311,3 +311,18 @@ export async function downloadDocumentPdf(
   const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
   triggerPdfBlobDownload(blob, pdfFilename(doc));
 }
+
+export async function openDocumentPdfPreview(
+  doc: Document,
+  profile: BusinessProfile,
+): Promise<void> {
+  const artifacts = await preparePdfArtifacts(doc, profile);
+  const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    URL.revokeObjectURL(url);
+    throw new Error("popup_blocked");
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
