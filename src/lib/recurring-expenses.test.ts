@@ -35,6 +35,13 @@ describe("resolveDueDate", () => {
     expect(resolveDueDate(2026, 2, { kind: "end_of_month" })).toBe("2026-02-28");
   });
 
+  it("resuelve inicio y mediados de mes", () => {
+    expect(resolveDueDate(2026, 6, { kind: "start_of_month" })).toBe(
+      "2026-06-01",
+    );
+    expect(resolveDueDate(2026, 6, { kind: "mid_of_month" })).toBe("2026-06-15");
+  });
+
   it("ajusta días que no existen en el mes", () => {
     expect(resolveDueDate(2026, 2, { kind: "day_of_month", day: 31 })).toBe(
       "2026-02-28",

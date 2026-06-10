@@ -40,7 +40,11 @@ const EMPTY_FORM = {
   category: EXPENSE_CATEGORIES[0] as string,
   paymentMethod: PAYMENT_METHODS[0] as string,
   frequency: "monthly" as RecurringExpenseFrequency,
-  dueKind: "end_of_month" as "end_of_month" | "day_of_month",
+  dueKind: "end_of_month" as
+    | "start_of_month"
+    | "mid_of_month"
+    | "end_of_month"
+    | "day_of_month",
   dueDay: "1",
   dueMonth: "1",
   durationKind: "indefinite" as RecurringDuration["kind"],
@@ -96,8 +100,7 @@ export default function GastosFijosPage() {
       category: item.category,
       paymentMethod: item.paymentMethod,
       frequency: item.frequency,
-      dueKind:
-        item.dueTiming.kind === "end_of_month" ? "end_of_month" : "day_of_month",
+      dueKind: item.dueTiming.kind,
       dueDay:
         item.dueTiming.kind === "day_of_month"
           ? String(item.dueTiming.day)
@@ -114,6 +117,8 @@ export default function GastosFijosPage() {
   }
 
   function buildDueTiming(): RecurringDueTiming {
+    if (form.dueKind === "start_of_month") return { kind: "start_of_month" };
+    if (form.dueKind === "mid_of_month") return { kind: "mid_of_month" };
     if (form.dueKind === "end_of_month") return { kind: "end_of_month" };
     return {
       kind: "day_of_month",
@@ -319,10 +324,12 @@ export default function GastosFijosPage() {
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
-                    dueKind: e.target.value as "end_of_month" | "day_of_month",
+                    dueKind: e.target.value as typeof form.dueKind,
                   }))
                 }
               >
+                <option value="start_of_month">Inicio de mes</option>
+                <option value="mid_of_month">Mediados de mes</option>
                 <option value="end_of_month">Final de mes</option>
                 <option value="day_of_month">Día concreto del mes</option>
               </Select>

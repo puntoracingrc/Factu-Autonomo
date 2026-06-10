@@ -109,6 +109,8 @@ export interface Supplier {
 export type RecurringExpenseFrequency = "monthly" | "quarterly" | "annual";
 
 export type RecurringDueTiming =
+  | { kind: "start_of_month" }
+  | { kind: "mid_of_month" }
   | { kind: "end_of_month" }
   | { kind: "day_of_month"; day: number };
 

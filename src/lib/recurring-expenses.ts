@@ -23,6 +23,12 @@ export function resolveDueDate(
   month: number,
   timing: RecurringDueTiming,
 ): string {
+  if (timing.kind === "start_of_month") {
+    return toIsoDate(year, month, 1);
+  }
+  if (timing.kind === "mid_of_month") {
+    return toIsoDate(year, month, Math.min(15, lastDayOfMonth(year, month)));
+  }
   if (timing.kind === "end_of_month") {
     return toIsoDate(year, month, lastDayOfMonth(year, month));
   }
@@ -216,6 +222,8 @@ export function recurringDueLabel(template: RecurringExpense): string {
     ];
     return `${Number(day)} de ${months[template.dueMonth - 1]}`;
   }
+  if (template.dueTiming.kind === "start_of_month") return "Inicio de mes";
+  if (template.dueTiming.kind === "mid_of_month") return "Mediados de mes";
   if (template.dueTiming.kind === "end_of_month") return "Final de mes";
   return `Día ${template.dueTiming.day}`;
 }
