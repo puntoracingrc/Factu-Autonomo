@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
+import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
@@ -163,6 +164,7 @@ export default function ConfiguracionPage() {
       />
 
       <PlanStatusCard />
+      <SubscriptionBillingCard />
       <Card className="mb-6 border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         <p className="font-semibold">Plan por fases (solo tú puedes hacer)</p>
         <p className="mt-2 leading-relaxed">

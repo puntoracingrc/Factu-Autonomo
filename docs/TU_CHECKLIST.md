@@ -2,58 +2,81 @@
 
 **Hoja de ruta por fases:** [`docs/FASES.md`](FASES.md) ← empieza aquí.
 
-El código de monetización está implementado y probado. Para **cobrar dinero real**, completa esta lista en orden.
+El código de monetización, sincronización fiscal con Stripe y recibos por email está implementado. Para **cobrar dinero real**, completa esta lista en orden.
 
 ## Obligatorio (sin esto no hay ingresos)
 
-- [ ] **Cuenta Stripe** — verificar negocio, activar pagos en EUR, crear producto Pro (5,99 €/mes y 49 €/año).
-- [ ] **Proyecto Supabase en producción** — ejecutar `schema.sql` + `billing.sql`.
-- [ ] **Desplegar en Vercel** (u otro host) con dominio propio.
-- [ ] **Variables de entorno** — ver `docs/DEPLOY.md` y `.env.example`.
-- [ ] **Webhook Stripe** apuntando a `/api/webhooks/stripe` con los 3 eventos indicados.
+- [ ] **Cuenta Stripe** — verificar negocio, activar pagos en EUR.
+- [ ] **Productos Stripe:**
+  - Pro mensual **5,99 €** y anual **49 €** (recurrentes).
+  - Pack escaneos **1,99 €** (pago único, 10 escaneos).
+- [ ] **Proyecto Supabase en producción** — ejecutar en el SQL Editor, en orden:
+  - `supabase/schema.sql`
+  - `supabase/billing.sql`
+  - `supabase/billing-scans.sql`
+  - `supabase/billing-scan-credits.sql`
+  - `supabase/billing-profile.sql`
+- [ ] **Desplegar en Vercel** con dominio propio.
+- [ ] **Variables de entorno** — ver `docs/DEPLOY.md`.
+- [ ] **Webhook Stripe** → `/api/webhooks/stripe` con eventos:
+  - `checkout.session.completed`
+  - `invoice.paid`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `customer.updated`
 - [ ] **Activar facturación:** `NEXT_PUBLIC_BILLING_ENABLED=true` en producción.
-- [ ] **Probar un pago real** (o en test mode primero) de punta a punta: registro → checkout → Pro activo.
+- [ ] **Probar un pago** de punta a punta: registro → checkout Pro → plan activo → recibo en email (si Resend configurado).
 
-## Legal y negocio (recomendado antes de publicitar)
+## Recibos y datos de facturación (recomendado)
 
-- [ ] Revisar textos en `/legal/privacidad` y `/legal/terminos` con asesoría si facturas como negocio.
+- [ ] **Resend** — cuenta + dominio verificado + `RESEND_API_KEY` en Vercel.
+- [ ] **EMAIL_FROM** con tu dominio (ej. `Factura Autónomo <hola@tu-dominio.com>`).
+- [ ] **Tus datos de emisor** en Vercel (`NEXT_PUBLIC_VERIFACTU_DEVELOPER_*`) — salen en los recibos automáticos.
+- [ ] En Stripe Dashboard → activar **facturas automáticas** en la suscripción (para renovaciones con PDF en `invoice.paid`).
+- [ ] Tras un pago de prueba, revisar en **Configuración → Facturación de tu suscripción** que aparecen NIF y dirección.
+
+## Legal y negocio (antes de publicitar)
+
 - [ ] Alta de autónomo / SL y capacidad de emitir facturas a tus clientes.
-- [ ] Política de reembolsos (14 días) comunicada en web o términos.
-- [ ] Email de soporte (ej. `hola@tu-dominio.com`) en configuración o pie de página.
+- [ ] Revisar `/legal/privacidad` y `/legal/terminos` con asesoría.
+- [ ] Política de reembolsos (14 días) en términos.
+- [ ] Email de soporte en pie de página.
 
 ## Marketing (cuando lo anterior esté listo)
 
-- [ ] Publicar landing / precios en redes o foros de autónomos.
-- [ ] Configurar analytics (Vercel Analytics, Plausible, etc.).
-- [ ] Opcional: Resend/SendGrid para emails de bienvenida y recordatorios trimestrales.
+- [ ] Publicar precios en redes o foros de autónomos.
+- [ ] Analytics (Vercel Analytics, Plausible, etc.).
 
-## No necesitas hacer
+## No necesitas hacer (ya está en el código)
 
-- El código de planes, límites, Stripe Checkout, webhook y export CSV ya está hecho.
-- Los tests (`npm test`) cubren la lógica de billing.
-- En local, sin `BILLING_ENABLED`, la app funciona como antes (todo desbloqueado).
+- Planes, límites, checkout Stripe, portal de suscripción.
+- Sincronizar NIF/dirección del cliente desde Stripe a Supabase.
+- Email de bienvenida y **recibo de pago** tras checkout o renovación.
+- Packs de escaneos extra comprables.
+- Comparativa de precios en `/precios`.
+- Tests: `npm test`.
 
 ## Comandos útiles
 
 ```bash
 cd ~/Projects/factura-autonomo
-npm test          # 100+ tests
+npm test
 npm run lint
-npm run build     # verificar antes de deploy (sin dev server activo)
+npm run build
 ```
 
 ## Veri*Factu (antes de julio 2027)
 
-- [ ] Ejecutar `supabase/verifactu.sql` en Supabase.
-- [ ] Poner tu **NIF real** en Configuración (emisor).
-- [ ] Como **productor del software**, completar `docs/PRODUCTOR_SIF.md` (NIF, domicilio, declaración art. 15).
-- [ ] Configurar `NEXT_PUBLIC_VERIFACTU_DEVELOPER_*` en Vercel (ver `docs/VERIFACTU.md`).
-- [ ] Probar una factura emitida: debe mostrar badge **Veri*Factu** y QR en el PDF.
-- [ ] Validar el QR en https://prewww2.aeat.es (entorno pruebas).
-- [ ] (Opcional producción) Certificado FNMT o sello + variables `VERIFACTU_CERT_*` y `VERIFACTU_AEAT_SUBMIT=true`.
-
-Detalle técnico: `docs/VERIFACTU.md`.
+- [ ] `supabase/verifactu.sql`
+- [ ] NIF real en Configuración (emisor de tus facturas a clientes).
+- [ ] `docs/PRODUCTOR_SIF.md` y `docs/VERIFACTU.md`.
 
 ## Soporte
 
-Si algo falla tras el deploy, revisa en orden: variables Vercel → logs webhook Stripe → tabla `user_subscriptions` en Supabase.
+Si algo falla tras el deploy, revisa en orden:
+
+1. Variables Vercel
+2. Logs webhook Stripe
+3. Tabla `user_subscriptions` (columnas `billing_*`)
+4. Tabla `payment_receipts` (si no llegan emails)
+5. `RESEND_API_KEY` y dominio verificado en Resend

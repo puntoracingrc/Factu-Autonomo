@@ -8,6 +8,7 @@
    - `supabase/billing.sql`
    - `supabase/billing-scans.sql`
    - `supabase/billing-scan-credits.sql`
+   - `supabase/billing-profile.sql`
 3. Copia URL, anon key y **service role key** (solo servidor).
 
 ## 2. Stripe
@@ -20,7 +21,7 @@
 4. Copia los `price_...` IDs (mensual, anual y pack).
 5. Developers → Webhooks → endpoint:
    - URL: `https://TU-DOMINIO/api/webhooks/stripe`
-   - Eventos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+   - Eventos: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.updated`
 5. Copia el **webhook signing secret**.
 
 ## 3. Vercel
@@ -41,6 +42,17 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_MONTHLY=price_...
 STRIPE_PRICE_YEARLY=price_...
 STRIPE_PRICE_SCAN_PACK=price_...
+
+# Recibos de pago por email (opcional pero recomendado)
+RESEND_API_KEY=re_...
+EMAIL_FROM="Factura Autónomo <hola@tu-dominio.com>"
+
+# Datos del emisor en recibos (tu negocio)
+NEXT_PUBLIC_VERIFACTU_DEVELOPER_NAME=Tu nombre o razón social
+NEXT_PUBLIC_VERIFACTU_DEVELOPER_NIF=Tu NIF
+NEXT_PUBLIC_VERIFACTU_DEVELOPER_ADDRESS=Tu dirección fiscal
+NEXT_PUBLIC_VERIFACTU_DEVELOPER_CITY=Tu ciudad
+NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL=hola@tu-dominio.com
 ```
 
 Despliega:
