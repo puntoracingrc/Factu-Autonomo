@@ -139,7 +139,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
   useEffect(() => {
     setItems((prev) => normalizeLineItemUnits(prev, unitsSettings));
-  }, [unitsSettings.defaultUnitId, unitsSettings.enabledUnitIds.join("|")]);
+  }, [unitsSettings]);
 
   useEffect(() => {
     if (existing || defaultNotesApplied.current) return;
