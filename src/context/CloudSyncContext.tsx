@@ -372,8 +372,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!supabase) return "La nube no está configurada en este servidor";
       if (!email.trim()) return "Introduce tu email";
 
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return error.message;
+
+      if (data.user?.id && data.user.email) {
+        void fetch("/api/email/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: data.user.id,
+            email: data.user.email,
+          }),
+        }).catch(() => undefined);
+      }
 
       setSyncMessage(
         "Cuenta creada. Si hace falta, confirma el email y luego inicia sesión.",

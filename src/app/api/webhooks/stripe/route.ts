@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/billing/stripe";
+import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -97,6 +98,16 @@ export async function POST(request: Request) {
           status: subscription.status,
           currentPeriodEnd: subscriptionPeriodEnd(subscription),
         });
+
+        const customerEmail =
+          session.customer_details?.email?.trim() ||
+          session.customer_email?.trim();
+        if (customerEmail) {
+          void sendWelcomeEmailForUser({
+            userId,
+            email: customerEmail,
+          }).catch(() => undefined);
+        }
       }
       break;
     }
