@@ -17,7 +17,6 @@ export default function FacturasPage() {
       <DocumentList
         type="factura"
         basePath="/facturas"
-        emptyMessage="Aún no tienes facturas. Pulsa el botón de arriba para crear la primera."
       />
     </div>
   );

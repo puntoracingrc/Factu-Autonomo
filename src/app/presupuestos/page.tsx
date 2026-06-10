@@ -17,7 +17,6 @@ export default function PresupuestosPage() {
       <DocumentList
         type="presupuesto"
         basePath="/presupuestos"
-        emptyMessage="Sin presupuestos todavía. Crea uno para enviar a un cliente."
       />
     </div>
   );

@@ -15,7 +15,6 @@ export default function RecibosPage() {
       <DocumentList
         type="recibo"
         basePath="/recibos"
-        emptyMessage="Sin recibos. Créalos cuando un cliente te pague."
       />
     </div>
   );

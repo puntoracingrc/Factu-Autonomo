@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
@@ -53,13 +54,11 @@ function statusLabel(doc: Document, type: DocumentType): string {
 interface DocumentListProps {
   type: DocumentType;
   basePath: string;
-  emptyMessage: string;
 }
 
 export function DocumentList({
   type,
   basePath,
-  emptyMessage,
 }: DocumentListProps) {
   const { data, getDocumentsByType } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
@@ -106,12 +105,12 @@ export function DocumentList({
       )}
 
       {totalCount === 0 ? (
-        <Card className="text-center">
-          <p className="text-slate-500">{emptyMessage}</p>
-          <ButtonLink href={`${basePath}/nuevo`} className="mt-4">
-            Crear el primero
-          </ButtonLink>
-        </Card>
+        <FactuEmptyState
+          variant={type}
+          action={
+            <ButtonLink href={`${basePath}/nuevo`}>Crear el primero</ButtonLink>
+          }
+        />
       ) : documents.length === 0 ? (
         <Card className="text-center text-slate-500">
           No hay {label}s que coincidan con «{search}».

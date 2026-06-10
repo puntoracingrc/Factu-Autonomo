@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -63,10 +64,7 @@ export default function ProveedoresPage() {
       </Card>
 
       {data.suppliers.length === 0 ? (
-        <Card className="text-center text-slate-500">
-          Sin proveedores. Se añaden solos al registrar gastos, o puedes
-          crearlos aquí.
-        </Card>
+        <FactuEmptyState variant="proveedor" />
       ) : (
         <div className="space-y-3">
           {data.suppliers.map((supplier) => {

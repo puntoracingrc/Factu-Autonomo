@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -225,9 +226,7 @@ export default function ClientesPage() {
       </Card>
 
       {customers.length === 0 ? (
-        <Card className="text-center text-slate-500">
-          Sin clientes todavía. Crea el primero con el formulario de arriba.
-        </Card>
+        <FactuEmptyState variant="cliente" />
       ) : (
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-500">

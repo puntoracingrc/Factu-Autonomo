@@ -38,6 +38,10 @@ button {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+.factu-widget-offset {
+  bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+}
+
 .nav-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;

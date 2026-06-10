@@ -10,6 +10,7 @@ import {
 } from "@/components/cloud/CloudSyncIndicator";
 import { useBilling } from "@/context/BillingContext";
 import { useAppStore } from "@/context/AppStore";
+import { FactuWidget } from "@/components/factu/FactuWidget";
 import {
   FileText,
   Home,
@@ -80,13 +81,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <CloudSyncPendingBanner />
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 scroll-pb-32 px-4 py-5 pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      <main className="mx-auto w-full max-w-3xl flex-1 scroll-pb-32 px-4 py-5 pb-[calc(11rem+env(safe-area-inset-bottom))]">
         {!ready ? (
           <p className="py-16 text-center text-slate-500">Cargando tus datos…</p>
         ) : (
           children
         )}
       </main>
+
+      <FactuWidget />
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
         <div className="nav-scroll mx-auto max-w-3xl overflow-x-auto px-2 py-2">

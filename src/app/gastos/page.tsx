@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
@@ -39,9 +40,10 @@ export default function GastosPage() {
       </Card>
 
       {expenses.length === 0 ? (
-        <Card className="text-center text-slate-500">
-          Sin gastos registrados. Añade compras, material o suministros.
-        </Card>
+        <FactuEmptyState
+          variant="gasto"
+          action={<ButtonLink href="/gastos/nuevo">Añadir gasto</ButtonLink>}
+        />
       ) : (
         <div className="space-y-3">
           {expenses.map((expense) => (
