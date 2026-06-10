@@ -9,6 +9,7 @@ export type PlanId = "free" | "pro" | "trial";
 export interface PlanLimits {
   maxDocumentsPerMonth: number | null;
   maxCustomers: number | null;
+  expenseScansPerMonth: number | null;
   cloudSync: boolean;
   quarterlySummary: boolean;
   quarterlyExport: boolean;
@@ -37,6 +38,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: 10,
       maxCustomers: 15,
+      expenseScansPerMonth: 0,
       cloudSync: false,
       quarterlySummary: false,
       quarterlyExport: false,
@@ -53,6 +55,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
+      expenseScansPerMonth: 15,
       cloudSync: true,
       quarterlySummary: true,
       quarterlyExport: true,
@@ -69,6 +72,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
+      expenseScansPerMonth: 15,
       cloudSync: true,
       quarterlySummary: true,
       quarterlyExport: true,

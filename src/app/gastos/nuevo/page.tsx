@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -13,6 +14,7 @@ import {
   EXPENSE_CATEGORIES,
   PAYMENT_METHODS,
 } from "@/lib/types";
+import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 
 export default function NuevoGastoPage() {
   const router = useRouter();
@@ -31,6 +33,30 @@ export default function NuevoGastoPage() {
   );
   const [notes, setNotes] = useState("");
   const [saveSupplier, setSaveSupplier] = useState(true);
+  const [supplierNif, setSupplierNif] = useState<string | undefined>();
+  const [scanHint, setScanHint] = useState<string | null>(null);
+
+  function applyScanResult(payload: ExpenseScanPayload) {
+    setSupplierName(payload.supplier.name);
+    setSupplierNif(payload.supplier.nif ?? undefined);
+    setDescription(payload.expense.description);
+    setAmount(payload.expense.amount);
+    setDate(payload.expense.date);
+    if (!vatExempt) setIvaPercent(payload.expense.ivaPercent);
+    setCategory(payload.expense.category);
+    setPaymentMethod(payload.expense.paymentMethod);
+    const extraNotes = [
+      payload.expense.notes,
+      payload.supplier.nif ? `NIF proveedor: ${payload.supplier.nif}` : null,
+    ]
+      .filter(Boolean)
+      .join(" — ");
+    if (extraNotes) setNotes(extraNotes);
+    setSaveSupplier(true);
+    setScanHint(
+      "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
+    );
+  }
 
   function handleSubmit() {
     if (!supplierName.trim() || !description.trim() || amount <= 0) {
@@ -46,6 +72,7 @@ export default function NuevoGastoPage() {
     if (!existing && saveSupplier) {
       const created = addSupplier({
         name: supplierName.trim(),
+        nif: supplierNif,
         category,
       });
       supplierId = created.id;
@@ -73,6 +100,12 @@ export default function NuevoGastoPage() {
         subtitle="Anota una compra o gasto del negocio"
       />
       <div className="space-y-5">
+        <ExpenseScanCard onScanned={applyScanResult} />
+        {scanHint && (
+          <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-900">
+            {scanHint}
+          </p>
+        )}
         <Card className="grid gap-4 sm:grid-cols-2">
           <Field label="Fecha">
             <Input

@@ -25,6 +25,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",
+  "Escanear facturas de gasto (15/mes)",
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",
   "Logo en PDF",

@@ -24,26 +24,32 @@ create index if not exists sync_entities_user_updated_idx
 alter table public.user_backups enable row level security;
 alter table public.sync_entities enable row level security;
 
+drop policy if exists "Leer copia propia" on public.user_backups;
 create policy "Leer copia propia"
   on public.user_backups for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Crear copia propia" on public.user_backups;
 create policy "Crear copia propia"
   on public.user_backups for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Actualizar copia propia" on public.user_backups;
 create policy "Actualizar copia propia"
   on public.user_backups for update
   using (auth.uid() = user_id);
 
+drop policy if exists "Leer entidades propias" on public.sync_entities;
 create policy "Leer entidades propias"
   on public.sync_entities for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Crear entidades propias" on public.sync_entities;
 create policy "Crear entidades propias"
   on public.sync_entities for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Actualizar entidades propias" on public.sync_entities;
 create policy "Actualizar entidades propias"
   on public.sync_entities for update
   using (auth.uid() = user_id);

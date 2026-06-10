@@ -1,6 +1,7 @@
 import { getSupabaseClientAsync } from "../supabase/client";
 import type { UserSubscription } from "./subscription";
 import type { PlanId } from "./plans";
+import { FREE_EXPENSE_SCAN_TRIAL } from "./scan-limits";
 import { defaultTrialEndIso } from "./subscription";
 
 const SUBSCRIPTIONS_TABLE = "user_subscriptions";
@@ -51,6 +52,7 @@ export async function ensureTrialSubscription(
       plan: "trial",
       status: "trialing",
       trial_ends_at: trialEndsAt,
+      scan_trial_remaining: FREE_EXPENSE_SCAN_TRIAL,
     })
     .select("*")
     .single();
