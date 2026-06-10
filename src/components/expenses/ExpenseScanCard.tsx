@@ -13,6 +13,7 @@ import {
   type ScanQuota,
 } from "@/lib/billing/scan-limits";
 import { scanPackLabel } from "@/lib/billing/scan-packs";
+import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 
 interface ExpenseScanCardProps {
@@ -76,8 +77,21 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     setScanning(true);
 
     try {
+      let uploadFile = file;
+      try {
+        const prepared = await prepareScanFile(file);
+        uploadFile = prepared.file;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudo preparar la imagen para escanear.",
+        );
+        return;
+      }
+
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", uploadFile);
 
       const headers: HeadersInit = {};
       if (user) {

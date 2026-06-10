@@ -1,8 +1,6 @@
+import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "./limits";
 import { buildExpenseScanPrompt } from "./prompt";
 import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
-
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const MAX_PDF_BYTES = 8 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -38,7 +36,7 @@ export function validateScanFile(file: File): string | null {
   if (file.size > maxBytes) {
     return isPdf
       ? "El PDF es demasiado grande (máx. 8 MB)."
-      : "La imagen es demasiado grande (máx. 4 MB).";
+      : "La imagen es demasiado grande (máx. 4 MB). Si es una foto del móvil, debería optimizarse sola; inténtalo de nuevo.";
   }
 
   return null;

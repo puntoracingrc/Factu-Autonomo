@@ -64,6 +64,16 @@ export default function ConfiguracionPage() {
     });
   }, [data.profile]);
 
+  function persistProfile(next: BusinessProfile) {
+    updateProfile({
+      ...next,
+      numbering: normalizeNumbering(next.numbering),
+      verifactu: normalizeVerifactuSettings(next.verifactu),
+    });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2500);
+  }
+
   function handleLogoFile(file: File | undefined) {
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
@@ -74,20 +84,22 @@ export default function ConfiguracionPage() {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === "string") {
-        setForm((prev) => ({ ...prev, logoUrl: result }));
+        const next = { ...form, logoUrl: result };
+        setForm(next);
+        persistProfile(next);
       }
     };
     reader.readAsDataURL(file);
   }
 
+  function handleRemoveLogo() {
+    const next = { ...form, logoUrl: undefined };
+    setForm(next);
+    persistProfile(next);
+  }
+
   function handleSave() {
-    updateProfile({
-      ...form,
-      numbering: normalizeNumbering(form.numbering),
-      verifactu: normalizeVerifactuSettings(form.verifactu),
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    persistProfile(form);
   }
 
   function updateNumberingYear(year: number) {
@@ -203,7 +215,7 @@ export default function ConfiguracionPage() {
                 <button
                   type="button"
                   className="text-sm font-semibold text-red-600"
-                  onClick={() => setForm((prev) => ({ ...prev, logoUrl: undefined }))}
+                  onClick={handleRemoveLogo}
                 >
                   Quitar logo
                 </button>

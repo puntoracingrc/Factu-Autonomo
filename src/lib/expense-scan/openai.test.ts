@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_IMAGE_BYTES } from "./limits";
 import { resolveScanMimeType, validateScanFile } from "./openai";
 
 function mockFile(name: string, type: string, size = 1000): File {
@@ -19,6 +20,12 @@ describe("validateScanFile", () => {
     expect(validateScanFile(mockFile("doc.docx", "application/msword"))).toMatch(
       /no soportado/i,
     );
+  });
+
+  it("rechaza imágenes por encima del límite", () => {
+    expect(
+      validateScanFile(mockFile("foto.jpg", "image/jpeg", MAX_IMAGE_BYTES + 1)),
+    ).toMatch(/demasiado grande/i);
   });
 });
 

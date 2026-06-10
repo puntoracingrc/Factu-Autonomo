@@ -6,6 +6,8 @@ export interface VerifactuServerRegisterResponse {
   persisted: boolean;
 }
 
+const VERIFACTU_REGISTER_TIMEOUT_MS = 20_000;
+
 export async function submitVerifactuToServer(input: {
   doc: Document;
   profile: BusinessProfile;
@@ -13,6 +15,12 @@ export async function submitVerifactuToServer(input: {
   authToken?: string | null;
 }): Promise<VerifactuServerRegisterResponse | null> {
   if (!input.authToken) return null;
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    VERIFACTU_REGISTER_TIMEOUT_MS,
+  );
 
   try {
     const response = await fetch("/api/verifactu/register", {
@@ -29,11 +37,14 @@ export async function submitVerifactuToServer(input: {
         },
         chain: input.chain ?? null,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) return null;
     return (await response.json()) as VerifactuServerRegisterResponse;
   } catch {
     return null;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }

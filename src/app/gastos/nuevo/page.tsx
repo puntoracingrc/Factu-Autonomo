@@ -16,6 +16,12 @@ import {
 } from "@/lib/types";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 import {
+  buildSupplierMatchHint,
+  ensureSupplierForExpense,
+  findBestSupplierMatch,
+  findSupplierByExactName,
+} from "@/lib/suppliers";
+import {
   decimalInputFromNumber,
   parseDecimalInput,
   sanitizeDecimalTyping,
@@ -40,11 +46,29 @@ export default function NuevoGastoPage() {
   const [notes, setNotes] = useState("");
   const [saveSupplier, setSaveSupplier] = useState(true);
   const [supplierNif, setSupplierNif] = useState<string | undefined>();
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
+    null,
+  );
   const [scanHint, setScanHint] = useState<string | null>(null);
+  const [supplierHint, setSupplierHint] = useState<string | null>(null);
 
   function applyScanResult(payload: ExpenseScanPayload) {
-    setSupplierName(payload.supplier.name);
-    setSupplierNif(payload.supplier.nif ?? undefined);
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: payload.supplier.name,
+      nif: payload.supplier.nif,
+    });
+
+    if (match) {
+      setSupplierName(match.supplier.name);
+      setSelectedSupplierId(match.supplier.id);
+      setSupplierNif(match.supplier.nif ?? payload.supplier.nif ?? undefined);
+      setSupplierHint(buildSupplierMatchHint(match));
+    } else {
+      setSupplierName(payload.supplier.name);
+      setSelectedSupplierId(null);
+      setSupplierNif(payload.supplier.nif ?? undefined);
+      setSupplierHint(null);
+    }
     setDescription(payload.expense.description);
     setAmountText(decimalInputFromNumber(payload.expense.amount));
     setDate(payload.expense.date);
@@ -64,6 +88,22 @@ export default function NuevoGastoPage() {
     );
   }
 
+  function handleSupplierNameChange(value: string) {
+    setSupplierName(value);
+    const exact = findSupplierByExactName(data.suppliers, value);
+    setSelectedSupplierId(exact?.id ?? null);
+    if (exact) {
+      setSupplierHint(`Usando el proveedor guardado «${exact.name}».`);
+      return;
+    }
+
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: value,
+      nif: supplierNif,
+    });
+    setSupplierHint(match ? buildSupplierMatchHint(match) : null);
+  }
+
   function handleSubmit() {
     const amount = parseDecimalInput(amountText);
 
@@ -72,24 +112,24 @@ export default function NuevoGastoPage() {
       return;
     }
 
-    const existing = data.suppliers.find(
-      (s) => s.name.toLowerCase() === supplierName.trim().toLowerCase(),
-    );
+    const resolved = ensureSupplierForExpense(data.suppliers, {
+      name: supplierName,
+      nif: supplierNif,
+      category,
+      saveSupplier,
+      selectedSupplierId,
+    });
 
-    let supplierId = existing?.id;
-    if (!existing && saveSupplier) {
-      const created = addSupplier({
-        name: supplierName.trim(),
-        nif: supplierNif,
-        category,
-      });
+    let supplierId = resolved.supplierId;
+    if (resolved.create) {
+      const created = addSupplier(resolved.create);
       supplierId = created.id;
     }
 
     addExpense({
       date,
       supplierId,
-      supplierName: supplierName.trim(),
+      supplierName: resolved.supplierName,
       description: description.trim(),
       amount,
       ivaPercent: vatExempt ? 0 : ivaPercent,
@@ -114,6 +154,11 @@ export default function NuevoGastoPage() {
             {scanHint}
           </p>
         )}
+        {supplierHint && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {supplierHint}
+          </p>
+        )}
         <Card className="grid gap-4 sm:grid-cols-2">
           <Field label="Fecha">
             <Input
@@ -125,7 +170,7 @@ export default function NuevoGastoPage() {
           <Field label="Proveedor / tienda *">
             <Input
               value={supplierName}
-              onChange={(e) => setSupplierName(e.target.value)}
+              onChange={(e) => handleSupplierNameChange(e.target.value)}
               placeholder="Ej: Leroy Merlin"
               list="suppliers-list"
             />

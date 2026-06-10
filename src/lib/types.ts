@@ -9,6 +9,7 @@ export type DocumentKind =
 export type DocumentStatus =
   | "borrador"
   | "enviado"
+  | "aceptado"
   | "pagado"
   | "vencido"
   | "rectificada"

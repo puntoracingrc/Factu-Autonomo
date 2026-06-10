@@ -70,6 +70,26 @@ describe("issuer snapshot", () => {
     expect(resolveIssuerForDocument(doc, DEFAULT_PROFILE).name).toBe("Emisor");
   });
 
+  it("reutiliza el logo actual del perfil si el snapshot no lo guardó", () => {
+    const doc: Document = {
+      ...baseDoc,
+      issuer: {
+        name: "Emisor",
+        nif: "12345678Z",
+        address: "",
+        city: "",
+        postalCode: "",
+        capturedAt: "2026-01-01",
+      },
+    };
+    expect(
+      resolveIssuerForDocument(doc, {
+        ...DEFAULT_PROFILE,
+        logoUrl: "data:image/png;base64,logo",
+      }).logoUrl,
+    ).toBe("data:image/png;base64,logo");
+  });
+
   it("does not snapshot borradores", () => {
     const draft = attachIssuerSnapshot(
       { ...baseDoc, status: "borrador" },

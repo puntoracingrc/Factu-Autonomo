@@ -6,6 +6,7 @@ import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
@@ -15,6 +16,7 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
+import { isAcceptedQuote } from "@/lib/quotes";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import type { Document, DocumentType } from "@/lib/types";
@@ -22,6 +24,7 @@ import type { Document, DocumentType } from "@/lib/types";
 const STATUS_LABELS: Record<Document["status"], string> = {
   borrador: "Borrador",
   enviado: "Enviado",
+  aceptado: "Aceptado",
   pagado: "Pagado",
   vencido: "Vencido",
   rectificada: "Rectificada",
@@ -31,6 +34,7 @@ const STATUS_LABELS: Record<Document["status"], string> = {
 const STATUS_COLORS: Record<Document["status"], string> = {
   borrador: "bg-slate-100 text-slate-600",
   enviado: "bg-amber-100 text-amber-700",
+  aceptado: "bg-green-100 text-green-700",
   pagado: "bg-green-100 text-green-700",
   vencido: "bg-red-100 text-red-700",
   rectificada: "bg-orange-100 text-orange-700",
@@ -44,6 +48,9 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
 };
 
 function statusLabel(doc: Document, type: DocumentType): string {
+  if (type === "presupuesto" && isAcceptedQuote(doc)) {
+    return "Aceptado";
+  }
   if (doc.status === "pagado" && (type === "factura" || type === "recibo")) {
     return "Cobrado";
   }
@@ -142,7 +149,7 @@ export function DocumentList({
                     )}
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        isCollectedDocument(doc)
+                        isCollectedDocument(doc) || isAcceptedQuote(doc)
                           ? "bg-green-100 text-green-700"
                           : STATUS_COLORS[doc.status]
                       }`}
@@ -176,6 +183,7 @@ export function DocumentList({
                   )}
                 </div>
                 <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+                  {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
                   {(type === "factura" || type === "recibo") && (
                     <MarkAsPaidButton doc={doc} />
                   )}

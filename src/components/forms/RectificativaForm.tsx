@@ -23,7 +23,7 @@ import {
 } from "@/lib/vat-regime";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
-import { downloadDocumentPdf } from "@/lib/pdf";
+import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
@@ -44,7 +44,10 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
+  const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
+    "idle",
+  );
+  const saving = saveAction !== "idle";
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
 
@@ -91,13 +94,13 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       return;
     }
 
-    setSaving(true);
+    setSaveAction(download ? "save-pdf" : "save");
 
     const gate = checkCanCreateDocument(data.customers.length);
     if (!gate.allowed) {
       setUpgradeReason(gate.reason);
       setUpgradeOpen(true);
-      setSaving(false);
+      setSaveAction("idle");
       return;
     }
 
@@ -115,7 +118,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     );
     if (!emissionCheck.ok) {
       alert(emissionCheck.message);
-      setSaving(false);
+      setSaveAction("idle");
       return;
     }
 
@@ -146,7 +149,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
 
     if (!saved) {
       alert("No se pudo crear la factura rectificativa");
-      setSaving(false);
+      setSaveAction("idle");
       return;
     }
 
@@ -155,29 +158,30 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     saved = attachIssuerSnapshot(saved, data.profile);
 
     try {
-      const finalized = await finalizeVerifactuDocument({
+      saved = await finalizeVerifactuDocument({
         doc: saved,
         profile: data.profile,
         chain: data.verifactuChain,
         registerLocal: registerVerifactuForDocument,
       });
-
-      if (download) {
-        await downloadDocumentPdf(finalized, data.profile);
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-      }
-
-      maybeCelebrateFirstRectificativa(data.documents, finalized);
-      setSaving(false);
-      router.push("/facturas");
     } catch (error) {
-      setSaving(false);
+      setSaveAction("idle");
       alert(
         error instanceof Error
-          ? `No se pudo guardar o generar el PDF: ${error.message}`
-          : "No se pudo guardar o generar el PDF. Prueba «Descargar PDF» desde el listado.",
+          ? `No se pudo completar el registro tributario: ${error.message}`
+          : "No se pudo completar el registro tributario. El documento está guardado; prueba desde el listado.",
       );
+      return;
     }
+
+    maybeCelebrateFirstRectificativa(data.documents, saved);
+    setSaveAction("idle");
+    finishDocumentSave({
+      type: "factura",
+      number: saved.number,
+      router,
+      download: download ? { doc: saved, profile: data.profile } : undefined,
+    });
   }
 
   return (
@@ -389,7 +393,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
-          {saving ? "Guardando…" : "Guardar factura rectificativa"}
+          {saveAction === "save" ? "Guardando…" : "Guardar factura rectificativa"}
         </Button>
         <Button
           variant="secondary"
@@ -397,7 +401,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
           onClick={() => void handleSave(true)}
           disabled={saving}
         >
-          {saving ? "Generando PDF…" : "Guardar y descargar PDF"}
+          {saveAction === "save-pdf"
+            ? "Guardando y preparando PDF…"
+            : "Guardar y descargar PDF"}
         </Button>
       </div>
 

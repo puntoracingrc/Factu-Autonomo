@@ -6,19 +6,20 @@ import { ivaBreakdownByRate } from "./invoice-compliance";
 import { resolveIssuerForDocument } from "./issuer-snapshot";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 import { documentAmounts, isVatExempt } from "./vat-regime";
+import {
+  pdfLogoDrawSize,
+  prepareLogoForPdf,
+  resolvePdfLogoUrl,
+} from "./pdf-logo";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 
 export interface PdfArtifacts {
   qrDataUrl?: string;
-}
-
-function logoFormat(dataUrl: string): "PNG" | "JPEG" | "WEBP" | null {
-  if (dataUrl.includes("image/png")) return "PNG";
-  if (dataUrl.includes("image/webp")) return "WEBP";
-  if (dataUrl.includes("image/jpeg") || dataUrl.includes("image/jpg")) {
-    return "JPEG";
-  }
-  return null;
+  logo?: {
+    dataUrl: string;
+    width: number;
+    height: number;
+  };
 }
 
 function documentLabel(doc: Document): string {
@@ -71,10 +72,21 @@ function drawVerifactuQrBlock(
 
 export async function preparePdfArtifacts(
   doc: Document,
+  profile: BusinessProfile,
 ): Promise<PdfArtifacts> {
-  if (!hasVerifactuQr(doc)) return {};
-  const qrDataUrl = await prepareVerifactuQrForPdf(doc);
-  return { qrDataUrl };
+  const artifacts: PdfArtifacts = {};
+
+  if (hasVerifactuQr(doc)) {
+    artifacts.qrDataUrl = await prepareVerifactuQrForPdf(doc);
+  }
+
+  const logoUrl = resolvePdfLogoUrl(doc, profile);
+  if (logoUrl) {
+    const logo = await prepareLogoForPdf(logoUrl);
+    if (logo) artifacts.logo = logo;
+  }
+
+  return artifacts;
 }
 
 export function buildDocumentPdf(
@@ -94,19 +106,19 @@ export function buildDocumentPdf(
     y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
   }
 
-  let contentStartY = y + 6;
-
-  if (issuer.logoUrl?.startsWith("data:image/")) {
-    const format = logoFormat(issuer.logoUrl);
-    if (format) {
-      try {
-        pdf.addImage(issuer.logoUrl, format, 14, y, 36, 18);
-        contentStartY = Math.max(contentStartY, y + 22);
-      } catch {
-        // Logo opcional: si falla la decodificación, seguimos sin imagen
-      }
+  let logoBottomY = 14;
+  if (artifacts.logo) {
+    const { width: logoW, height: logoH } = pdfLogoDrawSize(artifacts.logo);
+    const logoX = 196 - logoW;
+    try {
+      pdf.addImage(artifacts.logo.dataUrl, "PNG", logoX, 14, logoW, logoH);
+      logoBottomY = 14 + logoH;
+    } catch {
+      // Logo opcional: si falla la decodificación, seguimos sin imagen
     }
   }
+
+  const contentStartY = Math.max(y, logoBottomY) + 6;
 
   pdf.setFontSize(20);
   pdf.setTextColor(isRect ? 180 : 37, isRect ? 83 : 9, isRect ? 9 : 235);
@@ -244,7 +256,7 @@ export async function buildDocumentPdfBlob(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<Blob> {
-  const artifacts = await preparePdfArtifacts(doc);
+  const artifacts = await preparePdfArtifacts(doc, profile);
   return buildDocumentPdf(doc, profile, artifacts).output("blob");
 }
 
@@ -280,7 +292,7 @@ export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const artifacts = await preparePdfArtifacts(doc);
+  const artifacts = await preparePdfArtifacts(doc, profile);
   const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
   triggerPdfBlobDownload(blob, pdfFilename(doc));
 }

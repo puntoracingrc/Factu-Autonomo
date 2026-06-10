@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
@@ -8,19 +8,43 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { expenseTotal, formatMoney } from "@/lib/calculations";
+import {
+  findBestSupplierMatch,
+  findDuplicateSupplierGroups,
+  pickCanonicalSupplier,
+  SUPPLIER_AUTO_LINK_SCORE,
+  supplierSimilarityScore,
+} from "@/lib/suppliers";
 
 export default function ProveedoresPage() {
-  const { data, addSupplier, deleteSupplier } = useAppStore();
+  const { data, addSupplier, deleteSupplier, mergeSuppliers } = useAppStore();
   const [name, setName] = useState("");
   const [nif, setNif] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+
+  const duplicateGroups = useMemo(
+    () => findDuplicateSupplierGroups(data.suppliers),
+    [data.suppliers],
+  );
 
   function handleAdd() {
     if (!name.trim()) {
       alert("Escribe el nombre del proveedor");
       return;
     }
+
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: name.trim(),
+      nif: nif || undefined,
+    });
+    if (match && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
+      alert(
+        `Ya tienes un proveedor muy parecido: «${match.supplier.name}». Usa ese para no duplicar gastos.`,
+      );
+      return;
+    }
+
     addSupplier({
       name: name.trim(),
       nif: nif || undefined,
@@ -39,6 +63,51 @@ export default function ProveedoresPage() {
         title="Proveedores"
         subtitle="Quién te vende material o servicios"
       />
+
+      {duplicateGroups.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {duplicateGroups.map((group) => {
+            const canonical = pickCanonicalSupplier(group, data.expenses);
+            const others = group.filter((supplier) => supplier.id !== canonical.id);
+            return (
+              <Card
+                key={canonical.id}
+                className="space-y-3 border-amber-200 bg-amber-50/70"
+              >
+                <div>
+                  <p className="font-semibold text-amber-950">
+                    Posibles duplicados
+                  </p>
+                  <p className="mt-1 text-sm text-amber-900">
+                    {group.map((supplier) => supplier.name).join(" · ")}
+                  </p>
+                  <p className="mt-2 text-sm text-amber-800">
+                    Puedes unificarlos para que todos los gastos queden en un
+                    solo proveedor.
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `¿Unificar ${group.length} proveedores en «${canonical.name}»? Los gastos se moverán ahí.`,
+                      )
+                    ) {
+                      mergeSuppliers(
+                        canonical.id,
+                        others.map((supplier) => supplier.id),
+                      );
+                    }
+                  }}
+                >
+                  Unificar en «{canonical.name}»
+                </Button>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Card className="mb-6 space-y-4">
         <h2 className="font-bold text-slate-900">Añadir proveedor</h2>
@@ -69,8 +138,18 @@ export default function ProveedoresPage() {
         <div className="space-y-3">
           {data.suppliers.map((supplier) => {
             const spent = data.expenses
-              .filter((e) => e.supplierId === supplier.id)
-              .reduce((sum, e) => sum + expenseTotal(e), 0);
+              .filter(
+                (expense) =>
+                  expense.supplierId === supplier.id ||
+                  (!expense.supplierId &&
+                    supplierSimilarityScore(
+                      expense.supplierName,
+                      supplier.name,
+                      undefined,
+                      supplier.nif,
+                    ) >= SUPPLIER_AUTO_LINK_SCORE),
+              )
+              .reduce((sum, expense) => sum + expenseTotal(expense), 0);
             return (
               <Card
                 key={supplier.id}

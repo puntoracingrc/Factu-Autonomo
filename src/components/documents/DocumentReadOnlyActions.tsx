@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 
@@ -30,6 +31,7 @@ export function DocumentReadOnlyActions({
         Enviar {typeLabel} al cliente
       </p>
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+        {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
         <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 

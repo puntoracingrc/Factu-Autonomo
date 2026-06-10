@@ -1,4 +1,5 @@
 import { migrateCustomer } from "./customers";
+import { normalizeQuoteDocument } from "./quotes";
 import { countersFromDocuments } from "./documents";
 import { normalizeIvaSettings } from "./iva";
 import { normalizeIrpfPercent } from "./taxes";
@@ -23,7 +24,9 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
 const STORAGE_KEY = "factura-autonomo-data";
 
 export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
-  const documents = parsed.documents ?? [];
+  const documents = (parsed.documents ?? []).map((document) =>
+    normalizeQuoteDocument(document as AppData["documents"][number]),
+  );
   const profile = migrateProfile(parsed.profile);
   return {
     ...EMPTY_DATA,

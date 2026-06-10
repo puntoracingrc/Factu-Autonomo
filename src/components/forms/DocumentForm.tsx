@@ -26,7 +26,7 @@ import {
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
-import { downloadDocumentPdf } from "@/lib/pdf";
+import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
@@ -74,7 +74,10 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
+  const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
+    "idle",
+  );
+  const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
@@ -171,14 +174,14 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       return;
     }
 
-    setSaving(true);
+    setSaveAction(download ? "save-pdf" : "save");
 
     if (!existing) {
       const gate = checkCanCreateDocument(data.customers.length);
       if (!gate.allowed) {
         setUpgradeReason(gate.reason);
         setUpgradeOpen(true);
-        setSaving(false);
+        setSaveAction("idle");
         return;
       }
     }
@@ -197,9 +200,12 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
     if (!customerResult.ok) {
       alert(customerResult.error);
-      setSaving(false);
+      setSaveAction("idle");
       return;
     }
+
+    const resolvedStatus =
+      type === "presupuesto" && status === "pagado" ? "aceptado" : status;
 
     const payload = {
       type,
@@ -210,7 +216,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
         i.description.trim(),
       ),
       notes: notes || undefined,
-      status,
+      status: resolvedStatus,
     };
 
     const emissionCheck = validateDocumentEmission(
@@ -220,7 +226,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     );
     if (!emissionCheck.ok) {
       alert(emissionCheck.message);
-      setSaving(false);
+      setSaveAction("idle");
       return;
     }
 
@@ -246,29 +252,24 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
         chain: data.verifactuChain,
         registerLocal: registerVerifactuForDocument,
       });
-
-      if (download) {
-        await downloadDocumentPdf(saved, data.profile);
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-      }
     } catch (error) {
-      setSaving(false);
+      setSaveAction("idle");
       alert(
         error instanceof Error
-          ? `No se pudo guardar o generar el PDF: ${error.message}`
-          : "No se pudo guardar o generar el PDF. Prueba «Descargar PDF» desde el listado.",
+          ? `No se pudo completar el registro tributario: ${error.message}`
+          : "No se pudo completar el registro tributario. El documento está guardado; prueba desde el listado.",
       );
       return;
     }
 
     maybeCelebrateFirstInvoice(data.documents, saved);
-    const paths = {
-      factura: "facturas",
-      presupuesto: "presupuestos",
-      recibo: "recibos",
-    };
-    setSaving(false);
-    router.push(`/${paths[type]}`);
+    setSaveAction("idle");
+    finishDocumentSave({
+      type,
+      number: saved.number,
+      router,
+      download: download ? { doc: saved, profile: data.profile } : undefined,
+    });
   }
 
   return (
@@ -308,15 +309,19 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           {existing && (
             <Field label="Estado">
               <Select
-                value={status}
+                value={type === "presupuesto" && status === "pagado" ? "aceptado" : status}
                 onChange={(e) =>
                   setStatus(e.target.value as Document["status"])
                 }
               >
                 <option value="borrador">Borrador</option>
                 <option value="enviado">Enviado</option>
-                <option value="pagado">Cobrado</option>
-                <option value="vencido">Vencido</option>
+                {type === "presupuesto" ? (
+                  <option value="aceptado">Aceptado</option>
+                ) : (
+                  <option value="pagado">Cobrado</option>
+                )}
+                {type === "factura" && <option value="vencido">Vencido</option>}
               </Select>
             </Field>
           )}
@@ -445,7 +450,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
-          {saving ? "Guardando…" : `Guardar ${label}`}
+          {saveAction === "save" ? "Guardando…" : `Guardar ${label}`}
         </Button>
         <Button
           variant="secondary"
@@ -453,7 +458,9 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           onClick={() => void handleSave(true)}
           disabled={saving}
         >
-          {saving ? "Generando PDF…" : "Guardar y descargar PDF"}
+          {saveAction === "save-pdf"
+            ? "Guardando y preparando PDF…"
+            : "Guardar y descargar PDF"}
         </Button>
       </div>
 

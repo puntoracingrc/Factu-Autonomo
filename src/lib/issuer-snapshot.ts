@@ -49,7 +49,11 @@ export function resolveIssuerForDocument(
   doc: Document,
   profile: BusinessProfile,
 ): IssuerProfile {
-  return doc.issuer ?? profile;
+  const base = doc.issuer ?? profile;
+  return {
+    ...base,
+    logoUrl: base.logoUrl ?? profile.logoUrl,
+  };
 }
 
 export function resolveIssuerNif(

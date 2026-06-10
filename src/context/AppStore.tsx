@@ -46,6 +46,11 @@ import {
 } from "@/lib/numbering";
 import type { DocumentKind } from "@/lib/types";
 import { canMarkAsCollected, statusAfterUnmarkingCollection } from "@/lib/income";
+import {
+  canMarkQuoteAsAccepted,
+  isAcceptedQuote,
+  statusAfterUnmarkingQuoteAcceptance,
+} from "@/lib/quotes";
 import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
   buildReceiptFromInvoice,
@@ -53,6 +58,10 @@ import {
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import {
+  SUPPLIER_AUTO_LINK_SCORE,
+  supplierSimilarityScore,
+} from "@/lib/suppliers";
 import { withVerifactuOnDocument } from "@/lib/verifactu/store";
 
 interface ReplaceDataOptions {
@@ -75,6 +84,8 @@ interface AppStoreValue {
   updateDocument: (doc: Document) => void;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
+  markQuoteAsAccepted: (id: string) => void;
+  unmarkQuoteAsAccepted: (id: string) => void;
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   deleteExpense: (id: string) => void;
@@ -85,6 +96,7 @@ interface AppStoreValue {
   deleteRecurringExpense: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
   deleteSupplier: (id: string) => void;
+  mergeSuppliers: (keepId: string, removeIds: string[]) => void;
   addCustomer: (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Customer;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
@@ -387,6 +399,50 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const markQuoteAsAccepted = useCallback(
+    (id: string) => {
+      setAppData((prev) => {
+        const doc = prev.documents.find((d) => d.id === id);
+        if (!doc || !canMarkQuoteAsAccepted(doc) || isAcceptedQuote(doc)) {
+          return prev;
+        }
+
+        const now = new Date().toISOString();
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === id ? { ...d, status: "aceptado", updatedAt: now } : d,
+          ),
+        };
+      });
+    },
+    [setAppData],
+  );
+
+  const unmarkQuoteAsAccepted = useCallback(
+    (id: string) => {
+      setAppData((prev) => {
+        const doc = prev.documents.find((d) => d.id === id);
+        if (!doc || !isAcceptedQuote(doc)) return prev;
+
+        const now = new Date().toISOString();
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  status: statusAfterUnmarkingQuoteAcceptance(),
+                  updatedAt: now,
+                }
+              : d,
+          ),
+        };
+      });
+    },
+    [setAppData],
+  );
+
   const addRectificativa = useCallback(
     (
       originalId: string,
@@ -581,6 +637,61 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const mergeSuppliers = useCallback((keepId: string, removeIds: string[]) => {
+    const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
+    if (uniqueRemoveIds.length === 0) return;
+
+    setAppData((prev) => {
+      const keep = prev.suppliers.find((supplier) => supplier.id === keepId);
+      if (!keep) return prev;
+
+      const removed = prev.suppliers.filter((supplier) =>
+        uniqueRemoveIds.includes(supplier.id),
+      );
+      const removedNames = removed.map((supplier) => supplier.name);
+      const enrichedKeep: Supplier = {
+        ...keep,
+        nif: keep.nif ?? removed.find((supplier) => supplier.nif)?.nif,
+        phone: keep.phone ?? removed.find((supplier) => supplier.phone)?.phone,
+        notes: keep.notes ?? removed.find((supplier) => supplier.notes)?.notes,
+        category:
+          keep.category ?? removed.find((supplier) => supplier.category)?.category,
+      };
+
+      return {
+        ...prev,
+        suppliers: prev.suppliers
+          .filter((supplier) => !uniqueRemoveIds.includes(supplier.id))
+          .map((supplier) => (supplier.id === keepId ? enrichedKeep : supplier)),
+        expenses: prev.expenses.map((expense) => {
+          if (expense.supplierId && uniqueRemoveIds.includes(expense.supplierId)) {
+            return {
+              ...expense,
+              supplierId: keepId,
+              supplierName: enrichedKeep.name,
+            };
+          }
+
+          if (
+            removedNames.some(
+              (name) =>
+                supplierSimilarityScore(expense.supplierName, name) >=
+                SUPPLIER_AUTO_LINK_SCORE,
+            )
+          ) {
+            return {
+              ...expense,
+              supplierId: keepId,
+              supplierName: enrichedKeep.name,
+            };
+          }
+
+          return expense;
+        }),
+      };
+    });
+  }, [setAppData]);
+
   const addCustomer = useCallback(
     (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">): Customer => {
       const now = new Date().toISOString();
@@ -708,6 +819,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       markAsCollected,
       unmarkAsCollected,
+      markQuoteAsAccepted,
+      unmarkQuoteAsAccepted,
       deleteDocument,
       addExpense,
       deleteExpense,
@@ -716,6 +829,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteRecurringExpense,
       addSupplier,
       deleteSupplier,
+      mergeSuppliers,
       addCustomer,
       updateCustomer,
       deleteCustomer,
@@ -733,6 +847,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       markAsCollected,
       unmarkAsCollected,
+      markQuoteAsAccepted,
+      unmarkQuoteAsAccepted,
       deleteDocument,
       addExpense,
       deleteExpense,
@@ -741,6 +857,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteRecurringExpense,
       addSupplier,
       deleteSupplier,
+      mergeSuppliers,
       addCustomer,
       updateCustomer,
       deleteCustomer,
