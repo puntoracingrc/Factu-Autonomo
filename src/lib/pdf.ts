@@ -6,6 +6,7 @@ import { ivaBreakdownByRate } from "./invoice-compliance";
 import { resolveIssuerForDocument } from "./issuer-snapshot";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 import { documentAmounts, isVatExempt } from "./vat-regime";
+import { formatQuantityWithUnit } from "./document-units";
 import {
   pdfLogoDrawSize,
   prepareLogoForPdf,
@@ -184,16 +185,20 @@ export function buildDocumentPdf(
       const lineTotal = vatExempt
         ? lineSubtotal(item)
         : item.quantity * item.unitPrice * (1 + item.ivaPercent / 100);
+      const quantityLabel = formatQuantityWithUnit(
+        item.quantity,
+        item.unit ?? "ud",
+      );
       return vatExempt
         ? [
             item.description,
-            String(item.quantity),
+            quantityLabel,
             formatMoney(item.unitPrice),
             formatMoney(lineTotal),
           ]
         : [
             item.description,
-            String(item.quantity),
+            quantityLabel,
             formatMoney(item.unitPrice),
             `${item.ivaPercent}%`,
             formatMoney(lineTotal),

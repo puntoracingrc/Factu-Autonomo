@@ -23,6 +23,7 @@ import {
 } from "@/lib/vat-regime";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
+import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
@@ -30,6 +31,10 @@ import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
 } from "@/lib/document-payment-methods";
+import {
+  normalizeDocumentUnits,
+  normalizeLineItemUnits,
+} from "@/lib/document-units";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
@@ -56,6 +61,8 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const saving = saveAction !== "idle";
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
+  const unitsSettings = normalizeDocumentUnits(data.profile.documentUnits);
+  const defaultUnit = unitsSettings.defaultUnitId;
 
   const [rectType, setRectType] = useState<RectificationType>("anulacion");
   const [reason, setReason] = useState<string>(RECTIFICATION_REASONS[0]);
@@ -66,8 +73,8 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     clientToFormValues(original.client),
   );
-  const [items, setItems] = useState<LineItem[]>(
-    itemsForAnulacion(original.items),
+  const [items, setItems] = useState<LineItem[]>(() =>
+    normalizeLineItemUnits(itemsForAnulacion(original.items), unitsSettings),
   );
 
   useEffect(() => {
@@ -81,9 +88,12 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   function handleTypeChange(type: RectificationType) {
     setRectType(type);
     setItems(
-      type === "anulacion"
-        ? itemsForAnulacion(original.items)
-        : cloneItemsForCorreccion(original.items),
+      normalizeLineItemUnits(
+        type === "anulacion"
+          ? itemsForAnulacion(original.items)
+          : cloneItemsForCorreccion(original.items),
+        unitsSettings,
+      ),
     );
   }
 
@@ -148,8 +158,11 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         phone: clientForm.phone || undefined,
         address: clientForm.address || undefined,
       },
-      items: (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
-        i.description.trim(),
+      items: normalizeLineItemUnits(
+        (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
+          i.description.trim(),
+        ),
+        unitsSettings,
       ),
       notes: notes || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
@@ -306,6 +319,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     id: crypto.randomUUID(),
                     description: "",
                     quantity: 1,
+                    unit: defaultUnit,
                     unitPrice: 0,
                     ivaPercent: defaultIva,
                   },
@@ -359,6 +373,13 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                       })
                     }
                     disabled={rectType === "anulacion"}
+                  />
+                </Field>
+                <Field label="Unidad">
+                  <LineItemUnitSelect
+                    settings={data.profile.documentUnits}
+                    value={item.unit ?? defaultUnit}
+                    onChange={(unit) => updateItem(item.id, { unit })}
                   />
                 </Field>
                 <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>

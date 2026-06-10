@@ -29,8 +29,15 @@ export interface LineItem {
   id: string;
   description: string;
   quantity: number;
+  /** Identificador de unidad (ud, m, m2, h…) */
+  unit?: string;
   unitPrice: number;
   ivaPercent: number;
+}
+
+export interface DocumentUnitsSettings {
+  enabledUnitIds: string[];
+  defaultUnitId: string;
 }
 
 export interface Client {
@@ -260,6 +267,8 @@ export interface BusinessProfile {
   documentPhrases?: DocumentPhrasesSettings;
   /** Formas de pago reutilizables en facturas, presupuestos y recibos */
   documentPaymentMethods?: DocumentPaymentMethodsSettings;
+  /** Unidades de medida en líneas de facturas y presupuestos */
+  documentUnits?: DocumentUnitsSettings;
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;

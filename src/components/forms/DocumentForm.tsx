@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -31,6 +31,11 @@ import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
 } from "@/lib/document-payment-methods";
+import {
+  normalizeDocumentUnits,
+  normalizeLineItemUnits,
+} from "@/lib/document-units";
+import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
@@ -38,11 +43,12 @@ import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
-function emptyLine(defaultIva: number): LineItem {
+function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
   return {
     id: crypto.randomUUID(),
     description: "",
     quantity: 1,
+    unit: defaultUnit,
     unitPrice: 0,
     ivaPercent: defaultIva,
   };
@@ -111,19 +117,29 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   );
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
+  const unitsSettings = useMemo(
+    () => normalizeDocumentUnits(data.profile.documentUnits),
+    [data.profile.documentUnits],
+  );
+  const defaultUnit = unitsSettings.defaultUnitId;
 
-  const [items, setItems] = useState<LineItem[]>(
-    existing?.items.length
+  const [items, setItems] = useState<LineItem[]>(() => {
+    const baseItems = existing?.items.length
       ? vatExempt
         ? zeroIvaItems(existing.items)
         : existing.items
-      : [emptyLine(defaultIva)],
-  );
+      : [emptyLine(defaultIva, defaultUnit)];
+    return normalizeLineItemUnits(baseItems, unitsSettings);
+  });
 
   useEffect(() => {
     if (!vatExempt) return;
     setItems((prev) => zeroIvaItems(prev));
   }, [vatExempt]);
+
+  useEffect(() => {
+    setItems((prev) => normalizeLineItemUnits(prev, unitsSettings));
+  }, [unitsSettings.defaultUnitId, unitsSettings.enabledUnitIds.join("|")]);
 
   useEffect(() => {
     if (existing || defaultNotesApplied.current) return;
@@ -245,8 +261,11 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       date,
       dueDate: dueDate || undefined,
       client: customerResult.client,
-      items: (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
-        i.description.trim(),
+      items: normalizeLineItemUnits(
+        (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
+          i.description.trim(),
+        ),
+        unitsSettings,
       ),
       notes: notes || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
@@ -367,7 +386,9 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
           <button
             type="button"
-            onClick={() => setItems((prev) => [...prev, emptyLine(defaultIva)])}
+            onClick={() =>
+              setItems((prev) => [...prev, emptyLine(defaultIva, defaultUnit)])
+            }
             className="flex items-center gap-1 text-sm font-semibold text-blue-600"
           >
             <Plus className="h-4 w-4" /> Añadir línea
@@ -416,6 +437,13 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                         quantity: Number(e.target.value),
                       })
                     }
+                  />
+                </Field>
+                <Field label="Unidad">
+                  <LineItemUnitSelect
+                    settings={data.profile.documentUnits}
+                    value={item.unit ?? defaultUnit}
+                    onChange={(unit) => updateItem(item.id, { unit })}
                   />
                 </Field>
                 <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>

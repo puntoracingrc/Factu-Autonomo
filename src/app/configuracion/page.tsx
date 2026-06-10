@@ -9,10 +9,12 @@ import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
+import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
+import { normalizeDocumentUnits } from "@/lib/document-units";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
 import { getMaxSequence } from "@/lib/documents";
@@ -77,6 +79,7 @@ export default function ConfiguracionPage() {
       documentPaymentMethods: normalizeDocumentPaymentMethods(
         next.documentPaymentMethods,
       ),
+      documentUnits: normalizeDocumentUnits(next.documentUnits),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -244,6 +247,13 @@ export default function ConfiguracionPage() {
         settings={normalizeDocumentPaymentMethods(form.documentPaymentMethods)}
         onChange={(documentPaymentMethods) =>
           setForm((prev) => ({ ...prev, documentPaymentMethods }))
+        }
+      />
+
+      <DocumentUnitsCard
+        settings={normalizeDocumentUnits(form.documentUnits)}
+        onChange={(documentUnits) =>
+          setForm((prev) => ({ ...prev, documentUnits }))
         }
       />
 

@@ -7,6 +7,7 @@ import { normalizeVatExempt } from "./vat-regime";
 import { normalizeNumbering } from "./numbering";
 import { normalizeDocumentPhrases } from "./document-phrases";
 import { normalizeDocumentPaymentMethods } from "./document-payment-methods";
+import { normalizeDocumentUnits } from "./document-units";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import type { AppData, BusinessProfile, DocumentType } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
@@ -24,6 +25,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     documentPaymentMethods: normalizeDocumentPaymentMethods(
       profile?.documentPaymentMethods,
     ),
+    documentUnits: normalizeDocumentUnits(profile?.documentUnits),
   };
 }
 
