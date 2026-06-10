@@ -38,7 +38,7 @@ export function buildRegistroFacturacionXml(input: {
       <NombreRazon>${escapeXml(VERIFACTU_SOFTWARE.developerName)}</NombreRazon>
       <NIF>${escapeXml(VERIFACTU_SOFTWARE.developerNif)}</NIF>
       <NombreSistemaInformatico>${escapeXml(VERIFACTU_SOFTWARE.softwareName)}</NombreSistemaInformatico>
-      <IdSistemaInformatico>FA</IdSistemaInformatico>
+      <IdSistemaInformatico>${escapeXml(VERIFACTU_SOFTWARE.softwareId)}</IdSistemaInformatico>
       <Version>${escapeXml(VERIFACTU_SOFTWARE.softwareVersion)}</Version>
     </SistemaInformatico>`;
 

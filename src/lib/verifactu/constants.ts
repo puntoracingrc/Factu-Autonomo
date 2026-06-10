@@ -1,9 +1,22 @@
-/** Datos del SIF para verificación in situ y declaración responsable. */
+/** Datos del SIF para verificación in situ y declaración responsable (art. 15 HAC/1177/2024). */
 export const VERIFACTU_SOFTWARE = {
-  developerName: process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NAME ?? "Factura Autónomo",
+  developerName:
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NAME ?? "Factura Autónomo",
   developerNif:
     process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NIF ?? "PENDIENTE-NIF",
+  developerAddress:
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_ADDRESS ??
+    "PENDIENTE — configurar dirección postal del productor",
+  developerCity:
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_CITY ?? "PENDIENTE",
+  developerCountry:
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_COUNTRY ?? "España",
+  developerEmail:
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL ?? "",
+  developerUrl: process.env.NEXT_PUBLIC_APP_URL ?? "",
   softwareName: "Factura Autónomo",
+  /** Código IdSistemaInformatico (apartado 1.b art. 15). */
+  softwareId: process.env.NEXT_PUBLIC_VERIFACTU_SYSTEM_ID ?? "FA",
   softwareVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.2.0",
 } as const;
 

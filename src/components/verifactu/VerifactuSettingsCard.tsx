@@ -70,6 +70,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           <li>Productor: {VERIFACTU_SOFTWARE.developerName}</li>
           <li>NIF productor: {VERIFACTU_SOFTWARE.developerNif}</li>
           <li>Software: {VERIFACTU_SOFTWARE.softwareName}</li>
+          <li>Código SIF: {VERIFACTU_SOFTWARE.softwareId}</li>
           <li>Versión: {VERIFACTU_SOFTWARE.softwareVersion}</li>
         </ul>
       </div>
