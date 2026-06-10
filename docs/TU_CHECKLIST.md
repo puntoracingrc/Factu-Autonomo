@@ -40,6 +40,17 @@ npm run lint
 npm run build     # verificar antes de deploy (sin dev server activo)
 ```
 
+## Veri*Factu (antes de julio 2027)
+
+- [ ] Ejecutar `supabase/verifactu.sql` en Supabase.
+- [ ] Poner tu **NIF real** en Configuración (emisor).
+- [ ] Configurar `NEXT_PUBLIC_VERIFACTU_DEVELOPER_NIF` en Vercel (NIF del productor del software).
+- [ ] Probar una factura emitida: debe mostrar badge **Veri*Factu** y QR en el PDF.
+- [ ] Validar el QR en https://prewww2.aeat.es (entorno pruebas).
+- [ ] (Opcional producción) Certificado FNMT o sello + variables `VERIFACTU_CERT_*` y `VERIFACTU_AEAT_SUBMIT=true`.
+
+Detalle técnico: `docs/VERIFACTU.md`.
+
 ## Soporte
 
 Si algo falla tras el deploy, revisa en orden: variables Vercel → logs webhook Stripe → tabla `user_subscriptions` en Supabase.

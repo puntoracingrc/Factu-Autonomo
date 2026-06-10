@@ -1,0 +1,71 @@
+import type { BusinessProfile, Document } from "../types";
+import { isRectificativa } from "../rectificativas";
+import { documentAmounts, isVatExempt } from "../vat-regime";
+import { normalizeIssuerNif } from "./qr";
+import type { VerifactuRecordType, VerifactuSettings } from "./types";
+
+export const DEFAULT_VERIFACTU_SETTINGS: VerifactuSettings = {
+  enabled: true,
+  environment: "test",
+};
+
+export function normalizeVerifactuSettings(
+  settings?: Partial<VerifactuSettings>,
+): VerifactuSettings {
+  return {
+    enabled: settings?.enabled ?? DEFAULT_VERIFACTU_SETTINGS.enabled,
+    environment:
+      settings?.environment === "production" ? "production" : "test",
+  };
+}
+
+export function isVerifactuEnabled(profile: BusinessProfile): boolean {
+  return normalizeVerifactuSettings(profile.verifactu).enabled;
+}
+
+export function getVerifactuEnvironment(
+  profile: BusinessProfile,
+): VerifactuSettings["environment"] {
+  return normalizeVerifactuSettings(profile.verifactu).environment;
+}
+
+/** Solo facturas emitidas (no borrador, presupuesto ni recibo). */
+export function needsVerifactuRegistration(
+  doc: Document,
+  profile: BusinessProfile,
+): boolean {
+  if (!isVerifactuEnabled(profile)) return false;
+  if (doc.type !== "factura") return false;
+  if (doc.status === "borrador") return false;
+  if (!profile.nif?.trim()) return false;
+  if (doc.verifactu?.status === "registered" || doc.verifactu?.status === "test_registered") {
+    return false;
+  }
+  return true;
+}
+
+export function verifactuRecordType(doc: Document): VerifactuRecordType {
+  if (isRectificativa(doc) && doc.rectification?.type === "anulacion") {
+    return "anulacion";
+  }
+  return "alta";
+}
+
+export function documentTotalForVerifactu(
+  doc: Document,
+  profile: BusinessProfile,
+): number {
+  return documentAmounts(doc, isVatExempt(profile)).total;
+}
+
+export function initialChainState(profile: BusinessProfile): {
+  issuerNif: string;
+  lastHash: string;
+  recordCount: number;
+} {
+  return {
+    issuerNif: normalizeIssuerNif(profile.nif),
+    lastHash: "0000000000000000000000000000000000000000000000000000000000000000",
+    recordCount: 0,
+  };
+}

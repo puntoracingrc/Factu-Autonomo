@@ -25,6 +25,7 @@ import {
 } from "@/lib/vat-regime";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { downloadDocumentPdf } from "@/lib/pdf";
+import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
 function emptyLine(defaultIva: number): LineItem {
@@ -59,8 +60,14 @@ interface DocumentFormProps {
 
 export function DocumentForm({ type, existing }: DocumentFormProps) {
   const router = useRouter();
-  const { data, ready, addDocument, updateDocument, upsertCustomerForDocument } =
-    useAppStore();
+  const {
+    data,
+    ready,
+    addDocument,
+    updateDocument,
+    upsertCustomerForDocument,
+    registerVerifactuForDocument,
+  } = useAppStore();
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -152,7 +159,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     setClientForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSave(download = false) {
+  async function handleSave(download = false) {
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
       return;
@@ -209,7 +216,14 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       recordDocumentCreated();
     }
 
-    if (download) downloadDocumentPdf(saved, data.profile);
+    saved = await finalizeVerifactuDocument({
+      doc: saved,
+      profile: data.profile,
+      chain: data.verifactuChain,
+      registerLocal: registerVerifactuForDocument,
+    });
+
+    if (download) await downloadDocumentPdf(saved, data.profile);
     const paths = {
       factura: "facturas",
       presupuesto: "presupuestos",

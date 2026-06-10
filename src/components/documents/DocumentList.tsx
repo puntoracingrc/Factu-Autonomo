@@ -151,6 +151,11 @@ export function DocumentList({
                     >
                       {statusLabel(doc, type)}
                     </span>
+                    {doc.verifactu && type === "factura" && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                        Veri*Factu
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-slate-700">{doc.client.name}</p>
                   <p className="text-sm text-slate-500">

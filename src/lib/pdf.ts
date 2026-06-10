@@ -4,6 +4,11 @@ import type { BusinessProfile, Document } from "./types";
 import { formatMoney, formatShortDate, lineSubtotal } from "./calculations";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
 import { documentAmounts, isVatExempt } from "./vat-regime";
+import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
+
+export interface PdfArtifacts {
+  qrDataUrl?: string;
+}
 
 function logoFormat(dataUrl: string): "PNG" | "JPEG" | "WEBP" | null {
   if (dataUrl.includes("image/png")) return "PNG";
@@ -24,9 +29,56 @@ function documentLabel(doc: Document): string {
   return labels[doc.type];
 }
 
+function drawVerifactuQrBlock(
+  pdf: jsPDF,
+  doc: Document,
+  artifacts: PdfArtifacts,
+  startY: number,
+): number {
+  if (!artifacts.qrDataUrl || !doc.verifactu) return startY;
+
+  const qrSize = 28;
+  const qrX = 14;
+  const textX = qrX + qrSize + 6;
+
+  pdf.setFontSize(9);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text("QR tributario:", textX, startY + 4);
+  pdf.setFontSize(8);
+  pdf.text(
+    "Factura verificable en la sede electrónica de la AEAT",
+    textX,
+    startY + 10,
+    { maxWidth: 120 },
+  );
+
+  if (doc.verifactu.csv) {
+    pdf.text(`CSV: ${doc.verifactu.csv}`, textX, startY + 20);
+  }
+
+  if (doc.verifactu.environment === "test") {
+    pdf.setTextColor(180, 83, 9);
+    pdf.text("*** MODO PRUEBAS VERI*FACTU ***", textX, startY + 26);
+    pdf.setTextColor(0, 0, 0);
+  }
+
+  pdf.addImage(artifacts.qrDataUrl, "PNG", qrX, startY, qrSize, qrSize);
+
+  return startY + qrSize + 8;
+}
+
+export async function preparePdfArtifacts(
+  doc: Document,
+): Promise<PdfArtifacts> {
+  if (!hasVerifactuQr(doc)) return {};
+  const qrDataUrl = await prepareVerifactuQrForPdf(doc);
+  return { qrDataUrl };
+}
+
 export function buildDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
+  artifacts: PdfArtifacts = {},
 ): jsPDF {
   const pdf = new jsPDF();
   const vatExempt = isVatExempt(profile);
@@ -34,14 +86,19 @@ export function buildDocumentPdf(
   const label = documentLabel(doc);
   const isRect = isRectificativa(doc);
 
-  let contentStartY = 20;
+  let y = 14;
+  if (artifacts.qrDataUrl && doc.verifactu) {
+    y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
+  }
+
+  let contentStartY = y + 6;
 
   if (profile.logoUrl?.startsWith("data:image/")) {
     const format = logoFormat(profile.logoUrl);
     if (format) {
       try {
-        pdf.addImage(profile.logoUrl, format, 14, 12, 36, 18);
-        contentStartY = 36;
+        pdf.addImage(profile.logoUrl, format, 14, y, 36, 18);
+        contentStartY = Math.max(contentStartY, y + 22);
       } catch {
         // Logo opcional: si falla la decodificación, seguimos sin imagen
       }
@@ -49,7 +106,7 @@ export function buildDocumentPdf(
   }
 
   pdf.setFontSize(20);
-  pdf.setTextColor(isRect ? 180 : 37, isRect ? 83 : 99, isRect ? 9 : 235);
+  pdf.setTextColor(isRect ? 180 : 37, isRect ? 83 : 9, isRect ? 9 : 235);
   pdf.text(label, 14, contentStartY);
 
   pdf.setFontSize(10);
@@ -65,10 +122,10 @@ export function buildDocumentPdf(
 
   pdf.setFontSize(11);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`Nº ${doc.number}`, 140, 30);
-  pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, 36);
+  pdf.text(`Nº ${doc.number}`, 140, contentStartY + 4);
+  pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, contentStartY + 10);
   if (doc.dueDate && doc.type === "factura" && !isRect) {
-    pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, 42);
+    pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
   }
 
   let clientBoxY = baseY + 38;
@@ -78,14 +135,14 @@ export function buildDocumentPdf(
     pdf.text(
       `Rectifica factura: ${doc.rectification.originalNumber} (${formatShortDate(doc.rectification.originalDate)})`,
       14,
-      68,
+      clientBoxY,
     );
     pdf.text(
       `Tipo: ${rectificationTypeLabel(doc.rectification.type)} · Motivo: ${doc.rectification.reason}`,
       14,
-      74,
+      clientBoxY + 6,
     );
-    clientBoxY = 82;
+    clientBoxY += 14;
   }
 
   const clientBoxHeight =
@@ -163,16 +220,18 @@ export function buildDocumentPdf(
   return pdf;
 }
 
-export function buildDocumentPdfBlob(
+export async function buildDocumentPdfBlob(
   doc: Document,
   profile: BusinessProfile,
-): Blob {
-  return buildDocumentPdf(doc, profile).output("blob");
+): Promise<Blob> {
+  const artifacts = await preparePdfArtifacts(doc);
+  return buildDocumentPdf(doc, profile, artifacts).output("blob");
 }
 
-export function downloadDocumentPdf(
+export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
-): void {
-  buildDocumentPdf(doc, profile).save(`${doc.number}.pdf`);
+): Promise<void> {
+  const artifacts = await preparePdfArtifacts(doc);
+  buildDocumentPdf(doc, profile, artifacts).save(`${doc.number}.pdf`);
 }

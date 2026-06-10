@@ -22,6 +22,7 @@ import {
   zeroIvaItems,
 } from "@/lib/vat-regime";
 import { downloadDocumentPdf } from "@/lib/pdf";
+import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
@@ -36,7 +37,7 @@ interface RectificativaFormProps {
 
 export function RectificativaForm({ original }: RectificativaFormProps) {
   const router = useRouter();
-  const { data, addRectificativa } = useAppStore();
+  const { data, addRectificativa, registerVerifactuForDocument } = useAppStore();
   const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -74,7 +75,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const finalReason =
     reason === "Otros motivos" ? customReason.trim() : reason;
 
-  function handleSave(download = false) {
+  async function handleSave(download = false) {
     if (!finalReason) {
       alert("Indica el motivo de la rectificación");
       return;
@@ -122,7 +123,15 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     }
 
     recordDocumentCreated();
-    if (download) downloadDocumentPdf(saved, data.profile);
+
+    const finalized = await finalizeVerifactuDocument({
+      doc: saved,
+      profile: data.profile,
+      chain: data.verifactuChain,
+      registerLocal: registerVerifactuForDocument,
+    });
+
+    if (download) await downloadDocumentPdf(finalized, data.profile);
     router.push("/facturas");
   }
 

@@ -70,6 +70,8 @@ export interface Document {
   status: DocumentStatus;
   rectification?: RectificationInfo;
   rectifiedById?: string;
+  /** Registro Veri*Factu (hash encadenado, QR, CSV) */
+  verifactu?: VerifactuInfo;
   /** Recibo generado automáticamente al cobrar una factura */
   sourceDocumentId?: string;
   /** Recibo vinculado cuando la factura se marca como cobrada */
@@ -133,6 +135,37 @@ export interface NumberingSettings {
   formats: NumberingFormats;
 }
 
+export interface VerifactuSettings {
+  enabled: boolean;
+  environment: "test" | "production";
+}
+
+export interface VerifactuChainState {
+  issuerNif: string;
+  lastHash: string;
+  recordCount: number;
+}
+
+export type VerifactuSubmissionStatus =
+  | "registered"
+  | "test_registered"
+  | "pending"
+  | "failed"
+  | "not_required";
+
+export interface VerifactuInfo {
+  recordHash: string;
+  previousHash: string;
+  recordTimestamp: string;
+  qrUrl: string;
+  csv?: string;
+  status: VerifactuSubmissionStatus;
+  recordType: "alta" | "anulacion";
+  environment: "test" | "production";
+  submittedAt?: string;
+  errorMessage?: string;
+}
+
 export interface BusinessProfile {
   name: string;
   nif: string;
@@ -149,6 +182,8 @@ export interface BusinessProfile {
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
   numbering: NumberingSettings;
+  /** Veri*Factu: registro encadenado y QR en facturas emitidas */
+  verifactu?: VerifactuSettings;
 }
 
 export type SyncEntityType =
@@ -185,6 +220,8 @@ export interface AppData {
     presupuesto: number;
     recibo: number;
   };
+  /** Estado de la cadena de huellas Veri*Factu por NIF emisor */
+  verifactuChain?: VerifactuChainState | null;
   meta?: AppMeta;
 }
 
@@ -202,6 +239,10 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   },
   irpfPercent: 20,
   vatExempt: false,
+  verifactu: {
+    enabled: true,
+    environment: "test",
+  },
   numbering: {
     year: new Date().getFullYear(),
     lastSequence: {

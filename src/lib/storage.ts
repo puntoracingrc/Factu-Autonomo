@@ -4,6 +4,7 @@ import { normalizeIvaSettings } from "./iva";
 import { normalizeIrpfPercent } from "./taxes";
 import { normalizeVatExempt } from "./vat-regime";
 import { normalizeNumbering } from "./numbering";
+import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import type { AppData, BusinessProfile, DocumentType } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -15,6 +16,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
     vatExempt: normalizeVatExempt(profile?.vatExempt),
     numbering: normalizeNumbering(profile?.numbering),
+    verifactu: normalizeVerifactuSettings(profile?.verifactu),
   };
 }
 

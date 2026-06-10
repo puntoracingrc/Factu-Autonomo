@@ -12,6 +12,7 @@
 Solo la migración que falte, por ejemplo:
 
 - **Escáner de gastos:** `billing-scans.sql`
+- **Veri*Factu (registros servidor):** `verifactu.sql`
 
 ## Errores tipo «policy already exists»
 

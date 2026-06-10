@@ -66,8 +66,8 @@ export function buildMailtoUrl(
   return `mailto:${email.trim()}?${params.toString()}`;
 }
 
-function pdfFile(doc: Document, profile: BusinessProfile): File {
-  const blob = buildDocumentPdfBlob(doc, profile);
+async function pdfFile(doc: Document, profile: BusinessProfile): Promise<File> {
+  const blob = await buildDocumentPdfBlob(doc, profile);
   return new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
 }
 
@@ -78,7 +78,7 @@ async function sharePdfNative(
 ): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.share) return false;
 
-  const file = pdfFile(doc, profile);
+  const file = await pdfFile(doc, profile);
   const payload = { files: [file], title: doc.number, text };
 
   if (navigator.canShare && !navigator.canShare(payload)) return false;
@@ -106,7 +106,7 @@ export async function shareDocumentByEmail(
   if (shared) return;
 
   const mailto = buildMailtoUrl(email, subject, `${message}\n\n(Adjunta el PDF descargado.)`);
-  downloadDocumentPdf(doc, profile);
+  await downloadDocumentPdf(doc, profile);
   window.location.href = mailto;
 }
 
@@ -122,7 +122,7 @@ export async function shareDocumentByWhatsApp(
   if (!url) return;
 
   const shared = await sharePdfNative(doc, profile, message);
-  if (!shared) downloadDocumentPdf(doc, profile);
+  if (!shared) await downloadDocumentPdf(doc, profile);
 
   window.open(url, "_blank", "noopener,noreferrer");
 }

@@ -50,6 +50,7 @@ import {
   findReceiptForInvoice,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
+import { withVerifactuOnDocument } from "@/lib/verifactu/store";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -86,6 +87,10 @@ interface AppStoreValue {
     | { ok: true; customerId: string; client: Client }
     | { ok: false; error: string };
   getDocumentsByType: (type: DocumentType) => Document[];
+  registerVerifactuForDocument: (
+    doc: Document,
+    chainOverride?: AppData["verifactuChain"],
+  ) => Promise<Document>;
 }
 
 const AppStoreContext = createContext<AppStoreValue | null>(null);
@@ -605,6 +610,39 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [data.documents],
   );
 
+  const registerVerifactuForDocument = useCallback(
+    async (
+      doc: Document,
+      chainOverride?: AppData["verifactuChain"],
+    ): Promise<Document> => {
+      if (doc.verifactu) {
+        setAppData((prev) => ({
+          ...prev,
+          verifactuChain: chainOverride ?? prev.verifactuChain,
+          documents: prev.documents.map((d) => (d.id === doc.id ? doc : d)),
+        }));
+        return doc;
+      }
+
+      const applied = await withVerifactuOnDocument({
+        doc,
+        profile: data.profile,
+        chain: data.verifactuChain,
+      });
+
+      setAppData((prev) => ({
+        ...prev,
+        verifactuChain: chainOverride ?? applied.chain,
+        documents: prev.documents.map((d) =>
+          d.id === applied.doc.id ? applied.doc : d,
+        ),
+      }));
+
+      return applied.doc;
+    },
+    [data.profile, data.verifactuChain, setAppData],
+  );
+
   const value = useMemo(
     () => ({
       data,
@@ -626,6 +664,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteCustomer,
       upsertCustomerForDocument,
       getDocumentsByType,
+      registerVerifactuForDocument,
     }),
     [
       data,
@@ -647,6 +686,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteCustomer,
       upsertCustomerForDocument,
       getDocumentsByType,
+      registerVerifactuForDocument,
     ],
   );
 

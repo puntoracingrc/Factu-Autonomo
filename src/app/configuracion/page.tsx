@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
+import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
+import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { getMaxSequence } from "@/lib/documents";
@@ -83,6 +85,7 @@ export default function ConfiguracionPage() {
     updateProfile({
       ...form,
       numbering: normalizeNumbering(form.numbering),
+      verifactu: normalizeVerifactuSettings(form.verifactu),
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -500,6 +503,16 @@ export default function ConfiguracionPage() {
         )}
       </Card>
       )}
+
+      <VerifactuSettingsCard
+        form={form}
+        onChange={(verifactu) =>
+          setForm((prev) => ({
+            ...prev,
+            verifactu: normalizeVerifactuSettings(verifactu),
+          }))
+        }
+      />
 
       <Button fullWidth onClick={handleSave}>
         Guardar configuración

@@ -14,7 +14,8 @@ Fuentes: declarando.es, guiafiscal.es, rankiabusiness.com (comparativas 2026).
 ## Posicionamiento de Factura Autónomo
 
 **Qué somos:** facturación sencilla (facturas, presupuestos, recibos, gastos, resumen fiscal).  
-**Qué no somos:** banca, nóminas, modelos AEAT automáticos, Verifactu (aún).
+**Qué no somos:** banca, nóminas, modelos AEAT automáticos (303/130).
+**Veri*Factu:** implementado (modo pruebas; certificado producción pendiente de configurar).
 
 Por tanto el precio debe estar **por debajo** de Quipu/Contasimple ilimitado, pero con un **gratis útil** para captar usuarios.
 
