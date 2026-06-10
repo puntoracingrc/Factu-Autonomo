@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Loader2, ScanLine } from "lucide-react";
+import { Camera, FileText, Loader2, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
@@ -117,8 +117,8 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Escanear factura o ticket</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Saca una foto y la app rellena proveedor, importe e IVA. Siempre revisa antes de
-            guardar.
+            Foto, imagen o PDF: la app rellena proveedor, importe e IVA. Siempre revisa antes
+            de guardar.
           </p>
         </div>
       </div>
@@ -147,30 +147,54 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/*"
-            capture="environment"
+            accept="image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf"
             className="hidden"
             onChange={(e) => void handleFile(e.target.files?.[0])}
           />
 
-          <Button
-            variant="secondary"
-            fullWidth
-            disabled={scanning || noScansLeft}
-            onClick={() => inputRef.current?.click()}
-          >
-            {scanning ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Analizando imagen…
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4" />
-                {noScansLeft ? "Sin escaneos disponibles" : "Hacer foto o elegir imagen"}
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              fullWidth
+              disabled={scanning || noScansLeft}
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.accept =
+                    "image/jpeg,image/png,image/webp,image/*";
+                  inputRef.current.setAttribute("capture", "environment");
+                  inputRef.current.click();
+                }
+              }}
+            >
+              {scanning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analizando…
+                </>
+              ) : (
+                <>
+                  <Camera className="h-4 w-4" />
+                  {noScansLeft ? "Sin escaneos" : "Hacer foto"}
+                </>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              disabled={scanning || noScansLeft}
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.accept =
+                    "image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf";
+                  inputRef.current.removeAttribute("capture");
+                  inputRef.current.click();
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              {noScansLeft ? "Sin escaneos" : "Imagen o PDF"}
+            </Button>
+          </div>
 
           {noScansLeft && (
             <p className="text-sm text-violet-800">

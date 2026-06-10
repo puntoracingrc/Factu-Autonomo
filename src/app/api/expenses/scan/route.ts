@@ -8,6 +8,7 @@ import {
 import {
   extractExpenseFromImage,
   fileToBase64,
+  resolveScanMimeType,
   validateScanFile,
 } from "@/lib/expense-scan/openai";
 
@@ -57,7 +58,10 @@ export async function POST(request: Request) {
   }
 
   const base64 = await fileToBase64(file);
-  const result = await extractExpenseFromImage(base64, file.type);
+  const result = await extractExpenseFromImage(
+    base64,
+    resolveScanMimeType(file),
+  );
   if (result.error) {
     return NextResponse.json({ error: result.error, quota: gate.quota }, { status: 422 });
   }

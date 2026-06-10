@@ -1,26 +1,75 @@
 import { buildExpenseScanPrompt } from "./prompt";
 import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
 
-const MAX_BYTES = 4 * 1024 * 1024;
-const ALLOWED_TYPES = new Set([
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_PDF_BYTES = 8 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
 ]);
 
+export function resolveScanMimeType(file: File): string {
+  if (file.type) return file.type;
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
 export function isOpenAiConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
 
 export function validateScanFile(file: File): string | null {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    return "Formato no soportado. Usa una foto JPG, PNG o WebP del ticket o factura.";
+  const mimeType = resolveScanMimeType(file);
+  const isPdf = mimeType === "application/pdf";
+  const isImage = ALLOWED_IMAGE_TYPES.has(mimeType);
+
+  if (!isPdf && !isImage) {
+    return "Formato no soportado. Usa una foto (JPG, PNG, WebP) o un PDF de la factura.";
   }
-  if (file.size > MAX_BYTES) {
-    return "La imagen es demasiado grande (máx. 4 MB).";
+
+  const maxBytes = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+  if (file.size > maxBytes) {
+    return isPdf
+      ? "El PDF es demasiado grande (máx. 8 MB)."
+      : "La imagen es demasiado grande (máx. 4 MB).";
   }
+
   return null;
+}
+
+function buildScanContent(base64: string, mimeType: string) {
+  const prompt = { type: "text" as const, text: buildExpenseScanPrompt() };
+
+  if (mimeType === "application/pdf") {
+    return [
+      prompt,
+      {
+        type: "file" as const,
+        file: {
+          filename: "factura.pdf",
+          file_data: `data:application/pdf;base64,${base64}`,
+        },
+      },
+    ];
+  }
+
+  return [
+    prompt,
+    {
+      type: "image_url" as const,
+      image_url: {
+        url: `data:${mimeType};base64,${base64}`,
+        detail: "high" as const,
+      },
+    },
+  ];
 }
 
 export async function extractExpenseFromImage(
@@ -46,16 +95,7 @@ export async function extractExpenseFromImage(
       messages: [
         {
           role: "user",
-          content: [
-            { type: "text", text: buildExpenseScanPrompt() },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64}`,
-                detail: "high",
-              },
-            },
-          ],
+          content: buildScanContent(base64, mimeType),
         },
       ],
     }),
@@ -68,7 +108,7 @@ export async function extractExpenseFromImage(
     return {
       error:
         body.error?.message ??
-        `No se pudo analizar la imagen (error ${response.status}).`,
+        `No se pudo analizar el documento (error ${response.status}).`,
     };
   }
 
@@ -77,7 +117,9 @@ export async function extractExpenseFromImage(
   };
   const content = json.choices?.[0]?.message?.content;
   if (!content) {
-    return { error: "La IA no devolvió datos. Prueba con otra foto más nítida." };
+    return {
+      error: "La IA no devolvió datos. Prueba con otra foto o PDF más legible.",
+    };
   }
 
   let parsed: unknown;
@@ -91,7 +133,7 @@ export async function extractExpenseFromImage(
   if (!data) {
     return {
       error:
-        "No se encontraron datos suficientes (proveedor, descripción o importe). Revisa la imagen.",
+        "No se encontraron datos suficientes (proveedor, descripción o importe). Revisa el archivo.",
     };
   }
 
