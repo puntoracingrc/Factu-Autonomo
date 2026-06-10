@@ -37,6 +37,7 @@ interface BillingContextValue {
   trialDaysLeft: number | null;
   loading: boolean;
   checkout: (interval: "monthly" | "yearly") => Promise<string | null>;
+  checkoutScanPack: () => Promise<string | null>;
   openPortal: () => Promise<string | null>;
   recordDocumentCreated: () => void;
   checkCanCreateDocument: (customerCount?: number) => {
@@ -134,6 +135,21 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     [getAccessToken],
   );
 
+  const checkoutScanPack = useCallback(async (): Promise<string | null> => {
+    const token = await getAccessToken();
+    if (!token) return "Inicia sesión para comprar escaneos extra";
+    const res = await fetch("/api/billing/checkout-scan-pack", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const body = (await res.json()) as { url?: string; error?: string };
+    if (!res.ok) return body.error ?? "No se pudo iniciar el pago";
+    if (body.url) window.location.href = body.url;
+    return null;
+  }, [getAccessToken]);
+
   const openPortal = useCallback(async (): Promise<string | null> => {
     const token = await getAccessToken();
     if (!token) return "Inicia sesión para gestionar tu suscripción";
@@ -186,6 +202,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       trialDaysLeft,
       loading,
       checkout,
+      checkoutScanPack,
       openPortal,
       recordDocumentCreated,
       checkCanCreateDocument,
@@ -201,6 +218,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       trialDaysLeft,
       loading,
       checkout,
+      checkoutScanPack,
       openPortal,
       recordDocumentCreated,
       checkCanCreateDocument,

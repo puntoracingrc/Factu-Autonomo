@@ -18,3 +18,7 @@ export function priceIdForInterval(
   const ids = getStripePriceIds();
   return interval === "yearly" ? ids.yearly ?? null : ids.monthly ?? null;
 }
+
+export function scanPackPriceId(): string | null {
+  return getStripePriceIds().scanPack ?? null;
+}

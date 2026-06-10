@@ -6,6 +6,8 @@
 2. SQL Editor → ejecuta en orden:
    - `supabase/schema.sql`
    - `supabase/billing.sql`
+   - `supabase/billing-scans.sql`
+   - `supabase/billing-scan-credits.sql`
 3. Copia URL, anon key y **service role key** (solo servidor).
 
 ## 2. Stripe
@@ -14,8 +16,9 @@
 2. Producto **Factura Autónomo Pro** con dos precios recurrentes:
    - Mensual: **5,99 EUR** (sin IVA; activa impuestos en Stripe para España).
    - Anual: **49 EUR**.
-3. Copia los `price_...` IDs.
-4. Developers → Webhooks → endpoint:
+3. Producto **Pack escaneos** (pago único): **10 escaneos — 1,99 EUR** (+ IVA).
+4. Copia los `price_...` IDs (mensual, anual y pack).
+5. Developers → Webhooks → endpoint:
    - URL: `https://TU-DOMINIO/api/webhooks/stripe`
    - Eventos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
 5. Copia el **webhook signing secret**.
@@ -37,6 +40,7 @@ STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_MONTHLY=price_...
 STRIPE_PRICE_YEARLY=price_...
+STRIPE_PRICE_SCAN_PACK=price_...
 ```
 
 Despliega:

@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, FileText, Loader2, ScanLine } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Camera, FileText, Loader2, ScanLine, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import type { ScanQuota } from "@/lib/billing/scan-limits";
+import {
+  PRO_EXPENSE_SCANS_PER_MONTH,
+  type ScanQuota,
+} from "@/lib/billing/scan-limits";
+import { scanPackLabel } from "@/lib/billing/scan-packs";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 
 interface ExpenseScanCardProps {
@@ -15,14 +20,17 @@ interface ExpenseScanCardProps {
 }
 
 export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
-  const { billingEnabled } = useBilling();
+  const searchParams = useSearchParams();
+  const { billingEnabled, isPro, checkoutScanPack } = useBilling();
   const { user } = useCloudSync();
   const inputRef = useRef<HTMLInputElement>(null);
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [loadingQuota, setLoadingQuota] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [buyingPack, setBuyingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const checkoutStatus = searchParams.get("checkout");
 
   const loadQuota = useCallback(async () => {
     if (billingEnabled && !user) {
@@ -51,7 +59,15 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
 
   useEffect(() => {
     void loadQuota();
-  }, [loadQuota]);
+  }, [loadQuota, checkoutStatus]);
+
+  async function handleBuyScanPack() {
+    setBuyingPack(true);
+    setError(null);
+    const result = await checkoutScanPack();
+    setBuyingPack(false);
+    if (result) setError(result);
+  }
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -123,13 +139,27 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
         </div>
       </div>
 
+      {checkoutStatus === "scan_pack_success" && (
+        <p className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          Pack de escaneos añadido. Ya puedes volver a escanear facturas.
+        </p>
+      )}
+
+      {checkoutStatus === "scan_pack_cancel" && (
+        <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          Compra cancelada. Puedes intentarlo de nuevo cuando quieras.
+        </p>
+      )}
+
       {needsAccount ? (
         <p className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700">
           Necesitas{" "}
           <Link href="/configuracion" className="font-semibold text-sky-700 underline">
             crear cuenta e iniciar sesión
           </Link>{" "}
-          para usar el escáner (2 pruebas gratis, 15/mes con Pro).
+          para usar el escáner (2 escaneos de prueba gratis; con Pro,{" "}
+          {PRO_EXPENSE_SCANS_PER_MONTH} escaneos al mes incluidos, sin coste
+          extra).
         </p>
       ) : (
         <>
@@ -140,6 +170,12 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
                 {quota.remaining}
                 {quota.period === "month" ? " este mes" : " de prueba"}
               </strong>
+              {quota.bonusCredits > 0 ? (
+                <span className="text-slate-500">
+                  {" "}
+                  ({quota.bonusCredits} extra comprados)
+                </span>
+              ) : null}
               {loadingQuota ? " (actualizando…)" : null}
             </p>
           )}
@@ -197,13 +233,45 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
           </div>
 
           {noScansLeft && (
-            <p className="text-sm text-violet-800">
-              Pasa a{" "}
-              <Link href="/precios" className="font-semibold underline">
-                Pro
-              </Link>{" "}
-              para escanear hasta 15 facturas al mes.
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-violet-800">
+                {isPro ? (
+                  <>
+                    Has usado los {PRO_EXPENSE_SCANS_PER_MONTH} escaneos incluidos
+                    este mes. Puedes comprar un pack extra o esperar al mes que
+                    viene.
+                  </>
+                ) : (
+                  <>
+                    Pasa a{" "}
+                    <Link href="/precios" className="font-semibold underline">
+                      Pro
+                    </Link>{" "}
+                    para escanear hasta {PRO_EXPENSE_SCANS_PER_MONTH} facturas al
+                    mes (incluido en el plan, sin coste extra).
+                  </>
+                )}
+              </p>
+              {isPro && billingEnabled && (
+                <Button
+                  fullWidth
+                  disabled={buyingPack}
+                  onClick={() => void handleBuyScanPack()}
+                >
+                  {buyingPack ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Abriendo pago…
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="h-4 w-4" />
+                      Comprar {scanPackLabel()}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </>
       )}

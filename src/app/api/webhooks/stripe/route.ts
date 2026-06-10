@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { addScanCredits } from "@/lib/billing/add-scan-credits";
+import { SCAN_PACK_SIZE } from "@/lib/billing/scan-packs";
 import { getStripe } from "@/lib/billing/stripe";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -85,9 +87,21 @@ export async function POST(request: Request) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.user_id;
+      if (!userId) break;
+
+      if (session.metadata?.checkout_type === "scan_pack") {
+        const credits = Number(
+          session.metadata.scan_credits ?? SCAN_PACK_SIZE,
+        );
+        if (Number.isFinite(credits) && credits > 0) {
+          await addScanCredits(userId, credits);
+        }
+        break;
+      }
+
       const subscriptionId = session.subscription as string | null;
       const customerId = session.customer as string | null;
-      if (userId && subscriptionId && customerId) {
+      if (subscriptionId && customerId) {
         const subscription = (await stripe.subscriptions.retrieve(
           subscriptionId,
         )) as unknown as Stripe.Subscription;

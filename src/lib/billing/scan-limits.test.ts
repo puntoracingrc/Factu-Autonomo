@@ -16,7 +16,21 @@ describe("scan limits", () => {
     const q = buildScanQuota("pro", 3, 2, "2026-06");
     expect(q.limit).toBe(PRO_EXPENSE_SCANS_PER_MONTH);
     expect(q.remaining).toBe(12);
+    expect(q.bonusCredits).toBe(0);
     expect(q.period).toBe("month");
+  });
+
+  it("suma créditos extra comprados al cupo mensual", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", 15, 2, "2026-06", 10);
+    expect(q.remaining).toBe(10);
+    expect(q.bonusCredits).toBe(10);
+  });
+
+  it("combina escaneos incluidos y extra", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", 12, 2, "2026-06", 5);
+    expect(q.remaining).toBe(8);
   });
 
   it("usa escaneos de prueba en gratis", () => {

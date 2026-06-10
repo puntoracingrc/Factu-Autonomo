@@ -4,14 +4,16 @@ import { currentMonthKey } from "./usage";
 import {
   buildScanQuota,
   FREE_EXPENSE_SCAN_TRIAL,
+  PRO_EXPENSE_SCANS_PER_MONTH,
   scanBlockedMessage,
   type ScanQuota,
 } from "./scan-limits";
 import { resolveEffectivePlan, type UserSubscription } from "./subscription";
-import type { PlanId } from "./plans";
+import { isProPlan, type PlanId } from "./plans";
 
 function mapSubscription(row: Record<string, unknown>): UserSubscription & {
   scanTrialRemaining: number;
+  scanCredits: number;
 } {
   return {
     userId: String(row.user_id),
@@ -26,6 +28,8 @@ function mapSubscription(row: Record<string, unknown>): UserSubscription & {
       typeof row.scan_trial_remaining === "number"
         ? row.scan_trial_remaining
         : FREE_EXPENSE_SCAN_TRIAL,
+    scanCredits:
+      typeof row.scan_credits === "number" ? row.scan_credits : 0,
   };
 }
 
@@ -67,8 +71,15 @@ export async function getExpenseScanQuota(userId: string): Promise<ScanQuota> {
   const plan = resolveEffectivePlan(sub);
   const monthlyUsed = await getMonthlyScanUsage(userId, monthKey);
   const trialRemaining = sub?.scanTrialRemaining ?? FREE_EXPENSE_SCAN_TRIAL;
+  const scanCredits = sub?.scanCredits ?? 0;
 
-  return buildScanQuota(plan, monthlyUsed, trialRemaining, monthKey);
+  return buildScanQuota(
+    plan,
+    monthlyUsed,
+    trialRemaining,
+    monthKey,
+    scanCredits,
+  );
 }
 
 export async function consumeExpenseScan(userId: string): Promise<{
@@ -105,6 +116,17 @@ export async function consumeExpenseScan(userId: string): Promise<{
 
   if (plan === "pro" || plan === "trial") {
     const used = await getMonthlyScanUsage(userId, monthKey);
+    const monthlyRemaining = Math.max(0, PRO_EXPENSE_SCANS_PER_MONTH - used);
+    const scanCredits = sub?.scanCredits ?? 0;
+
+    if (monthlyRemaining <= 0 && scanCredits <= 0) {
+      return {
+        allowed: false,
+        reason: scanBlockedMessage(plan),
+        quota: quotaBefore,
+      };
+    }
+
     const { data: existing } = await admin
       .from("user_usage")
       .select("documents_created")
@@ -128,6 +150,23 @@ export async function consumeExpenseScan(userId: string): Promise<{
         reason: "No se pudo registrar el escaneo.",
         quota: quotaBefore,
       };
+    }
+
+    if (monthlyRemaining <= 0 && scanCredits > 0) {
+      const { error: creditError } = await admin
+        .from("user_subscriptions")
+        .update({
+          scan_credits: scanCredits - 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+      if (creditError) {
+        return {
+          allowed: false,
+          reason: "No se pudo registrar el escaneo.",
+          quota: quotaBefore,
+        };
+      }
     }
   } else {
     const current = sub?.scanTrialRemaining ?? FREE_EXPENSE_SCAN_TRIAL;
