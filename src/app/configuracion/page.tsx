@@ -10,7 +10,6 @@ import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { getMaxSequence } from "@/lib/documents";
 import {
   addIvaRate,
@@ -49,7 +48,6 @@ const CloudAccountCard = dynamic(
 
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
-  const { limits, billingEnabled } = useBilling();
   const [form, setForm] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
