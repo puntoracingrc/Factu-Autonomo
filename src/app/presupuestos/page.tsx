@@ -9,7 +9,7 @@ export default function PresupuestosPage() {
     <div>
       <PageHeader
         title="Presupuestos"
-        subtitle="Envía ofertas a tus clientes"
+        subtitle="Crea presupuestos y envíalos por email o WhatsApp"
         action={
           <ButtonLink href="/presupuestos/nuevo">+ Nuevo presupuesto</ButtonLink>
         }

@@ -1,15 +1,32 @@
 import { migrateCustomer } from "./customers";
 import { countersFromDocuments } from "./documents";
-import type { AppData, DocumentType } from "./types";
-import { EMPTY_DATA } from "./types";
+import { normalizeIvaSettings } from "./iva";
+import { normalizeIrpfPercent } from "./taxes";
+import { normalizeVatExempt } from "./vat-regime";
+import { normalizeNumbering } from "./numbering";
+import type { AppData, BusinessProfile, DocumentType } from "./types";
+import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
+
+function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
+  return {
+    ...DEFAULT_PROFILE,
+    ...profile,
+    iva: normalizeIvaSettings(profile?.iva),
+    irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
+    vatExempt: normalizeVatExempt(profile?.vatExempt),
+    numbering: normalizeNumbering(profile?.numbering),
+  };
+}
 
 const STORAGE_KEY = "factura-autonomo-data";
 
-function normalizeLoadedData(parsed: Partial<AppData>): AppData {
+export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
   const documents = parsed.documents ?? [];
+  const profile = migrateProfile(parsed.profile);
   return {
     ...EMPTY_DATA,
     ...parsed,
+    profile,
     customers: (parsed.customers ?? []).map((customer) =>
       migrateCustomer(customer as AppData["customers"][number]),
     ),
@@ -17,9 +34,28 @@ function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     counters: {
       ...EMPTY_DATA.counters,
       ...parsed.counters,
-      ...countersFromDocuments(documents),
+      ...countersFromDocuments(
+        documents,
+        profile.numbering.year,
+        profile.numbering,
+      ),
+    },
+    meta: parsed.meta,
+  };
+}
+
+export function touchAppData(data: AppData): AppData {
+  return {
+    ...data,
+    meta: {
+      ...data.meta,
+      lastModified: new Date().toISOString(),
     },
   };
+}
+
+export function getDataTimestamp(data: AppData): string {
+  return data.meta?.lastModified ?? "1970-01-01T00:00:00.000Z";
 }
 
 export function loadData(): AppData {
@@ -33,9 +69,40 @@ export function loadData(): AppData {
   }
 }
 
+function storedDataHasContent(parsed: Partial<AppData>): boolean {
+  return (
+    (parsed.documents?.length ?? 0) > 0 ||
+    (parsed.customers?.length ?? 0) > 0 ||
+    (parsed.expenses?.length ?? 0) > 0 ||
+    (parsed.suppliers?.length ?? 0) > 0 ||
+    Boolean(parsed.profile?.name?.trim())
+  );
+}
+
+function inMemoryDataIsEmpty(data: AppData): boolean {
+  return (
+    data.documents.length === 0 &&
+    data.customers.length === 0 &&
+    data.expenses.length === 0 &&
+    data.suppliers.length === 0 &&
+    !data.profile.name.trim()
+  );
+}
+
 export function saveData(data: AppData): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    const existing = localStorage.getItem(STORAGE_KEY);
+    if (existing && inMemoryDataIsEmpty(data)) {
+      const parsed = JSON.parse(existing) as Partial<AppData>;
+      if (storedDataHasContent(parsed)) {
+        return;
+      }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error("No se pudo guardar en localStorage:", error);
+  }
 }
 
 /** @deprecated Usar assignNextDocumentNumber desde documents.ts */

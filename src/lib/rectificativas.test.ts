@@ -4,8 +4,8 @@ import {
   formatDocumentNumber,
 } from "./documents";
 import {
-  canDeleteDocument,
   canRectifyInvoice,
+  getDeletePolicy,
   itemsForAnulacion,
   originalStatusAfterRectification,
 } from "./rectificativas";
@@ -86,12 +86,13 @@ describe("facturas rectificativas", () => {
     expect(formatDocumentNumber("factura", 2026, 2)).toBe("F-2026-0002");
   });
 
-  it("no permite borrar facturas emitidas", () => {
-    expect(canDeleteDocument(invoice("1", "F-2026-0001", "pagado"))).toBe(
-      false,
-    );
-    expect(canDeleteDocument(invoice("1", "F-2026-0001", "borrador"))).toBe(
-      true,
-    );
+  it("permite borrar facturas emitidas con aviso legal", () => {
+    const emitida = getDeletePolicy(invoice("1", "F-2026-0001", "pagado"));
+    expect(emitida.allowed).toBe(true);
+    expect(emitida.level).toBe("legal");
+    expect(emitida.message).toContain("4 años");
+
+    const borrador = getDeletePolicy(invoice("1", "F-2026-0001", "borrador"));
+    expect(borrador.level).toBe("simple");
   });
 });

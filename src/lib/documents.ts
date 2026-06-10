@@ -1,18 +1,12 @@
-import type { AppData, Document, DocumentType } from "./types";
+import {
+  formatDocumentNumberWithSettings,
+  getMaxSequenceWithSettings,
+  normalizeNumbering,
+  parseDocumentNumberForKind,
+  parseLegacyDocumentNumber,
+} from "./numbering";
+import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
 import { isRectificativa } from "./rectificativas";
-
-export type DocumentKind =
-  | "factura"
-  | "factura_rectificativa"
-  | "presupuesto"
-  | "recibo";
-
-const PREFIX: Record<DocumentKind, string> = {
-  factura: "F",
-  factura_rectificativa: "FR",
-  presupuesto: "P",
-  recibo: "R",
-};
 
 const KIND_TO_TYPE: Record<DocumentKind, DocumentType> = {
   factura: "factura",
@@ -21,79 +15,106 @@ const KIND_TO_TYPE: Record<DocumentKind, DocumentType> = {
   recibo: "recibo",
 };
 
+export type { DocumentKind };
+
 export function getDocumentKind(doc: Document): DocumentKind {
   if (isRectificativa(doc)) return "factura_rectificativa";
   return doc.type;
-}
-
-export function documentPrefix(kind: DocumentKind): string {
-  return PREFIX[kind];
 }
 
 export function formatDocumentNumber(
   kind: DocumentKind,
   year: number,
   sequence: number,
+  numbering?: NumberingSettings,
 ): string {
-  return `${PREFIX[kind]}-${year}-${String(sequence).padStart(4, "0")}`;
+  return formatDocumentNumberWithSettings(
+    kind,
+    year,
+    sequence,
+    normalizeNumbering(numbering),
+  );
 }
 
 export function parseDocumentNumber(
   number: string,
+  numbering?: NumberingSettings,
 ): { kind: DocumentKind; year: number; sequence: number } | null {
-  const match = number.match(/^(FR|F|P|R)-(\d{4})-(\d+)$/);
-  if (!match) return null;
+  const settings = normalizeNumbering(numbering);
+  const kinds: DocumentKind[] = [
+    "factura_rectificativa",
+    "factura",
+    "presupuesto",
+    "recibo",
+  ];
 
-  const prefix = match[1];
-  const kind = (
-    Object.entries(PREFIX).find(([, value]) => value === prefix)?.[0] ?? null
-  ) as DocumentKind | null;
-  if (!kind) return null;
+  for (const kind of kinds) {
+    const parsed = parseDocumentNumberForKind(number, kind, settings);
+    if (!parsed) continue;
+    return {
+      kind,
+      year: parsed.year ?? settings.year,
+      sequence: parsed.sequence,
+    };
+  }
 
-  return {
-    kind,
-    year: Number(match[2]),
-    sequence: Number(match[3]),
-  };
+  return null;
 }
 
-export function getDocumentYear(doc: Document): number {
-  return (
-    parseDocumentNumber(doc.number)?.year ??
-    new Date(doc.date).getFullYear()
-  );
+export function getDocumentYear(
+  doc: Document,
+  numbering?: NumberingSettings,
+): number {
+  const kind = getDocumentKind(doc);
+  const settings = normalizeNumbering(numbering);
+  const parsed = parseDocumentNumberForKind(doc.number, kind, settings);
+  if (parsed?.year) return parsed.year;
+  return new Date(doc.date).getFullYear();
 }
 
 export function getMaxSequence(
   documents: Document[],
   kind: DocumentKind,
   year: number,
+  numbering?: NumberingSettings,
 ): number {
-  return documents.reduce((max, doc) => {
-    if (getDocumentKind(doc) !== kind) return max;
-    const parsed = parseDocumentNumber(doc.number);
-    if (!parsed || parsed.year !== year || parsed.kind !== kind) return max;
-    return Math.max(max, parsed.sequence);
-  }, 0);
+  return getMaxSequenceWithSettings(
+    documents,
+    kind,
+    year,
+    normalizeNumbering(numbering),
+  );
 }
 
 export function nextDocumentSequence(
   documents: Document[],
   kind: DocumentKind,
   year: number,
+  configuredLast = 0,
+  numbering?: NumberingSettings,
 ): number {
-  return getMaxSequence(documents, kind, year) + 1;
+  const fromDocs = getMaxSequence(documents, kind, year, numbering);
+  return Math.max(fromDocs, configuredLast) + 1;
 }
 
 export function assignNextDocumentNumber(
   documents: Document[],
   kind: DocumentKind,
   year: number,
+  configuredLast = 0,
+  numbering?: NumberingSettings,
 ): { number: string; sequence: number } {
-  const sequence = nextDocumentSequence(documents, kind, year);
+  const settings = normalizeNumbering(numbering);
+  const sequence = nextDocumentSequence(
+    documents,
+    kind,
+    year,
+    configuredLast,
+    settings,
+  );
   return {
     sequence,
-    number: formatDocumentNumber(kind, year, sequence),
+    number: formatDocumentNumber(kind, year, sequence, settings),
   };
 }
 
@@ -102,6 +123,8 @@ export function assignNextDocumentNumberByType(
   documents: Document[],
   type: DocumentType,
   year: number,
+  configuredLast = 0,
+  numbering?: NumberingSettings,
 ): { number: string; sequence: number } {
   const kind: DocumentKind =
     type === "factura"
@@ -109,30 +132,46 @@ export function assignNextDocumentNumberByType(
       : type === "presupuesto"
         ? "presupuesto"
         : "recibo";
-  return assignNextDocumentNumber(documents, kind, year);
+  return assignNextDocumentNumber(
+    documents,
+    kind,
+    year,
+    configuredLast,
+    numbering,
+  );
 }
 
 export function renumberDocumentsForKindYear(
   documents: Document[],
   kind: DocumentKind,
   year: number,
+  numbering?: NumberingSettings,
 ): Document[] {
+  const settings = normalizeNumbering(numbering);
+  const templateHasYear = settings.formats[kind].template.includes("{year}");
+
   const ofKindYear = documents
     .filter((d) => {
       if (getDocumentKind(d) !== kind) return false;
-      const parsed = parseDocumentNumber(d.number);
-      return parsed?.year === year;
+      const parsed = parseDocumentNumberForKind(d.number, kind, settings);
+      if (!parsed) return false;
+      const docYear = templateHasYear
+        ? (parsed.year ?? new Date(d.date).getFullYear())
+        : new Date(d.date).getFullYear();
+      return docYear === year;
     })
     .sort((a, b) => {
-      const pa = parseDocumentNumber(a.number)?.sequence ?? 0;
-      const pb = parseDocumentNumber(b.number)?.sequence ?? 0;
+      const pa =
+        parseDocumentNumberForKind(a.number, kind, settings)?.sequence ?? 0;
+      const pb =
+        parseDocumentNumberForKind(b.number, kind, settings)?.sequence ?? 0;
       return pa - pb;
     });
 
   const renumbered = new Map(
     ofKindYear.map((doc, index) => [
       doc.id,
-      formatDocumentNumber(kind, year, index + 1),
+      formatDocumentNumber(kind, year, index + 1, settings),
     ]),
   );
 
@@ -147,6 +186,7 @@ export function renumberDocumentsForTypeYear(
   documents: Document[],
   type: DocumentType,
   year: number,
+  numbering?: NumberingSettings,
 ): Document[] {
   const kind: DocumentKind =
     type === "factura"
@@ -154,22 +194,25 @@ export function renumberDocumentsForTypeYear(
       : type === "presupuesto"
         ? "presupuesto"
         : "recibo";
-  return renumberDocumentsForKindYear(documents, kind, year);
+  return renumberDocumentsForKindYear(documents, kind, year, numbering);
 }
 
 export function countersFromDocuments(
   documents: Document[],
   year = new Date().getFullYear(),
+  numbering?: NumberingSettings,
 ): AppData["counters"] {
+  const settings = normalizeNumbering(numbering);
   return {
-    factura: getMaxSequence(documents, "factura", year),
+    factura: getMaxSequence(documents, "factura", year, settings),
     factura_rectificativa: getMaxSequence(
       documents,
       "factura_rectificativa",
       year,
+      settings,
     ),
-    presupuesto: getMaxSequence(documents, "presupuesto", year),
-    recibo: getMaxSequence(documents, "recibo", year),
+    presupuesto: getMaxSequence(documents, "presupuesto", year, settings),
+    recibo: getMaxSequence(documents, "recibo", year, settings),
   };
 }
 
@@ -202,4 +245,30 @@ export function getFacturasIncludingRectificativas(
   return documents.filter((d) => d.type === "factura");
 }
 
-export { KIND_TO_TYPE };
+export function isDocumentEditable(doc: Document): boolean {
+  if (isRectificativa(doc) || doc.rectifiedById) return false;
+  return doc.status === "borrador";
+}
+
+export function getDocumentReadOnlyMessage(doc: Document): string {
+  if (doc.rectification) {
+    return "Las facturas rectificativas no se editan. Compártela por email o WhatsApp, o descárgala en PDF.";
+  }
+  if (doc.rectifiedById) {
+    return "Esta factura ya fue rectificada o anulada y no se puede modificar.";
+  }
+
+  if (doc.type === "factura" && doc.status !== "borrador") {
+    return "Las facturas emitidas no se editan. Compártelas por email o WhatsApp, o rectifícalas desde el listado.";
+  }
+  if (doc.type === "presupuesto" && doc.status !== "borrador") {
+    return "Este presupuesto ya no está en borrador. Compártelo por email o WhatsApp, o descárgalo en PDF.";
+  }
+  if (doc.type === "recibo" && doc.status !== "borrador") {
+    return "Este recibo ya fue emitido. Compártelo por email o WhatsApp, o descárgalo en PDF.";
+  }
+
+  return "Este documento no se puede editar.";
+}
+
+export { KIND_TO_TYPE, parseLegacyDocumentNumber };

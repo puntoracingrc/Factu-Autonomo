@@ -8,8 +8,8 @@ Programa de facturación **sencillo** para autónomos. Funciona en **PC, iPhone 
 - Crear **facturas**, **presupuestos** y **recibos** en PDF
 - Registrar **gastos y compras**
 - Guardar **proveedores**
-- Ver un **resumen** de ingresos, gastos y balance
-- Preguntar al **asistente inteligente** sobre tus finanzas
+- Ver un **resumen** de ingresos, gastos y balance (acumulado y trimestral con Pro)
+- Plan **Gratis** o **Pro** (5,99 €/mes) — ver `/precios` y `docs/MARKET_PRICING.md`
 
 ## Empezar (para ti o alguien sin experiencia técnica)
 
@@ -23,13 +23,6 @@ Programa de facturación **sencillo** para autónomos. Funciona en **PC, iPhone 
 - Conecta el móvil a la misma WiFi que el PC, o despliega en internet (Vercel)
 - Abre la dirección en Safari (iPhone) o Chrome (Android)
 - Menú → **Añadir a pantalla de inicio** — quedará como una app
-
-## Asistente IA
-
-Funciona en **modo básico** sin configurar nada. Si quieres respuestas más inteligentes:
-
-1. Copia `.env.example` a `.env.local`
-2. Añade tu clave de OpenAI: `OPENAI_API_KEY=sk-...`
 
 ## Tus datos
 

@@ -12,19 +12,28 @@ import type { ClientFormValues } from "@/components/clients/ClientPicker";
 import { findCustomerByClient } from "@/lib/customers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
-import { documentTotals, formatMoney, todayISO } from "@/lib/calculations";
+import { useBilling } from "@/context/BillingContext";
+import { formatMoney, todayISO } from "@/lib/calculations";
+import {
+  documentAmounts,
+  isVatExempt,
+  zeroIvaItems,
+} from "@/lib/vat-regime";
+import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
-function emptyLine(): LineItem {
+function emptyLine(defaultIva: number): LineItem {
   return {
     id: crypto.randomUUID(),
     description: "",
     quantity: 1,
     unitPrice: 0,
-    ivaPercent: 21,
+    ivaPercent: defaultIva,
   };
 }
 
@@ -52,6 +61,9 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const router = useRouter();
   const { data, ready, addDocument, updateDocument, upsertCustomerForDocument } =
     useAppStore();
+  const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const label = TYPE_LABELS[type];
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
@@ -73,9 +85,21 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
   );
+  const vatExempt = isVatExempt(data.profile);
+  const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
+
   const [items, setItems] = useState<LineItem[]>(
-    existing?.items.length ? existing.items : [emptyLine()],
+    existing?.items.length
+      ? vatExempt
+        ? zeroIvaItems(existing.items)
+        : existing.items
+      : [emptyLine(defaultIva)],
   );
+
+  useEffect(() => {
+    if (!vatExempt) return;
+    setItems((prev) => zeroIvaItems(prev));
+  }, [vatExempt]);
 
   const previewDoc: Document = {
     id: existing?.id ?? "preview",
@@ -99,7 +123,16 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
     updatedAt: new Date().toISOString(),
   };
 
-  const totals = documentTotals(previewDoc);
+  const totals = documentAmounts(previewDoc, vatExempt);
+
+  const shareDoc: Document | null = existing
+    ? {
+        ...previewDoc,
+        id: existing.id,
+        number: existing.number,
+        createdAt: existing.createdAt,
+      }
+    : null;
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setItems((prev) =>
@@ -125,6 +158,15 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       return;
     }
 
+    if (!existing) {
+      const gate = checkCanCreateDocument(data.customers.length);
+      if (!gate.allowed) {
+        setUpgradeReason(gate.reason);
+        setUpgradeOpen(true);
+        return;
+      }
+    }
+
     const customerResult = upsertCustomerForDocument(
       {
         firstName: clientForm.firstName,
@@ -147,7 +189,9 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       date,
       dueDate: dueDate || undefined,
       client: customerResult.client,
-      items: items.filter((i) => i.description.trim()),
+      items: (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
+        i.description.trim(),
+      ),
       notes: notes || undefined,
       status,
     };
@@ -162,6 +206,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
       updateDocument(saved);
     } else {
       saved = addDocument(payload);
+      recordDocumentCreated();
     }
 
     if (download) downloadDocumentPdf(saved, data.profile);
@@ -217,7 +262,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
               >
                 <option value="borrador">Borrador</option>
                 <option value="enviado">Enviado</option>
-                <option value="pagado">Pagado</option>
+                <option value="pagado">Cobrado</option>
                 <option value="vencido">Vencido</option>
               </Select>
             </Field>
@@ -230,7 +275,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
           <button
             type="button"
-            onClick={() => setItems((prev) => [...prev, emptyLine()])}
+            onClick={() => setItems((prev) => [...prev, emptyLine(defaultIva)])}
             className="flex items-center gap-1 text-sm font-semibold text-blue-600"
           >
             <Plus className="h-4 w-4" /> Añadir línea
@@ -281,7 +326,7 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                     }
                   />
                 </Field>
-                <Field label="Precio (sin IVA)">
+                <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
                   <Input
                     type="number"
                     min={0}
@@ -294,21 +339,16 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                     }
                   />
                 </Field>
-                <Field label="IVA %">
-                  <Select
-                    value={item.ivaPercent}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        ivaPercent: Number(e.target.value),
-                      })
-                    }
-                  >
-                    <option value={0}>0%</option>
-                    <option value={4}>4%</option>
-                    <option value={10}>10%</option>
-                    <option value={21}>21%</option>
-                  </Select>
-                </Field>
+                {!vatExempt && (
+                  <Field label="IVA %">
+                    <IvaPercentSelect
+                      value={item.ivaPercent}
+                      onChange={(ivaPercent) =>
+                        updateItem(item.id, { ivaPercent })
+                      }
+                    />
+                  </Field>
+                )}
               </div>
             </div>
           ))}
@@ -324,13 +364,31 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           />
         </Field>
         <div className="mt-4 space-y-1 text-right text-slate-700">
-          <p>Base: {formatMoney(totals.subtotal)}</p>
-          <p>IVA: {formatMoney(totals.iva)}</p>
+          {!vatExempt && <p>Base: {formatMoney(totals.subtotal)}</p>}
+          {!vatExempt && <p>IVA: {formatMoney(totals.iva)}</p>}
           <p className="text-xl font-bold text-blue-700">
             Total: {formatMoney(totals.total)}
           </p>
+          {vatExempt && (
+            <p className="text-xs text-slate-500">Sin IVA (exento de repercusión)</p>
+          )}
         </div>
       </Card>
+
+      {shareDoc && (
+        <Card className="space-y-3">
+          <div>
+            <p className="font-semibold text-slate-900">Enviar al cliente</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Comparte este {label} por email o WhatsApp. Guarda antes si has
+              hecho cambios.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <DocumentShareActions doc={shareDoc} profile={data.profile} />
+          </div>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button fullWidth onClick={() => handleSave(false)}>
@@ -340,6 +398,12 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
           Guardar y descargar PDF
         </Button>
       </div>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }

@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  ArrowRight,
-  Bot,
   FileText,
   Receipt,
   ShoppingCart,
@@ -10,14 +8,21 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
+import { UsageBanner } from "@/components/billing/UsageBanner";
+import { QuarterlyTaxSummaryCard } from "@/components/dashboard/QuarterlyTaxSummaryCard";
+import { TaxSummaryCard } from "@/components/dashboard/TaxSummaryCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { formatMoney } from "@/lib/calculations";
+import { isCollectedDocument, pendingCollection } from "@/lib/income";
+import { calculateTaxSummary } from "@/lib/taxes";
 import {
-  documentTotals,
-  expenseTotal,
-  formatMoney,
-} from "@/lib/calculations";
+  collectedSalesTotal,
+  isVatExempt,
+  totalExpensesAmount,
+} from "@/lib/vat-regime";
 
 const quickActions = [
   {
@@ -55,20 +60,19 @@ const quickActions = [
 export default function HomePage() {
   const { data, ready } = useAppStore();
 
-  const income = data.documents
-    .filter((d) => d.type === "factura" && d.status === "pagado")
-    .reduce((sum, d) => sum + documentTotals(d).total, 0);
-
-  const pending = data.documents
-    .filter((d) => d.type === "factura" && d.status !== "pagado")
-    .reduce((sum, d) => sum + documentTotals(d).total, 0);
-
-  const expenses = data.expenses.reduce(
-    (sum, e) => sum + expenseTotal(e),
-    0,
+  const vatExempt = isVatExempt(data.profile);
+  const income = collectedSalesTotal(
+    data.documents,
+    vatExempt,
+    isCollectedDocument,
   );
-
+  const pending = pendingCollection(data.documents);
+  const expenses = totalExpensesAmount(data.expenses, vatExempt);
   const balance = income - expenses;
+  const taxes = calculateTaxSummary(data.documents, data.expenses, {
+    irpfPercent: data.profile.irpfPercent,
+    vatExempt,
+  });
   const profileReady = Boolean(data.profile.name && data.profile.nif);
 
   if (!ready) {
@@ -95,6 +99,9 @@ export default function HomePage() {
           </ButtonLink>
         </Card>
       )}
+
+      <UsageBanner />
+      <TaxDeadlineBanner />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Card className="border-green-200 bg-green-50">
@@ -123,42 +130,27 @@ export default function HomePage() {
         </Card>
       </div>
 
+      <TaxSummaryCard
+        taxes={taxes}
+        subtitle="Todo lo registrado desde el inicio. Orientativo — consulta con tu gestor."
+      />
+      <QuarterlyTaxSummaryCard data={data} />
+
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
       </h2>
-      <div className="mb-8 grid grid-cols-2 gap-3">
-        {quickActions.map(({ href, label, icon: Icon, color }, index) => (
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {quickActions.map(({ href, label, icon: Icon, color }) => (
           <Link
             key={href}
             href={href}
-            className={`flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform active:scale-[0.98] ${color} ${
-              index === quickActions.length - 1 ? "col-span-2" : ""
-            }`}
+            className={`flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform active:scale-[0.98] ${color}`}
           >
             <Icon className="h-6 w-6" />
             <span className="text-sm leading-tight">{label}</span>
           </Link>
         ))}
       </div>
-
-      <Card className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-        <div>
-          <div className="flex items-center gap-2">
-            <Bot className="h-6 w-6" />
-            <p className="font-bold">Asistente inteligente</p>
-          </div>
-          <p className="mt-1 text-sm text-blue-100">
-            Pregúntale sobre tus gastos, proveedores o facturas en lenguaje
-            normal.
-          </p>
-        </div>
-        <Link
-          href="/asistente"
-          className="flex min-h-12 min-w-12 items-center justify-center rounded-full bg-white/20"
-        >
-          <ArrowRight className="h-6 w-6" />
-        </Link>
-      </Card>
     </div>
   );
 }

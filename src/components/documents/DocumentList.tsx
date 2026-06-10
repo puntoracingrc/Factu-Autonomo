@@ -2,23 +2,21 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileWarning, Pencil, Search, Trash2 } from "lucide-react";
+import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
+import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
+import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
-import {
-  documentTotals,
-  formatMoney,
-  formatShortDate,
-} from "@/lib/calculations";
-import { filterDocumentsByQuery } from "@/lib/documents";
+import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
+import { filterDocumentsByQuery, isDocumentEditable } from "@/lib/documents";
+import { isCollectedDocument } from "@/lib/income";
+import { findReceiptForInvoice } from "@/lib/receipts";
 import { downloadDocumentPdf } from "@/lib/pdf";
-import {
-  canDeleteDocument,
-  canRectifyInvoice,
-  isRectificativa,
-} from "@/lib/rectificativas";
+import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import type { Document, DocumentType } from "@/lib/types";
 
 const STATUS_LABELS: Record<Document["status"], string> = {
@@ -45,6 +43,13 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
   recibo: "recibo",
 };
 
+function statusLabel(doc: Document, type: DocumentType): string {
+  if (doc.status === "pagado" && (type === "factura" || type === "recibo")) {
+    return "Cobrado";
+  }
+  return STATUS_LABELS[doc.status];
+}
+
 interface DocumentListProps {
   type: DocumentType;
   basePath: string;
@@ -56,7 +61,8 @@ export function DocumentList({
   basePath,
   emptyMessage,
 }: DocumentListProps) {
-  const { data, getDocumentsByType, deleteDocument } = useAppStore();
+  const { data, getDocumentsByType } = useAppStore();
+  const vatExempt = isVatExempt(data.profile);
   const [search, setSearch] = useState("");
 
   const documents = useMemo(() => {
@@ -113,21 +119,22 @@ export function DocumentList({
       ) : (
         <div className="space-y-3">
           {documents.map((doc) => {
-            const total = documentTotals(doc).total;
+            const total = documentAmounts(doc, vatExempt).total;
             const rect = isRectificativa(doc);
-            const deletable = canDeleteDocument(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
-            const editable =
-              doc.status === "borrador" &&
-              !doc.rectifiedById &&
-              !rect;
+            const editable = isDocumentEditable(doc);
+            const linkedReceipt =
+              type === "factura"
+                ? findReceiptForInvoice(
+                    data.documents,
+                    doc.id,
+                    doc.receiptDocumentId,
+                  )
+                : undefined;
 
             return (
-              <Card
-                key={doc.id}
-                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
+              <Card key={doc.id} className="flex flex-col gap-4">
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold text-slate-900">{doc.number}</span>
                     {rect && (
@@ -136,9 +143,13 @@ export function DocumentList({
                       </span>
                     )}
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[doc.status]}`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        isCollectedDocument(doc)
+                          ? "bg-green-100 text-green-700"
+                          : STATUS_COLORS[doc.status]
+                      }`}
                     >
-                      {STATUS_LABELS[doc.status]}
+                      {statusLabel(doc, type)}
                     </span>
                   </div>
                   <p className="mt-1 text-slate-700">{doc.client.name}</p>
@@ -155,8 +166,16 @@ export function DocumentList({
                       Tiene factura rectificativa asociada
                     </p>
                   )}
+                  {linkedReceipt && (
+                    <p className="text-xs text-green-700">
+                      Recibo creado: {linkedReceipt.number}
+                    </p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+                  {(type === "factura" || type === "recibo") && (
+                    <MarkAsPaidButton doc={doc} />
+                  )}
                   <button
                     onClick={() => downloadDocumentPdf(doc, data.profile)}
                     className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700"
@@ -164,6 +183,7 @@ export function DocumentList({
                   >
                     <Download className="h-5 w-5" />
                   </button>
+                  <DocumentShareActions doc={doc} profile={data.profile} />
                   {rectifiable && (
                     <Link
                       href={`${basePath}/${doc.id}/rectificar`}
@@ -173,7 +193,7 @@ export function DocumentList({
                       <FileWarning className="h-5 w-5" />
                     </Link>
                   )}
-                  {editable && (
+                  {editable ? (
                     <Link
                       href={`${basePath}/${doc.id}`}
                       className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
@@ -181,31 +201,16 @@ export function DocumentList({
                     >
                       <Pencil className="h-5 w-5" />
                     </Link>
-                  )}
-                  {deletable && (
-                    <button
-                      onClick={() => {
-                        if (
-                          confirm(
-                            type === "factura"
-                              ? `¿Borrar borrador ${doc.number}?`
-                              : `¿Borrar ${doc.number}? Los números posteriores se reordenarán.`,
-                          )
-                        ) {
-                          const ok = deleteDocument(doc.id);
-                          if (!ok) {
-                            alert(
-                              "No se puede borrar. Las facturas emitidas deben rectificarse.",
-                            );
-                          }
-                        }
-                      }}
-                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 text-red-600"
-                      title="Borrar"
+                  ) : (
+                    <Link
+                      href={`${basePath}/${doc.id}`}
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
+                      title="Ver y enviar"
                     >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
+                      <Eye className="h-5 w-5" />
+                    </Link>
                   )}
+                  <DeleteDocumentButton doc={doc} />
                 </div>
               </Card>
             );

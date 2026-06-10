@@ -8,7 +8,9 @@ import {
   assignNextDocumentNumberByType,
   filterDocumentsByQuery,
   formatDocumentNumber,
+  getDocumentReadOnlyMessage,
   getMaxSequence,
+  isDocumentEditable,
   renumberDocumentsForTypeYear,
 } from "./documents";
 import type { Document, DocumentType } from "./types";
@@ -42,6 +44,47 @@ function doc(
 }
 
 describe("numeración automática", () => {
+  it("respeta el último número configurado al migrar", () => {
+    const next = assignNextDocumentNumberByType([], "recibo", 2026, 99);
+    expect(next.number).toBe("R-2026-0100");
+  });
+
+  it("usa el formato personalizado al crear documentos", () => {
+    const numbering = {
+      year: 2026,
+      lastSequence: {
+        factura: 0,
+        factura_rectificativa: 0,
+        presupuesto: 0,
+        recibo: 0,
+      },
+      formats: {
+        factura: { template: "Fact {num}", padding: 4 },
+        factura_rectificativa: { template: "FR-{year}-{num}", padding: 4 },
+        presupuesto: { template: "Presupuesto - {num}", padding: 4 },
+        recibo: { template: "R-{year}-{num}", padding: 4 },
+      },
+    };
+
+    const factura = assignNextDocumentNumberByType(
+      [],
+      "factura",
+      2026,
+      10,
+      numbering,
+    );
+    expect(factura.number).toBe("Fact 0011");
+
+    const presupuesto = assignNextDocumentNumberByType(
+      [],
+      "presupuesto",
+      2026,
+      0,
+      numbering,
+    );
+    expect(presupuesto.number).toBe("Presupuesto - 0001");
+  });
+
   it("asigna el siguiente número correlativo", () => {
     const documents = [
       doc("1", "factura", "F-2026-0001", "Ana García"),
@@ -192,5 +235,21 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
       "R-2026-0001",
     ]);
     expect(documents.every((d) => documentTotals(d).total > 0)).toBe(true);
+  });
+});
+
+describe("isDocumentEditable", () => {
+  it("permite editar borradores de presupuesto y recibo", () => {
+    expect(isDocumentEditable(doc("1", "presupuesto", "P-1", "Ana"))).toBe(true);
+    expect(isDocumentEditable(doc("2", "recibo", "R-1", "Ana"))).toBe(true);
+  });
+
+  it("bloquea documentos enviados o rectificados", () => {
+    const sent = { ...doc("3", "presupuesto", "P-2", "Ana"), status: "enviado" as const };
+    const receipt = { ...doc("4", "recibo", "R-2", "Ana"), status: "pagado" as const };
+    expect(isDocumentEditable(sent)).toBe(false);
+    expect(isDocumentEditable(receipt)).toBe(false);
+    expect(getDocumentReadOnlyMessage(sent)).toContain("presupuesto");
+    expect(getDocumentReadOnlyMessage(receipt)).toContain("recibo");
   });
 });

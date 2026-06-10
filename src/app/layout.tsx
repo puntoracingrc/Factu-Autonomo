@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
 import { AppStoreProvider } from "@/context/AppStore";
+import { BillingProvider } from "@/context/BillingContext";
+import { CloudSyncProvider } from "@/context/CloudSyncContext";
 import "./globals.css";
 
 const geist = Geist({
@@ -37,7 +39,11 @@ export default function RootLayout({
     <html lang="es" className={`${geist.variable} h-full`}>
       <body className="min-h-full bg-slate-100 font-sans text-slate-900 antialiased">
         <AppStoreProvider>
-          <AppShell>{children}</AppShell>
+          <CloudSyncProvider>
+            <BillingProvider>
+              <AppShell>{children}</AppShell>
+            </BillingProvider>
+          </CloudSyncProvider>
         </AppStoreProvider>
       </body>
     </html>

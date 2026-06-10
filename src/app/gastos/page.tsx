@@ -4,14 +4,19 @@ import { Trash2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
-import { expenseTotal, formatMoney, formatShortDate } from "@/lib/calculations";
+import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
   const expenses = [...data.expenses].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
-  const total = expenses.reduce((sum, e) => sum + expenseTotal(e), 0);
+  const vatExempt = isVatExempt(data.profile);
+  const total = expenses.reduce(
+    (sum, e) => sum + expenseAmount(e, vatExempt),
+    0,
+  );
 
   return (
     <div>
@@ -21,11 +26,16 @@ export default function GastosPage() {
         action={<ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>}
       />
 
-      <Card className="mb-6 bg-emerald-50 border-emerald-200">
+      <Card className="mb-6 border-emerald-200 bg-emerald-50">
         <p className="text-sm text-emerald-700">Total gastado</p>
         <p className="text-2xl font-bold text-emerald-900">
           {formatMoney(total)}
         </p>
+        {vatExempt && (
+          <p className="mt-1 text-xs text-emerald-800">
+            Sin IVA deducible (exento de repercusión)
+          </p>
+        )}
       </Card>
 
       {expenses.length === 0 ? (
@@ -52,7 +62,7 @@ export default function GastosPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-red-700">
-                  {formatMoney(expenseTotal(expense))}
+                  {formatMoney(expenseAmount(expense, vatExempt))}
                 </span>
                 <button
                   onClick={() => {

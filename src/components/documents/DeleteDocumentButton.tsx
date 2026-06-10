@@ -1,0 +1,100 @@
+"use client";
+
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { useAppStore } from "@/context/AppStore";
+import { getDeletePolicy } from "@/lib/rectificativas";
+import type { Document } from "@/lib/types";
+
+interface DeleteDocumentButtonProps {
+  doc: Document;
+}
+
+export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
+  const { deleteDocument } = useAppStore();
+  const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const policy = getDeletePolicy(doc);
+
+  if (!policy.allowed) return null;
+
+  const needsCheckbox =
+    policy.level === "legal" || policy.level === "legal_strict";
+
+  function handleClose() {
+    setOpen(false);
+    setConfirmed(false);
+  }
+
+  function handleConfirm() {
+    if (needsCheckbox && !confirmed) return;
+    deleteDocument(doc.id);
+    handleClose();
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 text-red-600"
+        title="Borrar"
+      >
+        <Trash2 className="h-5 w-5" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
+          <Card className="max-h-[85vh] w-full max-w-lg overflow-y-auto shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">{policy.title}</h2>
+
+            {policy.level !== "simple" && (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <p className="text-sm font-bold text-amber-900">
+                  Aviso legal (España)
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-amber-900">
+                  {policy.message}
+                </p>
+              </div>
+            )}
+
+            {policy.level === "simple" && (
+              <p className="mt-3 text-sm text-slate-600">{policy.message}</p>
+            )}
+
+            {needsCheckbox && (
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                  className="mt-1 h-5 w-5 rounded"
+                />
+                <span className="text-sm text-slate-700">
+                  Entiendo el aviso legal y quiero borrar esta factura bajo mi
+                  responsabilidad.
+                </span>
+              </label>
+            )}
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Button variant="secondary" fullWidth onClick={handleClose}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                fullWidth
+                onClick={handleConfirm}
+                disabled={needsCheckbox && !confirmed}
+              >
+                Sí, borrar
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+}

@@ -9,7 +9,7 @@ export default function RecibosPage() {
     <div>
       <PageHeader
         title="Recibos"
-        subtitle="Justificantes de pago para clientes"
+        subtitle="Crea recibos y envíalos por email o WhatsApp"
         action={<ButtonLink href="/recibos/nuevo">+ Nuevo recibo</ButtonLink>}
       />
       <DocumentList

@@ -10,9 +10,17 @@ import {
 import type { ClientFormValues } from "@/components/clients/ClientPicker";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
-import { documentTotals, formatMoney, todayISO } from "@/lib/calculations";
+import { useBilling } from "@/context/BillingContext";
+import { formatMoney, todayISO } from "@/lib/calculations";
+import {
+  documentAmounts,
+  isVatExempt,
+  zeroIvaItems,
+} from "@/lib/vat-regime";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import {
   cloneItemsForCorreccion,
@@ -29,6 +37,11 @@ interface RectificativaFormProps {
 export function RectificativaForm({ original }: RectificativaFormProps) {
   const router = useRouter();
   const { data, addRectificativa } = useAppStore();
+  const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const vatExempt = isVatExempt(data.profile);
+  const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
 
   const [rectType, setRectType] = useState<RectificationType>("anulacion");
   const [reason, setReason] = useState<string>(RECTIFICATION_REASONS[0]);
@@ -57,7 +70,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     );
   }
 
-  const previewTotals = documentTotals({ items });
+  const previewTotals = documentAmounts({ items }, vatExempt);
   const finalReason =
     reason === "Otros motivos" ? customReason.trim() : reason;
 
@@ -68,6 +81,13 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     }
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
+      return;
+    }
+
+    const gate = checkCanCreateDocument(data.customers.length);
+    if (!gate.allowed) {
+      setUpgradeReason(gate.reason);
+      setUpgradeOpen(true);
       return;
     }
 
@@ -82,7 +102,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         phone: clientForm.phone || undefined,
         address: clientForm.address || undefined,
       },
-      items: items.filter((i) => i.description.trim()),
+      items: (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
+        i.description.trim(),
+      ),
       notes: notes || undefined,
       status: "enviado",
       rectification: {
@@ -99,6 +121,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       return;
     }
 
+    recordDocumentCreated();
     if (download) downloadDocumentPdf(saved, data.profile);
     router.push("/facturas");
   }
@@ -109,7 +132,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         <p className="font-semibold text-amber-900">Factura original</p>
         <p className="mt-1 text-amber-800">
           {original.number} · {original.client.name} ·{" "}
-          {formatMoney(documentTotals(original).total)}
+          {formatMoney(documentAmounts(original, vatExempt).total)}
         </p>
         <p className="mt-2 text-sm text-amber-700">
           La factura original no se borra. Quedará marcada como rectificada o
@@ -210,7 +233,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     description: "",
                     quantity: 1,
                     unitPrice: 0,
-                    ivaPercent: 21,
+                    ivaPercent: defaultIva,
                   },
                 ])
               }
@@ -264,7 +287,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     disabled={rectType === "anulacion"}
                   />
                 </Field>
-                <Field label="Precio (sin IVA)">
+                <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
                   <Input
                     type="number"
                     value={item.unitPrice}
@@ -276,29 +299,24 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     disabled={rectType === "anulacion"}
                   />
                 </Field>
-                <Field label="IVA %">
-                  <Select
-                    value={item.ivaPercent}
-                    onChange={(e) =>
-                      updateItem(item.id, {
-                        ivaPercent: Number(e.target.value),
-                      })
-                    }
-                    disabled={rectType === "anulacion"}
-                  >
-                    <option value={0}>0%</option>
-                    <option value={4}>4%</option>
-                    <option value={10}>10%</option>
-                    <option value={21}>21%</option>
-                  </Select>
-                </Field>
+                {!vatExempt && (
+                  <Field label="IVA %">
+                    <IvaPercentSelect
+                      value={item.ivaPercent}
+                      onChange={(ivaPercent) =>
+                        updateItem(item.id, { ivaPercent })
+                      }
+                      disabled={rectType === "anulacion"}
+                    />
+                  </Field>
+                )}
               </div>
             </div>
           ))}
         </div>
         <div className="mt-4 space-y-1 text-right text-slate-700">
-          <p>Base: {formatMoney(previewTotals.subtotal)}</p>
-          <p>IVA: {formatMoney(previewTotals.iva)}</p>
+          {!vatExempt && <p>Base: {formatMoney(previewTotals.subtotal)}</p>}
+          {!vatExempt && <p>IVA: {formatMoney(previewTotals.iva)}</p>}
           <p className="text-xl font-bold text-blue-700">
             Total: {formatMoney(previewTotals.total)}
           </p>
@@ -323,6 +341,12 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
           Guardar y descargar PDF
         </Button>
       </div>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }

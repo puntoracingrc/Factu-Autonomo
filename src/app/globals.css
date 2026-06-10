@@ -46,3 +46,12 @@ button {
 .nav-scroll::-webkit-scrollbar {
   display: none;
 }
+
+.action-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.action-scroll::-webkit-scrollbar {
+  display: none;
+}

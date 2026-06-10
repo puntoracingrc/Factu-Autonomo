@@ -1,5 +1,11 @@
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
+export type DocumentKind =
+  | "factura"
+  | "factura_rectificativa"
+  | "presupuesto"
+  | "recibo";
+
 export type DocumentStatus =
   | "borrador"
   | "enviado"
@@ -64,6 +70,10 @@ export interface Document {
   status: DocumentStatus;
   rectification?: RectificationInfo;
   rectifiedById?: string;
+  /** Recibo generado automáticamente al cobrar una factura */
+  sourceDocumentId?: string;
+  /** Recibo vinculado cuando la factura se marca como cobrada */
+  receiptDocumentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,6 +103,36 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface IvaSettings {
+  rates: number[];
+  defaultRate: number;
+}
+
+export interface NumberingLastSequence {
+  factura: number;
+  factura_rectificativa: number;
+  presupuesto: number;
+  recibo: number;
+}
+
+export interface NumberingFormat {
+  template: string;
+  padding: number;
+}
+
+export interface NumberingFormats {
+  factura: NumberingFormat;
+  factura_rectificativa: NumberingFormat;
+  presupuesto: NumberingFormat;
+  recibo: NumberingFormat;
+}
+
+export interface NumberingSettings {
+  year: number;
+  lastSequence: NumberingLastSequence;
+  formats: NumberingFormats;
+}
+
 export interface BusinessProfile {
   name: string;
   nif: string;
@@ -103,6 +143,34 @@ export interface BusinessProfile {
   email: string;
   iban?: string;
   logoUrl?: string;
+  iva: IvaSettings;
+  /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
+  vatExempt?: boolean;
+  /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
+  irpfPercent?: number;
+  numbering: NumberingSettings;
+}
+
+export type SyncEntityType =
+  | "document"
+  | "customer"
+  | "expense"
+  | "supplier"
+  | "profile"
+  | "counters";
+
+export interface SyncChange {
+  entityType: SyncEntityType;
+  entityId: string;
+  deleted: boolean;
+  payload?: unknown;
+  updatedAt: string;
+}
+
+export interface AppMeta {
+  lastModified: string;
+  lastSyncedAt?: string;
+  pendingChanges?: SyncChange[];
 }
 
 export interface AppData {
@@ -117,6 +185,7 @@ export interface AppData {
     presupuesto: number;
     recibo: number;
   };
+  meta?: AppMeta;
 }
 
 export const DEFAULT_PROFILE: BusinessProfile = {
@@ -127,6 +196,27 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   postalCode: "",
   phone: "",
   email: "",
+  iva: {
+    rates: [0, 4, 10, 21],
+    defaultRate: 21,
+  },
+  irpfPercent: 20,
+  vatExempt: false,
+  numbering: {
+    year: new Date().getFullYear(),
+    lastSequence: {
+      factura: 0,
+      factura_rectificativa: 0,
+      presupuesto: 0,
+      recibo: 0,
+    },
+    formats: {
+      factura: { template: "F-{year}-{num}", padding: 4 },
+      factura_rectificativa: { template: "FR-{year}-{num}", padding: 4 },
+      presupuesto: { template: "P-{year}-{num}", padding: 4 },
+      recibo: { template: "R-{year}-{num}", padding: 4 },
+    },
+  },
 };
 
 export const EMPTY_DATA: AppData = {

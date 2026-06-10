@@ -3,19 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
+    "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.17.0",
     "next": "^15.5.19",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "stripe": "^22.2.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

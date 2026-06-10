@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { todayISO } from "@/lib/calculations";
+import { isVatExempt } from "@/lib/vat-regime";
 import {
   EXPENSE_CATEGORIES,
   PAYMENT_METHODS,
@@ -20,7 +22,9 @@ export default function NuevoGastoPage() {
   const [supplierName, setSupplierName] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
-  const [ivaPercent, setIvaPercent] = useState(21);
+  const vatExempt = isVatExempt(data.profile);
+  const defaultIva = data.profile.iva?.defaultRate ?? 21;
+  const [ivaPercent, setIvaPercent] = useState(defaultIva);
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [paymentMethod, setPaymentMethod] = useState<string>(
     PAYMENT_METHODS[0],
@@ -53,7 +57,7 @@ export default function NuevoGastoPage() {
       supplierName: supplierName.trim(),
       description: description.trim(),
       amount,
-      ivaPercent,
+      ivaPercent: vatExempt ? 0 : ivaPercent,
       category,
       paymentMethod,
       notes: notes || undefined,
@@ -106,7 +110,7 @@ export default function NuevoGastoPage() {
               placeholder="Ej: Material de fontanería"
             />
           </Field>
-          <Field label="Importe (sin IVA) *">
+          <Field label={vatExempt ? "Importe *" : "Importe (sin IVA) *"}>
             <Input
               type="number"
               min={0}
@@ -115,17 +119,19 @@ export default function NuevoGastoPage() {
               onChange={(e) => setAmount(Number(e.target.value))}
             />
           </Field>
-          <Field label="IVA %">
-            <Select
-              value={ivaPercent}
-              onChange={(e) => setIvaPercent(Number(e.target.value))}
-            >
-              <option value={0}>0%</option>
-              <option value={4}>4%</option>
-              <option value={10}>10%</option>
-              <option value={21}>21%</option>
-            </Select>
-          </Field>
+          {vatExempt ? (
+            <p className="text-sm text-slate-500 sm:col-span-2">
+              Sin IVA deducible — tu perfil está marcado como exento de
+              repercusión.
+            </p>
+          ) : (
+            <Field label="IVA %">
+              <IvaPercentSelect
+                value={ivaPercent}
+                onChange={setIvaPercent}
+              />
+            </Field>
+          )}
           <Field label="Categoría">
             <Select
               value={category}

@@ -5,7 +5,9 @@ import { Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import {
   customerFullName,
   customerPayloadFromInput,
@@ -29,7 +31,10 @@ const EMPTY_FORM = {
 
 export default function ClientesPage() {
   const { data, addCustomer, updateCustomer, deleteCustomer } = useAppStore();
+  const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -86,6 +91,12 @@ export default function ClientesPage() {
       const existing = data.customers.find((c) => c.id === editingId);
       if (existing) updateCustomer({ ...existing, ...payload });
     } else {
+      const gate = checkCanAddCustomer(data.customers.length);
+      if (!gate.allowed) {
+        setUpgradeReason(gate.reason);
+        setUpgradeOpen(true);
+        return;
+      }
       addCustomer(payload);
     }
 
@@ -268,6 +279,11 @@ export default function ClientesPage() {
           ))}
         </div>
       )}
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }

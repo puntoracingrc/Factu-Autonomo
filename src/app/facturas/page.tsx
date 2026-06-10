@@ -9,7 +9,7 @@ export default function FacturasPage() {
     <div>
       <PageHeader
         title="Facturas"
-        subtitle="Crea, rectifica y descarga facturas en PDF"
+        subtitle="Crea, envía y descarga facturas en PDF"
         action={
           <ButtonLink href="/facturas/nuevo">+ Nueva factura</ButtonLink>
         }
