@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
-import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
+import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
@@ -16,7 +16,6 @@ import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
 import { findReceiptForInvoice } from "@/lib/receipts";
-import { downloadDocumentPdf } from "@/lib/pdf";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import type { Document, DocumentType } from "@/lib/types";
 
@@ -180,15 +179,7 @@ export function DocumentList({
                   {(type === "factura" || type === "recibo") && (
                     <MarkAsPaidButton doc={doc} />
                   )}
-                  <IconActionButton
-                    label="PDF"
-                    tooltip="Descargar PDF"
-                    onClick={() => void downloadDocumentPdf(doc, data.profile)}
-                    className="bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  >
-                    <Download className="h-5 w-5" />
-                  </IconActionButton>
-                  <DocumentShareActions doc={doc} profile={data.profile} />
+                  <DocumentPdfShareActions doc={doc} profile={data.profile} />
                   {rectifiable && (
                     <IconActionLink
                       href={`${basePath}/${doc.id}/rectificar`}

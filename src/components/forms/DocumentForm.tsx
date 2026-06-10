@@ -23,7 +23,7 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "@/lib/vat-regime";
-import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
+import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { downloadDocumentPdf } from "@/lib/pdf";
@@ -437,8 +437,8 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
               hecho cambios.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <DocumentShareActions doc={shareDoc} profile={data.profile} />
+          <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+            <DocumentPdfShareActions doc={shareDoc} profile={data.profile} />
           </div>
         </Card>
       )}

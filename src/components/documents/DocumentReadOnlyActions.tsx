@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Download } from "lucide-react";
-import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
-import { downloadDocumentPdf } from "@/lib/pdf";
+import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -31,16 +29,8 @@ export function DocumentReadOnlyActions({
       <p className="text-sm font-semibold text-slate-800">
         Enviar {typeLabel} al cliente
       </p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => downloadDocumentPdf(doc, profile)}
-          className="flex min-h-11 items-center gap-2 rounded-xl bg-blue-50 px-4 text-sm font-semibold text-blue-700"
-        >
-          <Download className="h-5 w-5" />
-          Descargar PDF
-        </button>
-        <DocumentShareActions doc={doc} profile={profile} />
+      <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+        <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 
       {missingContact && (
