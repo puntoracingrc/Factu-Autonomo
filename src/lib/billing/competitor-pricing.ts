@@ -149,7 +149,7 @@ export const COMPARISON_METHODOLOGY = [
   "Comparamos el plan de pago más cercano a Pro: facturas, presupuestos y gastos básicos.",
   "Excluimos ERP (Holded completo), nóminas, banca y contabilidad asistida.",
   "El ranking usa el precio mensual habitual publicado, no promos temporales.",
-  "Los precios son orientativos (+ IVA) según la web del competidor en la fecha indicada.",
+  "Los precios son orientativos y sin IVA, según la web del competidor en la fecha indicada.",
 ] as const;
 
 function ourComparableEntry(): ComparableCompetitor {

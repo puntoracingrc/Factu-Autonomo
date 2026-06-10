@@ -93,9 +93,9 @@ export function PricingComparisonPanel() {
 
       <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-slate-500">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Precios orientativos sin IVA según webs públicas. Actualizado el{" "}
-        {formatVerifiedDate(PRICING_REVIEW.lastVerified)}. Las promociones pueden
-        variar; el ranking usa el precio habitual.
+        Precios orientativos sin IVA (el 21 % se añade al contratar). Fuentes:
+        webs públicas, actualizado el {formatVerifiedDate(PRICING_REVIEW.lastVerified)}.
+        Las promociones pueden variar; el ranking usa el precio habitual.
       </p>
 
       <button
