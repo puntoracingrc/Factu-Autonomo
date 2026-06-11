@@ -19,6 +19,7 @@ export default function AvisosPage() {
   const { syncNow } = useCloudSync();
   const pendingTasks = pendingUserReminders(data.userReminders).length;
 
+  // Una vez al abrir Avisos: traer recordatorios del equipo (el pull periódico sigue en CloudSync).
   useEffect(() => {
     void syncNow();
   }, [syncNow]);

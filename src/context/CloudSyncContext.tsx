@@ -303,6 +303,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [finalizeSyncState, flushPendingUpload, replaceData, user]);
 
+  const pullFromCloudRef = useRef(pullFromCloud);
+  pullFromCloudRef.current = pullFromCloud;
+
+  /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
+  const syncNow = useCallback(async () => {
+    await pullFromCloudRef.current();
+  }, []);
+
   const schedulePush = useCallback(() => {
     if (!ready || !user || skipPush.current) return;
     if (!hasPendingSyncChanges(data)) return;
@@ -558,7 +566,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       signIn,
       resendConfirmationEmail,
       signOut,
-      syncNow: pullFromCloud,
+      syncNow,
       exportBackup: () => downloadBackup(data),
       importBackup,
     }),
@@ -574,7 +582,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       signIn,
       resendConfirmationEmail,
       signOut,
-      pullFromCloud,
+      syncNow,
       data,
       importBackup,
     ],
