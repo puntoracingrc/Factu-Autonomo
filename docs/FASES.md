@@ -2,7 +2,7 @@
 
 Usa este documento como hoja de ruta. Marca cada ítem al completarlo.
 
-**Producción:** https://factu-autonomo.vercel.app  
+**Producción:** https://facturacion-autonomos.app  
 **Repo:** https://github.com/puntoracingrc/Factu-Autonomo
 
 ---
@@ -74,7 +74,7 @@ Plantilla completa: **`.env.example`** en la raíz del repo.
 Ver `docs/DEPLOY.md` y `docs/VERCEL_PRODUCCION.md`.
 
 - [ ] Cuenta Stripe + producto Pro (5,99 €/mes, 49 €/año)
-- [ ] Webhook → `https://factu-autonomo.vercel.app/api/webhooks/stripe`
+- [ ] Webhook → `https://facturacion-autonomos.app/api/webhooks/stripe`
 - [ ] Variables `STRIPE_*` y `NEXT_PUBLIC_BILLING_ENABLED=true`
 - [ ] Prueba con tarjeta `4242 4242 4242 4242`
 

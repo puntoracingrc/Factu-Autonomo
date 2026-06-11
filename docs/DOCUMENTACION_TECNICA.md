@@ -2,7 +2,8 @@
 
 **Versión del documento:** junio 2026  
 **Repositorio:** `puntoracingrc/Factu-Autonomo`  
-**Producción:** https://factu-autonomo.vercel.app
+**Producción:** https://facturacion-autonomos.app  
+**Contacto:** info@facturacion-autonomos.app
 
 ---
 

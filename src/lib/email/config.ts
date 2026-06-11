@@ -19,6 +19,6 @@ export function getEmailFromAddress(): string {
 export function getAppBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "https://factu-autonomo.vercel.app"
+    "https://facturacion-autonomos.app"
   );
 }
