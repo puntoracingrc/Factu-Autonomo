@@ -1,5 +1,6 @@
 import { migrateCustomer } from "./customers";
 import { normalizeQuoteDocument } from "./quotes";
+import { normalizeUserReminder } from "./reminder-team";
 import { countersFromDocuments } from "./documents";
 import { normalizeIvaSettings } from "./iva";
 import { normalizeIrpfPercent } from "./taxes";
@@ -9,7 +10,7 @@ import { normalizeDocumentPhrases } from "./document-phrases";
 import { normalizeDocumentPaymentMethods } from "./document-payment-methods";
 import { normalizeDocumentUnits } from "./document-units";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
-import type { AppData, BusinessProfile, DocumentType } from "./types";
+import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
 function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
@@ -44,7 +45,9 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
       migrateCustomer(customer as AppData["customers"][number]),
     ),
     recurringExpenses: parsed.recurringExpenses ?? [],
-    userReminders: parsed.userReminders ?? [],
+    userReminders: (parsed.userReminders ?? []).map((item) =>
+      normalizeUserReminder(item as UserReminder),
+    ),
     documents,
     counters: {
       ...EMPTY_DATA.counters,

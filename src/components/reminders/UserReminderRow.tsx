@@ -7,6 +7,11 @@ import {
   isReminderOverdue,
   reminderDueLabel,
 } from "@/lib/user-reminders";
+import {
+  isUnseenOfficeReminder,
+  reminderOriginLabel,
+  reminderTargetLabel,
+} from "@/lib/reminder-team";
 import type { UserReminder } from "@/lib/types";
 
 interface UserReminderRowProps {
@@ -24,24 +29,52 @@ export function UserReminderRow({
 }: UserReminderRowProps) {
   const overdue = isReminderOverdue(reminder);
   const dueLabel = reminderDueLabel(reminder);
+  const isOffice = reminder.target === "office";
+  const isNew = isUnseenOfficeReminder(reminder);
+  const originLabel = reminderOriginLabel(reminder.origin);
 
   return (
     <Card
       className={`${compact ? "p-3" : "p-4"} ${
-        overdue ? "border-amber-300 bg-amber-50" : "border-violet-200 bg-violet-50/50"
+        isOffice
+          ? isNew
+            ? "border-sky-300 bg-sky-50 ring-1 ring-sky-200"
+            : "border-sky-200 bg-sky-50/70"
+          : overdue
+            ? "border-amber-300 bg-amber-50"
+            : "border-violet-200 bg-violet-50/50"
       }`}
     >
       <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={onComplete}
-          className={`${compact ? "h-6 w-6" : "h-7 w-7"} mt-0.5 flex shrink-0 items-center justify-center rounded-lg border-2 border-violet-400 bg-white text-violet-700 transition hover:bg-violet-100`}
+          className={`${compact ? "h-6 w-6" : "h-7 w-7"} mt-0.5 flex shrink-0 items-center justify-center rounded-lg border-2 ${
+            isOffice
+              ? "border-sky-500 text-sky-700 hover:bg-sky-100"
+              : "border-violet-400 text-violet-700 hover:bg-violet-100"
+          } bg-white transition`}
           title="Marcar como hecho"
           aria-label="Marcar recordatorio como hecho"
         >
           <Check className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
         </button>
         <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            {isOffice ? (
+              <span className="rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                {reminderTargetLabel("office")}
+              </span>
+            ) : null}
+            {isNew ? (
+              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                Nuevo
+              </span>
+            ) : null}
+            {originLabel ? (
+              <span className="text-[10px] font-medium text-slate-500">{originLabel}</span>
+            ) : null}
+          </div>
           <p className={`font-semibold text-slate-900 ${compact ? "text-sm" : ""}`}>
             {reminder.text}
           </p>

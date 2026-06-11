@@ -12,6 +12,7 @@ function reminder(overrides: Partial<UserReminder> = {}): UserReminder {
     id: "r1",
     text: "Factura a María",
     link: { kind: "none" },
+    target: "self",
     completed: false,
     createdAt: "2026-06-01T10:00:00.000Z",
     updatedAt: "2026-06-01T10:00:00.000Z",
@@ -79,6 +80,14 @@ describe("user-reminders", () => {
     expect(
       resolveReminderHref(data, { kind: "rectify", entityId: "f1" }),
     ).toBe("/facturas/f1/rectificar");
+  });
+
+  it("prioriza recordatorios para oficina", () => {
+    const sorted = sortUserReminders([
+      reminder({ id: "self", target: "self" }),
+      reminder({ id: "office", target: "office" }),
+    ]);
+    expect(sorted[0]?.id).toBe("office");
   });
 
   it("filtra pendientes", () => {

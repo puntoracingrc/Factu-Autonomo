@@ -614,7 +614,8 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 | Modelo | Incremental: `SyncChange[]` con diff por entidad |
 | Entidades | document, customer, expense, recurring_expense, supplier, profile, counters |
 | Merge | Remoto sobre local con resolución por timestamp |
-| Reintento | Cada 30 s si hay cambios pendientes |
+| Reintento | Cada 30 s si hay cambios pendientes de subir |
+| Descarga periódica | Cada 45 s con pestaña visible (misma cuenta en varios dispositivos) |
 | Acceso Pro | Requerido cuando `NEXT_PUBLIC_BILLING_ENABLED=true` |
 | Backup manual | Export/import JSON (`src/lib/backup.ts`) independiente del sync |
 | Referidos | Tras login, `ReferralRedeemOnLogin` aplica código `?ref=` guardado en localStorage |

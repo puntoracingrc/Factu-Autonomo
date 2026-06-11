@@ -73,6 +73,7 @@ interface CloudSyncValue {
 const CloudSyncContext = createContext<CloudSyncValue | null>(null);
 
 const RETRY_MS = 30_000;
+const PULL_INTERVAL_MS = 45_000;
 
 export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const { data, ready, replaceData } = useAppStore();
@@ -391,6 +392,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("visibilitychange", handleVisible);
     return () => document.removeEventListener("visibilitychange", handleVisible);
   }, [cloudEnabled, data, flushPendingUpload, pullFromCloud, user]);
+
+  useEffect(() => {
+    if (!cloudEnabled || !user) return;
+
+    const pullTimer = setInterval(() => {
+      if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
+      if (syncing.current) return;
+      void pullFromCloud();
+    }, PULL_INTERVAL_MS);
+
+    return () => clearInterval(pullTimer);
+  }, [cloudEnabled, pullFromCloud, user]);
 
   useEffect(() => {
     if (!user || !pendingUpload || !online) return;

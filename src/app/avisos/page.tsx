@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/Card";
 import { AutomaticosPanel } from "@/components/recommendations/AutomaticosPanel";
 import { UserRemindersPanel } from "@/components/reminders/UserRemindersPanel";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
+import { useCloudSync } from "@/context/CloudSyncContext";
+import { markRemindersSeen } from "@/lib/reminder-team";
 import { pendingUserReminders } from "@/lib/user-reminders";
 
 type AvisosTab = "auto" | "mine";
@@ -14,7 +16,18 @@ export default function AvisosPage() {
   const [tab, setTab] = useState<AvisosTab>("mine");
   const { recommendations, factuTips, autoCount } = useAppRecommendations();
   const { data } = useAppStore();
+  const { syncNow } = useCloudSync();
   const pendingTasks = pendingUserReminders(data.userReminders).length;
+
+  useEffect(() => {
+    void syncNow();
+  }, [syncNow]);
+
+  useEffect(() => {
+    if (tab === "mine") {
+      markRemindersSeen();
+    }
+  }, [tab, pendingTasks]);
 
   return (
     <div>

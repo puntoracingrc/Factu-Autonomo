@@ -650,6 +650,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const created: UserReminder = {
         ...item,
+        target: item.target ?? "self",
         completed: item.completed ?? false,
         id: newId(),
         createdAt: now,

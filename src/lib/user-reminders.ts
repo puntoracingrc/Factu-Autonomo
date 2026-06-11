@@ -6,6 +6,10 @@ export function pendingUserReminders(reminders: UserReminder[]): UserReminder[] 
   return sortUserReminders(reminders.filter((item) => !item.completed));
 }
 
+export function pendingOfficeReminders(reminders: UserReminder[]): UserReminder[] {
+  return pendingUserReminders(reminders).filter((item) => item.target === "office");
+}
+
 export function completedUserReminders(reminders: UserReminder[]): UserReminder[] {
   return reminders
     .filter((item) => item.completed)
@@ -16,6 +20,10 @@ export function completedUserReminders(reminders: UserReminder[]): UserReminder[
 
 export function sortUserReminders(reminders: UserReminder[]): UserReminder[] {
   return [...reminders].sort((a, b) => {
+    const officeA = a.target === "office" ? 0 : 1;
+    const officeB = b.target === "office" ? 0 : 1;
+    if (officeA !== officeB) return officeA - officeB;
+
     const rankA = dueSortRank(a);
     const rankB = dueSortRank(b);
     if (rankA !== rankB) return rankA - rankB;

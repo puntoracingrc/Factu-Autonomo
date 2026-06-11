@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
+import { SendToOfficeForm } from "@/components/reminders/SendToOfficeForm";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
@@ -13,6 +14,7 @@ import {
   pendingUserReminders,
   resolveReminderHref,
 } from "@/lib/user-reminders";
+import { guessReminderOrigin } from "@/lib/reminder-team";
 import type { UserReminderLinkKind } from "@/lib/types";
 
 const LINK_KINDS: UserReminderLinkKind[] = [
@@ -39,6 +41,7 @@ export function UserRemindersPanel() {
   const [dueTime, setDueTime] = useState("");
   const [linkKind, setLinkKind] = useState<UserReminderLinkKind>("none");
   const [entityId, setEntityId] = useState("");
+  const [target, setTarget] = useState<"self" | "office">("self");
   const [showCompleted, setShowCompleted] = useState(false);
 
   const pending = useMemo(
@@ -62,10 +65,12 @@ export function UserRemindersPanel() {
     setDueTime("");
     setLinkKind("none");
     setEntityId("");
+    setTarget("self");
   }
 
-  function openTemplate(kind: UserReminderLinkKind, presetText: string) {
+  function openOfficeTemplate(kind: UserReminderLinkKind, presetText: string) {
     setShowForm(true);
+    setTarget("office");
     setLinkKind(kind);
     setText(presetText);
     setEntityId("");
@@ -80,6 +85,8 @@ export function UserRemindersPanel() {
       text: trimmed,
       dueDate: dueDate || undefined,
       dueTime: dueTime || undefined,
+      target,
+      origin: guessReminderOrigin(),
       link: {
         kind: linkKind,
         entityId: needsEntity && entityId ? entityId : undefined,
@@ -92,6 +99,8 @@ export function UserRemindersPanel() {
 
   return (
     <div>
+      <SendToOfficeForm />
+
       <div className="mb-4 flex flex-wrap gap-2">
         <Button type="button" onClick={() => setShowForm((open) => !open)}>
           <Plus className="h-4 w-4" />
@@ -100,14 +109,21 @@ export function UserRemindersPanel() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => openTemplate("customer", "Hacer factura a ")}
+          onClick={() => openOfficeTemplate("new_invoice", "Hacer factura a … por … € — ")}
+        >
+          Enviar instrucción a oficina
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => openOfficeTemplate("customer", "Hacer factura a ")}
         >
           Facturar a…
         </Button>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => openTemplate("rectify", "Rectificar factura de ")}
+          onClick={() => openOfficeTemplate("rectify", "Rectificar factura de ")}
         >
           Rectificar…
         </Button>
@@ -123,6 +139,18 @@ export function UserRemindersPanel() {
                 placeholder="Ej.: Esta tarde hacer la factura a María"
                 required
               />
+            </Field>
+
+            <Field label="Destino">
+              <Select
+                value={target}
+                onChange={(event) =>
+                  setTarget(event.target.value as "self" | "office")
+                }
+              >
+                <option value="self">Para mí</option>
+                <option value="office">Para oficina / equipo</option>
+              </Select>
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">

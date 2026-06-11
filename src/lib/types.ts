@@ -296,6 +296,10 @@ export type UserReminderLinkKind =
   | "new_invoice"
   | "new_expense";
 
+export type UserReminderTarget = "self" | "office";
+
+export type UserReminderOrigin = "field" | "office";
+
 export interface UserReminderLink {
   kind: UserReminderLinkKind;
   entityId?: string;
@@ -308,6 +312,10 @@ export interface UserReminder {
   dueDate?: string;
   dueTime?: string;
   link: UserReminderLink;
+  /** self = solo yo; office = visible para quien tenga la cuenta (p. ej. secretaría). */
+  target: UserReminderTarget;
+  /** Quién lo creó, si se conoce (misma cuenta en varios dispositivos). */
+  origin?: UserReminderOrigin;
   completed: boolean;
   completedAt?: string;
   createdAt: string;

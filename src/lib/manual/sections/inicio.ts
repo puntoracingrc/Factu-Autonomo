@@ -13,8 +13,8 @@ export const inicioSection: ManualSection = {
     {
       title: "1. Accesos rápidos",
       paragraphs: [
-        "Lo primero que verás son tus **recordatorios** pendientes (marca el check al completarlos) y los **botones de colores**.",
-        "El botón **Avisos** (ámbar) concentra avisos automáticos y la gestión completa de tareas.",
+        "Lo primero que verás son tus **recordatorios del equipo** (marca el check al completarlos). Desde el móvil puedes **Enviar a oficina** instrucciones para quien esté en el PC.",
+        "Compartid la **misma cuenta Pro con nube**: los recordatorios «Para oficina» se sincronizan cada ~45 s si la pestaña está abierta.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-accesos-rapidos.png",
