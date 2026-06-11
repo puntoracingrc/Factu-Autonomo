@@ -9,7 +9,7 @@ export const proveedoresSection: ManualSection = {
     {
       title: "1. Dar de alta un proveedor",
       paragraphs: [
-        "En **Proveedores** guardas nombre, NIF, email, teléfono, web y dirección.",
+        "En **Proveedores** pulsa **Nuevo proveedor** y guarda nombre, NIF, email, teléfono, web y dirección.",
         "Al registrar un gasto, si eliges proveedor, su NIF puede salir en las exportaciones CSV.",
       ],
       screenshot: {

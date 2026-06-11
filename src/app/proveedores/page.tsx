@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Trash2, X } from "lucide-react";
+import { GitMerge, Truck, Trash2, X } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
@@ -17,14 +17,20 @@ import {
   supplierSimilarityScore,
 } from "@/lib/suppliers";
 
+const EMPTY_FORM = {
+  name: "",
+  nif: "",
+  phone: "",
+  website: "",
+  address: "",
+  notes: "",
+};
+
 export default function ProveedoresPage() {
   const { data, addSupplier, deleteSupplier, mergeSuppliers } = useAppStore();
-  const [name, setName] = useState("");
-  const [nif, setNif] = useState("");
-  const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formOpen, setFormOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
@@ -62,6 +68,17 @@ export default function ProveedoresPage() {
     setKeepId("");
   }
 
+  function openNewForm() {
+    setForm(EMPTY_FORM);
+    setFormOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeForm() {
+    setForm(EMPTY_FORM);
+    setFormOpen(false);
+  }
+
   function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
     const keep = data.suppliers.find((supplier) => supplier.id === keepId);
@@ -78,14 +95,14 @@ export default function ProveedoresPage() {
   }
 
   function handleAdd() {
-    if (!name.trim()) {
+    if (!form.name.trim()) {
       alert("Escribe el nombre del proveedor");
       return;
     }
 
     const match = findBestSupplierMatch(data.suppliers, {
-      name: name.trim(),
-      nif: nif || undefined,
+      name: form.name.trim(),
+      nif: form.nif || undefined,
     });
     if (match && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
       alert(
@@ -95,19 +112,16 @@ export default function ProveedoresPage() {
     }
 
     addSupplier({
-      name: name.trim(),
-      nif: nif.trim() || undefined,
-      phone: phone.trim() || undefined,
-      website: website.trim() || undefined,
-      address: address.trim() || undefined,
-      notes: notes.trim() || undefined,
+      name: form.name.trim(),
+      nif: form.nif.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      website: form.website.trim() || undefined,
+      address: form.address.trim() || undefined,
+      notes: form.notes.trim() || undefined,
     });
-    setName("");
-    setNif("");
-    setPhone("");
-    setWebsite("");
-    setAddress("");
-    setNotes("");
+    closeForm();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   }
 
   function supplierWebsiteHref(url: string): string {
@@ -179,65 +193,126 @@ export default function ProveedoresPage() {
       )}
 
       <div className="mb-6 flex flex-col gap-3">
-        {!mergeMode ? (
-          data.suppliers.length >= 2 && (
-            <PageActionButton
-              icon={GitMerge}
-              label="Unificar manualmente"
-              onClick={() => setMergeMode(true)}
-              className="mb-0"
-            />
-          )
-        ) : (
-          <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
-            <X className="h-5 w-5" />
-            Cancelar unificación
-          </Button>
+        {!formOpen && (
+          <>
+            {!mergeMode ? (
+              <>
+                <Button onClick={openNewForm} fullWidth className="gap-2">
+                  <Truck className="h-5 w-5" />
+                  Nuevo proveedor
+                </Button>
+                {data.suppliers.length >= 2 && (
+                  <PageActionButton
+                    icon={GitMerge}
+                    label="Unificar manualmente"
+                    onClick={() => setMergeMode(true)}
+                    className="mb-0"
+                  />
+                )}
+              </>
+            ) : (
+              <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+                <X className="h-5 w-5" />
+                Cancelar unificación
+              </Button>
+            )}
+          </>
         )}
       </div>
 
-      <Card className="mb-6 space-y-4">
-        <h2 className="font-bold text-slate-900">Añadir proveedor</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre *">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre de la empresa"
-            />
-          </Field>
-          <Field label="NIF">
-            <Input value={nif} onChange={(e) => setNif(e.target.value)} />
-          </Field>
-          <Field label="Teléfono">
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </Field>
-          <Field label="Web" hint="Opcional. Ej: www.tienda.com">
-            <Input
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://www.ejemplo.com"
-            />
-          </Field>
-          <Field label="Dirección">
-            <Input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Calle, número, ciudad"
-            />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Notas">
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </Field>
-          </div>
-        </div>
-        <Button onClick={handleAdd}>Guardar proveedor</Button>
-      </Card>
+      {saved && !formOpen && (
+        <p className="mb-4 text-center text-sm font-medium text-green-600">
+          Proveedor guardado correctamente
+        </p>
+      )}
 
-      {data.suppliers.length === 0 ? (
-        <FactuEmptyState variant="proveedor" />
-      ) : (
+      {formOpen && (
+        <Card className="mb-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-bold text-slate-900">
+              <Truck className="h-5 w-5 text-blue-600" />
+              Nuevo proveedor
+            </h2>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="flex items-center gap-1 text-sm text-slate-500"
+            >
+              <X className="h-4 w-4" /> Cancelar
+            </button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nombre *">
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Nombre de la empresa"
+              />
+            </Field>
+            <Field label="NIF">
+              <Input
+                value={form.nif}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, nif: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label="Teléfono">
+              <Input
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+              <Input
+                value={form.website}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, website: e.target.value }))
+                }
+                placeholder="https://www.ejemplo.com"
+              />
+            </Field>
+            <Field label="Dirección">
+              <Input
+                value={form.address}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, address: e.target.value }))
+                }
+                placeholder="Calle, número, ciudad"
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Notas">
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                />
+              </Field>
+            </div>
+          </div>
+          <Button onClick={handleAdd} fullWidth>
+            Guardar proveedor
+          </Button>
+        </Card>
+      )}
+
+      {data.suppliers.length === 0 && !formOpen ? (
+        <FactuEmptyState
+          variant="proveedor"
+          action={
+            <Button onClick={openNewForm} className="gap-2">
+              <Truck className="h-5 w-5" />
+              Nuevo proveedor
+            </Button>
+          }
+        />
+      ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
           {data.suppliers.map((supplier) => {
             const spent = data.expenses
@@ -313,7 +388,7 @@ export default function ProveedoresPage() {
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {mergeMode && selectedIds.length >= 2 && keepId && (
         <Card className="sticky bottom-20 z-10 mt-4 space-y-4 border-blue-300 bg-white shadow-lg sm:bottom-4">
