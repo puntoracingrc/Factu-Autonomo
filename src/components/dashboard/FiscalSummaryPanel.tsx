@@ -98,6 +98,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       data.profile,
       year,
       quarter,
+      data.suppliers,
     );
     downloadQuarterlyCsv(csv, year, quarter);
   }

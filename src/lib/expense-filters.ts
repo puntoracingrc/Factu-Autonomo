@@ -2,6 +2,7 @@ import {
   filterExpensesByQuarter,
   filterExpensesByYear,
   getCurrentQuarter,
+  quarterLabel,
   type Quarter,
 } from "./periods";
 import { expenseAmount } from "./vat-regime";
@@ -163,6 +164,53 @@ export function aggregateExpensesBySupplier(
   }
 
   return slices;
+}
+
+const MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+] as const;
+
+export function formatExpensePeriodLabel(
+  kind: ExpensePeriodKind,
+  year: number,
+  month: number,
+  quarter: Quarter,
+): string {
+  switch (kind) {
+    case "month":
+      return `${MONTH_NAMES[month - 1]} ${year}`;
+    case "quarter":
+      return quarterLabel(year, quarter);
+    case "year":
+      return `Año ${year}`;
+  }
+}
+
+export function expenseExportFilenameStem(
+  kind: ExpensePeriodKind,
+  year: number,
+  month: number,
+  quarter: Quarter,
+): string {
+  switch (kind) {
+    case "month":
+      return `gastos-${MONTH_NAMES[month - 1].toLowerCase()}-${year}`;
+    case "quarter":
+      return `gastos-T${quarter}-${year}`;
+    case "year":
+      return `gastos-${year}`;
+  }
 }
 
 export function getDefaultExpensePeriod(reference = new Date()): {

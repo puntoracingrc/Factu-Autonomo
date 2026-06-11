@@ -1,20 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
+  buildExpensesExportCsv,
+  downloadExpensesCsv,
+} from "@/lib/billing/export-expenses-csv";
+import {
   aggregateExpensesBySupplier,
+  expenseExportFilenameStem,
   filterExpensesByPeriod,
+  formatExpensePeriodLabel,
   getDefaultExpensePeriod,
   matchesSupplierFilter,
+  supplierLabelFromKey,
   type ExpensePeriodKind,
   uniqueSupplierOptions,
 } from "@/lib/expense-filters";
@@ -74,6 +81,26 @@ export default function GastosPage() {
     setSupplierFilter(null);
   }
 
+  function handleExportCsv() {
+    const periodLabel = formatExpensePeriodLabel(
+      periodKind,
+      year,
+      month,
+      quarter,
+    );
+    const supplierFilterLabel = supplierFilter
+      ? supplierLabelFromKey(supplierFilter, data.expenses)
+      : undefined;
+    const csv = buildExpensesExportCsv(filteredExpenses, data.suppliers, {
+      profile: data.profile,
+      periodLabel,
+      supplierFilterLabel,
+    });
+    const stem = expenseExportFilenameStem(periodKind, year, month, quarter);
+    const suffix = supplierFilter ? "-filtrado" : "";
+    downloadExpensesCsv(csv, `${stem}${suffix}`);
+  }
+
   return (
     <div>
       <PageHeader
@@ -109,10 +136,20 @@ export default function GastosPage() {
       </Card>
 
       <Card className="mb-6 border-emerald-200 bg-emerald-50">
-        <p className="text-sm text-emerald-700">Total gastado</p>
-        <p className="text-2xl font-bold text-emerald-900">
-          {formatMoney(total)}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-emerald-700">Total gastado</p>
+            <p className="text-2xl font-bold text-emerald-900">
+              {formatMoney(total)}
+            </p>
+          </div>
+          {filteredExpenses.length > 0 && (
+            <Button variant="secondary" onClick={handleExportCsv}>
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </Button>
+          )}
+        </div>
         {supplierFilter && (
           <p className="mt-1 text-xs text-emerald-800">
             Filtrado por proveedor · {filteredExpenses.length} gasto

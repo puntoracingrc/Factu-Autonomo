@@ -75,6 +75,7 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
       data.profile,
       year,
       quarter,
+      data.suppliers,
     );
     downloadQuarterlyCsv(csv, year, quarter);
   }

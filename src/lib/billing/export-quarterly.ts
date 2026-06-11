@@ -1,22 +1,22 @@
-import { documentTotals } from "../calculations";
+import { documentTotals, formatShortDate } from "../calculations";
 import { isTaxableSaleDocument } from "../taxes";
-import type { BusinessProfile, Document, Expense } from "../types";
-import { expenseIvaAmount } from "../taxes";
+import type { BusinessProfile, Document, Expense, Supplier } from "../types";
 import { isVatExempt } from "../vat-regime";
 import { quarterLabel, type Quarter } from "../periods";
 import { filterDocumentsByQuarter, filterExpensesByQuarter } from "../periods";
 import { calculateTaxSummary } from "../taxes";
+import { csvRow, formatCsvAmount, formatCsvExportDate, downloadCsvFile } from "./csv-utils";
+import { buildExpensesTableSection } from "./export-expenses-csv";
 
-function csvEscape(value: string | number): string {
-  const text = String(value);
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
+const DOCUMENT_TYPE_LABELS: Record<Document["type"], string> = {
+  factura: "Factura",
+  presupuesto: "Presupuesto",
+  recibo: "Recibo",
+};
 
-function row(values: (string | number)[]): string {
-  return values.map(csvEscape).join(",");
+function documentTypeLabel(doc: Document): string {
+  if (doc.rectification) return "Factura rectificativa";
+  return DOCUMENT_TYPE_LABELS[doc.type];
 }
 
 export function buildQuarterlyExportCsv(
@@ -25,8 +25,10 @@ export function buildQuarterlyExportCsv(
   profile: BusinessProfile,
   year: number,
   quarter: Quarter,
+  suppliers: Supplier[] = [],
 ): string {
   const vatExempt = isVatExempt(profile);
+  const period = quarterLabel(year, quarter);
   const quarterDocs = filterDocumentsByQuarter(documents, year, quarter);
   const quarterExpenses = filterExpensesByQuarter(expenses, year, quarter);
   const taxes = calculateTaxSummary(quarterDocs, quarterExpenses, {
@@ -34,82 +36,94 @@ export function buildQuarterlyExportCsv(
     vatExempt,
   });
 
+  const taxableDocs = quarterDocs.filter(isTaxableSaleDocument);
+
+  let salesBase = 0;
+  let salesIva = 0;
+  let salesTotal = 0;
+
   const lines: string[] = [
-    row(["Factura Autónomo — export trimestral"]),
-    row(["Periodo", quarterLabel(year, quarter)]),
-    row(["Generado", new Date().toISOString().split("T")[0]]),
+    csvRow(["EXPORTACIÓN TRIMESTRAL FISCAL"]),
+    csvRow([
+      "Generado por Factu Autónomo",
+      "https://facturacion-autonomos.app",
+    ]),
     "",
-    row(["RESUMEN"]),
-    row(["Base ventas", taxes.salesBase.toFixed(2)]),
-    row(["IVA repercutido", taxes.salesIva.toFixed(2)]),
-    row(["Base gastos", taxes.expenseBase.toFixed(2)]),
-    row(["IVA deducible", taxes.expenseIva.toFixed(2)]),
-    row(["IVA neto", taxes.netIva.toFixed(2)]),
-    row(["Beneficio bruto", taxes.grossProfit.toFixed(2)]),
-    row(["IRPF estimado", taxes.irpfEstimate.toFixed(2)]),
+    csvRow(["Empresa", profile.name || "—"]),
+    csvRow(["NIF/CIF", profile.nif || "—"]),
+    csvRow(["Periodo", period]),
+    csvRow(["Fecha de exportación", formatCsvExportDate()]),
+    csvRow([
+      "Nota",
+      "Importes en EUR. Separador ; y decimales con coma (compatible con Excel en español).",
+    ]),
     "",
-    row([
-      "VENTAS",
+    csvRow(["RESUMEN DEL PERIODO"]),
+    csvRow(["Concepto", "Importe (EUR)"]),
+    csvRow(["Base imponible ventas", formatCsvAmount(taxes.salesBase)]),
+    csvRow(["IVA repercutido", formatCsvAmount(taxes.salesIva)]),
+    csvRow(["Base imponible gastos", formatCsvAmount(taxes.expenseBase)]),
+    csvRow(["IVA deducible", formatCsvAmount(taxes.expenseIva)]),
+    csvRow(["IVA neto a ingresar", formatCsvAmount(taxes.netIva)]),
+    csvRow(["Beneficio bruto estimado", formatCsvAmount(taxes.grossProfit)]),
+    csvRow(["IRPF estimado (orientativo)", formatCsvAmount(taxes.irpfEstimate)]),
+    "",
+    csvRow(["LIBRO DE VENTAS"]),
+    "",
+    csvRow([
       "Fecha",
-      "Número",
+      "Nº documento",
       "Tipo",
       "Cliente",
-      "Base",
-      "IVA",
-      "Total",
+      "NIF/CIF cliente",
+      "Base imponible (EUR)",
+      "Cuota IVA (EUR)",
+      "Total (EUR)",
       "Estado",
     ]),
   ];
 
-  for (const doc of quarterDocs.filter(isTaxableSaleDocument)) {
+  for (const doc of taxableDocs) {
     const totals = documentTotals(doc);
+    salesBase += totals.subtotal;
+    salesIva += totals.iva;
+    salesTotal += totals.total;
+
     lines.push(
-      row([
-        "",
-        doc.date,
+      csvRow([
+        formatShortDate(doc.date),
         doc.number,
-        doc.type,
+        documentTypeLabel(doc),
         doc.client.name,
-        totals.subtotal.toFixed(2),
-        totals.iva.toFixed(2),
-        totals.total.toFixed(2),
+        doc.client.nif ?? "",
+        formatCsvAmount(totals.subtotal),
+        formatCsvAmount(totals.iva),
+        formatCsvAmount(totals.total),
         doc.status,
       ]),
     );
   }
 
-  lines.push("");
   lines.push(
-    row([
-      "GASTOS",
-      "Fecha",
-      "Proveedor",
-      "Descripción",
-      "Base",
-      "IVA %",
-      "IVA",
-      "Total",
-      "Categoría",
+    csvRow([
+      "TOTAL VENTAS",
+      "",
+      "",
+      `${taxableDocs.length} documento${taxableDocs.length === 1 ? "" : "s"}`,
+      "",
+      formatCsvAmount(salesBase),
+      formatCsvAmount(salesIva),
+      formatCsvAmount(salesTotal),
+      "",
     ]),
   );
 
-  for (const expense of quarterExpenses) {
-    const iva = vatExempt ? 0 : expenseIvaAmount(expense);
-    const total = expense.amount + iva;
-    lines.push(
-      row([
-        "",
-        expense.date,
-        expense.supplierName,
-        expense.description,
-        expense.amount.toFixed(2),
-        expense.ivaPercent,
-        iva.toFixed(2),
-        total.toFixed(2),
-        expense.category,
-      ]),
-    );
-  }
+  lines.push("");
+  lines.push(
+    ...buildExpensesTableSection(quarterExpenses, suppliers, profile, {
+      sectionTitle: "LIBRO DE GASTOS Y COMPRAS",
+    }),
+  );
 
   return `${lines.join("\n")}\n`;
 }
@@ -119,11 +133,5 @@ export function downloadQuarterlyCsv(
   year: number,
   quarter: Quarter,
 ): void {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `factura-autonomo-T${quarter}-${year}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  downloadCsvFile(csv, `factura-autonomo-T${quarter}-${year}.csv`);
 }
