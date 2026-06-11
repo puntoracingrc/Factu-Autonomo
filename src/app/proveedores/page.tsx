@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
+import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
@@ -293,7 +294,7 @@ export default function ProveedoresPage() {
       )}
 
       {formOpen && (
-        <Card className="mb-6 space-y-4">
+        <Card className="mb-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-bold text-slate-900">
               <Truck className="h-5 w-5 text-blue-600" />
@@ -307,88 +308,102 @@ export default function ProveedoresPage() {
               <X className="h-4 w-4" /> Cancelar
             </button>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nombre *">
-              <Input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Nombre de la empresa"
-              />
-            </Field>
-            <Field label="NIF">
-              <Input
-                value={form.nif}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, nif: e.target.value }))
-                }
-              />
-            </Field>
-            <Field label="Teléfono">
-              <Input
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, phone: e.target.value }))
-                }
-              />
-            </Field>
-            <Field label="Web" hint="Opcional. Ej: www.tienda.com">
-              <Input
-                value={form.website}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, website: e.target.value }))
-                }
-                placeholder="https://www.ejemplo.com"
-              />
-            </Field>
-            <Field label="Tipo de vía">
-              <StreetTypeSelect
-                value={form.streetType}
-                onChange={(streetType) =>
-                  setForm((prev) => ({ ...prev, streetType }))
-                }
-              />
-            </Field>
-            <Field
-              label="Nombre de vía y número"
-              hint="Sin C/, Avda. ni otros prefijos"
-            >
-              <Input
-                value={form.address}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, address: e.target.value }))
-                }
-                placeholder="Ej: Valencia 546 7/1"
-              />
-            </Field>
-            <Field label="Código postal">
-              <Input
-                value={form.postalCode}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, postalCode: e.target.value }))
-                }
-              />
-            </Field>
-            <Field label="Ciudad">
-              <Input
-                value={form.city}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, city: e.target.value }))
-                }
-              />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Notas">
-                <Textarea
-                  value={form.notes}
+          <FormSection
+            variant="search"
+            title="Identidad del proveedor"
+            hint="Nombre comercial y datos de contacto."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Nombre *">
+                <Input
+                  value={form.name}
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, notes: e.target.value }))
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Nombre de la empresa"
+                />
+              </Field>
+              <Field label="NIF">
+                <Input
+                  value={form.nif}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, nif: e.target.value }))
                   }
                 />
               </Field>
+              <Field label="Teléfono">
+                <Input
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+                <Input
+                  value={form.website}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, website: e.target.value }))
+                  }
+                  placeholder="https://www.ejemplo.com"
+                />
+              </Field>
             </div>
-          </div>
+          </FormSection>
+          <FormSection
+            variant="fields"
+            title="Dirección y notas"
+            hint="Opcional. Ayuda a ordenar y localizar proveedores."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Tipo de vía">
+                <StreetTypeSelect
+                  value={form.streetType}
+                  onChange={(streetType) =>
+                    setForm((prev) => ({ ...prev, streetType }))
+                  }
+                />
+              </Field>
+              <Field
+                label="Nombre de vía y número"
+                hint="Sin C/, Avda. ni otros prefijos"
+              >
+                <Input
+                  value={form.address}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, address: e.target.value }))
+                  }
+                  placeholder="Ej: Valencia 546 7/1"
+                />
+              </Field>
+              <Field label="Código postal">
+                <Input
+                  value={form.postalCode}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, postalCode: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Ciudad">
+                <Input
+                  value={form.city}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, city: e.target.value }))
+                  }
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Notas">
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, notes: e.target.value }))
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+          </FormSection>
           <Button onClick={handleSave} fullWidth>
             {editingId ? "Guardar cambios" : "Guardar proveedor"}
           </Button>
@@ -408,7 +423,11 @@ export default function ProveedoresPage() {
       ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
           {!mergeMode && (
-            <>
+            <FormSection
+              variant="search"
+              title="Buscar y ordenar"
+              hint="Localiza un proveedor o cambia el criterio de la lista."
+            >
               <SupplierListSearch
                 suppliers={suppliers}
                 selectedSupplierId={listFilterId}
@@ -422,7 +441,7 @@ export default function ProveedoresPage() {
                 onSortFieldChange={setSortField}
                 onSortDirectionChange={setSortDirection}
               />
-            </>
+            </FormSection>
           )}
           <p className="text-sm font-medium text-slate-500">
             {listFilterId

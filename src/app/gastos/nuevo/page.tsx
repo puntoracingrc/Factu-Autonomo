@@ -8,6 +8,7 @@ import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { todayISO } from "@/lib/calculations";
 import { isVatExempt } from "@/lib/vat-regime";
@@ -158,93 +159,110 @@ export default function NuevoGastoPage() {
             {supplierHint}
           </p>
         )}
-        <Card className="grid gap-4 sm:grid-cols-2">
-          <Field label="Fecha">
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </Field>
-          <Field label="Proveedor / tienda *">
-            <Input
-              value={supplierName}
-              onChange={(e) => handleSupplierNameChange(e.target.value)}
-              placeholder="Ej: Leroy Merlin"
-              list="suppliers-list"
-            />
-            <datalist id="suppliers-list">
-              {data.suppliers.map((s) => (
-                <option key={s.id} value={s.name} />
-              ))}
-            </datalist>
-          </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-2">
-            <input
-              type="checkbox"
-              checked={saveSupplier}
-              onChange={(e) => setSaveSupplier(e.target.checked)}
-              className="h-5 w-5 rounded"
-            />
-            Guardar este proveedor para la próxima vez
-          </label>
-          <Field label="¿Qué compraste? *" hint="Describe el gasto">
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ej: Material de fontanería"
-            />
-          </Field>
-          <ExpenseAmountFields
-            amountText={amountText}
-            onAmountTextChange={setAmountText}
-            ivaPercent={ivaPercent}
-            vatExempt={vatExempt}
-          />
-          {vatExempt ? (
-            <p className="text-sm text-slate-500 sm:col-span-2">
-              Sin IVA deducible — tu perfil está marcado como exento de
-              repercusión.
-            </p>
-          ) : (
-            <Field label="IVA %">
-              <IvaPercentSelect
-                value={ivaPercent}
-                onChange={setIvaPercent}
+        <Card className="space-y-5">
+          <FormSection
+            variant="search"
+            title="Proveedor"
+            hint="Elige uno guardado o escribe el nombre de la tienda. Si marcas guardar, quedará en tu lista."
+          >
+            <Field label="Nombre de proveedor / tienda *">
+              <Input
+                value={supplierName}
+                onChange={(e) => handleSupplierNameChange(e.target.value)}
+                placeholder="Ej: Leroy Merlin"
+                list="suppliers-list"
               />
+              <datalist id="suppliers-list">
+                {data.suppliers.map((s) => (
+                  <option key={s.id} value={s.name} />
+                ))}
+              </datalist>
             </Field>
-          )}
-          <Field label="Categoría">
-            <Select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Forma de pago">
-            <Select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Notas">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Nº factura del proveedor, observaciones..."
-            />
-          </Field>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={saveSupplier}
+                onChange={(e) => setSaveSupplier(e.target.checked)}
+                className="h-5 w-5 rounded"
+              />
+              Guardar este proveedor para la próxima vez
+            </label>
+          </FormSection>
+
+          <FormSection
+            variant="fields"
+            title="Detalle del gasto"
+            hint="Importe, IVA y categoría para tu libro de compras."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Fecha">
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Field>
+              <Field label="¿Qué compraste? *" hint="Describe el gasto">
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ej: Material de fontanería"
+                />
+              </Field>
+              <ExpenseAmountFields
+                amountText={amountText}
+                onAmountTextChange={setAmountText}
+                ivaPercent={ivaPercent}
+                vatExempt={vatExempt}
+              />
+              {vatExempt ? (
+                <p className="text-sm text-slate-500 sm:col-span-2">
+                  Sin IVA deducible — tu perfil está marcado como exento de
+                  repercusión.
+                </p>
+              ) : (
+                <Field label="IVA %">
+                  <IvaPercentSelect
+                    value={ivaPercent}
+                    onChange={setIvaPercent}
+                  />
+                </Field>
+              )}
+              <Field label="Categoría">
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Forma de pago">
+                <Select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Notas">
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Nº factura del proveedor, observaciones..."
+                  />
+                </Field>
+              </div>
+            </div>
+          </FormSection>
         </Card>
         <Button fullWidth onClick={handleSubmit}>
           Guardar gasto

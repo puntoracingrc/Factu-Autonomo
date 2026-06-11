@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, UserPlus } from "lucide-react";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { clientAddressToFormFields } from "@/lib/customer-address";
 import {
@@ -121,11 +122,15 @@ export function ClientPicker({
     : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {sorted.length > 0 ? (
-        <>
+        <FormSection
+          variant="search"
+          title="Buscar o elegir cliente"
+          hint="Lista alfabética o búsqueda por nombre, apellidos o NIF."
+        >
           <Field
-            label="Elegir cliente de la lista"
+            label="Lista de clientes"
             hint="Ordenados alfabéticamente por apellidos"
           >
             <Select
@@ -144,8 +149,8 @@ export function ClientPicker({
 
           <div className="relative" ref={containerRef}>
             <Field
-              label="O buscar por nombre, apellidos, NIF..."
-              hint="Escribe y pulsa Intro para rellenar los datos"
+              label="Búsqueda rápida"
+              hint="Escribe y pulsa Intro para rellenar la ficha"
             >
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -204,7 +209,7 @@ export function ClientPicker({
               Cliente seleccionado: {getCustomerDisplayName(selectedCustomer)}
             </p>
           )}
-        </>
+        </FormSection>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
           <p className="text-sm text-slate-600">
@@ -221,67 +226,68 @@ export function ClientPicker({
         </div>
       )}
 
-      <p className="text-sm text-slate-500">
-        Si escribes un cliente nuevo, se guardará automáticamente al crear la
-        factura, recibo o presupuesto. Nombre y apellidos deben ser únicos.
-      </p>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nombre *">
-          <Input
-            value={values.firstName}
-            onChange={(e) => handleFieldChange("firstName", e.target.value)}
-            placeholder="Ej: María"
-          />
-        </Field>
-        <Field label="Apellidos *">
-          <Input
-            value={values.lastName}
-            onChange={(e) => handleFieldChange("lastName", e.target.value)}
-            placeholder="Ej: López García"
-          />
-        </Field>
-        <Field label="NIF / CIF">
-          <Input
-            value={values.nif}
-            onChange={(e) => handleFieldChange("nif", e.target.value)}
-            placeholder="12345678A"
-          />
-        </Field>
-        <Field label="Teléfono">
-          <Input
-            value={values.phone}
-            onChange={(e) => handleFieldChange("phone", e.target.value)}
-            placeholder="600 000 000"
-          />
-        </Field>
-        <Field label="Email">
-          <Input
-            type="email"
-            value={values.email}
-            onChange={(e) => handleFieldChange("email", e.target.value)}
-            placeholder="cliente@email.com"
-          />
-        </Field>
-        <div className="sm:col-span-2 grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
-          <Field label="Tipo de vía" hint="Opcional">
-            <StreetTypeSelect
-              value={values.streetType}
-              onChange={(streetType) => handleFieldChange("streetType", streetType)}
-            />
-          </Field>
-          <Field
-            label="Nombre de vía y número"
-            hint="Sin C/, Avda. ni otros prefijos"
-          >
+      <FormSection
+        variant="fields"
+        title="Ficha del cliente"
+        hint="Si es un cliente nuevo, se guardará al crear el documento. Nombre y apellidos deben ser únicos."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Nombre *">
             <Input
-              value={values.address}
-              onChange={(e) => handleFieldChange("address", e.target.value)}
-              placeholder="Ej: Valencia 546 7/1"
+              value={values.firstName}
+              onChange={(e) => handleFieldChange("firstName", e.target.value)}
+              placeholder="Ej: María"
             />
           </Field>
+          <Field label="Apellidos *">
+            <Input
+              value={values.lastName}
+              onChange={(e) => handleFieldChange("lastName", e.target.value)}
+              placeholder="Ej: López García"
+            />
+          </Field>
+          <Field label="NIF / CIF">
+            <Input
+              value={values.nif}
+              onChange={(e) => handleFieldChange("nif", e.target.value)}
+              placeholder="12345678A"
+            />
+          </Field>
+          <Field label="Teléfono">
+            <Input
+              value={values.phone}
+              onChange={(e) => handleFieldChange("phone", e.target.value)}
+              placeholder="600 000 000"
+            />
+          </Field>
+          <Field label="Email">
+            <Input
+              type="email"
+              value={values.email}
+              onChange={(e) => handleFieldChange("email", e.target.value)}
+              placeholder="cliente@email.com"
+            />
+          </Field>
+          <div className="sm:col-span-2 grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
+            <Field label="Tipo de vía" hint="Opcional">
+              <StreetTypeSelect
+                value={values.streetType}
+                onChange={(streetType) => handleFieldChange("streetType", streetType)}
+              />
+            </Field>
+            <Field
+              label="Nombre de vía y número"
+              hint="Sin C/, Avda. ni otros prefijos"
+            >
+              <Input
+                value={values.address}
+                onChange={(e) => handleFieldChange("address", e.target.value)}
+                placeholder="Ej: Valencia 546 7/1"
+              />
+            </Field>
+          </div>
         </div>
-      </div>
+      </FormSection>
     </div>
   );
 }
