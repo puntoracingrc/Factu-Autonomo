@@ -111,6 +111,8 @@ export interface Supplier {
   nif?: string;
   email?: string;
   phone?: string;
+  website?: string;
+  address?: string;
   category?: string;
   notes?: string;
   createdAt: string;

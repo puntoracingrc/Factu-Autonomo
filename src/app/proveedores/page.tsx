@@ -21,6 +21,8 @@ export default function ProveedoresPage() {
   const [name, setName] = useState("");
   const [nif, setNif] = useState("");
   const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -93,14 +95,24 @@ export default function ProveedoresPage() {
 
     addSupplier({
       name: name.trim(),
-      nif: nif || undefined,
-      phone: phone || undefined,
-      notes: notes || undefined,
+      nif: nif.trim() || undefined,
+      phone: phone.trim() || undefined,
+      website: website.trim() || undefined,
+      address: address.trim() || undefined,
+      notes: notes.trim() || undefined,
     });
     setName("");
     setNif("");
     setPhone("");
+    setWebsite("");
+    setAddress("");
     setNotes("");
+  }
+
+  function supplierWebsiteHref(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return "";
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   }
 
   return (
@@ -196,9 +208,25 @@ export default function ProveedoresPage() {
           <Field label="Teléfono">
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
-          <Field label="Notas">
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+            <Input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://www.ejemplo.com"
+            />
           </Field>
+          <Field label="Dirección">
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Calle, número, ciudad"
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Notas">
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </Field>
+          </div>
         </div>
         <Button onClick={handleAdd}>Guardar proveedor</Button>
       </Card>
@@ -248,6 +276,19 @@ export default function ProveedoresPage() {
                     )}
                     {supplier.phone && (
                       <p className="text-sm text-slate-500">{supplier.phone}</p>
+                    )}
+                    {supplier.address && (
+                      <p className="text-sm text-slate-500">{supplier.address}</p>
+                    )}
+                    {supplier.website && (
+                      <a
+                        href={supplierWebsiteHref(supplier.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block truncate text-sm text-blue-600 underline"
+                      >
+                        {supplier.website}
+                      </a>
                     )}
                     <p className="mt-1 text-sm text-emerald-700">
                       Gastado: {formatMoney(spent)}

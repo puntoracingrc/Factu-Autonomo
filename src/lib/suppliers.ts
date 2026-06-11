@@ -177,7 +177,15 @@ export function filterSuppliers(suppliers: Supplier[], query: string): Supplier[
   if (!q) return sortSuppliersByName(suppliers);
 
   return sortSuppliersByName(suppliers).filter((supplier) => {
-    const haystack = [supplier.name, supplier.nif, supplier.phone, supplier.notes]
+    const haystack = [
+      supplier.name,
+      supplier.nif,
+      supplier.email,
+      supplier.phone,
+      supplier.website,
+      supplier.address,
+      supplier.notes,
+    ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();

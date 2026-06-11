@@ -660,7 +660,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const enrichedKeep: Supplier = {
         ...keep,
         nif: keep.nif ?? removed.find((supplier) => supplier.nif)?.nif,
+        email: keep.email ?? removed.find((supplier) => supplier.email)?.email,
         phone: keep.phone ?? removed.find((supplier) => supplier.phone)?.phone,
+        website:
+          keep.website ?? removed.find((supplier) => supplier.website)?.website,
+        address:
+          keep.address ?? removed.find((supplier) => supplier.address)?.address,
         notes: keep.notes ?? removed.find((supplier) => supplier.notes)?.notes,
         category:
           keep.category ?? removed.find((supplier) => supplier.category)?.category,
