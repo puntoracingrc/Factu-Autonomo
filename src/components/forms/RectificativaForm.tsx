@@ -24,6 +24,7 @@ import {
 } from "@/lib/vat-regime";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
+import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
@@ -380,15 +381,15 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     onChange={(unit) => updateItem(item.id, { unit })}
                   />
                 </Field>
-                <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
-                  <NumericFieldInput
-                    value={item.unitPrice}
-                    onChange={(unitPrice) =>
-                      updateItem(item.id, { unitPrice })
-                    }
-                    disabled={rectType === "anulacion"}
-                  />
-                </Field>
+                <LineItemPriceFields
+                  unitPrice={item.unitPrice}
+                  ivaPercent={item.ivaPercent}
+                  vatExempt={vatExempt}
+                  onUnitPriceChange={(unitPrice) =>
+                    updateItem(item.id, { unitPrice })
+                  }
+                  disabled={rectType === "anulacion"}
+                />
                 {!vatExempt && (
                   <Field label="IVA %">
                     <IvaPercentSelect

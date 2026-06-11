@@ -36,6 +36,7 @@ import {
   normalizeDocumentUnits,
   normalizeLineItemUnits,
 } from "@/lib/document-units";
+import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
@@ -467,14 +468,14 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
                     onChange={(unit) => updateItem(item.id, { unit })}
                   />
                 </Field>
-                <Field label={vatExempt ? "Precio" : "Precio (sin IVA)"}>
-                  <NumericFieldInput
-                    value={item.unitPrice}
-                    onChange={(unitPrice) =>
-                      updateItem(item.id, { unitPrice })
-                    }
-                  />
-                </Field>
+                <LineItemPriceFields
+                  unitPrice={item.unitPrice}
+                  ivaPercent={item.ivaPercent}
+                  vatExempt={vatExempt}
+                  onUnitPriceChange={(unitPrice) =>
+                    updateItem(item.id, { unitPrice })
+                  }
+                />
                 {!vatExempt && (
                   <Field label="IVA %">
                     <IvaPercentSelect

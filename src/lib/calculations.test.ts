@@ -5,6 +5,8 @@ import {
   lineIva,
   lineSubtotal,
   lineTotal,
+  unitPriceFromGross,
+  unitPriceGross,
 } from "./calculations";
 import type { Document, Expense, LineItem } from "./types";
 
@@ -19,6 +21,23 @@ function item(
     ...overrides,
   };
 }
+
+describe("unit price with/without VAT", () => {
+  it("convierte entre precio sin IVA y con IVA", () => {
+    expect(unitPriceGross(100, 21)).toBe(121);
+    expect(unitPriceFromGross(121, 21)).toBe(100);
+  });
+
+  it("redondea a dos decimales al desglosar IVA", () => {
+    expect(unitPriceFromGross(100, 21)).toBeCloseTo(82.64, 2);
+    expect(unitPriceGross(82.64, 21)).toBeCloseTo(99.99, 2);
+  });
+
+  it("admite IVA cero", () => {
+    expect(unitPriceGross(50, 0)).toBe(50);
+    expect(unitPriceFromGross(50, 0)).toBe(50);
+  });
+});
 
 describe("line calculations", () => {
   it("calcula base, IVA y total de una línea", () => {

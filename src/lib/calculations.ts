@@ -1,5 +1,23 @@
 import type { Document, Expense, LineItem } from "./types";
 
+export function roundMoney(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+/** Precio unitario con IVA a partir del precio sin IVA. */
+export function unitPriceGross(unitPrice: number, ivaPercent: number): number {
+  return roundMoney(unitPrice * (1 + ivaPercent / 100));
+}
+
+/** Precio unitario sin IVA a partir del precio con IVA. */
+export function unitPriceFromGross(
+  grossPrice: number,
+  ivaPercent: number,
+): number {
+  if (ivaPercent === 0) return roundMoney(grossPrice);
+  return roundMoney(grossPrice / (1 + ivaPercent / 100));
+}
+
 export function lineSubtotal(item: LineItem): number {
   return item.quantity * item.unitPrice;
 }
