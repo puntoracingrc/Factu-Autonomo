@@ -78,6 +78,7 @@ El test `screenshots.test.ts` **falla** si falta algún archivo referenciado en 
 |------------------|--------|----------|
 | Nuevo botón o filtro | Paso en la sección | Regenerar PNG de esa pantalla |
 | Renombre de etiqueta | Texto del paso | Regenerar si el texto visible cambió en la imagen |
-| Reorden inicio / cabecera | Sección inicio | `inicio-*.png` |
+| Reorden inicio / cabecera | Sección inicio | `inicio-recordatorios.png`, `inicio-accesos-rapidos.png`, `avisos-centro.png` |
+| Resumen fiscal en Impuestos | Sección inicio + impuestos | `impuestos-trimestre.png`, `impuestos-resumen.png` |
 | Logo Factu / manual | Secciones ayuda | Cabeceras en `/ayuda` si cambian |
 | Exportación CSV/PDF | gastos / impuestos | `gastos-exportar.png`, `impuestos-csv.png`, etc. |

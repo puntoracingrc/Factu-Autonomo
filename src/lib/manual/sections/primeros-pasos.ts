@@ -20,7 +20,7 @@ export const primerosPasosSection: ManualSection = {
         alt: "Formulario de datos del negocio en Ajustes",
         caption: "Tus datos de emisor en Ajustes.",
       },
-      tip: "Hasta que no tengas nombre y NIF, en Inicio verás un aviso para ir a configuración.",
+      tip: "Hasta que no tengas nombre y NIF, verás un aviso en **Avisos** (el botón de Inicio muestra el contador).",
     },
     {
       title: "2. Revisa el IVA y el IRPF estimado",

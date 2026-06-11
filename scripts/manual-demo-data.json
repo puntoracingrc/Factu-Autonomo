@@ -246,6 +246,27 @@
       "createdAt": "2026-01-01T10:00:00.000Z"
     }
   ],
+  "userReminders": [
+    {
+      "id": "ur1",
+      "text": "Ana llamará con datos — factura 80 € mantenimiento web",
+      "target": "office",
+      "origin": "field",
+      "link": { "kind": "new_invoice" },
+      "completed": false,
+      "createdAt": "2026-06-08T09:00:00.000Z",
+      "updatedAt": "2026-06-08T09:00:00.000Z"
+    },
+    {
+      "id": "ur2",
+      "text": "Revisar IVA del trimestre antes del 303",
+      "target": "self",
+      "link": { "kind": "none" },
+      "completed": false,
+      "createdAt": "2026-06-07T10:00:00.000Z",
+      "updatedAt": "2026-06-07T10:00:00.000Z"
+    }
+  ],
   "counters": {
     "factura": 3,
     "factura_rectificativa": 0,
