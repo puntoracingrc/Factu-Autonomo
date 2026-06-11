@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getManualSection } from "@/lib/manual/sections";
-import { manualHelpHref } from "@/lib/manual/route-help";
+import { manualHelpHref, resolveManualSlug } from "@/lib/manual/route-help";
 
 export function FactuHelpButton() {
   const pathname = usePathname();
-  const href = manualHelpHref(pathname);
-  const slug = href?.split("/").pop();
+  const slug = resolveManualSlug(pathname);
+  const href = slug ? manualHelpHref(pathname) : null;
   const section = slug ? getManualSection(slug) : undefined;
 
   if (!href || !section) return null;

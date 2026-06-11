@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ManualRichText } from "@/components/manual/ManualRichText";
 import { ManualScreenshot } from "@/components/manual/ManualScreenshot";
+import { FactuManualLogo } from "@/components/manual/FactuManualLogo";
 import { ManualReturnBar } from "@/components/manual/ManualReturnBar";
 import { buildManualHref } from "@/lib/manual/return-url";
 import type { ManualSection } from "@/lib/manual/types";
@@ -27,19 +28,25 @@ export function ManualSectionView({
       ) : (
         <Link
           href="/ayuda"
-          className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 underline"
+          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 underline"
         >
-          <ChevronLeft className="h-4 w-4" />
-          Manual de usuario
+          <FactuManualLogo size="sm" />
+          <span className="inline-flex items-center gap-1">
+            <ChevronLeft className="h-4 w-4" />
+            Manual de usuario
+          </span>
         </Link>
       )}
 
-      <header className="mb-6">
-        <p className="text-sm font-medium text-violet-700">
-          Sección {section.order}
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-900">{section.title}</h1>
-        <p className="mt-2 text-slate-600">{section.summary}</p>
+      <header className="mb-6 flex gap-4">
+        <FactuManualLogo size="md" />
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+            Factu · Sección {section.order}
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">{section.title}</h1>
+          <p className="mt-2 text-slate-600">{section.summary}</p>
+        </div>
       </header>
 
       {section.intro?.map((paragraph) => (

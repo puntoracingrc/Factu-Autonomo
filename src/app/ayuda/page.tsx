@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { BookOpen, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { FactuManualLogo } from "@/components/manual/FactuManualLogo";
+import { ManualPageHeader } from "@/components/manual/ManualPageHeader";
 import { ManualReturnBar } from "@/components/manual/ManualReturnBar";
-import { Card, PageHeader } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { manualSections } from "@/lib/manual/sections";
 import { buildManualHref, sanitizeReturnPath } from "@/lib/manual/return-url";
 
@@ -16,16 +18,14 @@ export default async function AyudaPage({ searchParams }: AyudaPageProps) {
     <div>
       {returnTo && <ManualReturnBar returnTo={returnTo} showManualIndexLink={false} />}
 
-      <PageHeader
+      <ManualPageHeader
         title="Manual de usuario"
         subtitle="Guía paso a paso de Factura Autónomo, sección por sección"
       />
 
       <Card className="mb-6 border-violet-200 bg-violet-50/60">
         <div className="flex gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-            <BookOpen className="h-5 w-5" />
-          </div>
+          <FactuManualLogo size="sm" />
           <div className="text-sm text-violet-950">
             <p className="font-semibold">Cómo usar este manual</p>
             <p className="mt-1 leading-relaxed text-violet-900/90">
