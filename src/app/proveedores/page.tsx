@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { GitMerge, Trash2, X } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -22,11 +22,57 @@ export default function ProveedoresPage() {
   const [nif, setNif] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [mergeMode, setMergeMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [keepId, setKeepId] = useState("");
 
   const duplicateGroups = useMemo(
     () => findDuplicateSupplierGroups(data.suppliers),
     [data.suppliers],
   );
+
+  const selectedSuppliers = useMemo(
+    () => data.suppliers.filter((supplier) => selectedIds.includes(supplier.id)),
+    [data.suppliers, selectedIds],
+  );
+
+  useEffect(() => {
+    if (selectedSuppliers.length < 2) {
+      setKeepId("");
+      return;
+    }
+    const canonical = pickCanonicalSupplier(selectedSuppliers, data.expenses);
+    setKeepId((current) =>
+      selectedIds.includes(current) ? current : canonical.id,
+    );
+  }, [selectedSuppliers, selectedIds, data.expenses]);
+
+  function toggleSupplierSelection(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  function exitMergeMode() {
+    setMergeMode(false);
+    setSelectedIds([]);
+    setKeepId("");
+  }
+
+  function handleManualMerge() {
+    if (selectedIds.length < 2 || !keepId) return;
+    const keep = data.suppliers.find((supplier) => supplier.id === keepId);
+    if (!keep) return;
+    const removeIds = selectedIds.filter((id) => id !== keepId);
+    if (
+      confirm(
+        `¿Unificar ${selectedIds.length} proveedores en «${keep.name}»? Todos los gastos vinculados se moverán ahí.`,
+      )
+    ) {
+      mergeSuppliers(keepId, removeIds);
+      exitMergeMode();
+    }
+  }
 
   function handleAdd() {
     if (!name.trim()) {
@@ -62,7 +108,32 @@ export default function ProveedoresPage() {
       <PageHeader
         title="Proveedores"
         subtitle="Quién te vende material o servicios"
+        action={
+          data.suppliers.length >= 2 ? (
+            mergeMode ? (
+              <Button variant="ghost" onClick={exitMergeMode}>
+                <X className="h-5 w-5" />
+                Cancelar
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => setMergeMode(true)}>
+                <GitMerge className="h-5 w-5" />
+                Unificar manualmente
+              </Button>
+            )
+          ) : undefined
+        }
       />
+
+      {mergeMode && (
+        <Card className="mb-6 border-blue-200 bg-blue-50/70">
+          <p className="font-semibold text-blue-950">Unificación manual</p>
+          <p className="mt-1 text-sm text-blue-900">
+            Marca dos o más proveedores que sean el mismo (aunque la app no los
+            haya detectado) y elige cuál nombre conservar.
+          </p>
+        </Card>
+      )}
 
       {duplicateGroups.length > 0 && (
         <div className="mb-6 space-y-3">
@@ -150,32 +221,83 @@ export default function ProveedoresPage() {
                     ) >= SUPPLIER_AUTO_LINK_SCORE),
               )
               .reduce((sum, expense) => sum + expenseTotal(expense), 0);
+            const selected = selectedIds.includes(supplier.id);
             return (
               <Card
                 key={supplier.id}
-                className="flex items-start justify-between gap-3"
+                className={`flex items-start justify-between gap-3 ${
+                  mergeMode && selected
+                    ? "border-blue-400 ring-2 ring-blue-200"
+                    : ""
+                }`}
               >
-                <div>
-                  <p className="font-bold text-slate-900">{supplier.name}</p>
-                  {supplier.phone && (
-                    <p className="text-sm text-slate-500">{supplier.phone}</p>
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  {mergeMode && (
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleSupplierSelection(supplier.id)}
+                      className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600"
+                      aria-label={`Seleccionar ${supplier.name}`}
+                    />
                   )}
-                  <p className="mt-1 text-sm text-emerald-700">
-                    Gastado: {formatMoney(spent)}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900">{supplier.name}</p>
+                    {supplier.nif && (
+                      <p className="text-sm text-slate-500">NIF: {supplier.nif}</p>
+                    )}
+                    {supplier.phone && (
+                      <p className="text-sm text-slate-500">{supplier.phone}</p>
+                    )}
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Gastado: {formatMoney(spent)}
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    if (confirm("¿Borrar proveedor?")) deleteSupplier(supplier.id);
-                  }}
-                  className="rounded-xl bg-red-50 p-2 text-red-600"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                {!mergeMode && (
+                  <button
+                    onClick={() => {
+                      if (confirm("¿Borrar proveedor?")) deleteSupplier(supplier.id);
+                    }}
+                    className="shrink-0 rounded-xl bg-red-50 p-2 text-red-600"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
               </Card>
             );
           })}
         </div>
+      )}
+
+      {mergeMode && selectedIds.length >= 2 && keepId && (
+        <Card className="sticky bottom-20 z-10 mt-4 space-y-4 border-blue-300 bg-white shadow-lg sm:bottom-4">
+          <p className="font-semibold text-slate-900">
+            {selectedIds.length} proveedores seleccionados
+          </p>
+          <Field label="Conservar este proveedor (nombre y gastos)">
+            <select
+              value={keepId}
+              onChange={(e) => setKeepId(e.target.value)}
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {selectedSuppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button fullWidth onClick={handleManualMerge}>
+              <GitMerge className="h-5 w-5" />
+              Unificar en uno
+            </Button>
+            <Button variant="ghost" fullWidth onClick={exitMergeMode}>
+              Cancelar
+            </Button>
+          </div>
+        </Card>
       )}
     </div>
   );
