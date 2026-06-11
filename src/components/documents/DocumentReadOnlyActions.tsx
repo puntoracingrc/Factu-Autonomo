@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
+import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -32,6 +34,13 @@ export function DocumentReadOnlyActions({
       </p>
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
         {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
+        {doc.type === "factura" && canShowPaymentReminder(doc) && (
+          <PaymentReminderButton
+            doc={doc}
+            profile={profile}
+            variant="button"
+          />
+        )}
         <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 

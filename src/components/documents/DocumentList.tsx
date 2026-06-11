@@ -8,6 +8,7 @@ import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButto
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
+import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
@@ -186,6 +187,9 @@ export function DocumentList({
                   {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
                   {(type === "factura" || type === "recibo") && (
                     <MarkAsPaidButton doc={doc} />
+                  )}
+                  {type === "factura" && (
+                    <PaymentReminderButton doc={doc} profile={data.profile} />
                   )}
                   <DocumentPdfShareActions doc={doc} profile={data.profile} />
                   {rectifiable && (

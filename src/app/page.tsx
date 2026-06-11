@@ -13,16 +13,10 @@ import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { UsageBanner } from "@/components/billing/UsageBanner";
 import { FiscalSummaryTeaser } from "@/components/dashboard/FiscalSummaryTeaser";
+import { HomeGlobalSummary } from "@/components/dashboard/HomeGlobalSummary";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
-import { formatMoney } from "@/lib/calculations";
-import { isCollectedDocument, pendingCollection } from "@/lib/income";
-import {
-  collectedSalesTotal,
-  isVatExempt,
-  totalExpensesAmount,
-} from "@/lib/vat-regime";
 
 const quickActions = [
   {
@@ -59,16 +53,6 @@ const quickActions = [
 
 export default function HomePage() {
   const { data, ready } = useAppStore();
-
-  const vatExempt = isVatExempt(data.profile);
-  const income = collectedSalesTotal(
-    data.documents,
-    vatExempt,
-    isCollectedDocument,
-  );
-  const pending = pendingCollection(data.documents);
-  const expenses = totalExpensesAmount(data.expenses, vatExempt);
-  const balance = income - expenses;
   const profileReady = Boolean(data.profile.name && data.profile.nif);
 
   if (!ready) {
@@ -101,34 +85,8 @@ export default function HomePage() {
       <TaxDeadlineBanner />
       <RecurringDueBanner data={data} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <Card className="border-green-200 bg-green-50">
-          <p className="text-sm font-medium text-green-700">Ingresos cobrados</p>
-          <p className="mt-1 text-2xl font-bold text-green-900">
-            {formatMoney(income)}
-          </p>
-        </Card>
-        <Card className="border-red-200 bg-red-50">
-          <p className="text-sm font-medium text-red-700">Gastos</p>
-          <p className="mt-1 text-2xl font-bold text-red-900">
-            {formatMoney(expenses)}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm font-medium text-slate-500">Por cobrar</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {formatMoney(pending)}
-          </p>
-        </Card>
-        <Card className="border-blue-200 bg-blue-50">
-          <p className="text-sm font-medium text-blue-700">Balance</p>
-          <p className="mt-1 text-2xl font-bold text-blue-900">
-            {formatMoney(balance)}
-          </p>
-        </Card>
-      </div>
-
       <FiscalSummaryTeaser data={data} />
+      <HomeGlobalSummary data={data} />
 
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?

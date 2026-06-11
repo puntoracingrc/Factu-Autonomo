@@ -1,10 +1,16 @@
 import { getEmailFromAddress, isEmailConfigured } from "./config";
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -34,6 +40,9 @@ export async function sendEmail(
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(input.attachments?.length
+        ? { attachments: input.attachments }
+        : {}),
     }),
   });
 
