@@ -12,6 +12,7 @@ import { useBilling } from "@/context/BillingContext";
 import { useAppStore } from "@/context/AppStore";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
 import { FactuWidget } from "@/components/factu/FactuWidget";
+import { FactuHelpButton } from "@/components/manual/FactuHelpButton";
 import { shouldShowFactuWidget } from "@/lib/factu/occasional";
 import {
   FileText,
@@ -80,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
+            <FactuHelpButton />
             {billingEnabled && !isPro && (
               <Link
                 href="/precios"

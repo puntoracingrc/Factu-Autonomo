@@ -139,7 +139,21 @@ Campos relevantes:
 
 Barra inferior (`AppShell`): Inicio, Clientes, Facturas, Presupuestos, Recibos, Gastos, Impuestos, Proveedores, Ajustes.
 
-Rutas fuera de la barra: `/precios`, `/legal/*`, `/auth/callback`.
+Rutas fuera de la barra: `/precios`, `/legal/*`, `/auth/callback`, `/ayuda`.
+
+---
+
+### Manual de usuario (`/ayuda`)
+
+**Público:** guía paso a paso para usuarios (no sustituye esta documentación técnica).
+
+| Pieza | Ubicación |
+|-------|-----------|
+| Índice y secciones | `src/app/ayuda/`, contenido en `src/lib/manual/sections/` |
+| Ayuda contextual (🤖+?) | `FactuHelpButton` en cabecera → `src/lib/manual/route-help.ts` |
+| Capturas | `public/ayuda/capturas/` |
+
+**Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **en el mismo commit/PR**. Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`. Tests: `npm test -- src/lib/manual/`.
 
 ---
 
@@ -151,11 +165,11 @@ Panel de resumen del negocio:
 
 | Elemento | Función |
 |----------|---------|
-| Tarjetas ingresos / gastos / balance | Suma documentos cobrados y gastos del periodo |
+| `FiscalSummaryTeaser` | Resumen **del trimestre en curso** (ingresos, gastos, balance, beneficio) + enlace a `/impuestos` |
+| `HomeGlobalSummary` | Acumulado total histórico y «Por cobrar» |
 | `UsageBanner` | Aviso de límites del plan (documentos/mes, clientes) |
 | `TaxDeadlineBanner` | Recordatorio plazo modelo 303 |
 | `RecurringDueBanner` | Gastos fijos próximos a vencer |
-| `FiscalSummaryTeaser` | Acceso rápido a `/impuestos` (resumen completo en Pro) |
 | Acciones rápidas | Enlaces a nuevo documento, gasto, cliente |
 
 **Integración:** lee `AppStore.data` y `BillingContext` para calcular totales (`src/lib/income.ts`, `src/lib/taxes.ts`).

@@ -1,0 +1,46 @@
+---
+description: Mantener el manual de usuario (/ayuda) al día cuando cambie el uso de la app
+alwaysApply: true
+---
+
+# Manual de usuario — obligatorio actualizar
+
+El manual online vive en `/ayuda` y **debe actualizarse en el mismo cambio** (commit/PR) que modifique cómo se usa la app.
+
+## Cuándo actualizar (disparadores)
+
+Actualiza el manual si el cambio afecta a:
+
+- Nuevas pantallas, rutas o botones visibles
+- Flujos renombrados, reordenados o eliminados (facturas, gastos, impuestos, ajustes…)
+- Textos de UI que el manual cite (etiquetas, estados, exportaciones)
+- Ayuda contextual (robotito 🤖+? en cabecera) o su destino
+- Capturas que queden desactualizadas
+
+**No hace falta** para refactors internos, tests o cambios solo de backend sin impacto en pantalla.
+
+## Archivos a tocar
+
+| Qué | Dónde |
+|-----|--------|
+| Contenido paso a paso | `src/lib/manual/sections/*.ts` |
+| Índice / orden | `src/lib/manual/sections/index.ts` |
+| Ruta → sección (robotito) | `src/lib/manual/route-help.ts` |
+| Nueva sección completa | Añadir archivo en `sections/`, registrar en `index.ts`, cubrir en `route-help.ts` |
+| Capturas | `public/ayuda/capturas/` (mismo nombre que `screenshot.src` en la sección) |
+
+Guía detallada: `src/lib/manual/MAINTENANCE.md`
+
+## Checklist antes de cerrar la tarea
+
+1. ¿Hay sección del manual que describa el cambio? Si no, créala o amplía la existente.
+2. ¿Los pasos coinciden con la UI actual (nombres de botones, orden, filtros)?
+3. ¿`resolveManualSlug()` cubre la ruta nueva? (test en `route-help.test.ts`)
+4. ¿La captura referenciada existe? Tras cambios de UI ejecuta `npm run manual:screenshots` (servidor en :3000).
+5. Menciona en el resumen del commit/PR que el manual y las capturas fueron actualizados.
+
+## Estilo del manual
+
+- Español claro, pasos numerados, tono para autónomos no técnicos.
+- Usar `**negrita**` en `paragraphs` para nombres de botones/secciones.
+- Un `tip` opcional por paso cuando aporte valor real.

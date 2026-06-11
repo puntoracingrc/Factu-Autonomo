@@ -10,6 +10,7 @@ import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
+import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
@@ -186,6 +187,8 @@ export default function ConfiguracionPage() {
         title="Configuración"
         subtitle="Encabezado de tus facturas: se congela al emitir cada documento"
       />
+
+      <ManualHelpLink />
 
       <PlanStatusCard />
       <SubscriptionBillingCard />

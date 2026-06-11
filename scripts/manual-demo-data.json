@@ -1,0 +1,255 @@
+{
+  "profile": {
+    "name": "Estudio López",
+    "nif": "12345678Z",
+    "address": "Calle Mayor 12",
+    "city": "Madrid",
+    "postalCode": "28013",
+    "phone": "600 111 222",
+    "email": "hola@estudiolopez.es",
+    "iban": "ES12 3456 7890 1234 5678 9012",
+    "iva": { "rates": [0, 4, 10, 21], "defaultRate": 21 },
+    "irpfPercent": 20,
+    "vatExempt": false,
+    "verifactu": { "enabled": true, "environment": "test" },
+    "numbering": {
+      "year": 2026,
+      "lastSequence": {
+        "factura": 3,
+        "factura_rectificativa": 0,
+        "presupuesto": 2,
+        "recibo": 1
+      },
+      "formats": {
+        "factura": { "template": "F-{year}-{num}", "padding": 4 },
+        "factura_rectificativa": { "template": "FR-{year}-{num}", "padding": 4 },
+        "presupuesto": { "template": "P-{year}-{num}", "padding": 4 },
+        "recibo": { "template": "R-{year}-{num}", "padding": 4 }
+      }
+    }
+  },
+  "customers": [
+    {
+      "id": "c1",
+      "firstName": "Ana",
+      "lastName": "García",
+      "name": "Ana García",
+      "nif": "87654321A",
+      "email": "ana@ejemplo.com",
+      "phone": "612345678",
+      "createdAt": "2026-01-10T10:00:00.000Z"
+    }
+  ],
+  "suppliers": [
+    {
+      "id": "s1",
+      "name": "Amazon Web Services",
+      "nif": "B12345678",
+      "createdAt": "2026-01-01T10:00:00.000Z"
+    },
+    {
+      "id": "s2",
+      "name": "Amazon AWS",
+      "nif": "B12345678",
+      "createdAt": "2026-02-01T10:00:00.000Z"
+    },
+    {
+      "id": "s3",
+      "name": "Papelería Centro",
+      "createdAt": "2026-02-15T10:00:00.000Z"
+    }
+  ],
+  "documents": [
+    {
+      "id": "inv-paid",
+      "type": "factura",
+      "number": "F-2026-0001",
+      "date": "2026-04-10",
+      "client": {
+        "name": "Ana García",
+        "nif": "87654321A",
+        "email": "ana@ejemplo.com",
+        "phone": "612345678"
+      },
+      "items": [
+        {
+          "id": "l1",
+          "description": "Consultoría abril",
+          "quantity": 1,
+          "unitPrice": 400,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "pagado",
+      "receiptDocumentId": "rec-1",
+      "paymentTerms": "Transferencia 30 días",
+      "createdAt": "2026-04-10T10:00:00.000Z",
+      "updatedAt": "2026-04-20T10:00:00.000Z"
+    },
+    {
+      "id": "inv-unpaid",
+      "type": "factura",
+      "number": "F-2026-0002",
+      "date": "2026-05-05",
+      "dueDate": "2026-06-15",
+      "client": {
+        "name": "Ana García",
+        "nif": "87654321A",
+        "email": "ana@ejemplo.com",
+        "phone": "612345678"
+      },
+      "items": [
+        {
+          "id": "l2",
+          "description": "Diseño web",
+          "quantity": 1,
+          "unitPrice": 850,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "enviado",
+      "paymentTerms": "Transferencia",
+      "createdAt": "2026-05-05T10:00:00.000Z",
+      "updatedAt": "2026-05-05T10:00:00.000Z"
+    },
+    {
+      "id": "inv-rect",
+      "type": "factura",
+      "number": "F-2026-0003",
+      "date": "2026-05-20",
+      "client": {
+        "name": "Ana García",
+        "nif": "87654321A",
+        "email": "ana@ejemplo.com"
+      },
+      "items": [
+        {
+          "id": "l3",
+          "description": "Mantenimiento",
+          "quantity": 1,
+          "unitPrice": 120,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "enviado",
+      "createdAt": "2026-05-20T10:00:00.000Z",
+      "updatedAt": "2026-05-20T10:00:00.000Z"
+    },
+    {
+      "id": "pres-1",
+      "type": "presupuesto",
+      "number": "P-2026-0001",
+      "date": "2026-05-01",
+      "client": {
+        "name": "Ana García",
+        "nif": "87654321A",
+        "email": "ana@ejemplo.com"
+      },
+      "items": [
+        {
+          "id": "l4",
+          "description": "Proyecto anual",
+          "quantity": 1,
+          "unitPrice": 2400,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "aceptado",
+      "createdAt": "2026-05-01T10:00:00.000Z",
+      "updatedAt": "2026-05-08T10:00:00.000Z"
+    },
+    {
+      "id": "pres-2",
+      "type": "presupuesto",
+      "number": "P-2026-0002",
+      "date": "2026-06-01",
+      "client": {
+        "name": "Ana García",
+        "email": "ana@ejemplo.com"
+      },
+      "items": [
+        {
+          "id": "l5",
+          "description": "Auditoría SEO",
+          "quantity": 1,
+          "unitPrice": 300,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "enviado",
+      "createdAt": "2026-06-01T10:00:00.000Z",
+      "updatedAt": "2026-06-01T10:00:00.000Z"
+    },
+    {
+      "id": "rec-1",
+      "type": "recibo",
+      "number": "R-2026-0001",
+      "date": "2026-04-20",
+      "client": {
+        "name": "Ana García",
+        "nif": "87654321A"
+      },
+      "items": [
+        {
+          "id": "l6",
+          "description": "Cobro factura F-2026-0001",
+          "quantity": 1,
+          "unitPrice": 400,
+          "ivaPercent": 21
+        }
+      ],
+      "status": "pagado",
+      "sourceDocumentId": "inv-paid",
+      "createdAt": "2026-04-20T10:00:00.000Z",
+      "updatedAt": "2026-04-20T10:00:00.000Z"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "e1",
+      "date": "2026-04-05",
+      "supplierId": "s1",
+      "supplierName": "Amazon Web Services",
+      "description": "Hosting abril",
+      "amount": 45,
+      "ivaPercent": 21,
+      "category": "Software",
+      "paymentMethod": "Tarjeta",
+      "createdAt": "2026-04-05T10:00:00.000Z"
+    },
+    {
+      "id": "e2",
+      "date": "2026-05-12",
+      "supplierId": "s3",
+      "supplierName": "Papelería Centro",
+      "description": "Material oficina",
+      "amount": 28.5,
+      "ivaPercent": 21,
+      "category": "Material",
+      "paymentMethod": "Efectivo",
+      "createdAt": "2026-05-12T10:00:00.000Z"
+    }
+  ],
+  "recurringExpenses": [
+    {
+      "id": "re1",
+      "name": "Alquiler coworking",
+      "supplierName": "Cowork Madrid",
+      "amount": 180,
+      "ivaPercent": 21,
+      "category": "Local",
+      "paymentMethod": "Transferencia",
+      "frequency": "monthly",
+      "dueDay": 1,
+      "dueTiming": "start_of_period",
+      "active": true,
+      "createdAt": "2026-01-01T10:00:00.000Z"
+    }
+  ],
+  "counters": {
+    "factura": 3,
+    "factura_rectificativa": 0,
+    "presupuesto": 2,
+    "recibo": 1
+  }
+}
