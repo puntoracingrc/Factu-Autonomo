@@ -1,21 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import {
   completedUserReminders,
-  isReminderOverdue,
   linkKindLabel,
   pendingUserReminders,
-  reminderDueLabel,
   resolveReminderHref,
 } from "@/lib/user-reminders";
-import type { UserReminder, UserReminderLinkKind } from "@/lib/types";
+import type { UserReminderLinkKind } from "@/lib/types";
+import { Check } from "lucide-react";
 
 const LINK_KINDS: UserReminderLinkKind[] = [
   "none",
@@ -239,12 +238,13 @@ export function UserRemindersPanel() {
       ) : (
         <ul className="mb-6 space-y-3">
           {pending.map((item) => (
-            <ReminderRow
-              key={item.id}
-              reminder={item}
-              href={resolveReminderHref(data, item.link)}
-              onComplete={() => completeUserReminder(item.id)}
-            />
+            <li key={item.id}>
+              <UserReminderRow
+                reminder={item}
+                href={resolveReminderHref(data, item.link)}
+                onComplete={() => completeUserReminder(item.id)}
+              />
+            </li>
           ))}
         </ul>
       )}
@@ -304,61 +304,5 @@ export function UserRemindersPanel() {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function ReminderRow({
-  reminder,
-  href,
-  onComplete,
-}: {
-  reminder: UserReminder;
-  href?: string;
-  onComplete: () => void;
-}) {
-  const overdue = isReminderOverdue(reminder);
-  const dueLabel = reminderDueLabel(reminder);
-
-  return (
-    <li>
-      <Card
-        className={`p-4 ${
-          overdue ? "border-amber-300 bg-amber-50" : "border-violet-200 bg-violet-50/50"
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            onClick={onComplete}
-            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-violet-400 bg-white text-violet-700 transition hover:bg-violet-100"
-            title="Marcar como hecho"
-            aria-label="Marcar recordatorio como hecho"
-          >
-            <Check className="h-4 w-4" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-slate-900">{reminder.text}</p>
-            {dueLabel ? (
-              <p
-                className={`mt-1 text-sm ${overdue ? "font-medium text-amber-800" : "text-slate-600"}`}
-              >
-                {overdue ? "Vencido · " : "Para · "}
-                {dueLabel}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs text-violet-700">Tarea tuya · requiere check</p>
-          </div>
-          {href ? (
-            <Link
-              href={href}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200"
-            >
-              Ir
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          ) : null}
-        </div>
-      </Card>
-    </li>
   );
 }

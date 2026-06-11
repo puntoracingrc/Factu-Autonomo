@@ -13,8 +13,8 @@ export const inicioSection: ManualSection = {
     {
       title: "1. Accesos rápidos",
       paragraphs: [
-        "Lo primero que verás son los **botones de colores**. El botón **Avisos** (ámbar) muestra un contador con avisos automáticos y tus tareas pendientes.",
-        "En **Avisos** hay dos pestañas: **Mis tareas** (recordatorios que tú creas con check) y **Automáticos** (perfil, cobros, gastos fijos, IVA…).",
+        "Lo primero que verás son tus **recordatorios** pendientes (marca el check al completarlos) y los **botones de colores**.",
+        "El botón **Avisos** (ámbar) concentra avisos automáticos y la gestión completa de tareas.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-accesos-rapidos.png",

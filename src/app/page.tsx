@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
+import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { PageHeader } from "@/components/ui/Card";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
@@ -69,6 +70,8 @@ export default function HomePage() {
         title={`Hola${data.profile.name ? `, ${data.profile.name}` : ""}`}
         subtitle="Accesos rápidos a lo que más usas"
       />
+
+      <HomeUserReminders />
 
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
