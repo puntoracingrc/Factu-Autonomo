@@ -5,6 +5,7 @@ import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import { Button } from "@/components/ui/Button";
+import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
@@ -182,21 +183,6 @@ export default function ClientesPage() {
       <PageHeader
         title="Clientes"
         subtitle="Nombre, apellidos y NIF únicos. Se usan en facturas, recibos y presupuestos"
-        action={
-          customers.length >= 2 ? (
-            mergeMode ? (
-              <Button variant="ghost" onClick={exitMergeMode}>
-                <X className="h-5 w-5" />
-                Cancelar
-              </Button>
-            ) : (
-              <Button variant="secondary" onClick={() => setMergeMode(true)}>
-                <GitMerge className="h-5 w-5" />
-                Unificar manualmente
-              </Button>
-            )
-          ) : undefined
-        }
       />
 
       {mergeMode && (
@@ -230,8 +216,9 @@ export default function ClientesPage() {
                     Unifícalos para evitar duplicados al facturar.
                   </p>
                 </div>
-                <Button
-                  variant="secondary"
+                <PageActionButton
+                  icon={GitMerge}
+                  label={`Unificar en «${getCustomerDisplayName(canonical)}»`}
                   onClick={() => {
                     if (
                       confirm(
@@ -244,20 +231,38 @@ export default function ClientesPage() {
                       );
                     }
                   }}
-                >
-                  Unificar en «{getCustomerDisplayName(canonical)}»
-                </Button>
+                  className="mb-0"
+                />
               </Card>
             );
           })}
         </div>
       )}
 
-      {!formOpen && !mergeMode && (
-        <Button onClick={openNewForm} fullWidth className="mb-6 gap-2">
-          <UserPlus className="h-5 w-5" />
-          Nuevo cliente
-        </Button>
+      {!formOpen && (
+        <div className="mb-6 flex flex-col gap-3">
+          {!mergeMode ? (
+            <>
+              <Button onClick={openNewForm} fullWidth className="gap-2">
+                <UserPlus className="h-5 w-5" />
+                Nuevo cliente
+              </Button>
+              {customers.length >= 2 && (
+                <PageActionButton
+                  icon={GitMerge}
+                  label="Unificar manualmente"
+                  onClick={() => setMergeMode(true)}
+                  className="mb-0"
+                />
+              )}
+            </>
+          ) : (
+            <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+              <X className="h-5 w-5" />
+              Cancelar unificación
+            </Button>
+          )}
+        </div>
       )}
 
       {saved && !formOpen && (

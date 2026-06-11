@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GitMerge, Trash2, X } from "lucide-react";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
+import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
@@ -120,21 +121,6 @@ export default function ProveedoresPage() {
       <PageHeader
         title="Proveedores"
         subtitle="Quién te vende material o servicios"
-        action={
-          data.suppliers.length >= 2 ? (
-            mergeMode ? (
-              <Button variant="ghost" onClick={exitMergeMode}>
-                <X className="h-5 w-5" />
-                Cancelar
-              </Button>
-            ) : (
-              <Button variant="secondary" onClick={() => setMergeMode(true)}>
-                <GitMerge className="h-5 w-5" />
-                Unificar manualmente
-              </Button>
-            )
-          ) : undefined
-        }
       />
 
       {mergeMode && (
@@ -169,8 +155,9 @@ export default function ProveedoresPage() {
                     solo proveedor.
                   </p>
                 </div>
-                <Button
-                  variant="secondary"
+                <PageActionButton
+                  icon={GitMerge}
+                  label={`Unificar en «${canonical.name}»`}
                   onClick={() => {
                     if (
                       confirm(
@@ -183,14 +170,31 @@ export default function ProveedoresPage() {
                       );
                     }
                   }}
-                >
-                  Unificar en «{canonical.name}»
-                </Button>
+                  className="mb-0"
+                />
               </Card>
             );
           })}
         </div>
       )}
+
+      <div className="mb-6 flex flex-col gap-3">
+        {!mergeMode ? (
+          data.suppliers.length >= 2 && (
+            <PageActionButton
+              icon={GitMerge}
+              label="Unificar manualmente"
+              onClick={() => setMergeMode(true)}
+              className="mb-0"
+            />
+          )
+        ) : (
+          <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+            <X className="h-5 w-5" />
+            Cancelar unificación
+          </Button>
+        )}
+      </div>
 
       <Card className="mb-6 space-y-4">
         <h2 className="font-bold text-slate-900">Añadir proveedor</h2>
