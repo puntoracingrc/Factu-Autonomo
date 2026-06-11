@@ -61,15 +61,12 @@ export default function GastosPage() {
               key={expense.id}
               className="flex items-center justify-between gap-3"
             >
-              <div>
-                <p className="font-semibold text-slate-900">
-                  {expense.description}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {expense.supplierName} · {formatShortDate(expense.date)}
-                </p>
+              <div className="min-w-0">
+                <p className="font-bold text-slate-900">{expense.supplierName}</p>
+                <p className="text-sm text-slate-600">{expense.description}</p>
                 <p className="text-xs text-slate-400">
-                  {expense.category} · {expense.paymentMethod}
+                  {formatShortDate(expense.date)} · {expense.category} ·{" "}
+                  {expense.paymentMethod}
                   {expense.recurringExpenseId && " · Gasto fijo"}
                 </p>
               </div>
