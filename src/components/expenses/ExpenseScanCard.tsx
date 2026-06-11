@@ -15,6 +15,7 @@ import {
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
+import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 
 interface ExpenseScanCardProps {
   onScanned: (payload: ExpenseScanPayload) => void;
@@ -123,6 +124,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       if (body.data.warnings.length > 0) {
         setWarnings(body.data.warnings);
       }
+      markFactuFeatureUsed("expense_scan");
       onScanned(body.data);
     } catch {
       setError("Error de conexión. Comprueba tu internet e inténtalo de nuevo.");

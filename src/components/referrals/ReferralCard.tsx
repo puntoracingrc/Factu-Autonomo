@@ -17,6 +17,7 @@ import {
   storePendingReferralCode,
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
+import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 
 export function ReferralCard() {
   const { user } = useCloudSync();
@@ -41,6 +42,12 @@ export function ReferralCard() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (user && billingEnabled) {
+      markFactuFeatureUsed("referrals");
+    }
+  }, [user, billingEnabled]);
 
   useEffect(() => {
     const pending = readPendingReferralCode();

@@ -77,8 +77,8 @@ export function RecommendationsEmptyHint() {
         <p className="font-semibold text-slate-800">¿Qué aparece aquí?</p>
         <p className="mt-1 text-sm text-slate-600">
           Recordatorios de perfil, facturas impagadas, gastos fijos, plazos
-          fiscales, límites del plan, escaneos IA y copia en la nube. Cuando no
-          hay nada urgente, Factu te deja alguna frase.
+          fiscales, límites del plan y consejos de Factu para funciones que aún
+          no has probado.
         </p>
         <ButtonLink href="/ayuda/inicio" variant="secondary" className="mt-3">
           Ver ayuda de inicio

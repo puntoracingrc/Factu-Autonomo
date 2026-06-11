@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/ui/Card";
-import {
-  RecommendationsEmptyHint,
-  RecommendationsList,
-} from "@/components/recommendations/RecommendationsList";
+import { AutomaticosPanel } from "@/components/recommendations/AutomaticosPanel";
 import { UserRemindersPanel } from "@/components/reminders/UserRemindersPanel";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
@@ -15,7 +12,7 @@ type AvisosTab = "auto" | "mine";
 
 export default function AvisosPage() {
   const [tab, setTab] = useState<AvisosTab>("mine");
-  const { recommendations, autoCount } = useAppRecommendations();
+  const { recommendations, factuTips, autoCount } = useAppRecommendations();
   const { data } = useAppStore();
   const pendingTasks = pendingUserReminders(data.userReminders).length;
 
@@ -23,7 +20,7 @@ export default function AvisosPage() {
     <div>
       <PageHeader
         title="Avisos y recordatorios"
-        subtitle="Automáticos de la app y tareas que tú creas"
+        subtitle="Tus tareas, avisos de la app y consejos de Factu"
       />
 
       <div className="mb-6 flex gap-2 rounded-2xl bg-slate-100 p-1">
@@ -44,10 +41,7 @@ export default function AvisosPage() {
       {tab === "mine" ? (
         <UserRemindersPanel />
       ) : (
-        <>
-          <RecommendationsList items={recommendations} />
-          {recommendations.length === 0 ? <RecommendationsEmptyHint /> : null}
-        </>
+        <AutomaticosPanel alerts={recommendations} factuTips={factuTips} />
       )}
     </div>
   );

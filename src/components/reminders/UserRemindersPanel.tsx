@@ -14,7 +14,6 @@ import {
   resolveReminderHref,
 } from "@/lib/user-reminders";
 import type { UserReminderLinkKind } from "@/lib/types";
-import { Check } from "lucide-react";
 
 const LINK_KINDS: UserReminderLinkKind[] = [
   "none",

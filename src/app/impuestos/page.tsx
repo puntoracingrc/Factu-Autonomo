@@ -1,10 +1,12 @@
 "use client";
 
-import { FiscalSummaryPanel } from "@/components/dashboard/FiscalSummaryPanel";
 import { PageHeader } from "@/components/ui/Card";
+import { FiscalSummaryPanel } from "@/components/dashboard/FiscalSummaryPanel";
+import { useFactuFeatureVisit } from "@/hooks/useFactuFeatureVisit";
 import { useAppStore } from "@/context/AppStore";
 
 export default function ImpuestosPage() {
+  useFactuFeatureVisit("impuestos");
   const { data, ready } = useAppStore();
 
   if (!ready) {

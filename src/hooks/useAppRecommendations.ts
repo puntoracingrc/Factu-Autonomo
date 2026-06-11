@@ -5,6 +5,8 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ScanQuota } from "@/lib/billing/scan-limits";
+import { collectFactuFeatureTips } from "@/lib/factu/feature-discovery";
+import { readFactuFeatureUsage } from "@/lib/factu/feature-usage";
 import { pendingUserReminders } from "@/lib/user-reminders";
 import {
   collectAppRecommendations,
@@ -13,7 +15,9 @@ import {
 
 export function useAppRecommendations(): {
   recommendations: AppRecommendation[];
+  factuTips: AppRecommendation[];
   count: number;
+  badgeCount: number;
   autoCount: number;
   taskCount: number;
   loadingScans: boolean;
@@ -24,6 +28,15 @@ export function useAppRecommendations(): {
   const { cloudEnabled, user, pendingChangeCount } = useCloudSync();
   const [scanQuota, setScanQuota] = useState<ScanQuota | null>(null);
   const [loadingScans, setLoadingScans] = useState(false);
+  const [usageVersion, setUsageVersion] = useState(0);
+
+  useEffect(() => {
+    function onFeatureUsed() {
+      setUsageVersion((value) => value + 1);
+    }
+    window.addEventListener("factu-feature-used", onFeatureUsed);
+    return () => window.removeEventListener("factu-feature-used", onFeatureUsed);
+  }, []);
 
   const loadScanQuota = useCallback(async () => {
     if (!billing.billingEnabled) {
@@ -60,10 +73,8 @@ export function useAppRecommendations(): {
     void loadScanQuota();
   }, [loadScanQuota]);
 
-  const recommendations = useMemo(() => {
-    if (!ready) return [];
-
-    return collectAppRecommendations({
+  const recommendationContext = useMemo(
+    () => ({
       data,
       billing: {
         billingEnabled: billing.billingEnabled,
@@ -80,32 +91,60 @@ export function useAppRecommendations(): {
         pendingChangeCount,
       },
       scanQuota,
+    }),
+    [
+      data,
+      billing.billingEnabled,
+      billing.plan,
+      billing.isPro,
+      billing.documentsThisMonth,
+      billing.showUsageWarning,
+      billing.trialDaysLeft,
+      billing.limits.quarterlyExport,
+      cloudEnabled,
+      user,
+      pendingChangeCount,
+      scanQuota,
+    ],
+  );
+
+  const recommendations = useMemo(() => {
+    if (!ready) return [];
+    return collectAppRecommendations(recommendationContext);
+  }, [ready, recommendationContext]);
+
+  const factuTips = useMemo(() => {
+    if (!ready) return [];
+    void usageVersion;
+    return collectFactuFeatureTips({
+      ...recommendationContext,
+      usage: {
+        ...readFactuFeatureUsage(),
+        userReminders:
+          readFactuFeatureUsage().userReminders || data.userReminders.length > 0,
+        recurringExpenses:
+          readFactuFeatureUsage().recurringExpenses ||
+          data.recurringExpenses.length > 0,
+        presupuestos:
+          readFactuFeatureUsage().presupuestos ||
+          data.documents.some((doc) => doc.type === "presupuesto"),
+      },
     });
-  }, [
-    ready,
-    data,
-    billing.billingEnabled,
-    billing.plan,
-    billing.isPro,
-    billing.documentsThisMonth,
-    billing.showUsageWarning,
-    billing.trialDaysLeft,
-    billing.limits.quarterlyExport,
-    cloudEnabled,
-    user,
-    pendingChangeCount,
-    scanQuota,
-  ]);
+  }, [ready, recommendationContext, usageVersion, data.userReminders.length, data.recurringExpenses.length, data.documents]);
 
   const taskCount = useMemo(() => {
     if (!ready) return 0;
     return pendingUserReminders(data.userReminders).length;
   }, [ready, data.userReminders]);
 
+  const badgeCount = recommendations.length + taskCount;
+
   return {
     recommendations,
-    autoCount: recommendations.length,
-    count: recommendations.length + taskCount,
+    factuTips,
+    autoCount: recommendations.length + factuTips.length,
+    badgeCount,
+    count: badgeCount + factuTips.length,
     taskCount,
     loadingScans,
     refresh: loadScanQuota,

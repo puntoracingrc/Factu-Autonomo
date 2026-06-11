@@ -22,7 +22,8 @@ export type RecommendationCategory =
   | "expenses"
   | "tax"
   | "sync"
-  | "onboarding";
+  | "onboarding"
+  | "factu";
 
 export interface AppRecommendation {
   id: string;
@@ -589,4 +590,5 @@ export const CATEGORY_LABELS: Record<RecommendationCategory, string> = {
   tax: "Impuestos",
   sync: "Copia en la nube",
   onboarding: "Primeros pasos",
+  factu: "Factu",
 };

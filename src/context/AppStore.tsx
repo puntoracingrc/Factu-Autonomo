@@ -64,6 +64,7 @@ import {
   findReceiptForInvoice,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
+import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
@@ -658,6 +659,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         userReminders: [...prev.userReminders, created],
       }));
+      markFactuFeatureUsed("user_reminders");
       return created;
     },
     [setAppData],

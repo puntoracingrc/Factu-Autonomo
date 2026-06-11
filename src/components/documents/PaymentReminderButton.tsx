@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { Field, Textarea } from "@/components/ui/Field";
 import { showFactuToast } from "@/lib/factu/occasional";
+import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
   canSendPaymentReminder,
   canShowPaymentReminder,
@@ -73,6 +74,8 @@ export function PaymentReminderButton({
       setError(result.error ?? "No se pudo enviar el recordatorio.");
       return;
     }
+
+    markFactuFeatureUsed("payment_reminder");
 
     if (channel === "email" && result.via === "api") {
       showFactuToast(`Recordatorio enviado a ${doc.client.email}`, 4500);

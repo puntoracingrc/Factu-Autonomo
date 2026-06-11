@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
+import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { PageHeader } from "@/components/ui/Card";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
@@ -57,7 +58,7 @@ const quickActions = [
 
 export default function HomePage() {
   const { data, ready } = useAppStore();
-  const { count: alertCount } = useAppRecommendations();
+  const { badgeCount: alertCount } = useAppRecommendations();
 
   if (!ready) {
     return <p className="text-center text-slate-500">Cargando...</p>;
@@ -72,6 +73,8 @@ export default function HomePage() {
       />
 
       <HomeUserReminders />
+
+      <HomeFactuTip />
 
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
