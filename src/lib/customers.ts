@@ -153,6 +153,66 @@ export function sortCustomersByName(customers: Customer[]): Customer[] {
     );
 }
 
+export type CustomerSortField = "nombre" | "apellido" | "facturacion" | "direccion";
+export type CustomerSortDirection = "asc" | "desc";
+
+export const CUSTOMER_SORT_FIELD_LABELS: Record<CustomerSortField, string> = {
+  nombre: "Nombre",
+  apellido: "Apellidos",
+  facturacion: "Volumen facturado",
+  direccion: "Dirección",
+};
+
+export function customerAddressSortKey(customer: Customer): string {
+  const migrated = migrateCustomer(customer);
+  return [migrated.address, migrated.postalCode, migrated.city]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function customerSortDirectionLabel(
+  field: CustomerSortField,
+  direction: CustomerSortDirection,
+): string {
+  if (field === "facturacion") {
+    return direction === "asc" ? "Menor a mayor" : "Mayor a menor";
+  }
+  return direction === "asc" ? "A → Z" : "Z → A";
+}
+
+export function sortCustomers(
+  customers: Customer[],
+  documents: Document[],
+  field: CustomerSortField,
+  direction: CustomerSortDirection,
+): Customer[] {
+  const factor = direction === "asc" ? 1 : -1;
+  const compareText = (left: string, right: string) =>
+    factor *
+    left.localeCompare(right, "es", {
+      sensitivity: "base",
+    });
+
+  return [...customers].map(migrateCustomer).sort((a, b) => {
+    switch (field) {
+      case "nombre":
+        return compareText(a.firstName, b.firstName);
+      case "apellido":
+        return compareText(a.lastName, b.lastName);
+      case "direccion":
+        return compareText(customerAddressSortKey(a), customerAddressSortKey(b));
+      case "facturacion":
+        return (
+          factor *
+          (customerInvoicedTotal(documents, a) -
+            customerInvoicedTotal(documents, b))
+        );
+      default:
+        return compareText(getCustomerDisplayName(a), getCustomerDisplayName(b));
+    }
+  });
+}
+
 export function customerToClient(customer: Customer): Client {
   const migrated = migrateCustomer(customer);
   const addressParts = [

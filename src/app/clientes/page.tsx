@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
@@ -18,11 +19,15 @@ import {
   customerFullName,
   customerInvoicedTotal,
   customerPayloadFromInput,
+  CUSTOMER_SORT_FIELD_LABELS,
+  customerSortDirectionLabel,
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
   pickCanonicalCustomer,
-  sortCustomersByName,
+  sortCustomers,
   validateUniqueCustomer,
+  type CustomerSortDirection,
+  type CustomerSortField,
 } from "@/lib/customers";
 import type { Customer } from "@/lib/types";
 
@@ -52,8 +57,15 @@ export default function ClientesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
   const [listFilterId, setListFilterId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<CustomerSortField>("apellido");
+  const [sortDirection, setSortDirection] =
+    useState<CustomerSortDirection>("asc");
 
-  const customers = sortCustomersByName(data.customers);
+  const customers = useMemo(
+    () =>
+      sortCustomers(data.customers, data.documents, sortField, sortDirection),
+    [data.customers, data.documents, sortField, sortDirection],
+  );
 
   const displayedCustomers = useMemo(() => {
     if (!listFilterId) return customers;
@@ -402,18 +414,26 @@ export default function ClientesPage() {
       ) : customers.length > 0 ? (
         <div className="space-y-3">
           {!mergeMode && (
-            <CustomerListSearch
-              customers={customers}
-              selectedCustomerId={listFilterId}
-              onSelectCustomer={(customer) =>
-                setListFilterId(customer?.id ?? null)
-              }
-            />
+            <>
+              <CustomerListSearch
+                customers={customers}
+                selectedCustomerId={listFilterId}
+                onSelectCustomer={(customer) =>
+                  setListFilterId(customer?.id ?? null)
+                }
+              />
+              <CustomerSortBar
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortFieldChange={setSortField}
+                onSortDirectionChange={setSortDirection}
+              />
+            </>
           )}
           <p className="text-sm font-medium text-slate-500">
             {listFilterId
               ? "1 cliente seleccionado"
-              : `${customers.length} cliente(s) — orden alfabético`}
+              : `${customers.length} cliente(s) — ${CUSTOMER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${customerSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
           </p>
           {displayedCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);

@@ -12,6 +12,7 @@ import {
   findDuplicateCustomerGroups,
   migrateCustomer,
   normalizeCustomerNif,
+  sortCustomers,
   sortCustomersByName,
   validateUniqueCustomer,
 } from "./customers";
@@ -50,6 +51,61 @@ const sample: Customer[] = [
     updatedAt: "",
   },
 ];
+
+describe("sortCustomers", () => {
+  const documents = [
+    {
+      id: "f1",
+      type: "factura" as const,
+      status: "enviado" as const,
+      client: customerToClient(sample[1]),
+      items: [
+        {
+          id: "1",
+          description: "A",
+          quantity: 1,
+          unitPrice: 200,
+          ivaPercent: 21,
+        },
+      ],
+    },
+    {
+      id: "f2",
+      type: "factura" as const,
+      status: "enviado" as const,
+      client: customerToClient(sample[0]),
+      items: [
+        {
+          id: "2",
+          description: "B",
+          quantity: 1,
+          unitPrice: 50,
+          ivaPercent: 21,
+        },
+      ],
+    },
+  ];
+
+  it("ordena por apellidos de la A a la Z", () => {
+    const sorted = sortCustomers(sample, documents as never, "apellido", "asc");
+    expect(sorted.map((c) => c.lastName)).toEqual(["García", "López", "Servicios"]);
+  });
+
+  it("ordena por volumen facturado de mayor a menor", () => {
+    const sorted = sortCustomers(
+      sample,
+      documents as never,
+      "facturacion",
+      "desc",
+    );
+    expect(sorted.map((c) => c.id)).toEqual(["2", "1", "3"]);
+  });
+
+  it("ordena por dirección", () => {
+    const sorted = sortCustomers(sample, [], "direccion", "asc");
+    expect(sorted.at(-1)?.id).toBe("3");
+  });
+});
 
 describe("sortCustomersByName", () => {
   it("ordena alfabéticamente en español", () => {
