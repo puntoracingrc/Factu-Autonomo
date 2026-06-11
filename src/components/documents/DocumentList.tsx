@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Eye, FileWarning, Pencil, Search } from "lucide-react";
-import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
+import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
@@ -11,11 +11,11 @@ import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Field";
+import { Field, Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
-import { filterDocumentsByQuery, isDocumentEditable } from "@/lib/documents";
+import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { findReceiptForInvoice } from "@/lib/receipts";
@@ -40,6 +40,18 @@ const STATUS_COLORS: Record<Document["status"], string> = {
   vencido: "bg-red-100 text-red-700",
   rectificada: "bg-orange-100 text-orange-700",
   anulada: "bg-red-100 text-red-800",
+};
+
+const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
+  factura: "Número, cliente, NIF, dirección o importe...",
+  presupuesto: "Número, cliente, NIF, dirección o importe...",
+  recibo: "Número, cliente, NIF, dirección o importe...",
+};
+
+const SEARCH_HINTS: Record<DocumentType, string> = {
+  factura: "Ordenadas de más nueva a más antigua",
+  presupuesto: "Ordenados de más nuevo a más antiguo",
+  recibo: "Ordenados de más nuevo a más antiguo",
 };
 
 const SEARCH_LABELS: Record<DocumentType, string> = {
@@ -72,13 +84,9 @@ export function DocumentList({
   const [search, setSearch] = useState("");
 
   const documents = useMemo(() => {
-    const sorted = getDocumentsByType(type).sort((a, b) => {
-      const seqA = Number(a.number.split("-").pop() ?? 0);
-      const seqB = Number(b.number.split("-").pop() ?? 0);
-      return seqB - seqA;
-    });
-    return filterDocumentsByQuery(sorted, search);
-  }, [getDocumentsByType, type, search]);
+    const sorted = sortDocumentsByNewest(getDocumentsByType(type));
+    return filterDocumentsByQuery(sorted, search, { vatExempt });
+  }, [getDocumentsByType, type, search, vatExempt]);
 
   const totalCount = getDocumentsByType(type).length;
   const label = SEARCH_LABELS[type];
@@ -87,27 +95,23 @@ export function DocumentList({
     <div className="space-y-4">
       {totalCount > 0 && (
         <Card className="p-4">
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-slate-700">
-              Buscar {label}
-            </span>
+          <Field
+            label={`Buscar ${label}`}
+            hint={SEARCH_HINTS[type]}
+          >
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={
-                  type === "factura"
-                    ? "Número (F- o FR-), cliente o factura original..."
-                    : "Número o nombre de cliente..."
-                }
+                placeholder={SEARCH_PLACEHOLDERS[type]}
                 className="pl-10"
               />
             </div>
-            <span className="text-xs text-slate-400">
+            <span className="mt-2 block text-xs text-slate-400">
               {documents.length} de {totalCount} resultados
             </span>
-          </label>
+          </Field>
         </Card>
       )}
 

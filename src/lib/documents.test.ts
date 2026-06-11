@@ -6,12 +6,14 @@ import {
 } from "./customers";
 import {
   assignNextDocumentNumberByType,
+  compareDocumentsByNewest,
   filterDocumentsByQuery,
   formatDocumentNumber,
   getDocumentReadOnlyMessage,
   getMaxSequence,
   isDocumentEditable,
   renumberDocumentsForTypeYear,
+  sortDocumentsByNewest,
 } from "./documents";
 import type { Document, DocumentType } from "./types";
 import { EMPTY_DATA } from "./types";
@@ -159,6 +161,51 @@ describe("buscador de documentos", () => {
   it("busca por cliente", () => {
     expect(filterDocumentsByQuery(documents, "garcía")).toHaveLength(1);
     expect(filterDocumentsByQuery(documents, "Luis")).toHaveLength(1);
+  });
+
+  it("busca por NIF, dirección e importe", () => {
+    const richDocs: Document[] = [
+      {
+        ...doc("10", "factura", "F-2026-0100", "Beatriz López"),
+        client: {
+          name: "Beatriz López",
+          firstName: "Beatriz",
+          lastName: "López",
+          nif: "12345678Z",
+          streetType: "calle",
+          address: "C/ Mayor 1, 28001 Madrid",
+        },
+        items: [
+          {
+            id: "line-1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    ];
+
+    expect(filterDocumentsByQuery(richDocs, "12345678z")).toHaveLength(1);
+    expect(filterDocumentsByQuery(richDocs, "mayor")).toHaveLength(1);
+    expect(filterDocumentsByQuery(richDocs, "121")).toHaveLength(1);
+    expect(filterDocumentsByQuery(richDocs, "121,00")).toHaveLength(1);
+  });
+
+  it("ordena de más nueva a más antigua por fecha", () => {
+    const dated: Document[] = [
+      { ...doc("a", "factura", "F-2026-0001", "A"), date: "2026-01-01", createdAt: "2026-01-01T10:00:00.000Z" },
+      { ...doc("b", "factura", "F-2026-0002", "B"), date: "2026-06-01", createdAt: "2026-06-01T10:00:00.000Z" },
+      { ...doc("c", "factura", "F-2026-0003", "C"), date: "2026-03-01", createdAt: "2026-03-01T10:00:00.000Z" },
+    ];
+
+    expect(sortDocumentsByNewest(dated).map((item) => item.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+    expect(compareDocumentsByNewest(dated[0], dated[1])).toBeGreaterThan(0);
   });
 });
 

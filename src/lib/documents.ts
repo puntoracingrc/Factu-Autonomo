@@ -1,12 +1,17 @@
 import {
+  formatMoney,
+} from "./calculations";
+import { formatClientAddressLine } from "./customer-address";
+import {
   formatDocumentNumberWithSettings,
   getMaxSequenceWithSettings,
   normalizeNumbering,
   parseDocumentNumberForKind,
   parseLegacyDocumentNumber,
 } from "./numbering";
-import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
 import { isRectificativa } from "./rectificativas";
+import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
+import { documentAmounts } from "./vat-regime";
 
 const KIND_TO_TYPE: Record<DocumentKind, DocumentType> = {
   factura: "factura",
@@ -216,27 +221,102 @@ export function countersFromDocuments(
   };
 }
 
+export function compareDocumentsByNewest(a: Document, b: Document): number {
+  const byDate = b.date.localeCompare(a.date);
+  if (byDate !== 0) return byDate;
+  return b.createdAt.localeCompare(a.createdAt);
+}
+
+export function sortDocumentsByNewest(documents: Document[]): Document[] {
+  return [...documents].sort(compareDocumentsByNewest);
+}
+
+function normalizeSearchAmount(value: string): string {
+  return value
+    .replace(/[€\s]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+}
+
+export function documentSearchHaystack(
+  doc: Document,
+  vatExempt = false,
+): string {
+  const total = documentAmounts(doc, vatExempt).total;
+  return [
+    doc.number,
+    doc.rectification?.originalNumber,
+    doc.client.name,
+    doc.client.firstName,
+    doc.client.lastName,
+    doc.client.nif,
+    formatClientAddressLine(doc.client),
+    doc.client.address,
+    doc.client.email,
+    doc.client.phone,
+    formatMoney(total),
+    total.toFixed(2),
+    String(total),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function documentMatchesQuery(
+  doc: Document,
+  query: string,
+  vatExempt = false,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+
+  if (documentSearchHaystack(doc, vatExempt).includes(q)) {
+    return true;
+  }
+
+  const queryDigits = q.replace(/\D/g, "");
+  const numberDigits = doc.number.replace(/\D/g, "");
+  const originalDigits =
+    doc.rectification?.originalNumber.replace(/\D/g, "") ?? "";
+
+  if (
+    queryDigits.length > 0 &&
+    (numberDigits.includes(queryDigits) || originalDigits.includes(queryDigits))
+  ) {
+    return true;
+  }
+
+  if (/\d/.test(q)) {
+    const total = documentAmounts(doc, vatExempt).total;
+    const normalizedQuery = normalizeSearchAmount(q);
+    const queryAmount = Number.parseFloat(normalizedQuery);
+    if (!Number.isNaN(queryAmount) && Math.abs(total - queryAmount) < 0.005) {
+      return true;
+    }
+
+    const totalDigits = normalizeSearchAmount(total.toFixed(2));
+    if (
+      normalizedQuery.length >= 2 &&
+      totalDigits.replace(/\D/g, "").includes(normalizedQuery.replace(/\D/g, ""))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function filterDocumentsByQuery(
   documents: Document[],
   query: string,
+  options?: { vatExempt?: boolean },
 ): Document[] {
-  const q = query.trim().toLowerCase();
+  const vatExempt = options?.vatExempt ?? false;
+  const q = query.trim();
   if (!q) return documents;
 
-  return documents.filter((doc) => {
-    const clientName = doc.client.name.toLowerCase();
-    const number = doc.number.toLowerCase();
-    const originalNumber = doc.rectification?.originalNumber.toLowerCase() ?? "";
-    const numberDigits = doc.number.replace(/\D/g, "");
-    const queryDigits = q.replace(/\D/g, "");
-
-    return (
-      number.includes(q) ||
-      originalNumber.includes(q) ||
-      clientName.includes(q) ||
-      (queryDigits.length > 0 && numberDigits.includes(queryDigits))
-    );
-  });
+  return documents.filter((doc) => documentMatchesQuery(doc, q, vatExempt));
 }
 
 export function getFacturasIncludingRectificativas(
