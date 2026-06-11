@@ -1,3 +1,5 @@
+import { documentTotals } from "./calculations";
+import { isTaxableSaleDocument } from "./taxes";
 import type { Client, Customer, Document } from "./types";
 
 export function normalizeNamePart(value: string): string {
@@ -83,6 +85,20 @@ export function countDocumentsForCustomer(
   return documents.filter((doc) =>
     clientMatchesCustomer(doc.client, customer),
   ).length;
+}
+
+/** Total facturado (facturas y recibos emitidos) vinculado al cliente. */
+export function customerInvoicedTotal(
+  documents: Document[],
+  customer: Customer,
+): number {
+  return documents
+    .filter(
+      (doc) =>
+        isTaxableSaleDocument(doc) &&
+        clientMatchesCustomer(doc.client, customer),
+    )
+    .reduce((sum, doc) => sum + documentTotals(doc).total, 0);
 }
 
 export function clientMatchesCustomer(client: Client, customer: Customer): boolean {

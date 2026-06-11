@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clientMatchesCustomer,
   customerFullName,
+  customerInvoicedTotal,
   customerToClient,
   ensureCustomerForDocument,
   filterCustomers,
@@ -232,6 +233,61 @@ describe("findDuplicateCustomerGroups", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]).toHaveLength(2);
     expect(groups[0].map((c) => c.id).sort()).toEqual(["4", "5"]);
+  });
+});
+
+describe("customerInvoicedTotal", () => {
+  it("suma facturas y recibos emitidos del cliente", () => {
+    const customer = sample[1];
+    const documents = [
+      {
+        id: "f1",
+        type: "factura" as const,
+        status: "enviado" as const,
+        client: customerToClient(customer),
+        items: [
+          {
+            id: "1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      {
+        id: "p1",
+        type: "presupuesto" as const,
+        status: "enviado" as const,
+        client: customerToClient(customer),
+        items: [
+          {
+            id: "2",
+            description: "Oferta",
+            quantity: 1,
+            unitPrice: 500,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      {
+        id: "f2",
+        type: "factura" as const,
+        status: "borrador" as const,
+        client: customerToClient(customer),
+        items: [
+          {
+            id: "3",
+            description: "Borrador",
+            quantity: 1,
+            unitPrice: 999,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    ];
+
+    expect(customerInvoicedTotal(documents as never, customer)).toBe(121);
   });
 });
 

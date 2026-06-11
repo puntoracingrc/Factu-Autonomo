@@ -14,8 +14,10 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { formatMoney } from "@/lib/calculations";
 import {
   customerFullName,
+  customerInvoicedTotal,
   customerPayloadFromInput,
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
@@ -416,6 +418,7 @@ export default function ClientesPage() {
           </p>
           {displayedCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);
+            const invoiced = customerInvoicedTotal(data.documents, customer);
             return (
             <Card
               key={customer.id}
@@ -455,38 +458,43 @@ export default function ClientesPage() {
                 </div>
               </div>
               {!mergeMode && (
-                <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                  <Link
-                    href={newDocumentUrl("factura", customer.id)}
-                    className="rounded-xl bg-blue-50 p-2 text-blue-700"
-                    title="Nueva factura"
-                  >
-                    <FileText className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    href={newDocumentUrl("presupuesto", customer.id)}
-                    className="rounded-xl bg-indigo-50 p-2 text-indigo-700"
-                    title="Nuevo presupuesto"
-                  >
-                    <ClipboardList className="h-5 w-5" />
-                  </Link>
-                  <button
-                    onClick={() => startEdit(customer)}
-                    className="rounded-xl bg-slate-100 p-2 text-slate-700"
-                    title="Editar"
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`¿Borrar a ${getCustomerDisplayName(customer)}?`))
-                        deleteCustomer(customer.id);
-                    }}
-                    className="rounded-xl bg-red-50 p-2 text-red-600"
-                    title="Borrar"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Link
+                      href={newDocumentUrl("factura", customer.id)}
+                      className="rounded-xl bg-blue-50 p-2 text-blue-700"
+                      title="Nueva factura"
+                    >
+                      <FileText className="h-5 w-5" />
+                    </Link>
+                    <Link
+                      href={newDocumentUrl("presupuesto", customer.id)}
+                      className="rounded-xl bg-indigo-50 p-2 text-indigo-700"
+                      title="Nuevo presupuesto"
+                    >
+                      <ClipboardList className="h-5 w-5" />
+                    </Link>
+                    <button
+                      onClick={() => startEdit(customer)}
+                      className="rounded-xl bg-slate-100 p-2 text-slate-700"
+                      title="Editar"
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Borrar a ${getCustomerDisplayName(customer)}?`))
+                          deleteCustomer(customer.id);
+                      }}
+                      className="rounded-xl bg-red-50 p-2 text-red-600"
+                      title="Borrar"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-right text-sm font-medium text-emerald-700">
+                    Facturado: {formatMoney(invoiced)}
+                  </p>
                 </div>
               )}
             </Card>
