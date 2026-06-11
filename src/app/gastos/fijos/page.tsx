@@ -12,9 +12,8 @@ import { todayISO } from "@/lib/calculations";
 import {
   decimalInputFromNumber,
   parseDecimalInput,
-  sanitizeDecimalTyping,
-  selectInputOnFocus,
 } from "@/lib/decimal-input";
+import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
 import {
@@ -247,21 +246,14 @@ export default function GastosFijosPage() {
                 placeholder="Ej: Cuota autónomos"
               />
             </Field>
-            <Field label={vatExempt ? "Importe *" : "Importe (sin IVA) *"}>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0"
-                value={form.amountText}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    amountText: sanitizeDecimalTyping(e.target.value),
-                  }))
-                }
-                onFocus={selectInputOnFocus}
-              />
-            </Field>
+            <ExpenseAmountFields
+              amountText={form.amountText}
+              onAmountTextChange={(amountText) =>
+                setForm((prev) => ({ ...prev, amountText }))
+              }
+              ivaPercent={form.ivaPercent}
+              vatExempt={vatExempt}
+            />
             {!vatExempt && (
               <Field label="IVA %">
                 <IvaPercentSelect

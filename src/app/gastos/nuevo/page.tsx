@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
@@ -24,8 +25,6 @@ import {
 import {
   decimalInputFromNumber,
   parseDecimalInput,
-  sanitizeDecimalTyping,
-  selectInputOnFocus,
 } from "@/lib/decimal-input";
 
 export default function NuevoGastoPage() {
@@ -196,18 +195,12 @@ export default function NuevoGastoPage() {
               placeholder="Ej: Material de fontanería"
             />
           </Field>
-          <Field label={vatExempt ? "Importe *" : "Importe (sin IVA) *"}>
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="0"
-              value={amountText}
-              onChange={(e) =>
-                setAmountText(sanitizeDecimalTyping(e.target.value))
-              }
-              onFocus={selectInputOnFocus}
-            />
-          </Field>
+          <ExpenseAmountFields
+            amountText={amountText}
+            onAmountTextChange={setAmountText}
+            ivaPercent={ivaPercent}
+            vatExempt={vatExempt}
+          />
           {vatExempt ? (
             <p className="text-sm text-slate-500 sm:col-span-2">
               Sin IVA deducible — tu perfil está marcado como exento de
