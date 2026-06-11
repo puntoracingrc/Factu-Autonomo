@@ -1,24 +1,78 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
+import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
+import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
+import {
+  aggregateExpensesBySupplier,
+  filterExpensesByPeriod,
+  getDefaultExpensePeriod,
+  matchesSupplierFilter,
+  type ExpensePeriodKind,
+  uniqueSupplierOptions,
+} from "@/lib/expense-filters";
+import type { Quarter } from "@/lib/periods";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
-  const expenses = [...data.expenses].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
   const vatExempt = isVatExempt(data.profile);
-  const total = expenses.reduce(
-    (sum, e) => sum + expenseAmount(e, vatExempt),
+  const defaultPeriod = getDefaultExpensePeriod();
+
+  const [periodKind, setPeriodKind] =
+    useState<ExpensePeriodKind>(defaultPeriod.kind);
+  const [year, setYear] = useState(defaultPeriod.year);
+  const [month, setMonth] = useState(defaultPeriod.month);
+  const [quarter, setQuarter] = useState<Quarter>(defaultPeriod.quarter);
+  const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
+
+  const periodExpenses = useMemo(
+    () =>
+      filterExpensesByPeriod(
+        data.expenses,
+        periodKind,
+        year,
+        month,
+        quarter,
+      ),
+    [data.expenses, periodKind, year, month, quarter],
+  );
+
+  const chartSlices = useMemo(
+    () => aggregateExpensesBySupplier(periodExpenses, vatExempt),
+    [periodExpenses, vatExempt],
+  );
+
+  const supplierOptions = useMemo(
+    () => uniqueSupplierOptions(periodExpenses),
+    [periodExpenses],
+  );
+
+  const filteredExpenses = useMemo(() => {
+    const matched = periodExpenses.filter((expense) =>
+      matchesSupplierFilter(expense, supplierFilter, chartSlices),
+    );
+    return [...matched].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+  }, [periodExpenses, supplierFilter, chartSlices]);
+
+  const total = filteredExpenses.reduce(
+    (sum, expense) => sum + expenseAmount(expense, vatExempt),
     0,
   );
+
+  function handlePeriodKindChange(kind: ExpensePeriodKind) {
+    setPeriodKind(kind);
+    setSupplierFilter(null);
+  }
 
   return (
     <div>
@@ -37,11 +91,34 @@ export default function GastosPage() {
 
       <RecurringDueBanner data={data} />
 
+      <Card className="mb-6 space-y-4">
+        <ExpenseFiltersBar
+          expenses={data.expenses}
+          periodKind={periodKind}
+          year={year}
+          month={month}
+          quarter={quarter}
+          supplierFilter={supplierFilter}
+          supplierOptions={supplierOptions}
+          onPeriodKindChange={handlePeriodKindChange}
+          onYearChange={setYear}
+          onMonthChange={setMonth}
+          onQuarterChange={setQuarter}
+          onSupplierFilterChange={setSupplierFilter}
+        />
+      </Card>
+
       <Card className="mb-6 border-emerald-200 bg-emerald-50">
         <p className="text-sm text-emerald-700">Total gastado</p>
         <p className="text-2xl font-bold text-emerald-900">
           {formatMoney(total)}
         </p>
+        {supplierFilter && (
+          <p className="mt-1 text-xs text-emerald-800">
+            Filtrado por proveedor · {filteredExpenses.length} gasto
+            {filteredExpenses.length === 1 ? "" : "s"}
+          </p>
+        )}
         {vatExempt && (
           <p className="mt-1 text-xs text-emerald-800">
             Sin IVA deducible (exento de repercusión)
@@ -49,14 +126,33 @@ export default function GastosPage() {
         )}
       </Card>
 
-      {expenses.length === 0 ? (
+      {chartSlices.length > 0 && (
+        <Card className="mb-6">
+          <h2 className="mb-1 font-bold text-slate-900">Gastos por proveedor</h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Solo visual. Pulsa un segmento o la leyenda para filtrar el listado.
+          </p>
+          <ExpenseSupplierDonut
+            slices={chartSlices}
+            selectedKey={supplierFilter}
+            onSelect={setSupplierFilter}
+          />
+        </Card>
+      )}
+
+      {data.expenses.length === 0 ? (
         <FactuEmptyState
           variant="gasto"
           action={<ButtonLink href="/gastos/nuevo">Añadir gasto</ButtonLink>}
         />
+      ) : filteredExpenses.length === 0 ? (
+        <Card className="text-center text-sm text-slate-600">
+          No hay gastos en este periodo
+          {supplierFilter ? " para el proveedor seleccionado" : ""}.
+        </Card>
       ) : (
         <div className="space-y-3">
-          {expenses.map((expense) => (
+          {filteredExpenses.map((expense) => (
             <Card
               key={expense.id}
               className="flex items-center justify-between gap-3"
