@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientMatchesCustomer,
   customerFullName,
   customerToClient,
   ensureCustomerForDocument,
   filterCustomers,
   findCustomerByClient,
   findCustomerByIdentity,
+  findCustomerByNif,
+  findDuplicateCustomerGroups,
   migrateCustomer,
+  normalizeCustomerNif,
   sortCustomersByName,
   validateUniqueCustomer,
 } from "./customers";
@@ -94,6 +98,17 @@ describe("validateUniqueCustomer", () => {
     const result = validateUniqueCustomer(sample, "Ana", "García", "2");
     expect(result.ok).toBe(true);
   });
+
+  it("rechaza NIF duplicado sin distinguir mayúsculas", () => {
+    const result = validateUniqueCustomer(sample, "Pedro", "Martínez", undefined, "12345678a");
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("NIF");
+  });
+
+  it("permite editar conservando el mismo NIF", () => {
+    const result = validateUniqueCustomer(sample, "Ana", "García", "2", "12345678A");
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe("ensureCustomerForDocument", () => {
@@ -125,6 +140,18 @@ describe("ensureCustomerForDocument", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("Ya existe");
+    }
+  });
+
+  it("bloquea NIF duplicado al crear desde documento", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      { firstName: "Pedro", lastName: "Ruiz", nif: "12345678a" },
+      null,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("NIF");
     }
   });
 
@@ -168,6 +195,54 @@ describe("migrateCustomer", () => {
     expect(customerFullName(migrated.firstName, migrated.lastName)).toBe(
       "Carlos Ruiz",
     );
+  });
+});
+
+describe("findCustomerByNif", () => {
+  it("encuentra por NIF ignorando mayúsculas", () => {
+    expect(findCustomerByNif(sample, "12345678a")?.id).toBe("2");
+    expect(normalizeCustomerNif("46402457a")).toBe("46402457A");
+  });
+});
+
+describe("findDuplicateCustomerGroups", () => {
+  it("agrupa clientes con el mismo NIF", () => {
+    const customers: Customer[] = [
+      ...sample,
+      {
+        id: "4",
+        firstName: "Paco",
+        lastName: "García",
+        name: "Paco García",
+        nif: "46402457a",
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "5",
+        firstName: "María",
+        lastName: "López",
+        name: "María López",
+        nif: "46402457A",
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+    const groups = findDuplicateCustomerGroups(customers);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(2);
+    expect(groups[0].map((c) => c.id).sort()).toEqual(["4", "5"]);
+  });
+});
+
+describe("clientMatchesCustomer", () => {
+  it("empareja por NIF en documentos", () => {
+    expect(
+      clientMatchesCustomer(
+        { name: "Otro nombre", nif: "12345678a" },
+        sample[1],
+      ),
+    ).toBe(true);
   });
 });
 

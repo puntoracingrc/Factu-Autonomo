@@ -9,7 +9,8 @@ export const clientesSection: ManualSection = {
     {
       title: "1. Añadir un cliente",
       paragraphs: [
-        "En **Clientes** pulsa **+ Añadir cliente** e introduce nombre, NIF, email y teléfono.",
+        "En **Clientes** pulsa **Nuevo cliente** e introduce nombre, apellidos, NIF, email y teléfono.",
+        "El **NIF no puede repetirse** en otro cliente. Si ya existe, verás un aviso y podrás **unificar** registros duplicados.",
         "Email y teléfono son importantes: los usarás para enviar facturas y recordatorios de pago.",
       ],
       screenshot: {

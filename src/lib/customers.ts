@@ -1,4 +1,4 @@
-import type { Client, Customer } from "./types";
+import type { Client, Customer, Document } from "./types";
 
 export function normalizeNamePart(value: string): string {
   return value.trim().replace(/\s+/g, " ");
@@ -42,6 +42,89 @@ export function migrateCustomer(raw: Customer): Customer {
     lastName,
     name: legacyName,
   };
+}
+
+export function normalizeCustomerNif(nif?: string | null): string {
+  if (!nif?.trim()) return "";
+  return nif.replace(/[\s.-]/g, "").toUpperCase();
+}
+
+export function findCustomerByNif(
+  customers: Customer[],
+  nif?: string | null,
+  excludeId?: string,
+): Customer | undefined {
+  const key = normalizeCustomerNif(nif);
+  if (!key) return undefined;
+  return customers.find(
+    (c) =>
+      c.id !== excludeId && normalizeCustomerNif(c.nif) === key,
+  );
+}
+
+export function findDuplicateCustomerGroups(customers: Customer[]): Customer[][] {
+  const byNif = new Map<string, Customer[]>();
+
+  for (const customer of customers) {
+    const key = normalizeCustomerNif(customer.nif);
+    if (!key) continue;
+    const group = byNif.get(key) ?? [];
+    group.push(migrateCustomer(customer));
+    byNif.set(key, group);
+  }
+
+  return [...byNif.values()].filter((group) => group.length > 1);
+}
+
+export function countDocumentsForCustomer(
+  documents: Pick<Document, "client">[],
+  customer: Customer,
+): number {
+  return documents.filter((doc) =>
+    clientMatchesCustomer(doc.client, customer),
+  ).length;
+}
+
+export function clientMatchesCustomer(client: Client, customer: Customer): boolean {
+  const migrated = migrateCustomer(customer);
+  const customerNif = normalizeCustomerNif(migrated.nif);
+  const clientNif = normalizeCustomerNif(client.nif);
+  if (customerNif && clientNif && customerNif === clientNif) {
+    return true;
+  }
+
+  if (client.firstName && client.lastName) {
+    return (
+      customerIdentityKey(client.firstName, client.lastName) ===
+      customerIdentityKey(migrated.firstName, migrated.lastName)
+    );
+  }
+
+  const clientName = (client.name ?? "").trim().toLowerCase();
+  if (!clientName) return false;
+  return getCustomerDisplayName(migrated).toLowerCase() === clientName;
+}
+
+export function pickCanonicalCustomer(
+  group: Customer[],
+  documents: Pick<Document, "client">[],
+): Customer {
+  return [...group].sort((a, b) => {
+    const score = (customer: Customer) => {
+      const migrated = migrateCustomer(customer);
+      const hasNif = normalizeCustomerNif(migrated.nif) ? 10 : 0;
+      const docCount = countDocumentsForCustomer(documents, migrated);
+      const fields = [
+        migrated.email,
+        migrated.phone,
+        migrated.address,
+        migrated.city,
+        migrated.postalCode,
+      ].filter(Boolean).length;
+      return hasNif * 100 + docCount * 10 + fields;
+    };
+    return score(b) - score(a);
+  })[0];
 }
 
 export function sortCustomersByName(customers: Customer[]): Customer[] {
@@ -175,9 +258,21 @@ export function validateUniqueCustomer(
   firstName: string,
   lastName: string,
   excludeId?: string,
+  nif?: string,
 ): CustomerNameValidation {
   const base = validateCustomerNames(firstName, lastName);
   if (!base.ok) return base;
+
+  const trimmedNif = nif?.trim();
+  if (trimmedNif) {
+    const duplicateNif = findCustomerByNif(customers, trimmedNif, excludeId);
+    if (duplicateNif) {
+      return {
+        ok: false,
+        error: `Ya existe un cliente con el NIF ${duplicateNif.nif ?? trimmedNif} (${getCustomerDisplayName(duplicateNif)}). Puedes unificar clientes desde la lista.`,
+      };
+    }
+  }
 
   const duplicate = findCustomerByIdentity(
     customers,
@@ -213,7 +308,9 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     firstName,
     lastName,
     name: customerFullName(firstName, lastName),
-    nif: input.nif?.trim() || undefined,
+    nif: input.nif?.trim()
+      ? normalizeCustomerNif(input.nif)
+      : undefined,
     email: input.email?.trim() || undefined,
     phone: input.phone?.trim() || undefined,
     address: input.address?.trim() || undefined,
@@ -239,6 +336,7 @@ export function ensureCustomerForDocument(
     input.firstName,
     input.lastName,
     selectedCustomerId ?? undefined,
+    input.nif,
   );
   if (!validation.ok) {
     return { ok: false, error: validation.error! };

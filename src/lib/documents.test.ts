@@ -171,10 +171,11 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
       type: DocumentType;
       firstName: string;
       lastName: string;
+      nif: string;
     }> = [
-      { type: "factura", firstName: "María", lastName: "López" },
-      { type: "presupuesto", firstName: "Juan", lastName: "Pérez" },
-      { type: "recibo", firstName: "Elena", lastName: "Santos" },
+      { type: "factura", firstName: "María", lastName: "López", nif: "11111111H" },
+      { type: "presupuesto", firstName: "Juan", lastName: "Pérez", nif: "22222222J" },
+      { type: "recibo", firstName: "Elena", lastName: "Santos", nif: "33333333E" },
     ];
 
     for (const flow of flows) {
@@ -183,7 +184,7 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
         {
           firstName: flow.firstName,
           lastName: flow.lastName,
-          nif: "11111111H",
+          nif: flow.nif,
         },
         null,
       );
