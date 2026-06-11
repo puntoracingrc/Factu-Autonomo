@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, UserPlus } from "lucide-react";
+import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { clientAddressToFormFields } from "@/lib/customer-address";
 import {
   customerToClient,
   filterCustomers,
@@ -19,6 +21,7 @@ export interface ClientFormValues {
   nif: string;
   email: string;
   phone: string;
+  streetType: string;
   address: string;
 }
 
@@ -260,12 +263,21 @@ export function ClientPicker({
             placeholder="cliente@email.com"
           />
         </Field>
-        <div className="sm:col-span-2">
-          <Field label="Dirección" hint="Opcional">
+        <div className="sm:col-span-2 grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
+          <Field label="Tipo de vía" hint="Opcional">
+            <StreetTypeSelect
+              value={values.streetType}
+              onChange={(streetType) => handleFieldChange("streetType", streetType)}
+            />
+          </Field>
+          <Field
+            label="Nombre de vía y número"
+            hint="Sin C/, Avda. ni otros prefijos"
+          >
             <Input
               value={values.address}
               onChange={(e) => handleFieldChange("address", e.target.value)}
-              placeholder="Calle, número, ciudad"
+              placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
         </div>
@@ -275,6 +287,8 @@ export function ClientPicker({
 }
 
 export function clientToFormValues(client: Client): ClientFormValues {
+  const { streetType, streetLine } = clientAddressToFormFields(client);
+
   return {
     firstName: client.firstName ?? client.name?.split(" ")[0] ?? "",
     lastName:
@@ -284,7 +298,8 @@ export function clientToFormValues(client: Client): ClientFormValues {
     nif: client.nif ?? "",
     email: client.email ?? "",
     phone: client.phone ?? "",
-    address: client.address ?? "",
+    streetType,
+    address: streetLine,
   };
 }
 

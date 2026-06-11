@@ -231,9 +231,10 @@ describe("ensureCustomerForDocument", () => {
 });
 
 describe("customerToClient", () => {
-  it("combina dirección, CP y ciudad", () => {
+  it("combina tipo de vía, dirección, CP y ciudad", () => {
     const client = customerToClient(sample[2]);
-    expect(client.address).toBe("Calle Mayor 1, 28001 Madrid");
+    expect(client.address).toBe("C/ Mayor 1, 28001 Madrid");
+    expect(client.streetType).toBe("calle");
     expect(client.firstName).toBe("Beatriz");
     expect(client.lastName).toBe("López");
   });

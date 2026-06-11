@@ -10,6 +10,7 @@ export const clientesSection: ManualSection = {
       title: "1. Añadir un cliente",
       paragraphs: [
         "En **Clientes** pulsa **Nuevo cliente** e introduce nombre, apellidos, NIF, email y teléfono.",
+        "Para la dirección, elige el **tipo de vía** (Calle, Avenida, etc.) y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni otros prefijos. Así el listado puede ordenarse bien por calle.",
         "El **NIF no puede repetirse** en otro cliente. Si ya existe, verás un aviso y podrás **unificar** registros duplicados.",
         "Email y teléfono son importantes: los usarás para enviar facturas y recordatorios de pago.",
       ],

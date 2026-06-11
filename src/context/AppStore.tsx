@@ -104,6 +104,7 @@ interface AppStoreValue {
   updateRecurringExpense: (item: RecurringExpense) => void;
   deleteRecurringExpense: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
+  updateSupplier: (supplier: Supplier) => void;
   deleteSupplier: (id: string) => void;
   mergeSuppliers: (keepId: string, removeIds: string[]) => void;
   mergeCustomers: (keepId: string, removeIds: string[]) => void;
@@ -652,6 +653,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const updateSupplier = useCallback((supplier: Supplier) => {
+    setAppData((prev) => ({
+      ...prev,
+      suppliers: prev.suppliers.map((entry) =>
+        entry.id === supplier.id ? supplier : entry,
+      ),
+    }));
+  }, [setAppData]);
+
   const mergeSuppliers = useCallback((keepId: string, removeIds: string[]) => {
     const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
     if (uniqueRemoveIds.length === 0) return;
@@ -671,8 +681,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         phone: keep.phone ?? removed.find((supplier) => supplier.phone)?.phone,
         website:
           keep.website ?? removed.find((supplier) => supplier.website)?.website,
+        streetType:
+          keep.streetType ??
+          removed.find((supplier) => supplier.streetType)?.streetType,
         address:
           keep.address ?? removed.find((supplier) => supplier.address)?.address,
+        city: keep.city ?? removed.find((supplier) => supplier.city)?.city,
+        postalCode:
+          keep.postalCode ??
+          removed.find((supplier) => supplier.postalCode)?.postalCode,
         notes: keep.notes ?? removed.find((supplier) => supplier.notes)?.notes,
         category:
           keep.category ?? removed.find((supplier) => supplier.category)?.category,
@@ -764,6 +781,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         nif: keep.nif ?? removed.find((customer) => customer.nif)?.nif,
         email: keep.email ?? removed.find((customer) => customer.email)?.email,
         phone: keep.phone ?? removed.find((customer) => customer.phone)?.phone,
+        streetType:
+          keep.streetType ??
+          removed.find((customer) => customer.streetType)?.streetType,
         address:
           keep.address ?? removed.find((customer) => customer.address)?.address,
         city: keep.city ?? removed.find((customer) => customer.city)?.city,
@@ -891,6 +911,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateRecurringExpense,
       deleteRecurringExpense,
       addSupplier,
+      updateSupplier,
       deleteSupplier,
       mergeSuppliers,
       mergeCustomers,
@@ -920,6 +941,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateRecurringExpense,
       deleteRecurringExpense,
       addSupplier,
+      updateSupplier,
       deleteSupplier,
       mergeSuppliers,
       mergeCustomers,

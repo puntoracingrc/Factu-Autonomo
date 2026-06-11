@@ -1,4 +1,11 @@
 import type { Expense, Supplier } from "./types";
+import { expenseTotal } from "./calculations";
+import {
+  formatStreetLine,
+  getStreetType,
+  normalizeStreetFields,
+  streetAddressSortKey,
+} from "./customer-address";
 
 const LEGAL_SUFFIX_PATTERN =
   /\b(s\.?\s*l\.?\s*u?\.?|s\.?\s*a\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|sociedad\s+limitada|sociedad\s+anonima)\b/gi;
@@ -166,6 +173,92 @@ export function findBestSupplierMatch(
   return best && best.score >= SUPPLIER_SUGGEST_SCORE ? best : null;
 }
 
+export function migrateSupplier(supplier: Supplier): Supplier {
+  return normalizeStreetFields(supplier);
+}
+
+export function expenseMatchesSupplier(
+  expense: Expense,
+  supplier: Supplier,
+): boolean {
+  if (expense.supplierId === supplier.id) return true;
+  if (
+    !expense.supplierId &&
+    supplierSimilarityScore(
+      expense.supplierName,
+      supplier.name,
+      undefined,
+      supplier.nif,
+    ) >= SUPPLIER_AUTO_LINK_SCORE
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function supplierPurchasedTotal(
+  expenses: Expense[],
+  supplier: Supplier,
+): number {
+  return expenses
+    .filter((expense) => expenseMatchesSupplier(expense, supplier))
+    .reduce((sum, expense) => sum + expenseTotal(expense), 0);
+}
+
+export type SupplierSortField = "nombre" | "compras" | "direccion";
+export type SupplierSortDirection = "asc" | "desc";
+
+export const SUPPLIER_SORT_FIELD_LABELS: Record<SupplierSortField, string> = {
+  nombre: "Nombre",
+  compras: "Volumen de compras",
+  direccion: "Dirección",
+};
+
+export function supplierAddressSortKey(supplier: Supplier): string {
+  return streetAddressSortKey(migrateSupplier(supplier));
+}
+
+export function supplierSortDirectionLabel(
+  field: SupplierSortField,
+  direction: SupplierSortDirection,
+): string {
+  if (field === "compras") {
+    return direction === "asc" ? "Menor a mayor" : "Mayor a menor";
+  }
+  return direction === "asc" ? "A → Z" : "Z → A";
+}
+
+export function sortSuppliers(
+  suppliers: Supplier[],
+  expenses: Expense[],
+  field: SupplierSortField,
+  direction: SupplierSortDirection,
+): Supplier[] {
+  const factor = direction === "asc" ? 1 : -1;
+  const compareText = (left: string, right: string) =>
+    factor *
+    left.localeCompare(right, "es", {
+      sensitivity: "base",
+    });
+
+  return [...suppliers].map(migrateSupplier).sort((a, b) => {
+    switch (field) {
+      case "nombre":
+        return compareText(a.name, b.name);
+      case "direccion":
+        return compareText(supplierAddressSortKey(a), supplierAddressSortKey(b));
+      case "compras":
+        return (
+          factor *
+          (supplierPurchasedTotal(expenses, a) -
+            supplierPurchasedTotal(expenses, b))
+        );
+      default:
+        return compareText(a.name, b.name);
+    }
+  });
+}
+
 export function sortSuppliersByName(suppliers: Supplier[]): Supplier[] {
   return [...suppliers].sort((a, b) =>
     a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
@@ -177,14 +270,19 @@ export function filterSuppliers(suppliers: Supplier[], query: string): Supplier[
   if (!q) return sortSuppliersByName(suppliers);
 
   return sortSuppliersByName(suppliers).filter((supplier) => {
+    const migrated = migrateSupplier(supplier);
     const haystack = [
-      supplier.name,
-      supplier.nif,
-      supplier.email,
-      supplier.phone,
-      supplier.website,
-      supplier.address,
-      supplier.notes,
+      migrated.name,
+      migrated.nif,
+      migrated.email,
+      migrated.phone,
+      migrated.website,
+      getStreetType(migrated.streetType)?.label,
+      formatStreetLine(migrated.streetType, migrated.address),
+      migrated.address,
+      migrated.city,
+      migrated.postalCode,
+      migrated.notes,
     ]
       .filter(Boolean)
       .join(" ")

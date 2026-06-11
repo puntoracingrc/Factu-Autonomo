@@ -1,4 +1,10 @@
 import { documentTotals } from "./calculations";
+import {
+  customerStreetSortKey,
+  formatStreetLine,
+  getStreetType,
+  normalizeCustomerStreetFields,
+} from "./customer-address";
 import { isTaxableSaleDocument } from "./taxes";
 import type { Client, Customer, Document } from "./types";
 
@@ -21,14 +27,18 @@ export function getCustomerDisplayName(customer: Customer): string {
   return customer.name ?? "";
 }
 
+function finalizeCustomerMigration(customer: Customer): Customer {
+  return normalizeCustomerStreetFields(customer);
+}
+
 export function migrateCustomer(raw: Customer): Customer {
   if (raw.firstName && raw.lastName) {
-    return {
+    return finalizeCustomerMigration({
       ...raw,
       firstName: normalizeNamePart(raw.firstName),
       lastName: normalizeNamePart(raw.lastName),
       name: customerFullName(raw.firstName, raw.lastName),
-    };
+    });
   }
 
   const legacyName = normalizeNamePart(raw.name ?? "");
@@ -38,12 +48,12 @@ export function migrateCustomer(raw: Customer): Customer {
   const lastName =
     spaceIndex === -1 ? "" : legacyName.slice(spaceIndex + 1).trim();
 
-  return {
+  return finalizeCustomerMigration({
     ...raw,
     firstName,
     lastName,
     name: legacyName,
-  };
+  });
 }
 
 export function normalizeCustomerNif(nif?: string | null): string {
@@ -164,10 +174,7 @@ export const CUSTOMER_SORT_FIELD_LABELS: Record<CustomerSortField, string> = {
 };
 
 export function customerAddressSortKey(customer: Customer): string {
-  const migrated = migrateCustomer(customer);
-  return [migrated.address, migrated.postalCode, migrated.city]
-    .filter(Boolean)
-    .join(", ");
+  return customerStreetSortKey(migrateCustomer(customer));
 }
 
 export function customerSortDirectionLabel(
@@ -215,10 +222,6 @@ export function sortCustomers(
 
 export function customerToClient(customer: Customer): Client {
   const migrated = migrateCustomer(customer);
-  const addressParts = [
-    migrated.address,
-    [migrated.postalCode, migrated.city].filter(Boolean).join(" "),
-  ].filter(Boolean);
 
   return {
     firstName: migrated.firstName,
@@ -227,7 +230,8 @@ export function customerToClient(customer: Customer): Client {
     nif: migrated.nif,
     email: migrated.email,
     phone: migrated.phone,
-    address: addressParts.length ? addressParts.join(", ") : migrated.address,
+    streetType: migrated.streetType,
+    address: formatCustomerAddressBlock(migrated) || migrated.address,
   };
 }
 
@@ -244,6 +248,8 @@ export function filterCustomers(customers: Customer[], query: string): Customer[
       migrated.nif,
       migrated.email,
       migrated.phone,
+      getStreetType(migrated.streetType)?.label,
+      formatStreetLine(migrated.streetType, migrated.address),
       migrated.address,
       migrated.city,
     ]
@@ -372,13 +378,37 @@ export interface ClientInput {
   nif?: string;
   email?: string;
   phone?: string;
+  streetType?: string;
   address?: string;
+}
+
+export function formatCustomerAddressBlock(
+  customer: Pick<Customer, "streetType" | "address" | "postalCode" | "city">,
+): string {
+  const streetLine = formatStreetLine(customer.streetType, customer.address);
+  return [streetLine, [customer.postalCode, customer.city].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function customerToFormValues(customer: Customer) {
+  const migrated = migrateCustomer(customer);
+  return {
+    firstName: migrated.firstName,
+    lastName: migrated.lastName,
+    nif: migrated.nif ?? "",
+    email: migrated.email ?? "",
+    phone: migrated.phone ?? "",
+    streetType: migrated.streetType ?? "",
+    address: migrated.address ?? "",
+  };
 }
 
 export function clientInputToSnapshot(input: ClientInput): Client {
   const validation = validateCustomerNames(input.firstName, input.lastName);
   const firstName = validation.firstName ?? normalizeNamePart(input.firstName);
   const lastName = validation.lastName ?? normalizeNamePart(input.lastName);
+  const streetLine = formatStreetLine(input.streetType, input.address?.trim());
 
   return {
     firstName,
@@ -389,7 +419,8 @@ export function clientInputToSnapshot(input: ClientInput): Client {
       : undefined,
     email: input.email?.trim() || undefined,
     phone: input.phone?.trim() || undefined,
-    address: input.address?.trim() || undefined,
+    streetType: input.streetType?.trim() || undefined,
+    address: streetLine || input.address?.trim() || undefined,
   };
 }
 
@@ -437,11 +468,17 @@ export function ensureCustomerForDocument(
       nif: client.nif,
       email: client.email,
       phone: client.phone,
+      streetType: input.streetType?.trim() || existing.streetType,
       address: input.address?.trim() || existing.address,
       updatedAt: now,
     };
 
-    return { ok: true, customer, created: false, client };
+    return {
+      ok: true,
+      customer,
+      created: false,
+      client: customerToClient(customer),
+    };
   }
 
   const duplicate = findCustomerByIdentity(customers, firstName, lastName);
@@ -460,12 +497,13 @@ export function ensureCustomerForDocument(
     nif: client.nif,
     email: client.email,
     phone: client.phone,
+    streetType: input.streetType?.trim() || undefined,
     address: input.address?.trim() || undefined,
     createdAt: now,
     updatedAt: now,
   };
 
-  return { ok: true, customer, created: true, client };
+  return { ok: true, customer, created: true, client: customerToClient(customer) };
 }
 
 export function customerPayloadFromInput(input: ClientInput) {
@@ -477,6 +515,7 @@ export function customerPayloadFromInput(input: ClientInput) {
     nif: client.nif,
     email: client.email,
     phone: client.phone,
+    streetType: input.streetType?.trim() || undefined,
     address: input.address?.trim() || undefined,
   };
 }

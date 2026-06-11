@@ -6,10 +6,10 @@ import { Eye, Plus, Trash2 } from "lucide-react";
 import {
   ClientPicker,
   clientToFormValues,
-  customerToClient,
 } from "@/components/clients/ClientPicker";
 import type { ClientFormValues } from "@/components/clients/ClientPicker";
-import { findCustomerByClient } from "@/lib/customers";
+import { formatStreetLine } from "@/lib/customer-address";
+import { customerToFormValues, findCustomerByClient } from "@/lib/customers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -69,6 +69,7 @@ const EMPTY_CLIENT: ClientFormValues = {
   nif: "",
   email: "",
   phone: "",
+  streetType: "",
   address: "",
 };
 
@@ -119,7 +120,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     const customer = data.customers.find((item) => item.id === initialCustomerId);
     if (!customer) return;
     setSelectedCustomerId(customer.id);
-    setClientForm(clientToFormValues(customerToClient(customer)));
+    setClientForm(customerToFormValues(customer));
     initialCustomerApplied.current = true;
   }, [existing, ready, initialCustomerId, data.customers]);
 
@@ -193,7 +194,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       nif: clientForm.nif || undefined,
       email: clientForm.email || undefined,
       phone: clientForm.phone || undefined,
-      address: clientForm.address || undefined,
+      streetType: clientForm.streetType || undefined,
+      address:
+        formatStreetLine(clientForm.streetType, clientForm.address) ||
+        clientForm.address ||
+        undefined,
     },
     items,
     notes,
@@ -222,7 +227,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
 
   function handleSelectCustomer(customer: Customer) {
     setSelectedCustomerId(customer.id);
-    setClientForm(clientToFormValues(customerToClient(customer)));
+    setClientForm(customerToFormValues(customer));
   }
 
   function handleClientFieldChange(
@@ -282,6 +287,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         nif: clientForm.nif,
         email: clientForm.email,
         phone: clientForm.phone,
+        streetType: clientForm.streetType,
         address: clientForm.address,
       },
       selectedCustomerId,

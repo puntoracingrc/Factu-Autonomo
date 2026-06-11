@@ -1,39 +1,70 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Truck, Trash2, X } from "lucide-react";
+import { GitMerge, Pencil, Truck, Trash2, X } from "lucide-react";
+import { SupplierListSearch } from "@/components/suppliers/SupplierListSearch";
+import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
+import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
-import { expenseTotal, formatMoney } from "@/lib/calculations";
+import { formatMoney } from "@/lib/calculations";
+import { formatStreetLine } from "@/lib/customer-address";
 import {
   findBestSupplierMatch,
   findDuplicateSupplierGroups,
+  migrateSupplier,
   pickCanonicalSupplier,
+  sortSuppliers,
   SUPPLIER_AUTO_LINK_SCORE,
-  supplierSimilarityScore,
+  SUPPLIER_SORT_FIELD_LABELS,
+  supplierPurchasedTotal,
+  supplierSortDirectionLabel,
+  type SupplierSortDirection,
+  type SupplierSortField,
 } from "@/lib/suppliers";
+import type { Supplier } from "@/lib/types";
 
 const EMPTY_FORM = {
   name: "",
   nif: "",
   phone: "",
   website: "",
+  streetType: "",
   address: "",
+  city: "",
+  postalCode: "",
   notes: "",
 };
 
 export default function ProveedoresPage() {
-  const { data, addSupplier, deleteSupplier, mergeSuppliers } = useAppStore();
+  const { data, addSupplier, updateSupplier, deleteSupplier, mergeSuppliers } =
+    useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
+  const [listFilterId, setListFilterId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SupplierSortField>("nombre");
+  const [sortDirection, setSortDirection] =
+    useState<SupplierSortDirection>("asc");
+
+  const suppliers = useMemo(
+    () => sortSuppliers(data.suppliers, data.expenses, sortField, sortDirection),
+    [data.suppliers, data.expenses, sortField, sortDirection],
+  );
+
+  const displayedSuppliers = useMemo(() => {
+    if (!listFilterId) return suppliers;
+    const match = suppliers.find((supplier) => supplier.id === listFilterId);
+    return match ? [match] : suppliers;
+  }, [suppliers, listFilterId]);
 
   const duplicateGroups = useMemo(
     () => findDuplicateSupplierGroups(data.suppliers),
@@ -69,14 +100,34 @@ export default function ProveedoresPage() {
   }
 
   function openNewForm() {
+    setEditingId(null);
     setForm(EMPTY_FORM);
     setFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeForm() {
+    setEditingId(null);
     setForm(EMPTY_FORM);
     setFormOpen(false);
+  }
+
+  function startEdit(supplier: Supplier) {
+    const migrated = migrateSupplier(supplier);
+    setEditingId(supplier.id);
+    setFormOpen(true);
+    setForm({
+      name: migrated.name,
+      nif: migrated.nif ?? "",
+      phone: migrated.phone ?? "",
+      website: migrated.website ?? "",
+      streetType: migrated.streetType ?? "",
+      address: migrated.address ?? "",
+      city: migrated.city ?? "",
+      postalCode: migrated.postalCode ?? "",
+      notes: migrated.notes ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleManualMerge() {
@@ -94,31 +145,46 @@ export default function ProveedoresPage() {
     }
   }
 
-  function handleAdd() {
+  function handleSave() {
     if (!form.name.trim()) {
       alert("Escribe el nombre del proveedor");
       return;
     }
 
-    const match = findBestSupplierMatch(data.suppliers, {
-      name: form.name.trim(),
-      nif: form.nif || undefined,
-    });
-    if (match && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
-      alert(
-        `Ya tienes un proveedor muy parecido: «${match.supplier.name}». Usa ese para no duplicar gastos.`,
-      );
-      return;
+    if (!editingId) {
+      const match = findBestSupplierMatch(data.suppliers, {
+        name: form.name.trim(),
+        nif: form.nif || undefined,
+      });
+      if (match && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
+        alert(
+          `Ya tienes un proveedor muy parecido: «${match.supplier.name}». Usa ese para no duplicar gastos.`,
+        );
+        return;
+      }
     }
 
-    addSupplier({
+    const payload = {
       name: form.name.trim(),
       nif: form.nif.trim() || undefined,
       phone: form.phone.trim() || undefined,
       website: form.website.trim() || undefined,
+      streetType: form.streetType.trim() || undefined,
       address: form.address.trim() || undefined,
+      city: form.city.trim() || undefined,
+      postalCode: form.postalCode.trim() || undefined,
       notes: form.notes.trim() || undefined,
-    });
+    };
+
+    if (editingId) {
+      const existing = data.suppliers.find((supplier) => supplier.id === editingId);
+      if (existing) {
+        updateSupplier({ ...existing, ...payload });
+      }
+    } else {
+      addSupplier(payload);
+    }
+
     closeForm();
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -231,7 +297,7 @@ export default function ProveedoresPage() {
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-bold text-slate-900">
               <Truck className="h-5 w-5 text-blue-600" />
-              Nuevo proveedor
+              {editingId ? "Editar proveedor" : "Nuevo proveedor"}
             </h2>
             <button
               type="button"
@@ -276,13 +342,40 @@ export default function ProveedoresPage() {
                 placeholder="https://www.ejemplo.com"
               />
             </Field>
-            <Field label="Dirección">
+            <Field label="Tipo de vía">
+              <StreetTypeSelect
+                value={form.streetType}
+                onChange={(streetType) =>
+                  setForm((prev) => ({ ...prev, streetType }))
+                }
+              />
+            </Field>
+            <Field
+              label="Nombre de vía y número"
+              hint="Sin C/, Avda. ni otros prefijos"
+            >
               <Input
                 value={form.address}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, address: e.target.value }))
                 }
-                placeholder="Calle, número, ciudad"
+                placeholder="Ej: Valencia 546 7/1"
+              />
+            </Field>
+            <Field label="Código postal">
+              <Input
+                value={form.postalCode}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, postalCode: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label="Ciudad">
+              <Input
+                value={form.city}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, city: e.target.value }))
+                }
               />
             </Field>
             <div className="sm:col-span-2">
@@ -296,8 +389,8 @@ export default function ProveedoresPage() {
               </Field>
             </div>
           </div>
-          <Button onClick={handleAdd} fullWidth>
-            Guardar proveedor
+          <Button onClick={handleSave} fullWidth>
+            {editingId ? "Guardar cambios" : "Guardar proveedor"}
           </Button>
         </Card>
       )}
@@ -314,21 +407,32 @@ export default function ProveedoresPage() {
         />
       ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
-          {data.suppliers.map((supplier) => {
-            const spent = data.expenses
-              .filter(
-                (expense) =>
-                  expense.supplierId === supplier.id ||
-                  (!expense.supplierId &&
-                    supplierSimilarityScore(
-                      expense.supplierName,
-                      supplier.name,
-                      undefined,
-                      supplier.nif,
-                    ) >= SUPPLIER_AUTO_LINK_SCORE),
-              )
-              .reduce((sum, expense) => sum + expenseTotal(expense), 0);
+          {!mergeMode && (
+            <>
+              <SupplierListSearch
+                suppliers={suppliers}
+                selectedSupplierId={listFilterId}
+                onSelectSupplier={(supplier) =>
+                  setListFilterId(supplier?.id ?? null)
+                }
+              />
+              <SupplierSortBar
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortFieldChange={setSortField}
+                onSortDirectionChange={setSortDirection}
+              />
+            </>
+          )}
+          <p className="text-sm font-medium text-slate-500">
+            {listFilterId
+              ? "1 proveedor seleccionado"
+              : `${suppliers.length} proveedor(es) — ${SUPPLIER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${supplierSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
+          </p>
+          {displayedSuppliers.map((supplier) => {
             const selected = selectedIds.includes(supplier.id);
+            const purchased = supplierPurchasedTotal(data.expenses, supplier);
+            const migrated = migrateSupplier(supplier);
             return (
               <Card
                 key={supplier.id}
@@ -353,11 +457,19 @@ export default function ProveedoresPage() {
                     {supplier.nif && (
                       <p className="text-sm text-slate-500">NIF: {supplier.nif}</p>
                     )}
-                    {supplier.phone && (
-                      <p className="text-sm text-slate-500">{supplier.phone}</p>
-                    )}
-                    {supplier.address && (
-                      <p className="text-sm text-slate-500">{supplier.address}</p>
+                    <p className="text-sm text-slate-500">
+                      {[supplier.phone, supplier.email].filter(Boolean).join(" · ")}
+                    </p>
+                    {(migrated.address || supplier.city) && (
+                      <p className="text-sm text-slate-400">
+                        {[
+                          formatStreetLine(migrated.streetType, migrated.address),
+                          supplier.postalCode,
+                          supplier.city,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
                     )}
                     {supplier.website && (
                       <a
@@ -369,20 +481,32 @@ export default function ProveedoresPage() {
                         {supplier.website}
                       </a>
                     )}
-                    <p className="mt-1 text-sm text-emerald-700">
-                      Gastado: {formatMoney(spent)}
+                    <p className="mt-1 text-sm font-medium text-emerald-700">
+                      Compras: {formatMoney(purchased)}
                     </p>
                   </div>
                 </div>
                 {!mergeMode && (
-                  <button
-                    onClick={() => {
-                      if (confirm("¿Borrar proveedor?")) deleteSupplier(supplier.id);
-                    }}
-                    className="shrink-0 rounded-xl bg-red-50 p-2 text-red-600"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => startEdit(supplier)}
+                      className="rounded-xl bg-slate-100 p-2 text-slate-700"
+                      title="Editar"
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Borrar a ${supplier.name}?`)) {
+                          deleteSupplier(supplier.id);
+                        }
+                      }}
+                      className="rounded-xl bg-red-50 p-2 text-red-600"
+                      title="Borrar"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 )}
               </Card>
             );

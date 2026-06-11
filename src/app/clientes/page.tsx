@@ -5,6 +5,7 @@ import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
+import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import { Button } from "@/components/ui/Button";
@@ -23,12 +24,14 @@ import {
   customerSortDirectionLabel,
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
+  migrateCustomer,
   pickCanonicalCustomer,
   sortCustomers,
   validateUniqueCustomer,
   type CustomerSortDirection,
   type CustomerSortField,
 } from "@/lib/customers";
+import { formatStreetLine } from "@/lib/customer-address";
 import type { Customer } from "@/lib/types";
 
 const EMPTY_FORM = {
@@ -37,6 +40,7 @@ const EMPTY_FORM = {
   nif: "",
   email: "",
   phone: "",
+  streetType: "",
   address: "",
   city: "",
   postalCode: "",
@@ -108,18 +112,20 @@ export default function ClientesPage() {
   }
 
   function startEdit(customer: Customer) {
+    const migrated = migrateCustomer(customer);
     setEditingId(customer.id);
     setFormOpen(true);
     setForm({
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      nif: customer.nif ?? "",
-      email: customer.email ?? "",
-      phone: customer.phone ?? "",
-      address: customer.address ?? "",
-      city: customer.city ?? "",
-      postalCode: customer.postalCode ?? "",
-      notes: customer.notes ?? "",
+      firstName: migrated.firstName,
+      lastName: migrated.lastName,
+      nif: migrated.nif ?? "",
+      email: migrated.email ?? "",
+      phone: migrated.phone ?? "",
+      streetType: migrated.streetType ?? "",
+      address: migrated.address ?? "",
+      city: migrated.city ?? "",
+      postalCode: migrated.postalCode ?? "",
+      notes: migrated.notes ?? "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -175,6 +181,7 @@ export default function ClientesPage() {
         nif: form.nif,
         email: form.email,
         phone: form.phone,
+        streetType: form.streetType,
         address: form.address,
       }),
       city: form.city || undefined,
@@ -352,12 +359,24 @@ export default function ClientesPage() {
               }
             />
           </Field>
-          <Field label="Dirección">
+          <Field label="Tipo de vía">
+            <StreetTypeSelect
+              value={form.streetType}
+              onChange={(streetType) =>
+                setForm((f) => ({ ...f, streetType }))
+              }
+            />
+          </Field>
+          <Field
+            label="Nombre de vía y número"
+            hint="Sin C/, Avda. ni otros prefijos"
+          >
             <Input
               value={form.address}
               onChange={(e) =>
                 setForm((f) => ({ ...f, address: e.target.value }))
               }
+              placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
           <Field label="Código postal">
@@ -438,6 +457,7 @@ export default function ClientesPage() {
           {displayedCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);
             const invoiced = customerInvoicedTotal(data.documents, customer);
+            const migrated = migrateCustomer(customer);
             return (
             <Card
               key={customer.id}
@@ -467,9 +487,13 @@ export default function ClientesPage() {
                   <p className="text-sm text-slate-500">
                     {[customer.phone, customer.email].filter(Boolean).join(" · ")}
                   </p>
-                  {(customer.address || customer.city) && (
+                  {(migrated.address || customer.city) && (
                     <p className="text-sm text-slate-400">
-                      {[customer.address, customer.postalCode, customer.city]
+                      {[
+                        formatStreetLine(migrated.streetType, migrated.address),
+                        customer.postalCode,
+                        customer.city,
+                      ]
                         .filter(Boolean)
                         .join(", ")}
                     </p>

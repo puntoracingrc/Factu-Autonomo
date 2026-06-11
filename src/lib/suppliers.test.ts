@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ensureSupplierForExpense,
+  expenseMatchesSupplier,
   findBestSupplierMatch,
   findDuplicateSupplierGroups,
+  migrateSupplier,
   normalizeSupplierName,
+  sortSuppliers,
   supplierCompareKey,
+  supplierPurchasedTotal,
   supplierSimilarityScore,
 } from "./suppliers";
 import type { Supplier } from "./types";
@@ -87,5 +91,72 @@ describe("findDuplicateSupplierGroups", () => {
     ]);
     expect(groups).toHaveLength(1);
     expect(groups[0]).toHaveLength(2);
+  });
+});
+
+describe("supplierPurchasedTotal", () => {
+  it("suma gastos vinculados por id o nombre parecido", () => {
+    const supplier = suppliers[0];
+    const expenses = [
+      {
+        id: "e1",
+        date: "2026-01-01",
+        supplierId: "1",
+        supplierName: "Arandes",
+        amount: 100,
+        ivaPercent: 21,
+        createdAt: "",
+      },
+      {
+        id: "e2",
+        date: "2026-01-02",
+        supplierName: "randes",
+        amount: 50,
+        ivaPercent: 0,
+        createdAt: "",
+      },
+    ];
+
+    expect(expenseMatchesSupplier(expenses[0], supplier)).toBe(true);
+    expect(expenseMatchesSupplier(expenses[1], supplier)).toBe(true);
+    expect(supplierPurchasedTotal(expenses, supplier)).toBe(171);
+  });
+});
+
+describe("sortSuppliers", () => {
+  it("ordena por volumen de compras", () => {
+    const list: Supplier[] = [
+      { id: "a", name: "Alpha", createdAt: "" },
+      { id: "b", name: "Beta", createdAt: "" },
+    ];
+    const expenses = [
+      {
+        id: "e1",
+        date: "2026-01-01",
+        supplierId: "b",
+        supplierName: "Beta",
+        amount: 200,
+        ivaPercent: 0,
+        createdAt: "",
+      },
+    ];
+    const sorted = sortSuppliers(list, expenses, "compras", "desc");
+    expect(sorted[0].id).toBe("b");
+  });
+});
+
+describe("migrateSupplier", () => {
+  it("separa prefijos legacy en la dirección", () => {
+    expect(
+      migrateSupplier({
+        id: "1",
+        name: "Tienda",
+        address: "Calle Mayor 1",
+        createdAt: "",
+      }),
+    ).toMatchObject({
+      streetType: "calle",
+      address: "Mayor 1",
+    });
   });
 });

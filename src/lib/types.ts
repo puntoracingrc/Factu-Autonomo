@@ -47,6 +47,8 @@ export interface Client {
   nif?: string;
   email?: string;
   phone?: string;
+  /** Tipo de vía congelado en el documento (calle, avenida…). */
+  streetType?: string;
   address?: string;
 }
 
@@ -58,6 +60,8 @@ export interface Customer {
   nif?: string;
   email?: string;
   phone?: string;
+  /** Identificador de tipo de vía (calle, avenida…). */
+  streetType?: string;
   address?: string;
   city?: string;
   postalCode?: string;
@@ -112,7 +116,10 @@ export interface Supplier {
   email?: string;
   phone?: string;
   website?: string;
+  streetType?: string;
   address?: string;
+  city?: string;
+  postalCode?: string;
   category?: string;
   notes?: string;
   createdAt: string;
