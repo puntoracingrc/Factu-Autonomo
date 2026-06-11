@@ -166,14 +166,11 @@ Panel de resumen del negocio:
 
 | Elemento | Función |
 |----------|---------|
-| `FiscalSummaryTeaser` | Resumen **del trimestre en curso** (ingresos, gastos, balance, beneficio) + enlace a `/impuestos` |
-| `HomeGlobalSummary` | Acumulado total histórico y «Por cobrar» |
-| `UsageBanner` | Aviso de límites del plan (documentos/mes, clientes) |
-| `TaxDeadlineBanner` | Recordatorio plazo modelo 303 |
-| `RecurringDueBanner` | Gastos fijos próximos a vencer |
-| Acciones rápidas | Enlaces a nuevo documento, gasto, cliente |
+| Accesos rápidos | Botones a avisos, clientes, factura, presupuesto, recibo y gasto |
+| `/avisos` | Centro de avisos y recomendaciones (`collectAppRecommendations`) |
+| `UsageBanner` / banners fiscales | Consolidados en `/avisos` (ya no en inicio) |
 
-**Integración:** lee `AppStore.data` y `BillingContext` para calcular totales (`src/lib/income.ts`, `src/lib/taxes.ts`).
+**Integración:** el resumen fiscal (`FiscalSummaryPanel` en `/impuestos`) concentra trimestre, año e historial completo. Los avisos contextuales se generan en `src/lib/recommendations.ts` a partir de perfil, facturas, gastos fijos, billing y sync.
 
 ---
 

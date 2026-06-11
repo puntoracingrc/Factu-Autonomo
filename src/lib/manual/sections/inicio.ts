@@ -2,45 +2,35 @@ import type { ManualSection } from "../types";
 
 export const inicioSection: ManualSection = {
   slug: "inicio",
-  title: "Inicio y resumen",
-  summary: "Lo primero que ves al abrir la app: trimestre actual y totales.",
+  title: "Inicio y avisos",
+  summary: "Accesos rápidos y centro de avisos según tu actividad.",
   order: 2,
   intro: [
-    "La pantalla de inicio te da una foto rápida de cómo va el negocio. Está organizada para que lo más urgente —el trimestre en curso— esté arriba.",
+    "La pantalla de inicio está pensada para actuar rápido: botones de avisos, cliente, factura, presupuesto, recibo y gasto.",
+    "El resumen fiscal (trimestre, año o historial completo) está en **Impuestos**.",
   ],
   steps: [
     {
-      title: "1. Resumen del trimestre actual",
+      title: "1. Accesos rápidos",
       paragraphs: [
-        "Arriba verás el **trimestre en curso** (por ejemplo, «2.º trimestre 2026») con cuatro cifras grandes:",
-        "**Ingresos cobrados**, **Gastos**, **Balance** y **Beneficio bruto estimado** de ese trimestre solamente.",
-        "Debajo hay un enlace **Ver detalle fiscal** que te lleva a Impuestos con el desglose de IVA e IRPF orientativo.",
-      ],
-      screenshot: {
-        src: "/ayuda/capturas/inicio-trimestre.png",
-        alt: "Resumen del trimestre en la pantalla de inicio",
-        caption: "El trimestre actual aparece destacado arriba.",
-      },
-    },
-    {
-      title: "2. Acumulado total (historial)",
-      paragraphs: [
-        "Más abajo, en un bloque más discreto, está el **Acumulado total**: ingresos, gastos, balance y **Por cobrar** con **todo tu historial**.",
-        "«Por cobrar» son las facturas pendientes ahora mismo, no solo del trimestre.",
-      ],
-      screenshot: {
-        src: "/ayuda/capturas/inicio-acumulado.png",
-        alt: "Bloque de acumulado total en inicio",
-      },
-    },
-    {
-      title: "3. Accesos rápidos",
-      paragraphs: [
-        "Los botones de colores te permiten crear un cliente, factura, presupuesto, recibo o gasto sin buscar en el menú.",
+        "Lo primero que verás son los **botones de colores**. El botón **Avisos** (ámbar) muestra un contador cuando hay recordatorios pendientes.",
+        "Desde ahí entras al centro de avisos: perfil incompleto, cobros, gastos fijos, plazos fiscales, límites del plan y más.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-accesos-rapidos.png",
         alt: "Botones de acceso rápido en inicio",
+      },
+    },
+    {
+      title: "2. Resumen fiscal",
+      paragraphs: [
+        "En el menú **Impuestos** tienes el detalle por **trimestre** (por defecto el actual), **año** o **Todo el historial**.",
+        "En trimestre verás ingresos, gastos, balance y beneficio bruto; en «Todo», el acumulado con **Por cobrar**.",
+      ],
+      screenshot: {
+        src: "/ayuda/capturas/inicio-trimestre.png",
+        alt: "Resumen fiscal en Impuestos",
+        caption: "El resumen del trimestre está en Impuestos, no en Inicio.",
       },
     },
   ],

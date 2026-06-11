@@ -36,6 +36,18 @@ export const FACTU_DAILY_GREETINGS = [
   "Otro día, otra oportunidad de cobrar. Very Bonito.",
 ] as const;
 
+/** Frases de Factu cuando no hay avisos pendientes en /avisos. */
+export const FACTU_AVISOS_EMPTY_MESSAGES = [
+  "Cero avisos. O eres muy eficiente o hoy me toca estar de relax. Very Bonito.",
+  "Nada urgente por aquí. Mi radar de cobros está en silencio… de momento.",
+  "Todo al día, jefe. Si esto fuera un examen, sacarías sobresaliente.",
+  "Sin recordatorios. Aprovecha para facturar tranquilo — yo vigilo.",
+  "Ni vencimientos ni sustos. Así me gusta verte: Veri Legal y sin prisas.",
+  "He mirado tres veces: no hay nada que reclamar. Muy bien.",
+  "Pantalla limpia. Cuando algo venza o falte un dato, volveré a avisarte.",
+  "Hoy no molesto. Pero si se acerca un cobro o un gasto fijo, apareceré aquí.",
+] as const;
+
 export type FactuMilestoneId =
   | "first-invoice"
   | "first-rectificativa"
@@ -58,4 +70,18 @@ export function pickDailyGreeting(): string {
   return FACTU_DAILY_GREETINGS[
     Math.floor(Math.random() * FACTU_DAILY_GREETINGS.length)
   ];
+}
+
+/** Devuelve varias frases distintas para el estado vacío de avisos. */
+export function pickFactuAvisosEmptyMessages(count = 3): string[] {
+  const pool = [...FACTU_AVISOS_EMPTY_MESSAGES];
+  const picked: string[] = [];
+  const limit = Math.min(count, pool.length);
+
+  for (let i = 0; i < limit; i++) {
+    const index = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(index, 1)[0]!);
+  }
+
+  return picked;
 }

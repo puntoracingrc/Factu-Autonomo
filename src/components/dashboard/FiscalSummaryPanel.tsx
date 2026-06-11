@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, Lock } from "lucide-react";
 import { TaxSummaryCard } from "@/components/dashboard/TaxSummaryCard";
+import { HomeGlobalSummary } from "@/components/dashboard/HomeGlobalSummary";
+import { PeriodOverviewCards } from "@/components/dashboard/PeriodOverviewCards";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
@@ -76,6 +78,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     isCollectedDocument,
   );
   const periodSpent = totalExpensesAmount(periodExpenses, vatExempt);
+  const periodBalance = periodIncome - periodSpent;
 
   const title =
     mode === "all"
@@ -214,18 +217,32 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
         </div>
       }
       highlights={
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-            <p className="text-xs text-slate-500">Cobrado en el periodo</p>
-            <p className="font-bold text-green-800">
-              {formatMoney(periodIncome)}
-            </p>
+        mode === "all" ? (
+          <HomeGlobalSummary data={data} embedded />
+        ) : mode === "quarter" ? (
+          <PeriodOverviewCards
+            income={periodIncome}
+            spent={periodSpent}
+            grossProfit={taxes.grossProfit}
+          />
+        ) : (
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
+              <p className="text-xs text-slate-500">Cobrado en el periodo</p>
+              <p className="font-bold text-green-800">
+                {formatMoney(periodIncome)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
+              <p className="text-xs text-slate-500">Gastado en el periodo</p>
+              <p className="font-bold text-red-700">{formatMoney(periodSpent)}</p>
+            </div>
+            <div className="col-span-2 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
+              <p className="text-xs text-slate-500">Balance del año</p>
+              <p className="font-bold text-blue-800">{formatMoney(periodBalance)}</p>
+            </div>
           </div>
-          <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-            <p className="text-xs text-slate-500">Gastado en el periodo</p>
-            <p className="font-bold text-red-700">{formatMoney(periodSpent)}</p>
-          </div>
-        </div>
+        )
       }
     />
   );

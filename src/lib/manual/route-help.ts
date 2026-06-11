@@ -14,6 +14,7 @@ export function resolveManualSlug(pathname: string): string | null {
   }
 
   if (path === "/" || path === "") return "inicio";
+  if (path.startsWith("/avisos")) return "inicio";
   if (path.startsWith("/clientes")) return "clientes";
   if (path.startsWith("/facturas")) return "facturas";
   if (path.startsWith("/presupuestos")) return "presupuestos";

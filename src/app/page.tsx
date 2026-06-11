@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bell,
   FileText,
   Receipt,
   ShoppingCart,
@@ -9,16 +10,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
-import { TaxDeadlineBanner } from "@/components/billing/TaxDeadlineBanner";
-import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
-import { UsageBanner } from "@/components/billing/UsageBanner";
-import { FiscalSummaryTeaser } from "@/components/dashboard/FiscalSummaryTeaser";
-import { HomeGlobalSummary } from "@/components/dashboard/HomeGlobalSummary";
-import { ButtonLink } from "@/components/ui/Button";
-import { Card, PageHeader } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/Card";
+import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
 
 const quickActions = [
+  {
+    href: "/avisos",
+    label: "Avisos",
+    icon: Bell,
+    color: "bg-amber-500 text-white",
+    showBadge: true,
+  },
   {
     href: "/clientes",
     label: "Clientes",
@@ -53,7 +56,7 @@ const quickActions = [
 
 export default function HomePage() {
   const { data, ready } = useAppStore();
-  const profileReady = Boolean(data.profile.name && data.profile.nif);
+  const { count: alertCount } = useAppRecommendations();
 
   if (!ready) {
     return <p className="text-center text-slate-500">Cargando...</p>;
@@ -64,40 +67,24 @@ export default function HomePage() {
       <FactuDailyGreeting enabled={ready} />
       <PageHeader
         title={`Hola${data.profile.name ? `, ${data.profile.name}` : ""}`}
-        subtitle="Aquí tienes un resumen de tu negocio"
+        subtitle="Accesos rápidos a lo que más usas"
       />
-
-      {!profileReady && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
-          <p className="font-semibold text-amber-900">
-            Primero configura tus datos
-          </p>
-          <p className="mt-1 text-sm text-amber-800">
-            Necesitamos tu nombre y NIF para ponerlos en las facturas.
-          </p>
-          <ButtonLink href="/configuracion" className="mt-4">
-            Ir a configuración
-          </ButtonLink>
-        </Card>
-      )}
-
-      <UsageBanner />
-      <TaxDeadlineBanner />
-      <RecurringDueBanner data={data} />
-
-      <FiscalSummaryTeaser data={data} />
-      <HomeGlobalSummary data={data} />
 
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
       </h2>
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {quickActions.map(({ href, label, icon: Icon, color }) => (
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {quickActions.map(({ href, label, icon: Icon, color, showBadge }) => (
           <Link
             key={href}
             href={href}
-            className={`flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform active:scale-[0.98] ${color}`}
+            className={`relative flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform active:scale-[0.98] ${color}`}
           >
+            {showBadge && alertCount > 0 && (
+              <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold text-amber-700 shadow">
+                {alertCount > 9 ? "9+" : alertCount}
+              </span>
+            )}
             <Icon className="h-6 w-6" />
             <span className="text-sm leading-tight">{label}</span>
           </Link>
