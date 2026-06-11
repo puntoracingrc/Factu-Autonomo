@@ -10,6 +10,7 @@ import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
+import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
@@ -203,6 +204,8 @@ export default function ConfiguracionPage() {
       >
         <CloudAccountCard />
       </Suspense>
+
+      <DataOwnershipCard />
 
       <Card className="mb-6 space-y-4">
         <Field
