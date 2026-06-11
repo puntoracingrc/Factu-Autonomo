@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ClipboardList, FileText, GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
-import { newDocumentUrl } from "@/lib/customer-document-links";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -460,20 +459,7 @@ export default function ClientesPage() {
               {!mergeMode && (
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <div className="flex flex-wrap justify-end gap-2">
-                    <Link
-                      href={newDocumentUrl("factura", customer.id)}
-                      className="rounded-xl bg-blue-50 p-2 text-blue-700"
-                      title="Nueva factura"
-                    >
-                      <FileText className="h-5 w-5" />
-                    </Link>
-                    <Link
-                      href={newDocumentUrl("presupuesto", customer.id)}
-                      className="rounded-xl bg-indigo-50 p-2 text-indigo-700"
-                      title="Nuevo presupuesto"
-                    >
-                      <ClipboardList className="h-5 w-5" />
-                    </Link>
+                    <CustomerDocumentActions customerId={customer.id} />
                     <button
                       onClick={() => startEdit(customer)}
                       className="rounded-xl bg-slate-100 p-2 text-slate-700"
