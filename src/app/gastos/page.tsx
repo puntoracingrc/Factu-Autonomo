@@ -108,9 +108,7 @@ export default function GastosPage() {
         subtitle="Registra lo que gastas en tu negocio"
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
-            <ButtonLink href="/gastos/fijos" variant="secondary">
-              Gastos fijos
-            </ButtonLink>
+            <ButtonLink href="/gastos/fijos">+ Gastos fijos</ButtonLink>
             <ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>
           </div>
         }
