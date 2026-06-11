@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, FileText, GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
+import { newDocumentUrl } from "@/lib/customer-document-links";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -47,8 +50,15 @@ export default function ClientesPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
+  const [listFilterId, setListFilterId] = useState<string | null>(null);
 
   const customers = sortCustomersByName(data.customers);
+
+  const displayedCustomers = useMemo(() => {
+    if (!listFilterId) return customers;
+    const match = customers.find((customer) => customer.id === listFilterId);
+    return match ? [match] : customers;
+  }, [customers, listFilterId]);
 
   const duplicateGroups = useMemo(
     () => findDuplicateCustomerGroups(data.customers),
@@ -390,10 +400,21 @@ export default function ClientesPage() {
         />
       ) : customers.length > 0 ? (
         <div className="space-y-3">
+          {!mergeMode && (
+            <CustomerListSearch
+              customers={customers}
+              selectedCustomerId={listFilterId}
+              onSelectCustomer={(customer) =>
+                setListFilterId(customer?.id ?? null)
+              }
+            />
+          )}
           <p className="text-sm font-medium text-slate-500">
-            {customers.length} cliente(s) — orden alfabético
+            {listFilterId
+              ? "1 cliente seleccionado"
+              : `${customers.length} cliente(s) — orden alfabético`}
           </p>
-          {customers.map((customer) => {
+          {displayedCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);
             return (
             <Card
@@ -434,10 +455,24 @@ export default function ClientesPage() {
                 </div>
               </div>
               {!mergeMode && (
-                <div className="flex gap-2">
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Link
+                    href={newDocumentUrl("factura", customer.id)}
+                    className="rounded-xl bg-blue-50 p-2 text-blue-700"
+                    title="Nueva factura"
+                  >
+                    <FileText className="h-5 w-5" />
+                  </Link>
+                  <Link
+                    href={newDocumentUrl("presupuesto", customer.id)}
+                    className="rounded-xl bg-indigo-50 p-2 text-indigo-700"
+                    title="Nuevo presupuesto"
+                  >
+                    <ClipboardList className="h-5 w-5" />
+                  </Link>
                   <button
                     onClick={() => startEdit(customer)}
-                    className="rounded-xl bg-blue-50 p-2 text-blue-700"
+                    className="rounded-xl bg-slate-100 p-2 text-slate-700"
                     title="Editar"
                   >
                     <Pencil className="h-5 w-5" />

@@ -19,7 +19,14 @@ export const clientesSection: ManualSection = {
       },
     },
     {
-      title: "2. Usar un cliente en una factura",
+      title: "2. Buscar y facturar rápido",
+      paragraphs: [
+        "Usa el **buscador** para localizar un cliente por nombre o NIF. Al elegirlo, verás solo su ficha en el listado.",
+        "En cada cliente puedes pulsar el icono de **factura** o **presupuesto** para crear el documento con sus datos ya rellenados.",
+      ],
+    },
+    {
+      title: "3. Usar un cliente en una factura",
       paragraphs: [
         "Al crear una factura o presupuesto, busca el cliente por nombre. Sus datos se rellenan solos.",
         "Si editas un cliente después, las facturas ya emitidas **no cambian** (conservan los datos del momento de emisión).",

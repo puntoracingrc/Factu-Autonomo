@@ -1,0 +1,19 @@
+import { describe, expect, it } from "vitest";
+import {
+  CUSTOMER_QUERY_PARAM,
+  newDocumentUrl,
+} from "./customer-document-links";
+
+describe("newDocumentUrl", () => {
+  it("genera URL de factura con cliente", () => {
+    expect(newDocumentUrl("factura", "abc-123")).toBe(
+      `/facturas/nuevo?${CUSTOMER_QUERY_PARAM}=abc-123`,
+    );
+  });
+
+  it("genera URL de presupuesto con cliente", () => {
+    expect(newDocumentUrl("presupuesto", "xyz")).toBe(
+      `/presupuestos/nuevo?${CUSTOMER_QUERY_PARAM}=xyz`,
+    );
+  });
+});

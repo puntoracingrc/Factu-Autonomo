@@ -75,9 +75,10 @@ const EMPTY_CLIENT: ClientFormValues = {
 interface DocumentFormProps {
   type: DocumentType;
   existing?: Document;
+  initialCustomerId?: string | null;
 }
 
-export function DocumentForm({ type, existing }: DocumentFormProps) {
+export function DocumentForm({ type, existing, initialCustomerId }: DocumentFormProps) {
   const router = useRouter();
   const {
     data,
@@ -103,12 +104,24 @@ export function DocumentForm({ type, existing }: DocumentFormProps) {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
+  const initialCustomerApplied = useRef(false);
 
   useEffect(() => {
     if (!existing || !ready) return;
     const match = findCustomerByClient(data.customers, existing.client);
     if (match) setSelectedCustomerId(match.id);
   }, [existing, ready, data.customers]);
+
+  useEffect(() => {
+    if (existing || !ready || !initialCustomerId || initialCustomerApplied.current) {
+      return;
+    }
+    const customer = data.customers.find((item) => item.id === initialCustomerId);
+    if (!customer) return;
+    setSelectedCustomerId(customer.id);
+    setClientForm(clientToFormValues(customerToClient(customer)));
+    initialCustomerApplied.current = true;
+  }, [existing, ready, initialCustomerId, data.customers]);
 
   const [date, setDate] = useState(existing?.date ?? todayISO());
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");

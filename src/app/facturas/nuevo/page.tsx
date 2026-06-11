@@ -1,16 +1,21 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/Card";
 import { DocumentForm } from "@/components/forms/DocumentForm";
+import { CUSTOMER_QUERY_PARAM } from "@/lib/customer-document-links";
 
 export default function NuevaFacturaPage() {
+  const searchParams = useSearchParams();
+  const initialCustomerId = searchParams.get(CUSTOMER_QUERY_PARAM);
+
   return (
     <div>
       <PageHeader
         title="Nueva factura"
         subtitle="Rellena los datos paso a paso"
       />
-      <DocumentForm type="factura" />
+      <DocumentForm type="factura" initialCustomerId={initialCustomerId} />
     </div>
   );
 }
