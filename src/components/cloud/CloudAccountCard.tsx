@@ -14,6 +14,12 @@ import {
   friendlyAuthError,
   isEmailNotConfirmedError,
 } from "@/lib/supabase/auth-errors";
+import {
+  captureReferralFromSearchParams,
+  readPendingReferralCode,
+  storePendingReferralCode,
+} from "@/lib/referrals/storage";
+import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 
 const STATUS_LABELS = {
   disabled: "Nube no configurada en el servidor",
@@ -53,11 +59,18 @@ export function CloudAccountCard() {
   > | null>(null);
   const [busy, setBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState("");
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    captureReferralFromSearchParams(searchParams);
+    const pending = readPendingReferralCode();
+    if (pending) setReferralCode(pending);
+  }, [searchParams]);
 
   useEffect(() => {
     if (signupSuccess && signupSuccessRef.current) {
@@ -74,6 +87,7 @@ export function CloudAccountCard() {
     setBusy(true);
 
     if (action === "signup") {
+      if (referralCode.trim()) storePendingReferralCode(referralCode);
       const result = await signUp(password);
       setBusy(false);
       if (!result.ok) {
@@ -244,6 +258,21 @@ export function CloudAccountCard() {
                 }
               />
             </Field>
+            {billingEnabled ? (
+              <Field
+                label="Código de invitación"
+                hint={`Opcional — ${REFERRAL_BONUS_SCANS} escaneos extra para ti y quien te invita`}
+              >
+                <Input
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="Ej: ABC12XY9"
+                  onBlur={() => {
+                    if (referralCode.trim()) storePendingReferralCode(referralCode);
+                  }}
+                />
+              </Field>
+            ) : null}
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 fullWidth

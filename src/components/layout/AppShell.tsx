@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { Crown } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -8,6 +9,8 @@ import {
   CloudSyncNavBadge,
   CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
+import { ReferralCapture } from "@/components/referrals/ReferralCapture";
+import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
 import { useBilling } from "@/context/BillingContext";
 import { useAppStore } from "@/context/AppStore";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
@@ -61,6 +64,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
+      <Suspense fallback={null}>
+        <ReferralCapture />
+      </Suspense>
+      <ReferralRedeemOnLogin />
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <Link

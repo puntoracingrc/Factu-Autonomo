@@ -37,7 +37,9 @@ En [supabase.com](https://supabase.com) → SQL Editor, **en orden**:
 
 1. [ ] `supabase/schema.sql`
 2. [ ] `supabase/billing.sql`
-3. [ ] `supabase/verifactu.sql`
+3. [ ] `supabase/billing-scans.sql` y `supabase/billing-scan-credits.sql` (si aún no están)
+4. [ ] `supabase/referrals.sql` (programa invita a un amigo)
+5. [ ] `supabase/verifactu.sql`
 
 Copia URL + anon key + service role key.
 

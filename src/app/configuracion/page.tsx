@@ -55,6 +55,17 @@ const CloudAccountCard = dynamic(
   },
 );
 
+const ReferralCard = dynamic(
+  () =>
+    import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="mb-6 text-sm text-slate-500">Cargando invitaciones…</p>
+    ),
+  },
+);
+
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
   const [form, setForm] = useState({
@@ -192,6 +203,9 @@ export default function ConfiguracionPage() {
 
       <PlanStatusCard />
       <SubscriptionBillingCard />
+      <Suspense fallback={null}>
+        <ReferralCard />
+      </Suspense>
       <Card className="mb-6 border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         <p className="font-semibold">Plan por fases (solo tú puedes hacer)</p>
         <p className="mt-2 leading-relaxed">
