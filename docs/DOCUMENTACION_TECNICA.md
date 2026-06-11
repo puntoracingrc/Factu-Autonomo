@@ -37,6 +37,7 @@ Factu Autónomo es una aplicación web para autónomos y pequeños negocios que 
 - Integración opcional con **Veri\*Factu** (cadena de huellas SHA-256 spec AEAT v0.1.2)
 - **Sincronización** multi-dispositivo vía Supabase (opcional)
 - Modelo de **suscripción** Stripe (Free / Trial / Pro)
+- Programa **«Invita a un amigo»** (escaneos IA extra para invitador e invitado)
 
 La app funciona principalmente como **SPA cliente** (React + Next.js App Router): los datos viven en **localStorage** del navegador y, opcionalmente, se sincronizan con Supabase.
 
@@ -56,7 +57,7 @@ La app funciona principalmente como **SPA cliente** (React + Next.js App Router)
 | Auth / sync | Supabase (`@supabase/supabase-js`) |
 | Pagos | Stripe (checkout, portal, webhooks) |
 | Escaneo gastos | OpenAI Vision (API route) |
-| Tests | Vitest (~220 tests) |
+| Tests | Vitest (**266 tests**, jun. 2026) |
 | Despliegue | Vercel |
 
 ---
@@ -84,7 +85,7 @@ La app funciona principalmente como **SPA cliente** (React + Next.js App Router)
 ┌──────────────────────────────────────────────────────────────┐
 │  API Routes                                                  │
 │  /api/verifactu/*  /api/expenses/scan  /api/billing/*        │
-│  /api/webhooks/stripe                                        │
+│  /api/referrals/*  /api/webhooks/stripe                      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -102,8 +103,8 @@ Definido en `src/lib/types.ts`. Estructura raíz `AppData`:
 | `documents` | Facturas, presupuestos, recibos (rectificativas = factura + `rectification`) |
 | `expenses` | Gastos puntuales |
 | `recurringExpenses` | Plantillas de gastos fijos |
-| `suppliers` | Proveedores |
-| `customers` | Clientes persistentes |
+| `customers` | Clientes persistentes (`streetType`, dirección, CP, ciudad) |
+| `suppliers` | Proveedores (`streetType`, dirección, CP, ciudad, web) |
 | `counters` | Contadores de uso (documentos/mes para billing) |
 | `verifactuChain` | Punta de la cadena de huellas por NIF emisor |
 | `meta` | `lastModified`, `lastSyncedAt`, `pendingChanges` |
@@ -114,7 +115,7 @@ Campos relevantes:
 
 - `type`: `factura` | `presupuesto` | `recibo`
 - `number`, `date`, `dueDate` (solo facturas)
-- `client`: datos del cliente embebidos
+- `client`: datos del cliente embebidos (`streetType` + dirección formateada en PDF/listados)
 - `items[]`: líneas con `description`, `quantity`, `unit`, `unitPrice`, `ivaPercent`
 - `notes`, `paymentTerms`
 - `status`: borrador, enviado, aceptado (presupuestos), pagado, vencido, rectificada, anulada
@@ -182,13 +183,21 @@ Panel de resumen del negocio:
 
 | Función | Detalle |
 |---------|---------|
-| Listado | Todos los `Customer` guardados |
-| Alta / edición | Nombre, apellidos, NIF, email, teléfono, dirección, notas |
+| Listado | Ordenación configurable + buscador |
+| Alta / edición | Nombre, apellidos, NIF, email, teléfono, **tipo de vía** + **nombre de calle/número**, CP, ciudad, notas |
+| Dirección | `StreetTypeSelect` + campo sin prefijos (C/, Avda.); migración automática de direcciones legacy (`customer-address.ts`) |
+| Búsqueda | `CustomerListSearch` — filtra por nombre, apellidos, NIF, teléfono, email, dirección |
+| Ordenación | `CustomerSortBar`: nombre, apellidos, **volumen facturado**, dirección (A→Z / Z→A o mayor/menor facturación) |
+| Total facturado | `customerInvoicedTotal` — suma documentos de venta vinculados al cliente |
+| Atajos documento | `CustomerDocumentActions` — enlaces a nueva factura/presupuesto con `?cliente=id` |
+| NIF único | `validateUniqueCustomer` / `findCustomerByNif` — no permite duplicar NIF |
+| Unificación | Manual (selección múltiple) + banner de duplicados por NIF; `mergeCustomers` enriquece datos |
 | Eliminación | Con confirmación |
 | Límite Free | Máx. 15 clientes si billing activo |
-| Vinculación | Al crear documentos, `ClientPicker` permite seleccionar cliente existente o crear uno nuevo (`upsertCustomerForDocument`) |
 
-**Integración:** clientes se reutilizan en facturas, presupuestos y recibos. No se sincronizan automáticamente con documentos ya emitidos si se editan después.
+**Módulos:** `src/lib/customers.ts`, `src/lib/customer-address.ts`, componentes en `src/components/clients/`.
+
+**Integración:** `ClientPicker` en documentos usa `customerToFormValues`; al guardar, `upsertCustomerForDocument` persiste `streetType` y dirección por separado. Los documentos ya emitidos conservan el snapshot del cliente.
 
 ---
 
@@ -198,9 +207,17 @@ Panel de resumen del negocio:
 
 #### Listado
 
+**Componente:** `DocumentList` (`src/components/documents/DocumentList.tsx`) — compartido por facturas, presupuestos y recibos.
+
+| Función | Detalle |
+|---------|---------|
+| Orden | **Más reciente primero** por `date` (y `createdAt` como desempate) — `sortDocumentsByNewest` |
+| Búsqueda | Número, nombre cliente, NIF, dirección, importe total, factura original (rectificativas) — `filterDocumentsByQuery` |
+| Contador | «X de Y resultados» |
+
 - Muestra facturas ordinarias y rectificativas
 - Badge **Veri\*Factu** si tiene registro
-- Acciones: editar (solo borrador), PDF, email/WhatsApp, marcar cobrado, rectificar, eliminar (solo borrador)
+- Acciones: editar (solo borrador), PDF, email/WhatsApp, marcar cobrado, **recordatorio de pago** (`PaymentReminderButton`), rectificar, eliminar (solo borrador)
 
 #### Crear / editar (`DocumentForm type="factura"`)
 
@@ -208,7 +225,7 @@ Panel de resumen del negocio:
 |--------|-----------------|
 | Cliente | `ClientPicker` con autocompletado de clientes guardados |
 | Fechas | Fecha emisión + fecha vencimiento |
-| Conceptos | Líneas: descripción, cantidad, unidad (configurable), precio, IVA % |
+| Conceptos | Líneas: descripción, cantidad, unidad (configurable), precio **con o sin IVA** (`LineItemPriceFields`), IVA % |
 | Forma de pago | Texto libre + selector de formas guardadas en Ajustes |
 | Notas | Textarea + frases guardadas por tipo |
 | Totales | Base, IVA, total en tiempo real |
@@ -264,6 +281,8 @@ Panel de resumen del negocio:
 
 **Mismo formulario** que facturas (`DocumentForm type="presupuesto"`) con diferencias:
 
+**Listado:** mismo `DocumentList` (búsqueda ampliada, orden por fecha).
+
 | Característica | Presupuesto | Factura |
 |----------------|-------------|---------|
 | Fecha vencimiento | No | Sí |
@@ -279,7 +298,9 @@ Frases, formas de pago y unidades tienen sección propia en Ajustes (tipo `presu
 
 ### 5.5 Recibos (`/recibos`)
 
-**Mismo formulario** que facturas/presupuestos (`DocumentForm type="recibo"`):
+**Mismo formulario** que facturas/presupuestos (`DocumentForm type="recibo"`).
+
+**Listado:** mismo `DocumentList` (búsqueda ampliada, orden por fecha).
 
 | Característica | Recibo |
 |----------------|--------|
@@ -297,6 +318,8 @@ Frases, formas de pago y unidades tienen sección propia en Ajustes (tipo `presu
 #### Listado (`/gastos`)
 
 - Gastos ordenados por fecha
+- Filtros por periodo (trimestre, mes, año) y proveedor — `expense-filters.ts`
+- Gráfico por proveedor (`ExpenseSupplierDonut`)
 - Total del listado
 - Badge si proviene de gasto fijo
 - Eliminar (no hay edición inline en AppStore)
@@ -308,7 +331,7 @@ Frases, formas de pago y unidades tienen sección propia en Ajustes (tipo `presu
 | Fecha | Date picker |
 | Proveedor | Texto + enlace a proveedor guardado |
 | Descripción | Texto libre |
-| Importe | Numérico |
+| Importe | Numérico **con opción de introducir importe con IVA incluido** (`ExpenseAmountFields`) |
 | IVA | Selector de tipos del perfil (0 si exento) |
 | Categoría | Material, Suministros, Transporte, Alquiler, Seguros, Profesionales, Otros |
 | Forma de pago | Efectivo, Tarjeta, Transferencia, Bizum, Domiciliación |
@@ -352,12 +375,21 @@ Plantillas `RecurringExpense`:
 
 ### 5.7 Proveedores (`/proveedores`)
 
+**Archivo:** `src/app/proveedores/page.tsx`
+
 | Función | Detalle |
 |---------|---------|
-| CRUD | Nombre, NIF, email, teléfono, categoría, notas |
-| Detección duplicados | Por NIF, nombre exacto o similitud |
-| Fusión | `mergeSuppliers` relink gastos al proveedor destino |
-| Integración escaneo | Al guardar gasto escaneado, propone vincular o crear proveedor |
+| Listado | Ordenación + buscador; formulario oculto hasta «Nuevo proveedor» |
+| Alta / edición | Nombre, NIF, teléfono, web, **tipo de vía** + calle/número, CP, ciudad, notas |
+| Volumen compras | `supplierPurchasedTotal` — suma gastos vinculados (por `supplierId` o similitud de nombre) |
+| Búsqueda | `SupplierListSearch` |
+| Ordenación | `SupplierSortBar`: nombre, **volumen de compras**, dirección |
+| Unificación | Manual + banner duplicados; `mergeSuppliers` relink gastos |
+| Eliminación | Con confirmación (sin atajos a facturas — no aplican) |
+
+**Módulos:** `src/lib/suppliers.ts`, `src/components/suppliers/`, reutiliza `StreetTypeSelect` y `customer-address.ts` (`normalizeStreetFields`).
+
+**Integración escaneo:** al guardar gasto, `ensureSupplierForExpense` propone vincular o crear proveedor.
 
 ---
 
@@ -395,7 +427,8 @@ Secciones de la página:
 
 - `PlanStatusCard`: plan actual, trial, uso
 - `SubscriptionBillingCard`: checkout Stripe, portal de cliente
-- `CloudAccountCard`: registro/login Supabase, sync manual, export/import JSON
+- **`ReferralCard`**: programa «Invita a un amigo» — código personal, enlace compartible, canje; **+5 escaneos IA** para invitador e invitado (`REFERRAL_BONUS_SCANS`)
+- `CloudAccountCard`: registro/login Supabase, sync manual, export/import JSON, campo código de invitación al registrarse
 
 #### Datos del negocio
 
@@ -579,7 +612,7 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 
 | Aspecto | Detalle |
 |---------|---------|
-| Backend | Supabase, tabla `sync_entities` |
+| Backend | Supabase: `sync_entities` (datos negocio) + tablas billing/referidos/Veri\*Factu |
 | Auth | Email/contraseña, callback `/auth/callback` |
 | Modelo | Incremental: `SyncChange[]` con diff por entidad |
 | Entidades | document, customer, expense, recurring_expense, supplier, profile, counters |
@@ -587,8 +620,11 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 | Reintento | Cada 30 s si hay cambios pendientes |
 | Acceso Pro | Requerido cuando `NEXT_PUBLIC_BILLING_ENABLED=true` |
 | Backup manual | Export/import JSON (`src/lib/backup.ts`) independiente del sync |
+| Referidos | Tras login, `ReferralRedeemOnLogin` aplica código `?ref=` guardado en localStorage |
 
-**Clave local:** `factura-autonomo-data` en localStorage.
+**Tablas Supabase adicionales (servidor):** `user_subscriptions`, `user_usage`, `referral_codes`, `referral_redemptions`, `verifactu_*`, `payment_receipts`.
+
+**Clave local:** `factura-autonomo-data` en localStorage. Código de invitación pendiente: `fa_pending_referral_code`.
 
 ---
 
@@ -604,6 +640,18 @@ Activable con `NEXT_PUBLIC_BILLING_ENABLED=true`. Si está desactivado, todos lo
 
 **Stripe:** checkout suscripción, portal, webhooks (`/api/webhooks/stripe`), packs de escaneos.
 
+**Programa de referidos** (requiere `supabase/referrals.sql`):
+
+| Pieza | Ubicación |
+|-------|-----------|
+| Tablas | `referral_codes`, `referral_redemptions` |
+| Lógica servidor | `src/lib/billing/referrals.ts`, `grant-bonus-scans.ts` |
+| API | `GET /api/referrals/me`, `POST /api/referrals/redeem` |
+| UI | `ReferralCard`, `ReferralCapture` (?ref= en URL), `ReferralRedeemOnLogin` |
+| Recompensa | 5 escaneos extra por parte; un canje por cuenta; sin auto-referido |
+
+Los escaneos extra se acreditan en `scan_credits` (Pro/trial) o `scan_trial_remaining` (Gratis) vía `grantBonusScans`.
+
 **Contador local:** `fa_billing_usage_v1` en localStorage.
 
 ---
@@ -617,11 +665,14 @@ Activable con `NEXT_PUBLIC_BILLING_ENABLED=true`. Si está desactivado, todos lo
 | `/api/billing/checkout-scan-pack` | POST | Compra pack escaneos |
 | `/api/billing/portal` | POST | Portal cliente Stripe |
 | `/api/billing/profile` | GET | Perfil billing Supabase |
+| `/api/referrals/me` | GET | Código de invitación y estadísticas del usuario |
+| `/api/referrals/redeem` | POST | Canjear código de invitación (Bearer) |
 | `/api/webhooks/stripe` | POST | Eventos Stripe |
 | `/api/verifactu/register` | POST | Registro Veri\*Factu + AEAT |
 | `/api/verifactu/status` | GET | Estado software/entorno/cert |
 | `/api/verifactu/declaration` | GET | JSON declaración responsable |
 | `/api/email/welcome` | POST | Email bienvenida |
+| `/api/email/payment-reminder` | POST | Recordatorio de pago factura |
 
 Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
 
@@ -631,13 +682,15 @@ Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
 
 | Área | Archivos principales |
 |------|---------------------|
-| Documentos | `documents.ts`, `numbering.ts`, `issuer-snapshot.ts`, `invoice-compliance.ts` |
-| PDF / share | `pdf.ts`, `pdf-logo.ts`, `share.ts` |
+| Documentos | `documents.ts` (filtro/búsqueda, orden por fecha), `numbering.ts`, `issuer-snapshot.ts`, `invoice-compliance.ts` |
+| Clientes / dirección | `customers.ts`, `customer-address.ts`, `customer-document-links.ts` |
+| PDF / share | `pdf.ts`, `pdf-logo.ts`, `share.ts`, `payment-reminder-client.ts` |
 | Recibos / rectificativas | `receipts.ts`, `rectificativas.ts`, `quotes.ts` |
-| Gastos | `recurring-expenses.ts`, `suppliers.ts`, `expense-scan/*` |
+| Gastos | `recurring-expenses.ts`, `suppliers.ts`, `expense-filters.ts`, `expense-scan/*` |
+| Referidos | `src/lib/billing/referrals.ts`, `referral-codes.ts`, `src/lib/referrals/*` |
 | Fiscal | `taxes.ts`, `vat-regime.ts`, `iva.ts`, `periods.ts` |
 | Veri\*Factu | `src/lib/verifactu/*` |
-| Billing | `src/lib/billing/*` |
+| Billing | `src/lib/billing/*` (planes, escaneos, referidos, Stripe) |
 | Cloud | `src/lib/cloud/*` |
 | UX | `src/lib/factu/*` (asistente Factu, hitos, toasts) |
 
@@ -645,8 +698,8 @@ Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
 
 ## 11. Tests y calidad
 
-- **220 tests** Vitest en `src/lib/**/*.test.ts`
-- Cobertura destacada: huellas Veri\*Factu (vectores oficiales AEAT), numeración, impuestos, proveedores, rectificativas, billing
+- **266 tests** Vitest en `src/lib/**/*.test.ts` (jun. 2026)
+- Cobertura destacada: huellas Veri\*Factu (vectores oficiales AEAT), numeración, impuestos, proveedores, clientes, direcciones, documentos (buscador), rectificativas, billing, referidos
 - Build: `npm run build` (Next.js)
 - Lint: ESLint
 
@@ -661,6 +714,8 @@ Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
 
 Variables críticas: Supabase URL/keys, Stripe keys, OpenAI key (escaneo), Veri\*Factu producer vars, `NEXT_PUBLIC_BILLING_ENABLED`.
 
+**SQL Supabase (orden):** `schema.sql` → `billing.sql` → scans/credits → **`referrals.sql`** → `verifactu.sql` (ver `docs/FASES.md`).
+
 ---
 
 ## 13. Limitaciones generales del producto (resumen)
@@ -673,8 +728,9 @@ Variables críticas: Supabase URL/keys, Stripe keys, OpenAI key (escaneo), Veri\
 6. **Legal en borrador** — privacidad y términos no revisados legalmente.
 7. **Billing opcional** — puede estar desactivado en producción.
 8. **Dependencia OpenAI** — escaneo requiere API externa y tiene cuotas.
-9. **Sin multi-usuario / roles** — una cuenta = un negocio.
-10. **Sin integración bancaria** — IBAN solo informativo en PDF.
+9. **Referidos** — requiere migración SQL en Supabase; recompensa en escaneos, no descuento Stripe.
+10. **Sin multi-usuario / roles** — una cuenta = un negocio.
+11. **Sin integración bancaria** — IBAN solo informativo en PDF.
 
 ---
 
@@ -705,7 +761,26 @@ Variables críticas: Supabase URL/keys, Stripe keys, OpenAI key (escaneo), Veri\
 | `/legal/privacidad` | Legal | No |
 | `/legal/terminos` | Legal | No |
 | `/legal/declaracion-responsable` | SIF | No |
+| `/ayuda`, `/ayuda/[slug]` | Manual de usuario | Sí |
 
 ---
 
-*Documento generado a partir del estado del código en la rama `main`. Actualizar cuando cambien funcionalidades relevantes.*
+## 15. Mejoras recientes (jun. 2026)
+
+Resumen de funcionalidades añadidas o ampliadas desde la última revisión mayor del documento:
+
+| Área | Mejora |
+|------|--------|
+| **Clientes** | Tipo de vía separado; buscador; orden por nombre/apellidos/facturación/dirección; total facturado; atajos factura/presupuesto; NIF único; unificación |
+| **Proveedores** | Paridad con clientes (dirección, buscador, orden por compras/dirección); edición; formulario bajo demanda |
+| **Documentos** | Listado unificado con búsqueda por NIF, dirección e importe; orden cronológico descendente |
+| **Formularios** | Precio/importe introducible **con IVA incluido** en líneas y gastos |
+| **Referidos** | Código personal, enlace `?ref=`, +5 escaneos IA para ambos |
+| **Gastos** | Filtros de periodo/proveedor; gráfico donut por proveedor |
+| **Facturas** | Recordatorio de pago por email |
+| **Manual** | `/ayuda` con capturas; regla de mantenimiento en commits |
+| **Tests** | Suite ampliada a 266 tests |
+
+---
+
+*Documento actualizado con el estado del código en `main` (jun. 2026): clientes/proveedores con dirección estructurada, buscadores, referidos, listado de documentos mejorado.*
