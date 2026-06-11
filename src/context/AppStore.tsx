@@ -19,6 +19,7 @@ import type {
   Supplier,
   BusinessProfile,
   RecurringExpense,
+  UserReminder,
 } from "@/lib/types";
 import { syncRecurringExpenses } from "@/lib/recurring-expenses";
 import {
@@ -103,6 +104,15 @@ interface AppStoreValue {
   ) => RecurringExpense;
   updateRecurringExpense: (item: RecurringExpense) => void;
   deleteRecurringExpense: (id: string) => void;
+  addUserReminder: (
+    item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
+      completed?: boolean;
+    },
+  ) => UserReminder;
+  updateUserReminder: (item: UserReminder) => void;
+  completeUserReminder: (id: string) => void;
+  reopenUserReminder: (id: string) => void;
+  deleteUserReminder: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
   updateSupplier: (supplier: Supplier) => void;
   deleteSupplier: (id: string) => void;
@@ -630,6 +640,84 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const addUserReminder = useCallback(
+    (
+      item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
+        completed?: boolean;
+      },
+    ): UserReminder => {
+      const now = new Date().toISOString();
+      const created: UserReminder = {
+        ...item,
+        completed: item.completed ?? false,
+        id: newId(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      setAppData((prev) => ({
+        ...prev,
+        userReminders: [...prev.userReminders, created],
+      }));
+      return created;
+    },
+    [setAppData],
+  );
+
+  const updateUserReminder = useCallback(
+    (item: UserReminder) => {
+      setAppData((prev) => ({
+        ...prev,
+        userReminders: prev.userReminders.map((entry) =>
+          entry.id === item.id
+            ? { ...item, updatedAt: new Date().toISOString() }
+            : entry,
+        ),
+      }));
+    },
+    [setAppData],
+  );
+
+  const completeUserReminder = useCallback(
+    (id: string) => {
+      const now = new Date().toISOString();
+      setAppData((prev) => ({
+        ...prev,
+        userReminders: prev.userReminders.map((entry) =>
+          entry.id === id
+            ? { ...entry, completed: true, completedAt: now, updatedAt: now }
+            : entry,
+        ),
+      }));
+    },
+    [setAppData],
+  );
+
+  const reopenUserReminder = useCallback(
+    (id: string) => {
+      setAppData((prev) => ({
+        ...prev,
+        userReminders: prev.userReminders.map((entry) =>
+          entry.id === id
+            ? {
+                ...entry,
+                completed: false,
+                completedAt: undefined,
+                updatedAt: new Date().toISOString(),
+              }
+            : entry,
+        ),
+      }));
+    },
+    [setAppData],
+  );
+
+  const deleteUserReminder = useCallback((id: string) => {
+    setAppData((prev) => ({
+      ...prev,
+      userReminders: prev.userReminders.filter((entry) => entry.id !== id),
+    }));
+  }, [setAppData]);
+
   const addSupplier = useCallback(
     (supplier: Omit<Supplier, "id" | "createdAt">): Supplier => {
       const created: Supplier = {
@@ -910,6 +998,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addRecurringExpense,
       updateRecurringExpense,
       deleteRecurringExpense,
+      addUserReminder,
+      updateUserReminder,
+      completeUserReminder,
+      reopenUserReminder,
+      deleteUserReminder,
       addSupplier,
       updateSupplier,
       deleteSupplier,
@@ -940,6 +1033,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addRecurringExpense,
       updateRecurringExpense,
       deleteRecurringExpense,
+      addUserReminder,
+      updateUserReminder,
+      completeUserReminder,
+      reopenUserReminder,
+      deleteUserReminder,
       addSupplier,
       updateSupplier,
       deleteSupplier,

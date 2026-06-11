@@ -5,6 +5,7 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ScanQuota } from "@/lib/billing/scan-limits";
+import { pendingUserReminders } from "@/lib/user-reminders";
 import {
   collectAppRecommendations,
   type AppRecommendation,
@@ -13,6 +14,8 @@ import {
 export function useAppRecommendations(): {
   recommendations: AppRecommendation[];
   count: number;
+  autoCount: number;
+  taskCount: number;
   loadingScans: boolean;
   refresh: () => void;
 } {
@@ -94,9 +97,16 @@ export function useAppRecommendations(): {
     scanQuota,
   ]);
 
+  const taskCount = useMemo(() => {
+    if (!ready) return 0;
+    return pendingUserReminders(data.userReminders).length;
+  }, [ready, data.userReminders]);
+
   return {
     recommendations,
-    count: recommendations.length,
+    autoCount: recommendations.length,
+    count: recommendations.length + taskCount,
+    taskCount,
     loadingScans,
     refresh: loadScanQuota,
   };

@@ -288,12 +288,39 @@ export interface BusinessProfile {
   verifactu?: VerifactuSettings;
 }
 
+export type UserReminderLinkKind =
+  | "none"
+  | "customer"
+  | "document"
+  | "rectify"
+  | "new_invoice"
+  | "new_expense";
+
+export interface UserReminderLink {
+  kind: UserReminderLinkKind;
+  entityId?: string;
+}
+
+/** Recordatorio creado por el usuario; requiere check para archivar. */
+export interface UserReminder {
+  id: string;
+  text: string;
+  dueDate?: string;
+  dueTime?: string;
+  link: UserReminderLink;
+  completed: boolean;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type SyncEntityType =
   | "document"
   | "customer"
   | "expense"
   | "recurring_expense"
   | "supplier"
+  | "user_reminder"
   | "profile"
   | "counters";
 
@@ -316,6 +343,7 @@ export interface AppData {
   documents: Document[];
   expenses: Expense[];
   recurringExpenses: RecurringExpense[];
+  userReminders: UserReminder[];
   suppliers: Supplier[];
   customers: Customer[];
   counters: {
@@ -369,6 +397,7 @@ export const EMPTY_DATA: AppData = {
   documents: [],
   expenses: [],
   recurringExpenses: [],
+  userReminders: [],
   suppliers: [],
   customers: [],
   counters: {

@@ -44,6 +44,7 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
       migrateCustomer(customer as AppData["customers"][number]),
     ),
     recurringExpenses: parsed.recurringExpenses ?? [],
+    userReminders: parsed.userReminders ?? [],
     documents,
     counters: {
       ...EMPTY_DATA.counters,

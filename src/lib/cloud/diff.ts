@@ -64,6 +64,7 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
       next.recurringExpenses,
       timestamp,
     ),
+    ...diffById("user_reminder", prev.userReminders, next.userReminders, timestamp),
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
   ];
 
@@ -135,6 +136,13 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: item,
       updatedAt: item.updatedAt || timestamp,
     })),
+    ...data.userReminders.map((item) => ({
+      entityType: "user_reminder" as const,
+      entityId: item.id,
+      deleted: false,
+      payload: item,
+      updatedAt: item.updatedAt || timestamp,
+    })),
     ...data.suppliers.map((supplier) => ({
       entityType: "supplier" as const,
       entityId: supplier.id,
@@ -197,6 +205,11 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
       return {
         ...data,
         recurringExpenses: applyListChange(data.recurringExpenses, change),
+      };
+    case "user_reminder":
+      return {
+        ...data,
+        userReminders: applyListChange(data.userReminders, change),
       };
     case "supplier":
       return {

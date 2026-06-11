@@ -13,8 +13,8 @@ export const inicioSection: ManualSection = {
     {
       title: "1. Accesos rápidos",
       paragraphs: [
-        "Lo primero que verás son los **botones de colores**. El botón **Avisos** (ámbar) muestra un contador cuando hay recordatorios pendientes.",
-        "Desde ahí entras al centro de avisos: perfil incompleto, cobros, gastos fijos, plazos fiscales, límites del plan y más.",
+        "Lo primero que verás son los **botones de colores**. El botón **Avisos** (ámbar) muestra un contador con avisos automáticos y tus tareas pendientes.",
+        "En **Avisos** hay dos pestañas: **Mis tareas** (recordatorios que tú creas con check) y **Automáticos** (perfil, cobros, gastos fijos, IVA…).",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-accesos-rapidos.png",
