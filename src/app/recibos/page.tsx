@@ -1,7 +1,8 @@
 "use client";
 
-import { ButtonLink } from "@/components/ui/Button";
+import { Receipt } from "lucide-react";
 import { PageHeader } from "@/components/ui/Card";
+import { PageCreateButton } from "@/components/ui/PageCreateButton";
 import { DocumentList } from "@/components/documents/DocumentList";
 
 export default function RecibosPage() {
@@ -10,7 +11,11 @@ export default function RecibosPage() {
       <PageHeader
         title="Recibos"
         subtitle="Crea recibos y envíalos por email o WhatsApp"
-        action={<ButtonLink href="/recibos/nuevo">+ Nuevo recibo</ButtonLink>}
+      />
+      <PageCreateButton
+        href="/recibos/nuevo"
+        icon={Receipt}
+        label="Nuevo recibo"
       />
       <DocumentList
         type="recibo"

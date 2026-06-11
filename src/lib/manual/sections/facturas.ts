@@ -12,7 +12,7 @@ export const facturasSection: ManualSection = {
     {
       title: "1. Crear una factura nueva",
       paragraphs: [
-        "Ve a **Facturas** → **+ Nueva factura** (o usa el acceso rápido en Inicio).",
+        "Ve a **Facturas** → **Nueva factura** (o usa el acceso rápido en Inicio).",
         "Elige o crea un **cliente**, añade líneas con concepto, cantidad y precio, y revisa el IVA de cada línea.",
         "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar.",
       ],

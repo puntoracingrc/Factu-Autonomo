@@ -1,7 +1,8 @@
 "use client";
 
-import { ButtonLink } from "@/components/ui/Button";
+import { ClipboardPlus } from "lucide-react";
 import { PageHeader } from "@/components/ui/Card";
+import { PageCreateButton } from "@/components/ui/PageCreateButton";
 import { DocumentList } from "@/components/documents/DocumentList";
 
 export default function PresupuestosPage() {
@@ -10,9 +11,11 @@ export default function PresupuestosPage() {
       <PageHeader
         title="Presupuestos"
         subtitle="Crea presupuestos y envíalos por email o WhatsApp"
-        action={
-          <ButtonLink href="/presupuestos/nuevo">+ Nuevo presupuesto</ButtonLink>
-        }
+      />
+      <PageCreateButton
+        href="/presupuestos/nuevo"
+        icon={ClipboardPlus}
+        label="Nuevo presupuesto"
       />
       <DocumentList
         type="presupuesto"

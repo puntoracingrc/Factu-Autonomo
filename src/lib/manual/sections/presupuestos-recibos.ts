@@ -49,7 +49,7 @@ export const recibosSection: ManualSection = {
     {
       title: "2. Crear un recibo manual",
       paragraphs: [
-        "También puedes ir a **Recibos** → **+ Nuevo recibo** si necesitas un justificante independiente.",
+        "También puedes ir a **Recibos** → **Nuevo recibo** si necesitas un justificante independiente.",
       ],
       screenshot: {
         src: "/ayuda/capturas/recibos-nuevo.png",

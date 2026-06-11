@@ -1,7 +1,8 @@
 "use client";
 
-import { ButtonLink } from "@/components/ui/Button";
+import { FilePlus } from "lucide-react";
 import { PageHeader } from "@/components/ui/Card";
+import { PageCreateButton } from "@/components/ui/PageCreateButton";
 import { DocumentList } from "@/components/documents/DocumentList";
 
 export default function FacturasPage() {
@@ -10,9 +11,11 @@ export default function FacturasPage() {
       <PageHeader
         title="Facturas"
         subtitle="Crea, envía y descarga facturas en PDF"
-        action={
-          <ButtonLink href="/facturas/nuevo">+ Nueva factura</ButtonLink>
-        }
+      />
+      <PageCreateButton
+        href="/facturas/nuevo"
+        icon={FilePlus}
+        label="Nueva factura"
       />
       <DocumentList
         type="factura"
