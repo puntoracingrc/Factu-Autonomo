@@ -3,28 +3,36 @@ import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ManualRichText } from "@/components/manual/ManualRichText";
 import { ManualScreenshot } from "@/components/manual/ManualScreenshot";
+import { ManualReturnBar } from "@/components/manual/ManualReturnBar";
+import { buildManualHref } from "@/lib/manual/return-url";
 import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSectionViewProps {
   section: ManualSection;
   previous?: ManualSection;
   next?: ManualSection;
+  returnTo?: string | null;
 }
 
 export function ManualSectionView({
   section,
   previous,
   next,
+  returnTo,
 }: ManualSectionViewProps) {
   return (
     <div>
-      <Link
-        href="/ayuda"
-        className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 underline"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Manual de usuario
-      </Link>
+      {returnTo ? (
+        <ManualReturnBar returnTo={returnTo} />
+      ) : (
+        <Link
+          href="/ayuda"
+          className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 underline"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Manual de usuario
+        </Link>
+      )}
 
       <header className="mb-6">
         <p className="text-sm font-medium text-violet-700">
@@ -72,7 +80,7 @@ export function ManualSectionView({
       <nav className="mt-8 grid gap-3 sm:grid-cols-2">
         {previous ? (
           <Link
-            href={`/ayuda/${previous.slug}`}
+            href={buildManualHref(`/ayuda/${previous.slug}`, returnTo)}
             className="rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -88,7 +96,7 @@ export function ManualSectionView({
         )}
         {next && (
           <Link
-            href={`/ayuda/${next.slug}`}
+            href={buildManualHref(`/ayuda/${next.slug}`, returnTo)}
             className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition-colors hover:bg-slate-50 sm:col-start-2"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

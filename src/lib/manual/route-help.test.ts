@@ -18,7 +18,9 @@ describe("manual route help", () => {
     expect(resolveManualSlug("/legal/privacidad")).toBeNull();
   });
 
-  it("genera el enlace a la sección", () => {
-    expect(manualHelpHref("/impuestos")).toBe("/ayuda/impuestos");
+  it("genera el enlace a la sección con retorno", () => {
+    expect(manualHelpHref("/impuestos")).toBe(
+      "/ayuda/impuestos?from=%2Fimpuestos",
+    );
   });
 });

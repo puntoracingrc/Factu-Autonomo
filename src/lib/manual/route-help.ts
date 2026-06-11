@@ -1,3 +1,5 @@
+import { buildManualHref } from "./return-url";
+
 /** Slug del manual que corresponde a cada ruta de la app. */
 export function resolveManualSlug(pathname: string): string | null {
   const path = pathname.split("?")[0]?.replace(/\/$/, "") || "/";
@@ -26,5 +28,6 @@ export function resolveManualSlug(pathname: string): string | null {
 
 export function manualHelpHref(pathname: string): string | null {
   const slug = resolveManualSlug(pathname);
-  return slug ? `/ayuda/${slug}` : null;
+  if (!slug) return null;
+  return buildManualHref(`/ayuda/${slug}`, pathname);
 }

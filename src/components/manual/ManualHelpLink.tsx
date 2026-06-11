@@ -1,10 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { buildManualHref } from "@/lib/manual/return-url";
 
 export function ManualHelpLink() {
+  const pathname = usePathname();
+
   return (
-    <Link href="/ayuda" className="mb-6 block">
+    <Link href={buildManualHref("/ayuda", pathname)} className="mb-6 block">
       <Card className="flex items-center gap-3 transition-colors hover:bg-slate-50">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
           <BookOpen className="h-5 w-5" />

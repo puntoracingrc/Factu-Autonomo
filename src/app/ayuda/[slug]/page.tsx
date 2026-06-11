@@ -5,9 +5,11 @@ import {
   getManualSlugs,
   manualSections,
 } from "@/lib/manual/sections";
+import { sanitizeReturnPath } from "@/lib/manual/return-url";
 
 interface ManualSectionPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ from?: string }>;
 }
 
 export function generateStaticParams() {
@@ -25,10 +27,15 @@ export async function generateMetadata({ params }: ManualSectionPageProps) {
   };
 }
 
-export default async function ManualSectionPage({ params }: ManualSectionPageProps) {
+export default async function ManualSectionPage({
+  params,
+  searchParams,
+}: ManualSectionPageProps) {
   const { slug } = await params;
   const section = getManualSection(slug);
   if (!section) notFound();
+
+  const returnTo = sanitizeReturnPath((await searchParams).from);
 
   const index = manualSections.findIndex((item) => item.slug === slug);
   const previous = index > 0 ? manualSections[index - 1] : undefined;
@@ -38,6 +45,11 @@ export default async function ManualSectionPage({ params }: ManualSectionPagePro
       : undefined;
 
   return (
-    <ManualSectionView section={section} previous={previous} next={next} />
+    <ManualSectionView
+      section={section}
+      previous={previous}
+      next={next}
+      returnTo={returnTo}
+    />
   );
 }
