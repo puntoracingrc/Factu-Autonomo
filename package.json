@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "manual:screenshots": "node scripts/capture-manual-screenshots.mjs"
+    "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
+    "manual:verify": "vitest run src/lib/manual/"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",

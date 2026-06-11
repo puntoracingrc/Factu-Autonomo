@@ -153,7 +153,7 @@ Rutas fuera de la barra: `/precios`, `/legal/*`, `/auth/callback`, `/ayuda`.
 | Ayuda contextual (🤖+?) | `FactuHelpButton` en cabecera → `src/lib/manual/route-help.ts` |
 | Capturas | `public/ayuda/capturas/` |
 
-**Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **en el mismo commit/PR**. Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`. Tests: `npm test -- src/lib/manual/`.
+**Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **y sustituir las capturas afectadas** en el mismo commit/PR (`npm run manual:screenshots` → `public/ayuda/capturas/`). Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`. Verificación: `npm run manual:verify` (incluye test de que existen todos los PNG referenciados).
 
 ---
 

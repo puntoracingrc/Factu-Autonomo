@@ -15,9 +15,20 @@ Actualiza el manual si el cambio afecta a:
 - Flujos renombrados, reordenados o eliminados (facturas, gastos, impuestos, ajustes…)
 - Textos de UI que el manual cite (etiquetas, estados, exportaciones)
 - Ayuda contextual (robotito 🤖+? en cabecera) o su destino
-- Capturas que queden desactualizadas
+- Cualquier cambio visual en una pantalla que el manual ilustra con captura
 
 **No hace falta** para refactors internos, tests o cambios solo de backend sin impacto en pantalla.
+
+## Capturas — obligatorio sustituir
+
+Si el cambio afecta a una pantalla que tiene captura en el manual:
+
+1. Actualiza el texto del paso en `src/lib/manual/sections/*.ts` si hace falta.
+2. Ejecuta `npm run manual:screenshots` (servidor en `:3000`) y **sustituye** los PNG en `public/ayuda/capturas/`.
+3. Incluye los PNG actualizados en el **mismo commit/PR** que el cambio de la app.
+4. Verifica con `npm test -- src/lib/manual/screenshots.test.ts` (falla si falta algún archivo).
+
+No dejes capturas antiguas: el test comprueba que cada `screenshot.src` tenga su archivo en disco.
 
 ## Archivos a tocar
 
@@ -36,8 +47,9 @@ Guía detallada: `src/lib/manual/MAINTENANCE.md`
 1. ¿Hay sección del manual que describa el cambio? Si no, créala o amplía la existente.
 2. ¿Los pasos coinciden con la UI actual (nombres de botones, orden, filtros)?
 3. ¿`resolveManualSlug()` cubre la ruta nueva? (test en `route-help.test.ts`)
-4. ¿La captura referenciada existe? Tras cambios de UI ejecuta `npm run manual:screenshots` (servidor en :3000).
-5. Menciona en el resumen del commit/PR que el manual y las capturas fueron actualizados.
+4. ¿Cambió la UI de un paso con captura? Regenera y **sustituye** los PNG (`npm run manual:screenshots`) y commitea los archivos.
+5. ¿Pasa `npm test -- src/lib/manual/`? (incluye comprobación de que existen todas las capturas).
+6. Menciona en el commit/PR: manual actualizado + capturas regeneradas (si aplica).
 
 ## Estilo del manual
 

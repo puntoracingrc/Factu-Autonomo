@@ -4,7 +4,7 @@ Manual público: **`/ayuda`** (código en `src/lib/manual/`, UI en `src/app/ayud
 
 ## Regla de oro
 
-**Cada cambio que altere cómo usa la app una persona → actualizar el manual en el mismo commit/PR.**
+**Cada cambio que altere cómo usa la app una persona → actualizar el manual y, si aplica, sustituir las capturas en el mismo commit/PR.**
 
 Los agentes de Cursor tienen la regla `.cursor/rules/manual-usuario.mdc` para no olvidarlo.
 
@@ -14,20 +14,50 @@ Los agentes de Cursor tienen la regla `.cursor/rules/manual-usuario.mdc` para no
 src/lib/manual/
   types.ts              # Tipos ManualSection, ManualStep
   route-help.ts         # pathname → slug (robotito 🤖+?)
+  screenshots.ts        # Lista de capturas referenciadas
   sections/
     index.ts            # Lista ordenada de secciones
     primeros-pasos.ts   # Una sección = un archivo
     facturas.ts
     ...
 public/ayuda/capturas/  # PNG referenciados en screenshot.src
+scripts/
+  capture-manual-screenshots.mjs
+  manual-demo-data.json
 ```
 
-## Añadir o editar una sección
+## Flujo cuando cambia la UI
 
-1. Edita o crea `src/lib/manual/sections/<slug>.ts`.
-2. Registra la sección en `sections/index.ts` (`order` define el orden en el índice).
-3. Si es sección nueva, añade prueba en `sections.test.ts` (implícita al iterar slugs).
-4. Añade captura en `public/ayuda/capturas/<archivo>.png` o deja el placeholder hasta tenerla.
+1. Edita el paso afectado en `src/lib/manual/sections/<slug>.ts`.
+2. Arranca la app: `npm run dev`.
+3. Regenera capturas (sustituye los PNG existentes):
+
+```bash
+npm run manual:screenshots
+```
+
+4. Revisa visualmente los PNG en `public/ayuda/capturas/`.
+5. Commitea **código + PNG** juntos.
+6. Comprueba:
+
+```bash
+npm test -- src/lib/manual/
+```
+
+El test `screenshots.test.ts` **falla** si falta algún archivo referenciado en el manual.
+
+## Añadir una captura nueva
+
+1. Añade `screenshot: { src: "/ayuda/capturas/mi-pantalla.png", alt: "..." }` al paso.
+2. Añade la toma en `scripts/capture-manual-screenshots.mjs` (mismo nombre de archivo).
+3. Ejecuta `npm run manual:screenshots`.
+
+## Renombrar o eliminar una captura
+
+1. Cambia o borra `screenshot` en la sección del manual.
+2. Actualiza el script de capturas si el nombre cambió.
+3. Borra el PNG obsoleto de `public/ayuda/capturas/` para no dejar basura.
+4. Regenera y ejecuta los tests.
 
 ## Nueva ruta en la app
 
@@ -35,43 +65,19 @@ public/ayuda/capturas/  # PNG referenciados en screenshot.src
 2. Añade caso en `route-help.test.ts`.
 3. Si la ruta es navegación principal, debe aparecer en `APP_ROUTES_WITH_MANUAL` (`coverage.ts`).
 
-## Robotito de ayuda (cabecera)
+## Capturas — criterios
 
-`FactuHelpButton` usa `manualHelpHref(pathname)`. Si la ruta no está mapeada, no se muestra el botón.
-
-## Capturas
-
-- Formato: PNG, ancho ~720px (móvil o escritorio según lo que se explique).
+- Formato: **PNG**, viewport ~720px (script Playwright).
 - Nombre estable: `facturas-recordatorio.png`, `gastos-filtros.png`, etc.
-- Misma ruta que en `screenshot.src` (p. ej. `/ayuda/capturas/facturas-recordatorio.png`).
-
-## Verificación local
-
-```bash
-npm test -- src/lib/manual/
-```
-
-Incluye cobertura de rutas principales y slugs únicos.
-
-## Regenerar capturas
-
-Con el servidor de desarrollo en el puerto 3000:
-
-```bash
-npx playwright install chromium   # solo la primera vez
-npm run manual:screenshots
-```
-
-Datos de demo: `scripts/manual-demo-data.json`. Salida: `public/ayuda/capturas/*.png`.
-Tras cambios de UI, actualiza textos del manual y vuelve a ejecutar este comando.
+- `screenshot.src` siempre como `/ayuda/capturas/<nombre>.png`.
+- Datos de demo coherentes: `scripts/manual-demo-data.json`.
 
 ## Qué revisar tras un cambio de producto
 
-| Cambio en la app | Revisar en manual |
-|------------------|-------------------|
-| Nuevo botón o filtro | Paso correspondiente en la sección |
-| Renombre de etiqueta | Texto del paso y `**negrita**` |
-| Nueva exportación CSV/PDF | Sección gastos o impuestos |
-| Flujo email/WhatsApp | Sección facturas o recordatorios |
-| Reorden inicio (trimestre/arriba) | Sección inicio |
-| Plan Pro / límites | Sección impuestos o primeros pasos |
+| Cambio en la app | Manual | Capturas |
+|------------------|--------|----------|
+| Nuevo botón o filtro | Paso en la sección | Regenerar PNG de esa pantalla |
+| Renombre de etiqueta | Texto del paso | Regenerar si el texto visible cambió en la imagen |
+| Reorden inicio / cabecera | Sección inicio | `inicio-*.png` |
+| Logo Factu / manual | Secciones ayuda | Cabeceras en `/ayuda` si cambian |
+| Exportación CSV/PDF | gastos / impuestos | `gastos-exportar.png`, `impuestos-csv.png`, etc. |
