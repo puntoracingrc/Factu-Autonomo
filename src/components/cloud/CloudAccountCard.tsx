@@ -233,18 +233,29 @@ export function CloudAccountCard() {
               <RefreshCw className="h-4 w-4" />
               Sincronizar ahora
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void handleForceDownload()}
-              disabled={busy}
-            >
-              <Download className="h-4 w-4" />
-              Descargar todo de la nube
-            </Button>
             <Button variant="ghost" onClick={() => void signOut()}>
               Cerrar sesión
             </Button>
           </div>
+          <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            <summary className="cursor-pointer font-semibold text-slate-700">
+              Problemas de sincronización
+            </summary>
+            <div className="mt-3 space-y-3">
+              <p>
+                Si este dispositivo no muestra los datos que sí aparecen en otro,
+                puedes repararlo descargando otra vez la copia completa de la nube.
+              </p>
+              <Button
+                variant="secondary"
+                onClick={() => void handleForceDownload()}
+                disabled={busy}
+              >
+                <Download className="h-4 w-4" />
+                Reparar con la copia de la nube
+              </Button>
+            </div>
+          </details>
         </div>
       ) : (
         <div className="space-y-3">
