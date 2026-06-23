@@ -9,6 +9,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
+import { DocumentTemplateDesignerCard } from "@/components/settings/DocumentTemplateDesignerCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
@@ -17,8 +18,10 @@ import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsC
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
+import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { getMaxSequence } from "@/lib/documents";
 import {
   addIvaRate,
@@ -55,6 +58,7 @@ const ReferralCard = dynamic(
 
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
+  const { billingEnabled, limits } = useBilling();
   const [form, setForm] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
@@ -80,6 +84,7 @@ export default function ConfiguracionPage() {
         next.documentPaymentMethods,
       ),
       documentUnits: normalizeDocumentUnits(next.documentUnits),
+      documentTemplate: normalizeDocumentTemplate(next.documentTemplate),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -253,6 +258,14 @@ export default function ConfiguracionPage() {
         settings={normalizeDocumentUnits(form.documentUnits)}
         onChange={(documentUnits) =>
           setForm((prev) => ({ ...prev, documentUnits }))
+        }
+      />
+
+      <DocumentTemplateDesignerCard
+        settings={normalizeDocumentTemplate(form.documentTemplate)}
+        locked={billingEnabled && !limits.documentTemplateDesigner}
+        onChange={(documentTemplate) =>
+          setForm((prev) => ({ ...prev, documentTemplate }))
         }
       />
 

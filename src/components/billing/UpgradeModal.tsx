@@ -72,6 +72,7 @@ export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
           <li>Documentos y clientes ilimitados</li>
           <li>Sincronización en la nube (móvil + PC)</li>
           <li>Resumen trimestral y export CSV para tu gestor</li>
+          <li>Diseñador de plantillas de PDF</li>
           <li>Logo personalizado en PDF</li>
         </ul>
 

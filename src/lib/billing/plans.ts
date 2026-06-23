@@ -16,6 +16,7 @@ export interface PlanLimits {
   quarterlySummary: boolean;
   quarterlyExport: boolean;
   customLogo: boolean;
+  documentTemplateDesigner: boolean;
   prioritySupport: boolean;
 }
 
@@ -47,6 +48,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       quarterlySummary: false,
       quarterlyExport: false,
       customLogo: true,
+      documentTemplateDesigner: false,
       prioritySupport: false,
     },
   },
@@ -66,6 +68,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       quarterlySummary: true,
       quarterlyExport: true,
       customLogo: true,
+      documentTemplateDesigner: true,
       prioritySupport: true,
     },
   },
@@ -85,6 +88,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       quarterlySummary: true,
       quarterlyExport: true,
       customLogo: true,
+      documentTemplateDesigner: true,
       prioritySupport: true,
     },
   },

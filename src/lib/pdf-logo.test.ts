@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE } from "./types";
 import type { Document } from "./types";
+import { buildDocumentPdf } from "./pdf";
 import { logoMimeFormat, pdfLogoDrawSize, resolvePdfLogoUrl } from "./pdf-logo";
 
 const baseDoc: Document = {
@@ -50,5 +51,38 @@ describe("pdfLogoDrawSize", () => {
     const size = pdfLogoDrawSize({ dataUrl: "x", width: 200, height: 100 });
     expect(size.width).toBe(40);
     expect(size.height).toBe(20);
+  });
+});
+
+describe("buildDocumentPdf", () => {
+  it("genera PDF con una plantilla avanzada", () => {
+    const pdf = buildDocumentPdf(
+      {
+        ...baseDoc,
+        items: [
+          {
+            id: "l1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      {
+        ...DEFAULT_PROFILE,
+        name: "Mi negocio",
+        documentTemplate: {
+          style: "futuro",
+          accent: "coral",
+          density: "compacta",
+          showLogo: true,
+          showIssuerBox: true,
+          showPaymentBox: true,
+        },
+      },
+    );
+
+    expect(pdf.getNumberOfPages()).toBe(1);
   });
 });

@@ -12,6 +12,11 @@ import {
   prepareLogoForPdf,
   resolvePdfLogoUrl,
 } from "./pdf-logo";
+import {
+  documentTemplateAccentRgb,
+  documentTemplateDensityPadding,
+  normalizeDocumentTemplate,
+} from "./document-templates";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 
 export interface PdfArtifacts {
@@ -97,18 +102,33 @@ export function buildDocumentPdf(
 ): jsPDF {
   const pdf = new jsPDF();
   const issuer = resolveIssuerForDocument(doc, profile);
+  const template = normalizeDocumentTemplate(profile.documentTemplate);
   const vatExempt = isVatExempt(profile);
   const { subtotal, iva, total } = documentAmounts(doc, vatExempt);
   const label = documentLabel(doc);
   const isRect = isRectificativa(doc);
+  const accent: [number, number, number] = isRect
+    ? [180, 83, 9]
+    : documentTemplateAccentRgb(template.accent);
+  const softAccent: [number, number, number] = accent.map((value) =>
+    Math.min(248, Math.round(value + (255 - value) * 0.88)),
+  ) as [number, number, number];
 
   let y = 14;
   if (artifacts.qrDataUrl && doc.verifactu) {
     y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
   }
 
+  if (template.style === "futuro") {
+    pdf.setFillColor(accent[0], accent[1], accent[2]);
+    pdf.rect(0, 0, 210, 10, "F");
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(0, 10, 210, 12, "F");
+    y = Math.max(y, 24);
+  }
+
   let logoBottomY = 14;
-  if (artifacts.logo) {
+  if (artifacts.logo && template.showLogo) {
     const { width: logoW, height: logoH } = pdfLogoDrawSize(artifacts.logo);
     const logoX = 196 - logoW;
     try {
@@ -122,11 +142,15 @@ export function buildDocumentPdf(
   const contentStartY = Math.max(y, logoBottomY) + 6;
 
   pdf.setFontSize(20);
-  pdf.setTextColor(isRect ? 180 : 37, isRect ? 83 : 9, isRect ? 9 : 235);
+  pdf.setTextColor(accent[0], accent[1], accent[2]);
   pdf.text(label, 14, contentStartY);
 
   pdf.setFontSize(10);
   pdf.setTextColor(60, 60, 60);
+  if (template.showIssuerBox) {
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(12, contentStartY + 4, 76, 39, 2, 2, "F");
+  }
   pdf.text(issuer.name || "Tu negocio", 14, contentStartY + 10);
   const baseY = contentStartY + 10;
   if (issuer.nif) pdf.text(`NIF: ${issuer.nif}`, 14, baseY + 6);
@@ -164,8 +188,16 @@ export function buildDocumentPdf(
   const clientBoxHeight =
     28 + (doc.client.email ? 6 : 0) + (doc.client.phone ? 6 : 0);
 
-  pdf.setFillColor(243, 244, 246);
-  pdf.rect(14, clientBoxY, 182, clientBoxHeight, "F");
+  pdf.setFillColor(
+    template.style === "clasico" ? 243 : softAccent[0],
+    template.style === "clasico" ? 244 : softAccent[1],
+    template.style === "clasico" ? 246 : softAccent[2],
+  );
+  if (template.style === "clasico") {
+    pdf.rect(14, clientBoxY, 182, clientBoxHeight, "F");
+  } else {
+    pdf.roundedRect(14, clientBoxY, 182, clientBoxHeight, 2, 2, "F");
+  }
   pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.text("Cliente:", 18, clientBoxY + 8);
@@ -204,8 +236,22 @@ export function buildDocumentPdf(
             formatMoney(lineTotal),
           ];
     }),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: isRect ? [180, 83, 9] : [37, 99, 235] },
+    styles: {
+      fontSize: template.style === "futuro" ? 8.8 : 9,
+      cellPadding: documentTemplateDensityPadding(template.density),
+      lineColor: template.style === "clasico" ? [230, 230, 230] : softAccent,
+    },
+    headStyles: {
+      fillColor: accent,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    alternateRowStyles:
+      template.style === "clasico"
+        ? undefined
+        : {
+            fillColor: [248, 250, 252],
+          },
   });
 
   const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } })
@@ -239,15 +285,25 @@ export function buildDocumentPdf(
     totalsY += 6;
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
+    if (template.style !== "clasico") {
+      pdf.setFillColor(accent[0], accent[1], accent[2]);
+      pdf.roundedRect(118, totalsY - 2, 78, 10, 2, 2, "F");
+      pdf.setTextColor(255, 255, 255);
+    }
     pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY + 4);
+    pdf.setTextColor(0, 0, 0);
     totalsY += 10;
   }
 
   let footerY = totalsY + 10;
 
-  if (doc.paymentTerms) {
+  if (doc.paymentTerms && template.showPaymentBox) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
+    if (template.style !== "clasico") {
+      pdf.setFillColor(248, 250, 252);
+      pdf.roundedRect(12, footerY - 3, 90, 9, 2, 2, "F");
+    }
     pdf.text(`Forma de pago: ${doc.paymentTerms}`, 14, footerY);
     footerY += 8;
   }

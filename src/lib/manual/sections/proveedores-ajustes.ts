@@ -35,7 +35,7 @@ export const proveedoresSection: ManualSection = {
 export const configuracionSection: ManualSection = {
   slug: "configuracion",
   title: "Ajustes avanzados",
-  summary: "Frases, formas de pago, numeración, Veri*Factu y copia de datos.",
+  summary: "Plantillas PDF, frases, formas de pago, numeración, Veri*Factu y copia de datos.",
   order: 10,
   steps: [
     {
@@ -49,7 +49,15 @@ export const configuracionSection: ManualSection = {
       },
     },
     {
-      title: "2. Numeración de documentos",
+      title: "2. Diseñador de plantillas PDF",
+      paragraphs: [
+        "Con plan **Pro** puedes usar el **Diseñador de plantillas** para cambiar el estilo visual de facturas, presupuestos y recibos.",
+        "Puedes elegir estilo, color de marca, densidad de la tabla y algunos bloques visibles del PDF. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu y líneas reales.",
+        "El plan **Gratis** mantiene el diseño estándar.",
+      ],
+    },
+    {
+      title: "3. Numeración de documentos",
       paragraphs: [
         "Revisa el formato de numeración (F-2026-0001, etc.) y el último número usado para evitar saltos o duplicados.",
       ],
@@ -59,7 +67,7 @@ export const configuracionSection: ManualSection = {
       },
     },
     {
-      title: "3. Tus datos y copia de seguridad",
+      title: "4. Tus datos y copia de seguridad",
       paragraphs: [
         "La tarjeta **Tus datos** explica dónde viven tus facturas y gastos, y te permite **exportar una copia JSON** para guardarla o moverla.",
       ],

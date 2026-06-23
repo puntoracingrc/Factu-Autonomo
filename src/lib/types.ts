@@ -262,6 +262,23 @@ export interface DocumentPaymentMethodsSettings {
   defaultMethodId: Partial<Record<DocumentType, string>>;
 }
 
+export type DocumentTemplateStyle = "clasico" | "editorial" | "futuro";
+export type DocumentTemplateAccent =
+  | "azul"
+  | "esmeralda"
+  | "carbon"
+  | "coral";
+export type DocumentTemplateDensity = "compacta" | "normal" | "amplia";
+
+export interface DocumentTemplateSettings {
+  style: DocumentTemplateStyle;
+  accent: DocumentTemplateAccent;
+  density: DocumentTemplateDensity;
+  showLogo: boolean;
+  showIssuerBox: boolean;
+  showPaymentBox: boolean;
+}
+
 export interface BusinessProfile {
   name: string;
   nif: string;
@@ -278,6 +295,8 @@ export interface BusinessProfile {
   documentPaymentMethods?: DocumentPaymentMethodsSettings;
   /** Unidades de medida en líneas de facturas y presupuestos */
   documentUnits?: DocumentUnitsSettings;
+  /** Diseño visual de facturas, presupuestos y recibos */
+  documentTemplate?: DocumentTemplateSettings;
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;
