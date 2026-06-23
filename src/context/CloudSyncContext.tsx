@@ -517,7 +517,21 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
-    if (supabase) await supabase.auth.signOut();
+    if (supabase) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        setSyncStatus("error");
+        setSyncMessage(error.message);
+        return;
+      }
+    }
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    if (retryTimer.current) clearInterval(retryTimer.current);
+    pushTimer.current = null;
+    retryTimer.current = null;
+    pulledForUser.current = null;
+    syncing.current = false;
+    setUser(null);
     setSyncMessage("Sesión cerrada");
     setSyncStatus(cloudEnabled ? "idle" : "disabled");
   }, [cloudEnabled]);
