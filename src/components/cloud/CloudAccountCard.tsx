@@ -50,6 +50,7 @@ export function CloudAccountCard() {
     resendConfirmationEmail,
     signOut,
     syncNow,
+    forceDownloadFromCloud,
     exportBackup,
     importBackup,
     syncStatus,
@@ -136,6 +137,17 @@ export function CloudAccountCard() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  async function handleForceDownload() {
+    const confirmed = confirm(
+      "Esto sustituirá los datos de este dispositivo por la copia completa de la nube. Úsalo si otro dispositivo tiene los datos correctos. ¿Continuar?",
+    );
+    if (!confirmed) return;
+
+    setBusy(true);
+    await forceDownloadFromCloud();
+    setBusy(false);
+  }
+
   return (
     <Card className="mb-6 space-y-4">
       <div className="flex items-start gap-3">
@@ -220,6 +232,14 @@ export function CloudAccountCard() {
             <Button variant="secondary" onClick={() => void syncNow()} disabled={busy}>
               <RefreshCw className="h-4 w-4" />
               Sincronizar ahora
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleForceDownload()}
+              disabled={busy}
+            >
+              <Download className="h-4 w-4" />
+              Descargar todo de la nube
             </Button>
             <Button variant="ghost" onClick={() => void signOut()}>
               Cerrar sesión

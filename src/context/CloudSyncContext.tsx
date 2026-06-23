@@ -18,6 +18,7 @@ import {
   markChangesSynced,
   markFullySynced,
   mergeRemoteOntoLocal,
+  normalizeImportedCloudData,
 } from "@/lib/cloud/incremental";
 import {
   countSyncEntities,
@@ -38,6 +39,7 @@ import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled } from "@/lib/supabase/config";
 import { pickNewerAppData } from "@/lib/cloud/sync";
+import { EMPTY_DATA } from "@/lib/types";
 
 export type SyncStatus =
   | "disabled"
@@ -66,6 +68,7 @@ interface CloudSyncValue {
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
+  forceDownloadFromCloud: () => Promise<void>;
   exportBackup: () => void;
   importBackup: (file: File) => Promise<string | null>;
 }
@@ -129,6 +132,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         dataRef.current = synced;
         skipPush.current = true;
         replaceData(synced, { fromRemote: true });
+        skipPush.current = false;
+      }
+    },
+    [replaceData],
+  );
+
+  const replaceLocalDataFromCloud = useCallback(
+    (payload: typeof data) => {
+      dataRef.current = payload;
+      skipPush.current = true;
+      try {
+        replaceData(payload, { fromRemote: true });
+      } finally {
         skipPush.current = false;
       }
     },
@@ -314,6 +330,76 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const syncNow = useCallback(async () => {
     await pullFromCloudRef.current();
   }, []);
+
+  const forceDownloadFromCloud = useCallback(async () => {
+    if (!user) return;
+
+    if (syncing.current) {
+      setSyncMessage("Ya hay una sincronización en marcha.");
+      return;
+    }
+
+    const cloudAccess = await canUseCloudForUser(user.id);
+    if (!cloudAccess.allowed) {
+      setSyncStatus("idle");
+      setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
+      return;
+    }
+
+    if (!isBrowserOnline()) {
+      setSyncStatus("offline");
+      setSyncMessage("Sin conexión. No se puede descargar la nube ahora.");
+      return;
+    }
+
+    syncing.current = true;
+    setSyncStatus("syncing");
+
+    try {
+      const remoteChanges = await pullSyncChanges(user.id);
+
+      if (remoteChanges.length > 0) {
+        const { data: cloudSnapshot, applied } = mergeRemoteOntoLocal(
+          EMPTY_DATA,
+          remoteChanges,
+        );
+        const normalized = normalizeImportedCloudData(cloudSnapshot);
+        const synced = markFullySynced(normalized);
+        clearSyncPending();
+        replaceLocalDataFromCloud(synced);
+        setSyncStatus("synced");
+        setSyncMessage(
+          applied > 0
+            ? `Descarga completa: ${applied} elemento(s) traído(s) de la nube`
+            : "Descarga completa terminada",
+        );
+        return;
+      }
+
+      const legacy = await fetchLegacyCloudBackup(user.id);
+      if (legacy) {
+        const synced = markFullySynced(legacy.data, legacy.updated_at);
+        clearSyncPending();
+        replaceLocalDataFromCloud(synced);
+        await migrateLegacyBackupToEntities(user.id, synced);
+        setSyncStatus("synced");
+        setSyncMessage("Copia antigua descargada y actualizada en la nube");
+        return;
+      }
+
+      setSyncStatus("synced");
+      setSyncMessage("No hay datos guardados en la nube para esta cuenta");
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(
+        error instanceof Error
+          ? error.message
+          : "Error al descargar todos los datos de la nube",
+      );
+    } finally {
+      syncing.current = false;
+    }
+  }, [replaceLocalDataFromCloud, user]);
 
   const schedulePush = useCallback(() => {
     if (!ready || !user || skipPush.current) return;
@@ -586,6 +672,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       resendConfirmationEmail,
       signOut,
       syncNow,
+      forceDownloadFromCloud,
       exportBackup: () => downloadBackup(data),
       importBackup,
     }),
@@ -602,6 +689,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       resendConfirmationEmail,
       signOut,
       syncNow,
+      forceDownloadFromCloud,
       data,
       importBackup,
     ],

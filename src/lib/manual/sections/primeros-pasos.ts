@@ -50,6 +50,7 @@ export const primerosPasosSection: ManualSection = {
       paragraphs: [
         "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos se sincronizan entre móvil y PC.",
         "En **Cuenta** puedes registrarte, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o recuperar una copia JSON.",
+        "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, usa **Descargar todo de la nube** en Cuenta para reconstruir ese dispositivo con la copia guardada en la nube.",
         "Para migrar datos desde programas antiguos, usa **Cuenta → Importar MDB** o entra en **Importar datos**. La importación de bases de datos externas requiere Pro.",
       ],
       screenshot: {
