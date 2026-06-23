@@ -42,19 +42,6 @@ import type {
   NumberingLastSequence,
 } from "@/lib/types";
 
-const CloudAccountCard = dynamic(
-  () =>
-    import("@/components/cloud/CloudAccountCard").then(
-      (mod) => mod.CloudAccountCard,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <p className="mb-6 text-sm text-slate-500">Cargando cuenta y copia…</p>
-    ),
-  },
-);
-
 const ReferralCard = dynamic(
   () =>
     import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
@@ -214,14 +201,6 @@ export default function ConfiguracionPage() {
           Cuando termines una fase, dímelo y seguimos.
         </p>
       </Card>
-      <Suspense
-        fallback={
-          <p className="mb-6 text-sm text-slate-500">Cargando cuenta y copia…</p>
-        }
-      >
-        <CloudAccountCard />
-      </Suspense>
-
       <DataOwnershipCard />
 
       <Card className="mb-6 space-y-4">

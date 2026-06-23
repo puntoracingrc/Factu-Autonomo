@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Cloud, Download, Mail, RefreshCw, Upload } from "lucide-react";
+import {
+  Cloud,
+  Download,
+  Eye,
+  EyeOff,
+  Mail,
+  RefreshCw,
+  Upload,
+} from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -52,6 +60,7 @@ export function CloudAccountCard() {
   const { billingEnabled, limits } = useBilling();
 
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState<Extract<
     SignUpResult,
@@ -135,7 +144,7 @@ export function CloudAccountCard() {
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Copia de seguridad y cuenta
+            Cuenta y copia de seguridad
           </h2>
           <p className="mt-1 text-sm text-slate-600">
             Sincroniza móvil y PC con la misma cuenta, o exporta un archivo JSON
@@ -248,15 +257,35 @@ export function CloudAccountCard() {
               />
             </Field>
             <Field label="Contraseña" hint="Mínimo 6 caracteres">
-              <Input
-                ref={passwordInputRef}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={
-                  signupSuccess ? "current-password" : "new-password"
-                }
-              />
+              <div className="relative">
+                <Input
+                  ref={passwordInputRef}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-14"
+                  autoComplete={
+                    signupSuccess ? "current-password" : "new-password"
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  title={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </Field>
             {billingEnabled ? (
               <Field

@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { Crown } from "lucide-react";
+import { Building2, Crown, LogIn } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   CloudSyncHeaderIndicator,
@@ -12,6 +12,7 @@ import {
 import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
 import { FactuWidget } from "@/components/factu/FactuWidget";
@@ -58,9 +59,11 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready } = useAppStore();
+  const { data, ready } = useAppStore();
+  const { user } = useCloudSync();
   const { isPro, billingEnabled } = useBilling();
   const showFactu = shouldShowFactuWidget(pathname);
+  const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
@@ -89,6 +92,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <FactuHelpButton />
+            {user ? (
+              <Link
+                href="/cuenta"
+                className="flex max-w-[9rem] items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 sm:max-w-[13rem]"
+                title={accountLabel}
+              >
+                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{accountLabel}</span>
+              </Link>
+            ) : (
+              <Link
+                href="/cuenta"
+                className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Iniciar sesión
+              </Link>
+            )}
             {billingEnabled && !isPro && (
               <Link
                 href="/precios"
