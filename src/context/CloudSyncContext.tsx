@@ -125,8 +125,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     (payload: typeof data) => {
       clearSyncPending();
       if (!hasPendingSyncChanges(payload)) {
+        const synced = markFullySynced(payload);
+        dataRef.current = synced;
         skipPush.current = true;
-        replaceData(markFullySynced(payload), { fromRemote: true });
+        replaceData(synced, { fromRemote: true });
         skipPush.current = false;
       }
     },
@@ -161,6 +163,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       try {
         const syncedAt = await pushSyncChanges(user.id, changes);
         const synced = markChangesSynced(payload, changes, syncedAt);
+        dataRef.current = synced;
         skipPush.current = true;
         replaceData(synced, { fromRemote: true });
         skipPush.current = false;
@@ -242,6 +245,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               legacy.updated_at,
             );
             workingData = picked.data;
+            dataRef.current = workingData;
             skipPush.current = true;
             replaceData(workingData, { fromRemote: true });
             skipPush.current = false;
@@ -258,6 +262,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           remoteChanges,
         );
         workingData = merged;
+        dataRef.current = workingData;
         skipPush.current = true;
         replaceData(workingData, { fromRemote: true });
         skipPush.current = false;
@@ -273,6 +278,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           const syncedAt = new Date().toISOString();
           await pushSyncChanges(user.id, initial);
           workingData = markChangesSynced(workingData, initial, syncedAt);
+          dataRef.current = workingData;
           skipPush.current = true;
           replaceData(workingData, { fromRemote: true });
           skipPush.current = false;
@@ -283,8 +289,6 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("synced");
         setSyncMessage("Todo sincronizado");
       }
-
-      workingData = dataRef.current;
 
       if (hasPendingSyncChanges(workingData)) {
         await flushPendingUpload(true, workingData);
@@ -555,6 +559,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         },
       };
       skipPush.current = true;
+      dataRef.current = withQueue;
       replaceData(withQueue, { fromRemote: true });
       skipPush.current = false;
       markSyncPending();
