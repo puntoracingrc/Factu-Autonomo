@@ -263,17 +263,24 @@ export interface DocumentPaymentMethodsSettings {
 }
 
 export type DocumentTemplateStyle = "clasico" | "editorial" | "futuro";
+export type DocumentTemplateFont = "moderna" | "limpia" | "clasica" | "tecnica";
 export type DocumentTemplateAccent =
   | "azul"
   | "esmeralda"
   | "carbon"
   | "coral";
 export type DocumentTemplateDensity = "compacta" | "normal" | "amplia";
+export type DocumentTemplateFontSize = "pequena" | "normal" | "grande";
 
 export interface DocumentTemplateSettings {
   style: DocumentTemplateStyle;
+  font: DocumentTemplateFont;
   accent: DocumentTemplateAccent;
   density: DocumentTemplateDensity;
+  bodyFontSize: DocumentTemplateFontSize;
+  titleFontSize: DocumentTemplateFontSize;
+  issuerFontSize: DocumentTemplateFontSize;
+  totalFontSize: DocumentTemplateFontSize;
   showLogo: boolean;
   showIssuerBox: boolean;
   showPaymentBox: boolean;

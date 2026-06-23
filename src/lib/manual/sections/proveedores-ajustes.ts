@@ -51,8 +51,9 @@ export const configuracionSection: ManualSection = {
     {
       title: "2. Diseñador de plantillas PDF",
       paragraphs: [
-        "Con plan **Pro** puedes usar el **Diseñador de plantillas** para cambiar el estilo visual de facturas, presupuestos y recibos.",
-        "Puedes elegir estilo, color de marca, densidad de la tabla y algunos bloques visibles del PDF. Usa **Ver grande** para revisar una factura ficticia completa antes de guardar. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR fiscal obligatorio y líneas reales.",
+        "Con plan **Pro** puedes abrir el **Diseñador de formularios** desde Ajustes para cambiar el estilo visual de facturas, presupuestos y recibos en una pantalla dedicada.",
+        "Puedes elegir estilo, fuente profesional, tamaños de texto, color de marca, densidad de la tabla y algunos bloques visibles del PDF. Usa **Ver grande** para revisar una factura ficticia completa antes de guardar. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR fiscal obligatorio y líneas reales.",
+        "El QR tributario queda reservado al principio de la factura con el texto fiscal correspondiente; no se mueve como un elemento decorativo de la plantilla.",
         "El plan **Gratis** mantiene el diseño estándar.",
       ],
     },

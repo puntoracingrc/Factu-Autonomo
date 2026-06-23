@@ -2,14 +2,13 @@
 
 import { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Star, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ArrowRight, FileCog, Star, Trash2 } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
-import { DocumentTemplateDesignerCard } from "@/components/settings/DocumentTemplateDesignerCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
@@ -18,10 +17,8 @@ import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsC
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
-import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { normalizeVerifactuSettings } from "@/lib/verifactu/eligibility";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { getMaxSequence } from "@/lib/documents";
 import {
   addIvaRate,
@@ -58,7 +55,6 @@ const ReferralCard = dynamic(
 
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
-  const { billingEnabled, limits } = useBilling();
   const [form, setForm] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
@@ -84,7 +80,6 @@ export default function ConfiguracionPage() {
         next.documentPaymentMethods,
       ),
       documentUnits: normalizeDocumentUnits(next.documentUnits),
-      documentTemplate: normalizeDocumentTemplate(next.documentTemplate),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -261,13 +256,28 @@ export default function ConfiguracionPage() {
         }
       />
 
-      <DocumentTemplateDesignerCard
-        settings={normalizeDocumentTemplate(form.documentTemplate)}
-        locked={billingEnabled && !limits.documentTemplateDesigner}
-        onChange={(documentTemplate) =>
-          setForm((prev) => ({ ...prev, documentTemplate }))
-        }
-      />
+      <Card className="mb-6 border-slate-200">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+              <FileCog className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">
+                Diseñador de formularios
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Edita las plantillas visuales de facturas, presupuestos y
+                recibos en una pantalla dedicada.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="/configuracion/plantillas" variant="secondary">
+            Abrir diseñador
+            <ArrowRight className="h-4 w-4" />
+          </ButtonLink>
+        </div>
+      </Card>
 
       <Card className="mb-6 space-y-4">
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">

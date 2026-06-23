@@ -68,6 +68,7 @@ import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
+import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { normalizeDocumentUnits } from "@/lib/document-units";
 import {
   SUPPLIER_AUTO_LINK_SCORE,
@@ -199,6 +200,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         documentPaymentMethods: normalizeDocumentPaymentMethods(
           profile.documentPaymentMethods,
         ),
+        documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
         documentUnits: normalizeDocumentUnits(profile.documentUnits),
       },
     }));

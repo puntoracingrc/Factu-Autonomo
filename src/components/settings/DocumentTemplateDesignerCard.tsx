@@ -8,12 +8,18 @@ import { Card } from "@/components/ui/Card";
 import {
   DOCUMENT_TEMPLATE_ACCENTS,
   DOCUMENT_TEMPLATE_DENSITIES,
+  DOCUMENT_TEMPLATE_FONTS,
+  DOCUMENT_TEMPLATE_FONT_SIZES,
   DOCUMENT_TEMPLATE_STYLES,
+  documentTemplateCssFont,
+  documentTemplatePreviewFontSize,
   normalizeDocumentTemplate,
 } from "@/lib/document-templates";
 import type {
   DocumentTemplateAccent,
   DocumentTemplateDensity,
+  DocumentTemplateFont,
+  DocumentTemplateFontSize,
   DocumentTemplateSettings,
   DocumentTemplateStyle,
 } from "@/lib/types";
@@ -41,6 +47,13 @@ export function DocumentTemplateDesignerCard({
   const isClassic = normalized.style === "clasico";
   const isEditorial = normalized.style === "editorial";
   const isFuture = normalized.style === "futuro";
+  const previewFontFamily = documentTemplateCssFont(normalized.font);
+  const previewFontSizes = {
+    body: documentTemplatePreviewFontSize(normalized.bodyFontSize, "body"),
+    title: documentTemplatePreviewFontSize(normalized.titleFontSize, "title"),
+    issuer: documentTemplatePreviewFontSize(normalized.issuerFontSize, "issuer"),
+    total: documentTemplatePreviewFontSize(normalized.totalFontSize, "total"),
+  };
   const previewRowHeight =
     normalized.density === "compacta"
       ? "h-3"
@@ -168,6 +181,88 @@ export function DocumentTemplateDesignerCard({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-900">Fuente</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DOCUMENT_TEMPLATE_FONTS.map((font) => {
+                const selected = normalized.font === font.id;
+                return (
+                  <button
+                    key={font.id}
+                    type="button"
+                    data-testid={`template-font-${font.id}`}
+                    onClick={() =>
+                      update({ font: font.id as DocumentTemplateFont })
+                    }
+                    className={`rounded-lg border p-3 text-left transition ${
+                      selected
+                        ? `${accent.borderClass} bg-white shadow-sm`
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                    style={{ fontFamily: font.cssFamily }}
+                  >
+                    <span className="block text-sm font-bold text-slate-900">
+                      {font.label}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {font.description}
+                    </span>
+                    <span className="mt-2 block text-sm text-slate-700">
+                      Factura 2026 · 1.212,38 €
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-900">
+              Tamaños de texto
+            </p>
+            {[
+              ["bodyFontSize", "Texto general"],
+              ["titleFontSize", "Títulos"],
+              ["issuerFontSize", "Nombre empresa"],
+              ["totalFontSize", "Total"],
+            ].map(([key, label]) => (
+              <div
+                key={key}
+                className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm font-semibold text-slate-700">
+                  {label}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {DOCUMENT_TEMPLATE_FONT_SIZES.map((size) => {
+                    const selected =
+                      normalized[key as keyof DocumentTemplateSettings] ===
+                      size.id;
+                    return (
+                      <button
+                        key={size.id}
+                        type="button"
+                        data-testid={`template-size-${key}-${size.id}`}
+                        onClick={() =>
+                          update({
+                            [key]: size.id as DocumentTemplateFontSize,
+                          } as Partial<DocumentTemplateSettings>)
+                        }
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${
+                          selected
+                            ? `${accent.borderClass} ${accent.textClass} bg-white`
+                            : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {size.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <p className="text-sm font-semibold text-slate-900">Densidad</p>
@@ -240,6 +335,11 @@ export function DocumentTemplateDesignerCard({
             className={`overflow-hidden rounded-md bg-white shadow-sm ${
               isFuture ? "ring-1 ring-slate-900/10" : ""
             }`}
+            data-testid="template-mini-preview"
+            style={{
+              fontFamily: previewFontFamily,
+              fontSize: `${Math.max(10, previewFontSizes.body - 4)}px`,
+            }}
           >
             {isFuture ? (
               <div className={`${accent.bgClass} px-4 py-4 text-white`}>
@@ -248,7 +348,14 @@ export function DocumentTemplateDesignerCard({
                     <p className="text-[10px] font-semibold uppercase opacity-80">
                       Documento verificable
                     </p>
-                    <p className="mt-1 text-2xl font-black">FACTURA</p>
+                    <p
+                      className="mt-1 font-black"
+                      style={{
+                        fontSize: `${Math.max(20, previewFontSizes.title * 0.55)}px`,
+                      }}
+                    >
+                      FACTURA
+                    </p>
                   </div>
                   <div className="rounded-md bg-white/15 px-2 py-1 text-right text-[10px] font-semibold">
                     <p>F-2026-0042</p>
@@ -286,11 +393,23 @@ export function DocumentTemplateDesignerCard({
                     }`}
                   >
                     <div>
-                      <p className={`text-lg font-black ${accent.textClass}`}>
+                      <p
+                        className={`font-black ${accent.textClass}`}
+                        style={{
+                          fontSize: `${Math.max(18, previewFontSizes.title * 0.45)}px`,
+                        }}
+                      >
                         FACTURA
                       </p>
                       <div className="mt-2 space-y-1 text-[10px] text-slate-500">
-                        <p className="font-semibold text-slate-800">Tu empresa</p>
+                        <p
+                          className="font-semibold text-slate-800"
+                          style={{
+                            fontSize: `${Math.max(10, previewFontSizes.issuer - 4)}px`,
+                          }}
+                        >
+                          Tu empresa
+                        </p>
                         <p>NIF · Dirección · Ciudad</p>
                       </div>
                     </div>
@@ -308,7 +427,14 @@ export function DocumentTemplateDesignerCard({
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <div className="space-y-1 text-[10px] text-slate-500">
-                      <p className="font-semibold text-slate-900">Tu empresa</p>
+                      <p
+                        className="font-semibold text-slate-900"
+                        style={{
+                          fontSize: `${Math.max(10, previewFontSizes.issuer - 4)}px`,
+                        }}
+                      >
+                        Tu empresa
+                      </p>
                       <p>NIF · Dirección · Ciudad</p>
                     </div>
                     {normalized.showLogo ? (
@@ -320,16 +446,11 @@ export function DocumentTemplateDesignerCard({
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-2">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-900">
-                      VeriFactu
-                    </p>
-                    <p className="text-[9px] text-slate-500">
-                      QR fiscal reservado
-                    </p>
-                  </div>
-                  <div className="grid h-9 w-9 grid-cols-3 gap-0.5 rounded border border-slate-300 bg-white p-1">
+                <div className="rounded-md border border-slate-200 bg-white p-2 text-center">
+                  <p className="text-[10px] font-bold text-slate-900">
+                    QR tributario:
+                  </p>
+                  <div className="mx-auto mt-1 grid h-10 w-10 grid-cols-3 gap-0.5 rounded border border-slate-300 bg-white p-1">
                     {Array.from({ length: 9 }).map((_, index) => (
                       <span
                         key={index}
@@ -339,6 +460,9 @@ export function DocumentTemplateDesignerCard({
                       />
                     ))}
                   </div>
+                  <p className="mx-auto mt-1 max-w-[9rem] text-[9px] leading-tight text-slate-500">
+                    Factura verificable en la sede electrónica de la AEAT
+                  </p>
                 </div>
 
                 <div
@@ -389,13 +513,16 @@ export function DocumentTemplateDesignerCard({
                     </div>
                   ) : null}
                   <div
-                    className={`rounded-md px-4 py-2 text-sm font-black ${
+                    className={`rounded-md px-4 py-2 font-black ${
                       isClassic
                         ? accent.textClass
                         : isEditorial
                           ? `${accent.bgClass} text-white`
                           : "bg-slate-900 text-white"
                     }`}
+                    style={{
+                      fontSize: `${Math.max(13, previewFontSizes.total * 0.62)}px`,
+                    }}
                   >
                     TOTAL 1.210,00 €
                   </div>
@@ -433,7 +560,14 @@ export function DocumentTemplateDesignerCard({
               </button>
             </div>
 
-            <div className="mx-auto min-h-[78rem] w-full max-w-[56rem] overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div
+              className="mx-auto min-h-[78rem] w-full max-w-[56rem] overflow-hidden rounded-lg bg-white shadow-2xl"
+              data-testid="template-large-preview"
+              style={{
+                fontFamily: previewFontFamily,
+                fontSize: `${previewFontSizes.body}px`,
+              }}
+            >
               {isFuture ? (
                 <div className={`${accent.bgClass} p-8 text-white`}>
                   <div className="flex items-start justify-between gap-8">
@@ -441,7 +575,12 @@ export function DocumentTemplateDesignerCard({
                       <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
                         Documento verificable
                       </p>
-                      <h3 className="mt-3 text-5xl font-black">FACTURA</h3>
+                      <h3
+                        className="mt-3 font-black"
+                        style={{ fontSize: `${previewFontSizes.title}px` }}
+                      >
+                        FACTURA
+                      </h3>
                       <p className="mt-3 max-w-sm text-sm opacity-85">
                         Una plantilla pensada para verse clara en PDF, móvil y
                         papel, sin perder la parte fiscal.
@@ -489,7 +628,10 @@ export function DocumentTemplateDesignerCard({
                       }`}
                     >
                       <div>
-                        <p className={`text-4xl font-black ${accent.textClass}`}>
+                        <p
+                          className={`font-black ${accent.textClass}`}
+                          style={{ fontSize: `${previewFontSizes.title}px` }}
+                        >
                           FACTURA
                         </p>
                         <div
@@ -499,7 +641,12 @@ export function DocumentTemplateDesignerCard({
                               : ""
                           }`}
                         >
-                          <p className="font-bold text-slate-900">
+                          <p
+                            className="font-bold text-slate-900"
+                            style={{
+                              fontSize: `${previewFontSizes.issuer}px`,
+                            }}
+                          >
                             Tu Empresa del Futuro, S.L.
                           </p>
                           <p>NIF B00000000</p>
@@ -522,7 +669,10 @@ export function DocumentTemplateDesignerCard({
                   ) : (
                     <header className="flex items-center justify-between gap-8">
                       <div className="space-y-1 text-sm text-slate-600">
-                        <p className="font-bold text-slate-900">
+                        <p
+                          className="font-bold text-slate-900"
+                          style={{ fontSize: `${previewFontSizes.issuer}px` }}
+                        >
                           Tu Empresa del Futuro, S.L.
                         </p>
                         <p>NIF B00000000 · Calle Demo 42</p>
@@ -566,16 +716,11 @@ export function DocumentTemplateDesignerCard({
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">
-                          VeriFactu
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          QR fiscal reservado
-                        </p>
-                      </div>
-                      <div className="grid h-20 w-20 grid-cols-5 gap-0.5 rounded border border-slate-300 bg-white p-2">
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 text-center">
+                      <p className="text-sm font-bold text-slate-900">
+                        QR tributario:
+                      </p>
+                      <div className="mx-auto mt-2 grid h-28 w-28 grid-cols-5 gap-0.5 rounded border border-slate-300 bg-white p-2">
                         {Array.from({ length: 25 }).map((_, index) => (
                           <span
                             key={index}
@@ -587,6 +732,9 @@ export function DocumentTemplateDesignerCard({
                           />
                         ))}
                       </div>
+                      <p className="mx-auto mt-2 max-w-[11rem] text-xs leading-tight text-slate-500">
+                        Factura verificable en la sede electrónica de la AEAT
+                      </p>
                     </div>
                   </section>
 
@@ -653,7 +801,10 @@ export function DocumentTemplateDesignerCard({
                           <strong>210,41 €</strong>
                         </p>
                       </div>
-                      <p className="mt-3 border-t border-current/20 pt-3 text-xl font-black">
+                      <p
+                        className="mt-3 border-t border-current/20 pt-3 font-black"
+                        style={{ fontSize: `${previewFontSizes.total}px` }}
+                      >
                         Total 1.212,38 €
                       </p>
                     </div>

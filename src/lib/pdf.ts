@@ -15,6 +15,8 @@ import {
 import {
   documentTemplateAccentRgb,
   documentTemplateDensityPadding,
+  documentTemplatePdfFont,
+  documentTemplatePdfFontSize,
   normalizeDocumentTemplate,
 } from "./document-templates";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
@@ -43,37 +45,51 @@ function drawVerifactuQrBlock(
   doc: Document,
   artifacts: PdfArtifacts,
   startY: number,
+  options: { font: "helvetica" | "times" | "courier"; textSize: number },
 ): number {
   if (!artifacts.qrDataUrl || !doc.verifactu) return startY;
 
-  const qrSize = 28;
+  const qrSize = 35;
   const qrX = 14;
-  const textX = qrX + qrSize + 6;
+  const qrY = startY + 8;
+  const centerX = qrX + qrSize / 2;
+  const textSize = Math.max(9, options.textSize);
+  const noteX = qrX + qrSize + 10;
 
-  pdf.setFontSize(9);
+  pdf.setFont(options.font, "normal");
+  pdf.setFontSize(textSize);
   pdf.setTextColor(0, 0, 0);
-  pdf.text("QR tributario:", textX, startY + 4);
-  pdf.setFontSize(8);
-  pdf.text(
-    "Factura verificable en la sede electrónica de la AEAT",
-    textX,
-    startY + 10,
-    { maxWidth: 120 },
-  );
+  pdf.text("QR tributario:", centerX, startY + 4, { align: "center" });
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, "F");
+  pdf.addImage(artifacts.qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+  const verifactuText = "Factura verificable en la sede electrónica de la AEAT";
+  const verifactuLines = pdf.splitTextToSize(verifactuText, 52);
+  const phraseY = qrY + qrSize + 6;
+  pdf.text(verifactuLines, centerX, phraseY, {
+    align: "center",
+    maxWidth: 52,
+  });
+  const bottomY = phraseY + verifactuLines.length * 5;
+
+  pdf.setFontSize(Math.max(8, textSize - 1));
 
   if (doc.verifactu.csv) {
-    pdf.text(`CSV: ${doc.verifactu.csv}`, textX, startY + 20);
+    pdf.text(`CSV: ${doc.verifactu.csv}`, noteX, qrY + 8, {
+      maxWidth: 126,
+    });
   }
 
   if (doc.verifactu.environment === "test") {
     pdf.setTextColor(180, 83, 9);
-    pdf.text("*** MODO PRUEBAS VERI*FACTU ***", textX, startY + 26);
+    pdf.text("*** MODO PRUEBAS VERI*FACTU ***", noteX, qrY + 16, {
+      maxWidth: 126,
+    });
     pdf.setTextColor(0, 0, 0);
   }
 
-  pdf.addImage(artifacts.qrDataUrl, "PNG", qrX, startY, qrSize, qrSize);
-
-  return startY + qrSize + 8;
+  return bottomY + 6;
 }
 
 export async function preparePdfArtifacts(
@@ -103,6 +119,20 @@ export function buildDocumentPdf(
   const pdf = new jsPDF();
   const issuer = resolveIssuerForDocument(doc, profile);
   const template = normalizeDocumentTemplate(profile.documentTemplate);
+  const pdfFont = documentTemplatePdfFont(template.font);
+  const bodyFontSize = documentTemplatePdfFontSize(template.bodyFontSize, "body");
+  const titleFontSize = documentTemplatePdfFontSize(
+    template.titleFontSize,
+    "title",
+  );
+  const issuerFontSize = documentTemplatePdfFontSize(
+    template.issuerFontSize,
+    "issuer",
+  );
+  const totalFontSize = documentTemplatePdfFontSize(
+    template.totalFontSize,
+    "total",
+  );
   const vatExempt = isVatExempt(profile);
   const { subtotal, iva, total } = documentAmounts(doc, vatExempt);
   const label = documentLabel(doc);
@@ -114,6 +144,8 @@ export function buildDocumentPdf(
     Math.min(248, Math.round(value + (255 - value) * 0.88)),
   ) as [number, number, number];
 
+  pdf.setFont(pdfFont, "normal");
+
   let y = 14;
   if (template.style === "futuro" && !artifacts.qrDataUrl) {
     pdf.setFillColor(accent[0], accent[1], accent[2]);
@@ -124,7 +156,10 @@ export function buildDocumentPdf(
   }
 
   if (artifacts.qrDataUrl && doc.verifactu) {
-    y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
+    y = drawVerifactuQrBlock(pdf, doc, artifacts, y, {
+      font: pdfFont,
+      textSize: bodyFontSize,
+    });
   }
 
   let logoBottomY = 14;
@@ -141,17 +176,23 @@ export function buildDocumentPdf(
 
   const contentStartY = Math.max(y, logoBottomY) + 6;
 
-  pdf.setFontSize(20);
+  pdf.setFont(pdfFont, "bold");
+  pdf.setFontSize(titleFontSize);
   pdf.setTextColor(accent[0], accent[1], accent[2]);
   pdf.text(label, 14, contentStartY);
 
-  pdf.setFontSize(10);
+  pdf.setFont(pdfFont, "normal");
+  pdf.setFontSize(bodyFontSize);
   pdf.setTextColor(60, 60, 60);
   if (template.showIssuerBox) {
     pdf.setFillColor(248, 250, 252);
     pdf.roundedRect(12, contentStartY + 4, 76, 39, 2, 2, "F");
   }
+  pdf.setFont(pdfFont, "bold");
+  pdf.setFontSize(issuerFontSize);
   pdf.text(issuer.name || "Tu negocio", 14, contentStartY + 10);
+  pdf.setFont(pdfFont, "normal");
+  pdf.setFontSize(bodyFontSize);
   const baseY = contentStartY + 10;
   if (issuer.nif) pdf.text(`NIF: ${issuer.nif}`, 14, baseY + 6);
   if (issuer.address) pdf.text(issuer.address, 14, baseY + 12);
@@ -160,7 +201,7 @@ export function buildDocumentPdf(
   if (issuer.phone) pdf.text(`Tel: ${issuer.phone}`, 14, baseY + 24);
   if (issuer.email) pdf.text(issuer.email, 14, baseY + 30);
 
-  pdf.setFontSize(11);
+  pdf.setFontSize(bodyFontSize + 1);
   pdf.setTextColor(0, 0, 0);
   pdf.text(`Nº ${doc.number}`, 140, contentStartY + 4);
   pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, contentStartY + 10);
@@ -170,7 +211,7 @@ export function buildDocumentPdf(
 
   let clientBoxY = baseY + 38;
   if (isRect && doc.rectification) {
-    pdf.setFontSize(9);
+    pdf.setFontSize(Math.max(8, bodyFontSize - 0.2));
     pdf.setTextColor(120, 53, 15);
     pdf.text(
       `Rectifica factura: ${doc.rectification.originalNumber} (${formatShortDate(doc.rectification.originalDate)})`,
@@ -198,10 +239,10 @@ export function buildDocumentPdf(
   } else {
     pdf.roundedRect(14, clientBoxY, 182, clientBoxHeight, 2, 2, "F");
   }
-  pdf.setFontSize(10);
+  pdf.setFontSize(bodyFontSize);
   pdf.setTextColor(0, 0, 0);
   pdf.text("Cliente:", 18, clientBoxY + 8);
-  pdf.setFontSize(11);
+  pdf.setFontSize(bodyFontSize + 1);
   pdf.text(doc.client.name, 18, clientBoxY + 16);
   if (doc.client.nif) pdf.text(`NIF: ${doc.client.nif}`, 18, clientBoxY + 22);
   if (doc.client.address) pdf.text(doc.client.address, 100, clientBoxY + 16);
@@ -237,7 +278,8 @@ export function buildDocumentPdf(
           ];
     }),
     styles: {
-      fontSize: template.style === "futuro" ? 8.8 : 9,
+      font: pdfFont,
+      fontSize: template.style === "futuro" ? bodyFontSize - 0.4 : bodyFontSize,
       cellPadding: documentTemplateDensityPadding(template.density),
       lineColor: template.style === "clasico" ? [230, 230, 230] : softAccent,
     },
@@ -260,16 +302,16 @@ export function buildDocumentPdf(
   let totalsY = finalY;
 
   if (vatExempt) {
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(totalFontSize);
+    pdf.setFont(pdfFont, "bold");
     pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
+    pdf.setFont(pdfFont, "normal");
+    pdf.setFontSize(Math.max(8, bodyFontSize - 1));
     pdf.text("Operación exenta de IVA", 120, totalsY + 8);
     totalsY += 8;
   } else {
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(bodyFontSize);
+    pdf.setFont(pdfFont, "normal");
     const breakdown = ivaBreakdownByRate(doc.items);
     for (const row of breakdown) {
       pdf.text(
@@ -283,8 +325,8 @@ export function buildDocumentPdf(
     totalsY += 6;
     pdf.text(`IVA total: ${formatMoney(iva)}`, 120, totalsY);
     totalsY += 6;
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(totalFontSize);
+    pdf.setFont(pdfFont, "bold");
     if (template.style !== "clasico") {
       pdf.setFillColor(accent[0], accent[1], accent[2]);
       pdf.roundedRect(118, totalsY - 2, 78, 10, 2, 2, "F");
@@ -298,8 +340,8 @@ export function buildDocumentPdf(
   let footerY = totalsY + 10;
 
   if (doc.paymentTerms && template.showPaymentBox) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
+    pdf.setFont(pdfFont, "normal");
+    pdf.setFontSize(bodyFontSize);
     if (template.style !== "clasico") {
       pdf.setFillColor(248, 250, 252);
       pdf.roundedRect(12, footerY - 3, 90, 9, 2, 2, "F");
@@ -309,14 +351,14 @@ export function buildDocumentPdf(
   }
 
   if (doc.notes) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
+    pdf.setFont(pdfFont, "normal");
+    pdf.setFontSize(bodyFontSize);
     pdf.text(`Notas: ${doc.notes}`, 14, footerY + 4);
     footerY += 10;
   }
 
   if (issuer.iban && doc.type === "factura" && !isRect) {
-    pdf.setFontSize(9);
+    pdf.setFontSize(bodyFontSize);
     pdf.text(`IBAN: ${issuer.iban}`, 14, footerY + 4);
   }
 
