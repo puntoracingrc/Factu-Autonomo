@@ -12,6 +12,7 @@ describe("billing plans", () => {
     expect(PLANS.free.limits.maxCustomers).toBe(15);
     expect(PLANS.free.limits.cloudSync).toBe(false);
     expect(PLANS.free.limits.databaseImport).toBe(false);
+    expect(PLANS.free.limits.aiTextAutofill).toBe(false);
   });
 
   it("desbloquea funciones en pro y trial", () => {
@@ -20,6 +21,8 @@ describe("billing plans", () => {
     expect(isProPlan("free")).toBe(false);
     expect(PLANS.pro.limits.databaseImport).toBe(true);
     expect(PLANS.trial.limits.databaseImport).toBe(true);
+    expect(PLANS.pro.limits.aiTextAutofill).toBe(true);
+    expect(PLANS.trial.limits.aiTextAutofill).toBe(true);
     expect(PLANS.pro.limits.quarterlyExport).toBe(true);
   });
 

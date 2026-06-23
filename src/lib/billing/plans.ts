@@ -12,6 +12,7 @@ export interface PlanLimits {
   expenseScansPerMonth: number | null;
   cloudSync: boolean;
   databaseImport: boolean;
+  aiTextAutofill: boolean;
   quarterlySummary: boolean;
   quarterlyExport: boolean;
   customLogo: boolean;
@@ -42,6 +43,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       expenseScansPerMonth: 0,
       cloudSync: false,
       databaseImport: false,
+      aiTextAutofill: false,
       quarterlySummary: false,
       quarterlyExport: false,
       customLogo: true,
@@ -60,6 +62,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       expenseScansPerMonth: 30,
       cloudSync: true,
       databaseImport: true,
+      aiTextAutofill: true,
       quarterlySummary: true,
       quarterlyExport: true,
       customLogo: true,
@@ -78,6 +81,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       expenseScansPerMonth: 30,
       cloudSync: true,
       databaseImport: true,
+      aiTextAutofill: true,
       quarterlySummary: true,
       quarterlyExport: true,
       customLogo: true,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import { GitMerge, Loader2, Pencil, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
@@ -15,6 +15,7 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatMoney } from "@/lib/calculations";
 import {
   customerFullName,
@@ -50,8 +51,13 @@ const EMPTY_FORM = {
 export default function ClientesPage() {
   const { data, addCustomer, updateCustomer, deleteCustomer, mergeCustomers } =
     useAppStore();
-  const { checkCanAddCustomer } = useBilling();
+  const { billingEnabled, limits, checkCanAddCustomer } = useBilling();
+  const { user } = useCloudSync();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiWarnings, setAiWarnings] = useState<string[]>([]);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -82,6 +88,8 @@ export default function ClientesPage() {
     [data.customers],
   );
 
+  const aiAutofillLocked = billingEnabled && !limits.aiTextAutofill;
+
   const selectedCustomers = useMemo(
     () => data.customers.filter((customer) => selectedIds.includes(customer.id)),
     [data.customers, selectedIds],
@@ -108,6 +116,9 @@ export default function ClientesPage() {
   function closeForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setAiText("");
+    setAiError(null);
+    setAiWarnings([]);
     setFormOpen(false);
   }
 
@@ -158,6 +169,82 @@ export default function ClientesPage() {
     ) {
       mergeCustomers(keepId, removeIds);
       exitMergeMode();
+    }
+  }
+
+  async function handleAiAutofill() {
+    const text = aiText.trim();
+    setAiError(null);
+    setAiWarnings([]);
+
+    if (aiAutofillLocked) {
+      setUpgradeReason(
+        "El autorrelleno de clientes con IA requiere plan Pro.",
+      );
+      setUpgradeOpen(true);
+      return;
+    }
+
+    if (text.length < 10) {
+      setAiError("Pega al menos una línea con datos de facturación.");
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (user) {
+        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+        const supabase = await getSupabaseClientAsync();
+        const { data: sessionData } = await supabase?.auth.getSession() ?? {
+          data: { session: null },
+        };
+        const token = sessionData.session?.access_token;
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch("/api/customers/parse", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ text }),
+      });
+      const body = (await res.json()) as {
+        data?: {
+          customer: Partial<typeof EMPTY_FORM>;
+          warnings: string[];
+        };
+        error?: string;
+      };
+
+      if (!res.ok || !body.data) {
+        if (res.status === 402) {
+          setUpgradeReason(body.error);
+          setUpgradeOpen(true);
+        } else {
+          setAiError(body.error ?? "No se pudo analizar el texto.");
+        }
+        return;
+      }
+
+      const parsed = body.data.customer;
+      setForm((current) => ({
+        ...current,
+        firstName: parsed.firstName || current.firstName,
+        lastName: parsed.lastName || current.lastName,
+        nif: parsed.nif || current.nif,
+        email: parsed.email || current.email,
+        phone: parsed.phone || current.phone,
+        streetType: parsed.streetType || current.streetType,
+        address: parsed.address || current.address,
+        city: parsed.city || current.city,
+        postalCode: parsed.postalCode || current.postalCode,
+        notes: parsed.notes || current.notes,
+      }));
+      setAiWarnings(body.data.warnings ?? []);
+    } catch {
+      setAiError("Error de conexión. Comprueba internet e inténtalo de nuevo.");
+    } finally {
+      setAiLoading(false);
     }
   }
 
@@ -316,6 +403,61 @@ export default function ClientesPage() {
             <X className="h-4 w-4" /> Cancelar
           </button>
         </div>
+
+        <section className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900">Rellenar con IA</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Pega datos de facturación recibidos por WhatsApp, email o web y revisa los campos antes de guardar.
+              </p>
+            </div>
+          </div>
+          <Field label="Texto recibido">
+            <Textarea
+              value={aiText}
+              onChange={(e) => setAiText(e.target.value)}
+              placeholder="Ej: FERRER NEUROCIENCIAS, S.L., Calle Doctor Carulla número 19..."
+              rows={4}
+            />
+          </Field>
+          <Button
+            variant="secondary"
+            onClick={() => void handleAiAutofill()}
+            disabled={aiLoading}
+            fullWidth
+          >
+            {aiLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analizando…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Rellenar campos
+              </>
+            )}
+          </Button>
+          {aiAutofillLocked && (
+            <p className="text-sm text-sky-800">
+              Función Pro. Puedes seguir creando clientes manualmente en el plan Gratis.
+            </p>
+          )}
+          {aiError && (
+            <p className="text-sm font-medium text-red-600">{aiError}</p>
+          )}
+          {aiWarnings.length > 0 && (
+            <ul className="space-y-1 text-sm text-amber-800">
+              {aiWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre *">

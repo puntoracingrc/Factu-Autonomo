@@ -20,14 +20,22 @@ export const clientesSection: ManualSection = {
       },
     },
     {
-      title: "2. Buscar y facturar rápido",
+      title: "2. Rellenar con IA desde un texto",
+      paragraphs: [
+        "Si tienes plan **Pro**, puedes pegar un texto recibido por WhatsApp, email o web en **Rellenar con IA** dentro del formulario de cliente.",
+        "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
+        "En el plan **Gratis** puedes seguir creando y editando clientes manualmente.",
+      ],
+    },
+    {
+      title: "3. Buscar y facturar rápido",
       paragraphs: [
         "Usa el **buscador** para localizar un cliente por nombre o NIF. Al elegirlo, verás solo su ficha en el listado.",
         "En cada cliente puedes pulsar el icono de **factura** o **presupuesto** para crear el documento con sus datos ya rellenados.",
       ],
     },
     {
-      title: "3. Usar un cliente en una factura",
+      title: "4. Usar un cliente en una factura",
       paragraphs: [
         "Al crear una factura o presupuesto, busca el cliente por nombre. Sus datos se rellenan solos.",
         "Si editas un cliente después, las facturas ya emitidas **no cambian** (conservan los datos del momento de emisión).",
