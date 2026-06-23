@@ -22,6 +22,7 @@ const FREE_FEATURES = [
   "Hasta 10 documentos al mes",
   "Hasta 15 clientes",
   "Facturas, presupuestos y recibos en PDF",
+  "VeriFactu incluido",
   "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
   "Copia manual export/import",
