@@ -115,16 +115,16 @@ export function buildDocumentPdf(
   ) as [number, number, number];
 
   let y = 14;
-  if (artifacts.qrDataUrl && doc.verifactu) {
-    y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
-  }
-
-  if (template.style === "futuro") {
+  if (template.style === "futuro" && !artifacts.qrDataUrl) {
     pdf.setFillColor(accent[0], accent[1], accent[2]);
     pdf.rect(0, 0, 210, 10, "F");
     pdf.setFillColor(248, 250, 252);
     pdf.rect(0, 10, 210, 12, "F");
     y = Math.max(y, 24);
+  }
+
+  if (artifacts.qrDataUrl && doc.verifactu) {
+    y = drawVerifactuQrBlock(pdf, doc, artifacts, y);
   }
 
   let logoBottomY = 14;

@@ -52,7 +52,7 @@ export const configuracionSection: ManualSection = {
       title: "2. Diseñador de plantillas PDF",
       paragraphs: [
         "Con plan **Pro** puedes usar el **Diseñador de plantillas** para cambiar el estilo visual de facturas, presupuestos y recibos.",
-        "Puedes elegir estilo, color de marca, densidad de la tabla y algunos bloques visibles del PDF. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu y líneas reales.",
+        "Puedes elegir estilo, color de marca, densidad de la tabla y algunos bloques visibles del PDF. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR fiscal obligatorio y líneas reales.",
         "El plan **Gratis** mantiene el diseño estándar.",
       ],
     },

@@ -37,6 +37,15 @@ export function DocumentTemplateDesignerCard({
   const styleLabel =
     DOCUMENT_TEMPLATE_STYLES.find((item) => item.id === normalized.style)
       ?.label ?? DOCUMENT_TEMPLATE_STYLES[0].label;
+  const isClassic = normalized.style === "clasico";
+  const isEditorial = normalized.style === "editorial";
+  const isFuture = normalized.style === "futuro";
+  const previewRowHeight =
+    normalized.density === "compacta"
+      ? "h-3"
+      : normalized.density === "amplia"
+        ? "h-7"
+        : "h-5";
 
   function update(next: Partial<DocumentTemplateSettings>) {
     if (locked) {
@@ -199,52 +208,160 @@ export function DocumentTemplateDesignerCard({
             </span>
             <span>{styleLabel}</span>
           </div>
-          <div className="overflow-hidden rounded-md bg-white shadow-sm">
-            <div
-              className={`h-10 ${accent.bgClass} ${
-                normalized.style === "clasico" ? "hidden" : "block"
-              }`}
-            />
-            <div className="space-y-4 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className={`text-lg font-black ${accent.textClass}`}>
-                    FACTURA
-                  </p>
-                  <div className="mt-2 space-y-1 text-[10px] text-slate-500">
-                    <p className="font-semibold text-slate-800">Tu empresa</p>
-                    <p>NIF · Dirección · Ciudad</p>
+          <div
+            className={`overflow-hidden rounded-md bg-white shadow-sm ${
+              isFuture ? "ring-1 ring-slate-900/10" : ""
+            }`}
+          >
+            {isFuture ? (
+              <div className={`${accent.bgClass} px-4 py-4 text-white`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase opacity-80">
+                      Documento verificable
+                    </p>
+                    <p className="mt-1 text-2xl font-black">FACTURA</p>
+                  </div>
+                  <div className="rounded-md bg-white/15 px-2 py-1 text-right text-[10px] font-semibold">
+                    <p>F-2026-0042</p>
+                    <p>23/06/2026</p>
                   </div>
                 </div>
-                <div className="text-right text-[10px] text-slate-500">
-                  <p className="font-bold text-slate-900">Nº F-2026-0042</p>
-                  <p>23/06/2026</p>
+              </div>
+            ) : null}
+
+            <div
+              className={`${
+                isEditorial
+                  ? "grid grid-cols-[4.5rem_1fr]"
+                  : "block"
+              }`}
+            >
+              {isEditorial ? (
+                <div className={`${accent.bgClass} flex flex-col justify-between p-3 text-white`}>
+                  <p className="text-[10px] font-bold uppercase leading-tight">
+                    FACTURA
+                  </p>
+                  <p className="text-[9px] leading-tight opacity-80">
+                    F-2026
+                    <br />
+                    0042
+                  </p>
                 </div>
-              </div>
+              ) : null}
 
-              <div className={`rounded-md p-3 ${accent.borderClass} border bg-slate-50`}>
-                <p className="text-[10px] font-semibold text-slate-500">
-                  Cliente
-                </p>
-                <p className="mt-1 text-sm font-bold text-slate-900">
-                  Cliente de ejemplo
-                </p>
-              </div>
+              <div className="space-y-4 p-4">
+                {!isFuture ? (
+                  <div
+                    className={`flex items-start justify-between gap-4 ${
+                      isClassic ? "border-b border-slate-100 pb-3" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className={`text-lg font-black ${accent.textClass}`}>
+                        FACTURA
+                      </p>
+                      <div className="mt-2 space-y-1 text-[10px] text-slate-500">
+                        <p className="font-semibold text-slate-800">Tu empresa</p>
+                        <p>NIF · Dirección · Ciudad</p>
+                      </div>
+                    </div>
+                    <div className="text-right text-[10px] text-slate-500">
+                      <p className="font-bold text-slate-900">Nº F-2026-0042</p>
+                      <p>23/06/2026</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1 text-[10px] text-slate-500">
+                      <p className="font-semibold text-slate-900">Tu empresa</p>
+                      <p>NIF · Dirección · Ciudad</p>
+                    </div>
+                    {normalized.showLogo ? (
+                      <div className="h-8 w-12 rounded-md border border-slate-200 bg-slate-50" />
+                    ) : null}
+                  </div>
+                )}
 
-              <div className="space-y-1">
-                <div className={`h-6 rounded ${accent.bgClass}`} />
-                <div className="h-5 rounded bg-slate-100" />
-                <div className="h-5 rounded bg-white ring-1 ring-slate-100" />
-                <div className="h-5 rounded bg-slate-100" />
-              </div>
+                <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-2">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-900">
+                      VeriFactu
+                    </p>
+                    <p className="text-[9px] text-slate-500">
+                      QR fiscal reservado
+                    </p>
+                  </div>
+                  <div className="grid h-9 w-9 grid-cols-3 gap-0.5 rounded border border-slate-300 bg-white p-1">
+                    {Array.from({ length: 9 }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={
+                          index % 2 === 0 ? "bg-slate-900" : "bg-slate-200"
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
 
-              <div className="flex justify-end">
-                <div className={`rounded-md px-4 py-2 text-sm font-black ${
-                  normalized.style === "clasico"
-                    ? accent.textClass
-                    : `${accent.bgClass} text-white`
-                }`}>
-                  TOTAL 1.210,00 €
+                <div
+                  className={`${
+                    isClassic
+                      ? "rounded-md border border-slate-200 bg-slate-50 p-3"
+                      : isEditorial
+                        ? `border-l-4 ${accent.borderClass} bg-slate-50 p-3`
+                        : "rounded-lg bg-slate-900 p-3 text-white"
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-semibold ${
+                      isFuture ? "text-white/60" : "text-slate-500"
+                    }`}
+                  >
+                    Cliente
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-bold ${
+                      isFuture ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    Cliente de ejemplo
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div
+                    className={`rounded ${
+                      isClassic ? `h-5 ${accent.bgClass}` : "h-7 bg-slate-900"
+                    }`}
+                  />
+                  <div className={`${previewRowHeight} rounded bg-slate-100`} />
+                  <div
+                    className={`${previewRowHeight} rounded ${
+                      isFuture ? "bg-blue-50" : "bg-white ring-1 ring-slate-100"
+                    }`}
+                  />
+                  <div className={`${previewRowHeight} rounded bg-slate-100`} />
+                </div>
+
+                <div className={isFuture ? "flex justify-between gap-3" : "flex justify-end"}>
+                  {isFuture ? (
+                    <div className="rounded-md border border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-500">
+                      Pago
+                      <span className="block text-slate-900">Transferencia</span>
+                    </div>
+                  ) : null}
+                  <div
+                    className={`rounded-md px-4 py-2 text-sm font-black ${
+                      isClassic
+                        ? accent.textClass
+                        : isEditorial
+                          ? `${accent.bgClass} text-white`
+                          : "bg-slate-900 text-white"
+                    }`}
+                  >
+                    TOTAL 1.210,00 €
+                  </div>
                 </div>
               </div>
             </div>
