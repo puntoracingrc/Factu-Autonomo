@@ -49,7 +49,8 @@ export const primerosPasosSection: ManualSection = {
       title: "4. (Opcional) Crea tu cuenta en la nube",
       paragraphs: [
         "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos se sincronizan entre móvil y PC.",
-        "En Ajustes → **Cuenta y copia** puedes registrarte, exportar una copia de seguridad o importar datos.",
+        "En **Cuenta** puedes registrarte, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o recuperar una copia JSON.",
+        "Para migrar datos desde programas antiguos, usa **Cuenta → Importar MDB** o entra en **Importar datos**. La importación de bases de datos externas requiere Pro.",
       ],
       screenshot: {
         src: "/ayuda/capturas/cuenta-nube.png",

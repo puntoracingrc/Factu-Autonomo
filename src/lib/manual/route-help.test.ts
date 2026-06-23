@@ -9,6 +9,7 @@ describe("manual route help", () => {
     expect(resolveManualSlug("/facturas/abc-123")).toBe("facturas");
     expect(resolveManualSlug("/gastos/fijos")).toBe("gastos");
     expect(resolveManualSlug("/configuracion")).toBe("configuracion");
+    expect(resolveManualSlug("/importar")).toBe("importacion");
   });
 
   it("oculta ayuda en rutas sin manual", () => {

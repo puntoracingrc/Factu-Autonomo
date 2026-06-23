@@ -28,6 +28,15 @@ scripts/
 
 ## Flujo cuando cambia la UI
 
+Antes de cerrar una tarea de producto, revisa si cambió algo visible para el usuario:
+
+- pantalla, botón, campo, ruta o navegación;
+- regla de plan Gratis/Pro;
+- flujo de cuenta, nube, importación, Veri*Factu o escaneo IA;
+- texto que pueda cambiar cómo entiende la app una persona.
+
+Si cualquiera aplica, actualiza el manual en el mismo cambio.
+
 1. Edita el paso afectado en `src/lib/manual/sections/<slug>.ts`.
 2. Arranca la app: `npm run dev`.
 3. Regenera capturas (sustituye los PNG existentes):
@@ -82,3 +91,5 @@ El test `screenshots.test.ts` **falla** si falta algún archivo referenciado en 
 | Resumen fiscal en Impuestos | Sección inicio + impuestos | `impuestos-trimestre.png`, `impuestos-resumen.png` |
 | Logo Factu / manual | Secciones ayuda | Cabeceras en `/ayuda` si cambian |
 | Exportación CSV/PDF | gastos / impuestos | `gastos-exportar.png`, `impuestos-csv.png`, etc. |
+| Importador de datos | Sección importación + planes si aplica | Captura de `/importar` cuando cambie la pantalla |
+| Cambios Gratis/Pro | Sección afectada + precios si aplica | Captura si cambia la pantalla de precios |

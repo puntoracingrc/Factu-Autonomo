@@ -8,6 +8,7 @@ import { clientesSection } from "./clientes";
 import { configuracionSection, proveedoresSection } from "./proveedores-ajustes";
 import { facturasSection } from "./facturas";
 import { gastosSection } from "./gastos";
+import { importacionSection } from "./importacion";
 import { impuestosSection } from "./impuestos";
 import { inicioSection } from "./inicio";
 import { presupuestosSection, recibosSection } from "./presupuestos-recibos";
@@ -24,6 +25,7 @@ export const manualSections: ManualSection[] = [
   impuestosSection,
   proveedoresSection,
   configuracionSection,
+  importacionSection,
 ].sort((a, b) => a.order - b.order);
 
 export function getManualSection(slug: string): ManualSection | undefined {
