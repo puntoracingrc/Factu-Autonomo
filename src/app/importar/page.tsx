@@ -4,12 +4,26 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Database, FileCog, FileUp, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import {
+  PC_FACTURACION_SOURCE_NAME,
   readPcFacturacionMdb,
   type PcFacturacionImportResult,
 } from "@/lib/importers/pcfacturacion";
+
+type ImportSource = "auto" | "pcfacturacion3" | "prestashop" | "csv";
+
+const IMPORT_SOURCES: Array<{
+  value: ImportSource;
+  label: string;
+  disabled?: boolean;
+}> = [
+  { value: "auto", label: "Detectar automáticamente" },
+  { value: "pcfacturacion3", label: PC_FACTURACION_SOURCE_NAME },
+  { value: "prestashop", label: "PrestaShop (próximamente)", disabled: true },
+  { value: "csv", label: "Excel o CSV (próximamente)", disabled: true },
+];
 
 function formatRange(from: string | null, to: string | null): string {
   if (!from || !to) return "Sin fechas";
@@ -18,6 +32,7 @@ function formatRange(from: string | null, to: string | null): string {
 
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
+  const [source, setSource] = useState<ImportSource>("auto");
   const [file, setFile] = useState<File | null>(null);
   const [dwiFile, setDwiFile] = useState<File | null>(null);
   const [includeUnusedCustomers, setIncludeUnusedCustomers] = useState(false);
@@ -43,6 +58,10 @@ export default function ImportarPage() {
     setError(null);
     setDone(false);
     try {
+      if (source !== "auto" && source !== "pcfacturacion3") {
+        throw new Error("Ese origen todavía no tiene importador disponible.");
+      }
+
       const dwiText = await readDwiText(nextDwiFile);
       const parsed = await readPcFacturacionMdb(nextFile, data, {
         includeUnusedCustomers,
@@ -51,10 +70,25 @@ export default function ImportarPage() {
       setResult(parsed);
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : "No se pudo leer el MDB.");
+      const message =
+        source === "auto"
+          ? "No se pudo detectar el origen de este archivo. Prueba a seleccionar el programa de origen cuando esté disponible."
+          : "No se pudo leer el archivo con el importador seleccionado.";
+      setError(
+        err instanceof Error && source !== "auto"
+          ? err.message
+          : message,
+      );
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleSource(nextSource: ImportSource) {
+    setSource(nextSource);
+    setResult(null);
+    setError(null);
+    setDone(false);
   }
 
   function handleFile(nextFile: File | undefined) {
@@ -88,7 +122,7 @@ export default function ImportarPage() {
     <div>
       <PageHeader
         title="Importar datos"
-        subtitle="Importador para copias MDB de PC Facturación 3.0."
+        subtitle="Elige de qué programa vienen los datos y revisa una previsualización antes de importarlos."
       />
 
       <Card className="mb-6 space-y-4">
@@ -98,17 +132,33 @@ export default function ImportarPage() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              PC Facturación 3.0
+              Origen de datos
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Lee clientes, presupuestos, facturas, líneas y datos de empresa.
-              Se importa como histórico y conserva la numeración original de cada
-              documento.
+              Cada programa guarda sus bases de datos de forma distinta. El
+              importador usa el origen elegido para interpretar clientes,
+              documentos y configuración.
             </p>
           </div>
         </div>
 
-        <Field label="Archivo MDB" hint="Selecciona la copia de seguridad del programa antiguo.">
+        <Field label="Programa de origen">
+          <Select
+            value={source}
+            onChange={(event) => handleSource(event.target.value as ImportSource)}
+          >
+            {IMPORT_SOURCES.map((item) => (
+              <option key={item.value} value={item.value} disabled={item.disabled}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field
+          label="Archivo de datos"
+          hint="Para PC Facturación, selecciona la copia MDB."
+        >
           <Input
             type="file"
             accept=".mdb,application/msaccess,application/x-msaccess"
@@ -117,7 +167,7 @@ export default function ImportarPage() {
         </Field>
 
         <Field
-          label="Archivo DWI opcional"
+          label="Archivo DWI opcional para PC Facturación"
           hint="Sirve para continuar la numeración antigua. Suele estar en la misma carpeta que el MDB y tener el mismo nombre de empresa, por ejemplo Mi empresa.dwi."
         >
           <Input
@@ -133,9 +183,9 @@ export default function ImportarPage() {
             ¿Dónde encuentro el DWI?
           </div>
           <p className="mt-1">
-            En PC Facturación normalmente aparece junto a la base de datos MDB,
-            dentro de la carpeta del programa o de la copia. No es obligatorio:
-            si no lo tienes, importa solo el MDB.
+            Para PC Facturación normalmente aparece junto a la base de datos
+            MDB, dentro de la carpeta del programa o de la copia. No es
+            obligatorio: si no lo tienes, importa solo el MDB.
           </p>
         </div>
 
@@ -185,6 +235,8 @@ export default function ImportarPage() {
               Previsualización
             </h2>
             <p className="mt-1 text-sm text-slate-600">
+              Origen detectado: <strong>{result.preview.sourceName}</strong>
+              <br />
               Empresa detectada:{" "}
               <strong>{result.preview.companyName || "sin nombre"}</strong>
             </p>

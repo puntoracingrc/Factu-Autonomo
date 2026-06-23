@@ -13,6 +13,14 @@ import type {
 } from "../types";
 
 export const PCF_ID_PREFIX = "pcfacturacion";
+export const PC_FACTURACION_SOURCE_NAME = "PC Facturación 3.0";
+export const PC_FACTURACION_REQUIRED_TABLES = [
+  "Client",
+  "Contacts",
+  "Invoice",
+  "Offer",
+  "Positions",
+] as const;
 
 type MdbRow = Record<string, unknown>;
 type PcfTables = Record<string, MdbRow[]>;
@@ -23,6 +31,7 @@ export interface PcFacturacionImportOptions {
 }
 
 export interface PcFacturacionImportPreview {
+  sourceName: string;
   companyName: string;
   customersWithDocuments: number;
   unusedCustomers: number;
@@ -50,6 +59,11 @@ export interface PcFacturacionImportResult {
   data: AppData;
   preview: PcFacturacionImportPreview;
   warnings: string[];
+}
+
+export interface PcFacturacionDetection {
+  matches: boolean;
+  missingTables: string[];
 }
 
 interface ParsedCustomer {
@@ -352,6 +366,19 @@ function importedLineCount(documents: Document[]): number {
   return documents.reduce((sum, document) => sum + document.items.length, 0);
 }
 
+export function detectPcFacturacionTables(
+  tableNames: Iterable<string>,
+): PcFacturacionDetection {
+  const names = new Set(tableNames);
+  const missingTables = PC_FACTURACION_REQUIRED_TABLES.filter(
+    (name) => !names.has(name),
+  );
+  return {
+    matches: missingTables.length === 0,
+    missingTables,
+  };
+}
+
 function parseDwiSections(input: string): Record<string, Record<string, string>> {
   const sections: Record<string, Record<string, string>> = {};
   let current = "";
@@ -573,6 +600,7 @@ export function buildPcFacturacionImport(
   });
 
   const preview: PcFacturacionImportPreview = {
+    sourceName: PC_FACTURACION_SOURCE_NAME,
     companyName: profile.name,
     customersWithDocuments: customersWithDocuments.length,
     unusedCustomers: unusedCustomers.length,
@@ -624,21 +652,15 @@ export async function readPcFacturacionMdb(
   const { Buffer } = await import("buffer");
   const buffer = await file.arrayBuffer();
   const reader = new MDBReader(Buffer.from(buffer));
-  const requiredTables = [
-    "Client",
-    "Contacts",
-    "Invoice",
-    "Offer",
-    "Positions",
-  ];
-  const tableNames = new Set(reader.getTableNames());
-  const missing = requiredTables.filter((name) => !tableNames.has(name));
-  if (missing.length > 0) {
-    throw new Error(`No parece una base de PC Facturación 3.0. Faltan tablas: ${missing.join(", ")}`);
+  const detection = detectPcFacturacionTables(reader.getTableNames());
+  if (!detection.matches) {
+    throw new Error(
+      `No parece una base de ${PC_FACTURACION_SOURCE_NAME}. Faltan tablas: ${detection.missingTables.join(", ")}`,
+    );
   }
 
   const tables: PcfTables = {};
-  for (const name of requiredTables) {
+  for (const name of PC_FACTURACION_REQUIRED_TABLES) {
     tables[name] = reader.getTable(name).getData() as MdbRow[];
   }
   return buildPcFacturacionImport(current, tables, options);

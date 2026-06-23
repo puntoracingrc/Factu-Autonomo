@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPcFacturacionImport,
+  detectPcFacturacionTables,
   extractSpanishTaxId,
   parsePcFacturacionDwi,
 } from "./pcfacturacion";
@@ -102,6 +103,26 @@ const baseTables = {
 };
 
 describe("PC Facturacion importer", () => {
+  it("detecta una base de PC Facturacion por sus tablas clave", () => {
+    expect(
+      detectPcFacturacionTables([
+        "Client",
+        "Contacts",
+        "Invoice",
+        "Offer",
+        "Positions",
+      ]),
+    ).toMatchObject({
+      matches: true,
+      missingTables: [],
+    });
+
+    expect(detectPcFacturacionTables(["ps_customer", "ps_orders"])).toMatchObject({
+      matches: false,
+      missingTables: ["Client", "Contacts", "Invoice", "Offer", "Positions"],
+    });
+  });
+
   it("extrae NIF/CIF aunque vengan con separadores", () => {
     expect(extractSpanishTaxId("NIF: 46144831 - T")).toBe("46144831T");
     expect(extractSpanishTaxId("CIF- B-65305450")).toBe("B65305450");
