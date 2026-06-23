@@ -28,6 +28,7 @@ export const inicioSection: ManualSection = {
       paragraphs: [
         "En **¿Qué quieres hacer?** tienes acceso directo a **Avisos** (con contador si hay pendientes), **Clientes**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo** y **Añadir gasto**.",
         "Factu también puede mostrarte un consejo para descubrir funciones que aún no has probado.",
+        "Si la barra de Factu tapa algo en la parte inferior, pulsa la **X** para cerrarla durante esa sesión.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-accesos-rapidos.png",

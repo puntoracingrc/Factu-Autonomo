@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { pickFactuJoke } from "@/lib/factu/copy";
+import { dismissFactuWidget } from "@/lib/factu/occasional";
 
-export function FactuWidget() {
+interface FactuWidgetProps {
+  onDismiss?: () => void;
+}
+
+export function FactuWidget({ onDismiss }: FactuWidgetProps) {
   const [bubbleText, setBubbleText] = useState<string | null>(null);
 
   useEffect(() => {
@@ -16,9 +21,14 @@ export function FactuWidget() {
     setBubbleText(pickFactuJoke());
   }
 
+  function handleDismiss() {
+    dismissFactuWidget();
+    onDismiss?.();
+  }
+
   return (
     <div className="factu-widget-bar pointer-events-none fixed left-0 right-0 z-20 mx-auto max-w-3xl px-4 factu-widget-offset">
-      <div className="pointer-events-auto relative flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto relative flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 pr-12 shadow-lg backdrop-blur-md">
         {bubbleText ? (
           <div
             className="absolute bottom-full left-3 right-3 mb-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl transition-opacity duration-200"
@@ -48,6 +58,16 @@ export function FactuWidget() {
             Veri Legal y Very Bonito
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Cerrar Factu"
+          title="Cerrar Factu"
+        >
+          ×
+        </button>
       </div>
     </div>
   );

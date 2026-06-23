@@ -6,9 +6,11 @@ import {
 
 const DAILY_GREETING_KEY = "factu-daily-greeting";
 const MILESTONE_PREFIX = "factu-milestone-";
+const WIDGET_DISMISSED_KEY = "factu-widget-dismissed-session";
 export const FACTU_TOAST_EVENT = "factu-toast";
 
 export function shouldShowFactuWidget(pathname: string): boolean {
+  if (isFactuWidgetDismissed()) return false;
   if (pathname.startsWith("/legal")) return false;
   if (pathname.includes("/nuevo")) return false;
   if (pathname.includes("/rectificar")) return false;
@@ -16,6 +18,21 @@ export function shouldShowFactuWidget(pathname: string): boolean {
     return false;
   }
   return true;
+}
+
+export function isFactuWidgetDismissed(): boolean {
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") {
+    return false;
+  }
+  return sessionStorage.getItem(WIDGET_DISMISSED_KEY) === "1";
+}
+
+export function dismissFactuWidget(): void {
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") {
+    return;
+  }
+  sessionStorage.setItem(WIDGET_DISMISSED_KEY, "1");
+  window.dispatchEvent(new Event("factu-widget-dismissed"));
 }
 
 function todayKey(): string {
@@ -51,6 +68,9 @@ export function showFactuToast(message: string, durationMs = 3500): void {
 export function resetFactuOccasionalState(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(DAILY_GREETING_KEY);
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem(WIDGET_DISMISSED_KEY);
+  }
   for (const id of Object.keys(FACTU_MILESTONE_MESSAGES) as FactuMilestoneId[]) {
     localStorage.removeItem(`${MILESTONE_PREFIX}${id}`);
   }

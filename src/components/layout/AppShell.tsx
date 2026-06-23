@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, Crown, LogIn } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -17,7 +17,10 @@ import { useAppStore } from "@/context/AppStore";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
 import { FactuWidget } from "@/components/factu/FactuWidget";
 import { FactuHelpButton } from "@/components/manual/FactuHelpButton";
-import { shouldShowFactuWidget } from "@/lib/factu/occasional";
+import {
+  isFactuWidgetDismissed,
+  shouldShowFactuWidget,
+} from "@/lib/factu/occasional";
 import {
   FileText,
   Home,
@@ -62,8 +65,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data, ready } = useAppStore();
   const { user } = useCloudSync();
   const { isPro, billingEnabled } = useBilling();
-  const showFactu = shouldShowFactuWidget(pathname);
+  const [factuDismissed, setFactuDismissed] = useState(false);
+  const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
+
+  useEffect(() => {
+    setFactuDismissed(isFactuWidgetDismissed());
+    function handleDismissed() {
+      setFactuDismissed(true);
+    }
+
+    window.addEventListener("factu-widget-dismissed", handleDismissed);
+    return () =>
+      window.removeEventListener("factu-widget-dismissed", handleDismissed);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
@@ -141,7 +156,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {showFactu ? <FactuWidget /> : null}
+      {showFactu ? (
+        <FactuWidget onDismiss={() => setFactuDismissed(true)} />
+      ) : null}
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
         <div className="nav-scroll mx-auto max-w-3xl overflow-x-auto px-2 py-2">
