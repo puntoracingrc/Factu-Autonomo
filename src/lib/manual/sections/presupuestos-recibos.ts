@@ -10,6 +10,7 @@ export const presupuestosSection: ManualSection = {
       title: "1. Crear y enviar un presupuesto",
       paragraphs: [
         "Funciona como una factura en borrador orientada a propuestas: creas líneas, generas PDF y lo envías por email o WhatsApp.",
+        "En el listado, el icono del **ojo** abre la vista previa del PDF y el botón **PDF** lo descarga.",
         "En **Datos del cliente** también puedes usar **Rellenar con IA** (plan Pro) para pegar datos recibidos por WhatsApp, email o web. Si el cliente no existe, se crea su ficha al guardar el presupuesto.",
       ],
       screenshot: {
@@ -51,6 +52,7 @@ export const recibosSection: ManualSection = {
       title: "2. Crear un recibo manual",
       paragraphs: [
         "También puedes ir a **Recibos** → **Nuevo recibo** si necesitas un justificante independiente.",
+        "En el listado, el icono del **ojo** abre la vista previa del PDF y el botón **PDF** lo descarga.",
         "Como en facturas y presupuestos, el bloque **Rellenar con IA** puede ayudarte a completar los datos del cliente antes de guardar.",
       ],
       screenshot: {

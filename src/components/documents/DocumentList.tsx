@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Eye, FileWarning, Pencil, Search } from "lucide-react";
-import { IconActionLink } from "@/components/ui/IconAction";
+import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
@@ -20,6 +20,7 @@ import { isCollectedDocument } from "@/lib/income";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
+import { openDocumentPdfPreview } from "@/lib/pdf";
 import type { Document, DocumentType } from "@/lib/types";
 
 const STATUS_LABELS: Record<Document["status"], string> = {
@@ -82,6 +83,7 @@ export function DocumentList({
   const { data, getDocumentsByType } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const [search, setSearch] = useState("");
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
 
   const documents = useMemo(() => {
     const sorted = sortDocumentsByNewest(getDocumentsByType(type));
@@ -90,6 +92,20 @@ export function DocumentList({
 
   const totalCount = getDocumentsByType(type).length;
   const label = SEARCH_LABELS[type];
+
+  async function handlePdfPreview(doc: Document) {
+    if (previewingId) return;
+    setPreviewingId(doc.id);
+    try {
+      await openDocumentPdfPreview(doc, data.profile);
+    } catch {
+      alert(
+        "No se pudo abrir la vista previa. Permite ventanas emergentes o descarga el PDF.",
+      );
+    } finally {
+      setPreviewingId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -216,14 +232,15 @@ export function DocumentList({
                       <Pencil className="h-5 w-5" />
                     </IconActionLink>
                   ) : (
-                    <IconActionLink
-                      href={`${basePath}/${doc.id}`}
+                    <IconActionButton
                       label="Ver"
-                      tooltip="Ver y enviar"
+                      tooltip="Vista previa PDF"
+                      onClick={() => void handlePdfPreview(doc)}
+                      disabled={previewingId === doc.id}
                       className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                     >
                       <Eye className="h-5 w-5" />
-                    </IconActionLink>
+                    </IconActionButton>
                   )}
                   <DeleteDocumentButton doc={doc} />
                 </div>

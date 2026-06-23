@@ -27,6 +27,7 @@ export const facturasSection: ManualSection = {
       title: "2. Emitir y descargar el PDF",
       paragraphs: [
         "Cuando guardas una factura emitida, se genera un **número automático** (por ejemplo F-2026-0001) y ya no puedes editarla libremente: solo verla o rectificarla.",
+        "Pulsa el icono del **ojo** en el listado para abrir una vista previa del PDF sin descargarlo.",
         "Pulsa **PDF** en el listado para descargar el documento.",
       ],
       screenshot: {
