@@ -60,12 +60,14 @@ export function HomeUserReminders() {
             </p>
           ) : null}
         </div>
-        <Link
-          href="/avisos"
-          className="text-sm font-semibold text-violet-700 underline"
-        >
-          {pending.length > 0 ? "Gestionar" : "Añadir"}
-        </Link>
+        {pending.length > 0 ? (
+          <Link
+            href="/avisos"
+            className="text-sm font-semibold text-violet-700 underline"
+          >
+            Gestionar
+          </Link>
+        ) : null}
       </div>
 
       {showSendForm ? <SendToOfficeForm /> : null}
