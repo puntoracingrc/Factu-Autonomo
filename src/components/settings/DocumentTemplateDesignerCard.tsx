@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, Eye, Palette, Sparkles } from "lucide-react";
+import { Crown, Eye, Maximize2, Palette, Sparkles, X } from "lucide-react";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -30,6 +30,7 @@ export function DocumentTemplateDesignerCard({
   onChange,
 }: DocumentTemplateDesignerCardProps) {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [largePreviewOpen, setLargePreviewOpen] = useState(false);
   const normalized = normalizeDocumentTemplate(settings);
   const accent =
     DOCUMENT_TEMPLATE_ACCENTS.find((item) => item.id === normalized.accent) ??
@@ -46,6 +47,26 @@ export function DocumentTemplateDesignerCard({
       : normalized.density === "amplia"
         ? "h-7"
         : "h-5";
+  const lineRows = [
+    {
+      concept: "Soy un dato de relleno para que veas lo bonito que soy",
+      qty: "1 ud",
+      price: "450,00 €",
+      total: "544,50 €",
+    },
+    {
+      concept: "Diseño, montaje y ajuste fino de la cosa importante",
+      qty: "2 h",
+      price: "180,00 €",
+      total: "435,60 €",
+    },
+    {
+      concept: "Materiales varios con nombre elegante",
+      qty: "3 ud",
+      price: "63,88 €",
+      total: "231,87 €",
+    },
+  ];
 
   function update(next: Partial<DocumentTemplateSettings>) {
     if (locked) {
@@ -123,7 +144,7 @@ export function DocumentTemplateDesignerCard({
 
           <div className="space-y-2">
             <p className="text-sm font-semibold text-slate-900">Color de marca</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {DOCUMENT_TEMPLATE_ACCENTS.map((item) => {
                 const selected = normalized.accent === item.id;
                 return (
@@ -133,14 +154,14 @@ export function DocumentTemplateDesignerCard({
                     onClick={() =>
                       update({ accent: item.id as DocumentTemplateAccent })
                     }
-                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                    className={`inline-flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
                       selected
                         ? `${item.borderClass} ${item.textClass} bg-white`
                         : "border-slate-200 text-slate-600"
                     }`}
                   >
                     <span className={`h-4 w-4 rounded-full ${item.bgClass}`} />
-                    {item.label}
+                    <span className="min-w-0 leading-tight">{item.label}</span>
                   </button>
                 );
               })}
@@ -206,7 +227,14 @@ export function DocumentTemplateDesignerCard({
               <Eye className="h-3.5 w-3.5" />
               Vista previa
             </span>
-            <span>{styleLabel}</span>
+            <button
+              type="button"
+              onClick={() => setLargePreviewOpen(true)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-slate-600 hover:bg-white hover:text-slate-900"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+              Ver grande
+            </button>
           </div>
           <div
             className={`overflow-hidden rounded-md bg-white shadow-sm ${
@@ -267,6 +295,12 @@ export function DocumentTemplateDesignerCard({
                       </div>
                     </div>
                     <div className="text-right text-[10px] text-slate-500">
+                      {normalized.showLogo ? (
+                        <div className="mb-2 ml-auto flex h-10 w-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[8px] font-black text-slate-500">
+                          <span className="text-sm leading-none">🤖</span>
+                          <span>LOGOBOT</span>
+                        </div>
+                      ) : null}
                       <p className="font-bold text-slate-900">Nº F-2026-0042</p>
                       <p>23/06/2026</p>
                     </div>
@@ -278,7 +312,10 @@ export function DocumentTemplateDesignerCard({
                       <p>NIF · Dirección · Ciudad</p>
                     </div>
                     {normalized.showLogo ? (
-                      <div className="h-8 w-12 rounded-md border border-slate-200 bg-slate-50" />
+                      <div className="flex h-10 w-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[8px] font-black text-slate-500">
+                        <span className="text-sm leading-none">🤖</span>
+                        <span>LOGOBOT</span>
+                      </div>
                     ) : null}
                   </div>
                 )}
@@ -373,6 +410,266 @@ export function DocumentTemplateDesignerCard({
           </p>
         </div>
       </div>
+
+      {largePreviewOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-3 sm:p-6">
+          <div className="w-full max-w-5xl">
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 shadow-lg">
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  Vista previa grande
+                </p>
+                <p className="text-xs text-slate-500">
+                  {styleLabel} · datos ficticios de ejemplo
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLargePreviewOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                aria-label="Cerrar vista previa grande"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mx-auto min-h-[78rem] w-full max-w-[56rem] overflow-hidden rounded-lg bg-white shadow-2xl">
+              {isFuture ? (
+                <div className={`${accent.bgClass} p-8 text-white`}>
+                  <div className="flex items-start justify-between gap-8">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                        Documento verificable
+                      </p>
+                      <h3 className="mt-3 text-5xl font-black">FACTURA</h3>
+                      <p className="mt-3 max-w-sm text-sm opacity-85">
+                        Una plantilla pensada para verse clara en PDF, móvil y
+                        papel, sin perder la parte fiscal.
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-white/15 p-4 text-right text-sm font-semibold">
+                      <p>Nº F-2026-0042</p>
+                      <p>Fecha 23/06/2026</p>
+                      <p>Vence 07/07/2026</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div
+                className={
+                  isEditorial ? "grid min-h-[78rem] grid-cols-[11rem_1fr]" : ""
+                }
+              >
+                {isEditorial ? (
+                  <aside className={`${accent.bgClass} flex flex-col justify-between p-6 text-white`}>
+                    <div>
+                      <p className="text-xs font-bold uppercase opacity-80">
+                        Factura
+                      </p>
+                      <p className="mt-2 text-3xl font-black leading-none">
+                        F-2026
+                        <br />
+                        0042
+                      </p>
+                    </div>
+                    <div className="space-y-3 text-xs opacity-85">
+                      <p>Tu Empresa del Futuro, S.L.</p>
+                      <p>NIF B00000000</p>
+                      <p>Calle Demo 42, Barcelona</p>
+                    </div>
+                  </aside>
+                ) : null}
+
+                <div className="space-y-8 p-8">
+                  {!isFuture ? (
+                    <header
+                      className={`flex items-start justify-between gap-8 ${
+                        isClassic ? "border-b border-slate-200 pb-6" : ""
+                      }`}
+                    >
+                      <div>
+                        <p className={`text-4xl font-black ${accent.textClass}`}>
+                          FACTURA
+                        </p>
+                        <div
+                          className={`mt-5 space-y-1 text-sm text-slate-600 ${
+                            normalized.showIssuerBox
+                              ? "rounded-lg bg-slate-50 p-4"
+                              : ""
+                          }`}
+                        >
+                          <p className="font-bold text-slate-900">
+                            Tu Empresa del Futuro, S.L.
+                          </p>
+                          <p>NIF B00000000</p>
+                          <p>Calle Demo 42, 08000 Barcelona</p>
+                          <p>hola@empresa-demo.test</p>
+                        </div>
+                      </div>
+                      <div className="text-right text-sm text-slate-600">
+                        {normalized.showLogo ? (
+                          <div className="mb-4 ml-auto flex h-16 w-24 flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-black text-slate-500">
+                            <span className="text-2xl leading-none">🤖</span>
+                            <span>LOGOBOT</span>
+                          </div>
+                        ) : null}
+                        <p className="font-bold text-slate-900">Nº F-2026-0042</p>
+                        <p>Fecha: 23/06/2026</p>
+                        <p>Vencimiento: 07/07/2026</p>
+                      </div>
+                    </header>
+                  ) : (
+                    <header className="flex items-center justify-between gap-8">
+                      <div className="space-y-1 text-sm text-slate-600">
+                        <p className="font-bold text-slate-900">
+                          Tu Empresa del Futuro, S.L.
+                        </p>
+                        <p>NIF B00000000 · Calle Demo 42</p>
+                        <p>08000 Barcelona · hola@empresa-demo.test</p>
+                      </div>
+                      {normalized.showLogo ? (
+                        <div className="flex h-16 w-24 flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-black text-slate-500">
+                          <span className="text-2xl leading-none">🤖</span>
+                          <span>LOGOBOT</span>
+                        </div>
+                      ) : null}
+                    </header>
+                  )}
+
+                  <section className="grid gap-4 sm:grid-cols-[1fr_13rem]">
+                    <div
+                      className={
+                        isFuture
+                          ? "rounded-xl bg-slate-900 p-5 text-white"
+                          : isEditorial
+                            ? `border-l-4 ${accent.borderClass} bg-slate-50 p-5`
+                            : "rounded-lg border border-slate-200 bg-slate-50 p-5"
+                      }
+                    >
+                      <p
+                        className={`text-xs font-bold uppercase ${
+                          isFuture ? "text-white/60" : "text-slate-500"
+                        }`}
+                      >
+                        Cliente
+                      </p>
+                      <p
+                        className={`mt-2 text-xl font-black ${
+                          isFuture ? "text-white" : "text-slate-900"
+                        }`}
+                      >
+                        Cliente de Relleno Bonito, S.L.
+                      </p>
+                      <p className={isFuture ? "mt-2 text-sm text-white/75" : "mt-2 text-sm text-slate-600"}>
+                        NIF B12345678 · Avenida de la Muestra 123 · Madrid
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">
+                          VeriFactu
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          QR fiscal reservado
+                        </p>
+                      </div>
+                      <div className="grid h-20 w-20 grid-cols-5 gap-0.5 rounded border border-slate-300 bg-white p-2">
+                        {Array.from({ length: 25 }).map((_, index) => (
+                          <span
+                            key={index}
+                            className={
+                              index % 3 === 0 || index % 7 === 0
+                                ? "bg-slate-900"
+                                : "bg-slate-200"
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="overflow-hidden rounded-lg border border-slate-200">
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[34rem]">
+                        <div className={`${isClassic ? accent.bgClass : "bg-slate-900"} grid grid-cols-[minmax(0,1fr)_5rem_6rem_6rem] gap-3 px-4 py-3 text-xs font-bold uppercase text-white`}>
+                          <span>Concepto</span>
+                          <span>Cant.</span>
+                          <span>Precio</span>
+                          <span>Total</span>
+                        </div>
+                        {lineRows.map((row, index) => (
+                          <div
+                            key={row.concept}
+                            className={`grid grid-cols-[minmax(0,1fr)_5rem_6rem_6rem] gap-3 px-4 text-sm ${
+                              normalized.density === "compacta"
+                                ? "py-2"
+                                : normalized.density === "amplia"
+                                  ? "py-5"
+                                  : "py-3"
+                            } ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
+                          >
+                            <span className="min-w-0 font-medium text-slate-900">
+                              {row.concept}
+                            </span>
+                            <span className="text-slate-600">{row.qty}</span>
+                            <span className="text-slate-600">{row.price}</span>
+                            <span className="font-semibold text-slate-900">
+                              {row.total}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    {normalized.showPaymentBox ? (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        <p className="font-bold text-slate-900">Forma de pago</p>
+                        <p className="mt-1">Transferencia bancaria</p>
+                        <p>IBAN ES00 0000 0000 0000 0000</p>
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+                    <div
+                      className={`min-w-[15rem] rounded-lg p-4 text-right ${
+                        isClassic
+                          ? "border border-slate-200 bg-slate-50 text-slate-900"
+                          : isEditorial
+                            ? `${accent.bgClass} text-white`
+                            : "bg-slate-900 text-white"
+                      }`}
+                    >
+                      <div className="space-y-1 text-sm">
+                        <p className="flex justify-between gap-6 opacity-80">
+                          <span>Base imponible</span>
+                          <strong>1.001,97 €</strong>
+                        </p>
+                        <p className="flex justify-between gap-6 opacity-80">
+                          <span>IVA 21%</span>
+                          <strong>210,41 €</strong>
+                        </p>
+                      </div>
+                      <p className="mt-3 border-t border-current/20 pt-3 text-xl font-black">
+                        Total 1.212,38 €
+                      </p>
+                    </div>
+                  </section>
+
+                  <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
+                    Soy una nota de relleno para comprobar el aire del documento,
+                    los márgenes y ese toque de “esto ya parece una factura de
+                    una app seria”.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <UpgradeModal
         open={upgradeOpen}
