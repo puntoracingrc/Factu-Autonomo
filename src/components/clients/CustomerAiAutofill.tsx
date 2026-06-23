@@ -99,7 +99,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   }
 
   return (
-    <section className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4">
+    <section className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/70 p-3">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
           <Sparkles className="h-5 w-5" />
@@ -107,7 +107,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         <div>
           <h3 className="font-bold text-slate-900">Rellenar con IA</h3>
           <p className="mt-1 text-sm text-slate-600">
-            Pega datos de facturación recibidos por WhatsApp, email o web y revisa los campos antes de guardar.
+            Pega aquí los datos que te hayan pasado y Factu intentará organizarlos.
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Consume 1 unidad IA. 10 rellenos equivalen a 1 escaneo.
@@ -118,8 +118,8 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ej: FERRER NEUROCIENCIAS, S.L., Calle Doctor Carulla número 19..."
-          rows={4}
+          placeholder="Nombre o empresa, NIF, dirección, email, teléfono... aunque venga desordenado."
+          rows={3}
         />
       </Field>
       <Button
