@@ -31,7 +31,8 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` (sin `/rest/v1/`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (o legacy `anon` JWT) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` (o legacy `service_role` JWT) |
-| `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos, servidor) |
+| `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos y autorrelleno IA de clientes, servidor) |
+| `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
 | `EMAIL_FROM` | `Factu - Facturación Autónomos <info@facturacion-autonomos.app>` |
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |

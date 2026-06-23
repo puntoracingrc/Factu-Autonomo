@@ -4,6 +4,7 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscription } from "@/lib/billing/repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
+import { enrichCustomerPostalCode } from "@/lib/customer-ai/geocoding";
 import { extractCustomerFromText } from "@/lib/customer-ai/openai";
 
 async function canUseCustomerAi(userId: string): Promise<{
@@ -64,5 +65,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 422 });
   }
 
-  return NextResponse.json({ data: result.data });
+  const data = result.data
+    ? await enrichCustomerPostalCode(result.data)
+    : undefined;
+
+  return NextResponse.json({ data });
 }

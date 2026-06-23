@@ -23,7 +23,7 @@ export const clientesSection: ManualSection = {
       title: "2. Rellenar con IA desde un texto",
       paragraphs: [
         "Si tienes plan **Pro**, puedes pegar un texto recibido por WhatsApp, email o web en **Rellenar con IA** dentro del formulario de cliente.",
-        "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
+        "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Si falta el código postal pero hay dirección y ciudad, puede intentar localizarlo automáticamente. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
         "También encontrarás este bloque al crear una **factura**, **presupuesto** o **recibo**: si el cliente no existe, se guardará automáticamente al guardar el documento.",
         "En el plan **Gratis** puedes seguir creando y editando clientes manualmente.",
       ],
