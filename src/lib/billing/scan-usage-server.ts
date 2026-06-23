@@ -2,6 +2,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isBillingEnforced } from "./config";
 import { currentMonthKey } from "./usage";
 import {
+  AI_UNITS_PER_SCAN,
+  CUSTOMER_AI_AUTOFILL_UNITS,
   buildScanQuota,
   FREE_EXPENSE_SCAN_TRIAL,
   PRO_EXPENSE_SCANS_PER_MONTH,
@@ -9,12 +11,15 @@ import {
   type ScanQuota,
 } from "./scan-limits";
 import { resolveEffectivePlan, type UserSubscription } from "./subscription";
-import { isProPlan, type PlanId } from "./plans";
+import type { PlanId } from "./plans";
 
 function mapSubscription(row: Record<string, unknown>): UserSubscription & {
   scanTrialRemaining: number;
   scanCredits: number;
+  aiCreditUnits: number;
 } {
+  const scanCredits =
+    typeof row.scan_credits === "number" ? row.scan_credits : 0;
   return {
     userId: String(row.user_id),
     plan: (row.plan as PlanId) ?? "free",
@@ -28,8 +33,11 @@ function mapSubscription(row: Record<string, unknown>): UserSubscription & {
       typeof row.scan_trial_remaining === "number"
         ? row.scan_trial_remaining
         : FREE_EXPENSE_SCAN_TRIAL,
-    scanCredits:
-      typeof row.scan_credits === "number" ? row.scan_credits : 0,
+    scanCredits,
+    aiCreditUnits:
+      typeof row.ai_credit_units === "number"
+        ? row.ai_credit_units
+        : scanCredits * AI_UNITS_PER_SCAN,
   };
 }
 
@@ -47,18 +55,64 @@ async function fetchSubscriptionAdmin(userId: string) {
   return mapSubscription(data as Record<string, unknown>);
 }
 
-async function getMonthlyScanUsage(userId: string, monthKey: string) {
-  const admin = getSupabaseAdmin();
-  if (!admin) return 0;
+interface MonthlyAiUsage {
+  documentsCreated: number;
+  expenseScansCreated: number;
+  customerAiAutofillsCreated: number;
+}
 
-  const { data } = await admin
+async function getMonthlyAiUsage(
+  userId: string,
+  monthKey: string,
+): Promise<MonthlyAiUsage> {
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    return {
+      documentsCreated: 0,
+      expenseScansCreated: 0,
+      customerAiAutofillsCreated: 0,
+    };
+  }
+
+  const { data, error } = await admin
     .from("user_usage")
-    .select("expense_scans_created")
+    .select("documents_created, expense_scans_created, customer_ai_autofills_created")
     .eq("user_id", userId)
     .eq("month_key", monthKey)
     .maybeSingle();
 
-  return (data?.expense_scans_created as number | undefined) ?? 0;
+  if (error) {
+    const { data: legacyData } = await admin
+      .from("user_usage")
+      .select("documents_created, expense_scans_created")
+      .eq("user_id", userId)
+      .eq("month_key", monthKey)
+      .maybeSingle();
+
+    return {
+      documentsCreated:
+        (legacyData?.documents_created as number | undefined) ?? 0,
+      expenseScansCreated:
+        (legacyData?.expense_scans_created as number | undefined) ?? 0,
+      customerAiAutofillsCreated: 0,
+    };
+  }
+
+  if (!data) {
+    return {
+      documentsCreated: 0,
+      expenseScansCreated: 0,
+      customerAiAutofillsCreated: 0,
+    };
+  }
+
+  return {
+    documentsCreated: (data.documents_created as number | undefined) ?? 0,
+    expenseScansCreated:
+      (data.expense_scans_created as number | undefined) ?? 0,
+    customerAiAutofillsCreated:
+      (data.customer_ai_autofills_created as number | undefined) ?? 0,
+  };
 }
 
 export async function getExpenseScanQuota(userId: string): Promise<ScanQuota> {
@@ -69,20 +123,60 @@ export async function getExpenseScanQuota(userId: string): Promise<ScanQuota> {
 
   const sub = await fetchSubscriptionAdmin(userId);
   const plan = resolveEffectivePlan(sub);
-  const monthlyUsed = await getMonthlyScanUsage(userId, monthKey);
+  const usage = await getMonthlyAiUsage(userId, monthKey);
   const trialRemaining = sub?.scanTrialRemaining ?? FREE_EXPENSE_SCAN_TRIAL;
   const scanCredits = sub?.scanCredits ?? 0;
+  const aiCreditUnits = sub?.aiCreditUnits ?? scanCredits * AI_UNITS_PER_SCAN;
 
   return buildScanQuota(
     plan,
-    monthlyUsed,
+    usage.expenseScansCreated,
     trialRemaining,
     monthKey,
     scanCredits,
+    usage.customerAiAutofillsCreated,
+    aiCreditUnits,
   );
 }
 
-export async function consumeExpenseScan(userId: string): Promise<{
+async function updateAiCreditUnits(
+  userId: string,
+  units: number,
+): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return false;
+
+  const { error } = await admin
+    .from("user_subscriptions")
+    .update({
+      ai_credit_units: units,
+      scan_credits: Math.floor(units / AI_UNITS_PER_SCAN),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (!error) return true;
+
+  const { error: legacyError } = await admin
+    .from("user_subscriptions")
+    .update({
+      scan_credits: Math.floor(units / AI_UNITS_PER_SCAN),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  return !legacyError;
+}
+
+async function consumeAiUnits(
+  userId: string,
+  costUnits: number,
+  increments: {
+    expenseScansCreated?: number;
+    customerAiAutofillsCreated?: number;
+  },
+  failureReason = "No se pudo registrar el escaneo.",
+): Promise<{
   allowed: boolean;
   reason?: string;
   quota: ScanQuota;
@@ -94,7 +188,7 @@ export async function consumeExpenseScan(userId: string): Promise<{
     return { allowed: true, quota: quotaBefore };
   }
 
-  if (quotaBefore.remaining <= 0) {
+  if (quotaBefore.remainingUnits < costUnits) {
     return {
       allowed: false,
       reason: scanBlockedMessage(quotaBefore.plan),
@@ -115,11 +209,18 @@ export async function consumeExpenseScan(userId: string): Promise<{
   const plan = resolveEffectivePlan(sub);
 
   if (plan === "pro" || plan === "trial") {
-    const used = await getMonthlyScanUsage(userId, monthKey);
-    const monthlyRemaining = Math.max(0, PRO_EXPENSE_SCANS_PER_MONTH - used);
-    const scanCredits = sub?.scanCredits ?? 0;
+    const usage = await getMonthlyAiUsage(userId, monthKey);
+    const usedUnits =
+      usage.expenseScansCreated * AI_UNITS_PER_SCAN +
+      usage.customerAiAutofillsCreated;
+    const includedRemainingUnits = Math.max(
+      0,
+      PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN - usedUnits,
+    );
+    const aiCreditUnits =
+      sub?.aiCreditUnits ?? (sub?.scanCredits ?? 0) * AI_UNITS_PER_SCAN;
 
-    if (monthlyRemaining <= 0 && scanCredits <= 0) {
+    if (includedRemainingUnits + aiCreditUnits < costUnits) {
       return {
         allowed: false,
         reason: scanBlockedMessage(plan),
@@ -127,43 +228,55 @@ export async function consumeExpenseScan(userId: string): Promise<{
       };
     }
 
-    const { data: existing } = await admin
-      .from("user_usage")
-      .select("documents_created")
-      .eq("user_id", userId)
-      .eq("month_key", monthKey)
-      .maybeSingle();
-
     const payload = {
       user_id: userId,
       month_key: monthKey,
-      documents_created: (existing?.documents_created as number | undefined) ?? 0,
-      expense_scans_created: used + 1,
+      documents_created: usage.documentsCreated,
+      expense_scans_created:
+        usage.expenseScansCreated + (increments.expenseScansCreated ?? 0),
+      customer_ai_autofills_created:
+        usage.customerAiAutofillsCreated +
+        (increments.customerAiAutofillsCreated ?? 0),
     };
 
     const { error } = await admin
       .from("user_usage")
       .upsert(payload, { onConflict: "user_id,month_key" });
     if (error) {
-      return {
-        allowed: false,
-        reason: "No se pudo registrar el escaneo.",
-        quota: quotaBefore,
-      };
-    }
-
-    if (monthlyRemaining <= 0 && scanCredits > 0) {
-      const { error: creditError } = await admin
-        .from("user_subscriptions")
-        .update({
-          scan_credits: scanCredits - 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
-      if (creditError) {
+      let legacySaved = false;
+      if ((increments.customerAiAutofillsCreated ?? 0) <= 0) {
+        const { error: legacyError } = await admin
+          .from("user_usage")
+          .upsert(
+            {
+              user_id: userId,
+              month_key: monthKey,
+              documents_created: usage.documentsCreated,
+              expense_scans_created: payload.expense_scans_created,
+            },
+            { onConflict: "user_id,month_key" },
+          );
+        legacySaved = !legacyError;
+      }
+      if (!legacySaved) {
         return {
           allowed: false,
-          reason: "No se pudo registrar el escaneo.",
+          reason: failureReason,
+          quota: quotaBefore,
+        };
+      }
+    }
+
+    const unitsFromCredit = Math.max(0, costUnits - includedRemainingUnits);
+    if (unitsFromCredit > 0) {
+      const updated = await updateAiCreditUnits(
+        userId,
+        aiCreditUnits - unitsFromCredit,
+      );
+      if (!updated) {
+        return {
+          allowed: false,
+          reason: failureReason,
           quota: quotaBefore,
         };
       }
@@ -199,4 +312,21 @@ export async function consumeExpenseScan(userId: string): Promise<{
 
   const quota = await getExpenseScanQuota(userId);
   return { allowed: true, quota };
+}
+
+export async function consumeExpenseScan(userId: string) {
+  return consumeAiUnits(userId, AI_UNITS_PER_SCAN, {
+    expenseScansCreated: 1,
+  });
+}
+
+export async function consumeCustomerAiAutofill(userId: string) {
+  return consumeAiUnits(
+    userId,
+    CUSTOMER_AI_AUTOFILL_UNITS,
+    {
+      customerAiAutofillsCreated: 1,
+    },
+    "No se pudo registrar el uso IA. Revisa la migración de saldo IA en Supabase.",
+  );
 }

@@ -31,7 +31,7 @@ const FREE_FEATURES = [
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",
   `Escanear facturas de gasto (${PRO_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos; packs extra opcionales)`,
-  "Rellenar clientes con IA desde texto de WhatsApp, email o web, incluido CP si la dirección se localiza",
+  "Rellenar clientes con IA desde texto (10 rellenos equivalen a 1 escaneo), incluido CP si la dirección se localiza",
   "Importar datos desde otros programas de facturación",
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",

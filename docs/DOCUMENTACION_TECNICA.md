@@ -344,13 +344,15 @@ Flujo:
 4. Formulario se rellena con sugerencias
 5. Detección de proveedor duplicado (`suppliers.ts`) con opción de fusionar
 
-**Cuotas de escaneo** (si billing activo):
+**Cuotas IA** (si billing activo):
 
 | Plan | Límite |
 |------|--------|
 | Free | 2 escaneos de prueba (lifetime) |
-| Pro / Trial | 30/mes |
-| Pack extra | +10 escaneos (€1,99) |
+| Pro / Trial | 30 escaneos/mes (= 300 unidades IA) |
+| Pack extra | +10 escaneos (= 100 unidades IA, €1,99) |
+
+Costes internos: escanear gasto = 10 unidades IA; rellenar cliente desde texto = 1 unidad IA.
 
 #### Gastos fijos (`/gastos/fijos`)
 
@@ -648,7 +650,7 @@ Activable con `NEXT_PUBLIC_BILLING_ENABLED=true`. Si está desactivado, todos lo
 | UI | `ReferralCard`, `ReferralCapture` (?ref= en URL), `ReferralRedeemOnLogin` |
 | Recompensa | 5 escaneos extra por parte; un canje por cuenta; sin auto-referido |
 
-Los escaneos extra se acreditan en `scan_credits` (Pro/trial) o `scan_trial_remaining` (Gratis) vía `grantBonusScans`.
+Los escaneos extra se acreditan en `ai_credit_units` y `scan_credits` (compatibilidad Pro/trial) o `scan_trial_remaining` (Gratis) vía `grantBonusScans`.
 
 **Contador local:** `fa_billing_usage_v1` en localStorage.
 
@@ -659,6 +661,7 @@ Los escaneos extra se acreditan en `scan_credits` (Pro/trial) o `scan_trial_rema
 | Ruta | Método | Función |
 |------|--------|---------|
 | `/api/expenses/scan` | GET, POST | Cuota de escaneos; extracción OpenAI |
+| `/api/customers/parse` | POST | Autorrelleno IA de clientes desde texto; consume 1 unidad IA |
 | `/api/billing/checkout` | POST | Checkout suscripción Stripe |
 | `/api/billing/checkout-scan-pack` | POST | Compra pack escaneos |
 | `/api/billing/portal` | POST | Portal cliente Stripe |

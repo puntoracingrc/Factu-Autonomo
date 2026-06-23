@@ -8,6 +8,7 @@
    - `supabase/billing.sql`
    - `supabase/billing-scans.sql`
    - `supabase/billing-scan-credits.sql`
+   - `supabase/billing-ai-units.sql`
    - `supabase/billing-profile.sql`
 3. Copia URL, anon key y **service role key** (solo servidor).
 

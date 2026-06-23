@@ -109,6 +109,9 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           <p className="mt-1 text-sm text-slate-600">
             Pega datos de facturación recibidos por WhatsApp, email o web y revisa los campos antes de guardar.
           </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Consume 1 unidad IA. 10 rellenos equivalen a 1 escaneo.
+          </p>
         </div>
       </div>
       <Field label="Texto recibido">

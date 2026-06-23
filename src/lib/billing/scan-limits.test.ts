@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  AI_UNITS_PER_SCAN,
   buildScanQuota,
+  CUSTOMER_AI_AUTOFILL_UNITS,
   FREE_EXPENSE_SCAN_TRIAL,
   PRO_EXPENSE_SCANS_PER_MONTH,
   scanBlockedMessage,
@@ -16,6 +18,7 @@ describe("scan limits", () => {
     const q = buildScanQuota("pro", 3, 2, "2026-06");
     expect(q.limit).toBe(PRO_EXPENSE_SCANS_PER_MONTH);
     expect(q.remaining).toBe(PRO_EXPENSE_SCANS_PER_MONTH - 3);
+    expect(q.remainingUnits).toBe((PRO_EXPENSE_SCANS_PER_MONTH - 3) * AI_UNITS_PER_SCAN);
     expect(q.bonusCredits).toBe(0);
     expect(q.period).toBe("month");
   });
@@ -25,6 +28,14 @@ describe("scan limits", () => {
     const q = buildScanQuota("pro", PRO_EXPENSE_SCANS_PER_MONTH, 2, "2026-06", 10);
     expect(q.remaining).toBe(10);
     expect(q.bonusCredits).toBe(10);
+  });
+
+  it("cobra el relleno de cliente como una decima parte de escaneo", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", 0, 2, "2026-06", 0, 9);
+    expect(CUSTOMER_AI_AUTOFILL_UNITS).toBe(1);
+    expect(q.remainingUnits).toBe(PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN - 9);
+    expect(q.remaining).toBe(PRO_EXPENSE_SCANS_PER_MONTH - 1);
   });
 
   it("combina escaneos incluidos y extra", () => {

@@ -10,6 +10,7 @@ create table if not exists public.user_subscriptions (
   stripe_subscription_id text,
   trial_ends_at timestamptz,
   current_period_end timestamptz,
+  ai_credit_units integer not null default 0 check (ai_credit_units >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -19,6 +20,7 @@ create table if not exists public.user_usage (
   month_key text not null,
   documents_created integer not null default 0 check (documents_created >= 0),
   expense_scans_created integer not null default 0 check (expense_scans_created >= 0),
+  customer_ai_autofills_created integer not null default 0 check (customer_ai_autofills_created >= 0),
   primary key (user_id, month_key)
 );
 

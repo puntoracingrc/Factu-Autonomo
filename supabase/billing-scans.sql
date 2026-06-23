@@ -9,6 +9,10 @@ alter table public.user_usage
   add column if not exists expense_scans_created integer not null default 0
     check (expense_scans_created >= 0);
 
+alter table public.user_usage
+  add column if not exists customer_ai_autofills_created integer not null default 0
+    check (customer_ai_autofills_created >= 0);
+
 -- Restricción en scan_trial_remaining (si la columna es nueva)
 do $$
 begin

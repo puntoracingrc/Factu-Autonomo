@@ -12,6 +12,7 @@
 Solo la migración que falte, por ejemplo:
 
 - **Escáner de gastos:** `billing-scans.sql`
+- **Unidades IA (rellenar clientes consume 1/10 escaneo):** `billing-ai-units.sql`
 - **Veri*Factu (registros servidor):** `verifactu.sql`
 
 ## Auth — confirmación de email

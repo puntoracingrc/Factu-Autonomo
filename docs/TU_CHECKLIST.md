@@ -15,6 +15,7 @@ El código de monetización, sincronización fiscal con Stripe y recibos por ema
   - `supabase/billing.sql`
   - `supabase/billing-scans.sql`
   - `supabase/billing-scan-credits.sql`
+  - `supabase/billing-ai-units.sql`
   - `supabase/billing-profile.sql`
 - [ ] **Desplegar en Vercel** con dominio propio.
 - [ ] **Variables de entorno** — ver `docs/DEPLOY.md`.
