@@ -111,6 +111,70 @@ export function customerInvoicedTotal(
     .reduce((sum, doc) => sum + documentTotals(doc).total, 0);
 }
 
+export type CustomerInvoicedTotals = ReadonlyMap<string, number>;
+
+/** Totales facturados precalculados para no recorrer todos los documentos por cada cliente. */
+export function buildCustomerInvoicedTotals(
+  customers: Customer[],
+  documents: Document[],
+): CustomerInvoicedTotals {
+  const byNif = new Map<string, string[]>();
+  const byIdentity = new Map<string, string[]>();
+  const byDisplayName = new Map<string, string[]>();
+  const totals = new Map<string, number>();
+
+  const addIndex = (index: Map<string, string[]>, key: string, id: string) => {
+    if (!key) return;
+    const ids = index.get(key) ?? [];
+    ids.push(id);
+    index.set(key, ids);
+  };
+
+  for (const customer of customers) {
+    const migrated = migrateCustomer(customer);
+    totals.set(migrated.id, 0);
+    addIndex(byNif, normalizeCustomerNif(migrated.nif), migrated.id);
+    addIndex(
+      byIdentity,
+      customerIdentityKey(migrated.firstName, migrated.lastName),
+      migrated.id,
+    );
+    addIndex(
+      byDisplayName,
+      getCustomerDisplayName(migrated).toLowerCase(),
+      migrated.id,
+    );
+  }
+
+  for (const doc of documents) {
+    if (!isTaxableSaleDocument(doc)) continue;
+
+    const matchedIds = new Set<string>();
+    const nifMatches = byNif.get(normalizeCustomerNif(doc.client.nif)) ?? [];
+    nifMatches.forEach((id) => matchedIds.add(id));
+
+    if (doc.client.firstName && doc.client.lastName) {
+      const identityMatches =
+        byIdentity.get(
+          customerIdentityKey(doc.client.firstName, doc.client.lastName),
+        ) ?? [];
+      identityMatches.forEach((id) => matchedIds.add(id));
+    } else {
+      const clientName = (doc.client.name ?? "").trim().toLowerCase();
+      const nameMatches = byDisplayName.get(clientName) ?? [];
+      nameMatches.forEach((id) => matchedIds.add(id));
+    }
+
+    if (matchedIds.size === 0) continue;
+    const total = documentTotals(doc).total;
+    matchedIds.forEach((id) => {
+      totals.set(id, (totals.get(id) ?? 0) + total);
+    });
+  }
+
+  return totals;
+}
+
 export function clientMatchesCustomer(client: Client, customer: Customer): boolean {
   const migrated = migrateCustomer(customer);
   const customerNif = normalizeCustomerNif(migrated.nif);
@@ -192,8 +256,13 @@ export function sortCustomers(
   documents: Document[],
   field: CustomerSortField,
   direction: CustomerSortDirection,
+  invoicedTotals?: CustomerInvoicedTotals,
 ): Customer[] {
   const factor = direction === "asc" ? 1 : -1;
+  const totals =
+    field === "facturacion"
+      ? (invoicedTotals ?? buildCustomerInvoicedTotals(customers, documents))
+      : undefined;
   const compareText = (left: string, right: string) =>
     factor *
     left.localeCompare(right, "es", {
@@ -209,11 +278,7 @@ export function sortCustomers(
       case "direccion":
         return compareText(customerAddressSortKey(a), customerAddressSortKey(b));
       case "facturacion":
-        return (
-          factor *
-          (customerInvoicedTotal(documents, a) -
-            customerInvoicedTotal(documents, b))
-        );
+        return factor * ((totals?.get(a.id) ?? 0) - (totals?.get(b.id) ?? 0));
       default:
         return compareText(getCustomerDisplayName(a), getCustomerDisplayName(b));
     }

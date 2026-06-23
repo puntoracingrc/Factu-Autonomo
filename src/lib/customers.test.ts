@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCustomerInvoicedTotals,
   clientMatchesCustomer,
   customerFullName,
   customerInvoicedTotal,
@@ -98,6 +99,19 @@ describe("sortCustomers", () => {
       "facturacion",
       "desc",
     );
+    expect(sorted.map((c) => c.id)).toEqual(["2", "1", "3"]);
+  });
+
+  it("puede ordenar por volumen facturado usando totales precalculados", () => {
+    const totals = buildCustomerInvoicedTotals(sample, documents as never);
+    const sorted = sortCustomers(
+      sample,
+      documents as never,
+      "facturacion",
+      "desc",
+      totals,
+    );
+    expect(totals.get("2")).toBe(242);
     expect(sorted.map((c) => c.id)).toEqual(["2", "1", "3"]);
   });
 

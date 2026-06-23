@@ -20,7 +20,7 @@ import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
 import {
   customerFullName,
-  customerInvoicedTotal,
+  buildCustomerInvoicedTotals,
   customerPayloadFromInput,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
@@ -67,10 +67,27 @@ export default function ClientesPage() {
   const [sortDirection, setSortDirection] =
     useState<CustomerSortDirection>("asc");
 
+  const customerInvoicedTotals = useMemo(
+    () => buildCustomerInvoicedTotals(data.customers, data.documents),
+    [data.customers, data.documents],
+  );
+
   const customers = useMemo(
     () =>
-      sortCustomers(data.customers, data.documents, sortField, sortDirection),
-    [data.customers, data.documents, sortField, sortDirection],
+      sortCustomers(
+        data.customers,
+        data.documents,
+        sortField,
+        sortDirection,
+        customerInvoicedTotals,
+      ),
+    [
+      data.customers,
+      data.documents,
+      sortField,
+      sortDirection,
+      customerInvoicedTotals,
+    ],
   );
 
   const displayedCustomers = useMemo(() => {
@@ -476,7 +493,7 @@ export default function ClientesPage() {
           </p>
           {displayedCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);
-            const invoiced = customerInvoicedTotal(data.documents, customer);
+            const invoiced = customerInvoicedTotals.get(customer.id) ?? 0;
             const migrated = migrateCustomer(customer);
             return (
             <Card
