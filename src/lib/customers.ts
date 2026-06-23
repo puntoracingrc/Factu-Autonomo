@@ -380,6 +380,9 @@ export interface ClientInput {
   phone?: string;
   streetType?: string;
   address?: string;
+  city?: string;
+  postalCode?: string;
+  notes?: string;
 }
 
 export function formatCustomerAddressBlock(
@@ -401,6 +404,9 @@ export function customerToFormValues(customer: Customer) {
     phone: migrated.phone ?? "",
     streetType: migrated.streetType ?? "",
     address: migrated.address ?? "",
+    city: migrated.city ?? "",
+    postalCode: migrated.postalCode ?? "",
+    notes: migrated.notes ?? "",
   };
 }
 
@@ -408,7 +414,12 @@ export function clientInputToSnapshot(input: ClientInput): Client {
   const validation = validateCustomerNames(input.firstName, input.lastName);
   const firstName = validation.firstName ?? normalizeNamePart(input.firstName);
   const lastName = validation.lastName ?? normalizeNamePart(input.lastName);
-  const streetLine = formatStreetLine(input.streetType, input.address?.trim());
+  const addressBlock = formatCustomerAddressBlock({
+    streetType: input.streetType?.trim(),
+    address: input.address?.trim(),
+    postalCode: input.postalCode?.trim(),
+    city: input.city?.trim(),
+  });
 
   return {
     firstName,
@@ -420,7 +431,7 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     email: input.email?.trim() || undefined,
     phone: input.phone?.trim() || undefined,
     streetType: input.streetType?.trim() || undefined,
-    address: streetLine || input.address?.trim() || undefined,
+    address: addressBlock || input.address?.trim() || undefined,
   };
 }
 
@@ -470,6 +481,9 @@ export function ensureCustomerForDocument(
       phone: client.phone,
       streetType: input.streetType?.trim() || existing.streetType,
       address: input.address?.trim() || existing.address,
+      city: input.city?.trim() || existing.city,
+      postalCode: input.postalCode?.trim() || existing.postalCode,
+      notes: input.notes?.trim() || existing.notes,
       updatedAt: now,
     };
 
@@ -499,6 +513,9 @@ export function ensureCustomerForDocument(
     phone: client.phone,
     streetType: input.streetType?.trim() || undefined,
     address: input.address?.trim() || undefined,
+    city: input.city?.trim() || undefined,
+    postalCode: input.postalCode?.trim() || undefined,
+    notes: input.notes?.trim() || undefined,
     createdAt: now,
     updatedAt: now,
   };

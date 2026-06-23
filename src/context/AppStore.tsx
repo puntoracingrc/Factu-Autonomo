@@ -924,7 +924,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           nif: result.customer.nif,
           email: result.customer.email,
           phone: result.customer.phone,
+          streetType: result.customer.streetType,
           address: result.customer.address,
+          city: result.customer.city,
+          postalCode: result.customer.postalCode,
+          notes: result.customer.notes,
         });
         return { ok: true, customerId: created.id, client: result.client };
       }

@@ -8,7 +8,7 @@ import {
   clientToFormValues,
 } from "@/components/clients/ClientPicker";
 import type { ClientFormValues } from "@/components/clients/ClientPicker";
-import { formatStreetLine } from "@/lib/customer-address";
+import { formatAddressBlock } from "@/lib/customer-address";
 import { customerToFormValues, findCustomerByClient } from "@/lib/customers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -71,6 +71,9 @@ const EMPTY_CLIENT: ClientFormValues = {
   phone: "",
   streetType: "",
   address: "",
+  city: "",
+  postalCode: "",
+  notes: "",
 };
 
 interface DocumentFormProps {
@@ -196,7 +199,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       phone: clientForm.phone || undefined,
       streetType: clientForm.streetType || undefined,
       address:
-        formatStreetLine(clientForm.streetType, clientForm.address) ||
+        formatAddressBlock({
+          streetType: clientForm.streetType,
+          address: clientForm.address,
+          postalCode: clientForm.postalCode,
+          city: clientForm.city,
+        }) ||
         clientForm.address ||
         undefined,
     },
@@ -289,6 +297,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         phone: clientForm.phone,
         streetType: clientForm.streetType,
         address: clientForm.address,
+        city: clientForm.city,
+        postalCode: clientForm.postalCode,
+        notes: clientForm.notes,
       },
       selectedCustomerId,
     );

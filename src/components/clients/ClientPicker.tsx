@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, UserPlus } from "lucide-react";
+import {
+  CustomerAiAutofill,
+  type CustomerAiAutofillValues,
+} from "@/components/clients/CustomerAiAutofill";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { clientAddressToFormFields } from "@/lib/customer-address";
@@ -24,6 +28,9 @@ export interface ClientFormValues {
   phone: string;
   streetType: string;
   address: string;
+  city: string;
+  postalCode: string;
+  notes: string;
 }
 
 interface ClientPickerProps {
@@ -115,6 +122,27 @@ export function ClientPicker({
   function handleFieldChange(field: keyof ClientFormValues, value: string) {
     if (selectedCustomerId) onClearSelection();
     onChange(field, value);
+  }
+
+  function handleAiApply(values: Partial<CustomerAiAutofillValues>) {
+    if (selectedCustomerId) onClearSelection();
+    const fields: Array<keyof ClientFormValues> = [
+      "firstName",
+      "lastName",
+      "nif",
+      "email",
+      "phone",
+      "streetType",
+      "address",
+      "city",
+      "postalCode",
+      "notes",
+    ];
+
+    for (const field of fields) {
+      const value = values[field];
+      if (value) onChange(field, value);
+    }
   }
 
   const selectedCustomer = selectedCustomerId
@@ -226,6 +254,8 @@ export function ClientPicker({
         </div>
       )}
 
+      <CustomerAiAutofill onApply={handleAiApply} />
+
       <FormSection
         variant="fields"
         title="Ficha del cliente"
@@ -286,6 +316,29 @@ export function ClientPicker({
               />
             </Field>
           </div>
+          <Field label="Código postal">
+            <Input
+              value={values.postalCode}
+              onChange={(e) => handleFieldChange("postalCode", e.target.value)}
+              placeholder="08017"
+            />
+          </Field>
+          <Field label="Ciudad">
+            <Input
+              value={values.city}
+              onChange={(e) => handleFieldChange("city", e.target.value)}
+              placeholder="Barcelona"
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Notas del cliente">
+              <Textarea
+                value={values.notes}
+                onChange={(e) => handleFieldChange("notes", e.target.value)}
+                placeholder="Datos internos de la ficha del cliente..."
+              />
+            </Field>
+          </div>
         </div>
       </FormSection>
     </div>
@@ -306,6 +359,9 @@ export function clientToFormValues(client: Client): ClientFormValues {
     phone: client.phone ?? "",
     streetType,
     address: streetLine,
+    city: "",
+    postalCode: "",
+    notes: "",
   };
 }
 

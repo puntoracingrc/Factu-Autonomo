@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
+import { formatAddressBlock } from "@/lib/customer-address";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -158,7 +159,16 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         nif: clientForm.nif || undefined,
         email: clientForm.email || undefined,
         phone: clientForm.phone || undefined,
-        address: clientForm.address || undefined,
+        streetType: clientForm.streetType || undefined,
+        address:
+          formatAddressBlock({
+            streetType: clientForm.streetType,
+            address: clientForm.address,
+            postalCode: clientForm.postalCode,
+            city: clientForm.city,
+          }) ||
+          clientForm.address ||
+          undefined,
       },
       items: normalizeLineItemUnits(
         (vatExempt ? zeroIvaItems(items) : items).filter((i) =>

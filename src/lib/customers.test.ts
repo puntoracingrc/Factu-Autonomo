@@ -177,6 +177,11 @@ describe("ensureCustomerForDocument", () => {
         lastName: "Fernández",
         nif: "99999999Z",
         phone: "611222333",
+        streetType: "calle",
+        address: "Doctor Carulla 19",
+        postalCode: "08017",
+        city: "Barcelona",
+        notes: "Alta desde factura",
       },
       null,
     );
@@ -185,6 +190,10 @@ describe("ensureCustomerForDocument", () => {
       expect(result.created).toBe(true);
       expect(result.client.name).toBe("Luis Fernández");
       expect(result.client.nif).toBe("99999999Z");
+      expect(result.customer.postalCode).toBe("08017");
+      expect(result.customer.city).toBe("Barcelona");
+      expect(result.customer.notes).toBe("Alta desde factura");
+      expect(result.client.address).toBe("C/ Doctor Carulla 19, 08017 Barcelona");
     }
   });
 
@@ -219,6 +228,8 @@ describe("ensureCustomerForDocument", () => {
         firstName: "Ana",
         lastName: "García",
         phone: "699888777",
+        postalCode: "08018",
+        city: "Barcelona",
       },
       "2",
     );
@@ -226,6 +237,8 @@ describe("ensureCustomerForDocument", () => {
     if (result.ok) {
       expect(result.created).toBe(false);
       expect(result.customer.phone).toBe("699888777");
+      expect(result.customer.postalCode).toBe("08018");
+      expect(result.customer.city).toBe("Barcelona");
     }
   });
 });
