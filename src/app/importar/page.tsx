@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Database, FileCog, FileUp, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { AlertTriangle, Crown, Database, FileCog, FileUp, Lock, RefreshCw } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { useBilling } from "@/context/BillingContext";
 import { useAppStore } from "@/context/AppStore";
 import {
   PC_FACTURACION_SOURCE_NAME,
@@ -32,6 +33,7 @@ function formatRange(from: string | null, to: string | null): string {
 
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
+  const { billingEnabled, limits } = useBilling();
   const [source, setSource] = useState<ImportSource>("auto");
   const [file, setFile] = useState<File | null>(null);
   const [dwiFile, setDwiFile] = useState<File | null>(null);
@@ -45,6 +47,7 @@ export default function ImportarPage() {
     () => data.customers.length > 0 || data.documents.length > 0,
     [data.customers.length, data.documents.length],
   );
+  const importLocked = billingEnabled && !limits.databaseImport;
   const showPcFacturacionOptions = source === "pcfacturacion3";
 
   async function readDwiText(nextDwiFile: File | null) {
@@ -59,6 +62,11 @@ export default function ImportarPage() {
     setError(null);
     setDone(false);
     try {
+      if (importLocked) {
+        throw new Error(
+          "La importación de datos desde otros programas requiere plan Pro.",
+        );
+      }
       if (source !== "auto" && source !== "pcfacturacion3") {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
@@ -100,7 +108,7 @@ export default function ImportarPage() {
     setResult(null);
     setError(null);
     setDone(false);
-    if (nextFile) void analyze(nextFile);
+    if (nextFile && !importLocked) void analyze(nextFile);
   }
 
   function handleDwiFile(nextFile: File | undefined) {
@@ -118,6 +126,10 @@ export default function ImportarPage() {
 
   function importData() {
     if (!result) return;
+    if (importLocked) {
+      setError("La importación de datos desde otros programas requiere plan Pro.");
+      return;
+    }
     replaceData(result.data);
     setDone(true);
   }
@@ -146,10 +158,34 @@ export default function ImportarPage() {
           </div>
         </div>
 
+        {importLocked ? (
+          <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold">
+                  Importar bases de datos es una función Pro
+                </p>
+                <p className="mt-1 text-violet-900">
+                  Puedes revisar los orígenes disponibles, pero para analizar e
+                  importar datos desde otro programa necesitas activar Pro.
+                </p>
+                <ButtonLink href="/precios" className="mt-3" variant="secondary">
+                  <Crown className="h-4 w-4" />
+                  Ver planes Pro
+                </ButtonLink>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <Field label="Programa de origen">
           <Select
             value={source}
             onChange={(event) => handleSource(event.target.value as ImportSource)}
+            disabled={importLocked}
           >
             {IMPORT_SOURCES.map((item) => (
               <option key={item.value} value={item.value} disabled={item.disabled}>
@@ -166,6 +202,7 @@ export default function ImportarPage() {
           <Input
             type="file"
             accept=".mdb,application/msaccess,application/x-msaccess"
+            disabled={importLocked}
             onChange={(event) => handleFile(event.target.files?.[0])}
           />
         </Field>
@@ -179,6 +216,7 @@ export default function ImportarPage() {
               <Input
                 type="file"
                 accept=".dwi,text/plain"
+                disabled={importLocked}
                 onChange={(event) => handleDwiFile(event.target.files?.[0])}
               />
             </Field>
@@ -201,6 +239,7 @@ export default function ImportarPage() {
           <input
             type="checkbox"
             checked={includeUnusedCustomers}
+            disabled={importLocked}
             onChange={(event) => {
               setIncludeUnusedCustomers(event.target.checked);
               setResult(null);
@@ -218,7 +257,7 @@ export default function ImportarPage() {
           <Button
             variant="secondary"
             onClick={() => void refreshAnalysis()}
-            disabled={!file || busy}
+            disabled={!file || busy || importLocked}
           >
             {busy ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -350,7 +389,9 @@ export default function ImportarPage() {
             </p>
           ) : null}
 
-          <Button onClick={importData}>Importar a esta cuenta</Button>
+          <Button onClick={importData} disabled={importLocked}>
+            Importar a esta cuenta
+          </Button>
 
           {done ? (
             <p className="text-sm font-semibold text-emerald-700">

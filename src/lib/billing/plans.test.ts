@@ -11,12 +11,15 @@ describe("billing plans", () => {
     expect(PLANS.free.limits.maxDocumentsPerMonth).toBe(10);
     expect(PLANS.free.limits.maxCustomers).toBe(15);
     expect(PLANS.free.limits.cloudSync).toBe(false);
+    expect(PLANS.free.limits.databaseImport).toBe(false);
   });
 
   it("desbloquea funciones en pro y trial", () => {
     expect(isProPlan("pro")).toBe(true);
     expect(isProPlan("trial")).toBe(true);
     expect(isProPlan("free")).toBe(false);
+    expect(PLANS.pro.limits.databaseImport).toBe(true);
+    expect(PLANS.trial.limits.databaseImport).toBe(true);
     expect(PLANS.pro.limits.quarterlyExport).toBe(true);
   });
 
