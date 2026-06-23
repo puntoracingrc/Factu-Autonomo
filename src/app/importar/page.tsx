@@ -45,6 +45,7 @@ export default function ImportarPage() {
     () => data.customers.length > 0 || data.documents.length > 0,
     [data.customers.length, data.documents.length],
   );
+  const showPcFacturacionOptions = source === "pcfacturacion3";
 
   async function readDwiText(nextDwiFile: File | null) {
     if (!nextDwiFile) return undefined;
@@ -62,7 +63,9 @@ export default function ImportarPage() {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
 
-      const dwiText = await readDwiText(nextDwiFile);
+      const dwiText = showPcFacturacionOptions
+        ? await readDwiText(nextDwiFile)
+        : undefined;
       const parsed = await readPcFacturacionMdb(nextFile, data, {
         includeUnusedCustomers,
         dwiText,
@@ -86,6 +89,7 @@ export default function ImportarPage() {
 
   function handleSource(nextSource: ImportSource) {
     setSource(nextSource);
+    if (nextSource !== "pcfacturacion3") setDwiFile(null);
     setResult(null);
     setError(null);
     setDone(false);
@@ -166,28 +170,32 @@ export default function ImportarPage() {
           />
         </Field>
 
-        <Field
-          label="Archivo DWI opcional para PC Facturación"
-          hint="Sirve para continuar la numeración antigua. Suele estar en la misma carpeta que el MDB y tener el mismo nombre de empresa, por ejemplo Mi empresa.dwi."
-        >
-          <Input
-            type="file"
-            accept=".dwi,text/plain"
-            onChange={(event) => handleDwiFile(event.target.files?.[0])}
-          />
-        </Field>
+        {showPcFacturacionOptions ? (
+          <div className="space-y-4">
+            <Field
+              label="Archivo DWI opcional"
+              hint="Sirve para continuar la numeración antigua. Suele estar en la misma carpeta que el MDB y tener el mismo nombre de empresa, por ejemplo Mi empresa.dwi."
+            >
+              <Input
+                type="file"
+                accept=".dwi,text/plain"
+                onChange={(event) => handleDwiFile(event.target.files?.[0])}
+              />
+            </Field>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <div className="flex items-center gap-2 font-semibold text-slate-900">
-            <FileCog className="h-4 w-4" />
-            ¿Dónde encuentro el DWI?
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2 font-semibold text-slate-900">
+                <FileCog className="h-4 w-4" />
+                ¿Dónde encuentro el DWI?
+              </div>
+              <p className="mt-1">
+                Normalmente aparece junto a la base de datos MDB, dentro de la
+                carpeta del programa o de la copia. No es obligatorio: si no lo
+                tienes, importa solo el MDB.
+              </p>
+            </div>
           </div>
-          <p className="mt-1">
-            Para PC Facturación normalmente aparece junto a la base de datos
-            MDB, dentro de la carpeta del programa o de la copia. No es
-            obligatorio: si no lo tienes, importa solo el MDB.
-          </p>
-        </div>
+        ) : null}
 
         <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <input
