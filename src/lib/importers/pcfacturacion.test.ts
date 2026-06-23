@@ -183,6 +183,36 @@ describe("PC Facturacion importer", () => {
     });
   });
 
+  it("permite marcar como pagadas las facturas importadas que vienen impagadas", () => {
+    const tables = {
+      ...baseTables,
+      Invoice: [
+        {
+          ...baseTables.Invoice[0],
+          Paid: false,
+        },
+      ],
+    };
+    const keepResult = buildPcFacturacionImport(EMPTY_DATA, tables, {
+      includeUnusedCustomers: false,
+    });
+    const markPaidResult = buildPcFacturacionImport(EMPTY_DATA, tables, {
+      includeUnusedCustomers: false,
+      markUnpaidInvoicesAsPaid: true,
+    });
+
+    expect(keepResult.preview.unpaidInvoices).toBe(1);
+    expect(keepResult.preview.unpaidInvoicesMarkedPaid).toBe(false);
+    expect(keepResult.data.documents.find((doc) => doc.type === "factura")?.status).toBe(
+      "enviado",
+    );
+    expect(markPaidResult.preview.unpaidInvoices).toBe(1);
+    expect(markPaidResult.preview.unpaidInvoicesMarkedPaid).toBe(true);
+    expect(markPaidResult.data.documents.find((doc) => doc.type === "factura")?.status).toBe(
+      "pagado",
+    );
+  });
+
   it("puede incluir clientes sin documentos cuando se solicita", () => {
     const result = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
       includeUnusedCustomers: true,

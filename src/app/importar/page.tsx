@@ -14,6 +14,7 @@ import {
 } from "@/lib/importers/pcfacturacion";
 
 type ImportSource = "auto" | "pcfacturacion3" | "prestashop" | "csv";
+type InvoicePaymentImportMode = "keep" | "markPaid";
 
 const IMPORT_SOURCES: Array<{
   value: ImportSource;
@@ -38,6 +39,8 @@ export default function ImportarPage() {
   const [file, setFile] = useState<File | null>(null);
   const [dwiFile, setDwiFile] = useState<File | null>(null);
   const [includeUnusedCustomers, setIncludeUnusedCustomers] = useState(false);
+  const [invoicePaymentMode, setInvoicePaymentMode] =
+    useState<InvoicePaymentImportMode>("keep");
   const [result, setResult] = useState<PcFacturacionImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +59,11 @@ export default function ImportarPage() {
     return new TextDecoder("windows-1252").decode(buffer);
   }
 
-  async function analyze(nextFile = file, nextDwiFile = dwiFile) {
+  async function analyze(
+    nextFile = file,
+    nextDwiFile = dwiFile,
+    nextInvoicePaymentMode = invoicePaymentMode,
+  ) {
     if (!nextFile) return;
     setBusy(true);
     setError(null);
@@ -77,6 +84,7 @@ export default function ImportarPage() {
       const parsed = await readPcFacturacionMdb(nextFile, data, {
         includeUnusedCustomers,
         dwiText,
+        markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
       });
       setResult(parsed);
     } catch (err) {
@@ -118,6 +126,12 @@ export default function ImportarPage() {
     setError(null);
     setDone(false);
     if (file) void analyze(file, nextDwiFile);
+  }
+
+  function handleInvoicePaymentMode(nextMode: InvoicePaymentImportMode) {
+    setInvoicePaymentMode(nextMode);
+    setDone(false);
+    if (file && !busy) void analyze(file, dwiFile, nextMode);
   }
 
   async function refreshAnalysis() {
@@ -313,6 +327,9 @@ export default function ImportarPage() {
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {result.preview.invoiceLines} líneas
+                {result.preview.unpaidInvoices > 0
+                  ? ` · ${result.preview.unpaidInvoices} sin pagar`
+                  : ""}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
@@ -364,6 +381,64 @@ export default function ImportarPage() {
                     <strong>{result.preview.numbering.nextCustomerNumber}</strong>
                   </p>
                 ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {result.preview.unpaidInvoices > 0 ? (
+            <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    Hay facturas marcadas como impagadas
+                  </p>
+                  <p className="mt-1 text-blue-900">
+                    El archivo trae {result.preview.unpaidInvoices} factura(s)
+                    sin marcar como pagadas. ¿Quieres mantenerlas así o
+                    marcarlas como pagadas al importar?
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="flex items-start gap-2 rounded-lg border border-blue-200 bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoice-payment-mode"
+                    value="keep"
+                    checked={invoicePaymentMode === "keep"}
+                    disabled={busy}
+                    onChange={() => handleInvoicePaymentMode("keep")}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    <span className="block font-semibold">
+                      Mantenerlas como vienen
+                    </span>
+                    <span className="block text-xs text-slate-600">
+                      Las facturas sin pagar seguirán pendientes.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border border-blue-200 bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoice-payment-mode"
+                    value="markPaid"
+                    checked={invoicePaymentMode === "markPaid"}
+                    disabled={busy}
+                    onChange={() => handleInvoicePaymentMode("markPaid")}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    <span className="block font-semibold">
+                      Marcarlas como pagadas
+                    </span>
+                    <span className="block text-xs text-slate-600">
+                      Útil si es una importación histórica ya cerrada.
+                    </span>
+                  </span>
+                </label>
               </div>
             </div>
           ) : null}

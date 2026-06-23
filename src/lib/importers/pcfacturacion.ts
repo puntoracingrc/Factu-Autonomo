@@ -28,6 +28,7 @@ type PcfTables = Record<string, MdbRow[]>;
 export interface PcFacturacionImportOptions {
   includeUnusedCustomers: boolean;
   dwiText?: string;
+  markUnpaidInvoicesAsPaid?: boolean;
 }
 
 export interface PcFacturacionImportPreview {
@@ -38,6 +39,8 @@ export interface PcFacturacionImportPreview {
   blankCustomers: number;
   customersToImport: number;
   invoices: number;
+  unpaidInvoices: number;
+  unpaidInvoicesMarkedPaid: boolean;
   offers: number;
   invoiceLines: number;
   offerLines: number;
@@ -298,10 +301,14 @@ function lineFromPosition(row: MdbRow, index: number, docNumber: string): LineIt
   };
 }
 
-function documentStatus(row: MdbRow, type: "factura" | "presupuesto"): DocumentStatus {
+function documentStatus(
+  row: MdbRow,
+  type: "factura" | "presupuesto",
+  markUnpaidInvoicesAsPaid: boolean,
+): DocumentStatus {
   if (type === "factura") {
     if (bool(row.Canceled)) return "anulada";
-    if (bool(row.Paid)) return "pagado";
+    if (bool(row.Paid) || markUnpaidInvoicesAsPaid) return "pagado";
     return "enviado";
   }
   return text(row.InvoiceNumber) ? "aceptado" : "enviado";
@@ -314,6 +321,7 @@ function buildDocument(input: {
   positions: MdbRow[];
   customerBySource: Map<string, Customer>;
   profile: BusinessProfile;
+  markUnpaidInvoicesAsPaid: boolean;
 }): Document {
   const number = text(input.row[input.numberField]);
   const date = isoDate(input.row.Date);
@@ -321,7 +329,11 @@ function buildDocument(input: {
   const items = input.positions.map((row, index) =>
     lineFromPosition(row, index, number),
   );
-  const status = documentStatus(input.row, input.type);
+  const status = documentStatus(
+    input.row,
+    input.type,
+    input.markUnpaidInvoicesAsPaid,
+  );
 
   return {
     id: pcfId(input.type, number),
@@ -549,6 +561,10 @@ export function buildPcFacturacionImport(
 
   const invoicePositions = groupPositions(positions, "Factura");
   const offerPositions = groupPositions(positions, "Presupuesto");
+  const unpaidInvoices = invoices.filter(
+    (row) =>
+      text(row.InvoiceNumber) && !bool(row.Canceled) && !bool(row.Paid),
+  ).length;
   const importedInvoices = invoices
     .filter((row) => text(row.InvoiceNumber))
     .map((row) =>
@@ -559,6 +575,7 @@ export function buildPcFacturacionImport(
         positions: invoicePositions.get(text(row.InvoiceNumber)) ?? [],
         customerBySource,
         profile,
+        markUnpaidInvoicesAsPaid: options.markUnpaidInvoicesAsPaid ?? false,
       }),
     );
   const importedOffers = offers
@@ -571,6 +588,7 @@ export function buildPcFacturacionImport(
         positions: offerPositions.get(text(row.OfferNumber)) ?? [],
         customerBySource,
         profile,
+        markUnpaidInvoicesAsPaid: false,
       }),
     );
 
@@ -607,6 +625,8 @@ export function buildPcFacturacionImport(
     blankCustomers,
     customersToImport: customersToImport.length,
     invoices: importedInvoices.length,
+    unpaidInvoices,
+    unpaidInvoicesMarkedPaid: options.markUnpaidInvoicesAsPaid ?? false,
     offers: importedOffers.length,
     invoiceLines: importedLineCount(importedInvoices),
     offerLines: importedLineCount(importedOffers),
