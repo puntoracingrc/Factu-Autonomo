@@ -1,4 +1,4 @@
-import { countersFromDocuments } from "../documents";
+import { countersFromDocuments, formatDocumentNumber } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import type {
@@ -9,6 +9,7 @@ import type {
   Document,
   DocumentStatus,
   LineItem,
+  NumberingSettings,
 } from "../types";
 
 export const PCF_ID_PREFIX = "pcfacturacion";
@@ -18,6 +19,7 @@ type PcfTables = Record<string, MdbRow[]>;
 
 export interface PcFacturacionImportOptions {
   includeUnusedCustomers: boolean;
+  dwiText?: string;
 }
 
 export interface PcFacturacionImportPreview {
@@ -36,6 +38,12 @@ export interface PcFacturacionImportPreview {
     from: string | null;
     to: string | null;
   };
+  numbering?: {
+    nextInvoiceNumber?: string;
+    nextOfferNumber?: string;
+    nextReceiptNumber?: string;
+    nextCustomerNumber?: number;
+  };
 }
 
 export interface PcFacturacionImportResult {
@@ -47,6 +55,16 @@ export interface PcFacturacionImportResult {
 interface ParsedCustomer {
   sourceId: string;
   customer: Customer;
+}
+
+interface DwiNumbering {
+  invoiceNext?: number;
+  offerNext?: number;
+  receiptNext?: number;
+  customerNext?: number;
+  invoiceTemplate?: string;
+  offerTemplate?: string;
+  receiptTemplate?: string;
 }
 
 function text(value: unknown): string {
@@ -334,6 +352,139 @@ function importedLineCount(documents: Document[]): number {
   return documents.reduce((sum, document) => sum + document.items.length, 0);
 }
 
+function parseDwiSections(input: string): Record<string, Record<string, string>> {
+  const sections: Record<string, Record<string, string>> = {};
+  let current = "";
+
+  for (const rawLine of input.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith(";") || line.startsWith("#")) continue;
+
+    const section = line.match(/^\[([^\]]+)\]$/);
+    if (section) {
+      current = section[1];
+      sections[current] ??= {};
+      continue;
+    }
+
+    const separator = line.indexOf("=");
+    if (separator < 0 || !current) continue;
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+    sections[current][key] = value;
+  }
+
+  return sections;
+}
+
+function parsePositiveInteger(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+  return parsed;
+}
+
+function buildTemplateFromDwi(format: string | undefined, token: string | undefined): string | undefined {
+  const cleanToken = text(token);
+  if (!cleanToken) return undefined;
+  if (!format) return `${cleanToken}/{num}/`;
+
+  const parts = format
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return `${cleanToken}/{num}/`;
+
+  const template = parts
+    .map((part) => {
+      if (/^(abrev\.?|abreviatura)$/i.test(part)) return cleanToken;
+      if (/^(n[ºo]\.?|numero|número)$/i.test(part)) return "{num}";
+      if (/^vac[ií]o$/i.test(part)) return "";
+      return part;
+    })
+    .join("");
+
+  return template.includes("{num}") ? template : `${cleanToken}/{num}/`;
+}
+
+export function parsePcFacturacionDwi(input: string): DwiNumbering | null {
+  const sections = parseDwiSections(input);
+  const numberRange = sections.NumberRange;
+  const token = sections.Token;
+  if (!numberRange && !token) return null;
+
+  const format = numberRange?.Format;
+  const numbering: DwiNumbering = {
+    invoiceNext: parsePositiveInteger(numberRange?.Invoice),
+    offerNext: parsePositiveInteger(numberRange?.Offer),
+    receiptNext: parsePositiveInteger(numberRange?.Receipt),
+    customerNext: parsePositiveInteger(numberRange?.Customer),
+    invoiceTemplate: buildTemplateFromDwi(format, token?.Invoice),
+    offerTemplate: buildTemplateFromDwi(format, token?.Offer),
+    receiptTemplate: buildTemplateFromDwi(format, token?.Receipt),
+  };
+
+  return Object.values(numbering).some(Boolean) ? numbering : null;
+}
+
+function lastUsedFromNext(next: number | undefined): number | undefined {
+  if (!next) return undefined;
+  return Math.max(0, next - 1);
+}
+
+function applyDwiNumbering(
+  base: NumberingSettings,
+  dwiText: string | undefined,
+): { numbering: NumberingSettings; dwi: DwiNumbering | null } {
+  if (!dwiText?.trim()) return { numbering: base, dwi: null };
+  const dwi = parsePcFacturacionDwi(dwiText);
+  if (!dwi) return { numbering: base, dwi: null };
+
+  return {
+    dwi,
+    numbering: {
+      ...base,
+      lastSequence: {
+        ...base.lastSequence,
+        factura: lastUsedFromNext(dwi.invoiceNext) ?? base.lastSequence.factura,
+        presupuesto: lastUsedFromNext(dwi.offerNext) ?? base.lastSequence.presupuesto,
+        recibo: lastUsedFromNext(dwi.receiptNext) ?? base.lastSequence.recibo,
+      },
+      formats: {
+        ...base.formats,
+        factura: dwi.invoiceTemplate
+          ? { template: dwi.invoiceTemplate, padding: 1 }
+          : base.formats.factura,
+        presupuesto: dwi.offerTemplate
+          ? { template: dwi.offerTemplate, padding: 1 }
+          : base.formats.presupuesto,
+        recibo: dwi.receiptTemplate
+          ? { template: dwi.receiptTemplate, padding: 1 }
+          : base.formats.recibo,
+      },
+    },
+  };
+}
+
+function buildNumberingPreview(
+  numbering: NumberingSettings,
+  dwi: DwiNumbering | null,
+): PcFacturacionImportPreview["numbering"] {
+  if (!dwi) return undefined;
+  return {
+    nextInvoiceNumber: dwi.invoiceNext
+      ? formatDocumentNumber("factura", numbering.year, dwi.invoiceNext, numbering)
+      : undefined,
+    nextOfferNumber: dwi.offerNext
+      ? formatDocumentNumber("presupuesto", numbering.year, dwi.offerNext, numbering)
+      : undefined,
+    nextReceiptNumber: dwi.receiptNext
+      ? formatDocumentNumber("recibo", numbering.year, dwi.receiptNext, numbering)
+      : undefined,
+    nextCustomerNumber: dwi.customerNext,
+  };
+}
+
 export function buildPcFacturacionImport(
   current: AppData,
   tables: PcfTables,
@@ -344,6 +495,10 @@ export function buildPcFacturacionImport(
   const offers = tables.Offer ?? [];
   const positions = tables.Positions ?? [];
   const profile = parseCompanyProfile(tables.Client?.[0], current.profile);
+  const { numbering, dwi } = applyDwiNumbering(
+    current.profile.numbering,
+    options.dwiText,
+  );
 
   const usedCustomerNumbers = new Set(
     [...invoices, ...offers].map((row) => text(row.CustomerNumber)).filter(Boolean),
@@ -403,7 +558,7 @@ export function buildPcFacturacionImport(
   const nextDocuments = [...keptDocuments, ...importedDocuments];
   const nextProfile = {
     ...profile,
-    numbering: current.profile.numbering,
+    numbering,
   };
   const data = normalizeLoadedData({
     ...current,
@@ -434,9 +589,15 @@ export function buildPcFacturacionImport(
     ),
     orphanOfferLineDocuments: orphanDocumentCount(offerPositions, offers, "OfferNumber"),
     dateRange: minMaxDates(importedDocuments),
+    numbering: buildNumberingPreview(numbering, dwi),
   };
 
   const warnings: string[] = [];
+  if (options.dwiText?.trim() && !dwi) {
+    warnings.push(
+      "El archivo DWI se ha leído, pero no contiene una numeración reconocible.",
+    );
+  }
   if (preview.blankCustomers > 0) {
     warnings.push(`${preview.blankCustomers} cliente(s) vacíos se ignorarán.`);
   }

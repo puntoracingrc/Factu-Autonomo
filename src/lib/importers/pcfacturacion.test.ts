@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildPcFacturacionImport, extractSpanishTaxId } from "./pcfacturacion";
+import {
+  buildPcFacturacionImport,
+  extractSpanishTaxId,
+  parsePcFacturacionDwi,
+} from "./pcfacturacion";
 import { EMPTY_DATA } from "../types";
 
 const baseTables = {
@@ -103,6 +107,32 @@ describe("PC Facturacion importer", () => {
     expect(extractSpanishTaxId("CIF- B-65305450")).toBe("B65305450");
   });
 
+  it("lee la numeracion configurada en un DWI", () => {
+    const dwi = parsePcFacturacionDwi(`
+      [NumberRange]
+      Offer=6403
+      Invoice=2941
+      Receipt=2008
+      Customer=1568947
+      Format=Abrev.;/;Nº;/;Vacío
+
+      [Token]
+      Offer=Pto
+      Invoice=Factura
+      Receipt=F
+    `);
+
+    expect(dwi).toMatchObject({
+      invoiceNext: 2941,
+      offerNext: 6403,
+      receiptNext: 2008,
+      customerNext: 1568947,
+      invoiceTemplate: "Factura/{num}/",
+      offerTemplate: "Pto/{num}/",
+      receiptTemplate: "F/{num}/",
+    });
+  });
+
   it("mapea empresa, clientes, facturas, presupuestos y lineas", () => {
     const result = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
       includeUnusedCustomers: false,
@@ -139,5 +169,36 @@ describe("PC Facturacion importer", () => {
 
     expect(result.preview.customersToImport).toBe(2);
     expect(result.data.customers).toHaveLength(2);
+  });
+
+  it("aplica la numeracion opcional del DWI sin cambiar los documentos historicos", () => {
+    const result = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
+      includeUnusedCustomers: false,
+      dwiText: `
+        [NumberRange]
+        Offer=6403
+        Invoice=2941
+        Receipt=2008
+        Format=Abrev.;/;Nº;/;Vacío
+
+        [Token]
+        Offer=Pto
+        Invoice=Factura
+        Receipt=F
+      `,
+    });
+
+    expect(result.preview.numbering).toMatchObject({
+      nextInvoiceNumber: "Factura/2941/",
+      nextOfferNumber: "Pto/6403/",
+      nextReceiptNumber: "F/2008/",
+    });
+    expect(result.data.profile.numbering.lastSequence.factura).toBe(2940);
+    expect(result.data.profile.numbering.formats.factura.template).toBe(
+      "Factura/{num}/",
+    );
+    expect(result.data.documents.find((doc) => doc.type === "factura")?.number).toBe(
+      "Factura/1/",
+    );
   });
 });

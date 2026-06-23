@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Database, FileUp, RefreshCw } from "lucide-react";
+import { AlertTriangle, Database, FileCog, FileUp, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -19,6 +19,7 @@ function formatRange(from: string | null, to: string | null): string {
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
   const [file, setFile] = useState<File | null>(null);
+  const [dwiFile, setDwiFile] = useState<File | null>(null);
   const [includeUnusedCustomers, setIncludeUnusedCustomers] = useState(false);
   const [result, setResult] = useState<PcFacturacionImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +31,22 @@ export default function ImportarPage() {
     [data.customers.length, data.documents.length],
   );
 
-  async function analyze(nextFile = file) {
+  async function readDwiText(nextDwiFile: File | null) {
+    if (!nextDwiFile) return undefined;
+    const buffer = await nextDwiFile.arrayBuffer();
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+
+  async function analyze(nextFile = file, nextDwiFile = dwiFile) {
     if (!nextFile) return;
     setBusy(true);
     setError(null);
     setDone(false);
     try {
+      const dwiText = await readDwiText(nextDwiFile);
       const parsed = await readPcFacturacionMdb(nextFile, data, {
         includeUnusedCustomers,
+        dwiText,
       });
       setResult(parsed);
     } catch (err) {
@@ -54,6 +63,15 @@ export default function ImportarPage() {
     setError(null);
     setDone(false);
     if (nextFile) void analyze(nextFile);
+  }
+
+  function handleDwiFile(nextFile: File | undefined) {
+    const nextDwiFile = nextFile ?? null;
+    setDwiFile(nextDwiFile);
+    setResult(null);
+    setError(null);
+    setDone(false);
+    if (file) void analyze(file, nextDwiFile);
   }
 
   async function refreshAnalysis() {
@@ -84,7 +102,8 @@ export default function ImportarPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Lee clientes, presupuestos, facturas, líneas y datos de empresa.
-              Se importa como histórico y conserva la numeración original.
+              Se importa como histórico y conserva la numeración original de cada
+              documento.
             </p>
           </div>
         </div>
@@ -96,6 +115,29 @@ export default function ImportarPage() {
             onChange={(event) => handleFile(event.target.files?.[0])}
           />
         </Field>
+
+        <Field
+          label="Archivo DWI opcional"
+          hint="Sirve para continuar la numeración antigua. Suele estar en la misma carpeta que el MDB y tener el mismo nombre de empresa, por ejemplo Mi empresa.dwi."
+        >
+          <Input
+            type="file"
+            accept=".dwi,text/plain"
+            onChange={(event) => handleDwiFile(event.target.files?.[0])}
+          />
+        </Field>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <div className="flex items-center gap-2 font-semibold text-slate-900">
+            <FileCog className="h-4 w-4" />
+            ¿Dónde encuentro el DWI?
+          </div>
+          <p className="mt-1">
+            En PC Facturación normalmente aparece junto a la base de datos MDB,
+            dentro de la carpeta del programa o de la copia. No es obligatorio:
+            si no lo tienes, importa solo el MDB.
+          </p>
+        </div>
 
         <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <input
@@ -194,6 +236,38 @@ export default function ImportarPage() {
               </p>
             </div>
           </div>
+
+          {result.preview.numbering ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+              <p className="font-semibold">Numeración detectada en el DWI</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {result.preview.numbering.nextInvoiceNumber ? (
+                  <p>
+                    Próxima factura:{" "}
+                    <strong>{result.preview.numbering.nextInvoiceNumber}</strong>
+                  </p>
+                ) : null}
+                {result.preview.numbering.nextOfferNumber ? (
+                  <p>
+                    Próximo presupuesto:{" "}
+                    <strong>{result.preview.numbering.nextOfferNumber}</strong>
+                  </p>
+                ) : null}
+                {result.preview.numbering.nextReceiptNumber ? (
+                  <p>
+                    Próximo recibo:{" "}
+                    <strong>{result.preview.numbering.nextReceiptNumber}</strong>
+                  </p>
+                ) : null}
+                {result.preview.numbering.nextCustomerNumber ? (
+                  <p>
+                    Próximo cliente antiguo:{" "}
+                    <strong>{result.preview.numbering.nextCustomerNumber}</strong>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {result.warnings.length > 0 ? (
             <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
