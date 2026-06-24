@@ -90,7 +90,7 @@ Job `quality`:
 
 Job `supabase-acceptance`:
 
-- Node fijado a 20.
+- Node fijado a 22.
 - Supabase CLI fijado a `2.107.0`.
 - PostgreSQL client instalado explicitamente para `psql`/`pg_isready`.
 - Supabase local iniciado sin secretos de produccion.
