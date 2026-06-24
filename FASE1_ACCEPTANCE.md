@@ -5,7 +5,13 @@ Estado: **ACEPTADA EN SUPABASE LOCAL**
 
 ## Resumen
 
-Se ejecuto la aceptacion dinamica de Fase 1 contra Supabase local, sin usar produccion, sin deploy y sin commit.
+Se ejecuto la aceptacion dinamica de Fase 1 contra Supabase local, sin usar produccion y sin deploy.
+
+Commit funcional de Fase 1:
+
+```text
+8f7d751 feat(security): harden billing and ai usage controls
+```
 
 Resultado final:
 
