@@ -281,4 +281,39 @@ describe("storage", () => {
     expect(normalized.customers[0].mergedCustomerIds).toEqual(["legacy-1"]);
     expect(normalized.documents[0].customerId).toBe("customer-1");
   });
+
+  it("normalizeLoadedData conserva vínculos factura-recibo", () => {
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          id: "invoice-1",
+          type: "factura",
+          number: "F-2026-0003",
+          date: "2026-06-24",
+          client: { name: "Ana López" },
+          items: [],
+          status: "pagado",
+          receiptDocumentId: "receipt-1",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+        {
+          id: "receipt-1",
+          type: "recibo",
+          number: "R-2026-0001",
+          date: "2026-06-24",
+          client: { name: "Ana López" },
+          items: [],
+          status: "pagado",
+          sourceDocumentId: "invoice-1",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].receiptDocumentId).toBe("receipt-1");
+    expect(normalized.documents[1].sourceDocumentId).toBe("invoice-1");
+  });
 });

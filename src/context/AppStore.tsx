@@ -59,6 +59,7 @@ import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
   buildReceiptFromInvoice,
   findReceiptForInvoice,
+  unmarkInvoiceCollection,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
@@ -438,44 +439,34 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const numbering = prev.profile.numbering;
 
         if (doc.type === "factura") {
-          const receipt = findReceiptForInvoice(
+          const result = unmarkInvoiceCollection(
             prev.documents,
             doc.id,
-            doc.receiptDocumentId,
+            newStatus,
+            now,
+            numbering,
           );
 
-          let documents = prev.documents.map((d) =>
-            d.id === doc.id
-              ? {
-                  ...d,
-                  status: newStatus,
-                  receiptDocumentId: undefined,
-                  updatedAt: now,
-                }
-              : d,
-          );
-
-          if (receipt?.sourceDocumentId === doc.id) {
-            documents = documents.filter((d) => d.id !== receipt.id);
-            const year = getDocumentYear(receipt, numbering);
-            documents = renumberDocumentsForKindYear(
-              documents,
-              "recibo",
-              year,
-              numbering,
-            );
+          if (result.removedReceiptId) {
             return {
               ...prev,
               profile: {
                 ...prev.profile,
-                numbering: syncNumberingToDocuments(numbering, documents),
+                numbering: syncNumberingToDocuments(
+                  numbering,
+                  result.documents,
+                ),
               },
-              documents,
-              counters: countersFromDocuments(documents, year, numbering),
+              documents: result.documents,
+              counters: countersFromDocuments(
+                result.documents,
+                result.renumberYear,
+                numbering,
+              ),
             };
           }
 
-          return { ...prev, documents };
+          return { ...prev, documents: result.documents };
         }
 
         return {

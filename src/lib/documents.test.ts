@@ -12,9 +12,11 @@ import {
   getDocumentReadOnlyMessage,
   getMaxSequence,
   isDocumentEditable,
+  renumberDocumentsForKindYear,
   renumberDocumentsForTypeYear,
   sortDocumentsByNewest,
 } from "./documents";
+import { issueDocument } from "./document-integrity";
 import type { Document, DocumentType } from "./types";
 import { EMPTY_DATA } from "./types";
 
@@ -119,6 +121,151 @@ describe("numeración automática", () => {
       2026,
     );
     expect(nextAfterDelete.number).toBe("F-2026-0003");
+  });
+
+  it("borrar borrador no renumera factura emitida", () => {
+    const issued = issueDocument(
+      doc("1", "factura", "F-2026-0001", "Ana García"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const documents = [
+      issued,
+      doc("2", "factura", "F-2026-0002", "Luis Pérez"),
+      doc("3", "factura", "F-2026-0003", "Elena Santos"),
+    ];
+
+    const remaining = documents.filter((d) => d.id !== "2");
+    const renumbered = renumberDocumentsForTypeYear(remaining, "factura", 2026);
+
+    expect(renumbered.find((d) => d.id === issued.id)?.number).toBe(
+      "F-2026-0001",
+    );
+    expect(renumbered.find((d) => d.id === "3")?.number).toBe("F-2026-0002");
+  });
+
+  it("borrar borrador no renumera presupuesto emitido", () => {
+    const issued = issueDocument(
+      doc("1", "presupuesto", "P-2026-0001", "Ana García"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const documents = [
+      issued,
+      doc("2", "presupuesto", "P-2026-0002", "Luis Pérez"),
+      doc("3", "presupuesto", "P-2026-0003", "Elena Santos"),
+    ];
+
+    const remaining = documents.filter((d) => d.id !== "2");
+    const renumbered = renumberDocumentsForTypeYear(
+      remaining,
+      "presupuesto",
+      2026,
+    );
+
+    expect(renumbered.find((d) => d.id === issued.id)?.number).toBe(
+      "P-2026-0001",
+    );
+    expect(renumbered.find((d) => d.id === "3")?.number).toBe("P-2026-0002");
+  });
+
+  it("borrar borrador no renumera recibo emitido", () => {
+    const issued = issueDocument(
+      doc("1", "recibo", "R-2026-0001", "Ana García"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const documents = [
+      issued,
+      doc("2", "recibo", "R-2026-0002", "Luis Pérez"),
+      doc("3", "recibo", "R-2026-0003", "Elena Santos"),
+    ];
+
+    const remaining = documents.filter((d) => d.id !== "2");
+    const renumbered = renumberDocumentsForTypeYear(remaining, "recibo", 2026);
+
+    expect(renumbered.find((d) => d.id === issued.id)?.number).toBe(
+      "R-2026-0001",
+    );
+    expect(renumbered.find((d) => d.id === "3")?.number).toBe("R-2026-0002");
+  });
+
+  it("renumberDocumentsForKindYear ignora locked/issued", () => {
+    const issued = issueDocument(
+      doc("1", "factura", "F-2026-0001", "Ana García"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const locked = {
+      ...doc("2", "factura", "F-2026-0003", "Luis Pérez"),
+      documentLifecycle: "issued" as const,
+      integrityLock: "locked" as const,
+      deliveryStatus: "not_sent" as const,
+    };
+    const draft = doc("3", "factura", "F-2026-0004", "Elena Santos");
+
+    const renumbered = renumberDocumentsForKindYear(
+      [issued, locked, draft],
+      "factura",
+      2026,
+    );
+
+    expect(renumbered.map((d) => d.number)).toEqual([
+      "F-2026-0001",
+      "F-2026-0003",
+      "F-2026-0004",
+    ]);
+  });
+
+  it("renumberDocumentsForKindYear ignora documentos con snapshot", () => {
+    const snapshot = {
+      ...issueDocument(
+        doc("2", "factura", "F-2026-0002", "Luis Pérez"),
+        EMPTY_DATA.profile,
+        "2026-06-24T10:00:00.000Z",
+      ),
+      status: "borrador" as const,
+      documentLifecycle: "draft" as const,
+      integrityLock: "unlocked" as const,
+    };
+    const draft = doc("3", "factura", "F-2026-0003", "Elena Santos");
+
+    const renumbered = renumberDocumentsForKindYear(
+      [snapshot, draft],
+      "factura",
+      2026,
+    );
+
+    expect(renumbered.map((d) => d.number)).toEqual([
+      "F-2026-0002",
+      "F-2026-0003",
+    ]);
+  });
+
+  it("conserva huecos entre documentos emitidos", () => {
+    const first = issueDocument(
+      doc("1", "factura", "F-2026-0001", "Ana García"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const third = issueDocument(
+      doc("3", "factura", "F-2026-0003", "Elena Santos"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+    const draft = doc("4", "factura", "F-2026-0004", "Nuevo borrador");
+
+    const renumbered = renumberDocumentsForKindYear(
+      [first, third, draft],
+      "factura",
+      2026,
+    );
+
+    expect(renumbered.map((d) => d.number)).toEqual([
+      "F-2026-0001",
+      "F-2026-0003",
+      "F-2026-0004",
+    ]);
   });
 
   it("mantiene numeración separada por tipo", () => {

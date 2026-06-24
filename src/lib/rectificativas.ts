@@ -1,4 +1,7 @@
-import { isDocumentIntegrityLocked } from "./document-integrity";
+import {
+  LOCKED_DELETE_MESSAGE,
+  canPhysicallyDeleteDocument,
+} from "./document-integrity/deletion";
 import type { Document, LineItem, RectificationType } from "./types";
 
 export type DeleteWarningLevel = "simple" | "legal" | "legal_strict";
@@ -29,7 +32,7 @@ const RECTIFICAR_EN_LUGAR_DE_BORRAR = `Las facturas emitidas deben conservarse (
 Ante un error, la vía correcta según Hacienda es emitir una factura rectificativa: anulación total (R1) o corrección de importes (R4). Usa el botón «Rectificar» en el listado.`;
 
 export function getDeletePolicy(doc: Document): DeletePolicy {
-  if (isDocumentIntegrityLocked(doc)) {
+  if (!canPhysicallyDeleteDocument(doc)) {
     return {
       allowed: false,
       level: doc.type === "factura" ? "legal" : "legal_strict",
@@ -37,7 +40,7 @@ export function getDeletePolicy(doc: Document): DeletePolicy {
       message:
         doc.type === "factura"
           ? RECTIFICAR_EN_LUGAR_DE_BORRAR
-          : "Este documento ya fue emitido y no se puede borrar desde la edición normal.",
+          : LOCKED_DELETE_MESSAGE,
     };
   }
 

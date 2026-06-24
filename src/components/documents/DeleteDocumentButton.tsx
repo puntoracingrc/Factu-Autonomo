@@ -19,10 +19,21 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
   const [confirmed, setConfirmed] = useState(false);
   const policy = getDeletePolicy(doc);
 
-  if (!policy.allowed) return null;
-
   const needsCheckbox =
     policy.level === "legal" || policy.level === "legal_strict";
+
+  if (!policy.allowed) {
+    return (
+      <IconActionButton
+        label="Borrar"
+        tooltip={policy.message}
+        disabled
+        className="cursor-not-allowed bg-slate-50 text-slate-300"
+      >
+        <Trash2 className="h-5 w-5" />
+      </IconActionButton>
+    );
+  }
 
   function handleClose() {
     setOpen(false);
