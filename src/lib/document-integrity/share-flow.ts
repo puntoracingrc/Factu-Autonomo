@@ -43,4 +43,3 @@ export async function shareDocumentWithIntegrity({
 
   return { sharedDocument, finalDocument };
 }
-
