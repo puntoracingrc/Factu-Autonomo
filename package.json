@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "check:migrations": "node scripts/check-supabase-migrations.mjs",
+    "validate:phase2b2-server-schema": "node scripts/validate-phase2b2-server-schema.mjs",
     "test:phase1-acceptance": "node scripts/phase1-acceptance/run.mjs",
     "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
     "manual:verify": "vitest run src/lib/manual/"
