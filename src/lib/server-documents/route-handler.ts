@@ -36,6 +36,7 @@ const CLIENT_CONTROLLED_KEYS = new Set([
   "entitlement",
   "entitlements",
   "plan",
+  "role",
   "status",
   "user_id",
   "userId",
