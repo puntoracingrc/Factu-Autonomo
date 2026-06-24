@@ -53,6 +53,18 @@ export interface LineItem {
   ivaPercent: number;
 }
 
+export interface LineItemSnapshot {
+  id: string;
+  description: string;
+  quantity: number;
+  unit?: string;
+  unitPrice: number;
+  ivaPercent: number;
+  subtotal: number;
+  ivaAmount: number;
+  total: number;
+}
+
 export interface DocumentUnitsSettings {
   enabledUnitIds: string[];
   defaultUnitId: string;
@@ -119,6 +131,10 @@ export interface Document {
   rectifiedById?: string;
   /** Registro Veri*Factu (hash encadenado, QR, CSV) */
   verifactu?: VerifactuInfo;
+  /** Snapshot fiscal/documental congelado al emitir. */
+  documentSnapshot?: DocumentSnapshot;
+  /** Snapshot mínimo de configuración PDF congelado al emitir. */
+  pdfSnapshot?: DocumentPdfSnapshot;
   /** Ciclo documental nuevo; `status` se mantiene como compatibilidad UI. */
   documentLifecycle?: DocumentLifecycle;
   /** Bloqueo de integridad: documentos emitidos/cancelados no admiten edición genérica. */
@@ -234,6 +250,28 @@ export interface NumberingSettings {
   formats: NumberingFormats;
 }
 
+export interface TaxRateSummarySnapshot {
+  ivaPercent: number;
+  taxableBase: number;
+  ivaAmount: number;
+  total: number;
+}
+
+export interface TaxSummarySnapshot {
+  subtotal: number;
+  iva: number;
+  total: number;
+  vatExempt: boolean;
+  byRate: TaxRateSummarySnapshot[];
+}
+
+export interface NumberingSnapshot {
+  documentKind: DocumentKind;
+  number: string;
+  year: number;
+  format: NumberingFormat;
+}
+
 export interface VerifactuSettings {
   enabled: boolean;
   environment: "test" | "production";
@@ -313,6 +351,45 @@ export interface DocumentTemplateSettings {
   showLogo: boolean;
   showIssuerBox: boolean;
   showPaymentBox: boolean;
+}
+
+export type DocumentSnapshotSource = "issue" | "legacy_backfill";
+
+export interface FiscalContextSnapshot {
+  vatExempt: boolean;
+  iva: IvaSettings;
+  verifactu?: VerifactuSettings;
+}
+
+export interface DocumentSnapshot {
+  schemaVersion: number;
+  capturedAt: string;
+  source: DocumentSnapshotSource;
+  documentType: DocumentType;
+  documentKind: DocumentKind;
+  number: string;
+  date: string;
+  dueDate?: string;
+  issuer: IssuerSnapshot;
+  customer: Client;
+  items: LineItemSnapshot[];
+  taxSummary: TaxSummarySnapshot;
+  currency: "EUR";
+  paymentTerms?: string;
+  notes?: string;
+  rectification?: RectificationInfo;
+  numbering: NumberingSnapshot;
+  fiscalContext: FiscalContextSnapshot;
+  verifactu?: VerifactuInfo;
+  snapshotHash: string;
+}
+
+export interface DocumentPdfSnapshot {
+  schemaVersion: number;
+  renderedAt: string;
+  rendererVersion: string;
+  template: DocumentTemplateSettings;
+  contentHash: string;
 }
 
 export interface BusinessProfile {

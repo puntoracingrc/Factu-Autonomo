@@ -21,6 +21,7 @@ export function isEmittedDocument(doc: Document): boolean {
 
 export function captureIssuerSnapshot(
   profile: BusinessProfile,
+  capturedAt = new Date().toISOString(),
 ): IssuerSnapshot {
   return {
     name: profile.name.trim(),
@@ -32,7 +33,7 @@ export function captureIssuerSnapshot(
     email: profile.email?.trim() || undefined,
     iban: profile.iban?.trim() || undefined,
     logoUrl: profile.logoUrl,
-    capturedAt: new Date().toISOString(),
+    capturedAt,
   };
 }
 

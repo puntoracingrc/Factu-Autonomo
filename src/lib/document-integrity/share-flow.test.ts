@@ -164,6 +164,44 @@ describe("shareDocumentWithIntegrity", () => {
     expect(stored.deliveryStatus).toBe("sent");
   });
 
+  it("un reintento de compartir no modifica snapshots existentes", async () => {
+    let stored = draftInvoice();
+
+    await expect(
+      shareDocumentWithIntegrity({
+        doc: stored,
+        issueDocument: () => {
+          stored = issueDocument(stored, profile, NOW);
+          return stored;
+        },
+        share: async () => {
+          throw new Error("fallo externo");
+        },
+        markDocumentSent: () => null,
+      }),
+    ).rejects.toThrow("fallo externo");
+
+    const snapshot = stored.documentSnapshot;
+    const pdfSnapshot = stored.pdfSnapshot;
+
+    await shareDocumentWithIntegrity({
+      doc: stored,
+      issueDocument: () => {
+        throw new Error("no debe reemitir");
+      },
+      share: async () => {},
+      markDocumentSent: () => {
+        stored = markDocumentSent(stored, "2026-06-24T10:05:00.000Z");
+        return stored;
+      },
+    });
+
+    expect(stored.documentSnapshot).toBe(snapshot);
+    expect(stored.pdfSnapshot).toBe(pdfSnapshot);
+    expect(stored.documentSnapshot?.snapshotHash).toBe(snapshot?.snapshotHash);
+    expect(stored.pdfSnapshot?.contentHash).toBe(pdfSnapshot?.contentHash);
+  });
+
   it("dos intentos rápidos no crean dos emisiones", async () => {
     let stored = draftInvoice();
     let issueCalls = 0;
