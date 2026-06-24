@@ -113,6 +113,13 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
 
   useEffect(() => {
     if (!existing || !ready) return;
+    if (existing.customerId) {
+      const byId = data.customers.find((customer) => customer.id === existing.customerId);
+      if (byId) {
+        setSelectedCustomerId(byId.id);
+        return;
+      }
+    }
     const match = findCustomerByClient(data.customers, existing.client);
     if (match) setSelectedCustomerId(match.id);
   }, [existing, ready, data.customers]);
@@ -191,6 +198,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     number: existing?.number ?? "BORRADOR",
     date,
     dueDate: dueDate || undefined,
+    customerId: selectedCustomerId ?? existing?.customerId,
     client: {
       firstName: clientForm.firstName,
       lastName: clientForm.lastName,
@@ -318,6 +326,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       type,
       date,
       dueDate: dueDate || undefined,
+      customerId: customerResult.customerId,
       client: customerResult.client,
       items: normalizeLineItemUnits(
         (vatExempt ? zeroIvaItems(items) : items).filter((i) =>

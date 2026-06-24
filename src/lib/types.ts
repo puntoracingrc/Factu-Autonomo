@@ -87,6 +87,8 @@ export interface Customer {
   firstName: string;
   lastName: string;
   name: string;
+  /** IDs de fichas absorbidas en una fusión segura. */
+  mergedCustomerIds?: string[];
   nif?: string;
   email?: string;
   phone?: string;
@@ -119,6 +121,8 @@ export interface Document {
   number: string;
   date: string;
   dueDate?: string;
+  /** Referencia editable a la ficha maestra; `client` sigue siendo snapshot visible. */
+  customerId?: string;
   client: Client;
   items: LineItem[];
   notes?: string;

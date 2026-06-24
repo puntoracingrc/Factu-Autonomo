@@ -28,7 +28,17 @@ export function getCustomerDisplayName(customer: Customer): string {
 }
 
 function finalizeCustomerMigration(customer: Customer): Customer {
-  return normalizeCustomerStreetFields(customer);
+  const normalized = normalizeCustomerStreetFields(customer);
+  const mergedCustomerIds = normalized.mergedCustomerIds
+    ? [...new Set(normalized.mergedCustomerIds)].filter(
+        (id) => id && id !== normalized.id,
+      )
+    : undefined;
+
+  return {
+    ...normalized,
+    ...(mergedCustomerIds ? { mergedCustomerIds } : {}),
+  };
 }
 
 export function migrateCustomer(raw: Customer): Customer {
@@ -89,12 +99,11 @@ export function findDuplicateCustomerGroups(customers: Customer[]): Customer[][]
 }
 
 export function countDocumentsForCustomer(
-  documents: Pick<Document, "client">[],
+  documents: Array<Pick<Document, "client"> & Partial<Pick<Document, "customerId">>>,
   customer: Customer,
 ): number {
-  return documents.filter((doc) =>
-    clientMatchesCustomer(doc.client, customer),
-  ).length;
+  return documents.filter((doc) => documentBelongsToCustomer(doc, customer))
+    .length;
 }
 
 /** Total facturado (facturas y recibos emitidos) vinculado al cliente. */
@@ -106,7 +115,7 @@ export function customerInvoicedTotal(
     .filter(
       (doc) =>
         isTaxableSaleDocument(doc) &&
-        clientMatchesCustomer(doc.client, customer),
+        documentBelongsToCustomer(doc, customer),
     )
     .reduce((sum, doc) => sum + documentTotals(doc).total, 0);
 }
@@ -118,6 +127,7 @@ export function buildCustomerInvoicedTotals(
   customers: Customer[],
   documents: Document[],
 ): CustomerInvoicedTotals {
+  const byCustomerId = new Map<string, string>();
   const byNif = new Map<string, string[]>();
   const byIdentity = new Map<string, string[]>();
   const byDisplayName = new Map<string, string[]>();
@@ -133,6 +143,9 @@ export function buildCustomerInvoicedTotals(
   for (const customer of customers) {
     const migrated = migrateCustomer(customer);
     totals.set(migrated.id, 0);
+    for (const relatedId of customerReferenceIds(migrated)) {
+      byCustomerId.set(relatedId, migrated.id);
+    }
     addIndex(byNif, normalizeCustomerNif(migrated.nif), migrated.id);
     addIndex(
       byIdentity,
@@ -150,19 +163,26 @@ export function buildCustomerInvoicedTotals(
     if (!isTaxableSaleDocument(doc)) continue;
 
     const matchedIds = new Set<string>();
-    const nifMatches = byNif.get(normalizeCustomerNif(doc.client.nif)) ?? [];
-    nifMatches.forEach((id) => matchedIds.add(id));
+    const customerIdMatch = doc.customerId
+      ? byCustomerId.get(doc.customerId)
+      : undefined;
+    if (customerIdMatch) matchedIds.add(customerIdMatch);
 
-    if (doc.client.firstName && doc.client.lastName) {
-      const identityMatches =
-        byIdentity.get(
-          customerIdentityKey(doc.client.firstName, doc.client.lastName),
-        ) ?? [];
-      identityMatches.forEach((id) => matchedIds.add(id));
-    } else {
-      const clientName = (doc.client.name ?? "").trim().toLowerCase();
-      const nameMatches = byDisplayName.get(clientName) ?? [];
-      nameMatches.forEach((id) => matchedIds.add(id));
+    if (!doc.customerId || matchedIds.size === 0) {
+      const nifMatches = byNif.get(normalizeCustomerNif(doc.client.nif)) ?? [];
+      nifMatches.forEach((id) => matchedIds.add(id));
+
+      if (doc.client.firstName && doc.client.lastName) {
+        const identityMatches =
+          byIdentity.get(
+            customerIdentityKey(doc.client.firstName, doc.client.lastName),
+          ) ?? [];
+        identityMatches.forEach((id) => matchedIds.add(id));
+      } else {
+        const clientName = (doc.client.name ?? "").trim().toLowerCase();
+        const nameMatches = byDisplayName.get(clientName) ?? [];
+        nameMatches.forEach((id) => matchedIds.add(id));
+      }
     }
 
     if (matchedIds.size === 0) continue;
@@ -193,6 +213,22 @@ export function clientMatchesCustomer(client: Client, customer: Customer): boole
   const clientName = (client.name ?? "").trim().toLowerCase();
   if (!clientName) return false;
   return getCustomerDisplayName(migrated).toLowerCase() === clientName;
+}
+
+function customerReferenceIds(customer: Customer): string[] {
+  return [...new Set([customer.id, ...(customer.mergedCustomerIds ?? [])])];
+}
+
+function documentBelongsToCustomer(
+  doc: Pick<Document, "client"> & Partial<Pick<Document, "customerId">>,
+  customer: Customer,
+): boolean {
+  if (doc.customerId) {
+    return customerReferenceIds(migrateCustomer(customer)).includes(
+      doc.customerId,
+    );
+  }
+  return clientMatchesCustomer(doc.client, customer);
 }
 
 export function pickCanonicalCustomer(
