@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE, type Document } from "./types";
+import { issueDocument } from "./document-integrity";
 import {
   buildMailtoUrl,
   buildShareMessage,
@@ -37,6 +38,12 @@ const sampleDoc: Document = {
 const profile = {
   ...DEFAULT_PROFILE,
   name: "Mi Negocio",
+  nif: "12345678Z",
+  address: "Calle Original 1",
+  city: "Barcelona",
+  postalCode: "08001",
+  phone: "600000000",
+  email: "hola@example.com",
   iban: "ES00 0000 0000 0000 0000 0000",
 };
 
@@ -107,6 +114,40 @@ describe("buildShareMessage", () => {
       profile,
     );
     expect(message).toContain("el recibo R-2025-007");
+  });
+
+  it("usa snapshot para documentos emitidos aunque cambien datos vivos", () => {
+    const issued = issueDocument(sampleDoc, profile, "2026-06-24T10:00:00.000Z");
+    const message = buildShareMessage(
+      {
+        ...issued,
+        number: "F-2099-999",
+        date: "2099-01-01",
+        client: { name: "Cliente cambiado" },
+        items: [
+          {
+            id: "changed",
+            description: "Linea cambiada",
+            quantity: 10,
+            unitPrice: 999,
+            ivaPercent: 0,
+          },
+        ],
+      },
+      {
+        ...profile,
+        name: "Negocio cambiado",
+        iban: "ES99 9999 9999 9999 9999 9999",
+      },
+    );
+
+    expect(message).toContain("Juan");
+    expect(message).toContain("F-2025-001");
+    expect(message).toContain("121,00");
+    expect(message).toContain("Mi Negocio");
+    expect(message).not.toContain("Cliente cambiado");
+    expect(message).not.toContain("F-2099-999");
+    expect(message).not.toContain("Negocio cambiado");
   });
 });
 

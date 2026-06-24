@@ -1,6 +1,9 @@
 import type { BusinessProfile, Document } from "./types";
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
-import { resolveIssuerForDocument } from "./issuer-snapshot";
+import {
+  buildPdfViewModelForDocument,
+  documentPdfViewAmounts,
+} from "./document-integrity/pdf-source";
 import { isCollectedDocument } from "./income";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
@@ -16,24 +19,32 @@ function documentTypeLabel(doc: Document): string {
 }
 
 export function buildShareMessage(doc: Document, profile: BusinessProfile): string {
-  const issuer = resolveIssuerForDocument(doc, profile);
-  const { total } = documentTotals(doc);
-  const typeLabel = documentTypeLabel(doc);
+  const viewModel = buildPdfViewModelForDocument(doc, profile);
+  const renderDoc = viewModel.doc;
+  const issuer = viewModel.issuer;
+  const { total } = viewModel.taxSummary
+    ? documentPdfViewAmounts(viewModel)
+    : documentTotals(renderDoc);
+  const typeLabel = documentTypeLabel(renderDoc);
   const business = issuer.name || "Tu negocio";
   const lines = [
-    `Hola${doc.client.name ? ` ${doc.client.name.split(" ")[0]}` : ""},`,
+    `Hola${renderDoc.client.name ? ` ${renderDoc.client.name.split(" ")[0]}` : ""},`,
     "",
-    `Te envío ${typeLabel === "factura" ? "la" : "el"} ${typeLabel} ${doc.number} por importe de ${formatMoney(total)}.`,
-    `Fecha: ${formatShortDate(doc.date)}`,
+    `Te envío ${typeLabel === "factura" ? "la" : "el"} ${typeLabel} ${renderDoc.number} por importe de ${formatMoney(total)}.`,
+    `Fecha: ${formatShortDate(renderDoc.date)}`,
   ];
 
-  if (doc.dueDate && doc.type === "factura" && !isRectificativa(doc)) {
-    lines.push(`Vencimiento: ${formatShortDate(doc.dueDate)}`);
+  if (
+    renderDoc.dueDate &&
+    renderDoc.type === "factura" &&
+    !isRectificativa(renderDoc)
+  ) {
+    lines.push(`Vencimiento: ${formatShortDate(renderDoc.dueDate)}`);
   }
 
   const pendingPayment =
-    doc.type === "factura" &&
-    !isRectificativa(doc) &&
+    renderDoc.type === "factura" &&
+    !isRectificativa(renderDoc) &&
     !isCollectedDocument(doc) &&
     doc.status !== "anulada";
 

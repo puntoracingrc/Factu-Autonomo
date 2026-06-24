@@ -2,15 +2,18 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { BusinessProfile, Document } from "./types";
 import { formatMoney, formatShortDate, lineSubtotal } from "./calculations";
+import {
+  buildPdfViewModelForDocument,
+  documentPdfViewAmounts,
+  type DocumentPdfLineView,
+  type DocumentPdfViewModel,
+} from "./document-integrity/pdf-source";
 import { ivaBreakdownByRate } from "./invoice-compliance";
-import { resolveIssuerForDocument } from "./issuer-snapshot";
 import { isRectificativa, rectificationTypeLabel } from "./rectificativas";
-import { documentAmounts, isVatExempt } from "./vat-regime";
 import { formatQuantityWithUnit } from "./document-units";
 import {
   pdfLogoDrawSize,
   prepareLogoForPdf,
-  resolvePdfLogoUrl,
 } from "./pdf-logo";
 import {
   documentTemplateAccentRgb,
@@ -38,6 +41,25 @@ function documentLabel(doc: Document): string {
     recibo: "RECIBO",
   };
   return labels[doc.type];
+}
+
+function pdfLineTotal(item: DocumentPdfLineView, vatExempt: boolean): number {
+  if (typeof item.total === "number") return item.total;
+  if (vatExempt) return lineSubtotal(item);
+  return item.quantity * item.unitPrice * (1 + item.ivaPercent / 100);
+}
+
+function pdfVatBreakdown(viewModel: DocumentPdfViewModel) {
+  if (viewModel.taxSummary) {
+    return viewModel.taxSummary.byRate
+      .map((row) => ({
+        rate: row.ivaPercent,
+        base: row.taxableBase,
+        quota: row.ivaAmount,
+      }));
+  }
+
+  return ivaBreakdownByRate(viewModel.items);
 }
 
 function drawVerifactuQrBlock(
@@ -96,15 +118,20 @@ export async function preparePdfArtifacts(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<PdfArtifacts> {
+  return preparePdfArtifactsForViewModel(buildPdfViewModelForDocument(doc, profile));
+}
+
+export async function preparePdfArtifactsForViewModel(
+  viewModel: DocumentPdfViewModel,
+): Promise<PdfArtifacts> {
   const artifacts: PdfArtifacts = {};
 
-  if (hasVerifactuQr(doc)) {
-    artifacts.qrDataUrl = await prepareVerifactuQrForPdf(doc);
+  if (hasVerifactuQr(viewModel.doc)) {
+    artifacts.qrDataUrl = await prepareVerifactuQrForPdf(viewModel.doc);
   }
 
-  const logoUrl = resolvePdfLogoUrl(doc, profile);
-  if (logoUrl) {
-    const logo = await prepareLogoForPdf(logoUrl);
+  if (viewModel.logoUrl) {
+    const logo = await prepareLogoForPdf(viewModel.logoUrl);
     if (logo) artifacts.logo = logo;
   }
 
@@ -116,9 +143,20 @@ export function buildDocumentPdf(
   profile: BusinessProfile,
   artifacts: PdfArtifacts = {},
 ): jsPDF {
+  return buildDocumentPdfFromViewModel(
+    buildPdfViewModelForDocument(doc, profile),
+    artifacts,
+  );
+}
+
+export function buildDocumentPdfFromViewModel(
+  viewModel: DocumentPdfViewModel,
+  artifacts: PdfArtifacts = {},
+): jsPDF {
   const pdf = new jsPDF();
-  const issuer = resolveIssuerForDocument(doc, profile);
-  const template = normalizeDocumentTemplate(profile.documentTemplate);
+  const doc = viewModel.doc;
+  const issuer = viewModel.issuer;
+  const template = normalizeDocumentTemplate(viewModel.template);
   const pdfFont = documentTemplatePdfFont(template.font);
   const bodyFontSize = documentTemplatePdfFontSize(template.bodyFontSize, "body");
   const titleFontSize = documentTemplatePdfFontSize(
@@ -133,8 +171,8 @@ export function buildDocumentPdf(
     template.totalFontSize,
     "total",
   );
-  const vatExempt = isVatExempt(profile);
-  const { subtotal, iva, total } = documentAmounts(doc, vatExempt);
+  const vatExempt = viewModel.vatExempt;
+  const { subtotal, iva, total } = documentPdfViewAmounts(viewModel);
   const label = documentLabel(doc);
   const isRect = isRectificativa(doc);
   const accent: [number, number, number] = isRect
@@ -254,10 +292,8 @@ export function buildDocumentPdf(
     head: vatExempt
       ? [["Concepto", "Cant.", "Precio", "Total"]]
       : [["Concepto", "Cant.", "Precio", "IVA", "Total"]],
-    body: doc.items.map((item) => {
-      const lineTotal = vatExempt
-        ? lineSubtotal(item)
-        : item.quantity * item.unitPrice * (1 + item.ivaPercent / 100);
+    body: viewModel.items.map((item) => {
+      const lineTotal = pdfLineTotal(item, vatExempt);
       const quantityLabel = formatQuantityWithUnit(
         item.quantity,
         item.unit ?? "ud",
@@ -312,7 +348,7 @@ export function buildDocumentPdf(
   } else {
     pdf.setFontSize(bodyFontSize);
     pdf.setFont(pdfFont, "normal");
-    const breakdown = ivaBreakdownByRate(doc.items);
+    const breakdown = pdfVatBreakdown(viewModel);
     for (const row of breakdown) {
       pdf.text(
         `IVA ${row.rate}% — Base: ${formatMoney(row.base)} · Cuota: ${formatMoney(row.quota)}`,
@@ -369,8 +405,9 @@ export async function buildDocumentPdfBlob(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<Blob> {
-  const artifacts = await preparePdfArtifacts(doc, profile);
-  return buildDocumentPdf(doc, profile, artifacts).output("blob");
+  const viewModel = buildPdfViewModelForDocument(doc, profile);
+  const artifacts = await preparePdfArtifactsForViewModel(viewModel);
+  return buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
 }
 
 function pdfFilename(doc: Document): string {
@@ -405,8 +442,9 @@ export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const artifacts = await preparePdfArtifacts(doc, profile);
-  const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
+  const viewModel = buildPdfViewModelForDocument(doc, profile);
+  const artifacts = await preparePdfArtifactsForViewModel(viewModel);
+  const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
   triggerPdfBlobDownload(blob, pdfFilename(doc));
 }
 
@@ -414,8 +452,9 @@ export async function openDocumentPdfPreview(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const artifacts = await preparePdfArtifacts(doc, profile);
-  const blob = buildDocumentPdf(doc, profile, artifacts).output("blob");
+  const viewModel = buildPdfViewModelForDocument(doc, profile);
+  const artifacts = await preparePdfArtifactsForViewModel(viewModel);
+  const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
   const url = URL.createObjectURL(blob);
   const opened = window.open(url, "_blank", "noopener,noreferrer");
   if (!opened) {
