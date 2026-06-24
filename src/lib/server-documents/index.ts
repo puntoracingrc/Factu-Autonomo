@@ -4,6 +4,7 @@ export * from "./guards";
 export * from "./ingest";
 export * from "./ingest-wiring";
 export * from "./repository";
+export * from "./route-flag";
 export * from "./safe-response";
 export * from "./server-factory";
 export * from "./supabase-store";
