@@ -8,7 +8,7 @@ Producto: Factura Autónomo
 
 Este documento es un dossier vivo de evidencias técnicas, decisiones de arquitectura, pruebas y controles aplicados en Factura Autónomo. Su objetivo es facilitar auditorías técnicas externas, revisiones legales/fiscales, preparación futura de declaración responsable, trazabilidad interna y demostración de diligencia en el control de riesgos.
 
-No sustituye una revisión legal, fiscal, tributaria, de seguridad ni una validación externa. Tampoco declara conformidad productiva completa de VERI*FACTU, SIF, AEAT ni de ninguna obligación normativa pendiente de validación formal.
+No sustituye una revisión legal, fiscal, tributaria, de seguridad ni una revisión externa. Tampoco declara conformidad productiva completa de VERI*FACTU, SIF, AEAT ni de ninguna obligación normativa pendiente de revisión externa cuando aplique.
 
 Este documento v1 refleja el estado del proyecto a 2026-06-24 y deberá actualizarse tras cada hito técnico relevante.
 
@@ -74,7 +74,8 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2A.1 | Dominio de emisión y bloqueo central. | PR #2 `06c7246`; commits `b672bec`, `448ba3d`, `eb90df3` | `issueDocument`; `integrityLock`; `updateDocument` protegido; compartir emite antes; operaciones dedicadas de envío/cobro/aceptación; borrado de emitidos/bloqueados rechazado. | `FASE2A1_ACCEPTANCE.md`; CI main: `Quality` y `Supabase Acceptance` en verde. | Fusionada a `main`; producción Vercel no promocionada al dominio público. |
 | Fase 2A.2 | Snapshots documentales completos. | PR #3 `d4973f7904781d156e60fcb143610dd1ac1e300f`; commits `16c8b66`, `5713baf` | `DocumentSnapshot`, `DocumentPdfSnapshot`, hashes deterministas, persistencia local y backup; documentos legacy sin migración masiva. | `FASE2A2_ACCEPTANCE.md`; CI main: `Quality` y `Supabase Acceptance` en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique. |
 | Fase 2A.3 | Fusión segura de clientes. | PR #4 `1d83c9b7afefac586496350f9b673a78f306b408` | Fusión de clientes sin alterar `document.client` histórico; `documentSnapshot.customer` no se modifica; `snapshotHash` y `pdfSnapshot.contentHash` no se alteran; `customerId` permite vinculación operativa al cliente maestro; `mergedCustomerIds` conserva IDs absorbidos; borradores solo actualizan cliente visible si `updateDraftDocuments=true`. | `FASE2A3_ACCEPTANCE.md`; `Quality` SUCCESS; `Supabase Acceptance` SUCCESS. | Fusionada a `main`; controles implementados como medida de diligencia técnica. |
-| Fase 2A.4 | Borrado, numeración y recibos seguros. | PR #5 `73730277c8985dd8983f5edf58ce8981824e04ba`; funcional `b70593ba3e2488a46b9f4841aabc0e30e1d2981d`; documental `ea6ff5c66678ed2f7c274525ec7696c33e342b58` | Documentos emitidos/bloqueados no se borran físicamente; legacy `status != borrador` protegido; rectificativas emitidas, presupuestos enviados/aceptados y recibos pagados/emitidos no se borran; renumeración ignora documentos protegidos; huecos de emitidos se conservan; desmarcar cobro conserva recibos automáticos emitidos/bloqueados; snapshots y hashes no se alteran. | `FASE2A4_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 86 archivos, 411 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de validación formal cuando aplique. |
+| Fase 2A.4 | Borrado, numeración y recibos seguros. | PR #5 `73730277c8985dd8983f5edf58ce8981824e04ba`; funcional `b70593ba3e2488a46b9f4841aabc0e30e1d2981d`; documental `ea6ff5c66678ed2f7c274525ec7696c33e342b58` | Documentos emitidos/bloqueados no se borran físicamente; legacy `status != borrador` protegido; rectificativas emitidas, presupuestos enviados/aceptados y recibos pagados/emitidos no se borran; renumeración ignora documentos protegidos; huecos de emitidos se conservan; desmarcar cobro conserva recibos automáticos emitidos/bloqueados; snapshots y hashes no se alteran. | `FASE2A4_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 86 archivos, 411 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique. |
+| Fase 2A.5 | PDF histórico desde snapshot. | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; funcional `db03153dcef7c8a1406a2312a2341729094f82ab`; documental `c42975b9c63ea7a41bd15c8c443f99568ae6c8da` | PDFs de documentos emitidos/bloqueados se renderizan desde `documentSnapshot` y `pdfSnapshot`; borradores siguen usando datos vivos; cambios posteriores en perfil, cliente, líneas, notas, fechas o totales vivos no alteran PDF histórico; descarga, vista previa, blob PDF y compartir email/WhatsApp usan pipeline común; legacy protegido sin snapshot usa fallback read-only conservador sin persistirlo; render normal no recalcula ni reemplaza hashes. | `FASE2A5_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 87 archivos, 419 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK con Supabase local; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique; no constituye certificación. |
 
 Archivos internos relevantes:
 
@@ -86,6 +87,7 @@ Archivos internos relevantes:
 - `FASE2A2_ACCEPTANCE.md`
 - `FASE2A3_ACCEPTANCE.md`
 - `FASE2A4_ACCEPTANCE.md`
+- `FASE2A5_ACCEPTANCE.md`
 - `supabase/README.md`
 - `docs/VERIFACTU.md`
 - `docs/PRODUCTOR_SIF.md`
@@ -201,9 +203,42 @@ Riesgos diferidos de Fase 2A.4:
 - reconciliación de estados legacy `paymentStatus`/`paidAt`;
 - PDF histórico estricto.
 
+Controles implementados en Fase 2A.5:
+
+- PDFs de documentos emitidos/bloqueados se renderizan desde `documentSnapshot` y `pdfSnapshot`;
+- los borradores siguen renderizando desde datos vivos;
+- cambios posteriores en el perfil de negocio no alteran el PDF histórico;
+- cambios posteriores en cliente no alteran el PDF histórico;
+- cambios posteriores en líneas, notas, fechas o totales vivos no alteran el PDF histórico;
+- descarga, vista previa, blob PDF y compartir email/WhatsApp usan pipeline común;
+- legacy protegido sin snapshot usa fallback read-only conservador;
+- el fallback legacy no se persiste automáticamente;
+- render normal no recalcula ni reemplaza `snapshotHash`;
+- render normal no recalcula ni reemplaza `pdfSnapshot.contentHash`.
+
+Validación técnica interna de Fase 2A.5:
+
+- `npm run check:migrations`: OK;
+- `npm test`: OK, 87 archivos, 419 tests;
+- `npm run lint`: OK;
+- `npx tsc --noEmit`: OK;
+- `npm run build`: OK, Next.js 15.5.19, 58 páginas estáticas;
+- `npm run test:phase1-acceptance`: OK con Supabase local;
+- `git diff --check`: OK;
+- `Quality` sobre `main`: SUCCESS;
+- `Supabase Acceptance` sobre `main`: SUCCESS.
+
+Riesgos diferidos de Fase 2A.5:
+
+- renderer PDF visual completamente congelado por versión si se requiere reproducibilidad pixel-perfect;
+- almacenamiento de PDF binario firmado/sellado;
+- recuperación/migración explícita de snapshots legacy;
+- sync nube protegido desde servidor;
+- VERI*FACTU servidor, registro fiscal atómico y transporte AEAT real;
+- revisión externa legal/fiscal cuando aplique.
+
 Trabajo pendiente:
 
-- PDF histórico renderizado exclusivamente desde snapshot;
 - sincronización nube con reglas de integridad servidor.
 
 ## 9. VERI*FACTU
@@ -322,7 +357,7 @@ Estado:
 | Flujo completo de anulación/cancelación aún no implementado | Alta | Fase posterior | Pendiente | Diseñar operación dedicada, trazable y compatible con snapshots/documentos bloqueados. |
 | Auditoría específica de intentos de borrado bloqueados | Media | Fase posterior / servidor | Pendiente | Registrar intentos relevantes sin permitir mutación de documentos protegidos. |
 | Reconciliación de estados legacy `paymentStatus`/`paidAt` | Media | Fase posterior | Pendiente | Normalización guiada y tests de compatibilidad antes de automatizar cambios. |
-| PDF todavía no renderiza exclusivamente desde snapshot | Alta | Fase 2A.5 | Pendiente | Renderer histórico basado en snapshot y pruebas de cambios posteriores de perfil/plantilla. |
+| Reproducibilidad pixel-perfect del renderer PDF por versión | Media | Fase posterior | Pendiente | Congelar renderer visual por versión y valorar PDF binario firmado/sellado si el producto lo requiere. |
 | VERI*FACTU servidor no implementado | Alta | Fase 2B | Pendiente | Documento canónico, operación fiscal transaccional, registros inmutables y transporte AEAT. |
 | Modo local con localStorage puede perder datos | Media | Producto/datos | Pendiente | Backups, IndexedDB, avisos, exportaciones y recuperación guiada. |
 | Consentimiento IA sin registro versionado completo | Media | Legal/IA | Pendiente | Versionado de aceptación, auditoría de proveedores y copia de textos aceptados. |
@@ -335,7 +370,7 @@ Declaraciones permitidas:
 
 - "Se han implementado controles de seguridad y trazabilidad progresivos."
 - "La app se está diseñando para cumplir con requisitos de integridad documental."
-- "Fase 1, Fase 1.5 y Fase 2A.1-2A.4 tienen evidencia técnica interna y tests asociados."
+- "Fase 1, Fase 1.5 y Fase 2A.1-2A.5 tienen evidencia técnica interna y tests asociados."
 - "La validación de Supabase y CI se ejecuta localmente y en GitHub para los PRs protegidos."
 - "El trabajo VERI*FACTU productivo está planificado por fases y todavía no se declara cerrado."
 
@@ -356,7 +391,7 @@ Declaraciones no permitidas todavía:
 | Fase 2A.2 | Snapshots documentales completos | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.3 | Fusión segura de clientes | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.4 | Borrado, numeración y recibos seguros | Fusionada a `main`; evidencia técnica interna registrada. |
-| Fase 2A.5 | PDF histórico desde snapshot | Pendiente. |
+| Fase 2A.5 | PDF histórico desde snapshot | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2B | Integridad servidor y VERI*FACTU | Pendiente. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
@@ -373,15 +408,17 @@ Declaraciones no permitidas todavía:
 | 2026-06-24 | Snapshots documentales completos fusionados a main. | Fase 2A.2 | PR #3 `d4973f7904781d156e60fcb143610dd1ac1e300f`; `16c8b66`, `5713baf` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | Fusión segura de clientes fusionada a main. | Fase 2A.3 | PR #4 `1d83c9b7afefac586496350f9b673a78f306b408`; `5e0ff32`, `067bed2` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | Borrado, numeración y recibos seguros fusionados a main. | Fase 2A.4 | PR #5 `73730277c8985dd8983f5edf58ce8981824e04ba`; `b70593b`, `ea6ff5c` | Equipo Factura Autónomo / Codex |
+| 2026-06-24 | PDF histórico desde snapshot fusionado a main. | Fase 2A.5 | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; `db03153d`, `c42975b` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | Creación del dossier vivo de evidencias técnicas y cumplimiento. | Compliance | `4bfbe5c` | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
-Durante las fases 2A.2, 2A.3 y 2A.4 se documentaron validaciones locales con resultado correcto en sus respectivos informes de aceptación:
+Durante las fases 2A.2, 2A.3, 2A.4 y 2A.5 se documentaron validaciones locales con resultado correcto en sus respectivos informes de aceptación:
 
 - `FASE2A2_ACCEPTANCE.md`
 - `FASE2A3_ACCEPTANCE.md`
 - `FASE2A4_ACCEPTANCE.md`
+- `FASE2A5_ACCEPTANCE.md`
 
 Para Fase 2A.4 constan expresamente:
 
@@ -392,5 +429,17 @@ Para Fase 2A.4 constan expresamente:
 - `npm run build`: OK, Next.js 15.5.19, 58 páginas estáticas;
 - `npm run test:phase1-acceptance`: OK;
 - `git diff --check`: OK.
+
+Para Fase 2A.5 constan expresamente:
+
+- `npm run check:migrations`: OK;
+- `npm test`: OK, 87 archivos, 419 tests;
+- `npm run lint`: OK;
+- `npx tsc --noEmit`: OK;
+- `npm run build`: OK, Next.js 15.5.19, 58 páginas estáticas;
+- `npm run test:phase1-acceptance`: OK con Supabase local;
+- `git diff --check`: OK;
+- `Quality` sobre `main`: SUCCESS;
+- `Supabase Acceptance` sobre `main`: SUCCESS.
 
 Estas evidencias son técnicas internas y deberán revisarse externamente cuando aplique.
