@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SERVER_DOCUMENT_INGEST_ROUTE_FLAG,
   isServerDocumentIngestRouteEnabled,
+  handleServerDocumentIngestForServer,
   type SafeServerDocumentResponse,
   type SupabaseServerDocumentClient,
 } from "@/lib/server-documents";
@@ -82,6 +83,188 @@ describe("POST /api/server-documents/ingest", () => {
     vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
 
     expect(isServerDocumentIngestRouteEnabled()).toBe(true);
+  });
+
+  it("createDraft valido con flag activa en test usa Bearer y devuelve respuesta segura", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => ({
+      ...acceptedResponse(),
+      documentSnapshot: { customer: "secreto" },
+      payload: { total: 121 },
+      pdfSnapshot: { renderer: "secreto" },
+    }) as never);
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "createDraft",
+          authenticatedUserId: "body-user",
+          entitlement: "pro",
+          localDocumentId: "local-doc-1",
+          plan: "pro",
+          role: "admin",
+          status: "active",
+          user_id: "body-user",
+          userId: "body-user",
+        },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(200);
+    expect(authenticate).toHaveBeenCalledWith("Bearer token-de-prueba");
+    expect(handleIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authSource: { authenticatedUserId: "token-user" },
+        body: {
+          action: "createDraft",
+          localDocumentId: "local-doc-1",
+        },
+      }),
+    );
+    expect(body).toEqual(acceptedResponse());
+    expectNoSensitiveFields(body);
+  });
+
+  it("updateDraft valido con flag activa en test usa expectedVersion y respuesta segura", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () =>
+      acceptedResponse({
+        localDocumentId: "local-doc-2",
+        serverDocumentId: "server-doc-2",
+        version: 2,
+        versionId: "version-2",
+      }),
+    );
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "updateDraft",
+          authenticatedUserId: "body-user",
+          expectedVersion: 1,
+          payload: { total: 242 },
+          plan: "pro",
+          role: "admin",
+          serverDocumentId: "server-doc-2",
+          statusLegacy: "borrador",
+          user_id: "body-user",
+          userId: "body-user",
+        },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(200);
+    expect(handleIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authSource: { authenticatedUserId: "token-user" },
+        body: {
+          action: "updateDraft",
+          expectedVersion: 1,
+          payload: { total: 242 },
+          serverDocumentId: "server-doc-2",
+          statusLegacy: "borrador",
+        },
+      }),
+    );
+    expect(body).toEqual(
+      acceptedResponse({
+        localDocumentId: "local-doc-2",
+        serverDocumentId: "server-doc-2",
+        version: 2,
+        versionId: "version-2",
+      }),
+    );
+    expectNoSensitiveFields(body);
+  });
+
+  it("updateDraft sin expectedVersion con flag activa devuelve error seguro", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const from = vi.fn();
+    const getSupabaseClient = vi.fn(
+      () => ({ from }) as unknown as SupabaseServerDocumentClient,
+    );
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "updateDraft",
+          payload: { total: 242 },
+          serverDocumentId: "server-doc-2",
+          user_id: "body-user",
+        },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        authenticate,
+        getSupabaseClient,
+        handleIngest: handleServerDocumentIngestForServer,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      status: "rejected",
+      reason: "missing_expected_version",
+    });
+    expect(authenticate).toHaveBeenCalledWith("Bearer token-de-prueba");
+    expect(getSupabaseClient).toHaveBeenCalledOnce();
+    expect(from).not.toHaveBeenCalled();
+    expectNoSensitiveFields(body);
+  });
+
+  it("error de ingest con flag activa no filtra detalles internos", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => {
+      throw new Error("token secreto o payload completo");
+    });
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "createDraft",
+          localDocumentId: "local-doc-1",
+          payload: { total: 121 },
+        },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(500);
+    expect(body).toMatchObject({
+      status: "rejected",
+      reason: "store_error",
+    });
+    expect(JSON.stringify(body)).not.toContain("token secreto");
+    expect(JSON.stringify(body)).not.toContain("payload completo");
+    expectNoSensitiveFields(body);
   });
 
   it("si esta desactivada no autentica, no inicializa Supabase y no llama al ingest", async () => {
@@ -242,6 +425,7 @@ describe("POST /api/server-documents/ingest", () => {
           entitlements: ["server-documents"],
           localDocumentId: "local-doc-1",
           plan: "pro",
+          role: "admin",
           status: "active",
           user_id: "body-user",
           userId: "body-user",
