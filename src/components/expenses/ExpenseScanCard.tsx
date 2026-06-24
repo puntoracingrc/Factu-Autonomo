@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Camera, FileText, Loader2, ScanLine, ShoppingBag } from "lucide-react";
+import {
+  AiProcessingConsentNotice,
+  useAiProcessingConsent,
+} from "@/components/legal/AiProcessingConsentNotice";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
@@ -32,6 +36,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const [buyingPack, setBuyingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const aiConsent = useAiProcessingConsent();
   const checkoutStatus = searchParams.get("checkout");
 
   const loadQuota = useCallback(async () => {
@@ -75,6 +80,13 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     if (!file) return;
     setError(null);
     setWarnings([]);
+
+    if (!aiConsent.accepted) {
+      setError("Acepta primero el aviso de tratamiento con IA.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     setScanning(true);
 
     try {
@@ -179,6 +191,14 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
         </p>
       ) : (
         <>
+          <AiProcessingConsentNotice
+            accepted={aiConsent.accepted}
+            onAccepted={() => {
+              aiConsent.accept();
+              setError(null);
+            }}
+          />
+
           {quota && quota.remaining !== Number.MAX_SAFE_INTEGER && (
             <p className="text-sm text-slate-600">
               Escaneos restantes:{" "}
@@ -208,7 +228,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             <Button
               variant="secondary"
               fullWidth
-              disabled={scanning || noScansLeft}
+              disabled={scanning || noScansLeft || !aiConsent.accepted}
               onClick={() => {
                 if (inputRef.current) {
                   inputRef.current.accept =
@@ -233,7 +253,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             <Button
               variant="secondary"
               fullWidth
-              disabled={scanning || noScansLeft}
+              disabled={scanning || noScansLeft || !aiConsent.accepted}
               onClick={() => {
                 if (inputRef.current) {
                   inputRef.current.accept =

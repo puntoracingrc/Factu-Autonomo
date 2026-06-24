@@ -201,6 +201,14 @@ export default function PreciosPage() {
         ·{" "}
         <Link href="/legal/privacidad" className="underline">
           Privacidad
+        </Link>{" "}
+        ·{" "}
+        <Link href="/legal/cookies" className="underline">
+          Cookies
+        </Link>{" "}
+        ·{" "}
+        <Link href="/legal/encargo-tratamiento" className="underline">
+          Encargo de tratamiento
         </Link>
       </p>
     </div>

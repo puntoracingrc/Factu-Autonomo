@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
+import {
+  AiProcessingConsentNotice,
+  useAiProcessingConsent,
+} from "@/components/legal/AiProcessingConsentNotice";
 import { Button } from "@/components/ui/Button";
 import { Field, Textarea } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
@@ -34,6 +38,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const aiConsent = useAiProcessingConsent();
 
   const locked = billingEnabled && !limits.aiTextAutofill;
 
@@ -45,6 +50,11 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     if (locked) {
       setUpgradeReason("El autorrelleno de clientes con IA requiere plan Pro.");
       setUpgradeOpen(true);
+      return;
+    }
+
+    if (!aiConsent.accepted) {
+      setError("Acepta primero el aviso de tratamiento con IA.");
       return;
     }
 
@@ -114,6 +124,14 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           </p>
         </div>
       </div>
+      <AiProcessingConsentNotice
+        accepted={aiConsent.accepted}
+        onAccepted={() => {
+          aiConsent.accept();
+          setError(null);
+        }}
+        compact
+      />
       <Field label="Texto recibido">
         <Textarea
           value={text}
@@ -125,7 +143,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
       <Button
         variant="secondary"
         onClick={() => void handleAutofill()}
-        disabled={loading}
+        disabled={loading || !aiConsent.accepted}
         fullWidth
       >
         {loading ? (

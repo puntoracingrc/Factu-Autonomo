@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
+import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ButtonLink } from "@/components/ui/Button";
@@ -37,6 +38,8 @@ export default function CuentaPage() {
       </Card>
 
       <DataOwnershipCard />
+
+      <LegalLinksCard />
     </div>
   );
 }

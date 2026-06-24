@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Cloud,
@@ -70,6 +71,7 @@ export function CloudAccountCard() {
   const [busy, setBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState("");
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +99,13 @@ export function CloudAccountCard() {
     setBusy(true);
 
     if (action === "signup") {
+      if (!legalAccepted) {
+        setBusy(false);
+        setAuthError(
+          "Para crear cuenta debes aceptar los términos y la política de privacidad.",
+        );
+        return;
+      }
       if (referralCode.trim()) storePendingReferralCode(referralCode);
       const result = await signUp(password);
       setBusy(false);
@@ -333,6 +342,28 @@ export function CloudAccountCard() {
                 />
               </Field>
             ) : null}
+            <label className="flex items-start gap-2 rounded-xl bg-white px-3 py-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={legalAccepted}
+                onChange={(event) => setLegalAccepted(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded"
+              />
+              <span>
+                Al crear cuenta acepto los{" "}
+                <Link href="/legal/terminos" className="font-semibold underline">
+                  términos de uso
+                </Link>{" "}
+                y la{" "}
+                <Link
+                  href="/legal/privacidad"
+                  className="font-semibold underline"
+                >
+                  política de privacidad
+                </Link>
+                .
+              </span>
+            </label>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 fullWidth

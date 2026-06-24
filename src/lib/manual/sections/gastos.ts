@@ -11,6 +11,7 @@ export const gastosSection: ManualSection = {
       paragraphs: [
         "Ve a **Gastos** → **+ Añadir gasto**. Indica proveedor, importe base, IVA, categoría y forma de pago.",
         "Puedes escanear una factura de compra con la cámara si tienes escaneos disponibles (plan Pro).",
+        "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-nuevo.png",

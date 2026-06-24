@@ -24,6 +24,7 @@ export const clientesSection: ManualSection = {
       paragraphs: [
         "Si tienes plan **Pro**, puedes pegar texto recibido por WhatsApp, email o web en **Rellenar con IA** dentro del formulario de cliente, aunque venga desordenado.",
         "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Si falta el código postal pero hay dirección y ciudad, puede intentar localizarlo automáticamente. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
+        "La primera vez que uses una función IA verás un aviso: el texto se enviará a un proveedor externo de IA para procesarlo. Tras aceptarlo una vez, la app no te lo pedirá en cada uso salvo cambios importantes.",
         "Cada relleno consume **1 unidad IA**. Como referencia, **10 rellenos de cliente equivalen a 1 escaneo** de factura o ticket.",
         "También encontrarás este bloque al crear una **factura**, **presupuesto** o **recibo**: si el cliente no existe, se guardará automáticamente al guardar el documento.",
         "En el plan **Gratis** puedes seguir creando y editando clientes manualmente.",
