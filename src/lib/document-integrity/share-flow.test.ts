@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentSent } from ".";
+import { buildPdfViewModelForDocument } from "./pdf-source";
 import { shareDocumentWithIntegrity } from "./share-flow";
 import type { BusinessProfile, Document } from "../types";
 
@@ -136,6 +137,7 @@ describe("shareDocumentWithIntegrity", () => {
     expect(stored.integrityLock).toBe("locked");
     expect(stored.deliveryStatus).toBe("not_sent");
     expect(stored.status).toBe("enviado");
+    expect(buildPdfViewModelForDocument(stored, profile).source).toBe("snapshot");
     expect(markSentCalls).toBe(0);
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { customerToClient } from "@/lib/customers";
 import { issueDocument } from "@/lib/document-integrity";
+import { buildPdfViewModelForDocument } from "@/lib/document-integrity/pdf-source";
 import {
   applyCustomerMergeToDocument,
   findDocumentsForCustomer,
@@ -117,6 +118,23 @@ describe("safe customer merge", () => {
     );
     expect(merged.pdfSnapshot).toBe(beforePdfSnapshot);
     expect(merged.pdfSnapshot?.contentHash).toBe(beforePdfSnapshot.contentHash);
+  });
+
+  it("PDF histórico tras merge sigue usando el cliente congelado", () => {
+    const issued = issuedDocument();
+    const merged = applyCustomerMergeToDocument(issued, keep, [removed]);
+    const view = buildPdfViewModelForDocument(merged, {
+      ...profile,
+      name: "Negocio cambiado",
+    });
+
+    expect(view.source).toBe("snapshot");
+    expect(view.doc.client).toEqual(issued.documentSnapshot?.customer);
+    expect(view.doc.client).not.toEqual(customerToClient(keep));
+    expect(view.documentSnapshot?.snapshotHash).toBe(
+      issued.documentSnapshot?.snapshotHash,
+    );
+    expect(view.pdfSnapshot?.contentHash).toBe(issued.pdfSnapshot?.contentHash);
   });
 
   it("factura emitida legacy sin snapshot no cambia document.client", () => {
