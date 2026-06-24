@@ -69,11 +69,14 @@ describe("POST /api/server-documents/ingest", () => {
     expect(isServerDocumentIngestRouteEnabled()).toBe(false);
   });
 
-  it("queda desactivada con flag distinto de true", () => {
-    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "false");
+  it.each(["false", "1", "yes", "TRUE", " True "])(
+    "queda desactivada con flag %s",
+    (value) => {
+      vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, value);
 
-    expect(isServerDocumentIngestRouteEnabled()).toBe(false);
-  });
+      expect(isServerDocumentIngestRouteEnabled()).toBe(false);
+    },
+  );
 
   it("solo se activa explicitamente con flag true en servidor", () => {
     vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
@@ -118,6 +121,62 @@ describe("POST /api/server-documents/ingest", () => {
     expect(response.status).toBe(405);
     expect(response.headers.get("allow")).toBe("POST");
     expect(body).toEqual({ error: "Metodo no permitido." });
+  });
+
+  it("metodo no permitido activo devuelve error seguro sin tocar auth, Supabase ni ingest", async () => {
+    const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => acceptedResponse());
+
+    const response = await handleServerDocumentIngestRoute(
+      request({ action: "createDraft" }, {}, "PUT"),
+      {
+        isEnabled: () => true,
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+    expect(body).toEqual({ error: "Metodo no permitido." });
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(getSupabaseClient).not.toHaveBeenCalled();
+    expect(handleIngest).not.toHaveBeenCalled();
+    expectNoSensitiveFields(body);
+  });
+
+  it("content-type invalido devuelve error seguro sin autenticar ni tocar Supabase", async () => {
+    const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => acceptedResponse());
+
+    const response = await handleServerDocumentIngestRoute(
+      new Request("http://localhost/api/server-documents/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "createDraft" }),
+      }),
+      {
+        isEnabled: () => true,
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+    const body = await json(response);
+
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      status: "rejected",
+      reason: "invalid_request",
+    });
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(getSupabaseClient).not.toHaveBeenCalled();
+    expect(handleIngest).not.toHaveBeenCalled();
+    expectNoSensitiveFields(body);
   });
 
   it("rechaza JSON invalido sin autenticar ni tocar Supabase cuando esta activa", async () => {
