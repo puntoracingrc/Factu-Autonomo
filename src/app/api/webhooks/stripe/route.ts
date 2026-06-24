@@ -11,6 +11,11 @@ import {
   syncBillingProfileFromCheckoutSession,
   syncBillingProfileFromCustomerId,
 } from "@/lib/billing/sync-billing-profile";
+import {
+  markStripeEventFailed,
+  markStripeEventProcessed,
+  reserveStripeEvent,
+} from "@/lib/billing/stripe-events";
 import { getStripe } from "@/lib/billing/stripe";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -30,13 +35,13 @@ async function upsertProSubscription(params: {
   currentPeriodEnd?: number | null;
 }) {
   const admin = getSupabaseAdmin();
-  if (!admin) return;
+  if (!admin) throw new Error("Supabase admin no disponible");
 
   const periodEnd = params.currentPeriodEnd
     ? new Date(params.currentPeriodEnd * 1000).toISOString()
     : null;
 
-  await admin.from("user_subscriptions").upsert(
+  const { error } = await admin.from("user_subscriptions").upsert(
     {
       user_id: params.userId,
       plan: "pro",
@@ -53,13 +58,14 @@ async function upsertProSubscription(params: {
     },
     { onConflict: "user_id" },
   );
+  if (error) throw new Error(error.message);
 }
 
 async function downgradeToFree(userId: string) {
   const admin = getSupabaseAdmin();
-  if (!admin) return;
+  if (!admin) throw new Error("Supabase admin no disponible");
 
-  await admin
+  const { error } = await admin
     .from("user_subscriptions")
     .update({
       plan: "free",
@@ -69,6 +75,22 @@ async function downgradeToFree(userId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+async function markPastDue(userId: string) {
+  const admin = getSupabaseAdmin();
+  if (!admin) throw new Error("Supabase admin no disponible");
+
+  const { error } = await admin
+    .from("user_subscriptions")
+    .update({
+      status: "past_due",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (error) throw new Error(error.message);
 }
 
 async function handleCheckoutCompleted(
@@ -87,7 +109,8 @@ async function handleCheckoutCompleted(
   if (session.metadata?.checkout_type === "scan_pack") {
     const credits = Number(session.metadata.scan_credits ?? SCAN_PACK_SIZE);
     if (Number.isFinite(credits) && credits > 0) {
-      await addScanCredits(userId, credits);
+      const credited = await addScanCredits(userId, credits);
+      if (!credited) throw new Error("No se pudieron añadir créditos IA");
     }
   } else {
     const subscriptionId = session.subscription as string | null;
@@ -186,71 +209,90 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      await handleCheckoutCompleted(stripe, session, event.id);
-      break;
-    }
-    case "invoice.paid": {
-      const invoice = event.data.object as Stripe.Invoice;
-      await handleInvoicePaid(invoice, event.id);
-      break;
-    }
-    case "customer.subscription.updated": {
-      const subscription = event.data.object as Stripe.Subscription;
-      const userId = subscription.metadata?.user_id;
-      if (!userId) break;
-      if (
-        subscription.status === "active" ||
-        subscription.status === "trialing"
-      ) {
-        await upsertProSubscription({
-          userId,
-          customerId: subscription.customer as string,
-          subscriptionId: subscription.id,
-          status: subscription.status,
-          currentPeriodEnd: subscriptionPeriodEnd(subscription),
-        });
-      } else if (
-        subscription.status === "canceled" ||
-        subscription.status === "unpaid" ||
-        subscription.status === "past_due"
-      ) {
-        if (subscription.status === "past_due") {
-          const admin = getSupabaseAdmin();
-          if (admin) {
-            await admin
-              .from("user_subscriptions")
-              .update({
-                status: "past_due",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("user_id", userId);
+  let reservation;
+  try {
+    reservation = await reserveStripeEvent(event.id, event.type);
+  } catch {
+    return NextResponse.json(
+      { error: "No se pudo reservar el evento Stripe" },
+      { status: 503 },
+    );
+  }
+
+  if (!reservation.reserved) {
+    return NextResponse.json({
+      received: true,
+      duplicate: true,
+      status: reservation.status,
+    });
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutCompleted(stripe, session, event.id);
+        break;
+      }
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaid(invoice, event.id);
+        break;
+      }
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.user_id;
+        if (!userId) break;
+        if (
+          subscription.status === "active" ||
+          subscription.status === "trialing"
+        ) {
+          await upsertProSubscription({
+            userId,
+            customerId: subscription.customer as string,
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            currentPeriodEnd: subscriptionPeriodEnd(subscription),
+          });
+        } else if (
+          subscription.status === "canceled" ||
+          subscription.status === "unpaid" ||
+          subscription.status === "past_due"
+        ) {
+          if (subscription.status === "past_due") {
+            await markPastDue(userId);
+          } else {
+            await downgradeToFree(userId);
           }
-        } else {
-          await downgradeToFree(userId);
         }
+        break;
       }
-      break;
-    }
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object as Stripe.Subscription;
-      const userId = subscription.metadata?.user_id;
-      if (userId) await downgradeToFree(userId);
-      break;
-    }
-    case "customer.updated": {
-      const customer = event.data.object as Stripe.Customer;
-      if (customer.deleted) break;
-      const userId = await findUserIdByStripeCustomer(customer.id);
-      if (userId) {
-        await syncBillingProfileFromCustomerId(userId, customer.id);
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.user_id;
+        if (userId) await downgradeToFree(userId);
+        break;
       }
-      break;
+      case "customer.updated": {
+        const customer = event.data.object as Stripe.Customer;
+        if (customer.deleted) break;
+        const userId = await findUserIdByStripeCustomer(customer.id);
+        if (userId) {
+          await syncBillingProfileFromCustomerId(userId, customer.id);
+        }
+        break;
+      }
+      default:
+        break;
     }
-    default:
-      break;
+
+    await markStripeEventProcessed(event.id);
+  } catch (error) {
+    await markStripeEventFailed(event.id, error).catch(() => undefined);
+    return NextResponse.json(
+      { error: "No se pudo procesar el evento Stripe" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ received: true });

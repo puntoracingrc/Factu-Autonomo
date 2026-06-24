@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
-import { fetchUserSubscription } from "@/lib/billing/repository";
+import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeCustomerAiAutofill } from "@/lib/billing/scan-usage-server";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { enrichCustomerPostalCode } from "@/lib/customer-ai/geocoding";
@@ -14,7 +14,7 @@ async function canUseCustomerAi(userId: string): Promise<{
 }> {
   if (!isBillingEnforced()) return { allowed: true };
 
-  const subscription = await fetchUserSubscription(userId);
+  const subscription = await fetchUserSubscriptionServer(userId);
   const plan: PlanId = resolveEffectivePlan(subscription);
   if (!getPlanLimits(plan).aiTextAutofill) {
     return {

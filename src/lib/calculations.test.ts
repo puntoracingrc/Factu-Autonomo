@@ -10,11 +10,10 @@ import {
 } from "./calculations";
 import type { Document, Expense, LineItem } from "./types";
 
-function item(
-  overrides: Partial<LineItem> & Pick<LineItem, "description">,
-): LineItem {
+function item(overrides: Partial<LineItem> = {}): LineItem {
   return {
     id: "1",
+    description: "Servicio",
     quantity: 1,
     unitPrice: 100,
     ivaPercent: 21,

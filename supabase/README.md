@@ -1,19 +1,87 @@
-# SQL en Supabase — orden y qué ejecutar
+# SQL en Supabase - orden, migraciones y rollbacks
 
-## Instalación nueva (proyecto vacío)
+## Convención definitiva de migraciones
 
-1. `schema.sql`
-2. `billing.sql`
+`supabase/migrations` contiene solo migraciones **up** autoejecutables por Supabase CLI.
 
-## Si ya tenías la app funcionando
+- No debe haber archivos `*.down.sql` dentro de `supabase/migrations`.
+- Cada migración debe llamarse `YYYYMMDDHHMMSS_slug.sql`.
+- La versión numérica inicial debe ser única.
+- El orden es siempre:
+  1. baseline/base schema;
+  2. migraciones incrementales;
+  3. hardening o cambios posteriores.
 
-**No vuelvas a ejecutar** `schema.sql` ni `billing.sql` enteros.
+`supabase/rollbacks` contiene rollbacks manuales.
 
-Solo la migración que falte, por ejemplo:
+- Cada rollback debe llamarse `YYYYMMDDHHMMSS_slug.down.sql`.
+- El prefijo numérico debe coincidir con la migración que revierte.
+- Supabase CLI no ejecuta esta carpeta automáticamente; los rollbacks se aplican manualmente y solo con un procedimiento de incidencia o staging.
 
-- **Escáner de gastos:** `billing-scans.sql`
-- **Unidades IA (rellenar clientes consume 1/10 escaneo):** `billing-ai-units.sql`
-- **Veri*Factu (registros servidor):** `verifactu.sql`
+Comprobación local:
+
+```bash
+npm run check:migrations
+```
+
+Esta comprobación falla si:
+
+- hay un `*.down.sql` dentro de `supabase/migrations`;
+- dos migraciones comparten versión numérica;
+- un nombre no sigue la convención;
+- un rollback no apunta a una versión de migración existente.
+
+## Migraciones versionadas actuales
+
+### Supabase limpio o staging nuevo
+
+Aplicar en orden automático:
+
+1. `supabase/migrations/20260623000000_base_schema.sql`
+2. `supabase/migrations/20260624000100_phase1_hardening.sql`
+3. `supabase/migrations/20260624000200_phase1_rpc_search_path_hardening.sql`
+
+### Producción ya existente
+
+No aplicar la baseline a ciegas si producción ya tiene tablas creadas manualmente.
+
+Procedimiento seguro:
+
+1. comprobar en solo lectura qué tablas existen;
+2. si el esquema base ya existe, tratar `20260623000000_base_schema.sql` como baseline/historial;
+3. aplicar primero en staging clonado o equivalente;
+4. aplicar solo las migraciones incrementales necesarias;
+5. verificar RLS, GRANT/REVOKE, RPC y rutas servidor después.
+
+Producción no está marcada como lista hasta validar este procedimiento fuera de local.
+
+## Instalación soportada en Supabase limpio/staging
+
+La única instalación soportada para un Supabase limpio o staging nuevo es mediante las migraciones versionadas de `supabase/migrations`, aplicadas en orden automático por Supabase CLI.
+
+No ejecutes manualmente `schema.sql`, `billing.sql` ni los scripts históricos en una instalación nueva.
+
+## Scripts históricos/legacy
+
+Estos archivos quedan como referencia histórica de cómo se creó el esquema antes de adoptar migraciones versionadas:
+
+- `schema.sql`
+- `billing.sql`
+- `billing-profile.sql`
+- `billing-scans.sql`
+- `billing-scan-credits.sql`
+- `billing-ai-units.sql`
+- `referrals.sql`
+- `verifactu.sql`
+
+No deben ejecutarse manualmente en:
+
+- instalaciones nuevas;
+- staging limpio;
+- producción existente;
+- cualquier entorno con historial de migraciones activo.
+
+Si producción ya tiene tablas creadas manualmente, primero debe tratarse la migración base como baseline/historial y después aplicar solo las migraciones incrementales validadas en staging.
 
 ## Auth — confirmación de email
 
@@ -37,4 +105,4 @@ Para entrar sin confirmar email (solo desarrollo): desactiva **Confirm email** e
 
 ## Errores tipo «policy already exists»
 
-Significa que ese script ya se aplicó. Usa el archivo de migración pequeño (`billing-scans.sql`), no el script completo.
+Significa que un script histórico ya se aplicó o que se está intentando mezclar SQL manual con migraciones. Detén el cambio y revisa el historial de migraciones antes de continuar.

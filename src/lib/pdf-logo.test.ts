@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_DOCUMENT_TEMPLATE } from "./document-templates";
 import { DEFAULT_PROFILE } from "./types";
 import type { Document } from "./types";
 import { buildDocumentPdf } from "./pdf";
@@ -73,6 +74,7 @@ describe("buildDocumentPdf", () => {
         ...DEFAULT_PROFILE,
         name: "Mi negocio",
         documentTemplate: {
+          ...DEFAULT_DOCUMENT_TEMPLATE,
           style: "futuro",
           accent: "coral",
           density: "compacta",

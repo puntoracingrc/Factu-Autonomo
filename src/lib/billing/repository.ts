@@ -1,8 +1,6 @@
 import { getSupabaseClientAsync } from "../supabase/client";
 import type { UserSubscription } from "./subscription";
 import type { PlanId } from "./plans";
-import { FREE_EXPENSE_SCAN_TRIAL } from "./scan-limits";
-import { defaultTrialEndIso } from "./subscription";
 
 const SUBSCRIPTIONS_TABLE = "user_subscriptions";
 
@@ -44,19 +42,18 @@ export async function ensureTrialSubscription(
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return null;
 
-  const trialEndsAt = defaultTrialEndIso();
-  const { data, error } = await supabase
-    .from(SUBSCRIPTIONS_TABLE)
-    .insert({
-      user_id: userId,
-      plan: "trial",
-      status: "trialing",
-      trial_ends_at: trialEndsAt,
-      scan_trial_remaining: FREE_EXPENSE_SCAN_TRIAL,
-    })
-    .select("*")
-    .single();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
 
-  if (error || !data) return null;
-  return mapRow(data as Record<string, unknown>);
+  const response = await fetch("/api/billing/trial", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return null;
+
+  const body = (await response.json()) as {
+    subscription?: UserSubscription | null;
+  };
+  return body.subscription ?? null;
 }

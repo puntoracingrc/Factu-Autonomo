@@ -4,10 +4,32 @@ import {
   buildRegistroAnulacionPayload,
   computeRegistroAltaHash,
   computeRegistroAnulacionHash,
+  type RegistroAltaHashInput,
+  type RegistroAnulacionHashInput,
 } from "./hash";
 
+type OfficialAltaVector = {
+  case: string;
+  description: string;
+  type: "alta";
+  input: RegistroAltaHashInput;
+  expectedConcatenation: string;
+  expectedHash: string;
+};
+
+type OfficialAnulacionVector = {
+  case: string;
+  description: string;
+  type: "anulacion";
+  input: RegistroAnulacionHashInput;
+  expectedConcatenation: string;
+  expectedHash: string;
+};
+
+type OfficialVector = OfficialAltaVector | OfficialAnulacionVector;
+
 /** Vectores oficiales AEAT spec huella v0.1.2 (Anexo II). */
-const OFFICIAL_VECTORS = [
+const OFFICIAL_VECTORS: OfficialVector[] = [
   {
     case: "1",
     description: "Primer registro de alta (sin huella anterior)",
@@ -66,6 +88,14 @@ const OFFICIAL_VECTORS = [
   },
 ];
 
+function altaVector(caseId: string): OfficialAltaVector {
+  const vector = OFFICIAL_VECTORS.find((item) => item.case === caseId);
+  if (!vector || vector.type !== "alta") {
+    throw new Error(`No existe vector de alta ${caseId}`);
+  }
+  return vector;
+}
+
 describe("verifactu hash AEAT v0.1.2", () => {
   for (const vector of OFFICIAL_VECTORS) {
     it(`caso ${vector.case}: ${vector.description}`, async () => {
@@ -89,11 +119,13 @@ describe("verifactu hash AEAT v0.1.2", () => {
   }
 
   it("encadena dos altas consecutivas", async () => {
-    const first = await computeRegistroAltaHash(OFFICIAL_VECTORS[0].input);
+    const firstVector = altaVector("1");
+    const secondVector = altaVector("2");
+    const first = await computeRegistroAltaHash(firstVector.input);
     const second = await computeRegistroAltaHash({
-      ...OFFICIAL_VECTORS[1].input,
+      ...secondVector.input,
       huellaAnterior: first,
     });
-    expect(second).toBe(OFFICIAL_VECTORS[1].expectedHash);
+    expect(second).toBe(secondVector.expectedHash);
   });
 });

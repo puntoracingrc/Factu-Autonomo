@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Document } from "./types";
+import { DEFAULT_PROFILE, type Document } from "./types";
 import {
   buildMailtoUrl,
   buildShareMessage,
@@ -35,25 +35,9 @@ const sampleDoc: Document = {
 };
 
 const profile = {
+  ...DEFAULT_PROFILE,
   name: "Mi Negocio",
-  nif: "",
-  address: "",
-  city: "",
-  postalCode: "",
-  phone: "",
-  email: "",
-  ivaPercent: 21,
-  ivaPercents: [21],
   iban: "ES00 0000 0000 0000 0000 0000",
-  numbering: {
-    lastNumbers: {},
-    formats: {
-      factura: "F-{year}-{num}",
-      factura_rectificativa: "FR-{year}-{num}",
-      presupuesto: "P-{year}-{num}",
-      recibo: "R-{year}-{num}",
-    },
-  },
 };
 
 describe("normalizePhoneForWhatsApp", () => {

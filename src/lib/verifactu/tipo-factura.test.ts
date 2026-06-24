@@ -43,7 +43,7 @@ describe("resolveTipoFactura", () => {
           originalNumber: "F-0",
           originalDate: "2025-12-01",
           reason: "Corrección",
-          type: "sustitucion",
+          type: "correccion",
         },
       }),
     ).toBe("R4");
