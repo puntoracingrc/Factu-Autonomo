@@ -75,6 +75,13 @@ import {
   supplierSimilarityScore,
 } from "@/lib/suppliers";
 import { withVerifactuOnDocument } from "@/lib/verifactu/store";
+import {
+  applyGenericDocumentUpdate,
+  issueDocument as issueDocumentWithIntegrity,
+  markDocumentPaid as markDocumentPaidWithIntegrity,
+  markDocumentSent as markDocumentSentWithIntegrity,
+  acceptQuote as acceptQuoteWithIntegrity,
+} from "@/lib/document-integrity";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -86,6 +93,8 @@ interface AppStoreValue {
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
+  issueDocument: (id: string) => Document;
+  markDocumentSent: (id: string) => Document | null;
   addRectificativa: (
     originalId: string,
     doc: Omit<
@@ -260,15 +269,61 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateDocument = useCallback((doc: Document) => {
-    setAppData((prev) => ({
-      ...prev,
-      documents: prev.documents.map((d) =>
-        d.id === doc.id
-          ? { ...doc, updatedAt: new Date().toISOString() }
-          : d,
-      ),
-    }));
+    setAppData((prev) => {
+      const now = new Date().toISOString();
+      return {
+        ...prev,
+        documents: prev.documents.map((d) =>
+          d.id === doc.id ? applyGenericDocumentUpdate(d, doc, now) : d,
+        ),
+      };
+    });
   }, [setAppData]);
+
+  const issueDocument = useCallback(
+    (id: string): Document => {
+      let issued: Document | null = null;
+      setAppData((prev) => {
+        const current = prev.documents.find((doc) => doc.id === id);
+        if (!current) return prev;
+
+        issued = issueDocumentWithIntegrity(current, prev.profile);
+
+        return {
+          ...prev,
+          documents: prev.documents.map((doc) =>
+            doc.id === id ? issued! : doc,
+          ),
+        };
+      });
+
+      if (!issued) {
+        throw new Error("Documento no encontrado");
+      }
+      return issued;
+    },
+    [setAppData],
+  );
+
+  const markDocumentSent = useCallback(
+    (id: string): Document | null => {
+      let sent: Document | null = null;
+      setAppData((prev) => {
+        const current = prev.documents.find((doc) => doc.id === id);
+        if (!current) return prev;
+
+        sent = markDocumentSentWithIntegrity(current);
+
+        return {
+          ...prev,
+          documents: prev.documents.map((doc) => (doc.id === id ? sent! : doc)),
+        };
+      });
+
+      return sent;
+    },
+    [setAppData],
+  );
 
   const markAsCollected = useCallback(
     (id: string) => {
@@ -282,10 +337,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const numbering = prev.profile.numbering;
 
         if (doc.type === "recibo") {
+          const paid = markDocumentPaidWithIntegrity(doc, now);
           return {
             ...prev,
             documents: prev.documents.map((d) =>
-              d.id === id ? { ...d, status: "pagado", updatedAt: now } : d,
+              d.id === id ? paid : d,
             ),
           };
         }
@@ -301,15 +357,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             ...prev,
             documents: prev.documents.map((d) => {
               if (d.id === doc.id) {
+                const paid = markDocumentPaidWithIntegrity(doc, now);
                 return {
-                  ...d,
-                  status: "pagado",
+                  ...paid,
                   receiptDocumentId: existingReceipt.id,
-                  updatedAt: now,
                 };
               }
               if (d.id === existingReceipt.id) {
-                return { ...d, status: "pagado", updatedAt: now };
+                return markDocumentPaidWithIntegrity(d, now);
               }
               return d;
             }),
@@ -334,18 +389,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           createdAt: now,
           updatedAt: now,
         };
+        const paidReceipt = markDocumentPaidWithIntegrity(receipt, now);
+        const paidDocument = markDocumentPaidWithIntegrity(doc, now);
 
         const documents = prev.documents.map((d) =>
           d.id === doc.id
             ? {
-                ...d,
-                status: "pagado" as const,
+                ...paidDocument,
                 receiptDocumentId: receipt.id,
-                updatedAt: now,
               }
             : d,
         );
-        documents.push(receipt);
+        documents.push(paidReceipt);
 
         return {
           ...prev,
@@ -437,10 +492,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         }
 
         const now = new Date().toISOString();
+        const accepted = acceptQuoteWithIntegrity(doc, now);
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === id ? { ...d, status: "aceptado", updatedAt: now } : d,
+            d.id === id ? accepted : d,
           ),
         };
       });
@@ -995,6 +1051,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       updateProfile,
       addDocument,
+      issueDocument,
+      markDocumentSent,
       addRectificativa,
       updateDocument,
       markAsCollected,
@@ -1030,6 +1088,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       updateProfile,
       addDocument,
+      issueDocument,
+      markDocumentSent,
       addRectificativa,
       updateDocument,
       markAsCollected,

@@ -15,6 +15,24 @@ export type DocumentStatus =
   | "rectificada"
   | "anulada";
 
+export type DocumentLifecycle = "draft" | "issued" | "canceled";
+
+export type DocumentIntegrityLock = "unlocked" | "locked";
+
+export type DocumentDeliveryStatus = "not_sent" | "sent";
+
+export type DocumentPaymentStatus =
+  | "not_applicable"
+  | "pending"
+  | "paid"
+  | "overdue";
+
+export type DocumentAcceptanceStatus =
+  | "not_applicable"
+  | "pending"
+  | "accepted"
+  | "rejected";
+
 export type RectificationType = "anulacion" | "correccion";
 
 export interface RectificationInfo {
@@ -101,6 +119,17 @@ export interface Document {
   rectifiedById?: string;
   /** Registro Veri*Factu (hash encadenado, QR, CSV) */
   verifactu?: VerifactuInfo;
+  /** Ciclo documental nuevo; `status` se mantiene como compatibilidad UI. */
+  documentLifecycle?: DocumentLifecycle;
+  /** Bloqueo de integridad: documentos emitidos/cancelados no admiten edición genérica. */
+  integrityLock?: DocumentIntegrityLock;
+  deliveryStatus?: DocumentDeliveryStatus;
+  paymentStatus?: DocumentPaymentStatus;
+  acceptanceStatus?: DocumentAcceptanceStatus;
+  issuedAt?: string;
+  sentAt?: string;
+  paidAt?: string;
+  acceptedAt?: string;
   /** Recibo generado automáticamente al cobrar una factura */
   sourceDocumentId?: string;
   /** Recibo vinculado cuando la factura se marca como cobrada */

@@ -10,6 +10,7 @@ import {
   shareDocumentByEmail,
   shareDocumentByWhatsApp,
 } from "@/lib/share";
+import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
 import type { BusinessProfile, Document } from "@/lib/types";
 
 interface DocumentShareActionsProps {
@@ -23,27 +24,23 @@ export function DocumentShareActions({
   profile,
   markSentOnShare = true,
 }: DocumentShareActionsProps) {
-  const { updateDocument } = useAppStore();
+  const { issueDocument, markDocumentSent } = useAppStore();
   const [busy, setBusy] = useState<"email" | "whatsapp" | null>(null);
 
   const canEmail = hasClientEmail(doc);
   const canWhatsApp = hasClientPhone(doc);
 
-  function markSentIfNeeded() {
-    if (!markSentOnShare || doc.status !== "borrador") return;
-    updateDocument({
-      ...doc,
-      status: "enviado",
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
   async function handleEmail() {
     if (!canEmail || busy) return;
     setBusy("email");
     try {
-      await shareDocumentByEmail(doc, profile);
-      markSentIfNeeded();
+      await shareDocumentWithIntegrity({
+        doc,
+        issueDocument,
+        markDocumentSent,
+        markSentOnShare,
+        share: (current) => shareDocumentByEmail(current, profile),
+      });
     } finally {
       setBusy(null);
     }
@@ -53,8 +50,13 @@ export function DocumentShareActions({
     if (!canWhatsApp || busy) return;
     setBusy("whatsapp");
     try {
-      await shareDocumentByWhatsApp(doc, profile);
-      markSentIfNeeded();
+      await shareDocumentWithIntegrity({
+        doc,
+        issueDocument,
+        markDocumentSent,
+        markSentOnShare,
+        share: (current) => shareDocumentByWhatsApp(current, profile),
+      });
     } finally {
       setBusy(null);
     }
