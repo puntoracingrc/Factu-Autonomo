@@ -10,6 +10,7 @@ import {
   parseLegacyDocumentNumber,
 } from "./numbering";
 import { isDocumentIntegrityLocked } from "./document-integrity";
+import { canRenumberDocument } from "./document-integrity/deletion";
 import { isRectificativa } from "./rectificativas";
 import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
 import { documentAmounts } from "./vat-regime";
@@ -155,17 +156,30 @@ export function renumberDocumentsForKindYear(
 ): Document[] {
   const settings = normalizeNumbering(numbering);
   const templateHasYear = settings.formats[kind].template.includes("{year}");
+  const matchingKindYear = documents.filter((d) => {
+    if (getDocumentKind(d) !== kind) return false;
+    const parsed = parseDocumentNumberForKind(d.number, kind, settings);
+    if (!parsed) return false;
+    const docYear = templateHasYear
+      ? (parsed.year ?? new Date(d.date).getFullYear())
+      : new Date(d.date).getFullYear();
+    return docYear === year;
+  });
 
-  const ofKindYear = documents
-    .filter((d) => {
-      if (getDocumentKind(d) !== kind) return false;
-      const parsed = parseDocumentNumberForKind(d.number, kind, settings);
-      if (!parsed) return false;
-      const docYear = templateHasYear
-        ? (parsed.year ?? new Date(d.date).getFullYear())
-        : new Date(d.date).getFullYear();
-      return docYear === year;
-    })
+  const protectedSequences = new Set(
+    matchingKindYear
+      .filter((doc) => !canRenumberDocument(doc))
+      .map((doc) => parseDocumentNumberForKind(doc.number, kind, settings))
+      .filter((parsed): parsed is { sequence: number; year?: number } =>
+        Boolean(parsed),
+      )
+      .map((parsed) => parsed.sequence),
+  );
+  const protectedFloor =
+    protectedSequences.size > 0 ? Math.max(...protectedSequences) : 0;
+
+  const ofKindYear = matchingKindYear
+    .filter(canRenumberDocument)
     .sort((a, b) => {
       const pa =
         parseDocumentNumberForKind(a.number, kind, settings)?.sequence ?? 0;
@@ -174,12 +188,17 @@ export function renumberDocumentsForKindYear(
       return pa - pb;
     });
 
-  const renumbered = new Map(
-    ofKindYear.map((doc, index) => [
+  let nextSequence = protectedFloor + 1;
+  const renumbered = new Map<string, string>();
+
+  for (const doc of ofKindYear) {
+    while (protectedSequences.has(nextSequence)) nextSequence += 1;
+    renumbered.set(
       doc.id,
-      formatDocumentNumber(kind, year, index + 1, settings),
-    ]),
-  );
+      formatDocumentNumber(kind, year, nextSequence, settings),
+    );
+    nextSequence += 1;
+  }
 
   return documents.map((doc) => {
     const newNumber = renumbered.get(doc.id);

@@ -181,4 +181,43 @@ describe("backup", () => {
     expect(result.customers[0].mergedCustomerIds).toEqual(["legacy-1"]);
     expect(result.documents[0].customerId).toBe("customer-1");
   });
+
+  it("exportar e importar copia conserva vínculos factura-recibo", async () => {
+    const blob = createBackupBlob({
+      ...EMPTY_DATA,
+      documents: [
+        {
+          id: "invoice-1",
+          type: "factura",
+          number: "F-2026-0001",
+          date: "2026-06-24",
+          client: { name: "Ana López" },
+          items: [],
+          status: "pagado",
+          receiptDocumentId: "receipt-1",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+        {
+          id: "receipt-1",
+          type: "recibo",
+          number: "R-2026-0001",
+          date: "2026-06-24",
+          client: { name: "Ana López" },
+          items: [],
+          status: "pagado",
+          sourceDocumentId: "invoice-1",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+      ],
+    });
+
+    const result = parseBackupJson(JSON.parse(await blob.text()));
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.documents[0].receiptDocumentId).toBe("receipt-1");
+    expect(result.documents[1].sourceDocumentId).toBe("invoice-1");
+  });
 });

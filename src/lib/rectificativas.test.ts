@@ -97,6 +97,44 @@ describe("facturas rectificativas", () => {
     expect(borrador.level).toBe("simple");
   });
 
+  it("permite borrar factura borrador", () => {
+    const policy = getDeletePolicy(invoice("1", "F-2026-0001", "borrador"));
+
+    expect(policy.allowed).toBe(true);
+    expect(policy.message).toContain("borrador");
+  });
+
+  it("rechaza borrar factura emitida", () => {
+    const issued = issueDocument(
+      invoice("1", "F-2026-0001", "borrador"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+
+    expect(getDeletePolicy(issued).allowed).toBe(false);
+  });
+
+  it("rechaza borrar documento issued/locked/not_sent", () => {
+    const locked = invoice("1", "F-2026-0001", "borrador", {
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      deliveryStatus: "not_sent",
+    });
+
+    expect(getDeletePolicy(locked).allowed).toBe(false);
+  });
+
+  it("rechaza borrar legacy status distinto de borrador", () => {
+    const legacy = invoice("1", "F-2026-0001", "enviado", {
+      documentLifecycle: undefined,
+      integrityLock: undefined,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+    });
+
+    expect(getDeletePolicy(legacy).allowed).toBe(false);
+  });
+
   it("no permite borrar rectificativas ni facturas ya rectificadas", () => {
     const rectificativa = getDeletePolicy(
       invoice("2", "FR-2026-0001", "enviado", {
@@ -115,6 +153,44 @@ describe("facturas rectificativas", () => {
       invoice("1", "F-2026-0001", "anulada", { rectifiedById: "2" }),
     );
     expect(rectificada.allowed).toBe(false);
+  });
+
+  it("rechaza borrar rectificativa emitida", () => {
+    const rectificativa = invoice("2", "FR-2026-0001", "enviado", {
+      rectification: {
+        originalDocumentId: "1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-01",
+        reason: "Error",
+        type: "anulacion",
+      },
+    });
+
+    expect(getDeletePolicy(rectificativa).allowed).toBe(false);
+  });
+
+  it("rechaza borrar presupuesto enviado", () => {
+    const presupuesto: Document = {
+      ...invoice("p1", "P-2026-0001", "enviado"),
+      type: "presupuesto",
+    };
+
+    const policy = getDeletePolicy(presupuesto);
+
+    expect(policy.allowed).toBe(false);
+    expect(policy.message).toContain("no puede borrarse");
+  });
+
+  it("rechaza borrar recibo pagado", () => {
+    const recibo: Document = {
+      ...invoice("r1", "R-2026-0001", "pagado"),
+      type: "recibo",
+    };
+
+    const policy = getDeletePolicy(recibo);
+
+    expect(policy.allowed).toBe(false);
+    expect(policy.message).toContain("no puede borrarse");
   });
 
   it("no permite borrar un borrador recién emitido pendiente de envío", () => {
