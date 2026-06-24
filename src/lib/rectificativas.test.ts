@@ -9,7 +9,8 @@ import {
   itemsForAnulacion,
   originalStatusAfterRectification,
 } from "./rectificativas";
-import type { Document } from "./types";
+import { issueDocument } from "./document-integrity";
+import { EMPTY_DATA, type Document } from "./types";
 
 function invoice(
   id: string,
@@ -114,5 +115,50 @@ describe("facturas rectificativas", () => {
       invoice("1", "F-2026-0001", "anulada", { rectifiedById: "2" }),
     );
     expect(rectificada.allowed).toBe(false);
+  });
+
+  it("no permite borrar un borrador recién emitido pendiente de envío", () => {
+    const documents = [
+      invoice("1", "F-2026-0001", "enviado"),
+      invoice("2", "F-2026-0002", "borrador"),
+    ];
+    const issued = issueDocument(documents[1], EMPTY_DATA.profile, "2026-06-24T10:00:00.000Z");
+    const policy = getDeletePolicy(issued);
+
+    const afterDeleteAttempt = policy.allowed
+      ? documents.filter((doc) => doc.id !== issued.id)
+      : documents.map((doc) => (doc.id === issued.id ? issued : doc));
+
+    expect(policy.allowed).toBe(false);
+    expect(afterDeleteAttempt).toHaveLength(2);
+    expect(afterDeleteAttempt.map((doc) => doc.number)).toEqual([
+      "F-2026-0001",
+      "F-2026-0002",
+    ]);
+    expect(afterDeleteAttempt[1]).toMatchObject({
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      deliveryStatus: "not_sent",
+    });
+  });
+
+  it("no permite borrar presupuestos o recibos bloqueados aunque no sean factura", () => {
+    const presupuesto: Document = {
+      ...invoice("p1", "P-2026-0001", "borrador"),
+      type: "presupuesto",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      deliveryStatus: "not_sent",
+    };
+    const recibo: Document = {
+      ...invoice("r1", "R-2026-0001", "borrador"),
+      type: "recibo",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      deliveryStatus: "not_sent",
+    };
+
+    expect(getDeletePolicy(presupuesto).allowed).toBe(false);
+    expect(getDeletePolicy(recibo).allowed).toBe(false);
   });
 });

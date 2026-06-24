@@ -1,10 +1,11 @@
+import { deriveDocumentLifecycle } from "./document-integrity";
 import type { Document } from "./types";
 
 export function canMarkQuoteAsAccepted(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
-    doc.status !== "borrador" &&
-    doc.status !== "anulada"
+    doc.status !== "anulada" &&
+    deriveDocumentLifecycle(doc) === "issued"
   );
 }
 

@@ -14,6 +14,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
@@ -62,6 +63,12 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
 };
 
 function statusLabel(doc: Document, type: DocumentType): string {
+  if (
+    deriveDocumentLifecycle(doc) === "issued" &&
+    doc.deliveryStatus === "not_sent"
+  ) {
+    return "Emitido";
+  }
   if (type === "presupuesto" && isAcceptedQuote(doc)) {
     return "Aceptado";
   }
@@ -69,6 +76,16 @@ function statusLabel(doc: Document, type: DocumentType): string {
     return "Cobrado";
   }
   return STATUS_LABELS[doc.status];
+}
+
+function statusColor(doc: Document): string {
+  if (
+    deriveDocumentLifecycle(doc) === "issued" &&
+    doc.deliveryStatus === "not_sent"
+  ) {
+    return "bg-blue-100 text-blue-700";
+  }
+  return STATUS_COLORS[doc.status];
 }
 
 interface DocumentListProps {
@@ -172,7 +189,7 @@ export function DocumentList({
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         isCollectedDocument(doc) || isAcceptedQuote(doc)
                           ? "bg-green-100 text-green-700"
-                          : STATUS_COLORS[doc.status]
+                          : statusColor(doc)
                       }`}
                     >
                       {statusLabel(doc, type)}

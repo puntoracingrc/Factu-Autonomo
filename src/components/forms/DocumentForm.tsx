@@ -44,6 +44,7 @@ import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
+import { DocumentIntegrityError } from "@/lib/document-integrity";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
 function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
@@ -347,7 +348,17 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         ...payload,
         updatedAt: new Date().toISOString(),
       };
-      updateDocument(saved);
+      try {
+        updateDocument(saved);
+      } catch (error) {
+        setSaveAction("idle");
+        alert(
+          error instanceof DocumentIntegrityError
+            ? error.message
+            : "No se pudo guardar el documento.",
+        );
+        return;
+      }
     } else {
       saved = addDocument(payload);
       recordDocumentCreated();

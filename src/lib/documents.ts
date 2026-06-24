@@ -9,6 +9,7 @@ import {
   parseDocumentNumberForKind,
   parseLegacyDocumentNumber,
 } from "./numbering";
+import { isDocumentIntegrityLocked } from "./document-integrity";
 import { isRectificativa } from "./rectificativas";
 import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
 import { documentAmounts } from "./vat-regime";
@@ -327,7 +328,7 @@ export function getFacturasIncludingRectificativas(
 
 export function isDocumentEditable(doc: Document): boolean {
   if (isRectificativa(doc) || doc.rectifiedById) return false;
-  return doc.status === "borrador";
+  return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
 }
 
 export function getDocumentReadOnlyMessage(doc: Document): string {
