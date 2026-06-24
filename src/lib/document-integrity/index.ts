@@ -1,4 +1,8 @@
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import {
+  buildDocumentPdfSnapshot,
+  buildDocumentSnapshot,
+} from "@/lib/document-integrity/snapshots";
 import type {
   BusinessProfile,
   Document,
@@ -8,6 +12,21 @@ import type {
   DocumentLifecycle,
   DocumentPaymentStatus,
 } from "@/lib/types";
+
+export {
+  DOCUMENT_PDF_RENDERER_VERSION,
+  DOCUMENT_PDF_SNAPSHOT_SCHEMA_VERSION,
+  DOCUMENT_SNAPSHOT_SCHEMA_VERSION,
+  buildDocumentPdfSnapshot,
+  buildDocumentSnapshot,
+  deriveLegacySnapshotForReadOnly,
+  documentKindForSnapshot,
+  getDocumentSnapshotSource,
+  hasDocumentSnapshot,
+  hashDocumentPdfSnapshot,
+  hashDocumentSnapshot,
+  stableStringifySnapshot,
+} from "@/lib/document-integrity/snapshots";
 
 export type DocumentIntegrityErrorCode =
   | "DOCUMENT_ID_MISMATCH"
@@ -127,10 +146,30 @@ export function issueDocument(
   assertValidDocumentNumber(doc);
 
   const timestamp = nowIso(issuedAt);
+  const issuer = doc.issuer ?? captureIssuerSnapshot(profile, timestamp);
+  const documentSnapshot =
+    doc.documentSnapshot ??
+    buildDocumentSnapshot(
+      {
+        ...doc,
+        issuer,
+      },
+      profile,
+      {
+        capturedAt: timestamp,
+        source: "issue",
+        issuer,
+      },
+    );
+  const pdfSnapshot =
+    doc.pdfSnapshot ??
+    buildDocumentPdfSnapshot(documentSnapshot, profile, timestamp);
 
   return {
     ...doc,
-    issuer: doc.issuer ?? captureIssuerSnapshot(profile),
+    issuer,
+    documentSnapshot,
+    pdfSnapshot,
     status: "enviado",
     documentLifecycle: "issued",
     integrityLock: "locked",

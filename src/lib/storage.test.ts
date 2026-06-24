@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isDocumentIntegrityLocked } from "./document-integrity";
+import {
+  hasDocumentSnapshot,
+  isDocumentIntegrityLocked,
+  issueDocument,
+} from "./document-integrity";
 import { loadData, normalizeLoadedData, saveData } from "./storage";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
 
 const STORAGE_KEY = "factura-autonomo-data";
+const NOW = "2026-06-24T10:00:00.000Z";
 
 function sampleData(): AppData {
   return {
@@ -21,6 +26,34 @@ function sampleData(): AppData {
       },
     ],
   };
+}
+
+function snapshotDocument(): Document {
+  return issueDocument(
+    {
+      id: "doc-snapshot",
+      type: "factura",
+      number: "F-2026-0001",
+      date: "2026-06-24",
+      client: { name: "Ana" },
+      items: [
+        {
+          id: "line-1",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      notes: "Nota visible",
+      paymentTerms: "Transferencia",
+      status: "borrador",
+      createdAt: "2026-06-24T09:00:00.000Z",
+      updatedAt: "2026-06-24T09:00:00.000Z",
+    },
+    sampleData().profile,
+    NOW,
+  );
 }
 
 describe("storage", () => {
@@ -125,5 +158,93 @@ describe("storage", () => {
       deliveryStatus: "not_sent",
     });
     expect(isDocumentIntegrityLocked(normalized.documents[0])).toBe(true);
+  });
+
+  it("conserva snapshots documentales en saveData -> loadData", () => {
+    const document = snapshotDocument();
+
+    saveData({ ...sampleData(), documents: [document] });
+    const loaded = loadData();
+
+    expect(hasDocumentSnapshot(loaded.documents[0])).toBe(true);
+    expect(isDocumentIntegrityLocked(loaded.documents[0])).toBe(true);
+    expect(loaded.documents[0].documentSnapshot?.snapshotHash).toBe(
+      document.documentSnapshot?.snapshotHash,
+    );
+    expect(loaded.documents[0].pdfSnapshot?.contentHash).toBe(
+      document.pdfSnapshot?.contentHash,
+    );
+  });
+
+  it("normalizeLoadedData conserva snapshots y campos desconocidos", () => {
+    const document = {
+      ...snapshotDocument(),
+      documentSnapshot: {
+        ...snapshotDocument().documentSnapshot!,
+        futureSnapshotField: { keep: true },
+      },
+      pdfSnapshot: {
+        ...snapshotDocument().pdfSnapshot!,
+        futurePdfField: "se conserva",
+      },
+      importedExtraField: "se conserva",
+    } as Document & {
+      documentSnapshot: Document["documentSnapshot"] & {
+        futureSnapshotField: { keep: boolean };
+      };
+      pdfSnapshot: Document["pdfSnapshot"] & { futurePdfField: string };
+      importedExtraField: string;
+    };
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [document],
+    });
+
+    expect(normalized.documents[0].documentSnapshot?.source).toBe("issue");
+    expect(normalized.documents[0].pdfSnapshot?.rendererVersion).toBe(
+      "document-pdf-renderer-v1",
+    );
+    expect(
+      (normalized.documents[0] as Document & { importedExtraField?: string })
+        .importedExtraField,
+    ).toBe("se conserva");
+    expect(
+      (
+        normalized.documents[0].documentSnapshot as Document["documentSnapshot"] & {
+          futureSnapshotField?: { keep: boolean };
+        }
+      )?.futureSnapshotField,
+    ).toEqual({ keep: true });
+    expect(
+      (
+        normalized.documents[0].pdfSnapshot as Document["pdfSnapshot"] & {
+          futurePdfField?: string;
+        }
+      )?.futurePdfField,
+    ).toBe("se conserva");
+  });
+
+  it("documentos sin snapshots siguen siendo válidos al normalizar", () => {
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          id: "draft-without-snapshot",
+          type: "factura",
+          number: "F-2026-0002",
+          date: "2026-06-24",
+          client: { name: "Ana" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].documentSnapshot).toBeUndefined();
+    expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
+    expect(isDocumentIntegrityLocked(normalized.documents[0])).toBe(false);
   });
 });
