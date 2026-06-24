@@ -1,8 +1,9 @@
 # Fase 1.5 Acceptance - Quality Gates
 
 Fecha: 2026-06-24
-Estado: **ACEPTADA LOCALMENTE / EJECUCION EN GITHUB PENDIENTE**
+Estado: **ACEPTADA EN GITHUB**
 Rama: `chore/ci-quality-gates`
+PR: `#1`
 
 ## Resumen
 
@@ -12,7 +13,19 @@ La mini Fase 1.5 cierra tres puntos del plan de escalabilidad sin tocar funciona
 - SR-013: convencion de migraciones documentada y comprobada automaticamente.
 - SR-001: workflow CI preparado con quality gates y aceptacion Supabase local.
 
-El workflow `.github/workflows/ci.yml` aun no se ha ejecutado en GitHub. Solo se ha validado localmente el contenido y la bateria de comandos equivalente.
+El workflow `.github/workflows/ci.yml` se ejecuto en GitHub en el PR `#1`.
+
+Checks finales:
+
+- `Quality` -> `SUCCESS`
+- `Supabase Acceptance` -> `SUCCESS`
+
+Commits de la mini Fase 1.5:
+
+- `69c9ae6 ci: add automated quality and Supabase acceptance gates`
+- `66a5868 ci: use Node 22 for Supabase acceptance`
+
+No se ha fusionado el PR, no se ha hecho deploy manual y no se ha accedido a produccion.
 
 ## Archivos
 
@@ -102,6 +115,21 @@ Job `supabase-acceptance`:
 
 El workflow usa `permissions: contents: read`, `timeout-minutes` y `concurrency`.
 
+### Ejecucion en GitHub
+
+Resultado final en PR `#1`:
+
+```text
+Quality -> SUCCESS
+Supabase Acceptance -> SUCCESS
+```
+
+Incidencia inicial:
+
+- El primer intento de `Supabase Acceptance` fallo con Node 20 porque `@supabase/supabase-js` requeria soporte WebSocket nativo en el runtime del runner.
+- Correccion aplicada: `66a5868 ci: use Node 22 for Supabase acceptance`.
+- Tras el cambio a Node 22, `Supabase Acceptance` paso correctamente.
+
 ## Resultados Locales
 
 `npm run check:migrations`:
@@ -150,7 +178,7 @@ Pasa sin errores.
 
 ## Riesgos Pendientes
 
-- El workflow aun debe ejecutarse en GitHub para confirmar el comportamiento del runner remoto.
+- El PR `#1` sigue abierto y no se ha fusionado.
 - Produccion no se ha tocado, no se ha migrado y no queda marcada como lista.
 - No se ha anadido staging en esta fase.
 - No se ha implementado recuperacion de Stripe `processing`; queda fuera de Fase 1.5.
