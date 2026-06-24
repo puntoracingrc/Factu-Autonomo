@@ -247,4 +247,38 @@ describe("storage", () => {
     expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
     expect(isDocumentIntegrityLocked(normalized.documents[0])).toBe(false);
   });
+
+  it("normalizeLoadedData conserva customerId y mergedCustomerIds", () => {
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      customers: [
+        {
+          id: "customer-1",
+          firstName: "Ana",
+          lastName: "López",
+          name: "Ana López",
+          mergedCustomerIds: ["legacy-1"],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      documents: [
+        {
+          id: "doc-with-customer",
+          type: "factura",
+          number: "F-2026-0003",
+          date: "2026-06-24",
+          customerId: "customer-1",
+          client: { name: "Ana López" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normalized.customers[0].mergedCustomerIds).toEqual(["legacy-1"]);
+    expect(normalized.documents[0].customerId).toBe("customer-1");
+  });
 });

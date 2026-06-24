@@ -23,10 +23,7 @@ import type {
 } from "@/lib/types";
 import { syncRecurringExpenses } from "@/lib/recurring-expenses";
 import {
-  clientMatchesCustomer,
-  customerToClient,
   ensureCustomerForDocument,
-  migrateCustomer,
   type ClientInput,
 } from "@/lib/customers";
 import type { Client } from "@/lib/types";
@@ -82,6 +79,11 @@ import {
   markDocumentSent as markDocumentSentWithIntegrity,
   acceptQuote as acceptQuoteWithIntegrity,
 } from "@/lib/document-integrity";
+import {
+  applyCustomerMergeToDocument,
+  mergeCustomerRecords,
+  type MergeCustomersOptions,
+} from "@/lib/document-integrity/customer-merge";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -128,7 +130,11 @@ interface AppStoreValue {
   updateSupplier: (supplier: Supplier) => void;
   deleteSupplier: (id: string) => void;
   mergeSuppliers: (keepId: string, removeIds: string[]) => void;
-  mergeCustomers: (keepId: string, removeIds: string[]) => void;
+  mergeCustomers: (
+    keepId: string,
+    removeIds: string[],
+    options?: MergeCustomersOptions,
+  ) => void;
   addCustomer: (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Customer;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
@@ -914,48 +920,33 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
-  const mergeCustomers = useCallback((keepId: string, removeIds: string[]) => {
+  const mergeCustomers = useCallback((
+    keepId: string,
+    removeIds: string[],
+    options?: MergeCustomersOptions,
+  ) => {
     const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
     if (uniqueRemoveIds.length === 0) return;
 
     setAppData((prev) => {
-      const keep = prev.customers.find((customer) => customer.id === keepId);
-      if (!keep) return prev;
-
-      const removed = prev.customers.filter((customer) =>
-        uniqueRemoveIds.includes(customer.id),
+      const merge = mergeCustomerRecords(
+        prev.customers,
+        keepId,
+        uniqueRemoveIds,
       );
-      const enrichedKeep: Customer = {
-        ...migrateCustomer(keep),
-        nif: keep.nif ?? removed.find((customer) => customer.nif)?.nif,
-        email: keep.email ?? removed.find((customer) => customer.email)?.email,
-        phone: keep.phone ?? removed.find((customer) => customer.phone)?.phone,
-        streetType:
-          keep.streetType ??
-          removed.find((customer) => customer.streetType)?.streetType,
-        address:
-          keep.address ?? removed.find((customer) => customer.address)?.address,
-        city: keep.city ?? removed.find((customer) => customer.city)?.city,
-        postalCode:
-          keep.postalCode ??
-          removed.find((customer) => customer.postalCode)?.postalCode,
-        notes: keep.notes ?? removed.find((customer) => customer.notes)?.notes,
-        updatedAt: new Date().toISOString(),
-      };
-      const keptClient = customerToClient(enrichedKeep);
+      if (!merge) return prev;
 
       return {
         ...prev,
-        customers: prev.customers
-          .filter((customer) => !uniqueRemoveIds.includes(customer.id))
-          .map((customer) => (customer.id === keepId ? enrichedKeep : customer)),
-        documents: prev.documents.map((document) => {
-          const matchesRemoved = removed.some((customer) =>
-            clientMatchesCustomer(document.client, customer),
-          );
-          if (!matchesRemoved) return document;
-          return { ...document, client: keptClient };
-        }),
+        customers: merge.customers,
+        documents: prev.documents.map((document) =>
+          applyCustomerMergeToDocument(
+            document,
+            merge.keep,
+            merge.removed,
+            options,
+          ),
+        ),
       };
     });
   }, [setAppData]);

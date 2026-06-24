@@ -143,4 +143,42 @@ describe("backup", () => {
       )?.futurePdfField,
     ).toBe("se conserva");
   });
+
+  it("exportar e importar copia conserva customerId y mergedCustomerIds", async () => {
+    const blob = createBackupBlob({
+      ...EMPTY_DATA,
+      customers: [
+        {
+          id: "customer-1",
+          firstName: "Ana",
+          lastName: "López",
+          name: "Ana López",
+          mergedCustomerIds: ["legacy-1"],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      documents: [
+        {
+          id: "doc-with-customer",
+          type: "factura",
+          number: "F-2026-0001",
+          date: "2026-06-24",
+          customerId: "customer-1",
+          client: { name: "Ana López" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-06-24T09:00:00.000Z",
+          updatedAt: "2026-06-24T09:00:00.000Z",
+        },
+      ],
+    });
+
+    const result = parseBackupJson(JSON.parse(await blob.text()));
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.customers[0].mergedCustomerIds).toEqual(["legacy-1"]);
+    expect(result.documents[0].customerId).toBe("customer-1");
+  });
 });

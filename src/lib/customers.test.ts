@@ -115,6 +115,65 @@ describe("sortCustomers", () => {
     expect(sorted.map((c) => c.id)).toEqual(["2", "1", "3"]);
   });
 
+  it("suma documentos vinculados por customerId y aliases fusionados", () => {
+    const customers: Customer[] = [
+      { ...sample[1], mergedCustomerIds: ["legacy-ana"] },
+      sample[0],
+    ];
+    const totals = buildCustomerInvoicedTotals(customers, [
+      {
+        id: "legacy-doc",
+        type: "factura" as const,
+        status: "enviado" as const,
+        customerId: "legacy-ana",
+        client: { name: "Nombre histórico", nif: "99999999Z" },
+        items: [
+          {
+            id: "1",
+            description: "A",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        date: "2026-06-24",
+        number: "F-2026-0001",
+        createdAt: "",
+        updatedAt: "",
+      },
+    ]);
+
+    expect(totals.get("2")).toBe(121);
+  });
+
+  it("usa customerId como referencia principal antes que el snapshot legacy", () => {
+    const totals = buildCustomerInvoicedTotals(sample, [
+      {
+        id: "linked-doc",
+        type: "factura" as const,
+        status: "enviado" as const,
+        customerId: sample[1].id,
+        client: customerToClient(sample[0]),
+        items: [
+          {
+            id: "1",
+            description: "A",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        date: "2026-06-24",
+        number: "F-2026-0002",
+        createdAt: "",
+        updatedAt: "",
+      },
+    ]);
+
+    expect(totals.get(sample[1].id)).toBe(121);
+    expect(totals.get(sample[0].id)).toBe(0);
+  });
+
   it("ordena por dirección", () => {
     const sorted = sortCustomers(sample, [], "direccion", "asc");
     expect(sorted.at(-1)?.id).toBe("3");
@@ -372,6 +431,54 @@ describe("customerInvoicedTotal", () => {
     ];
 
     expect(customerInvoicedTotal(documents as never, customer)).toBe(121);
+  });
+
+  it("encuentra documentos de clientes fusionados por customerId", () => {
+    const customer = { ...sample[1], mergedCustomerIds: ["old-ana"] };
+    const documents = [
+      {
+        id: "f1",
+        type: "factura" as const,
+        status: "enviado" as const,
+        customerId: "old-ana",
+        client: { name: "Ana antigua", nif: "99999999Z" },
+        items: [
+          {
+            id: "1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    ];
+
+    expect(customerInvoicedTotal(documents as never, customer)).toBe(121);
+  });
+
+  it("no cuenta por snapshot cuando customerId apunta a otro cliente", () => {
+    const documents = [
+      {
+        id: "f1",
+        type: "factura" as const,
+        status: "enviado" as const,
+        customerId: sample[1].id,
+        client: customerToClient(sample[0]),
+        items: [
+          {
+            id: "1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    ];
+
+    expect(customerInvoicedTotal(documents as never, sample[0])).toBe(0);
+    expect(customerInvoicedTotal(documents as never, sample[1])).toBe(121);
   });
 });
 

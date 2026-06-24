@@ -62,6 +62,7 @@ export default function ClientesPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
+  const [updateDraftDocuments, setUpdateDraftDocuments] = useState(false);
   const [listFilterId, setListFilterId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<CustomerSortField>("apellido");
   const [sortDirection, setSortDirection] =
@@ -163,6 +164,7 @@ export default function ClientesPage() {
     setMergeMode(false);
     setSelectedIds([]);
     setKeepId("");
+    setUpdateDraftDocuments(false);
   }
 
   function handleManualMerge() {
@@ -172,10 +174,10 @@ export default function ClientesPage() {
     const removeIds = selectedIds.filter((id) => id !== keepId);
     if (
       confirm(
-        `¿Unificar ${selectedIds.length} clientes en «${getCustomerDisplayName(keep)}»? Los borradores usarán los datos del cliente conservado.`,
+        `¿Unificar ${selectedIds.length} clientes en «${getCustomerDisplayName(keep)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
       )
     ) {
-      mergeCustomers(keepId, removeIds);
+      mergeCustomers(keepId, removeIds, { updateDraftDocuments });
       exitMergeMode();
     }
   }
@@ -287,7 +289,7 @@ export default function ClientesPage() {
                   onClick={() => {
                     if (
                       confirm(
-                        `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(canonical)}»?`,
+                        `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(canonical)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
                       )
                     ) {
                       mergeCustomers(
@@ -588,6 +590,23 @@ export default function ClientesPage() {
               ))}
             </select>
           </Field>
+          <label className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-950">
+            <input
+              type="checkbox"
+              checked={updateDraftDocuments}
+              onChange={(event) =>
+                setUpdateDraftDocuments(event.target.checked)
+              }
+              className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600"
+            />
+            <span>
+              <span className="font-semibold">Actualizar también borradores</span>
+              <span className="block text-blue-800">
+                Los documentos emitidos conservarán el cliente original y sus
+                snapshots históricos.
+              </span>
+            </span>
+          </label>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button fullWidth onClick={handleManualMerge}>
               <GitMerge className="h-5 w-5" />
