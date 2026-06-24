@@ -11,7 +11,7 @@ import {
   supplierPurchasedTotal,
   supplierSimilarityScore,
 } from "./suppliers";
-import type { Supplier } from "./types";
+import type { Expense, Supplier } from "./types";
 
 const suppliers: Supplier[] = [
   {
@@ -26,6 +26,21 @@ const suppliers: Supplier[] = [
     createdAt: "2026-01-02",
   },
 ];
+
+function expense(overrides: Partial<Expense>): Expense {
+  return {
+    id: "expense",
+    date: "2026-01-01",
+    supplierName: "Proveedor",
+    description: "Compra",
+    amount: 0,
+    ivaPercent: 0,
+    category: "General",
+    paymentMethod: "Tarjeta",
+    createdAt: "",
+    ...overrides,
+  };
+}
 
 describe("normalizeSupplierName", () => {
   it("elimina sufijos societarios", () => {
@@ -97,24 +112,21 @@ describe("findDuplicateSupplierGroups", () => {
 describe("supplierPurchasedTotal", () => {
   it("suma gastos vinculados por id o nombre parecido", () => {
     const supplier = suppliers[0];
-    const expenses = [
-      {
+    const expenses: Expense[] = [
+      expense({
         id: "e1",
-        date: "2026-01-01",
         supplierId: "1",
         supplierName: "Arandes",
         amount: 100,
         ivaPercent: 21,
-        createdAt: "",
-      },
-      {
+      }),
+      expense({
         id: "e2",
         date: "2026-01-02",
         supplierName: "randes",
         amount: 50,
         ivaPercent: 0,
-        createdAt: "",
-      },
+      }),
     ];
 
     expect(expenseMatchesSupplier(expenses[0], supplier)).toBe(true);
@@ -129,16 +141,14 @@ describe("sortSuppliers", () => {
       { id: "a", name: "Alpha", createdAt: "" },
       { id: "b", name: "Beta", createdAt: "" },
     ];
-    const expenses = [
-      {
+    const expenses: Expense[] = [
+      expense({
         id: "e1",
-        date: "2026-01-01",
         supplierId: "b",
         supplierName: "Beta",
         amount: 200,
         ivaPercent: 0,
-        createdAt: "",
-      },
+      }),
     ];
     const sorted = sortSuppliers(list, expenses, "compras", "desc");
     expect(sorted[0].id).toBe("b");

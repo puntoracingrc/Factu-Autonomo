@@ -65,7 +65,7 @@ describe("numeración configurable", () => {
 
   it("muestra la vista previa del siguiente número", () => {
     const preview = nextSequencePreview(
-      {
+      normalizeNumbering({
         year: 2026,
         lastSequence: {
           factura: 10,
@@ -73,7 +73,7 @@ describe("numeración configurable", () => {
           presupuesto: 0,
           recibo: 0,
         },
-      },
+      }),
       "factura",
       0,
     );

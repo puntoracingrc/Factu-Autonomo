@@ -30,6 +30,7 @@ describe("incremental sync state", () => {
             entityType: "profile" as const,
             entityId: "profile",
             action: "upsert" as const,
+            deleted: false,
             payload: EMPTY_DATA.profile,
             updatedAt: "2026-06-10T12:00:00.000Z",
           },

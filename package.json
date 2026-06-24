@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "check:migrations": "node scripts/check-supabase-migrations.mjs",
     "test:phase1-acceptance": "node scripts/phase1-acceptance/run.mjs",
     "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
     "manual:verify": "vitest run src/lib/manual/"

@@ -20,19 +20,21 @@ describe("factu occasional", () => {
   });
 
   it("shows daily greeting only once per day", () => {
-    vi.stubGlobal("window", {});
-    vi.stubGlobal("localStorage", {
+    const storage = {
       store: {} as Record<string, string>,
       getItem(key: string) {
-        return this.store[key] ?? null;
+        return storage.store[key] ?? null;
       },
       setItem(key: string, value: string) {
-        this.store[key] = value;
+        storage.store[key] = value;
       },
       removeItem(key: string) {
-        delete this.store[key];
+        delete storage.store[key];
       },
-    });
+    };
+
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", storage);
 
     const first = tryConsumeDailyGreeting();
     const second = tryConsumeDailyGreeting();
