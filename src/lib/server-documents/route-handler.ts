@@ -7,6 +7,16 @@ import {
 } from "./ingest-wiring";
 import { isServerDocumentIngestRouteEnabled } from "./route-flag";
 import {
+  SERVER_DOCUMENT_INGEST_ROUTE,
+  buildServerDocumentRateLimitKey,
+  defaultServerDocumentIngestAuditRecorder,
+  defaultServerDocumentIngestRateLimiter,
+  getSafeServerDocumentAction,
+  resolveServerDocumentRequestId,
+  type ServerDocumentIngestAuditRecorder,
+  type ServerDocumentIngestRateLimiter,
+} from "./operational-hardening";
+import {
   safeRejectedResponse,
   sanitizeServerDocumentIngestResult,
   type SafeServerDocumentResponse,
@@ -24,6 +34,10 @@ export interface ServerDocumentIngestRouteDependencies {
   authenticate?: (authorization: string | null) => Promise<AuthenticatedUser>;
   getSupabaseClient?: () => SupabaseServerDocumentClient | null;
   handleIngest?: ServerDocumentIngestHandler;
+  auditRecorder?: ServerDocumentIngestAuditRecorder;
+  generateRequestId?: () => string;
+  rateLimiter?: ServerDocumentIngestRateLimiter | null;
+  now?: () => string;
 }
 
 type SafeStatusReason = Extract<
@@ -42,27 +56,37 @@ const CLIENT_CONTROLLED_KEYS = new Set([
   "userId",
 ]);
 
-function jsonResponse(body: SafeServerDocumentResponse, status: number) {
-  return NextResponse.json(body, { status });
+function jsonResponse(
+  body: SafeServerDocumentResponse,
+  status: number,
+  requestId: string,
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "x-request-id": requestId },
+  });
 }
 
-function routeUnavailableResponse() {
+function routeUnavailableResponse(requestId: string) {
+  const init = { status: 404 };
   return NextResponse.json(
     {
       error: "Ruta no disponible.",
     },
-    { status: 404 },
+    { ...init, headers: { "x-request-id": requestId } },
   );
 }
 
-export function serverDocumentIngestMethodNotAllowedResponse() {
+export function serverDocumentIngestMethodNotAllowedResponse(
+  requestId = resolveServerDocumentRequestId(null),
+) {
   return NextResponse.json(
     {
       error: "Metodo no permitido.",
     },
     {
       status: 405,
-      headers: { Allow: "POST" },
+      headers: { Allow: "POST", "x-request-id": requestId },
     },
   );
 }
@@ -101,6 +125,7 @@ function statusForSafeResponse(response: SafeServerDocumentResponse): number {
   if (reason === "invalid_request" || reason === "missing_expected_version") {
     return 400;
   }
+  if (reason === "rate_limited") return 429;
   if (reason === "store_error") return 500;
   return 409;
 }
@@ -146,26 +171,76 @@ export async function handleServerDocumentIngestRoute(
   request: Request,
   dependencies: ServerDocumentIngestRouteDependencies = {},
 ): Promise<NextResponse> {
+  const requestId = resolveServerDocumentRequestId(
+    request.headers.get("x-request-id"),
+    dependencies.generateRequestId,
+  );
+  const auditRecorder =
+    dependencies.auditRecorder ?? defaultServerDocumentIngestAuditRecorder;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const recordAudit = async (
+    response: SafeServerDocumentResponse,
+    action?: string,
+    userId?: string,
+  ) => {
+    await auditRecorder.record({
+      timestamp: now(),
+      requestId,
+      route: SERVER_DOCUMENT_INGEST_ROUTE,
+      status: response.status,
+      ...(action ? { action } : {}),
+      ...(response.status === "accepted" ? {} : { reason: response.reason }),
+      ...(userId ? { userId } : {}),
+    });
+  };
+
   const isEnabled =
     dependencies.isEnabled ?? isServerDocumentIngestRouteEnabled;
   if (!isEnabled()) {
-    return routeUnavailableResponse();
+    return routeUnavailableResponse(requestId);
   }
 
   if (request.method !== "POST") {
-    return serverDocumentIngestMethodNotAllowedResponse();
+    return serverDocumentIngestMethodNotAllowedResponse(requestId);
   }
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) {
-    return jsonResponse(parsed.response, statusForSafeResponse(parsed.response));
+    await recordAudit(parsed.response);
+    return jsonResponse(
+      parsed.response,
+      statusForSafeResponse(parsed.response),
+      requestId,
+    );
   }
+  const action = getSafeServerDocumentAction(parsed.body);
 
   const authenticate = dependencies.authenticate ?? getUserFromBearer;
   const user = await authenticate(request.headers.get("authorization"));
   if (!user?.id) {
     const response = safeRejectedResponse("unauthorized", "No autorizado.");
-    return jsonResponse(response, 401);
+    await recordAudit(response, action);
+    return jsonResponse(response, 401, requestId);
+  }
+
+  const rateLimiter =
+    dependencies.rateLimiter === undefined
+      ? defaultServerDocumentIngestRateLimiter
+      : dependencies.rateLimiter;
+  if (rateLimiter) {
+    const rateLimit = await rateLimiter.check({
+      key: buildServerDocumentRateLimitKey(request, user.id),
+      requestId,
+      userId: user.id,
+    });
+    if (!rateLimit.allowed) {
+      const response = safeRejectedResponse(
+        "rate_limited",
+        "Demasiados intentos. Prueba de nuevo en unos instantes.",
+      );
+      await recordAudit(response, action, user.id);
+      return jsonResponse(response, 429, requestId);
+    }
   }
 
   const getSupabaseClient =
@@ -173,7 +248,9 @@ export async function handleServerDocumentIngestRoute(
     (() => getSupabaseAdmin() as SupabaseServerDocumentClient | null);
   const supabaseClient = getSupabaseClient();
   if (!supabaseClient) {
-    return jsonResponse(safeErrorResponse(), 503);
+    const response = safeErrorResponse();
+    await recordAudit(response, action, user.id);
+    return jsonResponse(response, 503, requestId);
   }
 
   try {
@@ -186,8 +263,11 @@ export async function handleServerDocumentIngestRoute(
       body: stripClientControlledClaims(parsed.body),
     });
     const safe = sanitizeServerDocumentIngestResult(result);
-    return jsonResponse(safe, statusForSafeResponse(safe));
+    await recordAudit(safe, action, user.id);
+    return jsonResponse(safe, statusForSafeResponse(safe), requestId);
   } catch {
-    return jsonResponse(safeErrorResponse(), 500);
+    const response = safeErrorResponse();
+    await recordAudit(response, action, user.id);
+    return jsonResponse(response, 500, requestId);
   }
 }

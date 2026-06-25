@@ -3,6 +3,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SERVER_DOCUMENT_INGEST_ROUTE_FLAG,
+  MemoryServerDocumentIngestAuditRecorder,
+  createMemoryServerDocumentIngestRateLimiter,
   isServerDocumentIngestRouteEnabled,
   handleServerDocumentIngestForServer,
   type SafeServerDocumentResponse,
@@ -265,6 +267,221 @@ describe("POST /api/server-documents/ingest", () => {
     expect(JSON.stringify(body)).not.toContain("token secreto");
     expect(JSON.stringify(body)).not.toContain("payload completo");
     expectNoSensitiveFields(body);
+  });
+
+  it("genera requestId seguro si falta y lo incluye en auditoria", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const auditRecorder = new MemoryServerDocumentIngestAuditRecorder();
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => acceptedResponse());
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "createDraft",
+          localDocumentId: "local-doc-1",
+          payload: { total: 121 },
+        },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        auditRecorder,
+        authenticate,
+        generateRequestId: () => "req-generated-1",
+        getSupabaseClient,
+        handleIngest,
+        now: () => "2026-06-25T01:10:00.000Z",
+      },
+    );
+
+    expect(response.headers.get("x-request-id")).toBe("req-generated-1");
+    expect(auditRecorder.snapshot()).toEqual([
+      {
+        timestamp: "2026-06-25T01:10:00.000Z",
+        requestId: "req-generated-1",
+        route: "/api/server-documents/ingest",
+        status: "accepted",
+        action: "createDraft",
+        userId: "token-user",
+      },
+    ]);
+    expectNoSensitiveFields(auditRecorder.snapshot());
+  });
+
+  it("respeta x-request-id valido y normaliza valores invalidos", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => acceptedResponse());
+
+    const valid = await handleServerDocumentIngestRoute(
+      request(
+        { action: "createDraft", localDocumentId: "local-doc-1" },
+        {
+          Authorization: "Bearer token-de-prueba",
+          "x-request-id": "req-valid_123",
+        },
+      ),
+      {
+        authenticate,
+        generateRequestId: () => "req-generated-unused",
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+
+    expect(valid.headers.get("x-request-id")).toBe("req-valid_123");
+
+    const invalid = await handleServerDocumentIngestRoute(
+      request(
+        { action: "createDraft", localDocumentId: "local-doc-1" },
+        {
+          Authorization: "Bearer token-de-prueba",
+          "x-request-id": "valor con espacios y longitud sospechosa",
+        },
+      ),
+      {
+        authenticate,
+        generateRequestId: () => "req-generated-2",
+        getSupabaseClient,
+        handleIngest,
+      },
+    );
+
+    expect(invalid.headers.get("x-request-id")).toBe("req-generated-2");
+  });
+
+  it("rate limiting permite dentro del limite y bloquea sin tocar Supabase", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const auditRecorder = new MemoryServerDocumentIngestAuditRecorder();
+    const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const handleIngest = vi.fn(async () => acceptedResponse());
+    const rateLimiter = createMemoryServerDocumentIngestRateLimiter({
+      limit: 1,
+      windowMs: 60_000,
+      now: () => 1000,
+    });
+
+    const first = await handleServerDocumentIngestRoute(
+      request(
+        { action: "createDraft", localDocumentId: "local-doc-1" },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        auditRecorder,
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+        rateLimiter,
+      },
+    );
+    const second = await handleServerDocumentIngestRoute(
+      request(
+        { action: "createDraft", localDocumentId: "local-doc-1" },
+        { Authorization: "Bearer token-de-prueba" },
+      ),
+      {
+        auditRecorder,
+        authenticate,
+        getSupabaseClient,
+        handleIngest,
+        rateLimiter,
+      },
+    );
+    const body = await json(second);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
+    expect(body).toMatchObject({
+      status: "rejected",
+      reason: "rate_limited",
+    });
+    expect(getSupabaseClient).toHaveBeenCalledTimes(1);
+    expect(handleIngest).toHaveBeenCalledTimes(1);
+    expect(auditRecorder.snapshot()).toMatchObject([
+      { status: "accepted", userId: "token-user" },
+      { status: "rejected", reason: "rate_limited", userId: "token-user" },
+    ]);
+    expectNoSensitiveFields(body);
+    expectNoSensitiveFields(auditRecorder.snapshot());
+  });
+
+  it("auditoria rejected, conflict y unauthorized no guarda payloads ni tokens", async () => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    const auditRecorder = new MemoryServerDocumentIngestAuditRecorder();
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+    const conflictIngest = vi.fn(async () => ({
+      status: "conflict",
+      reason: "version_mismatch",
+      message: "El documento ha cambiado.",
+      conflictId: "conflict-1",
+      serverDocumentId: "server-doc-1",
+      localDocumentId: "local-doc-1",
+      payload: { secret: true },
+      documentSnapshot: { secret: true },
+    }) as never);
+
+    const invalid = await handleServerDocumentIngestRoute(request("{"), {
+      auditRecorder,
+      generateRequestId: () => "req-invalid",
+    });
+    const unauthorized = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "createDraft",
+          payload: { token: "secreto" },
+        },
+        { Authorization: "Bearer token-secreto" },
+      ),
+      {
+        auditRecorder,
+        authenticate: async () => null,
+        generateRequestId: () => "req-unauthorized",
+      },
+    );
+    const conflict = await handleServerDocumentIngestRoute(
+      request(
+        {
+          action: "updateDraft",
+          expectedVersion: 1,
+          payload: { token: "secreto" },
+          serverDocumentId: "server-doc-1",
+        },
+        { Authorization: "Bearer token-secreto" },
+      ),
+      {
+        auditRecorder,
+        authenticate: async () => ({ id: "token-user" }) as never,
+        generateRequestId: () => "req-conflict",
+        getSupabaseClient,
+        handleIngest: conflictIngest,
+      },
+    );
+
+    expect(invalid.status).toBe(400);
+    expect(unauthorized.status).toBe(401);
+    expect(conflict.status).toBe(409);
+    expect(auditRecorder.snapshot()).toMatchObject([
+      { requestId: "req-invalid", status: "rejected", reason: "invalid_request" },
+      {
+        requestId: "req-unauthorized",
+        status: "rejected",
+        reason: "unauthorized",
+        action: "createDraft",
+      },
+      {
+        requestId: "req-conflict",
+        status: "conflict",
+        reason: "version_mismatch",
+        action: "updateDraft",
+        userId: "token-user",
+      },
+    ]);
+    expectNoSensitiveFields(await json(conflict));
+    expectNoSensitiveFields(auditRecorder.snapshot());
+    expect(JSON.stringify(auditRecorder.snapshot())).not.toContain("token-secreto");
   });
 
   it("si esta desactivada no autentica, no inicializa Supabase y no llama al ingest", async () => {

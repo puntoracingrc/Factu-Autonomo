@@ -18,6 +18,7 @@ export type ServerDocumentIngestAction = "createDraft" | "updateDraft";
 export type ServerDocumentIngestFailureReason =
   | "unauthorized"
   | "invalid_request"
+  | "rate_limited"
   | "store_error"
   | ServerDocumentConflictReason;
 

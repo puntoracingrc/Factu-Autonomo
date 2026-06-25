@@ -80,7 +80,9 @@ class MemoryServerDocumentStore implements ServerDocumentRepositoryStore {
 
   async updateDocument(
     serverDocument: ServerDocumentRecord,
+    expectedVersion: number,
   ): Promise<ServerDocumentRecord> {
+    void expectedVersion;
     this.documents.set(serverDocument.id, serverDocument);
     return serverDocument;
   }

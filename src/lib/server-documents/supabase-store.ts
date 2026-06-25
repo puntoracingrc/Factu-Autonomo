@@ -376,17 +376,19 @@ export class SupabaseServerDocumentStore
 
   async updateDocument(
     document: ServerDocumentRecord,
+    expectedVersion: number,
   ): Promise<ServerDocumentRecord> {
     const { data, error } = await this.client
       .from("server_documents")
       .update(mapServerDocumentRecordToUpdate(document))
       .eq("id", document.id)
       .eq("user_id", document.userId)
+      .eq("version", expectedVersion)
       .select(SERVER_DOCUMENT_COLUMNS)
       .single();
 
     if (error?.code === "PGRST116") {
-      throw new ServerDocumentError("DOCUMENT_NOT_FOUND");
+      throw new ServerDocumentError("VERSION_MISMATCH");
     }
     assertNoError("update_document", error);
     return mapServerDocumentRowToRecord(data);
