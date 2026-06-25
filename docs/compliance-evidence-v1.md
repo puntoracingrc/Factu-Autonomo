@@ -258,10 +258,12 @@ Existe actualmente:
   `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`;
 - plan de frontera externa 2B.5:
   `docs/phase2b5-external-verifactu-boundary-plan-v1.md`.
-- investigacion, contrato interno y plan de fixtures sinteticos 2B.5A/B/C:
+- investigacion, contrato interno, plan de fixtures sinteticos y politica
+  previa de fuentes/esquema/canonicalizacion 2B.5A/B/C/D:
   `docs/phase2b5a-official-xml-qr-research-v1.md`;
   `docs/phase2b5b-internal-xml-contract-v1.md`;
-  `docs/phase2b5c-xml-fixtures-validation-plan-v1.md`.
+  `docs/phase2b5c-xml-fixtures-validation-plan-v1.md`;
+  `docs/phase2b5d-xml-source-schema-canonicalization-v1.md`.
 
 Evidencia técnica interna local/staging de 2B.4:
 
@@ -309,6 +311,8 @@ Pendiente post-2B.4:
 - revision externa de la investigacion tecnica de XML, QR y campos oficiales;
 - confirmacion externa del contrato interno futuro, separado de firma y transporte;
 - implementacion futura de fixtures sinteticos y validacion local, todavia no creada;
+- fijacion futura de fuentes oficiales, esquema, canonicalizacion y
+  anonimizacion antes de fixtures ejecutables;
 - política documental de certificados sin usar certificados reales;
 - diseño de transporte AEAT sin conexión real;
 - diseño de respuestas y reintentos sin producción.
@@ -494,6 +498,7 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b5a-official-xml-qr-research-v1.md`;
 - `docs/phase2b5b-internal-xml-contract-v1.md`;
 - `docs/phase2b5c-xml-fixtures-validation-plan-v1.md`;
+- `docs/phase2b5d-xml-source-schema-canonicalization-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
