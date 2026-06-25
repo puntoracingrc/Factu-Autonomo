@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4 y frontera documental 2B.5 a 2026-06-25
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4 y frontera documental 2B.5A-G a 2026-06-25
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -264,6 +264,16 @@ Existe actualmente:
   `docs/phase2b5b-internal-xml-contract-v1.md`;
   `docs/phase2b5c-xml-fixtures-validation-plan-v1.md`;
   `docs/phase2b5d-xml-source-schema-canonicalization-v1.md`.
+- registro de artefactos oficiales, politica documental de certificados/firma
+  y frontera documental de transporte/respuestas/reintentos 2B.5E/F/G:
+  `docs/phase2b5e-official-artifacts-registry-v1.md`;
+  `docs/phase2b5f-certificate-signature-policy-v1.md`;
+  `docs/phase2b5g-transport-responses-retry-boundary-v1.md`.
+
+Los documentos 2B.5E/F/G son planificacion y frontera documental. No crean
+firma, no cargan certificados, no implementan transporte, no usan
+`fiscal_transport_attempts`, no generan XML definitivo y no declaran
+cumplimiento productivo.
 
 Evidencia técnica interna local/staging de 2B.4:
 
@@ -313,9 +323,12 @@ Pendiente post-2B.4:
 - implementacion futura de fixtures sinteticos y validacion local, todavia no creada;
 - fijacion futura de fuentes oficiales, esquema, canonicalizacion y
   anonimizacion antes de fixtures ejecutables;
-- política documental de certificados sin usar certificados reales;
-- diseño de transporte AEAT sin conexión real;
-- diseño de respuestas y reintentos sin producción.
+- aprobacion futura de politica operativa de certificados antes de cualquier
+  firma real;
+- diseno futuro de transporte AEAT con contrato, entorno autorizado y seguridad
+  antes de cualquier conexion real;
+- diseno futuro de respuestas y reintentos sin produccion hasta aprobacion
+  explicita.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -440,7 +453,7 @@ Declaraciones no permitidas todavía:
 | Fase 2A.4 | Borrado, numeración y recibos seguros | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.5 | PDF histórico desde snapshot | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2B.4 | Flujo fiscal local/staging | Cerrada como `PHASE2B4_LOCAL_STAGING_FISCAL_FLOW: CLOSED / LOCAL-STAGING ONLY`; evidencia técnica interna registrada. |
-| Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Plan documental fusionado; implementación real pendiente de revisión externa, especificación oficial, staging autorizado y aprobación explícita. |
+| Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Plan documental 2B.5A-G; implementacion real pendiente de revision externa, especificacion oficial, staging autorizado y aprobacion explicita. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -499,6 +512,9 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b5b-internal-xml-contract-v1.md`;
 - `docs/phase2b5c-xml-fixtures-validation-plan-v1.md`;
 - `docs/phase2b5d-xml-source-schema-canonicalization-v1.md`;
+- `docs/phase2b5e-official-artifacts-registry-v1.md`;
+- `docs/phase2b5f-certificate-signature-policy-v1.md`;
+- `docs/phase2b5g-transport-responses-retry-boundary-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
