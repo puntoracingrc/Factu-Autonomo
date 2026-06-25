@@ -24,6 +24,7 @@
     "validate:phase2b4l-fiscal-record-local-persistence": "node scripts/validate-phase2b4l-fiscal-record-local-persistence.mjs",
     "validate:phase2b4m-fiscal-record-chain-atomicity": "node scripts/validate-phase2b4m-fiscal-record-chain-atomicity.mjs",
     "validate:phase2b4n-o-fiscal-payload-candidate": "node scripts/validate-phase2b4n-o-fiscal-payload-candidate.mjs",
+    "validate:phase2b4p-q-fiscal-payload-validation-evidence": "node scripts/validate-phase2b4p-q-fiscal-payload-validation-evidence.mjs",
     "test:phase2b3h-ingest-local": "node scripts/test-phase2b3h-supabase-local-ingest-route.mjs",
     "test:phase2b4e-fiscal-rpc-local": "node scripts/test-phase2b4e-fiscal-operation-rpc-local.mjs",
     "test:phase2b4f-fiscal-processing-local": "node scripts/test-phase2b4f-fiscal-operation-processing-local.mjs",
@@ -31,6 +32,7 @@
     "test:phase2b4l-fiscal-record-local": "node scripts/test-phase2b4l-fiscal-record-local-persistence.mjs",
     "test:phase2b4m-fiscal-record-chain-local": "node scripts/test-phase2b4m-fiscal-record-chain-local.mjs",
     "test:phase2b4o-fiscal-payload-candidate-local": "node scripts/test-phase2b4o-fiscal-payload-candidate-local.mjs",
+    "test:phase2b4q-fiscal-evidence-packet-local": "node scripts/test-phase2b4q-fiscal-evidence-packet-local.mjs",
     "test:phase1-acceptance": "node scripts/phase1-acceptance/run.mjs",
     "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
     "manual:verify": "vitest run src/lib/manual/"
