@@ -42,18 +42,22 @@ export interface FiscalOperationTransactionPlan {
   requestedAt?: Date | string;
 }
 
+export type FiscalOperationTransactionAtomicity =
+  | "simulated_local"
+  | "postgres_rpc";
+
 export type FiscalOperationTransactionResult =
   | {
       status: "created";
       operation: FiscalOperationRecord;
       invoiceIdentity: FiscalInvoiceIdentityRecord;
-      atomicity: "simulated_local";
+      atomicity: FiscalOperationTransactionAtomicity;
     }
   | {
       status: "existing";
       operation: FiscalOperationRecord;
       invoiceIdentity?: FiscalInvoiceIdentityRecord | null;
-      atomicity: "simulated_local";
+      atomicity: FiscalOperationTransactionAtomicity;
     }
   | {
       status: "rejected";
