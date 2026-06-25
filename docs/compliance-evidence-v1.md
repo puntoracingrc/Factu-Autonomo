@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 inicial / snapshot de cumplimiento a 2026-06-24
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4 y frontera documental 2B.5 a 2026-06-25
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -76,6 +76,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2A.3 | Fusión segura de clientes. | PR #4 `1d83c9b7afefac586496350f9b673a78f306b408` | Fusión de clientes sin alterar `document.client` histórico; `documentSnapshot.customer` no se modifica; `snapshotHash` y `pdfSnapshot.contentHash` no se alteran; `customerId` permite vinculación operativa al cliente maestro; `mergedCustomerIds` conserva IDs absorbidos; borradores solo actualizan cliente visible si `updateDraftDocuments=true`. | `FASE2A3_ACCEPTANCE.md`; `Quality` SUCCESS; `Supabase Acceptance` SUCCESS. | Fusionada a `main`; controles implementados como medida de diligencia técnica. |
 | Fase 2A.4 | Borrado, numeración y recibos seguros. | PR #5 `73730277c8985dd8983f5edf58ce8981824e04ba`; funcional `b70593ba3e2488a46b9f4841aabc0e30e1d2981d`; documental `ea6ff5c66678ed2f7c274525ec7696c33e342b58` | Documentos emitidos/bloqueados no se borran físicamente; legacy `status != borrador` protegido; rectificativas emitidas, presupuestos enviados/aceptados y recibos pagados/emitidos no se borran; renumeración ignora documentos protegidos; huecos de emitidos se conservan; desmarcar cobro conserva recibos automáticos emitidos/bloqueados; snapshots y hashes no se alteran. | `FASE2A4_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 86 archivos, 411 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique. |
 | Fase 2A.5 | PDF histórico desde snapshot. | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; funcional `db03153dcef7c8a1406a2312a2341729094f82ab`; documental `c42975b9c63ea7a41bd15c8c443f99568ae6c8da` | PDFs de documentos emitidos/bloqueados se renderizan desde `documentSnapshot` y `pdfSnapshot`; borradores siguen usando datos vivos; cambios posteriores en perfil, cliente, líneas, notas, fechas o totales vivos no alteran PDF histórico; descarga, vista previa, blob PDF y compartir email/WhatsApp usan pipeline común; legacy protegido sin snapshot usa fallback read-only conservador sin persistirlo; render normal no recalcula ni reemplaza hashes. | `FASE2A5_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 87 archivos, 419 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK con Supabase local; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique; no constituye certificación. |
+| Fase 2B.4 / 2B.5 | Cierre de flujo fiscal local/staging y plan de frontera externa. | PR #44 merge `efb9c1288ec44bdf7e04bdc8c1664e75fadd1864`; PR #45 merge `b697e5b1b8025030a9ce3eecacf8853ae12f555f` | Operación fiscal local/staging; `fiscal_records`; `fiscal_chain_state`; payload candidato; validación semántica; evidence packets; evidence persistence; evidence integrity; operational summary; checkpoint y plan de frontera externa. | Quality SUCCESS; Supabase Acceptance SUCCESS; validadores 2B en verde; pruebas Supabase local de fases 2B.4; `npm test`, lint, tsc y build ejecutados cuando aplicó; `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`; `docs/phase2b5-external-verifactu-boundary-plan-v1.md`. | Evidencia técnica interna local/staging; no es certificación, no es homologación AEAT, no habilita uso productivo de VeriFactu ni envío real a AEAT. |
 
 Archivos internos relevantes:
 
@@ -91,6 +92,8 @@ Archivos internos relevantes:
 - `supabase/README.md`
 - `docs/VERIFACTU.md`
 - `docs/PRODUCTOR_SIF.md`
+- `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`
+- `docs/phase2b5-external-verifactu-boundary-plan-v1.md`
 
 ## 6. Seguridad de Supabase y permisos
 
@@ -249,6 +252,33 @@ Existe actualmente:
 - generación/uso de QR en PDF cuando el documento contiene datos Veri*Factu;
 - planificación técnica en `FASE2_PLAN.md`;
 - separación conceptual entre documento, snapshot, operación fiscal, registro fiscal e intento de transporte.
+- cierre de 2B.4 como flujo fiscal local/staging:
+  `PHASE2B4_LOCAL_STAGING_FISCAL_FLOW: CLOSED / LOCAL-STAGING ONLY`;
+- checkpoint de cierre 2B.4:
+  `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`;
+- plan de frontera externa 2B.5:
+  `docs/phase2b5-external-verifactu-boundary-plan-v1.md`.
+
+Evidencia técnica interna local/staging de 2B.4:
+
+- operación fiscal local/staging con idempotencia y transición controlada;
+- persistencia candidata en `fiscal_records`;
+- encadenado local/staging en `fiscal_chain_state`;
+- payload candidato, no definitivo y no transportable;
+- validación semántica del payload candidato;
+- evidence packets internos sin XML completo ni snapshots completos;
+- evidence persistence separada en `fiscal_evidence_packets`;
+- evidence integrity read-only contra registros y cadena;
+- operational summary agregado, server-only y sin datos sensibles completos.
+
+Validaciones asociadas a 2B.4:
+
+- Quality en GitHub Actions;
+- Supabase Acceptance en GitHub Actions;
+- validadores 2B existentes;
+- pruebas Supabase local para flujos 2B.4;
+- `npm test`, lint, tsc y build cuando aplicó a los PRs funcionales;
+- revisión de checkpoint y plan de frontera como documentación de límites.
 
 No debe prometerse todavía:
 
@@ -258,17 +288,26 @@ No debe prometerse todavía:
 - modalidad NO VERI*FACTU válida en modo local;
 - que el QR/frase productiva sean definitivos sin flujo servidor y transporte AEAT validados.
 
-Pendiente para Fase 2B:
+Límites explícitos del cierre 2B.4 y la frontera 2B.5:
 
-- documento canónico servidor;
-- versionado y optimistic locking;
-- transacción PostgreSQL o RPC única para operación fiscal;
-- registro fiscal inmutable;
-- intentos de transporte AEAT separados del registro fiscal;
-- idempotencia de operación fiscal e idempotencia de transporte;
-- mTLS, credencial técnica o mecanismo exigido por AEAT;
-- pruebas en entorno AEAT;
-- declaración responsable futura.
+- no es certificación;
+- no es homologación AEAT;
+- no habilita uso productivo de VeriFactu;
+- no existe XML AEAT definitivo;
+- no existe firma;
+- no existen certificados reales en uso;
+- no existe transporte AEAT;
+- no hay producción fiscal activada;
+- requiere revisión legal/fiscal externa antes de cualquier paso real.
+
+Pendiente post-2B.4:
+
+- investigación técnica de XML, QR y campos oficiales;
+- contrato interno de XML definitivo, separado de firma y transporte;
+- validación local con fixtures sintéticos;
+- política documental de certificados sin usar certificados reales;
+- diseño de transporte AEAT sin conexión real;
+- diseño de respuestas y reintentos sin producción.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -358,7 +397,7 @@ Estado:
 | Auditoría específica de intentos de borrado bloqueados | Media | Fase posterior / servidor | Pendiente | Registrar intentos relevantes sin permitir mutación de documentos protegidos. |
 | Reconciliación de estados legacy `paymentStatus`/`paidAt` | Media | Fase posterior | Pendiente | Normalización guiada y tests de compatibilidad antes de automatizar cambios. |
 | Reproducibilidad pixel-perfect del renderer PDF por versión | Media | Fase posterior | Pendiente | Congelar renderer visual por versión y valorar PDF binario firmado/sellado si el producto lo requiere. |
-| VERI*FACTU servidor no implementado | Alta | Fase 2B | Pendiente | Documento canónico, operación fiscal transaccional, registros inmutables y transporte AEAT. |
+| Frontera externa Veri*Factu posterior a 2B.4 | Alta | Fase 2B.5+ | Pendiente de revisión/diseño externo | Mantener 2B.4 como local/staging; no tratar payload candidato como XML AEAT definitivo; no usar evidencia como cola de transporte; exigir revisión legal/fiscal externa antes de pasos reales. |
 | Modo local con localStorage puede perder datos | Media | Producto/datos | Pendiente | Backups, IndexedDB, avisos, exportaciones y recuperación guiada. |
 | Consentimiento IA sin registro versionado completo | Media | Legal/IA | Pendiente | Versionado de aceptación, auditoría de proveedores y copia de textos aceptados. |
 | Importador puede generar duplicados/sobrescrituras | Media | Importación futura | Pendiente | Previsualización, snapshots preimportación, idempotencia y opción de rollback/import audit. |
@@ -392,7 +431,8 @@ Declaraciones no permitidas todavía:
 | Fase 2A.3 | Fusión segura de clientes | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.4 | Borrado, numeración y recibos seguros | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.5 | PDF histórico desde snapshot | Fusionada a `main`; evidencia técnica interna registrada. |
-| Fase 2B | Integridad servidor y VERI*FACTU | Pendiente. |
+| Fase 2B.4 | Flujo fiscal local/staging | Cerrada como `PHASE2B4_LOCAL_STAGING_FISCAL_FLOW: CLOSED / LOCAL-STAGING ONLY`; evidencia técnica interna registrada. |
+| Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Plan documental fusionado; implementación real pendiente de revisión externa, especificación oficial, staging autorizado y aprobación explícita. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -410,6 +450,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-24 | Borrado, numeración y recibos seguros fusionados a main. | Fase 2A.4 | PR #5 `73730277c8985dd8983f5edf58ce8981824e04ba`; `b70593b`, `ea6ff5c` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | PDF histórico desde snapshot fusionado a main. | Fase 2A.5 | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; `db03153d`, `c42975b` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | Creación del dossier vivo de evidencias técnicas y cumplimiento. | Compliance | `4bfbe5c` | Equipo Factura Autónomo / Codex |
+| 2026-06-25 | Cierre local/staging 2B.4 y frontera documental 2B.5 añadidos al dossier. | Fase 2B.4 / 2B.5 | PR #44 `efb9c1288ec44bdf7e04bdc8c1664e75fadd1864`; PR #45 `b697e5b1b8025030a9ce3eecacf8853ae12f555f` | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -441,5 +482,21 @@ Para Fase 2A.5 constan expresamente:
 - `git diff --check`: OK;
 - `Quality` sobre `main`: SUCCESS;
 - `Supabase Acceptance` sobre `main`: SUCCESS.
+
+Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
+
+- `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`;
+- `docs/phase2b5-external-verifactu-boundary-plan-v1.md`;
+- Quality sobre los PRs y `main`: SUCCESS;
+- Supabase Acceptance sobre los PRs y `main`: SUCCESS;
+- validadores 2B ejecutados durante las subfases y cierre;
+- pruebas Supabase local de operación fiscal, registros, cadena, payload candidato,
+  validación semántica, evidence packets, persistence, integrity y operational
+  summary;
+- `npm test`, lint, tsc y build ejecutados cuando aplicó a los PRs funcionales.
+
+Estas referencias son evidencia técnica interna local/staging. No sustituyen
+revisión legal/fiscal externa, no activan producción fiscal y no autorizan envío
+real a AEAT.
 
 Estas evidencias son técnicas internas y deberán revisarse externamente cuando aplique.
