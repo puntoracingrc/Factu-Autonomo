@@ -15,7 +15,9 @@
     "validate:phase2b3g-controlled-ingest-route": "node scripts/validate-phase2b3g-controlled-ingest-route.mjs",
     "validate:phase2b3i-ingest-operational-hardening": "node scripts/validate-phase2b3i-ingest-operational-hardening.mjs",
     "validate:phase2b4d-fiscal-operation-transaction": "node scripts/validate-phase2b4d-fiscal-operation-transaction.mjs",
+    "validate:phase2b4e-fiscal-rpc-local-acceptance": "node scripts/validate-phase2b4e-fiscal-rpc-local-acceptance.mjs",
     "test:phase2b3h-ingest-local": "node scripts/test-phase2b3h-supabase-local-ingest-route.mjs",
+    "test:phase2b4e-fiscal-rpc-local": "node scripts/test-phase2b4e-fiscal-operation-rpc-local.mjs",
     "test:phase1-acceptance": "node scripts/phase1-acceptance/run.mjs",
     "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
     "manual:verify": "vitest run src/lib/manual/"
