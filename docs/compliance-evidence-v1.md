@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4 y frontera documental 2B.5A-G a 2026-06-25
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4 y cierre documental 2B.5A-M a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -269,11 +269,24 @@ Existe actualmente:
   `docs/phase2b5e-official-artifacts-registry-v1.md`;
   `docs/phase2b5f-certificate-signature-policy-v1.md`;
   `docs/phase2b5g-transport-responses-retry-boundary-v1.md`.
+- planes de entrada a codigo seguro, fixtures sinteticos futuros,
+  canonicalizacion/hash candidato, frontera QR/presentacion, revision externa y
+  checkpoint de cierre documental 2B.5H/I/J/K/L/M:
+  `docs/phase2b5h-safe-executable-implementation-plan-v1.md`;
+  `docs/phase2b5i-synthetic-fixtures-execution-plan-v1.md`;
+  `docs/phase2b5j-canonicalization-hash-execution-plan-v1.md`;
+  `docs/phase2b5k-qr-presentation-boundary-plan-v1.md`;
+  `docs/phase2b5l-external-review-staging-readiness-v1.md`;
+  `docs/phase2b5-external-boundary-documentation-checkpoint-v1.md`.
 
 Los documentos 2B.5E/F/G son planificacion y frontera documental. No crean
 firma, no cargan certificados, no implementan transporte, no usan
 `fiscal_transport_attempts`, no generan XML definitivo y no declaran
 cumplimiento productivo.
+
+Los documentos 2B.5H-M son planificacion y cierre de frontera documental. No
+implementan XML, QR, firma, certificados ni transporte. Tampoco activan
+produccion, AEAT real, fixtures ejecutables ni cumplimiento productivo.
 
 Evidencia técnica interna local/staging de 2B.4:
 
@@ -328,7 +341,10 @@ Pendiente post-2B.4:
 - diseno futuro de transporte AEAT con contrato, entorno autorizado y seguridad
   antes de cualquier conexion real;
 - diseno futuro de respuestas y reintentos sin produccion hasta aprobacion
-  explicita.
+  explicita;
+- primera fase de codigo recomendada:
+  `PHASE2B6A_SYNTHETIC_FIXTURE_GUARDRAILS_V1`, limitada a guardrails de
+  fixtures sinteticos y sin XML completo.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -453,7 +469,8 @@ Declaraciones no permitidas todavía:
 | Fase 2A.4 | Borrado, numeración y recibos seguros | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2A.5 | PDF histórico desde snapshot | Fusionada a `main`; evidencia técnica interna registrada. |
 | Fase 2B.4 | Flujo fiscal local/staging | Cerrada como `PHASE2B4_LOCAL_STAGING_FISCAL_FLOW: CLOSED / LOCAL-STAGING ONLY`; evidencia técnica interna registrada. |
-| Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Plan documental 2B.5A-G; implementacion real pendiente de revision externa, especificacion oficial, staging autorizado y aprobacion explicita. |
+| Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Documentacion 2B.5A-M cerrada como frontera externa; implementacion real pendiente de decision explicita, revision externa, especificacion oficial, staging autorizado y aprobacion. |
+| Fase 2B.6A | Guardrails de fixtures sinteticos | Recomendada como primera fase futura de codigo seguro; no iniciada. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -472,6 +489,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-24 | PDF histórico desde snapshot fusionado a main. | Fase 2A.5 | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; `db03153d`, `c42975b` | Equipo Factura Autónomo / Codex |
 | 2026-06-24 | Creación del dossier vivo de evidencias técnicas y cumplimiento. | Compliance | `4bfbe5c` | Equipo Factura Autónomo / Codex |
 | 2026-06-25 | Cierre local/staging 2B.4 y frontera documental 2B.5 añadidos al dossier. | Fase 2B.4 / 2B.5 | PR #44 `efb9c1288ec44bdf7e04bdc8c1664e75fadd1864`; PR #45 `b697e5b1b8025030a9ce3eecacf8853ae12f555f` | Equipo Factura Autónomo / Codex |
+| 2026-06-26 | Cierre documental 2B.5H-M y checkpoint de frontera externa añadidos al dossier. | Fase 2B.5 | PR documental 2B.5H-M | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -515,6 +533,12 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b5e-official-artifacts-registry-v1.md`;
 - `docs/phase2b5f-certificate-signature-policy-v1.md`;
 - `docs/phase2b5g-transport-responses-retry-boundary-v1.md`;
+- `docs/phase2b5h-safe-executable-implementation-plan-v1.md`;
+- `docs/phase2b5i-synthetic-fixtures-execution-plan-v1.md`;
+- `docs/phase2b5j-canonicalization-hash-execution-plan-v1.md`;
+- `docs/phase2b5k-qr-presentation-boundary-plan-v1.md`;
+- `docs/phase2b5l-external-review-staging-readiness-v1.md`;
+- `docs/phase2b5-external-boundary-documentation-checkpoint-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
