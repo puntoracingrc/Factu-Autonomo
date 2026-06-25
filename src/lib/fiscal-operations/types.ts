@@ -31,6 +31,13 @@ export interface FiscalInvoiceIdentity {
   fechaExpedicion: string;
 }
 
+export interface FiscalInvoiceIdentityRecord extends FiscalInvoiceIdentity {
+  id: string;
+  userId: string;
+  serverDocumentId: string;
+  createdAt: string;
+}
+
 export interface FiscalOperationDraft {
   userId: string;
   serverDocumentId: string;
@@ -44,6 +51,26 @@ export interface FiscalOperationDraft {
   documentSnapshotHash: string;
   status: "requested";
   authority: "server_document";
+}
+
+export interface FiscalOperationRecord {
+  id: string;
+  userId: string;
+  serverDocumentId: string;
+  operationType: FiscalOperationType;
+  environment: FiscalEnvironment;
+  idempotencyKey: string;
+  requestedBy?: string | null;
+  requestedAt: string;
+  expectedDocumentVersion: number;
+  documentSnapshotHash: string;
+  status: FiscalOperationStatus;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  failureCode?: string | null;
+  failureMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type FiscalOperationDecision =
@@ -65,3 +92,34 @@ export interface FiscalOperationBuildInput {
   requestedBy: string;
   requestedAt?: Date | string;
 }
+
+export interface FiscalInvoiceIdentityLookupInput
+  extends FiscalInvoiceIdentity {
+  userId: string;
+}
+
+export interface FiscalInvoiceIdentityCreateInput
+  extends FiscalInvoiceIdentityLookupInput {
+  id: string;
+  serverDocumentId: string;
+  createdAt: string;
+}
+
+export interface FiscalOperationCreateInput {
+  id: string;
+  draft: FiscalOperationDraft;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FiscalOperationRepositoryResult =
+  | {
+      status: "existing";
+      operation: FiscalOperationRecord;
+      invoiceIdentity?: FiscalInvoiceIdentityRecord | null;
+    }
+  | {
+      status: "created";
+      operation: FiscalOperationRecord;
+      invoiceIdentity: FiscalInvoiceIdentityRecord;
+    };
