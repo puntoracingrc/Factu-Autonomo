@@ -20,6 +20,7 @@
     "validate:phase2b4g-fiscal-record-material-dry-run": "node scripts/validate-phase2b4g-fiscal-record-material-dry-run.mjs",
     "validate:phase2b4h-fiscal-operation-dry-run-pipeline": "node scripts/validate-phase2b4h-fiscal-operation-dry-run-pipeline.mjs",
     "validate:phase2b4i-fiscal-dry-run-local-acceptance": "node scripts/validate-phase2b4i-fiscal-dry-run-local-acceptance.mjs",
+    "validate:phase2b4j-k-fiscal-record-chain-contracts": "node scripts/validate-phase2b4j-k-fiscal-record-chain-contracts.mjs",
     "test:phase2b3h-ingest-local": "node scripts/test-phase2b3h-supabase-local-ingest-route.mjs",
     "test:phase2b4e-fiscal-rpc-local": "node scripts/test-phase2b4e-fiscal-operation-rpc-local.mjs",
     "test:phase2b4f-fiscal-processing-local": "node scripts/test-phase2b4f-fiscal-operation-processing-local.mjs",
