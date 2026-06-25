@@ -365,12 +365,12 @@ describe("SupabaseServerDocumentStore", () => {
     });
   });
 
-  it("updateDocument limita la mutación a id + user_id", async () => {
+  it("updateDocument limita la mutación a id + user_id + version esperada", async () => {
     const client = new FakeSupabaseClient();
     client.queue({ data: documentRow({ version: 2 }), error: null });
     const store = new SupabaseServerDocumentStore(client);
 
-    await store.updateDocument(document({ version: 2 }));
+    await store.updateDocument(document({ version: 2 }), 1);
 
     expect(client.operations[0]).toMatchObject({
       table: "server_documents",
@@ -378,6 +378,7 @@ describe("SupabaseServerDocumentStore", () => {
       filters: [
         { column: "id", value: "doc-1" },
         { column: "user_id", value: "user-1" },
+        { column: "version", value: 1 },
       ],
     });
     expect(client.operations[0].payload).not.toHaveProperty("user_id");
@@ -434,7 +435,7 @@ describe("SupabaseServerDocumentStore", () => {
     } satisfies Partial<ServerDocumentStoreError>);
   });
 
-  it("traduce update sin fila a DOCUMENT_NOT_FOUND", async () => {
+  it("traduce update sin fila a VERSION_MISMATCH para carreras concurrentes", async () => {
     const client = new FakeSupabaseClient();
     client.queue({
       data: null,
@@ -442,9 +443,9 @@ describe("SupabaseServerDocumentStore", () => {
     });
     const store = new SupabaseServerDocumentStore(client);
 
-    await expect(store.updateDocument(document())).rejects.toMatchObject({
+    await expect(store.updateDocument(document(), 1)).rejects.toMatchObject({
       name: "ServerDocumentError",
-      code: "DOCUMENT_NOT_FOUND",
+      code: "VERSION_MISMATCH",
     } satisfies Partial<ServerDocumentError>);
   });
 });

@@ -26,7 +26,10 @@ export interface ServerDocumentRepositoryStore {
     localDocumentId: string,
   ): Promise<ServerDocumentRecord | null>;
   insertDocument(document: ServerDocumentRecord): Promise<ServerDocumentRecord>;
-  updateDocument(document: ServerDocumentRecord): Promise<ServerDocumentRecord>;
+  updateDocument(
+    document: ServerDocumentRecord,
+    expectedVersion: number,
+  ): Promise<ServerDocumentRecord>;
   insertDocumentVersion(version: ServerDocumentVersionRecord): Promise<void>;
   insertDocumentConflict(conflict: ServerDocumentConflictRecord): Promise<void>;
 }
@@ -206,7 +209,28 @@ export class ServerDocumentRepository {
       updatedAt: timestamp,
     };
 
-    const updated = await this.store.updateDocument(next);
+    let updated: ServerDocumentRecord;
+    try {
+      updated = await this.store.updateDocument(next, current.version);
+    } catch (error) {
+      if (
+        error instanceof ServerDocumentError &&
+        error.reason === "version_mismatch"
+      ) {
+        const conflict = await this.persistConflict(
+          "version_mismatch",
+          current,
+          input,
+        );
+        return {
+          status: "conflict",
+          reason: "version_mismatch",
+          message: serverDocumentErrorMessage("version_mismatch"),
+          conflict,
+        };
+      }
+      throw error;
+    }
     const version = await this.persistVersion(
       updated,
       "update",

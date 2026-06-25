@@ -263,4 +263,81 @@ describeLocal("Phase 2B.3H local Supabase ingest acceptance", () => {
     expect(await countUserRows("fiscal_chain_state")).toBe(0);
     expect(await countUserRows("fiscal_transport_attempts")).toBe(0);
   });
+
+  it("allows only one concurrent update with the same expectedVersion", async () => {
+    const localDocumentId = `phase2b3h-concurrent-${randomUUID()}`;
+
+    const created = await postIngest({
+      action: "createDraft",
+      documentKind: "standard",
+      documentType: "factura",
+      localDocumentId,
+      payload: {
+        documentNumber: "LOCAL-2B3H-CONCURRENT",
+        total: 121,
+      },
+      statusLegacy: "borrador",
+    });
+
+    expect(created.response.status).toBe(200);
+    expect(created.payload.status).toBe("accepted");
+    if (created.payload.status !== "accepted") {
+      throw new Error("Concurrent test create draft was not accepted.");
+    }
+
+    const serverDocumentId = created.payload.serverDocumentId;
+    const [first, second] = await Promise.all([
+      postIngest({
+        action: "updateDraft",
+        expectedVersion: 1,
+        payload: {
+          documentNumber: "LOCAL-2B3H-CONCURRENT",
+          total: 222,
+        },
+        serverDocumentId,
+      }),
+      postIngest({
+        action: "updateDraft",
+        expectedVersion: 1,
+        payload: {
+          documentNumber: "LOCAL-2B3H-CONCURRENT",
+          total: 333,
+        },
+        serverDocumentId,
+      }),
+    ]);
+
+    const statuses = [first, second].map((entry) => entry.payload.status).sort();
+    expect(statuses).toEqual(["accepted", "conflict"]);
+    for (const entry of [first, second]) expectSafeResponse(entry.payload);
+
+    const { data: versions, error: versionsError } = await admin
+      .from("server_document_versions")
+      .select("server_document_id,user_id,version,change_type")
+      .eq("user_id", userId)
+      .eq("server_document_id", serverDocumentId)
+      .order("version", { ascending: true });
+    expect(versionsError).toBeNull();
+    expect(versions).toHaveLength(2);
+    expect(versions?.map((entry) => entry.version)).toEqual([1, 2]);
+
+    const { data: conflicts, error: conflictsError } = await admin
+      .from("document_conflicts")
+      .select("user_id,server_document_id,local_document_id,conflict_type")
+      .eq("user_id", userId)
+      .eq("server_document_id", serverDocumentId);
+    expect(conflictsError).toBeNull();
+    expect(conflicts).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        server_document_id: serverDocumentId,
+        local_document_id: localDocumentId,
+        conflict_type: "version",
+      }),
+    ]);
+
+    expect(await countUserRows("fiscal_records")).toBe(0);
+    expect(await countUserRows("fiscal_chain_state")).toBe(0);
+    expect(await countUserRows("fiscal_transport_attempts")).toBe(0);
+  });
 });

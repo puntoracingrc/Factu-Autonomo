@@ -3,6 +3,7 @@ export * from "./errors";
 export * from "./guards";
 export * from "./ingest";
 export * from "./ingest-wiring";
+export * from "./operational-hardening";
 export * from "./repository";
 export * from "./route-flag";
 export * from "./safe-response";
