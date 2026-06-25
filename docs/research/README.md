@@ -12,3 +12,4 @@ Documentos:
 - importadores-software-facturacion-espana-research-v1.md
 - competencia-funcionalidades-gap-analysis-v1.md
 - job-cost-learning-and-price-intelligence-v1.md
+- supplier-price-guard-v1.md
