@@ -14,15 +14,6 @@ const docsPath = path.join(
 const packageJsonPath = path.join(root, "package.json");
 const errors = [];
 
-function listFiles(dir) {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\.(ts|tsx)$/.test(entry.name))
-    .map((entry) => path.join(dir, entry.name))
-    .sort();
-}
-
 function read(file) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 }
@@ -49,7 +40,9 @@ for (const file of expectedFiles) {
   if (!fs.existsSync(path.join(root, file))) errors.push(`Missing ${file}.`);
 }
 
-const sourceFiles = modules.flatMap(listFiles);
+const sourceFiles = expectedFiles
+  .map((file) => path.join(root, file))
+  .filter((file) => fs.existsSync(file));
 const source = sourceFiles.map(read).join("\n");
 const docs = read(docsPath);
 const packageJson = JSON.parse(read(packageJsonPath));
