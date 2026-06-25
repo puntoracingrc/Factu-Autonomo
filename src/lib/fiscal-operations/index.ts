@@ -5,6 +5,7 @@ export * from "./operation-builder";
 export * from "./operation-guards";
 export * from "./repository";
 export * from "./supabase-store";
+export * from "./supabase-transaction-store";
 export * from "./transaction-contract";
 export * from "./transaction-errors";
 export * from "./transaction-types";
