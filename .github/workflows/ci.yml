@@ -79,7 +79,7 @@ jobs:
           version: 2.107.0
 
       - name: Start Supabase local
-        run: supabase start
+        run: supabase start --exclude edge-runtime
 
       - name: Wait for Supabase health
         run: |
