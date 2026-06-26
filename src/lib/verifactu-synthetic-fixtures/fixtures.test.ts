@@ -17,6 +17,13 @@ const FORBIDDEN_TERMS = [
   "factura real",
 ] as const;
 
+const WAVE_2_IDS = [
+  "SYNTHETIC_ONLY_ALTA_INVALID_NIF_001",
+  "SYNTHETIC_ONLY_ALTA_INVALID_DATE_001",
+  "SYNTHETIC_ONLY_ALTA_MISSING_SERIES_NUMBER_001",
+  "SYNTHETIC_ONLY_ALTA_HASH_MISMATCH_001",
+] as const;
+
 function descriptorLabel(descriptor: { readonly id: string }) {
   return descriptor.id;
 }
@@ -46,7 +53,29 @@ describe("VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS", () => {
   it("todos los descriptores declaran syntheticOnly true y sourcePhase permitido", () => {
     for (const descriptor of VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS) {
       expect(descriptor.syntheticOnly, descriptorLabel(descriptor)).toBe(true);
-      expect(descriptor.sourcePhase, descriptorLabel(descriptor)).toBe("2B.6B");
+      expect(["2B.6B", "2B.6C"], descriptorLabel(descriptor)).toContain(
+        descriptor.sourcePhase,
+      );
+    }
+  });
+
+  it("todos los descriptores de Oleada 2 son aceptados por los guardrails 2B.6A", () => {
+    const descriptorsById = new Map(
+      VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS.map((descriptor) => [
+        descriptor.id,
+        descriptor,
+      ]),
+    );
+
+    for (const id of WAVE_2_IDS) {
+      const descriptor = descriptorsById.get(id);
+      expect(descriptor, id).toBeDefined();
+      if (!descriptor) continue;
+      expect(descriptor.sourcePhase, id).toBe("2B.6C");
+      expect(validateSyntheticFixtureDescriptor(descriptor), id).toMatchObject({
+        status: "accepted",
+        errors: [],
+      });
     }
   });
 
@@ -72,5 +101,21 @@ describe("VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS", () => {
     expect(brokenDescriptor.id).toBe("BROKEN_ALTA_BASIC_001");
     expect(JSON.stringify(result)).not.toContain("amountCents");
     expect(JSON.stringify(result)).not.toContain("customerRef");
+  });
+
+  it("los descriptores negativos son casos ficticios seguros", () => {
+    const wave2Descriptors = VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS.filter(
+      (descriptor) => WAVE_2_IDS.includes(descriptor.id as (typeof WAVE_2_IDS)[number]),
+    );
+
+    expect(wave2Descriptors).toHaveLength(WAVE_2_IDS.length);
+    for (const descriptor of wave2Descriptors) {
+      const serialized = JSON.stringify(descriptor).toLowerCase();
+      expect(serialized, descriptorLabel(descriptor)).toContain(
+        "synthetic_only",
+      );
+      expect(serialized, descriptorLabel(descriptor)).toContain("fictici");
+      expect(serialized, descriptorLabel(descriptor)).not.toContain("datos reales");
+    }
   });
 });

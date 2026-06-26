@@ -124,4 +124,125 @@ export const VERIFACTU_SYNTHETIC_FIXTURE_DESCRIPTORS = [
       currency: "EUR",
     },
   },
+  {
+    id: "SYNTHETIC_ONLY_ALTA_INVALID_NIF_001",
+    kind: "alta_invalid_nif",
+    purpose:
+      "Descriptor interno para un alta ficticia con identificador tributario no valido.",
+    syntheticOnly: true,
+    sourcePhase: "2B.6C",
+    expectedFutureValidations: [
+      "descriptor_policy",
+      "negative_nif_shape",
+      "local_semantic_candidate",
+    ],
+    blockedUntil:
+      "Bloqueado hasta que exista una politica candidata de validacion negativa revisada.",
+    riskNotes: [
+      "Caso negativo ficticio; no representa una persona ni entidad existente.",
+      "Sin payload serializado ni conexion externa.",
+    ],
+    metadata: {
+      wave: "SYNTHETIC_ONLY_WAVE_2",
+      scenarioTag: "SYNTHETIC_ONLY_SCENARIO_ALTA_INVALID_NIF",
+      issuerRef: "SYNTHETIC_ONLY_ISSUER_RED_WORKSHOP",
+      customerRef: "SYNTHETIC_ONLY_CUSTOMER_OESTE_TEST",
+      documentRef: "SYNTHETIC_ONLY_DOC_ALTA_INVALID_NIF_001",
+      syntheticNif: "SYNTHETIC_ONLY_NIF_INVALID_ALPHA",
+      controlledDate: "2026-02-10",
+      amountCents: 8700,
+      currency: "EUR",
+    },
+  },
+  {
+    id: "SYNTHETIC_ONLY_ALTA_INVALID_DATE_001",
+    kind: "alta_invalid_date",
+    purpose:
+      "Descriptor interno para un alta ficticia con fecha controlada no valida.",
+    syntheticOnly: true,
+    sourcePhase: "2B.6C",
+    expectedFutureValidations: [
+      "descriptor_policy",
+      "negative_date_shape",
+      "local_semantic_candidate",
+    ],
+    blockedUntil:
+      "Bloqueado hasta que exista una politica candidata de validacion negativa revisada.",
+    riskNotes: [
+      "Caso negativo ficticio; la fecha no procede de ningun documento emitido.",
+      "Sin payload serializado ni conexion externa.",
+    ],
+    metadata: {
+      wave: "SYNTHETIC_ONLY_WAVE_2",
+      scenarioTag: "SYNTHETIC_ONLY_SCENARIO_ALTA_INVALID_DATE",
+      issuerRef: "SYNTHETIC_ONLY_ISSUER_RED_WORKSHOP",
+      customerRef: "SYNTHETIC_ONLY_CUSTOMER_ESTE_TEST",
+      documentRef: "SYNTHETIC_ONLY_DOC_ALTA_INVALID_DATE_001",
+      dateCandidate: "SYNTHETIC_ONLY_DATE_INVALID_MONTH_13",
+      controlledDate: "2026-02-11",
+      amountCents: 4321,
+      currency: "EUR",
+    },
+  },
+  {
+    id: "SYNTHETIC_ONLY_ALTA_MISSING_SERIES_NUMBER_001",
+    kind: "alta_missing_series_number",
+    purpose:
+      "Descriptor interno para un alta ficticia sin referencia de serie y numero.",
+    syntheticOnly: true,
+    sourcePhase: "2B.6C",
+    expectedFutureValidations: [
+      "descriptor_policy",
+      "negative_series_number_shape",
+      "local_semantic_candidate",
+    ],
+    blockedUntil:
+      "Bloqueado hasta que exista una politica candidata de validacion negativa revisada.",
+    riskNotes: [
+      "Caso negativo ficticio; no crea huecos ni numeracion documental.",
+      "Sin payload serializado ni conexion externa.",
+    ],
+    metadata: {
+      wave: "SYNTHETIC_ONLY_WAVE_2",
+      scenarioTag: "SYNTHETIC_ONLY_SCENARIO_ALTA_MISSING_SERIES_NUMBER",
+      issuerRef: "SYNTHETIC_ONLY_ISSUER_RED_WORKSHOP",
+      customerRef: "SYNTHETIC_ONLY_CUSTOMER_CENTRO_TEST",
+      documentRef: "SYNTHETIC_ONLY_DOC_ALTA_MISSING_SERIES_NUMBER_001",
+      seriesNumberRef: "SYNTHETIC_ONLY_SERIES_NUMBER_MISSING",
+      controlledDate: "2026-02-12",
+      amountCents: 5550,
+      currency: "EUR",
+    },
+  },
+  {
+    id: "SYNTHETIC_ONLY_ALTA_HASH_MISMATCH_001",
+    kind: "alta_hash_mismatch",
+    purpose:
+      "Descriptor interno para un alta ficticia con huella candidata discordante.",
+    syntheticOnly: true,
+    sourcePhase: "2B.6C",
+    expectedFutureValidations: [
+      "descriptor_policy",
+      "negative_hash_shape",
+      "local_semantic_candidate",
+    ],
+    blockedUntil:
+      "Bloqueado hasta que exista una politica candidata de validacion negativa revisada.",
+    riskNotes: [
+      "Caso negativo ficticio; las huellas son marcadores internos sin valor fiscal.",
+      "Sin payload serializado ni conexion externa.",
+    ],
+    metadata: {
+      wave: "SYNTHETIC_ONLY_WAVE_2",
+      scenarioTag: "SYNTHETIC_ONLY_SCENARIO_ALTA_HASH_MISMATCH",
+      issuerRef: "SYNTHETIC_ONLY_ISSUER_RED_WORKSHOP",
+      customerRef: "SYNTHETIC_ONLY_CUSTOMER_CENTRO_TEST",
+      documentRef: "SYNTHETIC_ONLY_DOC_ALTA_HASH_MISMATCH_001",
+      expectedHashRef: "SYNTHETIC_ONLY_HASH_EXPECTED_ALPHA",
+      observedHashRef: "SYNTHETIC_ONLY_HASH_OBSERVED_BETA",
+      controlledDate: "2026-02-13",
+      amountCents: 6400,
+      currency: "EUR",
+    },
+  },
 ] as const satisfies readonly SyntheticFixtureDescriptor[];
