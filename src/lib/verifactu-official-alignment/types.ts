@@ -91,3 +91,19 @@ export type OfficialAlignedMappingResult =
       readonly transportable: false;
       readonly errors: readonly OfficialMappingError[];
     };
+
+export type OfficialSyntheticDataSource =
+  | "official_example"
+  | "internal_safe_placeholder"
+  | "blocked";
+
+export interface OfficialSafeSyntheticDataCatalogEntry {
+  readonly requirementId: string;
+  readonly recordKind: OfficialRecordKind;
+  readonly relatedOfficialPath: string;
+  readonly syntheticOnly: true;
+  readonly source: OfficialSyntheticDataSource;
+  readonly usableForXml: boolean;
+  readonly value: string | null;
+  readonly reason: string;
+}

@@ -3,6 +3,9 @@ import type { OfficialArtifactManifestEntry } from "./types";
 export const PHASE2B7_GLOBAL_MARKER =
   "PHASE2B7A_E_OFFICIAL_ARTIFACT_ALIGNMENT_LOCAL_VALIDATION_V1";
 
+export const PHASE2B7F_K_GLOBAL_MARKER =
+  "PHASE2B7F_K_OFFLINE_XSD_VALIDATION_GATE_V1";
+
 export const OFFICIAL_ARTIFACT_CONSULTED_AT = "2026-06-26";
 
 export const OFFICIAL_ARTIFACT_MANIFEST = [
@@ -107,6 +110,24 @@ export const OFFICIAL_ARTIFACT_GATE = {
   safeOfflineXsdValidatorFound: false,
   status: "blocked",
   blocker: "BLOCKED_NO_SAFE_OFFLINE_XSD_VALIDATOR",
+} as const;
+
+export const OFFICIAL_OFFLINE_XSD_FIXTURE_GATE = {
+  marker: PHASE2B7F_K_GLOBAL_MARKER,
+  xsdFound: true,
+  exactNamespaceFound: true,
+  exactRootFound: true,
+  officialSchemaPageAccessible: true,
+  xsdFixturesCommitted: false,
+  xsdDownloadWithoutClientCertificateVerified: false,
+  safeOfflineXsdValidatorSelected: false,
+  safeOfficialSyntheticDataAvailable: false,
+  status: "blocked",
+  blockers: [
+    "BLOCKED_XSD_NOT_COMMITTED",
+    "BLOCKED_NO_SAFE_OFFLINE_XSD_VALIDATOR",
+    "BLOCKED_NO_COMPLETE_OFFICIAL_SAFE_SYNTHETIC_DATA",
+  ],
 } as const;
 
 export function findOfficialArtifact(
