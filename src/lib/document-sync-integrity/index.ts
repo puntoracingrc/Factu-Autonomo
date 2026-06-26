@@ -94,6 +94,61 @@ export type {
   SupabaseLocalStagingDocumentSyncSafeState,
 } from "./supabase-adapter";
 export { createSupabaseLocalStagingDocumentSyncAdapter } from "./supabase-adapter";
+export {
+  DOCUMENT_SYNC_SERVER_COMMAND_MAX_BATCH_SIZE,
+  DocumentSyncServerCommandError,
+  buildDocumentSyncServerCommand,
+  summarizeDocumentSyncServerCommand,
+  validateDocumentSyncServerCommand,
+} from "./server-sync-command";
+export type {
+  DocumentSyncServerAuthContext,
+  DocumentSyncServerCommand,
+  DocumentSyncServerCommandErrorCode,
+  DocumentSyncServerCommandInput,
+  DocumentSyncServerCommandKind,
+  DocumentSyncServerCommandOptions,
+  DocumentSyncServerCommandPayload,
+  DocumentSyncServerCommandResult,
+  DocumentSyncServerCommandSafeSummary,
+} from "./server-sync-command";
+export {
+  applyDocumentSyncBatch,
+  planDocumentSyncBatch,
+  summarizeDocumentSyncBatchResult,
+} from "./server-sync-batch";
+export type {
+  DocumentSyncServerApplyResult,
+  DocumentSyncServerBatchAdapter,
+  DocumentSyncServerBatchItemResult,
+  DocumentSyncServerBatchResult,
+  DocumentSyncServerBatchSafeSummary,
+} from "./server-sync-batch";
+export {
+  createDocumentSyncServerService,
+} from "./server-sync-service";
+export type {
+  DocumentSyncServerConflictReport,
+  DocumentSyncServerSafeState,
+  DocumentSyncServerService,
+  DocumentSyncServerServiceAdapter,
+  DocumentSyncServerServiceDependencies,
+} from "./server-sync-service";
+export {
+  assertSafeDocumentSyncServerJson,
+  redactDocumentSyncServerError,
+  serializeDocumentSyncServerResult,
+} from "./server-sync-response";
+export {
+  buildDocumentSyncServerAuditEvent,
+  createInMemoryDocumentSyncServerAuditSink,
+} from "./server-sync-audit";
+export type {
+  DocumentSyncServerAuditEvent,
+  DocumentSyncServerAuditEventInput,
+  DocumentSyncServerAuditEventType,
+  InMemoryDocumentSyncServerAuditSink,
+} from "./server-sync-audit";
 export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,

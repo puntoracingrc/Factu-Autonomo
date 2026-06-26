@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18 y schema local/staging compatible 2C.19-2C.24 a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24 y servicio server-only 2C.25-2C.30 a 2026-06-27
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -83,6 +83,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2C.7-2C.12 | Adaptador in-memory local/staging para futura sincronizacion segura. | PR 2C local/staging sync adapter | Mantenimiento de validadores phase2; store in-memory; adaptador local/staging; acceptance sintetica; reporte seguro; checkpoint. | Validadores 2C.7-2C.12; tests unitarios y acceptance local sin Supabase. | Base tecnica local/staging; sin sync real, sin produccion, sin Supabase remoto, sin migraciones, sin endpoints y sin UI. |
 | Fase 2C.13-2C.18 | Diseno de adaptador Supabase local/staging para sincronizacion segura. | PR 2C Supabase local sync adapter | Contrato server-only; cliente inyectado; mapper seguro; store Supabase fakeable; adapter local/staging; acceptance local opt-in bloqueada por schema actual; checkpoint. | Validadores 2C.13-2C.18; tests unitarios con fake client; fake tests; acceptance opt-in skipped/bloqueada si falta schema compatible. | Diseno tecnico local/staging; sin produccion, sin Supabase remoto, sin migraciones, sin endpoints, sin UI y sin documentos reales. |
 | Fase 2C.19-2C.24 | Schema local/staging compatible para acceptance de sync 2C. | PR 2C local schema acceptance | Auditoria de gap; migracion local/staging minima y rollback; guard de permisos opt-in; acceptance local opt-in; concurrencia con fake client; checkpoint. | Validadores 2C.19-2C.24; `check:migrations`; guard de permisos y acceptance ejecutados contra Supabase local; fake concurrency. | Acceptance local passed; sin produccion, sin Supabase remoto, sin endpoints, sin UI y sin documentos reales. |
+| Fase 2C.25-2C.30 | Servicio server-only para sync documental sobre adapters inyectados. | PR 2C server document sync service | Contrato de comando; servicio server-only; batch planning/apply; serializer seguro; auditoria in-memory; acceptance local. | Validadores 2C.25-2C.30; tests unitarios de `src/lib/document-sync-integrity`; acceptance local in-memory. | `PHASE2C_SERVER_SYNC_SERVICE: READY FOR DISABLED ROUTE SHELL DESIGN`; sin produccion, sin Supabase remoto, sin endpoint, sin UI y sin documentos reales. |
 
 Archivos internos relevantes:
 
@@ -248,7 +249,7 @@ Riesgos diferidos de Fase 2A.5:
 
 Trabajo pendiente:
 
-- mantener la evidencia de acceptance Supabase 2C local; cualquier validacion remota queda fuera de este PR y requiere orden separada. No hay produccion, Supabase remoto, endpoints ni UI.
+- mantener la evidencia de acceptance Supabase 2C local y del servicio server-only 2C.25-2C.30; cualquier validacion remota queda fuera de estos PR y requiere orden separada. No hay produccion, Supabase remoto, endpoints ni UI.
 
 ## 9. VERI*FACTU
 
