@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M y descriptores sinteticos 2B.6A-C a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C y bloqueo oficial 2B.7F-K a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -380,6 +380,16 @@ Pendiente post-2B.4:
   `PHASE2B7_OFFICIAL_ARTIFACT_ALIGNMENT: BLOCKED` por ausencia de validador XSD
   offline seguro y datos sinteticos oficiales completos. 2B.7C y 2B.7D quedan
   documentadas como no implementadas.
+- puerta oficial offline 2B.7F-K:
+  `docs/phase2b7f-official-artifact-offline-fixture-policy-v1.md`,
+  `docs/phase2b7g-offline-xsd-validator-selection-v1.md`,
+  `docs/phase2b7h-official-safe-synthetic-data-catalog-v1.md` y
+  `docs/phase2b7k-official-alignment-gate-checkpoint-v1.md`; declara
+  `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED` porque los XSD oficiales no se
+  commitean como fixtures offline, no se selecciona validador XSD offline seguro
+  y no hay datos sinteticos oficiales completos para alta y anulacion. No crea
+  XML oficial, no valida contra XSD, no valida contra AEAT, no activa QR, firma,
+  certificados, transporte ni produccion.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -508,6 +518,7 @@ Declaraciones no permitidas todavía:
 | Fase 2B.6A | Guardrails de fixtures sinteticos | Primera capa ejecutable interna; valida descriptores sinteticos sin XML real, sin fixtures XML completos, sin AEAT, sin transporte y sin certificados. |
 | Fase 2B.6B | Descriptores sinteticos Oleada 1 | Escenarios ficticios `alta_basic`, `chain_first`, `chain_second` y `cancel_basic`; sin XML real, sin datos reales y sin transporte. |
 | Fase 2B.6C | Descriptores sinteticos negativos Oleada 2 | Escenarios ficticios `alta_invalid_nif`, `alta_invalid_date`, `alta_missing_series_number` y `alta_hash_mismatch`; sin XML real, sin datos reales y sin transporte. |
+| Fase 2B.7F-K | Puerta oficial offline de XSD, validador y datos sinteticos | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED`; sin fixture XSD oficial commiteado, sin validador XSD offline seleccionado, sin datos sinteticos oficiales completos, sin XML oficial y sin validacion AEAT. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -530,6 +541,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-26 | Guardrails ejecutables internos para descriptores sinteticos añadidos al dossier. | Fase 2B.6A | PR 2B.6A guardrails sinteticos | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Descriptores sinteticos de Oleada 1 añadidos al dossier. | Fase 2B.6B | PR 2B.6B descriptores sinteticos | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Descriptores sinteticos negativos de Oleada 2 añadidos al dossier. | Fase 2B.6C | PR 2B.6C descriptores negativos sinteticos | Equipo Factura Autónomo / Codex |
+| 2026-06-26 | Bloqueo oficial 2B.7F-K documentado con politica de fixture XSD, evaluacion de validador y catalogo sintetico bloqueado. | Fase 2B.7F-K | PR 2B.7F-K puerta oficial offline | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
