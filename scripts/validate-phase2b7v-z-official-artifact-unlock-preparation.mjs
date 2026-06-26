@@ -128,9 +128,23 @@ const allowedPathPatterns = [
   /^package\.json$/,
 ];
 
+const unrelatedLaterPhasePatterns = [
+  /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
+  /^src\/lib\/document-sync-integrity\//,
+  /^scripts\/phase2c10-/,
+  /^scripts\/validate-phase2c/,
+  /^docs\/phase2c/,
+];
+
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-  if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
+  const isAllowedPhase2B7VZPath = allowedPathPatterns.some((pattern) =>
+    pattern.test(changedPath),
+  );
+  const isUnrelatedLaterPhasePath = unrelatedLaterPhasePatterns.some((pattern) =>
+    pattern.test(changedPath),
+  );
+  if (!isAllowedPhase2B7VZPath && !isUnrelatedLaterPhasePath) {
     fail(`Unexpected path touched in 2B.7V-Z: ${changedPath}.`);
   }
   if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);

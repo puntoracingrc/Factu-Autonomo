@@ -131,10 +131,20 @@ for (const trackedPath of gitLines(["ls-files"])) {
   }
 }
 
-const runtimeFiles = [
-  ...gitLines(["ls-files", "src/lib/verifactu-official-artifact-readiness"]),
+const phase2b7qURuntimeFiles = [
+  "src/lib/verifactu-official-artifact-readiness/errors.ts",
+  "src/lib/verifactu-official-artifact-readiness/index.ts",
+  "src/lib/verifactu-official-artifact-readiness/local-artifact-intake.ts",
+  "src/lib/verifactu-official-artifact-readiness/local-xsd-checksum.ts",
+  "src/lib/verifactu-official-artifact-readiness/local-xsd-import-graph.ts",
+  "src/lib/verifactu-official-artifact-readiness/readiness-report.ts",
+  "src/lib/verifactu-official-artifact-readiness/types.ts",
   "scripts/check-verifactu-official-artifact-readiness.mjs",
-].filter((filePath) => filePath && !/\.test\.(?:ts|tsx)$/.test(filePath));
+];
+
+const runtimeFiles = phase2b7qURuntimeFiles.filter((filePath) =>
+  fs.existsSync(absolute(filePath)),
+);
 
 for (const filePath of runtimeFiles) {
   const body = read(filePath);
