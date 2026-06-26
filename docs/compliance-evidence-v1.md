@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P y readiness tooling 2B.7Q-U a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U y unlock preparation 2B.7V-Z a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -78,6 +78,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2A.5 | PDF histórico desde snapshot. | PR #8 `11dd6fa7c961a0abb256083a3fc681e8110be2f7`; funcional `db03153dcef7c8a1406a2312a2341729094f82ab`; documental `c42975b9c63ea7a41bd15c8c443f99568ae6c8da` | PDFs de documentos emitidos/bloqueados se renderizan desde `documentSnapshot` y `pdfSnapshot`; borradores siguen usando datos vivos; cambios posteriores en perfil, cliente, líneas, notas, fechas o totales vivos no alteran PDF histórico; descarga, vista previa, blob PDF y compartir email/WhatsApp usan pipeline común; legacy protegido sin snapshot usa fallback read-only conservador sin persistirlo; render normal no recalcula ni reemplaza hashes. | `FASE2A5_ACCEPTANCE.md`; `npm run check:migrations` OK; `npm test` OK, 87 archivos, 419 tests; lint OK; tsc OK; build OK, Next.js 15.5.19, 58 páginas estáticas; `test:phase1-acceptance` OK con Supabase local; `git diff --check` OK; CI main en verde. | Fusionada a `main`; evidencia técnica interna, pendiente de revisión externa cuando aplique; no constituye certificación. |
 | Fase 2B.4 / 2B.5 | Cierre de flujo fiscal local/staging y plan de frontera externa. | PR #44 merge `efb9c1288ec44bdf7e04bdc8c1664e75fadd1864`; PR #45 merge `b697e5b1b8025030a9ce3eecacf8853ae12f555f` | Operación fiscal local/staging; `fiscal_records`; `fiscal_chain_state`; payload candidato; validación semántica; evidence packets; evidence persistence; evidence integrity; operational summary; checkpoint y plan de frontera externa. | Quality SUCCESS; Supabase Acceptance SUCCESS; validadores 2B en verde; pruebas Supabase local de fases 2B.4; `npm test`, lint, tsc y build ejecutados cuando aplicó; `docs/phase2b4-local-staging-fiscal-flow-stabilization-checkpoint-v1.md`; `docs/phase2b5-external-verifactu-boundary-plan-v1.md`. | Evidencia técnica interna local/staging; no es certificación, no es homologación AEAT, no habilita uso productivo de VeriFactu ni envío real a AEAT. |
 | Fase 2B.7Q-U | Tooling local/offline para preparar entrada manual futura de artefactos oficiales. | PR 2B.7Q-U readiness tooling | Intake local, checksum SHA-256, grafo import/include, CLI de readiness y acceptance tests con XSD sinteticos temporales. | Validadores 2B.7Q-U; vitest de `src/lib/verifactu-official-artifact-readiness`; acceptance test `scripts/phase2b7t-official-artifact-readiness-acceptance.test.ts`. | `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / READINESS TOOLING AVAILABLE`; sin XML oficial, sin XSD oficial commiteado, sin validador real, sin QR, sin firma, sin transporte y sin produccion. |
+| Fase 2B.7V-Z | Preparacion final de desbloqueo manual futuro de artefactos oficiales. | PR 2B.7V-Z unlock preparation | Lockfile contract, generator local, verifier opt-in, checklist humana y checkpoint final. | Validadores 2B.7V-Z; tests de lockfile/generator/verifier con XSD sinteticos temporales. | `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / UNLOCK PREPARATION COMPLETE`; sin XML oficial, sin XSD oficial commiteado, sin validador real, sin QR, sin firma, sin transporte y sin produccion. |
 
 Archivos internos relevantes:
 
@@ -414,6 +415,19 @@ Pendiente post-2B.4:
   sin XML oficial, sin XSD oficial commiteado, sin validador real, sin
   validacion XSD oficial, sin validacion AEAT, sin QR, sin firma, sin
   certificados, sin transporte y sin produccion.
+- unlock preparation 2B.7V-Z:
+  `docs/phase2b7v-official-artifact-lockfile-contract-v1.md`,
+  `docs/phase2b7w-local-official-artifact-lockfile-generator-v1.md`,
+  `docs/phase2b7x-opt-in-official-artifact-verification-v1.md`,
+  `docs/phase2b7y-human-approval-checklist-for-official-artifacts-v1.md`,
+  `docs/phase2b7y-human-approval-checklist-for-official-artifacts.template.json`
+  y `docs/phase2b7z-official-artifact-unlock-preparation-checkpoint-v1.md`;
+  anade lockfile contract, generator local, verifier opt-in y checklist humana
+  para una decision futura. El estado queda
+  `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / UNLOCK PREPARATION COMPLETE`,
+  sin XML oficial, sin XSD oficial commiteado, sin validador real, sin
+  validacion XSD oficial, sin validacion AEAT, sin QR, sin firma, sin
+  certificados, sin transporte y sin produccion.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -545,6 +559,7 @@ Declaraciones no permitidas todavía:
 | Fase 2B.7F-K | Puerta oficial offline de XSD, validador y datos sinteticos | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED`; sin fixture XSD oficial commiteado, sin validador XSD offline seleccionado, sin datos sinteticos oficiales completos, sin XML oficial y sin validacion AEAT. |
 | Fase 2B.7L-P | Enforcement ejecutable del bloqueo oficial | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / ENFORCED BY CODE`; intake gate, contrato de validador bloqueado, preflight gate y blocker report seguro; sin XML oficial, sin validacion XSD real, sin AEAT, sin QR, sin firma y sin transporte. |
 | Fase 2B.7Q-U | Tooling local/offline de readiness de artefactos oficiales | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / READINESS TOOLING AVAILABLE`; intake local, checksum SHA-256, import/include graph, CLI y acceptance tests con XSD sinteticos temporales; sin XSD oficial commiteado, sin XML oficial, sin validador real, sin QR, sin firma y sin transporte. |
+| Fase 2B.7V-Z | Preparacion final de desbloqueo manual futuro | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / UNLOCK PREPARATION COMPLETE`; lockfile contract, generator local, verifier opt-in, checklist humana y template JSON; sin XSD oficial commiteado, sin XML oficial, sin validador real, sin QR, sin firma y sin transporte. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -570,6 +585,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-26 | Bloqueo oficial 2B.7F-K documentado con politica de fixture XSD, evaluacion de validador y catalogo sintetico bloqueado. | Fase 2B.7F-K | PR 2B.7F-K puerta oficial offline | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Enforcement ejecutable 2B.7L-P añadido para mantener bloqueada la alineacion oficial hasta que existan fixtures XSD, validador offline y datos sinteticos seguros. | Fase 2B.7L-P | PR 2B.7L-P blocker enforcement | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Readiness tooling local/offline 2B.7Q-U añadido para futura entrada manual segura de artefactos oficiales, manteniendo el bloqueo oficial. | Fase 2B.7Q-U | PR 2B.7Q-U readiness tooling | Equipo Factura Autónomo / Codex |
+| 2026-06-26 | Preparacion 2B.7V-Z añadida con lockfile contract, generator local, verifier opt-in, checklist humana y checkpoint final, manteniendo el bloqueo oficial. | Fase 2B.7V-Z | PR 2B.7V-Z unlock preparation | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -637,6 +653,12 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b7s-official-artifact-readiness-report-cli-v1.md`;
 - `docs/phase2b7t-official-artifact-readiness-acceptance-tests-v1.md`;
 - `docs/phase2b7u-official-artifact-readiness-tooling-checkpoint-v1.md`;
+- `docs/phase2b7v-official-artifact-lockfile-contract-v1.md`;
+- `docs/phase2b7w-local-official-artifact-lockfile-generator-v1.md`;
+- `docs/phase2b7x-opt-in-official-artifact-verification-v1.md`;
+- `docs/phase2b7y-human-approval-checklist-for-official-artifacts-v1.md`;
+- `docs/phase2b7y-human-approval-checklist-for-official-artifacts.template.json`;
+- `docs/phase2b7z-official-artifact-unlock-preparation-checkpoint-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
