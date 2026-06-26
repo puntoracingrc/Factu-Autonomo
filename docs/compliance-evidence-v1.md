@@ -368,6 +368,18 @@ Pendiente post-2B.4:
   `candidate_not_aeat`, `syntheticOnly: true`, XML minimo solo en memoria,
   validacion local y sin QR, firma, certificados, transporte, AEAT real,
   produccion ni XML oficial.
+- revision tecnica y puerta de artefactos 2B.7A-B:
+  `docs/phase2b7a-synthetic-pipeline-technical-review-v1.md` y
+  `docs/phase2b7b-official-artifact-field-mapping-v1.md`; identifica
+  artefactos oficiales versionados, registra checksums y crea mapping
+  interno-oficial solo como referencia bloqueada. No produce XML AEAT, no
+  declara cumplimiento, no valida contra AEAT y no activa QR, firma,
+  certificados, transporte ni produccion.
+- checkpoint 2B.7E:
+  `docs/phase2b7e-pre-qr-signature-transport-checkpoint-v1.md`; declara
+  `PHASE2B7_OFFICIAL_ARTIFACT_ALIGNMENT: BLOCKED` por ausencia de validador XSD
+  offline seguro y datos sinteticos oficiales completos. 2B.7C y 2B.7D quedan
+  documentadas como no implementadas.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -575,6 +587,11 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b6f-in-memory-synthetic-xml-candidate-v1.md`;
 - `docs/phase2b6g-local-synthetic-xml-candidate-validation-v1.md`;
 - `docs/phase2b6h-synthetic-candidate-xml-pipeline-checkpoint-v1.md`;
+- `docs/phase2b7a-synthetic-pipeline-technical-review-v1.md`;
+- `docs/phase2b7b-official-artifact-field-mapping-v1.md`;
+- `docs/phase2b7c-official-aligned-synthetic-xml-candidate-v1.md`;
+- `docs/phase2b7d-official-artifact-local-validation-v1.md`;
+- `docs/phase2b7e-pre-qr-signature-transport-checkpoint-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
