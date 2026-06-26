@@ -147,6 +147,8 @@ const allowedPathPatterns = [
   /^scripts\/phase2c22-supabase-local-sync-acceptance\.test\.ts$/,
   /^scripts\/phase2c23-supabase-local-sync-concurrency\.test\.ts$/,
   /^scripts\/phase2c29-server-sync-service-local-acceptance\.test\.ts$/,
+  /^scripts\/phase2c35-disabled-sync-route-shell-acceptance\.test\.ts$/,
+  /^src\/app\/api\/document-sync\/route\.ts$/,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
   /^scripts\/validate-phase2c19-.*\.mjs$/,
   /^scripts\/validate-phase2c20-.*\.mjs$/,
@@ -160,6 +162,12 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c28-.*\.mjs$/,
   /^scripts\/validate-phase2c29-.*\.mjs$/,
   /^scripts\/validate-phase2c25-30-.*\.mjs$/,
+  /^scripts\/validate-phase2c31-.*\.mjs$/,
+  /^scripts\/validate-phase2c32-.*\.mjs$/,
+  /^scripts\/validate-phase2c33-.*\.mjs$/,
+  /^scripts\/validate-phase2c34-.*\.mjs$/,
+  /^scripts\/validate-phase2c35-.*\.mjs$/,
+  /^scripts\/validate-phase2c31-36-.*\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -176,6 +184,12 @@ const allowedPathPatterns = [
   /^docs\/phase2c28-.*\.md$/,
   /^docs\/phase2c29-.*\.md$/,
   /^docs\/phase2c30-.*\.md$/,
+  /^docs\/phase2c31-.*\.md$/,
+  /^docs\/phase2c32-.*\.md$/,
+  /^docs\/phase2c33-.*\.md$/,
+  /^docs\/phase2c34-.*\.md$/,
+  /^docs\/phase2c35-.*\.md$/,
+  /^docs\/phase2c36-.*\.md$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
@@ -189,7 +203,10 @@ for (const changedPath of changedPaths) {
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);
   }
-  if (/^(?:src\/app|app|components|public)\//.test(changedPath)) {
+  if (
+    changedPath !== "src/app/api/document-sync/route.ts" &&
+    /^(?:src\/app|app|components|public)\//.test(changedPath)
+  ) {
     fail(`UI/public path touched: ${changedPath}.`);
   }
   if (/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath)) {
