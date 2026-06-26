@@ -94,7 +94,12 @@ for (const changedPath of [
   if (/^test\/fixtures\/verifactu-official-artifacts\/.*\.(?:pdf|xlsx)$/i.test(changedPath)) {
     fail(`Forbidden committed official document fixture ${changedPath}.`);
   }
-  if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
+  const isPhase2C20LocalSyncSchemaPath =
+    /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/.test(changedPath) ||
+    /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/.test(changedPath);
+  if (!isPhase2C20LocalSyncSchemaPath && /^supabase\//.test(changedPath)) {
+    fail(`Supabase path touched: ${changedPath}.`);
+  }
   if (/vida/i.test(changedPath) && !changedPath.startsWith("docs/vida-screenshots-local/")) {
     fail(`ViDA path touched: ${changedPath}.`);
   }

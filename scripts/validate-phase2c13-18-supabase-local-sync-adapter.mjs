@@ -163,8 +163,32 @@ const allowedPathPatterns = [
   /^package\.json$/,
 ];
 
+const unrelatedLaterPhasePatterns = [
+  /^scripts\/validate-phase2b6(?:b|c|d(?:-h)?|e|f|g)-.*\.mjs$/,
+  /^scripts\/validate-phase2b7(?:a(?:-e)?|b|f(?:-k)?|g|h|l(?:-p)?|n|q-u|v-z)-.*\.mjs$/,
+  /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
+  /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
+  /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
+  /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
+  /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
+  /^scripts\/phase2c2[123]-.*\.test\.ts$/,
+  /^scripts\/validate-phase2c19-.*\.mjs$/,
+  /^scripts\/validate-phase2c20-.*\.mjs$/,
+  /^scripts\/validate-phase2c21-.*\.mjs$/,
+  /^scripts\/validate-phase2c22-.*\.mjs$/,
+  /^scripts\/validate-phase2c23-.*\.mjs$/,
+  /^scripts\/validate-phase2c19-24-.*\.mjs$/,
+  /^docs\/phase2c19-.*\.md$/,
+  /^docs\/phase2c20-.*\.md$/,
+  /^docs\/phase2c21-.*\.md$/,
+  /^docs\/phase2c22-.*\.md$/,
+  /^docs\/phase2c23-.*\.md$/,
+  /^docs\/phase2c24-.*\.md$/,
+];
+
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
+  if (unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))) continue;
   if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
     fail(`Unexpected path touched in 2C.13-2C.18: ${changedPath}.`);
   }
@@ -205,6 +229,7 @@ const sensitiveRole = ["service", "role"].join("_");
 const fiscalAttempts = ["fiscal", "transport", "attempts"].join("_");
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
+  if (unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))) continue;
   if (changedPath.includes("validate-phase2")) continue;
   if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");

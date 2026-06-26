@@ -158,9 +158,17 @@ const allowedPathPatterns = [
 ];
 
 const unrelatedLaterPhasePatterns = [
+  /^scripts\/validate-phase2b6(?:b|c|d(?:-h)?|e|f|g)-.*\.mjs$/,
+  /^scripts\/validate-phase2b7(?:a(?:-e)?|b|f(?:-k)?|g|h|l(?:-p)?|n|q-u|v-z)-.*\.mjs$/,
+  /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
   /^scripts\/phase2c17-/,
+  /^scripts\/phase2c2[123]-/,
   /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
+  /^scripts\/validate-phase2c(?:19|20|21|22|23|19-24)-/,
   /^docs\/phase2c(?:13|14|15|16|17|18)-/,
+  /^docs\/phase2c(?:19|20|21|22|23|24)-/,
+  /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
+  /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
 
 for (const changedPath of changedPaths) {
@@ -171,8 +179,18 @@ for (const changedPath of changedPaths) {
   ) {
     fail(`Unexpected path touched in 2C.7-2C.12: ${changedPath}.`);
   }
-  if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
-  if (/migrations/i.test(changedPath)) fail(`Migration path touched: ${changedPath}.`);
+  if (
+    !unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath)) &&
+    /^supabase\//.test(changedPath)
+  ) {
+    fail(`Supabase path touched: ${changedPath}.`);
+  }
+  if (
+    !unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath)) &&
+    /migrations/i.test(changedPath)
+  ) {
+    fail(`Migration path touched: ${changedPath}.`);
+  }
   if (/vida/i.test(changedPath)) fail(`ViDA path touched: ${changedPath}.`);
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);

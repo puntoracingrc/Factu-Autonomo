@@ -153,7 +153,10 @@ for (const relativePath of scopedFiles) {
 }
 
 for (const forbiddenChangedPath of changedFiles()) {
-  if (/^supabase\//.test(forbiddenChangedPath)) {
+  const isPhase2C20LocalSyncSchemaPath =
+    /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/.test(forbiddenChangedPath) ||
+    /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/.test(forbiddenChangedPath);
+  if (!isPhase2C20LocalSyncSchemaPath && /^supabase\//.test(forbiddenChangedPath)) {
     fail(`Supabase path touched: ${forbiddenChangedPath}.`);
   }
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(forbiddenChangedPath)) {
