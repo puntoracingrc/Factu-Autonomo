@@ -1,0 +1,25 @@
+{
+  "snapshotVersion": "compliance-dossier-snapshot-v1",
+  "sourceDocument": "docs/compliance-evidence-v1.md",
+  "generatedFrom": "markdown",
+  "product": "Factura Autonomo",
+  "status": "technical_internal_evidence",
+  "productionComplianceClaim": false,
+  "externalCertificationClaim": false,
+  "aeatValidationClaim": false,
+  "productiveVerifactuClaim": false,
+  "publicEndpointClaim": false,
+  "createdFor": [
+    "technical_audit_preparation",
+    "legal_fiscal_review_preparation",
+    "traceability"
+  ],
+  "limits": [
+    "not_a_certification",
+    "not_aeat_validation",
+    "not_productive_compliance",
+    "not_external_legal_review",
+    "not_tax_advice"
+  ],
+  "generatedBy": "scripts/export-compliance-dossier-html.mjs"
+}

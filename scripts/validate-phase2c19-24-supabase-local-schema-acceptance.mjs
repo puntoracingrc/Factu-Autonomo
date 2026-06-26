@@ -190,6 +190,9 @@ const allowedPathPatterns = [
   /^docs\/phase2c34-.*\.md$/,
   /^docs\/phase2c35-.*\.md$/,
   /^docs\/phase2c36-.*\.md$/,
+  /^docs\/audit\//,
+  /^scripts\/export-compliance-dossier-html\.mjs$/,
+  /^scripts\/validate-audit-.*\.mjs$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
