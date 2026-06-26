@@ -358,6 +358,16 @@ Pendiente post-2B.4:
   `docs/phase2b6c-synthetic-fixture-negative-descriptors-v1.md`; anaden casos
   ficticios de NIF, fecha, serie/numero y huella candidata, sin XML real, sin
   datos reales y sin transporte.
+- tuberia sintetica candidata 2B.6D-H:
+  `docs/phase2b6d-synthetic-candidate-canonicalization-v1.md`,
+  `docs/phase2b6e-synthetic-candidate-hash-v1.md`,
+  `docs/phase2b6f-in-memory-synthetic-xml-candidate-v1.md`,
+  `docs/phase2b6g-local-synthetic-xml-candidate-validation-v1.md` y
+  `docs/phase2b6h-synthetic-candidate-xml-pipeline-checkpoint-v1.md`;
+  transforma descriptores ficticios en candidatos internos, con
+  `candidate_not_aeat`, `syntheticOnly: true`, XML minimo solo en memoria,
+  validacion local y sin QR, firma, certificados, transporte, AEAT real,
+  produccion ni XML oficial.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -560,6 +570,11 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b6a-synthetic-fixture-guardrails-v1.md`;
 - `docs/phase2b6b-synthetic-fixture-descriptors-v1.md`;
 - `docs/phase2b6c-synthetic-fixture-negative-descriptors-v1.md`;
+- `docs/phase2b6d-synthetic-candidate-canonicalization-v1.md`;
+- `docs/phase2b6e-synthetic-candidate-hash-v1.md`;
+- `docs/phase2b6f-in-memory-synthetic-xml-candidate-v1.md`;
+- `docs/phase2b6g-local-synthetic-xml-candidate-validation-v1.md`;
+- `docs/phase2b6h-synthetic-candidate-xml-pipeline-checkpoint-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
