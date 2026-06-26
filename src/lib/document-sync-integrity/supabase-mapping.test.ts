@@ -150,9 +150,13 @@ describe("Supabase sync safe mapping", () => {
       user_id: "SYNTHETIC_ONLY_USER_A",
       scope_id: "SYNTHETIC_ONLY_SCOPE_A",
       snapshot_hash: "hash:snapshot",
+      document_type: "factura",
+      document_kind: "standard",
+      payload: {},
     });
-    expect(insert).not.toHaveProperty("payload");
+    expect(insert.payload).toEqual({});
     expect(insert).not.toHaveProperty("issuer_nif");
+    expect(insert).not.toHaveProperty("document_snapshot");
   });
 
   it("mapea conflict row seguro", () => {

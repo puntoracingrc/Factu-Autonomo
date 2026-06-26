@@ -282,6 +282,9 @@ export function mapDocumentSyncRecordToSupabaseInsert(
     user_id: record.userId,
     scope_id: record.scopeId ?? null,
     local_document_id: record.localDocumentId,
+    document_type: "factura",
+    document_kind: "standard",
+    payload: {},
     version: record.version,
     document_lifecycle: record.lifecycle,
     integrity_lock: record.integrityLock,
@@ -305,6 +308,9 @@ export function mapDocumentSyncRecordToSupabaseUpdate(
   delete row.user_id;
   delete row.scope_id;
   delete row.local_document_id;
+  delete row.document_type;
+  delete row.document_kind;
+  delete row.payload;
   delete row.created_at;
   return row;
 }

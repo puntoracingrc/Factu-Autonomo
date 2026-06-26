@@ -129,12 +129,17 @@ const allowedPathPatterns = [
 ];
 
 const unrelatedLaterPhasePatterns = [
+  /^scripts\/validate-phase2b6(?:b|c|d(?:-h)?|e|f|g)-.*\.mjs$/,
+  /^scripts\/validate-phase2b7(?:a(?:-e)?|b|f(?:-k)?|g|h|l(?:-p)?|n|q-u)-.*\.mjs$/,
   /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
   /^src\/lib\/document-sync-integrity\//,
   /^scripts\/phase2c10-/,
   /^scripts\/phase2c17-/,
+  /^scripts\/phase2c2[123]-/,
   /^scripts\/validate-phase2c/,
   /^docs\/phase2c/,
+  /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
+  /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
 
 for (const changedPath of changedPaths) {
@@ -148,7 +153,9 @@ for (const changedPath of changedPaths) {
   if (!isAllowedPhase2B7VZPath && !isUnrelatedLaterPhasePath) {
     fail(`Unexpected path touched in 2B.7V-Z: ${changedPath}.`);
   }
-  if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
+  if (!isUnrelatedLaterPhasePath && /^supabase\//.test(changedPath)) {
+    fail(`Supabase path touched: ${changedPath}.`);
+  }
   if (/vida/i.test(changedPath)) fail(`ViDA path touched: ${changedPath}.`);
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);

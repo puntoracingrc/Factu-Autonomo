@@ -162,14 +162,21 @@ const allowedPathPatterns = [
 ];
 
 const unrelatedLaterPhasePatterns = [
+  /^scripts\/validate-phase2b6(?:b|c|d(?:-h)?|e|f|g)-.*\.mjs$/,
+  /^scripts\/validate-phase2b7(?:a(?:-e)?|b|f(?:-k)?|g|h|l(?:-p)?|n|q-u|v-z)-.*\.mjs$/,
   /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/phase2c10-/,
   /^scripts\/validate-phase2c(?:7|8|9|10|11|7-12)-/,
   /^scripts\/phase2c17-/,
+  /^scripts\/phase2c2[123]-/,
   /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
+  /^scripts\/validate-phase2c(?:19|20|21|22|23|19-24)-/,
   /^docs\/phase2c(?:7|10|11|12)-/,
   /^docs\/phase2c(?:13|14|15|16|17|18)-/,
+  /^docs\/phase2c(?:19|20|21|22|23|24)-/,
+  /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
+  /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
 
 for (const changedPath of changedPaths) {
@@ -183,8 +190,12 @@ for (const changedPath of changedPaths) {
   if (!isAllowedPhase2C1To6Path && !isUnrelatedLaterPhasePath) {
     fail(`Unexpected path touched in 2C.1-2C.6: ${changedPath}.`);
   }
-  if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
-  if (/migrations/i.test(changedPath)) fail(`Migration path touched: ${changedPath}.`);
+  if (!isUnrelatedLaterPhasePath && /^supabase\//.test(changedPath)) {
+    fail(`Supabase path touched: ${changedPath}.`);
+  }
+  if (!isUnrelatedLaterPhasePath && /migrations/i.test(changedPath)) {
+    fail(`Migration path touched: ${changedPath}.`);
+  }
   if (/vida/i.test(changedPath)) fail(`ViDA path touched: ${changedPath}.`);
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);

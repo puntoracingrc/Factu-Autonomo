@@ -130,7 +130,12 @@ for (const relativePath of listModuleFiles()) {
 }
 
 for (const changedPath of changedFiles()) {
-  if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
+  const isPhase2C20LocalSyncSchemaPath =
+    /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/.test(changedPath) ||
+    /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/.test(changedPath);
+  if (!isPhase2C20LocalSyncSchemaPath && /^supabase\//.test(changedPath)) {
+    fail(`Supabase path touched: ${changedPath}.`);
+  }
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);
   }
