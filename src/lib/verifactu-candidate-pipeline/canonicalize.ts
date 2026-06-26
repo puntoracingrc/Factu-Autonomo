@@ -14,6 +14,7 @@ const SYNTHETIC_PREFIX = "SYNTHETIC_ONLY_";
 const HASH_PREFIX = "sha256-candidate-v1:";
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const CURRENCY_REGEX = /^[A-Z]{3}$/;
+const XML_UNSAFE_CONTROL_CHAR_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -46,7 +47,11 @@ function textField(
   }
 
   const normalized = value.trim();
-  if (/[\r\n]/.test(normalized) || /[<>]/.test(normalized)) {
+  if (
+    /[\r\n]/.test(normalized) ||
+    /[<>]/.test(normalized) ||
+    XML_UNSAFE_CONTROL_CHAR_REGEX.test(normalized)
+  ) {
     errors.push(
       pipelineError("unsafe_candidate_value", partialInput, fieldName),
     );
