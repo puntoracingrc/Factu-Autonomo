@@ -29,6 +29,7 @@
     "validate:phase2b4t-fiscal-evidence-read-integrity": "node scripts/validate-phase2b4t-fiscal-evidence-read-integrity.mjs",
     "validate:phase2b4u-fiscal-evidence-operational-summary": "node scripts/validate-phase2b4u-fiscal-evidence-operational-summary.mjs",
     "validate:phase2b6a-synthetic-fixture-guardrails": "node scripts/validate-phase2b6a-synthetic-fixture-guardrails.mjs",
+    "validate:phase2b6b-synthetic-fixture-descriptors": "node scripts/validate-phase2b6b-synthetic-fixture-descriptors.mjs",
     "test:phase2b3h-ingest-local": "node scripts/test-phase2b3h-supabase-local-ingest-route.mjs",
     "test:phase2b4e-fiscal-rpc-local": "node scripts/test-phase2b4e-fiscal-operation-rpc-local.mjs",
     "test:phase2b4f-fiscal-processing-local": "node scripts/test-phase2b4f-fiscal-operation-processing-local.mjs",

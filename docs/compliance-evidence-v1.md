@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M y guardrails internos 2B.6A a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M y descriptores sinteticos 2B.6A-B a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -350,6 +350,10 @@ Pendiente post-2B.4:
   `src/lib/verifactu-synthetic-fixtures/`; valida descriptores sinteticos y
   material bloqueado sin crear XML real, sin fixtures XML completos, sin AEAT,
   sin transporte y sin certificados.
+- descriptores sinteticos 2B.6B de Oleada 1:
+  `docs/phase2b6b-synthetic-fixture-descriptors-v1.md` y
+  `src/lib/verifactu-synthetic-fixtures/fixtures.ts`; anaden escenarios
+  ficticios minimos sin XML real, sin datos reales y sin transporte.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -476,6 +480,7 @@ Declaraciones no permitidas todavía:
 | Fase 2B.4 | Flujo fiscal local/staging | Cerrada como `PHASE2B4_LOCAL_STAGING_FISCAL_FLOW: CLOSED / LOCAL-STAGING ONLY`; evidencia técnica interna registrada. |
 | Fase 2B.5 | Frontera externa XML/QR/firma/certificados/transporte | Documentacion 2B.5A-M cerrada como frontera externa; implementacion real pendiente de decision explicita, revision externa, especificacion oficial, staging autorizado y aprobacion. |
 | Fase 2B.6A | Guardrails de fixtures sinteticos | Primera capa ejecutable interna; valida descriptores sinteticos sin XML real, sin fixtures XML completos, sin AEAT, sin transporte y sin certificados. |
+| Fase 2B.6B | Descriptores sinteticos Oleada 1 | Escenarios ficticios `alta_basic`, `chain_first`, `chain_second` y `cancel_basic`; sin XML real, sin datos reales y sin transporte. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -496,6 +501,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-25 | Cierre local/staging 2B.4 y frontera documental 2B.5 añadidos al dossier. | Fase 2B.4 / 2B.5 | PR #44 `efb9c1288ec44bdf7e04bdc8c1664e75fadd1864`; PR #45 `b697e5b1b8025030a9ce3eecacf8853ae12f555f` | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Cierre documental 2B.5H-M y checkpoint de frontera externa añadidos al dossier. | Fase 2B.5 | PR documental 2B.5H-M | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Guardrails ejecutables internos para descriptores sinteticos añadidos al dossier. | Fase 2B.6A | PR 2B.6A guardrails sinteticos | Equipo Factura Autónomo / Codex |
+| 2026-06-26 | Descriptores sinteticos de Oleada 1 añadidos al dossier. | Fase 2B.6B | PR 2B.6B descriptores sinteticos | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -546,6 +552,7 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b5l-external-review-staging-readiness-v1.md`;
 - `docs/phase2b5-external-boundary-documentation-checkpoint-v1.md`;
 - `docs/phase2b6a-synthetic-fixture-guardrails-v1.md`;
+- `docs/phase2b6b-synthetic-fixture-descriptors-v1.md`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;
