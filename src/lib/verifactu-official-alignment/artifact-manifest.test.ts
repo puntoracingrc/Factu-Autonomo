@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   OFFICIAL_ARTIFACT_GATE,
   OFFICIAL_ARTIFACT_MANIFEST,
+  OFFICIAL_OFFLINE_XSD_FIXTURE_GATE,
   findOfficialArtifact,
 } from "./artifact-manifest";
 
@@ -68,5 +69,23 @@ describe("OFFICIAL_ARTIFACT_MANIFEST", () => {
       sha256:
         "cbdac8d427cc5ab5d77ca48974cab0f35d6bb819c4c66db361681e3710aeba36",
     });
+  });
+
+  it("bloquea la puerta 2B.7F-K sin fixture XSD offline ni validador seguro", () => {
+    expect(OFFICIAL_OFFLINE_XSD_FIXTURE_GATE).toMatchObject({
+      xsdFound: true,
+      exactNamespaceFound: true,
+      exactRootFound: true,
+      xsdFixturesCommitted: false,
+      xsdDownloadWithoutClientCertificateVerified: false,
+      safeOfflineXsdValidatorSelected: false,
+      safeOfficialSyntheticDataAvailable: false,
+      status: "blocked",
+    });
+    expect(OFFICIAL_OFFLINE_XSD_FIXTURE_GATE.blockers).toEqual([
+      "BLOCKED_XSD_NOT_COMMITTED",
+      "BLOCKED_NO_SAFE_OFFLINE_XSD_VALIDATOR",
+      "BLOCKED_NO_COMPLETE_OFFICIAL_SAFE_SYNTHETIC_DATA",
+    ]);
   });
 });
