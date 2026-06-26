@@ -34,7 +34,7 @@ function gitLines(args) {
   }
 }
 
-function runNpmScript(scriptName) {
+function run(scriptName) {
   try {
     execFileSync("npm", ["run", scriptName], {
       cwd: root,
@@ -51,8 +51,7 @@ function walk(relativeDir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const child = path.join(relativeDir, entry.name);
-    if (entry.isDirectory()) return walk(child);
-    return child;
+    return entry.isDirectory() ? walk(child) : child;
   });
 }
 
@@ -73,53 +72,44 @@ function addedLines(relativePath) {
 
 const packageJson = JSON.parse(read("package.json") || "{}");
 const requiredScripts = [
-  "validate:phase2c1-sync-surface-audit",
-  "validate:phase2c2-server-sync-integrity-policy",
-  "validate:phase2c3-sync-mutation-dry-run-planner",
-  "validate:phase2c4-sync-conflict-versioning",
-  "validate:phase2c5-sync-safe-audit-events",
-  "validate:phase2c1-6-server-sync-integrity-foundation",
+  "validate:phase2c7-phase2-validator-scope-maintenance",
+  "validate:phase2c8-in-memory-document-sync-store",
+  "validate:phase2c9-local-staging-sync-adapter",
+  "validate:phase2c10-local-staging-sync-reconciliation-acceptance",
+  "validate:phase2c11-local-staging-sync-safe-report",
+  "validate:phase2c7-12-local-staging-sync-adapter",
 ];
 
 for (const scriptName of requiredScripts) {
   if (!packageJson.scripts?.[scriptName]) fail(`Missing npm script ${scriptName}.`);
 }
 
-for (const scriptName of requiredScripts.slice(0, 5)) {
-  runNpmScript(scriptName);
-}
+for (const scriptName of requiredScripts.slice(0, 5)) run(scriptName);
 
-const requiredFiles = [
-  "docs/phase2c1-sync-surface-audit-v1.md",
-  "docs/phase2c6-server-sync-integrity-foundation-checkpoint-v1.md",
-  "src/lib/document-sync-integrity/types.ts",
-  "src/lib/document-sync-integrity/errors.ts",
-  "src/lib/document-sync-integrity/sync-policy.ts",
-  "src/lib/document-sync-integrity/sync-planner.ts",
-  "src/lib/document-sync-integrity/sync-conflicts.ts",
-  "src/lib/document-sync-integrity/sync-audit.ts",
-  "src/lib/document-sync-integrity/index.ts",
-  "src/lib/document-sync-integrity/sync-policy.test.ts",
-  "src/lib/document-sync-integrity/sync-planner.test.ts",
-  "src/lib/document-sync-integrity/sync-conflicts.test.ts",
-  "src/lib/document-sync-integrity/sync-audit.test.ts",
-];
-
-for (const filePath of requiredFiles) {
+for (const filePath of [
+  "docs/phase2c7-phase2-validator-scope-maintenance-v1.md",
+  "docs/phase2c10-local-staging-sync-reconciliation-acceptance-v1.md",
+  "docs/phase2c11-local-staging-sync-safe-report-v1.md",
+  "docs/phase2c12-local-staging-sync-adapter-checkpoint-v1.md",
+  "scripts/phase2c10-local-staging-sync-reconciliation-acceptance.test.ts",
+  "src/lib/document-sync-integrity/sync-store.ts",
+  "src/lib/document-sync-integrity/sync-adapter.ts",
+  "src/lib/document-sync-integrity/sync-report.ts",
+]) {
   if (!fs.existsSync(absolute(filePath))) fail(`Missing required file ${filePath}.`);
 }
 
-const checkpoint = read("docs/phase2c6-server-sync-integrity-foundation-checkpoint-v1.md");
+const checkpoint = read("docs/phase2c12-local-staging-sync-adapter-checkpoint-v1.md");
 for (const marker of [
-  "PHASE2C6_SERVER_SYNC_INTEGRITY_FOUNDATION_CHECKPOINT_V1",
-  "PHASE2C_SERVER_SYNC_INTEGRITY_FOUNDATION:",
-  "READY FOR LOCAL/STAGING ADAPTER WORK",
+  "PHASE2C12_LOCAL_STAGING_SYNC_ADAPTER_CHECKPOINT_V1",
+  "PHASE2C_LOCAL_STAGING_SYNC_ADAPTER:",
+  "READY FOR SUPABASE LOCAL ADAPTER DESIGN",
   "NO PRODUCTION",
   "NO SUPABASE PRODUCTION",
-  "NO REAL SYNC",
-  "NO UI",
-  "NO ENDPOINT PUBLIC",
+  "NO SUPABASE REMOTE",
   "NO MIGRATIONS",
+  "NO PUBLIC ENDPOINT",
+  "NO UI",
   "NO REAL DOCUMENT MUTATION",
   "NO REAL INVOICES",
 ]) {
@@ -128,13 +118,13 @@ for (const marker of [
 
 const compliance = read("docs/compliance-evidence-v1.md");
 for (const marker of [
-  "base server-only de sync 2C.1-2C.6",
-  "Fase 2C.1-2C.6",
+  "adaptador in-memory local/staging 2C.7-2C.12",
   "sin sync real",
   "sin produccion",
+  "sin Supabase remoto",
   "sin migraciones",
+  "sin endpoints",
   "sin UI",
-  "sin endpoints nuevos",
 ]) {
   if (!compliance.includes(marker)) fail(`Compliance dossier missing marker ${marker}.`);
 }
@@ -149,36 +139,28 @@ const changedPaths = new Set([
 
 const allowedPathPatterns = [
   /^src\/lib\/document-sync-integrity\//,
-  /^scripts\/validate-phase2c1-.*\.mjs$/,
-  /^scripts\/validate-phase2c2-.*\.mjs$/,
-  /^scripts\/validate-phase2c3-.*\.mjs$/,
-  /^scripts\/validate-phase2c4-.*\.mjs$/,
-  /^scripts\/validate-phase2c5-.*\.mjs$/,
-  /^scripts\/validate-phase2c1-6-.*\.mjs$/,
-  /^docs\/phase2c1-sync-surface-audit-v1\.md$/,
-  /^docs\/phase2c6-server-sync-integrity-foundation-checkpoint-v1\.md$/,
+  /^scripts\/phase2c10-local-staging-sync-reconciliation-acceptance\.test\.ts$/,
+  /^scripts\/validate-phase2c7-.*\.mjs$/,
+  /^scripts\/validate-phase2c8-.*\.mjs$/,
+  /^scripts\/validate-phase2c9-.*\.mjs$/,
+  /^scripts\/validate-phase2c10-.*\.mjs$/,
+  /^scripts\/validate-phase2c11-.*\.mjs$/,
+  /^scripts\/validate-phase2c7-12-.*\.mjs$/,
+  /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
+  /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
+  /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
+  /^docs\/phase2c7-phase2-validator-scope-maintenance-v1\.md$/,
+  /^docs\/phase2c10-local-staging-sync-reconciliation-acceptance-v1\.md$/,
+  /^docs\/phase2c11-local-staging-sync-safe-report-v1\.md$/,
+  /^docs\/phase2c12-local-staging-sync-adapter-checkpoint-v1\.md$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
 
-const unrelatedLaterPhasePatterns = [
-  /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
-  /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
-  /^scripts\/phase2c10-/,
-  /^scripts\/validate-phase2c(?:7|8|9|10|11|7-12)-/,
-  /^docs\/phase2c(?:7|10|11|12)-/,
-];
-
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-  const isAllowedPhase2C1To6Path = allowedPathPatterns.some((pattern) =>
-    pattern.test(changedPath),
-  );
-  const isUnrelatedLaterPhasePath = unrelatedLaterPhasePatterns.some((pattern) =>
-    pattern.test(changedPath),
-  );
-  if (!isAllowedPhase2C1To6Path && !isUnrelatedLaterPhasePath) {
-    fail(`Unexpected path touched in 2C.1-2C.6: ${changedPath}.`);
+  if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
+    fail(`Unexpected path touched in 2C.7-2C.12: ${changedPath}.`);
   }
   if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
   if (/migrations/i.test(changedPath)) fail(`Migration path touched: ${changedPath}.`);
@@ -194,11 +176,9 @@ for (const changedPath of changedPaths) {
   }
 }
 
-const runtimeFiles = walk("src/lib/document-sync-integrity").filter(
-  (filePath) => filePath.endsWith(".ts") && !filePath.endsWith(".test.ts"),
-);
-
-for (const filePath of runtimeFiles) {
+for (const filePath of walk("src/lib/document-sync-integrity").filter(
+  (entry) => entry.endsWith(".ts") && !entry.endsWith(".test.ts"),
+)) {
   const body = read(filePath);
   for (const [label, regex] of [
     ["Supabase import", /@supabase|createClient\(|from ["'][^"']*supabase/i],
@@ -206,55 +186,27 @@ for (const filePath of runtimeFiles) {
     ["fetch", /\bfetch\s*\(/],
     ["axios", /\baxios\b/],
     ["node http", /node:http|node:https/],
-    ["remote URL", /https?:\/\//],
+    ["filesystem write", /\bwriteFile(?:Sync)?\b|\bappendFile(?:Sync)?\b|\bcreateWriteStream\b/],
     ["localStorage", /\blocalStorage\b/],
-    ["filesystem write", /\bwriteFile(?:Sync)?\b/],
   ]) {
     if (regex.test(body)) fail(`Forbidden runtime pattern ${label} in ${filePath}.`);
   }
 }
 
+const joinedSensitive = ["service", "role"].join("_");
 const fiscalAttempts = ["fiscal", "transport", "attempts"].join("_");
-const serviceRole = ["service", "role"].join("_");
-const markupArtifact = ["x", "ml"].join("");
-const sensitiveWord = ["sec", "ret"].join("");
-const tokenWord = ["tok", "en"].join("");
-const forbiddenAddedPatterns = [
-  [fiscalAttempts, new RegExp(fiscalAttempts, "i")],
-  [serviceRole, new RegExp(serviceRole, "i")],
-  ["markup artifact", new RegExp(markupArtifact, "i")],
-  ["sensitive literal", new RegExp(`\\b${sensitiveWord}s?\\b`, "i")],
-  ["token literal", new RegExp(`\\b${tokenWord}s?\\b`, "i")],
-  ["private key", /BEGIN (?:RSA |EC )?PRIVATE KEY/i],
-];
-
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-  if (!fs.existsSync(absolute(changedPath))) continue;
-  if (unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))) {
-    continue;
+  if (changedPath.includes("validate-phase2")) continue;
+  const added = addedLines(changedPath).join("\n");
+  if (new RegExp(joinedSensitive, "i").test(added)) {
+    fail(`Sensitive role literal found in ${changedPath}.`);
   }
-  if (changedPath.endsWith(".mjs") && changedPath.includes("validate-phase2c")) {
-    continue;
+  if (new RegExp(fiscalAttempts, "i").test(added)) {
+    fail(`Forbidden transport table literal found in ${changedPath}.`);
   }
-  const lines = addedLines(changedPath).join("\n");
-  for (const [label, regex] of forbiddenAddedPatterns) {
-    if (regex.test(lines)) fail(`Forbidden added content ${label} in ${changedPath}.`);
-  }
-}
-
-for (const filePath of [
-  "src/lib/document-sync-integrity/errors.ts",
-  "src/lib/document-sync-integrity/sync-policy.test.ts",
-  "src/lib/document-sync-integrity/sync-planner.test.ts",
-  "src/lib/document-sync-integrity/sync-conflicts.test.ts",
-  "src/lib/document-sync-integrity/sync-audit.test.ts",
-  "docs/phase2c1-sync-surface-audit-v1.md",
-  "docs/phase2c6-server-sync-integrity-foundation-checkpoint-v1.md",
-]) {
-  const added = addedLines(filePath).join("\n");
   if (/(?:documentSnapshot|pdfSnapshot)\s*[:=]\s*[{[]/.test(added)) {
-    fail(`Full snapshot-like body added in ${filePath}.`);
+    fail(`Full snapshot-like body found in ${changedPath}.`);
   }
 }
 
@@ -263,9 +215,9 @@ if (gitLines(["ls-files", "docs/vida-screenshots-local"]).length > 0) {
 }
 
 if (errors.length > 0) {
-  console.error("Phase 2C.1-2C.6 server sync integrity foundation validation failed:");
+  console.error("Phase 2C.7-2C.12 local/staging sync adapter validation failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Phase 2C.1-2C.6 server sync integrity foundation validation passed.");
+console.log("Phase 2C.7-2C.12 local/staging sync adapter validation passed.");

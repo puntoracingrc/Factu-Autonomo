@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z y base server-only de sync 2C.1-2C.6 a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6 y adaptador in-memory local/staging 2C.7-2C.12 a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -80,6 +80,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2B.7Q-U | Tooling local/offline para preparar entrada manual futura de artefactos oficiales. | PR 2B.7Q-U readiness tooling | Intake local, checksum SHA-256, grafo import/include, CLI de readiness y acceptance tests con XSD sinteticos temporales. | Validadores 2B.7Q-U; vitest de `src/lib/verifactu-official-artifact-readiness`; acceptance test `scripts/phase2b7t-official-artifact-readiness-acceptance.test.ts`. | `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / READINESS TOOLING AVAILABLE`; sin XML oficial, sin XSD oficial commiteado, sin validador real, sin QR, sin firma, sin transporte y sin produccion. |
 | Fase 2B.7V-Z | Preparacion final de desbloqueo manual futuro de artefactos oficiales. | PR 2B.7V-Z unlock preparation | Lockfile contract, generator local, verifier opt-in, checklist humana y checkpoint final. | Validadores 2B.7V-Z; tests de lockfile/generator/verifier con XSD sinteticos temporales. | `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / UNLOCK PREPARATION COMPLETE`; sin XML oficial, sin XSD oficial commiteado, sin validador real, sin QR, sin firma, sin transporte y sin produccion. |
 | Fase 2C.1-2C.6 | Base server-only para futura sincronizacion segura de documentos. | PR 2C server sync integrity foundation | Inventario de superficies de sync; politica pura de integridad; planner dry-run; conflictos/versionado; eventos in-memory redactados; checkpoint. | Validadores 2C.1-2C.6; tests unitarios de `src/lib/document-sync-integrity`; validaciones generales del repo antes de PR. | Base tecnica interna para adaptadores local/staging; sin sync real, sin produccion, sin migraciones, sin UI y sin endpoints nuevos. |
+| Fase 2C.7-2C.12 | Adaptador in-memory local/staging para futura sincronizacion segura. | PR 2C local/staging sync adapter | Mantenimiento de validadores phase2; store in-memory; adaptador local/staging; acceptance sintetica; reporte seguro; checkpoint. | Validadores 2C.7-2C.12; tests unitarios y acceptance local sin Supabase. | Base tecnica local/staging; sin sync real, sin produccion, sin Supabase remoto, sin migraciones, sin endpoints y sin UI. |
 
 Archivos internos relevantes:
 
@@ -245,7 +246,7 @@ Riesgos diferidos de Fase 2A.5:
 
 Trabajo pendiente:
 
-- adaptadores local/staging de sincronizacion nube sobre la base server-only 2C, sin produccion ni sync real todavia.
+- diseno de adaptador Supabase local/staging sobre la base 2C, sin produccion ni sync real todavia.
 
 ## 9. VERI*FACTU
 

@@ -10,6 +10,26 @@ export {
 } from "./sync-audit";
 export { DocumentSyncPolicyError } from "./errors";
 export type {
+  LocalStagingDocumentSyncAdapter,
+  LocalStagingDocumentSyncAdapterResult,
+  LocalStagingDocumentSyncConflictReport,
+  LocalStagingDocumentSyncSafeState,
+} from "./sync-adapter";
+export { createLocalStagingDocumentSyncAdapter } from "./sync-adapter";
+export type {
+  DocumentSyncSafeReport,
+} from "./sync-report";
+export { buildDocumentSyncSafeReport } from "./sync-report";
+export type {
+  DocumentSyncStore,
+  DocumentSyncStoreOperationResult,
+  DocumentSyncStoreRecord,
+  DocumentSyncStoreScope,
+  DocumentSyncStoreSnapshot,
+  InMemoryDocumentSyncStore,
+} from "./sync-store";
+export { createInMemoryDocumentSyncStore } from "./sync-store";
+export type {
   DocumentSyncAllowedMutationPlan,
   DocumentSyncConflictPlan,
   DocumentSyncMutationPlan,
