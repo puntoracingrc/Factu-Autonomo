@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C y bloqueo oficial 2B.7F-K a 2026-06-26
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K y enforcement 2B.7L-P a 2026-06-26
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -390,6 +390,17 @@ Pendiente post-2B.4:
   y no hay datos sinteticos oficiales completos para alta y anulacion. No crea
   XML oficial, no valida contra XSD, no valida contra AEAT, no activa QR, firma,
   certificados, transporte ni produccion.
+- enforcement de bloqueo oficial 2B.7L-P:
+  `docs/phase2b7l-official-artifact-intake-gate-v1.md`,
+  `docs/phase2b7m-offline-xsd-validator-contract-v1.md`,
+  `docs/phase2b7n-official-aligned-xml-preflight-gate-v1.md`,
+  `docs/phase2b7o-official-alignment-blocker-report-v1.md` y
+  `docs/phase2b7p-official-alignment-enforced-block-checkpoint-v1.md`;
+  anade gates ejecutables para intake de artefactos, contrato de validador
+  bloqueado, preflight de XML oficial alineado y reporte seguro. El estado queda
+  `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / ENFORCED BY CODE`, sin XML
+  oficial, sin validacion AEAT, sin QR, sin firma, sin certificados, sin
+  transporte y sin produccion.
 
 La frase VERI*FACTU productiva solo debe usarse cuando el flujo real de alta/anulación, QR, firma/cadena, transporte y respuesta AEAT esté cerrado y validado.
 
@@ -519,6 +530,7 @@ Declaraciones no permitidas todavía:
 | Fase 2B.6B | Descriptores sinteticos Oleada 1 | Escenarios ficticios `alta_basic`, `chain_first`, `chain_second` y `cancel_basic`; sin XML real, sin datos reales y sin transporte. |
 | Fase 2B.6C | Descriptores sinteticos negativos Oleada 2 | Escenarios ficticios `alta_invalid_nif`, `alta_invalid_date`, `alta_missing_series_number` y `alta_hash_mismatch`; sin XML real, sin datos reales y sin transporte. |
 | Fase 2B.7F-K | Puerta oficial offline de XSD, validador y datos sinteticos | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED`; sin fixture XSD oficial commiteado, sin validador XSD offline seleccionado, sin datos sinteticos oficiales completos, sin XML oficial y sin validacion AEAT. |
+| Fase 2B.7L-P | Enforcement ejecutable del bloqueo oficial | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / ENFORCED BY CODE`; intake gate, contrato de validador bloqueado, preflight gate y blocker report seguro; sin XML oficial, sin validacion XSD real, sin AEAT, sin QR, sin firma y sin transporte. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -542,6 +554,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-26 | Descriptores sinteticos de Oleada 1 añadidos al dossier. | Fase 2B.6B | PR 2B.6B descriptores sinteticos | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Descriptores sinteticos negativos de Oleada 2 añadidos al dossier. | Fase 2B.6C | PR 2B.6C descriptores negativos sinteticos | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Bloqueo oficial 2B.7F-K documentado con politica de fixture XSD, evaluacion de validador y catalogo sintetico bloqueado. | Fase 2B.7F-K | PR 2B.7F-K puerta oficial offline | Equipo Factura Autónomo / Codex |
+| 2026-06-26 | Enforcement ejecutable 2B.7L-P añadido para mantener bloqueada la alineacion oficial hasta que existan fixtures XSD, validador offline y datos sinteticos seguros. | Fase 2B.7L-P | PR 2B.7L-P blocker enforcement | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
