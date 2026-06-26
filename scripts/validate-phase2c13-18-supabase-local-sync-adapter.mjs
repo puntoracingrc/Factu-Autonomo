@@ -72,12 +72,12 @@ function addedLines(relativePath) {
 
 const packageJson = JSON.parse(read("package.json") || "{}");
 const requiredScripts = [
-  "validate:phase2c7-phase2-validator-scope-maintenance",
-  "validate:phase2c8-in-memory-document-sync-store",
-  "validate:phase2c9-local-staging-sync-adapter",
-  "validate:phase2c10-local-staging-sync-reconciliation-acceptance",
-  "validate:phase2c11-local-staging-sync-safe-report",
-  "validate:phase2c7-12-local-staging-sync-adapter",
+  "validate:phase2c13-supabase-local-sync-contract",
+  "validate:phase2c14-supabase-sync-safe-mapping",
+  "validate:phase2c15-supabase-injected-sync-store",
+  "validate:phase2c16-supabase-local-staging-sync-adapter",
+  "validate:phase2c17-supabase-local-sync-acceptance-opt-in",
+  "validate:phase2c13-18-supabase-local-sync-adapter",
 ];
 
 for (const scriptName of requiredScripts) {
@@ -87,23 +87,26 @@ for (const scriptName of requiredScripts) {
 for (const scriptName of requiredScripts.slice(0, 5)) run(scriptName);
 
 for (const filePath of [
-  "docs/phase2c7-phase2-validator-scope-maintenance-v1.md",
-  "docs/phase2c10-local-staging-sync-reconciliation-acceptance-v1.md",
-  "docs/phase2c11-local-staging-sync-safe-report-v1.md",
-  "docs/phase2c12-local-staging-sync-adapter-checkpoint-v1.md",
-  "scripts/phase2c10-local-staging-sync-reconciliation-acceptance.test.ts",
-  "src/lib/document-sync-integrity/sync-store.ts",
-  "src/lib/document-sync-integrity/sync-adapter.ts",
-  "src/lib/document-sync-integrity/sync-report.ts",
+  "src/lib/document-sync-integrity/supabase-contract.ts",
+  "src/lib/document-sync-integrity/supabase-mapping.ts",
+  "src/lib/document-sync-integrity/supabase-store.ts",
+  "src/lib/document-sync-integrity/supabase-adapter.ts",
+  "scripts/phase2c17-supabase-local-sync-acceptance.test.ts",
+  "docs/phase2c13-supabase-local-sync-contract-v1.md",
+  "docs/phase2c14-supabase-sync-safe-mapping-v1.md",
+  "docs/phase2c15-supabase-injected-sync-store-v1.md",
+  "docs/phase2c16-supabase-local-staging-sync-adapter-v1.md",
+  "docs/phase2c17-supabase-local-sync-acceptance-opt-in-v1.md",
+  "docs/phase2c18-supabase-local-sync-adapter-checkpoint-v1.md",
 ]) {
   if (!fs.existsSync(absolute(filePath))) fail(`Missing required file ${filePath}.`);
 }
 
-const checkpoint = read("docs/phase2c12-local-staging-sync-adapter-checkpoint-v1.md");
+const checkpoint = read("docs/phase2c18-supabase-local-sync-adapter-checkpoint-v1.md");
 for (const marker of [
-  "PHASE2C12_LOCAL_STAGING_SYNC_ADAPTER_CHECKPOINT_V1",
-  "PHASE2C_LOCAL_STAGING_SYNC_ADAPTER:",
-  "READY FOR SUPABASE LOCAL ADAPTER DESIGN",
+  "PHASE2C18_SUPABASE_LOCAL_SYNC_ADAPTER_CHECKPOINT_V1",
+  "PHASE2C_SUPABASE_LOCAL_SYNC_ADAPTER:",
+  "BLOCKED_SCHEMA_NOT_COMPATIBLE_WITH_2C_SYNC_ACCEPTANCE",
   "NO PRODUCTION",
   "NO SUPABASE PRODUCTION",
   "NO SUPABASE REMOTE",
@@ -118,8 +121,9 @@ for (const marker of [
 
 const compliance = read("docs/compliance-evidence-v1.md");
 for (const marker of [
-  "adaptador in-memory local/staging 2C.7-2C.12",
-  "sin sync real",
+  "diseno de adaptador Supabase local/staging 2C.13-2C.18",
+  "cliente inyectado",
+  "fake tests",
   "sin produccion",
   "sin Supabase remoto",
   "sin migraciones",
@@ -139,37 +143,30 @@ const changedPaths = new Set([
 
 const allowedPathPatterns = [
   /^src\/lib\/document-sync-integrity\//,
-  /^scripts\/phase2c10-local-staging-sync-reconciliation-acceptance\.test\.ts$/,
-  /^scripts\/validate-phase2c7-.*\.mjs$/,
-  /^scripts\/validate-phase2c8-.*\.mjs$/,
-  /^scripts\/validate-phase2c9-.*\.mjs$/,
-  /^scripts\/validate-phase2c10-.*\.mjs$/,
-  /^scripts\/validate-phase2c11-.*\.mjs$/,
-  /^scripts\/validate-phase2c7-12-.*\.mjs$/,
-  /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
+  /^scripts\/phase2c17-supabase-local-sync-acceptance\.test\.ts$/,
+  /^scripts\/validate-phase2c13-.*\.mjs$/,
+  /^scripts\/validate-phase2c14-.*\.mjs$/,
+  /^scripts\/validate-phase2c15-.*\.mjs$/,
+  /^scripts\/validate-phase2c16-.*\.mjs$/,
+  /^scripts\/validate-phase2c17-.*\.mjs$/,
+  /^scripts\/validate-phase2c13-18-.*\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
-  /^docs\/phase2c7-phase2-validator-scope-maintenance-v1\.md$/,
-  /^docs\/phase2c10-local-staging-sync-reconciliation-acceptance-v1\.md$/,
-  /^docs\/phase2c11-local-staging-sync-safe-report-v1\.md$/,
-  /^docs\/phase2c12-local-staging-sync-adapter-checkpoint-v1\.md$/,
+  /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
+  /^docs\/phase2c13-supabase-local-sync-contract-v1\.md$/,
+  /^docs\/phase2c14-supabase-sync-safe-mapping-v1\.md$/,
+  /^docs\/phase2c15-supabase-injected-sync-store-v1\.md$/,
+  /^docs\/phase2c16-supabase-local-staging-sync-adapter-v1\.md$/,
+  /^docs\/phase2c17-supabase-local-sync-acceptance-opt-in-v1\.md$/,
+  /^docs\/phase2c18-supabase-local-sync-adapter-checkpoint-v1\.md$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
 
-const unrelatedLaterPhasePatterns = [
-  /^scripts\/phase2c17-/,
-  /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
-  /^docs\/phase2c(?:13|14|15|16|17|18)-/,
-];
-
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-  if (
-    !allowedPathPatterns.some((pattern) => pattern.test(changedPath)) &&
-    !unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))
-  ) {
-    fail(`Unexpected path touched in 2C.7-2C.12: ${changedPath}.`);
+  if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
+    fail(`Unexpected path touched in 2C.13-2C.18: ${changedPath}.`);
   }
   if (/^supabase\//.test(changedPath)) fail(`Supabase path touched: ${changedPath}.`);
   if (/migrations/i.test(changedPath)) fail(`Migration path touched: ${changedPath}.`);
@@ -186,15 +183,13 @@ for (const changedPath of changedPaths) {
 }
 
 for (const filePath of walk("src/lib/document-sync-integrity").filter(
-  (entry) =>
-    entry.endsWith(".ts") &&
-    !entry.endsWith(".test.ts") &&
-    entry !== "src/lib/document-sync-integrity/index.ts" &&
-    !entry.includes("/supabase-"),
+  (entry) => entry.endsWith(".ts") && !entry.endsWith(".test.ts"),
 )) {
   const body = read(filePath);
   for (const [label, regex] of [
-    ["Supabase import", /@supabase|createClient\(|from ["'][^"']*supabase/i],
+    ["real Supabase package", /@supabase/],
+    ["client factory", /createClient\s*\(/],
+    ["env read", /process\.env/],
     ["UI import", /from ["'](?:@\/)?(?:components|app|public)\//i],
     ["fetch", /\bfetch\s*\(/],
     ["axios", /\baxios\b/],
@@ -206,16 +201,14 @@ for (const filePath of walk("src/lib/document-sync-integrity").filter(
   }
 }
 
-const joinedSensitive = ["service", "role"].join("_");
+const sensitiveRole = ["service", "role"].join("_");
 const fiscalAttempts = ["fiscal", "transport", "attempts"].join("_");
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-  if (unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))) {
-    continue;
-  }
   if (changedPath.includes("validate-phase2")) continue;
+  if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");
-  if (new RegExp(joinedSensitive, "i").test(added)) {
+  if (new RegExp(sensitiveRole, "i").test(added)) {
     fail(`Sensitive role literal found in ${changedPath}.`);
   }
   if (new RegExp(fiscalAttempts, "i").test(added)) {
@@ -231,9 +224,9 @@ if (gitLines(["ls-files", "docs/vida-screenshots-local"]).length > 0) {
 }
 
 if (errors.length > 0) {
-  console.error("Phase 2C.7-2C.12 local/staging sync adapter validation failed:");
+  console.error("Phase 2C.13-2C.18 Supabase local sync adapter validation failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Phase 2C.7-2C.12 local/staging sync adapter validation passed.");
+console.log("Phase 2C.13-2C.18 Supabase local sync adapter validation passed.");

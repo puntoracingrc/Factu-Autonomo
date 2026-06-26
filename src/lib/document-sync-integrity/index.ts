@@ -52,6 +52,49 @@ export {
   evaluateDocumentSyncPolicy,
 } from "./sync-policy";
 export type {
+  DocumentSyncSupabaseAdapterOptions,
+  DocumentSyncSupabaseClientLike,
+  DocumentSyncSupabaseConflictRow,
+  DocumentSyncSupabaseDatabaseTarget,
+  DocumentSyncSupabaseErrorLike,
+  DocumentSyncSupabaseFilterBuilder,
+  DocumentSyncSupabaseQueryResult,
+  DocumentSyncSupabaseRow,
+  DocumentSyncSupabaseSafetyMode,
+  DocumentSyncSupabaseStore,
+  DocumentSyncSupabaseTableClient,
+  DocumentSyncSupabaseVersionRow,
+  ResolvedDocumentSyncSupabaseAdapterOptions,
+} from "./supabase-contract";
+export {
+  assertDocumentSyncSupabaseClientLike,
+  assertDocumentSyncSupabaseScope,
+  DocumentSyncSupabaseSafetyError,
+  resolveDocumentSyncSupabaseAdapterOptions,
+} from "./supabase-contract";
+export {
+  DOCUMENT_SYNC_SUPABASE_CONFLICT_COLUMNS,
+  DOCUMENT_SYNC_SUPABASE_DOCUMENT_COLUMNS,
+  DocumentSyncSupabaseMappingError,
+  mapDocumentSyncRecordToSupabaseInsert,
+  mapDocumentSyncRecordToSupabaseUpdate,
+  mapSupabaseConflictRowToSyncConflict,
+  mapSupabaseDocumentRowToStoreRecord,
+  mapSupabaseDocumentRowToSyncCurrentState,
+  mapSyncConflictToSupabaseConflictInsert,
+  mapSyncMutationToSupabaseDraftUpdate,
+} from "./supabase-mapping";
+export { createSupabaseDocumentSyncStore } from "./supabase-store";
+export { DocumentSyncSupabaseStoreError } from "./supabase-store";
+export type {
+  SupabaseLocalStagingDocumentSyncAdapter,
+  SupabaseLocalStagingDocumentSyncAdapterOptions,
+  SupabaseLocalStagingDocumentSyncAdapterResult,
+  SupabaseLocalStagingDocumentSyncConflictReport,
+  SupabaseLocalStagingDocumentSyncSafeState,
+} from "./supabase-adapter";
+export { createSupabaseLocalStagingDocumentSyncAdapter } from "./supabase-adapter";
+export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,
   DocumentSyncConflictReason,
