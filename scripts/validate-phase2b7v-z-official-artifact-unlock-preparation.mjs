@@ -132,6 +132,7 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/validate-phase2b7q-u-official-artifact-readiness-tooling\.mjs$/,
   /^src\/lib\/document-sync-integrity\//,
   /^scripts\/phase2c10-/,
+  /^scripts\/phase2c17-/,
   /^scripts\/validate-phase2c/,
   /^docs\/phase2c/,
 ];

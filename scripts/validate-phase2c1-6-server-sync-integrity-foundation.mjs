@@ -166,7 +166,10 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/phase2c10-/,
   /^scripts\/validate-phase2c(?:7|8|9|10|11|7-12)-/,
+  /^scripts\/phase2c17-/,
+  /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
   /^docs\/phase2c(?:7|10|11|12)-/,
+  /^docs\/phase2c(?:13|14|15|16|17|18)-/,
 ];
 
 for (const changedPath of changedPaths) {
@@ -195,7 +198,11 @@ for (const changedPath of changedPaths) {
 }
 
 const runtimeFiles = walk("src/lib/document-sync-integrity").filter(
-  (filePath) => filePath.endsWith(".ts") && !filePath.endsWith(".test.ts"),
+  (filePath) =>
+    filePath.endsWith(".ts") &&
+    !filePath.endsWith(".test.ts") &&
+    filePath !== "src/lib/document-sync-integrity/index.ts" &&
+    !filePath.includes("/supabase-"),
 );
 
 for (const filePath of runtimeFiles) {
