@@ -34,6 +34,25 @@ function gitLines(args) {
   }
 }
 
+function addedLines(relativePath) {
+  try {
+    return execFileSync(
+      "git",
+      ["diff", "--unified=0", "origin/main...HEAD", "--", relativePath],
+      {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    )
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
+      .map((line) => line.slice(1));
+  } catch {
+    return [];
+  }
+}
+
 function run(scriptName) {
   try {
     execFileSync("npm", ["run", scriptName], {
@@ -46,30 +65,15 @@ function run(scriptName) {
   }
 }
 
-function addedLines(relativePath) {
-  try {
-    return execFileSync("git", ["diff", "--unified=0", "origin/main...HEAD", "--", relativePath], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
-      .map((line) => line.slice(1));
-  } catch {
-    return [];
-  }
-}
-
 const packageJson = JSON.parse(read("package.json") || "{}");
 const requiredScripts = [
-  "validate:phase2c25-server-sync-command-contract",
-  "validate:phase2c26-server-document-sync-service",
-  "validate:phase2c27-server-sync-batch-processing",
-  "validate:phase2c28-server-sync-safe-response-audit",
-  "validate:phase2c29-server-sync-service-local-acceptance",
-  "validate:phase2c25-30-server-document-sync-service",
-  "test:phase2c29-server-sync-service-local-acceptance",
+  "validate:phase2c31-disabled-sync-route-private-flag-contract",
+  "validate:phase2c32-disabled-sync-route-shell-http",
+  "validate:phase2c33-sync-route-auth-context-adapter",
+  "validate:phase2c34-sync-route-safe-envelope",
+  "validate:phase2c35-disabled-sync-route-shell-acceptance",
+  "validate:phase2c31-36-disabled-sync-route-shell",
+  "test:phase2c35-disabled-sync-route-shell-acceptance",
 ];
 
 for (const scriptName of requiredScripts) {
@@ -78,36 +82,37 @@ for (const scriptName of requiredScripts) {
 
 for (const scriptName of requiredScripts.slice(0, 5)) run(scriptName);
 
-for (const filePath of [
-  "src/lib/document-sync-integrity/server-sync-command.ts",
-  "src/lib/document-sync-integrity/server-sync-service.ts",
-  "src/lib/document-sync-integrity/server-sync-batch.ts",
-  "src/lib/document-sync-integrity/server-sync-response.ts",
-  "src/lib/document-sync-integrity/server-sync-audit.ts",
-  "scripts/phase2c29-server-sync-service-local-acceptance.test.ts",
-  "docs/phase2c25-server-sync-command-contract-v1.md",
-  "docs/phase2c26-server-document-sync-service-v1.md",
-  "docs/phase2c27-server-sync-batch-processing-v1.md",
-  "docs/phase2c28-server-sync-safe-response-audit-v1.md",
-  "docs/phase2c29-server-sync-service-local-acceptance-v1.md",
-  "docs/phase2c30-server-sync-service-checkpoint-v1.md",
-]) {
+const requiredFiles = [
+  "src/app/api/document-sync/route.ts",
+  "src/lib/document-sync-integrity/route-shell-flag.ts",
+  "src/lib/document-sync-integrity/route-auth-context.ts",
+  "src/lib/document-sync-integrity/route-envelope.ts",
+  "scripts/phase2c35-disabled-sync-route-shell-acceptance.test.ts",
+  "docs/phase2c31-disabled-sync-route-private-flag-contract-v1.md",
+  "docs/phase2c32-disabled-sync-route-shell-http-v1.md",
+  "docs/phase2c33-sync-route-auth-context-adapter-v1.md",
+  "docs/phase2c34-sync-route-safe-envelope-v1.md",
+  "docs/phase2c35-disabled-sync-route-shell-acceptance-v1.md",
+  "docs/phase2c36-disabled-sync-route-shell-checkpoint-v1.md",
+];
+
+for (const filePath of requiredFiles) {
   if (!fs.existsSync(absolute(filePath))) fail(`Missing required file ${filePath}.`);
 }
 
-const checkpoint = read("docs/phase2c30-server-sync-service-checkpoint-v1.md");
+const checkpoint = read("docs/phase2c36-disabled-sync-route-shell-checkpoint-v1.md");
 for (const marker of [
-  "PHASE2C30_SERVER_SYNC_SERVICE_CHECKPOINT_V1",
-  "PHASE2C_SERVER_SYNC_SERVICE:",
-  "READY FOR DISABLED ROUTE SHELL DESIGN",
+  "PHASE2C36_DISABLED_SYNC_ROUTE_SHELL_CHECKPOINT_V1",
+  "PHASE2C_DISABLED_SYNC_ROUTE_SHELL:",
+  "DISABLED BY DEFAULT / NO OPERATIONS ENABLED",
   "NO PRODUCTION",
   "NO SUPABASE PRODUCTION",
   "NO SUPABASE REMOTE",
-  "NO PUBLIC ENDPOINT",
+  "NO PUBLIC ENDPOINT OPERATIVE",
   "NO UI",
   "NO REAL DOCUMENT MUTATION",
   "NO REAL INVOICES",
-  "NO ROUTE ENABLED",
+  "NO ROUTE OPERATIONS ENABLED",
 ]) {
   if (!checkpoint.includes(marker)) fail(`Checkpoint missing marker ${marker}.`);
 }
@@ -123,14 +128,7 @@ const changedPaths = new Set([
 const allowedPathPatterns = [
   /^src\/app\/api\/document-sync\/route\.ts$/,
   /^src\/lib\/document-sync-integrity\//,
-  /^scripts\/phase2c29-server-sync-service-local-acceptance\.test\.ts$/,
   /^scripts\/phase2c35-disabled-sync-route-shell-acceptance\.test\.ts$/,
-  /^scripts\/validate-phase2c25-.*\.mjs$/,
-  /^scripts\/validate-phase2c26-.*\.mjs$/,
-  /^scripts\/validate-phase2c27-.*\.mjs$/,
-  /^scripts\/validate-phase2c28-.*\.mjs$/,
-  /^scripts\/validate-phase2c29-.*\.mjs$/,
-  /^scripts\/validate-phase2c25-30-.*\.mjs$/,
   /^scripts\/validate-phase2c31-.*\.mjs$/,
   /^scripts\/validate-phase2c32-.*\.mjs$/,
   /^scripts\/validate-phase2c33-.*\.mjs$/,
@@ -138,23 +136,19 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c35-.*\.mjs$/,
   /^scripts\/validate-phase2c31-36-.*\.mjs$/,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
+  /^scripts\/validate-phase2b3e-ingest-route-safety\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
   /^scripts\/validate-phase2c13-18-supabase-local-sync-adapter\.mjs$/,
   /^scripts\/validate-phase2c19-24-supabase-local-schema-acceptance\.mjs$/,
-  /^docs\/phase2c25-server-sync-command-contract-v1\.md$/,
-  /^docs\/phase2c26-server-document-sync-service-v1\.md$/,
-  /^docs\/phase2c27-server-sync-batch-processing-v1\.md$/,
-  /^docs\/phase2c28-server-sync-safe-response-audit-v1\.md$/,
-  /^docs\/phase2c29-server-sync-service-local-acceptance-v1\.md$/,
-  /^docs\/phase2c30-server-sync-service-checkpoint-v1\.md$/,
-  /^docs\/phase2c31-.*\.md$/,
-  /^docs\/phase2c32-.*\.md$/,
-  /^docs\/phase2c33-.*\.md$/,
-  /^docs\/phase2c34-.*\.md$/,
-  /^docs\/phase2c35-.*\.md$/,
-  /^docs\/phase2c36-.*\.md$/,
+  /^scripts\/validate-phase2c25-30-server-document-sync-service\.mjs$/,
+  /^docs\/phase2c31-disabled-sync-route-private-flag-contract-v1\.md$/,
+  /^docs\/phase2c32-disabled-sync-route-shell-http-v1\.md$/,
+  /^docs\/phase2c33-sync-route-auth-context-adapter-v1\.md$/,
+  /^docs\/phase2c34-sync-route-safe-envelope-v1\.md$/,
+  /^docs\/phase2c35-disabled-sync-route-shell-acceptance-v1\.md$/,
+  /^docs\/phase2c36-disabled-sync-route-shell-checkpoint-v1\.md$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
@@ -162,7 +156,7 @@ const allowedPathPatterns = [
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
-    fail(`Unexpected path touched in 2C.25-2C.30: ${changedPath}.`);
+    fail(`Unexpected path touched in 2C.31-2C.36: ${changedPath}.`);
   }
   if (/^supabase\/migrations\//.test(changedPath)) {
     fail(`New migration touched: ${changedPath}.`);
@@ -171,15 +165,20 @@ for (const changedPath of changedPaths) {
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);
   }
-  if (
-    changedPath !== "src/app/api/document-sync/route.ts" &&
-    /^(?:src\/app|app|components|public)\//.test(changedPath)
-  ) {
-    fail(`UI/public path touched: ${changedPath}.`);
+  if (/stripe|openai|importers/i.test(changedPath)) {
+    fail(`Forbidden product path touched: ${changedPath}.`);
   }
-  if (/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath)) {
-    fail(`Forbidden external/product path touched: ${changedPath}.`);
-  }
+}
+
+const route = read("src/app/api/document-sync/route.ts");
+if (/createClient\s*\(|@supabase|createDocumentSyncServerService/.test(route)) {
+  fail("Route shell must not create Supabase clients or sync service.");
+}
+if (!route.includes("buildDocumentSyncRouteDisabledResponse")) {
+  fail("Route shell must return disabled responses.");
+}
+if (!route.includes("route_shell_enabled_but_operations_disabled")) {
+  fail("Route shell must keep local shell operations disabled.");
 }
 
 for (const changedPath of changedPaths) {
@@ -192,10 +191,24 @@ for (const changedPath of changedPaths) {
     ["sensitive role literal", new RegExp(["service", "role"].join("_"), "i")],
     ["sensitive credential word", new RegExp("sec" + "ret", "i")],
     ["client factory", /createClient\s*\(/],
-    ["env read in service", /server-sync-(?:service|command|batch|response|audit)\.ts[\s\S]*process\.env/],
-    ["full body", /(?:documentSnapshot|pdfSnapshot|rawPayload|pdfBody)\s*[:=]\s*[{[]/],
+    ["Supabase import", /@supabase/i],
+    ["route payload echo", /echoPayload|rawBodyEcho|payloadEcho/i],
+    ["route operation enabled", /routeOperationsEnabled|syncOperationEnabled/i],
   ]) {
     if (regex.test(added)) fail(`Forbidden added content ${label} in ${changedPath}.`);
+  }
+}
+
+const compliance = read("docs/compliance-evidence-v1.md");
+for (const required of [
+  "route shell deshabilitada 2C.31-2C.36",
+  "Fase 2C.31-2C.36",
+  "sin endpoint publico operativo",
+  "PHASE2C_DISABLED_SYNC_ROUTE_SHELL: DISABLED BY DEFAULT / NO OPERATIONS ENABLED",
+  "docs/phase2c36-disabled-sync-route-shell-checkpoint-v1.md",
+]) {
+  if (!compliance.includes(required)) {
+    fail(`Compliance dossier missing required 2C.31-2C.36 text: ${required}.`);
   }
 }
 
@@ -204,9 +217,9 @@ if (gitLines(["ls-files", "docs/vida-screenshots-local"]).length > 0) {
 }
 
 if (errors.length > 0) {
-  console.error("Phase 2C.25-2C.30 server document sync service validation failed:");
+  console.error("Phase 2C.31-2C.36 disabled sync route shell validation failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Phase 2C.25-2C.30 server document sync service validation passed.");
+console.log("Phase 2C.31-2C.36 disabled sync route shell validation passed.");

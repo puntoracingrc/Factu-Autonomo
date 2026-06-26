@@ -164,12 +164,16 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/phase2c17-/,
   /^scripts\/phase2c2[123]-/,
   /^scripts\/phase2c29-/,
+  /^scripts\/phase2c35-/,
   /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
   /^scripts\/validate-phase2c(?:19|20|21|22|23|19-24)-/,
   /^scripts\/validate-phase2c(?:25|26|27|28|29|25-30)-/,
+  /^scripts\/validate-phase2c(?:31|32|33|34|35|31-36)-/,
+  /^src\/app\/api\/document-sync\/route\.ts$/,
   /^docs\/phase2c(?:13|14|15|16|17|18)-/,
   /^docs\/phase2c(?:19|20|21|22|23|24)-/,
   /^docs\/phase2c(?:25|26|27|28|29|30)-/,
+  /^docs\/phase2c(?:31|32|33|34|35|36)-/,
   /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
   /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
@@ -198,7 +202,10 @@ for (const changedPath of changedPaths) {
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}.`);
   }
-  if (/^(?:src\/app|app|components|public)\//.test(changedPath)) {
+  if (
+    changedPath !== "src/app/api/document-sync/route.ts" &&
+    /^(?:src\/app|app|components|public)\//.test(changedPath)
+  ) {
     fail(`UI/public path touched: ${changedPath}.`);
   }
   if (/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath)) {

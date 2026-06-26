@@ -75,7 +75,10 @@ for (const changedPath of changedPaths) {
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
     fail(`Vercel config touched: ${changedPath}`);
   }
-  if (/^(?:src\/app|app|components|public)\//.test(changedPath)) {
+  if (
+    changedPath !== "src/app/api/document-sync/route.ts" &&
+    /^(?:src\/app|app|components|public)\//.test(changedPath)
+  ) {
     fail(`UI/public path touched: ${changedPath}`);
   }
 }

@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24 y servicio server-only 2C.25-2C.30 a 2026-06-27
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30 y route shell deshabilitada 2C.31-2C.36 a 2026-06-27
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -84,6 +84,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2C.13-2C.18 | Diseno de adaptador Supabase local/staging para sincronizacion segura. | PR 2C Supabase local sync adapter | Contrato server-only; cliente inyectado; mapper seguro; store Supabase fakeable; adapter local/staging; acceptance local opt-in bloqueada por schema actual; checkpoint. | Validadores 2C.13-2C.18; tests unitarios con fake client; fake tests; acceptance opt-in skipped/bloqueada si falta schema compatible. | Diseno tecnico local/staging; sin produccion, sin Supabase remoto, sin migraciones, sin endpoints, sin UI y sin documentos reales. |
 | Fase 2C.19-2C.24 | Schema local/staging compatible para acceptance de sync 2C. | PR 2C local schema acceptance | Auditoria de gap; migracion local/staging minima y rollback; guard de permisos opt-in; acceptance local opt-in; concurrencia con fake client; checkpoint. | Validadores 2C.19-2C.24; `check:migrations`; guard de permisos y acceptance ejecutados contra Supabase local; fake concurrency. | Acceptance local passed; sin produccion, sin Supabase remoto, sin endpoints, sin UI y sin documentos reales. |
 | Fase 2C.25-2C.30 | Servicio server-only para sync documental sobre adapters inyectados. | PR 2C server document sync service | Contrato de comando; servicio server-only; batch planning/apply; serializer seguro; auditoria in-memory; acceptance local. | Validadores 2C.25-2C.30; tests unitarios de `src/lib/document-sync-integrity`; acceptance local in-memory. | `PHASE2C_SERVER_SYNC_SERVICE: READY FOR DISABLED ROUTE SHELL DESIGN`; sin produccion, sin Supabase remoto, sin endpoint, sin UI y sin documentos reales. |
+| Fase 2C.31-2C.36 | Route shell deshabilitada para futura sync documental. | PR 2C disabled sync route shell | Flag privada de servidor; shell HTTP deshabilitada por defecto; auth context server-only; envelope seguro; acceptance local; checkpoint. | Validadores 2C.31-2C.36; tests unitarios de `src/lib/document-sync-integrity`; acceptance local de route shell disabled. | `PHASE2C_DISABLED_SYNC_ROUTE_SHELL: DISABLED BY DEFAULT / NO OPERATIONS ENABLED`; sin produccion, sin Supabase remoto, sin endpoint publico operativo, sin UI y sin documentos reales. |
 
 Archivos internos relevantes:
 
@@ -249,7 +250,9 @@ Riesgos diferidos de Fase 2A.5:
 
 Trabajo pendiente:
 
-- mantener la evidencia de acceptance Supabase 2C local y del servicio server-only 2C.25-2C.30; cualquier validacion remota queda fuera de estos PR y requiere orden separada. No hay produccion, Supabase remoto, endpoints ni UI.
+- mantener la evidencia de acceptance Supabase 2C local, del servicio server-only 2C.25-2C.30 y de la route shell deshabilitada 2C.31-2C.36; cualquier validacion remota queda fuera de estos PR y requiere orden separada. No hay produccion, Supabase remoto, endpoint publico operativo ni UI.
+- la route shell de document sync queda deshabilitada por defecto mediante flag privada de servidor. El auth context se conserva como frontera server-only futura, las respuestas son seguras y no hay operaciones de sync habilitadas, mutaciones de documentos ni uso de documentos reales.
+- proximos pasos posibles: hardening adicional de la shell, staging privado con fake adapter o snapshot PDF del dossier si se solicita una entrega formal externa.
 
 ## 9. VERI*FACTU
 
@@ -565,6 +568,7 @@ Declaraciones no permitidas todavía:
 | Fase 2B.7L-P | Enforcement ejecutable del bloqueo oficial | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / ENFORCED BY CODE`; intake gate, contrato de validador bloqueado, preflight gate y blocker report seguro; sin XML oficial, sin validacion XSD real, sin AEAT, sin QR, sin firma y sin transporte. |
 | Fase 2B.7Q-U | Tooling local/offline de readiness de artefactos oficiales | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / READINESS TOOLING AVAILABLE`; intake local, checksum SHA-256, import/include graph, CLI y acceptance tests con XSD sinteticos temporales; sin XSD oficial commiteado, sin XML oficial, sin validador real, sin QR, sin firma y sin transporte. |
 | Fase 2B.7V-Z | Preparacion final de desbloqueo manual futuro | Bloqueada como `PHASE2B7_OFFICIAL_ALIGNMENT_GATE: BLOCKED / UNLOCK PREPARATION COMPLETE`; lockfile contract, generator local, verifier opt-in, checklist humana y template JSON; sin XSD oficial commiteado, sin XML oficial, sin validador real, sin QR, sin firma y sin transporte. |
+| Fase 2C.31-2C.36 | Route shell deshabilitada para document sync | `PHASE2C_DISABLED_SYNC_ROUTE_SHELL: DISABLED BY DEFAULT / NO OPERATIONS ENABLED`; evidencia tecnica interna; server-only; flag privada de servidor; sin endpoint publico operativo, sin UI, sin produccion, sin Supabase remoto y sin documentos reales. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
 | Producción | Migraciones y despliegue controlado | Pendiente; no tocar sin validación. |
@@ -591,6 +595,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-26 | Enforcement ejecutable 2B.7L-P añadido para mantener bloqueada la alineacion oficial hasta que existan fixtures XSD, validador offline y datos sinteticos seguros. | Fase 2B.7L-P | PR 2B.7L-P blocker enforcement | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Readiness tooling local/offline 2B.7Q-U añadido para futura entrada manual segura de artefactos oficiales, manteniendo el bloqueo oficial. | Fase 2B.7Q-U | PR 2B.7Q-U readiness tooling | Equipo Factura Autónomo / Codex |
 | 2026-06-26 | Preparacion 2B.7V-Z añadida con lockfile contract, generator local, verifier opt-in, checklist humana y checkpoint final, manteniendo el bloqueo oficial. | Fase 2B.7V-Z | PR 2B.7V-Z unlock preparation | Equipo Factura Autónomo / Codex |
+| 2026-06-27 | Route shell deshabilitada 2C.31-2C.36 añadida como evidencia tecnica interna, con flag privada de servidor, auth context boundary, envelope seguro y acceptance local. | Fase 2C.31-2C.36 | PR 2C disabled sync route shell | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -664,6 +669,19 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2b7y-human-approval-checklist-for-official-artifacts-v1.md`;
 - `docs/phase2b7y-human-approval-checklist-for-official-artifacts.template.json`;
 - `docs/phase2b7z-official-artifact-unlock-preparation-checkpoint-v1.md`;
+- `docs/phase2c31-disabled-sync-route-private-flag-contract-v1.md`;
+- `docs/phase2c32-disabled-sync-route-shell-http-v1.md`;
+- `docs/phase2c33-sync-route-auth-context-adapter-v1.md`;
+- `docs/phase2c34-sync-route-safe-envelope-v1.md`;
+- `docs/phase2c35-disabled-sync-route-shell-acceptance-v1.md`;
+- `docs/phase2c36-disabled-sync-route-shell-checkpoint-v1.md`;
+- `scripts/validate-phase2c31-disabled-sync-route-private-flag-contract.mjs`;
+- `scripts/validate-phase2c32-disabled-sync-route-shell-http.mjs`;
+- `scripts/validate-phase2c33-sync-route-auth-context-adapter.mjs`;
+- `scripts/validate-phase2c34-sync-route-safe-envelope.mjs`;
+- `scripts/validate-phase2c35-disabled-sync-route-shell-acceptance.mjs`;
+- `scripts/validate-phase2c31-36-disabled-sync-route-shell.mjs`;
+- `scripts/phase2c35-disabled-sync-route-shell-acceptance.test.ts`;
 - Quality sobre los PRs y `main`: SUCCESS;
 - Supabase Acceptance sobre los PRs y `main`: SUCCESS;
 - validadores 2B ejecutados durante las subfases y cierre;

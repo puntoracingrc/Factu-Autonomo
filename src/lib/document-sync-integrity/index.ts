@@ -149,6 +149,48 @@ export type {
   DocumentSyncServerAuditEventType,
   InMemoryDocumentSyncServerAuditSink,
 } from "./server-sync-audit";
+export {
+  DOCUMENT_SYNC_ROUTE_SHELL_ENABLED_KEY,
+  DOCUMENT_SYNC_ROUTE_SHELL_PRIVATE_MODE_KEY,
+  DOCUMENT_SYNC_ROUTE_SHELL_PRIVATE_MODE_LOCAL,
+  assertDocumentSyncRouteShellDisabledByDefault,
+  evaluateDocumentSyncRouteShellFlag,
+  summarizeDocumentSyncRouteShellFlag,
+} from "./route-shell-flag";
+export type {
+  DocumentSyncRouteShellEnvLike,
+  DocumentSyncRouteShellFlagEvaluation,
+  DocumentSyncRouteShellFlagReason,
+  DocumentSyncRouteShellFlagSafeSummary,
+  DocumentSyncRouteShellFlagStatus,
+} from "./route-shell-flag";
+export {
+  buildDisabledRouteAuthContext,
+  rejectMissingRouteAuthContext,
+  summarizeRouteAuthContext,
+} from "./route-auth-context";
+export type {
+  DocumentSyncRouteAuthContextInput,
+  DocumentSyncRouteAuthContextReason,
+  DocumentSyncRouteAuthContextResult,
+  DocumentSyncRouteAuthContextSafeSummary,
+  DocumentSyncRouteAuthContextStatus,
+} from "./route-auth-context";
+export {
+  DOCUMENT_SYNC_ROUTE_ENVELOPE_MAX_BYTES,
+  buildDocumentSyncRouteDisabledResponse,
+  buildDocumentSyncRouteErrorResponse,
+  buildDocumentSyncRouteSafeResponse,
+  parseDocumentSyncRouteEnvelope,
+} from "./route-envelope";
+export type {
+  DocumentSyncRouteEnvelopeInput,
+  DocumentSyncRouteEnvelopeResult,
+  DocumentSyncRouteEnvelopeSafeSummary,
+  DocumentSyncRouteEnvelopeStatus,
+  DocumentSyncRouteSafeResponse,
+  DocumentSyncRouteSafeResponseBody,
+} from "./route-envelope";
 export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,
