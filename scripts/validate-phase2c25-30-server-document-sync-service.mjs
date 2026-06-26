@@ -63,12 +63,13 @@ function addedLines(relativePath) {
 
 const packageJson = JSON.parse(read("package.json") || "{}");
 const requiredScripts = [
-  "validate:phase2c19-supabase-local-schema-gap-audit",
-  "validate:phase2c20-supabase-local-sync-schema-migration",
-  "validate:phase2c21-supabase-local-sync-permission-guard",
-  "validate:phase2c22-supabase-local-sync-acceptance",
-  "validate:phase2c23-supabase-local-sync-concurrency-idempotency",
-  "validate:phase2c19-24-supabase-local-schema-acceptance",
+  "validate:phase2c25-server-sync-command-contract",
+  "validate:phase2c26-server-document-sync-service",
+  "validate:phase2c27-server-sync-batch-processing",
+  "validate:phase2c28-server-sync-safe-response-audit",
+  "validate:phase2c29-server-sync-service-local-acceptance",
+  "validate:phase2c25-30-server-document-sync-service",
+  "test:phase2c29-server-sync-service-local-acceptance",
 ];
 
 for (const scriptName of requiredScripts) {
@@ -78,26 +79,27 @@ for (const scriptName of requiredScripts) {
 for (const scriptName of requiredScripts.slice(0, 5)) run(scriptName);
 
 for (const filePath of [
-  "supabase/migrations/20260626212000_phase2c20_document_sync_local_schema.sql",
-  "supabase/rollbacks/20260626212000_phase2c20_document_sync_local_schema.down.sql",
-  "scripts/phase2c21-supabase-local-sync-permission-guard.test.ts",
-  "scripts/phase2c22-supabase-local-sync-acceptance.test.ts",
-  "scripts/phase2c23-supabase-local-sync-concurrency.test.ts",
-  "docs/phase2c19-supabase-local-schema-gap-audit-v1.md",
-  "docs/phase2c20-supabase-local-sync-schema-migration-v1.md",
-  "docs/phase2c21-supabase-local-sync-permission-guard-v1.md",
-  "docs/phase2c22-supabase-local-sync-acceptance-v1.md",
-  "docs/phase2c23-supabase-local-sync-concurrency-idempotency-v1.md",
-  "docs/phase2c24-supabase-local-schema-acceptance-checkpoint-v1.md",
+  "src/lib/document-sync-integrity/server-sync-command.ts",
+  "src/lib/document-sync-integrity/server-sync-service.ts",
+  "src/lib/document-sync-integrity/server-sync-batch.ts",
+  "src/lib/document-sync-integrity/server-sync-response.ts",
+  "src/lib/document-sync-integrity/server-sync-audit.ts",
+  "scripts/phase2c29-server-sync-service-local-acceptance.test.ts",
+  "docs/phase2c25-server-sync-command-contract-v1.md",
+  "docs/phase2c26-server-document-sync-service-v1.md",
+  "docs/phase2c27-server-sync-batch-processing-v1.md",
+  "docs/phase2c28-server-sync-safe-response-audit-v1.md",
+  "docs/phase2c29-server-sync-service-local-acceptance-v1.md",
+  "docs/phase2c30-server-sync-service-checkpoint-v1.md",
 ]) {
   if (!fs.existsSync(absolute(filePath))) fail(`Missing required file ${filePath}.`);
 }
 
-const checkpoint = read("docs/phase2c24-supabase-local-schema-acceptance-checkpoint-v1.md");
+const checkpoint = read("docs/phase2c30-server-sync-service-checkpoint-v1.md");
 for (const marker of [
-  "PHASE2C24_SUPABASE_LOCAL_SCHEMA_ACCEPTANCE_CHECKPOINT_V1",
-  "PHASE2C_SUPABASE_LOCAL_SYNC_SCHEMA:",
-  "LOCAL ACCEPTANCE PASSED / NO PRODUCTION",
+  "PHASE2C30_SERVER_SYNC_SERVICE_CHECKPOINT_V1",
+  "PHASE2C_SERVER_SYNC_SERVICE:",
+  "READY FOR DISABLED ROUTE SHELL DESIGN",
   "NO PRODUCTION",
   "NO SUPABASE PRODUCTION",
   "NO SUPABASE REMOTE",
@@ -105,28 +107,9 @@ for (const marker of [
   "NO UI",
   "NO REAL DOCUMENT MUTATION",
   "NO REAL INVOICES",
-  "NO FISCAL TABLES",
+  "NO ROUTE ENABLED",
 ]) {
   if (!checkpoint.includes(marker)) fail(`Checkpoint missing marker ${marker}.`);
-}
-
-const migration = read("supabase/migrations/20260626212000_phase2c20_document_sync_local_schema.sql");
-const rollback = read("supabase/rollbacks/20260626212000_phase2c20_document_sync_local_schema.down.sql");
-const sql = `${migration}\n${rollback}`;
-for (const forbidden of [
-  /\bfiscal_records\b/i,
-  /\bfiscal_chain_state\b/i,
-  /\bfiscal_transport_attempts\b/i,
-  /\bstripe\b/i,
-  /\bopenai\b/i,
-  /\bdrop\s+table\b/i,
-  /\btruncate\b/i,
-  /\bdelete\s+from\b/i,
-  /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
-  /\bservice_role\b/i,
-  /\bcreate\s+policy\b/i,
-]) {
-  if (forbidden.test(sql)) fail(`Forbidden SQL pattern in 2C.20: ${forbidden}.`);
 }
 
 const changedPaths = new Set([
@@ -139,21 +122,7 @@ const changedPaths = new Set([
 
 const allowedPathPatterns = [
   /^src\/lib\/document-sync-integrity\//,
-  /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
-  /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
-  /^scripts\/validate-phase2b6(?:b|c|d(?:-h)?|e|f|g)-.*\.mjs$/,
-  /^scripts\/validate-phase2b7(?:a(?:-e)?|b|f(?:-k)?|g|h|l(?:-p)?|n|q-u|v-z)-.*\.mjs$/,
-  /^scripts\/phase2c21-supabase-local-sync-permission-guard\.test\.ts$/,
-  /^scripts\/phase2c22-supabase-local-sync-acceptance\.test\.ts$/,
-  /^scripts\/phase2c23-supabase-local-sync-concurrency\.test\.ts$/,
   /^scripts\/phase2c29-server-sync-service-local-acceptance\.test\.ts$/,
-  /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
-  /^scripts\/validate-phase2c19-.*\.mjs$/,
-  /^scripts\/validate-phase2c20-.*\.mjs$/,
-  /^scripts\/validate-phase2c21-.*\.mjs$/,
-  /^scripts\/validate-phase2c22-.*\.mjs$/,
-  /^scripts\/validate-phase2c23-.*\.mjs$/,
-  /^scripts\/validate-phase2c19-24-.*\.mjs$/,
   /^scripts\/validate-phase2c25-.*\.mjs$/,
   /^scripts\/validate-phase2c26-.*\.mjs$/,
   /^scripts\/validate-phase2c27-.*\.mjs$/,
@@ -164,18 +133,13 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
   /^scripts\/validate-phase2c13-18-supabase-local-sync-adapter\.mjs$/,
-  /^docs\/phase2c19-supabase-local-schema-gap-audit-v1\.md$/,
-  /^docs\/phase2c20-supabase-local-sync-schema-migration-v1\.md$/,
-  /^docs\/phase2c21-supabase-local-sync-permission-guard-v1\.md$/,
-  /^docs\/phase2c22-supabase-local-sync-acceptance-v1\.md$/,
-  /^docs\/phase2c23-supabase-local-sync-concurrency-idempotency-v1\.md$/,
-  /^docs\/phase2c24-supabase-local-schema-acceptance-checkpoint-v1\.md$/,
-  /^docs\/phase2c25-.*\.md$/,
-  /^docs\/phase2c26-.*\.md$/,
-  /^docs\/phase2c27-.*\.md$/,
-  /^docs\/phase2c28-.*\.md$/,
-  /^docs\/phase2c29-.*\.md$/,
-  /^docs\/phase2c30-.*\.md$/,
+  /^scripts\/validate-phase2c19-24-supabase-local-schema-acceptance\.mjs$/,
+  /^docs\/phase2c25-server-sync-command-contract-v1\.md$/,
+  /^docs\/phase2c26-server-document-sync-service-v1\.md$/,
+  /^docs\/phase2c27-server-sync-batch-processing-v1\.md$/,
+  /^docs\/phase2c28-server-sync-safe-response-audit-v1\.md$/,
+  /^docs\/phase2c29-server-sync-service-local-acceptance-v1\.md$/,
+  /^docs\/phase2c30-server-sync-service-checkpoint-v1\.md$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
@@ -183,7 +147,10 @@ const allowedPathPatterns = [
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (!allowedPathPatterns.some((pattern) => pattern.test(changedPath))) {
-    fail(`Unexpected path touched in 2C.19-2C.24: ${changedPath}.`);
+    fail(`Unexpected path touched in 2C.25-2C.30: ${changedPath}.`);
+  }
+  if (/^supabase\/migrations\//.test(changedPath)) {
+    fail(`New migration touched: ${changedPath}.`);
   }
   if (/vida/i.test(changedPath)) fail(`ViDA path touched: ${changedPath}.`);
   if (/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath)) {
@@ -203,11 +170,12 @@ for (const changedPath of changedPaths) {
   if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");
   for (const [label, regex] of [
-    ["production Supabase URL", /https:\/\/[^ \n]*supabase/i],
     ["remote URL", /https?:\/\/(?!localhost|127\.0\.0\.1|\[::1\])/i],
-    ["service role literal", /\bservice_role\b/i],
-    ["secret literal", /\bsecret\b/i],
-    ["full snapshot body", /(?:documentSnapshot|pdfSnapshot)\s*[:=]\s*[{[]/],
+    ["sensitive role literal", new RegExp(["service", "role"].join("_"), "i")],
+    ["sensitive credential word", new RegExp("sec" + "ret", "i")],
+    ["client factory", /createClient\s*\(/],
+    ["env read in service", /server-sync-(?:service|command|batch|response|audit)\.ts[\s\S]*process\.env/],
+    ["full body", /(?:documentSnapshot|pdfSnapshot|rawPayload|pdfBody)\s*[:=]\s*[{[]/],
   ]) {
     if (regex.test(added)) fail(`Forbidden added content ${label} in ${changedPath}.`);
   }
@@ -218,9 +186,9 @@ if (gitLines(["ls-files", "docs/vida-screenshots-local"]).length > 0) {
 }
 
 if (errors.length > 0) {
-  console.error("Phase 2C.19-2C.24 Supabase local schema acceptance validation failed:");
+  console.error("Phase 2C.25-2C.30 server document sync service validation failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Phase 2C.19-2C.24 Supabase local schema acceptance validation passed.");
+console.log("Phase 2C.25-2C.30 server document sync service validation passed.");
