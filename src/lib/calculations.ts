@@ -38,7 +38,11 @@ export function documentTotals(doc: Pick<Document, "items">) {
 }
 
 export function expenseTotal(expense: Expense): number {
-  return expense.amount * (1 + expense.ivaPercent / 100);
+  const amount = Number.isFinite(expense.amount) ? expense.amount : 0;
+  const ivaPercent = Number.isFinite(expense.ivaPercent)
+    ? expense.ivaPercent
+    : 0;
+  return roundMoney(amount * (1 + ivaPercent / 100));
 }
 
 export function formatMoney(amount: number): string {

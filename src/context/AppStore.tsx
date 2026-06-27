@@ -125,6 +125,7 @@ interface AppStoreValue {
   convertQuoteToInvoice: (id: string) => Document | null;
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
+  updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
   addRecurringExpense: (
     item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
@@ -826,6 +827,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const updateExpense = useCallback((expense: Expense) => {
+    setAppData((prev) => ({
+      ...prev,
+      expenses: prev.expenses.map((entry) =>
+        entry.id === expense.id ? expense : entry,
+      ),
+    }));
+  }, [setAppData]);
+
   const addRecurringExpense = useCallback(
     (
       item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
@@ -979,6 +989,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       suppliers: prev.suppliers.map((entry) =>
         entry.id === supplier.id ? supplier : entry,
+      ),
+      expenses: prev.expenses.map((expense) =>
+        expense.supplierId === supplier.id
+          ? { ...expense, supplierName: supplier.name }
+          : expense,
       ),
     }));
   }, [setAppData]);
@@ -1221,6 +1236,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
+      updateExpense,
       deleteExpense,
       addRecurringExpense,
       updateRecurringExpense,
@@ -1261,6 +1277,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
+      updateExpense,
       deleteExpense,
       addRecurringExpense,
       updateRecurringExpense,

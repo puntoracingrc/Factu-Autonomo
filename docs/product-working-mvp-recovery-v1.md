@@ -168,9 +168,9 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - El usuario debe guardarla en un lugar seguro.
 - Esta copia no se sube a ningún servidor.
 - La exportación no escribe en `localStorage`.
-- No se añade importación de backup.
-- No se añade restauración de backup.
-- No se leen archivos JSON del usuario desde este bloque.
+- La importación y restauración se gestionan en los bloques siguientes con
+  revisión previa.
+- La exportación no lee archivos JSON del usuario.
 - No se usa `FileReader` para exportar la copia.
 - No se cambia la sincronización en nube ni Supabase.
 - No toca AEAT real, XML, firma, certificado ni transporte.
@@ -219,6 +219,35 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No toca Supabase remoto ni producción.
 - No toca AEAT real, XML, QR oficial nuevo, firma, certificado ni transporte.
 - No cambia PDF, QR existente, conversión, emisión ni cobro local.
+
+## Gastos y proveedores
+
+- `/proveedores` permite crear proveedores desde la lista principal.
+- La ficha de proveedor se puede editar sin duplicar la lista.
+- Cambiar el nombre de un proveedor actualiza los gastos vinculados por id.
+- El listado conserva nombre, NIF si existe, contacto, dirección y compras.
+- La búsqueda y ordenación de proveedores siguen funcionando sobre datos locales.
+- Los posibles duplicados se pueden unificar con el flujo existente.
+- `/gastos/nuevo` mantiene la creación de gastos del negocio.
+- El mismo formulario permite editar un gasto existente desde el listado.
+- La edición se abre con el enlace contextual del gasto, sin crear una ruta nueva.
+- El usuario puede cambiar fecha, descripción, proveedor, base, IVA, categoría y pago.
+- Si no se conoce el proveedor, el gasto puede guardarse como `Sin proveedor`.
+- Si se informa proveedor y se marca guardar, se reutiliza o crea ficha local.
+- Los importes se tratan como base imponible para el gasto.
+- La pantalla muestra base, IVA soportado y total antes de guardar.
+- Un gasto de base 100 con IVA 21 muestra total 121.
+- Un gasto con IVA 0 mantiene total igual a la base.
+- Los importes no finitos se normalizan para evitar `NaN` en la interfaz.
+- El listado de gastos muestra proveedor, descripción, categoría, forma de pago y total.
+- El total del listado respeta el perfil exento de IVA ya existente.
+- El CSV de gastos se mantiene en el flujo actual.
+- La copia de seguridad incluye gastos y proveedores.
+- La vista previa de importación cuenta gastos y proveedores por separado.
+- La restauración preserva gastos con y sin proveedor vinculado.
+- No se añade contabilidad oficial, presentación de impuestos ni conexión bancaria.
+- No toca Supabase remoto ni producción.
+- No toca AEAT real, XML, QR oficial nuevo, firma, certificado ni transporte.
 
 ## PDF, vista previa e impresión
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
@@ -27,11 +27,14 @@ import {
   decimalInputFromNumber,
   parseDecimalInput,
 } from "@/lib/decimal-input";
+import { expenseTotalsFromBase } from "@/lib/expenses";
 
 export default function NuevoGastoPage() {
   const router = useRouter();
-  const { data, addExpense, addSupplier } = useAppStore();
+  const { data, addExpense, updateExpense, addSupplier } = useAppStore();
 
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [loadedExpenseId, setLoadedExpenseId] = useState<string | null>(null);
   const [date, setDate] = useState(todayISO());
   const [supplierName, setSupplierName] = useState("");
   const [description, setDescription] = useState("");
@@ -51,6 +54,44 @@ export default function NuevoGastoPage() {
   );
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [supplierHint, setSupplierHint] = useState<string | null>(null);
+
+  const editingExpense = useMemo(
+    () =>
+      editingExpenseId
+        ? data.expenses.find((expense) => expense.id === editingExpenseId)
+        : undefined,
+    [data.expenses, editingExpenseId],
+  );
+  const editingRequested = Boolean(editingExpenseId);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setEditingExpenseId(params.get("editar"));
+  }, []);
+
+  useEffect(() => {
+    if (!editingExpense || loadedExpenseId === editingExpense.id) return;
+    setLoadedExpenseId(editingExpense.id);
+    setDate(editingExpense.date);
+    setSupplierName(
+      editingExpense.supplierName === "Sin proveedor"
+        ? ""
+        : editingExpense.supplierName,
+    );
+    setSelectedSupplierId(editingExpense.supplierId ?? null);
+    setDescription(editingExpense.description);
+    setAmountText(decimalInputFromNumber(editingExpense.amount));
+    if (!vatExempt) setIvaPercent(editingExpense.ivaPercent);
+    setCategory(editingExpense.category);
+    setPaymentMethod(editingExpense.paymentMethod);
+    setNotes(editingExpense.notes ?? "");
+    setSaveSupplier(Boolean(editingExpense.supplierId));
+    setSupplierHint(
+      editingExpense.supplierId
+        ? `Usando el proveedor guardado «${editingExpense.supplierName}».`
+        : null,
+    );
+  }, [editingExpense, loadedExpenseId, vatExempt]);
 
   function applyScanResult(payload: ExpenseScanPayload) {
     const match = findBestSupplierMatch(data.suppliers, {
@@ -105,20 +146,32 @@ export default function NuevoGastoPage() {
   }
 
   function handleSubmit() {
-    const amount = parseDecimalInput(amountText);
+    const totals = expenseTotalsFromBase(
+      parseDecimalInput(amountText),
+      ivaPercent,
+      vatExempt,
+    );
+    const amount = totals.base;
 
-    if (!supplierName.trim() || !description.trim() || amount <= 0) {
-      alert("Completa proveedor, descripción y cantidad");
+    if (!description.trim() || amount <= 0) {
+      alert("Completa descripción y cantidad");
       return;
     }
 
-    const resolved = ensureSupplierForExpense(data.suppliers, {
-      name: supplierName,
-      nif: supplierNif,
-      category,
-      saveSupplier,
-      selectedSupplierId,
-    });
+    const hasSupplierName = Boolean(supplierName.trim());
+    const resolved = hasSupplierName
+      ? ensureSupplierForExpense(data.suppliers, {
+          name: supplierName,
+          nif: supplierNif,
+          category,
+          saveSupplier,
+          selectedSupplierId,
+        })
+      : {
+          supplierId: undefined,
+          supplierName: "Sin proveedor",
+          create: undefined,
+        };
 
     let supplierId = resolved.supplierId;
     if (resolved.create) {
@@ -126,17 +179,26 @@ export default function NuevoGastoPage() {
       supplierId = created.id;
     }
 
-    addExpense({
+    const payload = {
       date,
       supplierId,
       supplierName: resolved.supplierName,
       description: description.trim(),
       amount,
-      ivaPercent: vatExempt ? 0 : ivaPercent,
+      ivaPercent: totals.ivaPercent,
       category,
       paymentMethod,
       notes: notes || undefined,
-    });
+    };
+
+    if (editingExpense) {
+      updateExpense({
+        ...editingExpense,
+        ...payload,
+      });
+    } else {
+      addExpense(payload);
+    }
 
     router.push("/gastos");
   }
@@ -144,11 +206,21 @@ export default function NuevoGastoPage() {
   return (
     <div>
       <PageHeader
-        title="Añadir gasto"
-        subtitle="Anota una compra o gasto del negocio"
+        title={editingRequested ? "Editar gasto" : "Añadir gasto"}
+        subtitle={
+          editingRequested
+            ? "Actualiza importe, IVA, proveedor o categoría"
+            : "Anota una compra o gasto del negocio"
+        }
       />
       <div className="space-y-5">
-        <ExpenseScanCard onScanned={applyScanResult} />
+        {!editingRequested && <ExpenseScanCard onScanned={applyScanResult} />}
+        {editingRequested && !editingExpense && (
+          <Card className="border-amber-200 bg-amber-50 text-sm text-amber-900">
+            No encuentro ese gasto en tus datos locales. Puedes volver al listado
+            o guardar este formulario como gasto nuevo.
+          </Card>
+        )}
         {scanHint && (
           <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-900">
             {scanHint}
@@ -163,9 +235,9 @@ export default function NuevoGastoPage() {
           <FormSection
             variant="search"
             title="Proveedor"
-            hint="Elige uno guardado o escribe el nombre de la tienda. Si marcas guardar, quedará en tu lista."
+            hint="Elige uno guardado, escribe el nombre de la tienda o deja este campo vacío si todavía no lo sabes."
           >
-            <Field label="Nombre de proveedor / tienda *">
+            <Field label="Nombre de proveedor / tienda">
               <Input
                 value={supplierName}
                 onChange={(e) => handleSupplierNameChange(e.target.value)}
@@ -265,7 +337,7 @@ export default function NuevoGastoPage() {
           </FormSection>
         </Card>
         <Button fullWidth onClick={handleSubmit}>
-          Guardar gasto
+          {editingExpense ? "Guardar cambios" : "Guardar gasto"}
         </Button>
       </div>
     </div>

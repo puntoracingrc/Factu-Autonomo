@@ -102,7 +102,7 @@ describe("backup", () => {
     });
   });
 
-  it("incluye clientes, documentos y configuración del perfil", () => {
+  it("incluye clientes, documentos, gastos, proveedores y configuración del perfil", () => {
     const payload = createBackupPayload(
       {
         ...EMPTY_DATA,
@@ -134,6 +134,27 @@ describe("backup", () => {
             updatedAt: NOW,
           },
         ],
+        suppliers: [
+          {
+            id: "supplier-1",
+            name: "Proveedor Demo",
+            createdAt: NOW,
+          },
+        ],
+        expenses: [
+          {
+            id: "expense-1",
+            date: "2026-06-24",
+            supplierId: "supplier-1",
+            supplierName: "Proveedor Demo",
+            description: "Material",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            createdAt: NOW,
+          },
+        ],
       },
       NOW,
     );
@@ -141,6 +162,8 @@ describe("backup", () => {
     expect(payload.data.profile.name).toBe("Taller Demo");
     expect(payload.data.customers).toHaveLength(1);
     expect(payload.data.documents).toHaveLength(1);
+    expect(payload.data.suppliers).toHaveLength(1);
+    expect(payload.data.expenses).toHaveLength(1);
   });
 
   it("no exporta metadata interna, secrets ni tokens", () => {
@@ -290,6 +313,27 @@ describe("backup", () => {
             updatedAt: NOW,
           },
         ],
+        suppliers: [
+          {
+            id: "supplier-1",
+            name: "Proveedor Demo",
+            createdAt: NOW,
+          },
+        ],
+        expenses: [
+          {
+            id: "expense-1",
+            date: "2026-06-24",
+            supplierId: "supplier-1",
+            supplierName: "Proveedor Demo",
+            description: "Material",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            createdAt: NOW,
+          },
+        ],
       },
       NOW,
     );
@@ -315,6 +359,8 @@ describe("backup", () => {
         invoices: 1,
         issuedInvoices: 1,
         paidInvoices: 1,
+        expenses: 1,
+        suppliers: 1,
       },
     });
   });
@@ -614,6 +660,68 @@ describe("backup", () => {
       paymentStatus: "paid",
     });
     expect(draft.draft.preview.counts.paidInvoices).toBe(1);
+  });
+
+  it("la restauración preserva gastos y proveedores", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        suppliers: [
+          {
+            id: "supplier-restore",
+            name: "Proveedor Restore",
+            nif: "B12345678",
+            createdAt: NOW,
+          },
+        ],
+        expenses: [
+          {
+            id: "expense-restore",
+            date: "2026-06-24",
+            supplierId: "supplier-restore",
+            supplierName: "Proveedor Restore",
+            description: "Material",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            createdAt: NOW,
+          },
+          {
+            id: "expense-no-supplier",
+            date: "2026-06-25",
+            supplierName: "Sin proveedor",
+            description: "Peaje",
+            amount: 10,
+            ivaPercent: 0,
+            category: "Transporte",
+            paymentMethod: "Tarjeta",
+            createdAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    const draft = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 1024,
+      rawText: JSON.stringify(payload),
+    });
+
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    expect(draft.draft.preview.counts.suppliers).toBe(1);
+    expect(draft.draft.preview.counts.expenses).toBe(2);
+    expect(draft.draft.data.suppliers[0]).toMatchObject({
+      id: "supplier-restore",
+      name: "Proveedor Restore",
+    });
+    expect(draft.draft.data.expenses.map((expense) => expense.id)).toEqual([
+      "expense-restore",
+      "expense-no-supplier",
+    ]);
   });
 
   it("bloquea JSON malicioso antes de restaurar", () => {

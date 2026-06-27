@@ -96,6 +96,17 @@ describe("ensureSupplierForExpense", () => {
     expect(result.supplierId).toBeUndefined();
     expect(result.create?.name).toBe("Amazon");
   });
+
+  it("permite un gasto sin crear proveedor cuando no se quiere guardar", () => {
+    const result = ensureSupplierForExpense(suppliers, {
+      name: "Tienda de paso",
+      saveSupplier: false,
+    });
+
+    expect(result.supplierId).toBeUndefined();
+    expect(result.create).toBeUndefined();
+    expect(result.supplierName).toBe("Tienda de paso");
+  });
 });
 
 describe("findDuplicateSupplierGroups", () => {
