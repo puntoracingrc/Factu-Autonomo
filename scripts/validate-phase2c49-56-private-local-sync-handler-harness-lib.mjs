@@ -131,7 +131,7 @@ function validateNoRedLines() {
     /^scripts\/validate-phase2c39-.*\.mjs$/,
     /^scripts\/validate-phase2c43-.*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66)-/,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/,
     /^scripts\/validate-phase2d/,
     /^docs\/phase2c(?:49|50|51|52|53|54|56)-.*\.md$/,
     /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-.*\.(?:md|json)$/,
@@ -163,7 +163,7 @@ function validateNoRedLines() {
     if (
       changedPath === "package.json" ||
       /^src\/lib\/local-data-safety\//.test(changedPath) ||
-      /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66)-/.test(changedPath) ||
+      /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/.test(changedPath) ||
       /^docs\/phase2d/.test(changedPath) ||
       /^src\/lib\/document-sync-integrity\/private-staging-/.test(changedPath) ||
       /^scripts\/phase2c63-/.test(changedPath) ||

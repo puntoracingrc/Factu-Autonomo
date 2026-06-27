@@ -417,7 +417,7 @@ export function validatePhase2C37To48Aggregate() {
     /^scripts\/validate-phase2c32-disabled-sync-route-shell-http\.mjs$/,
     /^scripts\/validate-phase2c31-36-disabled-sync-route-shell\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66)-/,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/,
     /^scripts\/validate-phase2d/,
     /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-.*\.md$/,
     /^docs\/phase2c(?:49|50|51|52|53|54|56)-.*\.md$/,
