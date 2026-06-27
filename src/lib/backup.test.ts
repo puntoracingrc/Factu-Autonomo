@@ -4,6 +4,7 @@ import {
   createBackupBlob,
   createBackupFilename,
   createBackupPayload,
+  buildBackupImportPreview,
   downloadBackup,
   parseBackupJson,
 } from "./backup";
@@ -219,7 +220,7 @@ describe("backup", () => {
     });
   });
 
-  it("expone solo exportación visible en configuración", () => {
+  it("expone exportación e importación en vista previa sin restaurar", () => {
     const source = readFileSync(
       new URL("../components/settings/DataOwnershipCard.tsx", import.meta.url),
       "utf8",
@@ -227,11 +228,212 @@ describe("backup", () => {
 
     expect(source).toContain("Copia de seguridad");
     expect(source).toContain("Exportar copia de seguridad");
-    expect(source).not.toContain("Importar");
-    expect(source).not.toContain("Restaurar");
+    expect(source).toContain("Importar copia de seguridad");
+    expect(source).toContain("Seleccionar archivo de copia");
+    expect(source).not.toContain(">Restaurar copia<");
   });
 
   it("la exportación no usa FileReader ni escribe localStorage", () => {
+    const helperSource = readFileSync(
+      new URL("./backup.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(helperSource).not.toContain("FileReader");
+    expect(helperSource).not.toContain("localStorage.setItem");
+  });
+
+  it("genera vista previa segura de un JSON válido", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          name: "Taller Demo",
+          nif: "12345678Z",
+        },
+        customers: [
+          {
+            id: "customer-1",
+            firstName: "Ana",
+            lastName: "López",
+            name: "Ana López",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        documents: [
+          {
+            id: "quote-1",
+            type: "presupuesto",
+            number: "P-2026-0001",
+            date: "2026-06-24",
+            client: { name: "Ana López" },
+            items: [],
+            status: "borrador",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+          {
+            id: "invoice-1",
+            type: "factura",
+            number: "F-2026-0001",
+            date: "2026-06-24",
+            client: { name: "Ana López" },
+            items: [],
+            status: "pagado",
+            documentLifecycle: "issued",
+            paymentStatus: "paid",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 1024,
+      rawText: JSON.stringify(payload),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.preview).toMatchObject({
+      exportedAt: NOW,
+      exportVersion: 1,
+      source: "local",
+      hasIssuerProfile: true,
+      counts: {
+        customers: 1,
+        documents: 2,
+        quotes: 1,
+        invoices: 1,
+        issuedInvoices: 1,
+        paidInvoices: 1,
+      },
+    });
+  });
+
+  it("muestra error seguro con JSON inválido", () => {
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 12,
+      rawText: "{ nope",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "No se pudo leer el JSON de la copia.",
+    });
+  });
+
+  it("rechaza extensiones prohibidas", () => {
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup.zip",
+      mimeType: "application/json",
+      byteLength: 12,
+      rawText: "{}",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Selecciona una copia en formato JSON.",
+    });
+  });
+
+  it("rechaza backups sin metadata", () => {
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 12,
+      rawText: JSON.stringify(EMPTY_DATA),
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "La copia no incluye metadata y datos válidos.",
+    });
+  });
+
+  it("rechaza campos de prototype pollution", () => {
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 256,
+      rawText:
+        '{"metadata":{"app":"factura-autonomo","exportVersion":1,"exportedAt":"2026-06-24T10:00:00.000Z","source":"local"},"data":{"profile":{},"customers":[],"documents":[],"__proto__":{"polluted":true}}}',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "La copia contiene campos no permitidos.",
+    });
+  });
+
+  it("rechaza campos de token o secreto sin exponerlos", () => {
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 256,
+      rawText: JSON.stringify({
+        metadata: {
+          app: "factura-autonomo",
+          exportVersion: 1,
+          exportedAt: NOW,
+          source: "local",
+        },
+        data: {
+          profile: {},
+          customers: [],
+          documents: [],
+          accessToken: "SHOULD_NOT_LEAK",
+        },
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("La copia contiene campos privados no permitidos.");
+    expect(result.error).not.toContain("SHOULD_NOT_LEAK");
+    expect(result.error).not.toContain("accessToken");
+  });
+
+  it("la vista previa no muestra payload completo", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        customers: [
+          {
+            id: "customer-1",
+            firstName: "Ana",
+            lastName: "Secreta",
+            name: "Ana Secreta",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    const result = buildBackupImportPreview({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "",
+      byteLength: 1024,
+      rawText: JSON.stringify(payload),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(JSON.stringify(result.preview)).not.toContain("Ana Secreta");
+    expect(result.preview.counts.customers).toBe(1);
+  });
+
+  it("no escribe localStorage ni muestra botón de restauración en la vista previa", () => {
     const helperSource = readFileSync(
       new URL("./backup.ts", import.meta.url),
       "utf8",
@@ -240,10 +442,25 @@ describe("backup", () => {
       new URL("../components/settings/DataOwnershipCard.tsx", import.meta.url),
       "utf8",
     );
-    const source = `${helperSource}\n${cardSource}`;
 
-    expect(source).not.toContain("FileReader");
-    expect(source).not.toContain("localStorage.setItem");
+    expect(`${helperSource}\n${cardSource}`).not.toContain("localStorage.setItem");
+    expect(cardSource).not.toContain("Restaurar copia");
+    expect(cardSource).not.toContain("replaceData");
+  });
+
+  it("FileReader se limita a la UI de selección de copia", () => {
+    const helperSource = readFileSync(
+      new URL("./backup.ts", import.meta.url),
+      "utf8",
+    );
+    const cardSource = readFileSync(
+      new URL("../components/settings/DataOwnershipCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(helperSource).not.toContain("FileReader");
+    expect(cardSource).toContain("new FileReader()");
+    expect(cardSource).toContain("reader.readAsText(file)");
   });
 
   it("exportar e importar copia conserva campos de integridad documental", async () => {

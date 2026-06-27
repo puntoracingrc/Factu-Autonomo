@@ -176,6 +176,28 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No toca AEAT real, XML, firma, certificado ni transporte.
 - No cambia PDF, QR existente, conversión, emisión ni cobro local.
 
+## Vista previa de copia de seguridad
+
+- En `/configuracion`, junto a la copia local, aparece `Importar copia de seguridad`.
+- El usuario puede seleccionar un archivo JSON desde su dispositivo.
+- El botón `Revisar copia` lee el archivo seleccionado y genera solo una vista previa.
+- La vista previa exige metadata y datos con forma esperada.
+- Se aceptan archivos `.json` con tipo `application/json` o tipo vacío controlado.
+- Se rechazan extensiones como zip, pdf, xml, html, js o csv.
+- Se rechazan nombres sospechosos, JSON inválido, copias sin metadata y formatos desconocidos.
+- Se bloquean campos peligrosos como `__proto__`, `constructor` o `prototype`.
+- Se bloquean campos que parezcan secretos, tokens, claves o datos de entorno.
+- El resumen muestra fecha, versión, origen, clientes, documentos, presupuestos y facturas.
+- También muestra facturas emitidas, facturas cobradas y si incluye perfil emisor.
+- No muestra clientes completos, documentos completos, PDF, QR ni payload interno.
+- La vista previa avisa de que una futura restauración reemplazaría datos locales.
+- La vista previa recomienda hacer copia antes de restaurar.
+- No se aplica ningún cambio todavía.
+- No se escribe en `localStorage`.
+- No se sube ningún archivo a servidor.
+- No hay botón de restauración en esta fase.
+- No toca Supabase, AEAT real, XML, firma, certificado ni transporte.
+
 ## PDF, vista previa e impresión
 
 - `Abrir PDF` genera el PDF existente y lo abre en una pestaña nueva cuando el navegador lo permite.
