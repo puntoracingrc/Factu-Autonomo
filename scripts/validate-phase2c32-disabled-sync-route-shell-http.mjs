@@ -32,13 +32,23 @@ if (!route.includes("buildDocumentSyncRouteDisabledResponse")) {
 if (!route.includes("route_shell_enabled_but_operations_disabled")) {
   fail("Local shell path must keep operations disabled.");
 }
+const laterLocalFakeBoundary = route.includes(
+  "PHASE2C39_SYNC_ROUTE_LOCAL_FAKE_EXECUTION_BOUNDARY_V1",
+);
 for (const [label, regex] of [
   ["Supabase import", /@supabase/i],
   ["client factory", /createClient\s*\(/],
   ["server service creation", /createDocumentSyncServerService/],
   ["document mutation adapter", /applySingle|applyBatch|handle\(/],
 ]) {
+  if (laterLocalFakeBoundary && label === "document mutation adapter") continue;
   if (regex.test(route)) fail(`Forbidden route operation: ${label}.`);
+}
+if (
+  laterLocalFakeBoundary &&
+  !route.includes("getDocumentSyncRouteFakeRuntime")
+) {
+  fail("Later local/fake boundary must use the fake route service only.");
 }
 if (!doc.includes("PHASE2C32_DISABLED_SYNC_ROUTE_SHELL_HTTP_V1")) {
   fail("Missing 2C.32 doc marker.");

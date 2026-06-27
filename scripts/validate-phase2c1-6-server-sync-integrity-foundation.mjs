@@ -172,10 +172,12 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/phase2c2[123]-/,
   /^scripts\/phase2c29-/,
   /^scripts\/phase2c35-/,
+  /^scripts\/phase2c4[056]-/,
   /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
   /^scripts\/validate-phase2c(?:19|20|21|22|23|19-24)-/,
   /^scripts\/validate-phase2c(?:25|26|27|28|29|25-30)-/,
   /^scripts\/validate-phase2c(?:31|32|33|34|35|31-36)-/,
+  /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -185,6 +187,7 @@ const unrelatedLaterPhasePatterns = [
   /^docs\/phase2c(?:19|20|21|22|23|24)-/,
   /^docs\/phase2c(?:25|26|27|28|29|30)-/,
   /^docs\/phase2c(?:31|32|33|34|35|36)-/,
+  /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/,
   /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
   /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
@@ -262,6 +265,15 @@ const forbiddenAddedPatterns = [
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (!fs.existsSync(absolute(changedPath))) continue;
+  if (
+    /^src\/lib\/document-sync-integrity\/route-(?:local-execution-contract|fake-adapter|rate-limit|idempotency|telemetry)(?:\.test)?\.ts$/.test(
+      changedPath,
+    ) ||
+    /^scripts\/phase2c4[056]-/.test(changedPath) ||
+    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath)
+  ) {
+    continue;
+  }
   if (unrelatedLaterPhasePatterns.some((pattern) => pattern.test(changedPath))) {
     continue;
   }

@@ -93,16 +93,57 @@ const allowedPatterns = [
   /^scripts\/validate-phase2c13-18-supabase-local-sync-adapter\.mjs$/,
   /^scripts\/validate-phase2c19-24-supabase-local-schema-acceptance\.mjs$/,
   /^scripts\/validate-phase2c25-30-server-document-sync-service\.mjs$/,
+  /^scripts\/validate-phase2c32-disabled-sync-route-shell-http\.mjs$/,
   /^scripts\/validate-phase2c31-36-disabled-sync-route-shell\.mjs$/,
+  /^scripts\/validate-phase2c37-.*\.mjs$/,
+  /^scripts\/validate-phase2c38-.*\.mjs$/,
+  /^scripts\/validate-phase2c39-.*\.mjs$/,
+  /^scripts\/validate-phase2c40-.*\.mjs$/,
+  /^scripts\/validate-phase2c41-.*\.mjs$/,
+  /^scripts\/validate-phase2c42-.*\.mjs$/,
+  /^scripts\/validate-phase2c43-.*\.mjs$/,
+  /^scripts\/validate-phase2c44-.*\.mjs$/,
+  /^scripts\/validate-phase2c45-.*\.mjs$/,
+  /^scripts\/validate-phase2c46-.*\.mjs$/,
+  /^scripts\/validate-phase2c37-48-.*\.mjs$/,
+  /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
+  /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
+  /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
+  /^src\/app\/api\/document-sync\/route\.ts$/,
+  /^src\/lib\/document-sync-integrity\//,
+  /^docs\/phase2c37-.*\.md$/,
+  /^docs\/phase2c38-.*\.md$/,
+  /^docs\/phase2c39-.*\.md$/,
+  /^docs\/phase2c40-.*\.md$/,
+  /^docs\/phase2c41-.*\.md$/,
+  /^docs\/phase2c42-.*\.md$/,
+  /^docs\/phase2c43-.*\.md$/,
+  /^docs\/phase2c44-.*\.md$/,
+  /^docs\/phase2c45-.*\.md$/,
+  /^docs\/phase2c46-.*\.md$/,
+  /^docs\/phase2c48-.*\.md$/,
   /^package\.json$/,
 ];
+
+function isPhase2C37To48Path(changedPath) {
+  return [
+    /^src\/app\/api\/document-sync\/route\.ts$/,
+    /^src\/lib\/document-sync-integrity\//,
+    /^scripts\/phase2c4[056]-/,
+    /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-/,
+    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/,
+  ].some((pattern) => pattern.test(changedPath));
+}
 
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (!allowedPatterns.some((pattern) => pattern.test(changedPath))) {
     fail(`Unexpected AUDIT_EXPORT_V1 path touched: ${changedPath}.`);
   }
-  if (/^src\/|^supabase\/|^app\/|^pages\//.test(changedPath)) {
+  if (
+    !isPhase2C37To48Path(changedPath) &&
+    /^(?:src\/|supabase\/|app\/|pages\/)/.test(changedPath)
+  ) {
     fail(`Product/Supabase path touched: ${changedPath}.`);
   }
   if (/^supabase\/migrations\//.test(changedPath)) fail(`Migration touched: ${changedPath}.`);
