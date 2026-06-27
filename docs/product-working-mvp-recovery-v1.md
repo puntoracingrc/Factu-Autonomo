@@ -145,6 +145,24 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No hay XML.
 - No hay firma, certificado ni transporte.
 
+## Pulido de uso diario MVP
+
+- Pantalla inicial revisada:
+  - accesos para crear cliente, presupuesto y factura;
+  - enlaces para revisar clientes, presupuestos y facturas;
+  - contadores básicos de clientes, presupuestos, facturas, emitidas y borradores;
+  - últimos documentos con acceso al detalle.
+- Listados revisados:
+  - clientes guía a `Crear cliente` cuando está vacío;
+  - presupuestos guía a `Crear presupuesto` cuando está vacío;
+  - facturas guía a `Crear factura` cuando está vacío.
+- Acciones por tipo de documento:
+  - presupuestos mantienen editar/ver, PDF, abrir PDF, imprimir vista, email/WhatsApp y convertir a factura;
+  - facturas mantienen editar/ver, PDF, abrir PDF, imprimir vista, email/WhatsApp y acciones ya existentes de cobro, recordatorio y rectificativa.
+- El QR existente se conserva sin crear QR oficial nuevo.
+- No hay AEAT real, XML, firma, certificado ni transporte.
+- Queda para después una revisión visual más amplia y posibles accesos rápidos configurables.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.
