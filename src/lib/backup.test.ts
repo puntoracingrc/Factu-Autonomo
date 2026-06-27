@@ -5,7 +5,9 @@ import {
   createBackupFilename,
   createBackupPayload,
   buildBackupImportPreview,
+  buildBackupRestoreDraft,
   downloadBackup,
+  getBackupRestoreBlocker,
   parseBackupJson,
 } from "./backup";
 import {
@@ -230,7 +232,7 @@ describe("backup", () => {
     expect(source).toContain("Exportar copia de seguridad");
     expect(source).toContain("Importar copia de seguridad");
     expect(source).toContain("Seleccionar archivo de copia");
-    expect(source).not.toContain(">Restaurar copia<");
+    expect(source).toContain("Restaurar copia");
   });
 
   it("la exportación no usa FileReader ni escribe localStorage", () => {
@@ -433,7 +435,7 @@ describe("backup", () => {
     expect(result.preview.counts.customers).toBe(1);
   });
 
-  it("no escribe localStorage ni muestra botón de restauración en la vista previa", () => {
+  it("no escribe localStorage directo ni llama servicios remotos para restaurar", () => {
     const helperSource = readFileSync(
       new URL("./backup.ts", import.meta.url),
       "utf8",
@@ -444,8 +446,10 @@ describe("backup", () => {
     );
 
     expect(`${helperSource}\n${cardSource}`).not.toContain("localStorage.setItem");
-    expect(cardSource).not.toContain("Restaurar copia");
-    expect(cardSource).not.toContain("replaceData");
+    expect(cardSource).toContain("replaceData(restoreDraft.data");
+    expect(cardSource).not.toContain("getSupabase");
+    expect(cardSource).not.toContain("fiscal_transport_attempts");
+    expect(cardSource).not.toContain("api/verifactu");
   });
 
   it("FileReader se limita a la UI de selección de copia", () => {
@@ -461,6 +465,198 @@ describe("backup", () => {
     expect(helperSource).not.toContain("FileReader");
     expect(cardSource).toContain("new FileReader()");
     expect(cardSource).toContain("reader.readAsText(file)");
+  });
+
+  it("bloquea restore sin preview", () => {
+    expect(
+      getBackupRestoreBlocker({
+        draftReady: false,
+        currentBackupReady: true,
+        confirmedReplacement: true,
+        confirmedCurrentBackup: true,
+      }),
+    ).toBe("Primero revisa una copia válida.");
+  });
+
+  it("bloquea restore sin confirmaciones", () => {
+    expect(
+      getBackupRestoreBlocker({
+        draftReady: true,
+        currentBackupReady: true,
+        confirmedReplacement: false,
+        confirmedCurrentBackup: true,
+      }),
+    ).toBe("Confirma que entiendes que se reemplazarán los datos locales.");
+    expect(
+      getBackupRestoreBlocker({
+        draftReady: true,
+        currentBackupReady: true,
+        confirmedReplacement: true,
+        confirmedCurrentBackup: false,
+      }),
+    ).toBe("Confirma que has descargado una copia actual.");
+  });
+
+  it("bloquea restore si no hay backup previo actual", () => {
+    expect(
+      getBackupRestoreBlocker({
+        draftReady: true,
+        currentBackupReady: false,
+        confirmedReplacement: true,
+        confirmedCurrentBackup: true,
+      }),
+    ).toBe("Descarga antes una copia de seguridad actual.");
+  });
+
+  it("permite restore solo con todas las condiciones listas", () => {
+    expect(
+      getBackupRestoreBlocker({
+        draftReady: true,
+        currentBackupReady: true,
+        confirmedReplacement: true,
+        confirmedCurrentBackup: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("prepara datos restaurables y reemplaza un store en memoria", () => {
+    const backupA = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          name: "Datos A",
+        },
+        customers: [
+          {
+            id: "customer-a",
+            firstName: "Ana",
+            lastName: "A",
+            name: "Ana A",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+    let inMemoryStore = {
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        name: "Datos B",
+      },
+      customers: [
+        {
+          id: "customer-b",
+          firstName: "Bruno",
+          lastName: "B",
+          name: "Bruno B",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    };
+
+    const draft = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 1024,
+      rawText: JSON.stringify(backupA),
+    });
+
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    inMemoryStore = draft.draft.data;
+    expect(inMemoryStore.profile.name).toBe("Datos A");
+    expect(inMemoryStore.customers.map((customer) => customer.id)).toEqual([
+      "customer-a",
+    ]);
+  });
+
+  it("la restauración preserva estructura esperada", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        documents: [
+          {
+            id: "invoice-restore",
+            type: "factura",
+            number: "F-2026-0001",
+            date: "2026-06-24",
+            client: { name: "Ana" },
+            items: [],
+            status: "pagado",
+            documentLifecycle: "issued",
+            paymentStatus: "paid",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    const draft = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 1024,
+      rawText: JSON.stringify(payload),
+    });
+
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    expect(draft.draft.data.documents[0]).toMatchObject({
+      id: "invoice-restore",
+      type: "factura",
+      status: "pagado",
+      documentLifecycle: "issued",
+      paymentStatus: "paid",
+    });
+    expect(draft.draft.preview.counts.paidInvoices).toBe(1);
+  });
+
+  it("bloquea JSON malicioso antes de restaurar", () => {
+    const draft = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 256,
+      rawText:
+        '{"metadata":{"app":"factura-autonomo","exportVersion":1,"exportedAt":"2026-06-24T10:00:00.000Z","source":"local"},"data":{"profile":{},"customers":[],"documents":[],"constructor":{"prototype":{"polluted":true}}}}',
+    });
+
+    expect(draft).toEqual({
+      ok: false,
+      error: "La copia contiene campos no permitidos.",
+    });
+  });
+
+  it("no expone tokens o secrets en errores de restore", () => {
+    const draft = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-2026-06-24.json",
+      mimeType: "application/json",
+      byteLength: 256,
+      rawText: JSON.stringify({
+        metadata: {
+          app: "factura-autonomo",
+          exportVersion: 1,
+          exportedAt: NOW,
+          source: "local",
+        },
+        data: {
+          profile: {},
+          customers: [],
+          documents: [],
+          privateKey: "SHOULD_NOT_LEAK",
+        },
+      }),
+    });
+
+    expect(draft.ok).toBe(false);
+    if (draft.ok) return;
+    expect(draft.error).toBe("La copia contiene campos privados no permitidos.");
+    expect(draft.error).not.toContain("SHOULD_NOT_LEAK");
+    expect(draft.error).not.toContain("privateKey");
   });
 
   it("exportar e importar copia conserva campos de integridad documental", async () => {

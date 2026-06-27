@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
-import { buildBackupImportPreview, downloadBackup } from "@/lib/backup";
-import type { BackupImportPreview } from "@/lib/backup";
+import {
+  buildBackupRestoreDraft,
+  downloadBackup,
+  getBackupRestoreBlocker,
+} from "@/lib/backup";
+import type { BackupRestoreDraft } from "@/lib/backup";
 
 export function DataOwnershipCard() {
-  const { data } = useAppStore();
+  const { data, replaceData } = useAppStore();
   const { user, cloudEnabled } = useCloudSync();
   const hasCloudSession = Boolean(user);
   const [backupFeedback, setBackupFeedback] = useState<{
@@ -18,10 +22,25 @@ export function DataOwnershipCard() {
     message: string;
   } | null>(null);
   const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
-  const [importPreview, setImportPreview] =
-    useState<BackupImportPreview | null>(null);
+  const [restoreDraft, setRestoreDraft] = useState<BackupRestoreDraft | null>(
+    null,
+  );
   const [importError, setImportError] = useState<string | null>(null);
+  const [currentBackupReady, setCurrentBackupReady] = useState(false);
+  const [confirmedReplacement, setConfirmedReplacement] = useState(false);
+  const [confirmedCurrentBackup, setConfirmedCurrentBackup] = useState(false);
+  const [restoreFeedback, setRestoreFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const restoreBlocker = getBackupRestoreBlocker({
+    draftReady: Boolean(restoreDraft),
+    currentBackupReady,
+    confirmedReplacement,
+    confirmedCurrentBackup,
+  });
 
   function handleBackupExport() {
     const result = downloadBackup(data);
@@ -56,8 +75,12 @@ export function DataOwnershipCard() {
 
   function handleBackupFileChange(file: File | undefined) {
     setSelectedBackupFile(file ?? null);
-    setImportPreview(null);
+    setRestoreDraft(null);
     setImportError(null);
+    setCurrentBackupReady(false);
+    setConfirmedReplacement(false);
+    setConfirmedCurrentBackup(false);
+    setRestoreFeedback(null);
   }
 
   async function handleReviewBackup() {
@@ -67,11 +90,15 @@ export function DataOwnershipCard() {
     }
 
     setImportError(null);
-    setImportPreview(null);
+    setRestoreDraft(null);
+    setCurrentBackupReady(false);
+    setConfirmedReplacement(false);
+    setConfirmedCurrentBackup(false);
+    setRestoreFeedback(null);
 
     try {
       const rawText = await readSelectedBackupFile(selectedBackupFile);
-      const result = buildBackupImportPreview({
+      const result = buildBackupRestoreDraft({
         fileName: selectedBackupFile.name,
         mimeType: selectedBackupFile.type,
         byteLength: selectedBackupFile.size,
@@ -83,10 +110,57 @@ export function DataOwnershipCard() {
         return;
       }
 
-      setImportPreview(result.preview);
+      setRestoreDraft(result.draft);
     } catch {
       setImportError("No se pudo leer el archivo seleccionado.");
     }
+  }
+
+  function handlePrepareCurrentBackup() {
+    setRestoreFeedback(null);
+    const result = downloadBackup(data);
+    if (!result.ok) {
+      setCurrentBackupReady(false);
+      setConfirmedCurrentBackup(false);
+      setRestoreFeedback({
+        tone: "error",
+        message: `${result.error} No se puede restaurar sin una copia actual.`,
+      });
+      return;
+    }
+
+    setCurrentBackupReady(true);
+    setRestoreFeedback({
+      tone: "success",
+      message: `Copia actual descargada: ${result.filename}`,
+    });
+  }
+
+  function handleRestoreBackup() {
+    const blocker = getBackupRestoreBlocker({
+      draftReady: Boolean(restoreDraft),
+      currentBackupReady,
+      confirmedReplacement,
+      confirmedCurrentBackup,
+    });
+
+    if (blocker || !restoreDraft) {
+      setRestoreFeedback({
+        tone: "error",
+        message: blocker ?? "La copia no está lista para restaurar.",
+      });
+      return;
+    }
+
+    replaceData(restoreDraft.data, { fromRemote: true });
+    setRestoreFeedback({
+      tone: "success",
+      message:
+        "Copia restaurada. Los datos locales se han reemplazado en este navegador.",
+    });
+    setConfirmedReplacement(false);
+    setConfirmedCurrentBackup(false);
+    setCurrentBackupReady(false);
   }
 
   return (
@@ -213,7 +287,7 @@ export function DataOwnershipCard() {
             {importError}
           </p>
         )}
-        {importPreview && (
+        {restoreDraft && (
           <div
             aria-live="polite"
             className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950"
@@ -221,50 +295,126 @@ export function DataOwnershipCard() {
             <div>
               <p className="font-semibold">Resumen de la copia</p>
               <p className="mt-1 text-emerald-900">
-                Exportada el {importPreview.exportedAt.slice(0, 10)} · versión{" "}
-                {importPreview.exportVersion} · origen {importPreview.source}
+                Exportada el {restoreDraft.preview.exportedAt.slice(0, 10)} ·
+                versión {restoreDraft.preview.exportVersion} · origen{" "}
+                {restoreDraft.preview.source}
               </p>
             </div>
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div>
                 <dt className="text-xs text-emerald-800">Clientes</dt>
-                <dd className="font-bold">{importPreview.counts.customers}</dd>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.customers}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-emerald-800">Documentos</dt>
-                <dd className="font-bold">{importPreview.counts.documents}</dd>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.documents}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-emerald-800">Presupuestos</dt>
-                <dd className="font-bold">{importPreview.counts.quotes}</dd>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.quotes}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-emerald-800">Facturas</dt>
-                <dd className="font-bold">{importPreview.counts.invoices}</dd>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.invoices}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-emerald-800">Emitidas</dt>
                 <dd className="font-bold">
-                  {importPreview.counts.issuedInvoices}
+                  {restoreDraft.preview.counts.issuedInvoices}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-emerald-800">Cobradas</dt>
                 <dd className="font-bold">
-                  {importPreview.counts.paidInvoices}
+                  {restoreDraft.preview.counts.paidInvoices}
                 </dd>
               </div>
             </dl>
             <p>
               Perfil emisor:{" "}
-              <strong>{importPreview.hasIssuerProfile ? "incluido" : "vacío"}</strong>
+              <strong>
+                {restoreDraft.preview.hasIssuerProfile ? "incluido" : "vacío"}
+              </strong>
             </p>
             <ul className="space-y-1">
-              {importPreview.warnings.map((warning) => (
+              {restoreDraft.preview.warnings.map((warning) => (
                 <li key={warning}>· {warning}</li>
               ))}
             </ul>
+            <div className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 text-slate-700">
+              <p className="font-semibold text-slate-900">
+                Restaurar copia
+              </p>
+              <p>
+                Antes de restaurar, descarga una copia actual. Después confirma
+                que se reemplazarán los datos locales de este navegador.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handlePrepareCurrentBackup}
+              >
+                <Download className="h-5 w-5" />
+                Descargar copia actual
+              </Button>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={confirmedReplacement}
+                  onChange={(event) =>
+                    setConfirmedReplacement(event.target.checked)
+                  }
+                  className="mt-1 h-4 w-4 rounded"
+                />
+                <span>
+                  Entiendo que se reemplazarán los datos locales actuales.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={confirmedCurrentBackup}
+                  disabled={!currentBackupReady}
+                  onChange={(event) =>
+                    setConfirmedCurrentBackup(event.target.checked)
+                  }
+                  className="mt-1 h-4 w-4 rounded"
+                />
+                <span>He descargado una copia de seguridad actual.</span>
+              </label>
+              {restoreBlocker && (
+                <p className="text-xs text-amber-700">{restoreBlocker}</p>
+              )}
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleRestoreBackup}
+                disabled={Boolean(restoreBlocker)}
+              >
+                Restaurar copia
+              </Button>
+            </div>
           </div>
+        )}
+        {restoreFeedback && (
+          <p
+            aria-live="polite"
+            className={`mt-3 text-sm font-medium ${
+              restoreFeedback.tone === "success"
+                ? "text-emerald-700"
+                : "text-red-600"
+            }`}
+          >
+            {restoreFeedback.message}
+          </p>
         )}
       </div>
     </Card>

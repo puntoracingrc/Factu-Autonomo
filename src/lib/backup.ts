@@ -53,6 +53,22 @@ export type BackupImportPreviewResult =
   | { ok: true; preview: BackupImportPreview }
   | { ok: false; error: string };
 
+export interface BackupRestoreDraft {
+  preview: BackupImportPreview;
+  data: AppData;
+}
+
+export type BackupRestoreDraftResult =
+  | { ok: true; draft: BackupRestoreDraft }
+  | { ok: false; error: string };
+
+export interface BackupRestoreReadiness {
+  draftReady: boolean;
+  currentBackupReady: boolean;
+  confirmedReplacement: boolean;
+  confirmedCurrentBackup: boolean;
+}
+
 interface DownloadBackupOptions {
   now?: () => Date;
 }
@@ -133,38 +149,16 @@ function findUnsafeBackupKey(value: unknown): "dangerous" | "secret" | null {
   return null;
 }
 
-export function createBackupData(data: AppData): AppData {
-  const localData = { ...data };
-  delete localData.meta;
-  return sanitizeBackupValue(localData) as AppData;
-}
-
-export function createBackupPayload(
-  data: AppData,
-  exportedAt = new Date().toISOString(),
-): BackupPayload {
-  return {
-    metadata: {
-      app: BACKUP_APP_ID,
-      exportVersion: BACKUP_VERSION,
-      exportedAt,
-      source: BACKUP_SOURCE,
-      warning: BACKUP_WARNING,
-    },
-    data: createBackupData(data),
-  };
-}
-
-export function createBackupFilename(
-  exportedAt = new Date().toISOString(),
-): string {
-  const stamp = exportedAt.slice(0, 10);
-  return `${BACKUP_FILE_PREFIX}-${stamp}.json`;
-}
-
-export function buildBackupImportPreview(
+function parseValidatedBackupPayload(
   candidate: BackupImportPreviewCandidate,
-): BackupImportPreviewResult {
+):
+  | {
+      ok: true;
+      fileName: string;
+      metadata: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }
+  | { ok: false; error: string } {
   const fileName = cleanBackupFileName(candidate.fileName);
   const extension = backupFileExtension(fileName);
   const mimeType = (candidate.mimeType ?? "").trim().toLowerCase();
@@ -218,6 +212,13 @@ export function buildBackupImportPreview(
     return { ok: false, error: "La copia no parece ser de Factura Autónomo." };
   }
 
+  return { ok: true, fileName, metadata, data };
+}
+
+function normalizeBackupDataForImport(
+  metadata: Record<string, unknown>,
+  data: Record<string, unknown>,
+): BackupRestoreDraftResult {
   const exportVersion = Number(metadata.exportVersion);
   const exportedAt =
     typeof metadata.exportedAt === "string" ? metadata.exportedAt : "";
@@ -236,7 +237,10 @@ export function buildBackupImportPreview(
     !Array.isArray(data.customers) ||
     !Array.isArray(data.documents)
   ) {
-    return { ok: false, error: "Los datos de la copia no tienen la forma esperada." };
+    return {
+      ok: false,
+      error: "Los datos de la copia no tienen la forma esperada.",
+    };
   }
 
   let normalized: AppData;
@@ -246,21 +250,27 @@ export function buildBackupImportPreview(
     return { ok: false, error: "La copia no se puede normalizar con seguridad." };
   }
 
-  const invoices = normalized.documents.filter((document) => document.type === "factura");
+  const invoices = normalized.documents.filter(
+    (document) => document.type === "factura",
+  );
   const preview: BackupImportPreview = {
-    fileName,
+    fileName: "",
     exportedAt,
     exportVersion,
     source,
     counts: {
       customers: normalized.customers.length,
       documents: normalized.documents.length,
-      quotes: normalized.documents.filter((document) => document.type === "presupuesto").length,
+      quotes: normalized.documents.filter(
+        (document) => document.type === "presupuesto",
+      ).length,
       invoices: invoices.length,
       issuedInvoices: invoices.filter(
         (document) =>
           document.documentLifecycle === "issued" ||
-          ["enviado", "pagado", "vencido", "rectificada"].includes(document.status),
+          ["enviado", "pagado", "vencido", "rectificada"].includes(
+            document.status,
+          ),
       ).length,
       paidInvoices: invoices.filter(
         (document) =>
@@ -279,7 +289,93 @@ export function buildBackupImportPreview(
     ],
   };
 
-  return { ok: true, preview };
+  return { ok: true, draft: { preview, data: normalized } };
+}
+
+export function createBackupData(data: AppData): AppData {
+  const localData = { ...data };
+  delete localData.meta;
+  return sanitizeBackupValue(localData) as AppData;
+}
+
+export function createBackupPayload(
+  data: AppData,
+  exportedAt = new Date().toISOString(),
+): BackupPayload {
+  return {
+    metadata: {
+      app: BACKUP_APP_ID,
+      exportVersion: BACKUP_VERSION,
+      exportedAt,
+      source: BACKUP_SOURCE,
+      warning: BACKUP_WARNING,
+    },
+    data: createBackupData(data),
+  };
+}
+
+export function createBackupFilename(
+  exportedAt = new Date().toISOString(),
+): string {
+  const stamp = exportedAt.slice(0, 10);
+  return `${BACKUP_FILE_PREFIX}-${stamp}.json`;
+}
+
+export function buildBackupImportPreview(
+  candidate: BackupImportPreviewCandidate,
+): BackupImportPreviewResult {
+  const payload = parseValidatedBackupPayload(candidate);
+  if (!payload.ok) return payload;
+
+  const draft = normalizeBackupDataForImport(payload.metadata, payload.data);
+  if (!draft.ok) return draft;
+
+  return {
+    ok: true,
+    preview: {
+      ...draft.draft.preview,
+      fileName: payload.fileName,
+    },
+  };
+}
+
+export function buildBackupRestoreDraft(
+  candidate: BackupImportPreviewCandidate,
+): BackupRestoreDraftResult {
+  const payload = parseValidatedBackupPayload(candidate);
+  if (!payload.ok) return payload;
+
+  const draft = normalizeBackupDataForImport(payload.metadata, payload.data);
+  if (!draft.ok) return draft;
+
+  return {
+    ok: true,
+    draft: {
+      ...draft.draft,
+      preview: {
+        ...draft.draft.preview,
+        fileName: payload.fileName,
+      },
+    },
+  };
+}
+
+export function getBackupRestoreBlocker(
+  readiness: BackupRestoreReadiness,
+): string | null {
+  if (!readiness.draftReady) {
+    return "Primero revisa una copia válida.";
+  }
+  if (!readiness.currentBackupReady) {
+    return "Descarga antes una copia de seguridad actual.";
+  }
+  if (!readiness.confirmedReplacement) {
+    return "Confirma que entiendes que se reemplazarán los datos locales.";
+  }
+  if (!readiness.confirmedCurrentBackup) {
+    return "Confirma que has descargado una copia actual.";
+  }
+  return null;
 }
 
 export function parseBackupJson(raw: unknown): AppData | { error: string } {
