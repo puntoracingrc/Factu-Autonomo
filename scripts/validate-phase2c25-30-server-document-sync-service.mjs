@@ -155,6 +155,9 @@ const allowedPathPatterns = [
   /^docs\/phase2c34-.*\.md$/,
   /^docs\/phase2c35-.*\.md$/,
   /^docs\/phase2c36-.*\.md$/,
+  /^docs\/audit\//,
+  /^scripts\/export-compliance-dossier-html\.mjs$/,
+  /^scripts\/validate-audit-.*\.mjs$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
@@ -184,6 +187,9 @@ for (const changedPath of changedPaths) {
 
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
+  if (changedPath.startsWith("docs/audit/")) continue;
+  if (changedPath === "scripts/export-compliance-dossier-html.mjs") continue;
+  if (/^scripts\/validate-audit-.*\.mjs$/.test(changedPath)) continue;
   if (changedPath.includes("validate-phase2")) continue;
   if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");

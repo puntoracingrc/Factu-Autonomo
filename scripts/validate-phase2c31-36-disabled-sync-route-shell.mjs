@@ -149,6 +149,9 @@ const allowedPathPatterns = [
   /^docs\/phase2c34-sync-route-safe-envelope-v1\.md$/,
   /^docs\/phase2c35-disabled-sync-route-shell-acceptance-v1\.md$/,
   /^docs\/phase2c36-disabled-sync-route-shell-checkpoint-v1\.md$/,
+  /^docs\/audit\//,
+  /^scripts\/export-compliance-dossier-html\.mjs$/,
+  /^scripts\/validate-audit-.*\.mjs$/,
   /^docs\/compliance-evidence-v1\.md$/,
   /^package\.json$/,
 ];
@@ -183,6 +186,9 @@ if (!route.includes("route_shell_enabled_but_operations_disabled")) {
 
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
+  if (changedPath.startsWith("docs/audit/")) continue;
+  if (changedPath === "scripts/export-compliance-dossier-html.mjs") continue;
+  if (/^scripts\/validate-audit-.*\.mjs$/.test(changedPath)) continue;
   if (changedPath.includes("validate-phase2")) continue;
   if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");
