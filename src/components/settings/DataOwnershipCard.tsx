@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Download, HardDrive, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,6 +12,26 @@ export function DataOwnershipCard() {
   const { data } = useAppStore();
   const { user, cloudEnabled } = useCloudSync();
   const hasCloudSession = Boolean(user);
+  const [backupFeedback, setBackupFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  function handleBackupExport() {
+    const result = downloadBackup(data);
+    if (result.ok) {
+      setBackupFeedback({
+        tone: "success",
+        message: `Copia descargada: ${result.filename}`,
+      });
+      return;
+    }
+
+    setBackupFeedback({
+      tone: "error",
+      message: `${result.error} Prueba de nuevo desde este navegador.`,
+    });
+  }
 
   return (
     <Card className="mb-6 space-y-4 border-slate-200 bg-slate-50/80">
@@ -61,17 +82,35 @@ export function DataOwnershipCard() {
         </li>
       </ul>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button variant="secondary" onClick={() => downloadBackup(data)}>
-          <Download className="h-5 w-5" />
-          Descargar copia de seguridad (JSON)
-        </Button>
+      <div className="rounded-2xl border border-blue-100 bg-white p-4">
+        <h3 className="text-base font-bold text-slate-900">Copia de seguridad</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Descarga una copia JSON de tus datos locales. Guárdala en un lugar
+          seguro.
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          Esta copia puede contener datos personales y fiscales. No se sube a
+          ningún servidor y no aplica datos automáticamente.
+        </p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Button variant="secondary" onClick={handleBackupExport}>
+            <Download className="h-5 w-5" />
+            Exportar copia de seguridad
+          </Button>
+        </div>
+        {backupFeedback && (
+          <p
+            aria-live="polite"
+            className={`mt-3 text-sm font-medium ${
+              backupFeedback.tone === "success"
+                ? "text-emerald-700"
+                : "text-red-600"
+            }`}
+          >
+            {backupFeedback.message}
+          </p>
+        )}
       </div>
-      <p className="text-xs text-slate-500">
-        La copia JSON es un archivo en tu disco. Guárdalo como respaldo aunque
-        uses la nube. Si la web no carga un día, tus datos siguen en el navegador
-        y en ese archivo.
-      </p>
     </Card>
   );
 }
