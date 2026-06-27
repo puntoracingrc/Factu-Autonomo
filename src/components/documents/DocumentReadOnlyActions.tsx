@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye } from "lucide-react";
+import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
@@ -52,6 +53,9 @@ export function DocumentReadOnlyActions({
       </p>
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
         {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
+        {doc.type === "presupuesto" && (
+          <ConvertQuoteToInvoiceButton doc={doc} />
+        )}
         {doc.type === "factura" && canShowPaymentReminder(doc) && (
           <PaymentReminderButton
             doc={doc}

@@ -19,6 +19,7 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - calcular base, IVA y total;
   - guardar;
   - ver en listado;
+  - convertir a factura en borrador desde sus acciones;
   - descargar PDF;
   - compartir por email o WhatsApp si el cliente tiene contacto.
 - Facturas:
@@ -47,8 +48,6 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 
 ## 2. Qué está roto
 
-- No se ha encontrado conversión real de presupuesto a factura en la UI actual.
-- El botón de conversión se menciona en textos de ayuda, pero no aparece como flujo conectado.
 - La descarga nativa por `blob:` no siempre emite evento observable en Playwright, aunque sí ejecuta el clic de descarga.
 
 ## 3. Qué estaba oculto o desconectado
@@ -61,6 +60,7 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - en desarrollo podía quedar como `undefined`;
   - el presupuesto se guardaba en storage, pero la pantalla fallaba antes de cerrar el flujo.
 - Faltaba un botón explícito de imprimir en las acciones de documento.
+- La conversión presupuesto -> factura estaba mencionada en ayudas, pero no estaba conectada.
 
 ## 4. Qué se ha arreglado en esta rama
 
@@ -82,10 +82,28 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - no se sustituye el QR;
   - no se crea QR oficial nuevo;
   - el texto en PDF y previsualización de plantilla pasa a modo prudente.
+- Conversión presupuesto -> factura:
+  - se añade acción `Convertir a factura` en presupuestos;
+  - crea una factura nueva en borrador;
+  - abre la factura creada para revisarla antes de emitir.
+
+## Conversión presupuesto -> factura
+
+- El flujo se lanza desde las acciones de un presupuesto existente.
+- La factura resultante copia cliente, ficha vinculada, líneas, notas y forma de pago.
+- La factura obtiene id nuevo y numeración propia de factura.
+- La factura queda siempre en `borrador`.
+- Los totales se recalculan desde las líneas copiadas.
+- La factura guarda referencia al presupuesto origen.
+- El presupuesto original no se muta.
+- No se copian `documentSnapshot`, `pdfSnapshot`, hashes ni bloqueo de integridad.
+- No se copia `verifactu`, QR, CSV ni estado de emisión.
+- No hay AEAT real, XML, firma, certificado ni transporte.
+- No se crea QR oficial nuevo.
+- Si después se emite la factura, se usa el flujo existente y se conserva el comportamiento QR ya implementado.
 
 ## 5. Qué se deja para después
 
-- Conversión presupuesto -> factura con decisión de producto clara.
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.
 - Tests E2E permanentes para clientes, presupuesto, factura emitida, PDF y QR.
 - Revisión visual amplia en navegador real con datos representativos.
@@ -103,18 +121,16 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 8. Guardar y descargar PDF.
 9. Confirmar que vuelve a `/presupuestos` y aparece `P-...`.
 10. Ver que existen acciones de PDF, imprimir, email y WhatsApp.
-11. Crear una factura para el mismo cliente.
-12. Añadir una línea de 100 euros sin IVA.
-13. Guardar factura en borrador.
-14. Editarla, cambiar estado a enviado y guardar.
-15. Confirmar que vuelve a `/facturas`, aparece `Emitido` y `Veri*Factu`.
-16. Descargar PDF desde el listado.
-17. Recargar la página y comprobar que los datos siguen.
+11. Pulsar `Convertir a factura` en el presupuesto.
+12. Confirmar que se abre una factura nueva en borrador.
+13. Guardar o emitir la factura con el flujo existente.
+14. Confirmar que vuelve a `/facturas`, aparece `Emitido` y `Veri*Factu` si procede.
+15. Descargar PDF desde el listado.
+16. Recargar la página y comprobar que los datos siguen.
 
 ## 7. Riesgos reales
 
 - El almacenamiento local sigue siendo el punto único de persistencia para este flujo.
-- La conversión de presupuesto a factura no debe venderse como disponible hasta implementarla.
 - El botón imprimir imprime la vista actual del navegador, no un render PDF controlado.
 - El QR actual está en entorno de pruebas/local si no hay configuración real validada.
 - Las facturas emitidas quedan bloqueadas; cualquier cambio posterior debe ir por rectificativa o flujo específico.
