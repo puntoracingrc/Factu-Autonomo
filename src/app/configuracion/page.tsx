@@ -53,9 +53,7 @@ const ReferralCard = dynamic(
     import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
   {
     ssr: false,
-    loading: () => (
-      <p className="mb-6 text-sm text-slate-500">Cargando invitaciones…</p>
-    ),
+    loading: () => null,
   },
 );
 

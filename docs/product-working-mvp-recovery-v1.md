@@ -319,12 +319,44 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - no hay XML;
   - no hay firma, certificado ni transporte.
 
+## Revisión visual MVP
+
+- Pantallas revisadas en navegador local:
+  - Inicio;
+  - Clientes;
+  - Presupuestos;
+  - Facturas;
+  - Configuración;
+  - formulario de factura;
+  - detalle de factura emitida;
+  - detalle de presupuesto convertido.
+- Datos usados:
+  - perfil emisor sintético completo;
+  - cliente con email y teléfono;
+  - cliente sin contacto;
+  - presupuesto borrador;
+  - presupuesto rechazado;
+  - presupuesto convertido;
+  - factura borrador;
+  - factura emitida;
+  - factura cobrada localmente.
+- Resultado móvil:
+  - sin overflow horizontal en viewport de 390 px;
+  - acciones compactas desplazables cuando procede;
+  - menú inferior conserva desplazamiento horizontal.
+- Cambios visibles principales:
+  - foco visible en botones, enlaces y acciones compactas;
+  - aviso visible cuando un documento no tiene email ni teléfono;
+  - presupuesto convertido muestra enlace claro a su factura;
+  - Ajustes evita texto temporal de carga de invitaciones.
+- Pendiente:
+  - capturas E2E permanentes si se quiere automatizar la revisión visual.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.
 - Tests E2E permanentes para clientes, presupuesto, factura emitida, PDF y QR.
-- Revisión visual amplia en navegador real con datos representativos.
-- Mejorar mensajes de ayuda que prometen conversión si todavía no existe.
+- Mejorar mensajes de ayuda específicos si aparecen nuevos casos de conversión.
 
 ## 6. Cómo probar manualmente el flujo básico
 

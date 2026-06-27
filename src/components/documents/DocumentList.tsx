@@ -128,6 +128,7 @@ export function DocumentList({
               type === "presupuesto"
                 ? findInvoiceCreatedFromQuote(data.documents, doc.id)
                 : undefined;
+            const missingShareContact = !doc.client.email && !doc.client.phone;
 
             return (
               <Card key={doc.id} className="flex flex-col gap-4">
@@ -189,6 +190,11 @@ export function DocumentList({
                   {linkedInvoice && (
                     <p className="text-xs text-blue-700">
                       Factura creada: {linkedInvoice.number}
+                    </p>
+                  )}
+                  {missingShareContact && (
+                    <p className="text-xs text-slate-500">
+                      Sin email ni teléfono para enviar desde aquí.
                     </p>
                   )}
                 </div>

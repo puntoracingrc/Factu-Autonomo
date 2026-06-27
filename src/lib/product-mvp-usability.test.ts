@@ -1,12 +1,13 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "./document-list-copy";
 import { normalizeFactuEmptyActionCopy } from "./factu/action-copy";
 import { FACTU_EMPTY_MESSAGES } from "./factu/copy";
 import { FACTU_EMPTY_TITLES } from "./factu/empty-state-copy";
 import { HOME_CREATE_ACTIONS, HOME_REVIEW_ACTIONS } from "./product-home-actions";
-import { canConvertQuoteToInvoice } from "./quote-to-invoice";
+import { canConvertQuoteToInvoice, findInvoiceCreatedFromQuote } from "./quote-to-invoice";
 import type { Document } from "./types";
 
 const quote: Document = {
@@ -86,6 +87,18 @@ describe("MVP usability polish", () => {
     );
   });
 
+  it("reconoce presupuestos ya convertidos a factura", () => {
+    const converted = {
+      ...invoice,
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+    };
+
+    expect(findInvoiceCreatedFromQuote([quote, converted], quote.id)).toBe(
+      converted,
+    );
+  });
+
   it("evita claims prohibidos en copy de uso diario", () => {
     const serialized = JSON.stringify({
       empty: FACTU_EMPTY_MESSAGES,
@@ -98,5 +111,20 @@ describe("MVP usability polish", () => {
     expect(serialized).not.toContain("QR oficial");
     expect(serialized).not.toContain("cumplimiento garantizado");
     expect(serialized).not.toContain("VeriFactu productivo");
+  });
+
+  it("mantiene foco visible y etiquetas en acciones compactas", () => {
+    const buttonSource = readFileSync(
+      new URL("../components/ui/Button.tsx", import.meta.url),
+      "utf8",
+    );
+    const iconActionSource = readFileSync(
+      new URL("../components/ui/IconAction.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(buttonSource).toContain("focus-visible:outline");
+    expect(iconActionSource).toContain("focus-visible:outline");
+    expect(iconActionSource).toContain("MobileLabel");
   });
 });

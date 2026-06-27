@@ -12,6 +12,9 @@ const variants: Record<Variant, string> = {
   ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
 };
 
+const focusClass =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   children: ReactNode;
@@ -27,7 +30,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition-colors disabled:opacity-50 ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition-colors disabled:opacity-50 ${focusClass} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
       {...props}
     >
       {children}
@@ -53,7 +56,7 @@ export function ButtonLink({
   return (
     <Link
       href={href}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition-colors ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition-colors ${focusClass} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
     >
       {children}
     </Link>
