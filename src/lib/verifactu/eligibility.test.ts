@@ -29,6 +29,31 @@ describe("verifactu eligibility", () => {
     expect(needsVerifactuRegistration(factura, profile)).toBe(true);
   });
 
+  it("no requiere registro si falta NIF de emisor", () => {
+    expect(
+      needsVerifactuRegistration(factura, { ...profile, nif: "" }),
+    ).toBe(false);
+  });
+
+  it("usa el NIF congelado del emisor si existe snapshot vivo en el documento", () => {
+    expect(
+      needsVerifactuRegistration(
+        {
+          ...factura,
+          issuer: {
+            name: "Emisor histórico",
+            nif: "B12345678",
+            address: "Calle 1",
+            city: "Madrid",
+            postalCode: "28001",
+            capturedAt: "2026-06-01T10:00:00.000Z",
+          },
+        },
+        { ...profile, nif: "" },
+      ),
+    ).toBe(true);
+  });
+
   it("skips presupuestos", () => {
     expect(
       needsVerifactuRegistration({ ...factura, type: "presupuesto" }, profile),

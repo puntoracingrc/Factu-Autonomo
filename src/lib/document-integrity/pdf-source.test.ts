@@ -245,6 +245,33 @@ describe("document PDF source", () => {
     });
   });
 
+  it("presupuesto y factura nuevos usan el perfil emisor actual", () => {
+    const currentProfile = changedProfile();
+    const quoteView = buildPdfViewModelForDocument(
+      invoice({
+        type: "presupuesto",
+        number: "P-2026-0003",
+        issuer: undefined,
+      }),
+      currentProfile,
+    );
+    const invoiceView = buildPdfViewModelForDocument(
+      invoice({ issuer: undefined }),
+      currentProfile,
+    );
+
+    expect(quoteView.source).toBe("live");
+    expect(invoiceView.source).toBe("live");
+    expect(quoteView.issuer).toMatchObject({
+      name: "Negocio cambiado",
+      nif: "99999999R",
+      address: "Otra calle 99",
+      city: "Madrid",
+      postalCode: "28001",
+    });
+    expect(invoiceView.issuer).toMatchObject(quoteView.issuer);
+  });
+
   it("documento emitido con documentSnapshot pero sin pdfSnapshot usa snapshot documental sin persistir pdfSnapshot", () => {
     const issued = issueDocument(invoice(), profile, NOW);
     const partialLegacy: Document = {

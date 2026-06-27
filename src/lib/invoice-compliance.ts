@@ -1,5 +1,6 @@
 import type { BusinessProfile, Document, DocumentType, LineItem } from "./types";
 import { isEmittedDocument } from "./issuer-snapshot";
+import { businessProfileMissingDocumentLabels } from "./business-profile";
 
 export interface EmissionValidationResult {
   ok: boolean;
@@ -47,17 +48,12 @@ export function validateDocumentEmission(
     return { ok: true };
   }
 
-  const missing: string[] = [];
-  if (!profile.name.trim()) missing.push("nombre o razón social");
-  if (!profile.nif.trim()) missing.push("NIF");
-  if (!profile.address.trim()) missing.push("dirección");
-  if (!profile.postalCode.trim()) missing.push("código postal");
-  if (!profile.city.trim()) missing.push("ciudad");
+  const missing = businessProfileMissingDocumentLabels(profile);
 
   if (missing.length > 0) {
     return {
       ok: false,
-      message: `Para emitir facturas, completa en Configuración: ${missing.join(", ")}. Son datos obligatorios según la normativa de facturación.`,
+      message: `Revisa estos datos antes de emitir una factura: ${missing.join(", ")}. El NIF no se valida con AEAT desde la app.`,
     };
   }
 
