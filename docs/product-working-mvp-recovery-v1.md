@@ -195,6 +195,43 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - no hay QR oficial nuevo;
   - no hay firma, certificado ni transporte.
 
+## Estados de factura, cobro y recordatorios
+
+- Estados visibles revisados:
+  - borrador: editable hasta emitir;
+  - emitida/enviada: factura protegida, con PDF y QR existentes;
+  - cobrada: registro local de cobro;
+  - vencida: factura pendiente que puede necesitar recordatorio;
+  - rectificada/anulada: original bloqueada con rectificativa asociada.
+- Acciones operativas:
+  - abrir PDF;
+  - descargar PDF;
+  - imprimir vista;
+  - compartir por email o WhatsApp si el cliente tiene contacto;
+  - preparar recordatorio de pago;
+  - marcar factura emitida como cobrada;
+  - crear recibo vinculado al marcar una factura como cobrada;
+  - crear rectificativa desde facturas emitidas cuando procede.
+- Cobro:
+  - marcar como cobrada solo registra el estado en la app;
+  - no conecta bancos;
+  - no ejecuta pagos;
+  - no es una pasarela.
+- Recordatorios:
+  - preparan el mensaje para email o WhatsApp;
+  - el usuario puede revisar el texto antes de enviarlo;
+  - si no hay contacto, la acción no se ofrece.
+- Protección:
+  - la factura emitida sigue bloqueada;
+  - el PDF sigue usando snapshot;
+  - el QR existente se mantiene.
+- Pendiente:
+  - no hay cobro bancario real;
+  - no hay conciliación;
+  - no hay AEAT real;
+  - no hay XML;
+  - no hay firma, certificado ni transporte.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.

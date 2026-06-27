@@ -15,6 +15,7 @@ import {
   type PaymentReminderChannel,
 } from "@/lib/payment-reminder-client";
 import { buildDefaultPaymentReminderMessage } from "@/lib/payment-reminder";
+import { PAYMENT_REMINDER_COPY } from "@/lib/invoice-status-actions";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
 import type { BusinessProfile, Document } from "@/lib/types";
 
@@ -78,7 +79,7 @@ export function PaymentReminderButton({
     markFactuFeatureUsed("payment_reminder");
 
     if (channel === "email" && result.via === "api") {
-      showFactuToast(`Recordatorio enviado a ${doc.client.email}`, 4500);
+      showFactuToast(`Recordatorio enviado por email a ${doc.client.email}`, 4500);
       setOpen(false);
       return;
     }
@@ -99,12 +100,12 @@ export function PaymentReminderButton({
     variant === "button" ? (
       <Button variant="secondary" onClick={handleOpen}>
         <Bell className="h-4 w-4" />
-        Recordar pago
+        {PAYMENT_REMINDER_COPY.buttonLabel}
       </Button>
     ) : (
       <IconActionButton
-        label="Recordar"
-        tooltip="Recordar pago al cliente"
+        label={PAYMENT_REMINDER_COPY.triggerLabel}
+        tooltip={PAYMENT_REMINDER_COPY.triggerTooltip}
         onClick={handleOpen}
         className="bg-amber-50 text-amber-800 hover:bg-amber-100"
       >
@@ -129,7 +130,7 @@ export function PaymentReminderButton({
                   id="payment-reminder-title"
                   className="text-lg font-bold text-slate-900"
                 >
-                  Recordar pago
+                  {PAYMENT_REMINDER_COPY.dialogTitle}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   {doc.number} · {doc.client.name}
@@ -154,7 +155,7 @@ export function PaymentReminderButton({
             <div className="overflow-y-auto p-5">
               <Field
                 label="Mensaje para el cliente"
-                hint="Puedes suavizar el tono o añadir un detalle personal antes de enviar."
+                hint={PAYMENT_REMINDER_COPY.fieldHint}
               >
                 <Textarea
                   value={message}
@@ -191,7 +192,9 @@ export function PaymentReminderButton({
                     className="bg-violet-50 text-violet-800 hover:bg-violet-100"
                   >
                     <Mail className="h-4 w-4" />
-                    {busy === "email" ? "Enviando…" : "Enviar por email"}
+                    {busy === "email"
+                      ? PAYMENT_REMINDER_COPY.emailBusyLabel
+                      : PAYMENT_REMINDER_COPY.emailLabel}
                   </Button>
                 )}
                 {canWhatsApp && (
@@ -201,7 +204,9 @@ export function PaymentReminderButton({
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    {busy === "whatsapp" ? "Abriendo…" : "Enviar por WhatsApp"}
+                    {busy === "whatsapp"
+                      ? PAYMENT_REMINDER_COPY.whatsappBusyLabel
+                      : PAYMENT_REMINDER_COPY.whatsappLabel}
                   </Button>
                 )}
               </div>

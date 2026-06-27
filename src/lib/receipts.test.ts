@@ -157,6 +157,8 @@ describe("unmarkInvoiceCollection", () => {
     );
     expect(result.documents.find((doc) => doc.id === paidInvoice.id)).toMatchObject({
       status: "enviado",
+      paymentStatus: "pending",
+      paidAt: undefined,
       receiptDocumentId: undefined,
     });
   });
@@ -184,6 +186,12 @@ describe("unmarkInvoiceCollection", () => {
     expect(result.documents.find((doc) => doc.id === secondReceipt.id)?.number).toBe(
       "R-2026-0003",
     );
+    expect(result.documents.find((doc) => doc.id === paidInvoice.id)).toMatchObject({
+      status: "enviado",
+      paymentStatus: "pending",
+      paidAt: undefined,
+      receiptDocumentId: undefined,
+    });
   });
 
   it("desmarcar cobro no altera snapshot/hash de factura", () => {
