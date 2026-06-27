@@ -45,6 +45,7 @@ import {
 import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { openDocumentPdfPreview } from "@/lib/pdf";
@@ -116,6 +117,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
+  const missingIssuerLabels = businessProfileMissingDocumentLabels(data.profile);
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     existing ? clientToFormValues(existing.client) : EMPTY_CLIENT,
@@ -489,6 +491,14 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   enviará nada a AEAT real.
                 </span>
               )}
+              {type === "factura" &&
+                status !== "borrador" &&
+                missingIssuerLabels.length > 0 && (
+                  <span className="text-xs text-red-600">
+                    Revisa en Ajustes: {missingIssuerLabels.join(", ")}. El NIF
+                    no se valida con AEAT desde la app.
+                  </span>
+                )}
             </Field>
           )}
           {!existing && type === "factura" && (

@@ -34,7 +34,8 @@ describe("invoice compliance", () => {
       nif: "",
     });
     expect(incomplete.ok).toBe(false);
-    expect(incomplete.message).toContain("Configuración");
+    expect(incomplete.message).toContain("Revisa estos datos");
+    expect(incomplete.message).toContain("El NIF no se valida con AEAT");
 
     const complete = validateDocumentEmission(doc, {
       ...DEFAULT_PROFILE,

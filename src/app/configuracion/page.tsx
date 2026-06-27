@@ -35,6 +35,12 @@ import {
   setManualLastSequence,
 } from "@/lib/numbering";
 import { DEFAULT_IRPF_PERCENT, normalizeIrpfPercent } from "@/lib/taxes";
+import {
+  businessProfileNotices,
+  businessProfileQrNotice,
+  isBusinessProfileReadyForIssuedInvoices,
+  normalizeBusinessProfileForSave,
+} from "@/lib/business-profile";
 import type {
   BusinessProfile,
   IvaSettings,
@@ -110,7 +116,9 @@ export default function ConfiguracionPage() {
   }
 
   function handleSave() {
-    persistProfile(form);
+    const next = normalizeBusinessProfileForSave(form);
+    setForm(next);
+    persistProfile(next);
   }
 
   function updateNumberingYear(year: number) {
@@ -178,12 +186,20 @@ export default function ConfiguracionPage() {
   }
 
   const sortedRates = [...form.iva.rates].sort((a, b) => b - a);
+  const profileNotices = businessProfileNotices(form);
+  const missingProfileFields = profileNotices.filter(
+    (notice) => notice.level === "missing",
+  );
+  const profileWarnings = profileNotices.filter(
+    (notice) => notice.level === "warning",
+  );
+  const profileReady = isBusinessProfileReadyForIssuedInvoices(form);
 
   return (
     <div>
       <PageHeader
         title="Configuración"
-        subtitle="Encabezado de tus facturas: se congela al emitir cada documento"
+        subtitle="Datos del negocio, numeración y preferencias de documentos"
       />
 
       <ManualHelpLink />
@@ -281,63 +297,119 @@ export default function ConfiguracionPage() {
 
       <Card className="mb-6 space-y-4">
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-semibold">Encabezado y Hacienda</p>
+          <p className="font-semibold">Datos del negocio en documentos</p>
           <p className="mt-2 leading-relaxed">
-            Puedes personalizar logo, nombre, NIF y dirección. Al <strong>emitir</strong> una
-            factura esos datos quedan guardados en el documento: si cambias la configuración
-            después, las facturas ya emitidas conservan el encabezado original (como exige la
-            normativa). Para corregir errores en facturas emitidas usa{" "}
-            <strong>Rectificar</strong>, no borrar.
+            Datos que aparecerán en tus presupuestos y facturas. Revisa estos
+            datos antes de emitir una factura: al emitir, el encabezado queda
+            guardado en el documento y no cambia si editas la configuración
+            después. El NIF no se valida con AEAT desde la app.
           </p>
         </div>
 
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            profileReady && profileWarnings.length === 0
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <p className="font-semibold">
+            {profileReady
+              ? "Perfil emisor listo para documentos completos"
+              : "Faltan datos del emisor para documentos completos"}
+          </p>
+          <p className="mt-1">
+            {businessProfileQrNotice(form)}
+          </p>
+          {missingProfileFields.length > 0 && (
+            <p className="mt-2">
+              Completa:{" "}
+              {missingProfileFields.map((notice) => notice.label).join(", ")}.
+            </p>
+          )}
+          {profileWarnings.length > 0 && (
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              {profileWarnings.map((notice) => (
+                <li key={`${notice.field}-${notice.message}`}>
+                  {notice.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre o razón social *">
+          <Field
+            label="Nombre fiscal o razón social *"
+            hint="Aparece como emisor en PDF de presupuestos, facturas y recibos."
+          >
             <Input
               value={form.name}
               onChange={(e) => update("name", e.target.value)}
               placeholder="Ej: Juan Pérez Fontanería"
             />
           </Field>
-          <Field label="NIF / CIF *">
+          <Field
+            label="NIF / CIF *"
+            hint="Necesario antes de emitir facturas. No se valida con AEAT desde la app."
+          >
             <Input
               value={form.nif}
               onChange={(e) => update("nif", e.target.value)}
               placeholder="12345678A"
             />
           </Field>
-          <Field label="Teléfono">
+          <Field
+            label="Teléfono"
+            hint="Opcional. Aparece en el PDF si lo informas."
+          >
             <Input
+              inputMode="tel"
               value={form.phone}
               onChange={(e) => update("phone", e.target.value)}
+              placeholder="600 000 000"
             />
           </Field>
-          <Field label="Email">
+          <Field
+            label="Email"
+            hint="Opcional. Aparece en el PDF si lo informas."
+          >
             <Input
               type="email"
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
+              placeholder="hola@tunegocio.es"
             />
           </Field>
-          <Field label="Dirección *" hint="Obligatoria en facturas emitidas">
+          <Field
+            label="Dirección fiscal *"
+            hint="Recomendada para presupuestos y necesaria antes de emitir facturas."
+          >
             <Input
               value={form.address}
               onChange={(e) => update("address", e.target.value)}
+              placeholder="Calle Mayor 1"
             />
           </Field>
           <Field label="Código postal *">
             <Input
+              inputMode="numeric"
               value={form.postalCode}
               onChange={(e) => update("postalCode", e.target.value)}
+              placeholder="28001"
             />
           </Field>
           <Field label="Ciudad *">
             <Input
               value={form.city}
               onChange={(e) => update("city", e.target.value)}
+              placeholder="Madrid"
             />
           </Field>
-          <Field label="IBAN" hint="Para que te paguen las facturas">
+          <Field
+            label="IBAN"
+            hint="Opcional. Se muestra en facturas si lo informas."
+          >
             <Input
               value={form.iban ?? ""}
               onChange={(e) => update("iban", e.target.value)}

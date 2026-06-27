@@ -252,6 +252,36 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - no se verifica el cliente ante AEAT;
   - no hay AEAT real, XML, firma, certificado ni transporte.
 
+## Perfil emisor y datos del negocio
+
+- Los datos del negocio se revisan en `/configuracion`.
+- El bloque principal cubre:
+  - nombre fiscal o razón social;
+  - NIF/CIF;
+  - dirección fiscal;
+  - código postal;
+  - ciudad;
+  - email;
+  - teléfono;
+  - IBAN;
+  - logo para PDF.
+- La pantalla muestra si faltan datos para documentos completos.
+- Email y teléfono tienen validación básica si se informan.
+- El NIF/CIF se normaliza al guardar, pero no se valida con AEAT.
+- Presupuestos y facturas en borrador usan el perfil emisor actual.
+- El PDF muestra esos datos como emisor del documento.
+- Si faltan datos importantes en un PDF vivo, se muestra un aviso prudente.
+- Al emitir una factura, el emisor queda congelado en snapshot.
+- Cambiar `/configuracion` después no cambia facturas emitidas.
+- Nuevos documentos sí usan los datos actualizados.
+- El QR existente sigue dependiendo de las condiciones actuales de la app.
+- Si falta NIF/CIF, la app avisa de que puede faltar dato para QR.
+- No se crea QR oficial nuevo.
+- No hay validación real de NIF con AEAT.
+- No hay AEAT real.
+- No hay XML.
+- No hay certificado, firma ni transporte.
+
 ## Estados de factura, cobro y recordatorios
 
 - Estados visibles revisados:

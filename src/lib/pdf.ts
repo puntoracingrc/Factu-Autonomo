@@ -22,6 +22,7 @@ import {
   documentTemplatePdfFontSize,
   normalizeDocumentTemplate,
 } from "./document-templates";
+import { livePdfIssuerWarning } from "./business-profile";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 
 export interface PdfArtifacts {
@@ -178,6 +179,9 @@ export function buildDocumentPdfFromViewModel(
   const { subtotal, iva, total } = documentPdfViewAmounts(viewModel);
   const label = documentLabel(doc);
   const isRect = isRectificativa(doc);
+  const issuerWarning =
+    viewModel.source === "live" ? livePdfIssuerWarning(issuer) : null;
+  const issuerBoxHeight = issuerWarning ? 45 : 39;
   const accent: [number, number, number] = isRect
     ? [180, 83, 9]
     : documentTemplateAccentRgb(template.accent);
@@ -227,7 +231,7 @@ export function buildDocumentPdfFromViewModel(
   pdf.setTextColor(60, 60, 60);
   if (template.showIssuerBox) {
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(12, contentStartY + 4, 76, 39, 2, 2, "F");
+    pdf.roundedRect(12, contentStartY + 4, 76, issuerBoxHeight, 2, 2, "F");
   }
   pdf.setFont(pdfFont, "bold");
   pdf.setFontSize(issuerFontSize);
@@ -241,6 +245,13 @@ export function buildDocumentPdfFromViewModel(
     pdf.text(`${issuer.postalCode} ${issuer.city}`, 14, baseY + 18);
   if (issuer.phone) pdf.text(`Tel: ${issuer.phone}`, 14, baseY + 24);
   if (issuer.email) pdf.text(issuer.email, 14, baseY + 30);
+  if (issuerWarning) {
+    pdf.setFontSize(Math.max(7, bodyFontSize - 1));
+    pdf.setTextColor(180, 83, 9);
+    pdf.text(pdf.splitTextToSize(issuerWarning, 70), 14, baseY + 36);
+    pdf.setTextColor(60, 60, 60);
+    pdf.setFontSize(bodyFontSize);
+  }
 
   pdf.setFontSize(bodyFontSize + 1);
   pdf.setTextColor(0, 0, 0);
@@ -250,7 +261,7 @@ export function buildDocumentPdfFromViewModel(
     pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
   }
 
-  let clientBoxY = baseY + 38;
+  let clientBoxY = baseY + (issuerWarning ? 46 : 38);
   if (isRect && doc.rectification) {
     pdf.setFontSize(Math.max(8, bodyFontSize - 0.2));
     pdf.setTextColor(120, 53, 15);
