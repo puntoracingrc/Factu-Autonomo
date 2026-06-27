@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Pencil, Trash2, UserPlus, X } from "lucide-react";
+import {
+  GitMerge,
+  Mail,
+  MessageCircle,
+  Pencil,
+  Trash2,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { CustomerAiAutofill } from "@/components/clients/CustomerAiAutofill";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
@@ -29,7 +37,7 @@ import {
   migrateCustomer,
   pickCanonicalCustomer,
   sortCustomers,
-  validateUniqueCustomer,
+  validateCustomerInput,
   type CustomerSortDirection,
   type CustomerSortField,
 } from "@/lib/customers";
@@ -59,6 +67,7 @@ export default function ClientesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
@@ -121,6 +130,7 @@ export default function ClientesPage() {
   function openNewForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setFormError(null);
     setFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -128,6 +138,7 @@ export default function ClientesPage() {
   function closeForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setFormError(null);
     setFormOpen(false);
   }
 
@@ -135,6 +146,7 @@ export default function ClientesPage() {
     const migrated = migrateCustomer(customer);
     setEditingId(customer.id);
     setFormOpen(true);
+    setFormError(null);
     setForm({
       firstName: migrated.firstName,
       lastName: migrated.lastName,
@@ -183,6 +195,7 @@ export default function ClientesPage() {
   }
 
   function applyAiCustomer(values: Partial<CustomerAiAutofillValues>) {
+    setFormError(null);
     setForm((current) => ({
       ...current,
       firstName: values.firstName || current.firstName,
@@ -198,32 +211,35 @@ export default function ClientesPage() {
     }));
   }
 
+  function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
+    setFormError(null);
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
   function handleSave() {
-    const validation = validateUniqueCustomer(
+    const validation = validateCustomerInput(
       data.customers,
-      form.firstName,
-      form.lastName,
+      form,
       editingId ?? undefined,
-      form.nif,
     );
     if (!validation.ok) {
-      alert(validation.error);
+      setFormError(validation.error ?? "Revisa los datos del cliente");
       return;
     }
 
     const payload = {
       ...customerPayloadFromInput({
-        firstName: form.firstName,
-        lastName: form.lastName,
+        firstName: validation.firstName ?? form.firstName,
+        lastName: validation.lastName ?? form.lastName,
         nif: form.nif,
-        email: form.email,
-        phone: form.phone,
+        email: validation.email,
+        phone: validation.phone,
         streetType: form.streetType,
         address: form.address,
       }),
-      city: form.city || undefined,
-      postalCode: form.postalCode || undefined,
-      notes: form.notes || undefined,
+      city: form.city.trim() || undefined,
+      postalCode: form.postalCode.trim() || undefined,
+      notes: form.notes.trim() || undefined,
     };
 
     if (editingId) {
@@ -360,50 +376,54 @@ export default function ClientesPage() {
           <Field label="Nombre *">
             <Input
               value={form.firstName}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, firstName: e.target.value }))
-              }
+              onChange={(e) => updateFormField("firstName", e.target.value)}
               placeholder="Ej: María"
+              aria-invalid={Boolean(formError && !form.firstName.trim())}
             />
           </Field>
           <Field label="Apellidos *" hint="No se pueden repetir con el mismo nombre">
             <Input
               value={form.lastName}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, lastName: e.target.value }))
-              }
+              onChange={(e) => updateFormField("lastName", e.target.value)}
               placeholder="Ej: López García"
+              aria-invalid={Boolean(formError && !form.lastName.trim())}
             />
           </Field>
-          <Field label="NIF / CIF" hint="No puede repetirse en otro cliente">
+          <Field
+            label="NIF / CIF"
+            hint="Opcional. No se valida oficialmente; solo se evita duplicarlo en tu lista."
+          >
             <Input
               value={form.nif}
-              onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value }))}
+              onChange={(e) => updateFormField("nif", e.target.value)}
             />
           </Field>
-          <Field label="Teléfono">
+          <Field
+            label="Teléfono"
+            hint="El teléfono se usará para WhatsApp si está informado."
+          >
             <Input
               value={form.phone}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, phone: e.target.value }))
-              }
+              onChange={(e) => updateFormField("phone", e.target.value)}
+              placeholder="600 000 000"
             />
           </Field>
-          <Field label="Email">
+          <Field
+            label="Email"
+            hint="Se usará para activar el envío por email en documentos guardados."
+          >
             <Input
               type="email"
               value={form.email}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, email: e.target.value }))
-              }
+              onChange={(e) => updateFormField("email", e.target.value)}
+              placeholder="cliente@email.com"
+              aria-invalid={formError === "Revisa el formato del email"}
             />
           </Field>
           <Field label="Tipo de vía">
             <StreetTypeSelect
               value={form.streetType}
-              onChange={(streetType) =>
-                setForm((f) => ({ ...f, streetType }))
-              }
+              onChange={(streetType) => updateFormField("streetType", streetType)}
             />
           </Field>
           <Field
@@ -412,36 +432,39 @@ export default function ClientesPage() {
           >
             <Input
               value={form.address}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, address: e.target.value }))
-              }
+              onChange={(e) => updateFormField("address", e.target.value)}
               placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
           <Field label="Código postal">
             <Input
               value={form.postalCode}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, postalCode: e.target.value }))
-              }
+              onChange={(e) => updateFormField("postalCode", e.target.value)}
             />
           </Field>
           <Field label="Ciudad">
             <Input
               value={form.city}
-              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+              onChange={(e) => updateFormField("city", e.target.value)}
             />
           </Field>
           <Field label="Notas">
             <Textarea
               value={form.notes}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, notes: e.target.value }))
-              }
+              onChange={(e) => updateFormField("notes", e.target.value)}
               placeholder="Observaciones sobre este cliente..."
             />
           </Field>
         </div>
+
+        {formError && (
+          <p
+            role="alert"
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+          >
+            {formError}
+          </p>
+        )}
 
         {form.firstName && form.lastName && (
           <p className="text-sm text-slate-500">
@@ -500,7 +523,7 @@ export default function ClientesPage() {
             return (
             <Card
               key={customer.id}
-              className={`flex items-start justify-between gap-3 ${
+              className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${
                 mergeMode && selected
                   ? "border-blue-400 ring-2 ring-blue-200"
                   : ""
@@ -523,9 +546,25 @@ export default function ClientesPage() {
                   {customer.nif && (
                     <p className="text-sm text-slate-500">NIF: {customer.nif}</p>
                   )}
-                  <p className="text-sm text-slate-500">
-                    {[customer.phone, customer.email].filter(Boolean).join(" · ")}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {migrated.phone && (
+                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                        <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{migrated.phone}</span>
+                      </span>
+                    )}
+                    {migrated.email && (
+                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{migrated.email}</span>
+                      </span>
+                    )}
+                    {!migrated.phone && !migrated.email && (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                        Sin contacto de envío
+                      </span>
+                    )}
+                  </div>
                   {(migrated.address || customer.city) && (
                     <p className="text-sm text-slate-400">
                       {[
@@ -540,13 +579,14 @@ export default function ClientesPage() {
                 </div>
               </div>
               {!mergeMode && (
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
                   <div className="flex flex-wrap justify-end gap-2">
                     <CustomerDocumentActions customerId={customer.id} />
                     <button
                       onClick={() => startEdit(customer)}
-                      className="rounded-xl bg-slate-100 p-2 text-slate-700"
+                      className="rounded-xl bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                       title="Editar"
+                      aria-label={`Editar ${getCustomerDisplayName(customer)}`}
                     >
                       <Pencil className="h-5 w-5" />
                     </button>
@@ -555,8 +595,9 @@ export default function ClientesPage() {
                         if (confirm(`¿Borrar a ${getCustomerDisplayName(customer)}?`))
                           deleteCustomer(customer.id);
                       }}
-                      className="rounded-xl bg-red-50 p-2 text-red-600"
+                      className="rounded-xl bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                       title="Borrar"
+                      aria-label={`Borrar ${getCustomerDisplayName(customer)}`}
                     >
                       <Trash2 className="h-5 w-5" />
                     </button>

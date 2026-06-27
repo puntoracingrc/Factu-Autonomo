@@ -71,6 +71,45 @@ export function normalizeCustomerNif(nif?: string | null): string {
   return nif.replace(/[\s.-]/g, "").toUpperCase();
 }
 
+const CUSTOMER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+export function normalizeCustomerEmail(email?: string | null): string {
+  return email?.trim() ?? "";
+}
+
+export function normalizeCustomerPhone(phone?: string | null): string {
+  return phone?.trim().replace(/\s+/g, " ") ?? "";
+}
+
+export function isValidCustomerEmail(email?: string | null): boolean {
+  const value = normalizeCustomerEmail(email);
+  if (!value) return true;
+  return value.length <= 254 && CUSTOMER_EMAIL_PATTERN.test(value);
+}
+
+export interface CustomerContactValidation {
+  ok: boolean;
+  error?: string;
+  email?: string;
+  phone?: string;
+}
+
+export function validateCustomerContact(
+  input: Pick<ClientInput, "email" | "phone">,
+): CustomerContactValidation {
+  const email = normalizeCustomerEmail(input.email);
+  if (email && !isValidCustomerEmail(email)) {
+    return { ok: false, error: "Revisa el formato del email" };
+  }
+
+  const phone = normalizeCustomerPhone(input.phone);
+  return {
+    ok: true,
+    email: email || undefined,
+    phone: phone || undefined,
+  };
+}
+
 export function findCustomerByNif(
   customers: Customer[],
   nif?: string | null,
@@ -421,10 +460,10 @@ export function validateCustomerNames(
   const ln = normalizeNamePart(lastName);
 
   if (!fn) {
-    return { ok: false, error: "Escribe el nombre del cliente" };
+    return { ok: false, error: "Añade al menos un nombre para guardar el cliente" };
   }
   if (!ln) {
-    return { ok: false, error: "Escribe los apellidos del cliente" };
+    return { ok: false, error: "Añade los apellidos para guardar el cliente" };
   }
   if (fn.length < 2) {
     return { ok: false, error: "El nombre debe tener al menos 2 letras" };
@@ -473,6 +512,9 @@ export function validateUniqueCustomer(
   return base;
 }
 
+export type CustomerInputValidation = CustomerNameValidation &
+  CustomerContactValidation;
+
 export interface ClientInput {
   firstName: string;
   lastName: string;
@@ -484,6 +526,32 @@ export interface ClientInput {
   city?: string;
   postalCode?: string;
   notes?: string;
+}
+
+export function validateCustomerInput(
+  customers: Customer[],
+  input: ClientInput,
+  excludeId?: string,
+): CustomerInputValidation {
+  const identity = validateUniqueCustomer(
+    customers,
+    input.firstName,
+    input.lastName,
+    excludeId,
+    input.nif,
+  );
+  if (!identity.ok) return identity;
+
+  const contact = validateCustomerContact(input);
+  if (!contact.ok) return contact;
+
+  return {
+    ok: true,
+    firstName: identity.firstName,
+    lastName: identity.lastName,
+    email: contact.email,
+    phone: contact.phone,
+  };
 }
 
 export function formatCustomerAddressBlock(
@@ -529,8 +597,8 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     nif: input.nif?.trim()
       ? normalizeCustomerNif(input.nif)
       : undefined,
-    email: input.email?.trim() || undefined,
-    phone: input.phone?.trim() || undefined,
+    email: normalizeCustomerEmail(input.email) || undefined,
+    phone: normalizeCustomerPhone(input.phone) || undefined,
     streetType: input.streetType?.trim() || undefined,
     address: addressBlock || input.address?.trim() || undefined,
   };
@@ -550,12 +618,10 @@ export function ensureCustomerForDocument(
   input: ClientInput,
   selectedCustomerId: string | null,
 ): EnsureCustomerResult {
-  const validation = validateUniqueCustomer(
+  const validation = validateCustomerInput(
     customers,
-    input.firstName,
-    input.lastName,
+    input,
     selectedCustomerId ?? undefined,
-    input.nif,
   );
   if (!validation.ok) {
     return { ok: false, error: validation.error! };
@@ -563,7 +629,13 @@ export function ensureCustomerForDocument(
 
   const firstName = validation.firstName!;
   const lastName = validation.lastName!;
-  const client = clientInputToSnapshot({ ...input, firstName, lastName });
+  const client = clientInputToSnapshot({
+    ...input,
+    firstName,
+    lastName,
+    email: validation.email,
+    phone: validation.phone,
+  });
   const now = new Date().toISOString();
 
   if (selectedCustomerId) {

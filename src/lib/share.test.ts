@@ -156,4 +156,31 @@ describe("contact helpers", () => {
     expect(hasClientEmail(sampleDoc)).toBe(true);
     expect(hasClientPhone(sampleDoc)).toBe(true);
   });
+
+  it("el email informado habilita email en documento", () => {
+    expect(
+      hasClientEmail({
+        ...sampleDoc,
+        client: { ...sampleDoc.client, email: "cliente@example.com" },
+      }),
+    ).toBe(true);
+  });
+
+  it("el teléfono informado habilita WhatsApp en documento", () => {
+    expect(
+      hasClientPhone({
+        ...sampleDoc,
+        client: { ...sampleDoc.client, phone: "+34 612 345 678" },
+      }),
+    ).toBe(true);
+  });
+
+  it("no habilita email con formato inválido", () => {
+    expect(
+      hasClientEmail({
+        ...sampleDoc,
+        client: { ...sampleDoc.client, email: "cliente@" },
+      }),
+    ).toBe(false);
+  });
 });

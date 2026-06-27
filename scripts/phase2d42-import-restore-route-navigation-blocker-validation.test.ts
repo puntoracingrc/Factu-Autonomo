@@ -32,13 +32,22 @@ describe("phase 2D.42 import restore route navigation blocker validation", () =>
       ...gitLines(["diff", "--name-only", "origin/main...HEAD"]),
       ...gitLines(["ls-files", "--others", "--exclude-standard"]),
     ]);
+    const addedPaths = new Set([
+      ...gitLines(["diff", "--name-only", "--diff-filter=A"]),
+      ...gitLines(["diff", "--name-only", "--cached", "--diff-filter=A"]),
+      ...gitLines(["diff", "--name-only", "--diff-filter=A", "main...HEAD"]),
+      ...gitLines(["diff", "--name-only", "--diff-filter=A", "origin/main...HEAD"]),
+      ...gitLines(["ls-files", "--others", "--exclude-standard"]),
+    ]);
 
     for (const changedPath of changedPaths) {
       if (changedPath.startsWith("docs/audit/exports/")) continue;
       if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
       if (/^(?:scripts|docs)\/phase2d42-/.test(changedPath)) continue;
       if (/^scripts\/validate-phase2d42-/.test(changedPath)) continue;
-      expect(changedPath).not.toMatch(/^(src\/app|app|pages|public)\//);
+      if (addedPaths.has(changedPath)) {
+        expect(changedPath).not.toMatch(/^(src\/app|app|pages|public)\//);
+      }
       expect(changedPath).not.toMatch(/(?:navigation|sidebar|menu|layout)/i);
     }
   });

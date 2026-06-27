@@ -16,4 +16,10 @@ describe("newDocumentUrl", () => {
       `/presupuestos/nuevo?${CUSTOMER_QUERY_PARAM}=xyz`,
     );
   });
+
+  it("codifica el cliente para que la preselección viaje segura", () => {
+    expect(newDocumentUrl("factura", "cliente con espacios")).toBe(
+      `/facturas/nuevo?${CUSTOMER_QUERY_PARAM}=cliente%20con%20espacios`,
+    );
+  });
 });

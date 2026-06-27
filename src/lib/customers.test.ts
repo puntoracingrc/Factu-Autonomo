@@ -4,6 +4,7 @@ import {
   clientMatchesCustomer,
   customerFullName,
   customerInvoicedTotal,
+  customerPayloadFromInput,
   customerToClient,
   ensureCustomerForDocument,
   filterCustomers,
@@ -15,6 +16,8 @@ import {
   normalizeCustomerNif,
   sortCustomers,
   sortCustomersByName,
+  validateCustomerContact,
+  validateCustomerInput,
   validateUniqueCustomer,
 } from "./customers";
 import type { Customer } from "./types";
@@ -208,6 +211,12 @@ describe("filterCustomers", () => {
 });
 
 describe("validateUniqueCustomer", () => {
+  it("rechaza guardar sin nombre con un mensaje claro", () => {
+    const result = validateUniqueCustomer(sample, "", "");
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("Añade al menos un nombre para guardar el cliente");
+  });
+
   it("rechaza nombre sin apellidos", () => {
     const result = validateUniqueCustomer(sample, "Pedro", "");
     expect(result.ok).toBe(false);
@@ -241,6 +250,60 @@ describe("validateUniqueCustomer", () => {
   });
 });
 
+describe("validateCustomerInput", () => {
+  it("acepta cliente con nombre valido sin exigir NIF", () => {
+    const result = validateCustomerInput(sample, {
+      firstName: "Lucía",
+      lastName: "Mesa",
+      email: " lucia@example.com ",
+      phone: " 612   345  678 ",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.email).toBe("lucia@example.com");
+    expect(result.phone).toBe("612 345 678");
+  });
+
+  it("rechaza email informado con formato invalido", () => {
+    const result = validateCustomerInput(sample, {
+      firstName: "Lucía",
+      lastName: "Mesa",
+      email: "lucia@",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("Revisa el formato del email");
+  });
+
+  it("normaliza contacto sin bloquear telefono no fiscal", () => {
+    const result = validateCustomerContact({
+      email: " cliente@example.com ",
+      phone: " +34 600   111 222 ",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.email).toBe("cliente@example.com");
+    expect(result.phone).toBe("+34 600 111 222");
+  });
+
+  it("prepara payload de cliente con contacto limpio", () => {
+    const payload = customerPayloadFromInput({
+      firstName: " Lucía ",
+      lastName: " Mesa ",
+      email: " lucia@example.com ",
+      phone: " 612   345  678 ",
+    });
+
+    expect(payload).toMatchObject({
+      firstName: "Lucía",
+      lastName: "Mesa",
+      name: "Lucía Mesa",
+      email: "lucia@example.com",
+      phone: "612 345 678",
+    });
+  });
+});
+
 describe("ensureCustomerForDocument", () => {
   it("crea cliente nuevo al guardar documento", () => {
     const result = ensureCustomerForDocument(
@@ -267,6 +330,44 @@ describe("ensureCustomerForDocument", () => {
       expect(result.customer.city).toBe("Barcelona");
       expect(result.customer.notes).toBe("Alta desde factura");
       expect(result.client.address).toBe("C/ Doctor Carulla 19, 08017 Barcelona");
+    }
+  });
+
+  it("crea snapshot de documento con email y telefono del cliente", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        firstName: "Lucía",
+        lastName: "Mesa",
+        email: " lucia@example.com ",
+        phone: " 612   345  678 ",
+      },
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.client.email).toBe("lucia@example.com");
+      expect(result.client.phone).toBe("612 345 678");
+      expect(result.customer.email).toBe("lucia@example.com");
+      expect(result.customer.phone).toBe("612 345 678");
+    }
+  });
+
+  it("rechaza email invalido al crear cliente desde documento", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        firstName: "Lucía",
+        lastName: "Mesa",
+        email: "lucia@",
+      },
+      null,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Revisa el formato del email");
     }
   });
 
