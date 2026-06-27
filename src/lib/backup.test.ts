@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { createBackupBlob, parseBackupJson } from "./backup";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createBackupBlob,
+  createBackupFilename,
+  createBackupPayload,
+  downloadBackup,
+  parseBackupJson,
+} from "./backup";
 import {
   hasDocumentSnapshot,
   isDocumentIntegrityLocked,
@@ -36,6 +43,10 @@ function snapshotDocument(): Document {
 }
 
 describe("backup", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("valida y normaliza una copia exportada", () => {
     const result = parseBackupJson({
       version: 1,
@@ -51,9 +62,188 @@ describe("backup", () => {
     expect(result.profile.name).toBe("Mi negocio");
   });
 
+  it("valida y normaliza una copia con metadata y datos anidados", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          name: "Mi negocio",
+        },
+      },
+      NOW,
+    );
+
+    const result = parseBackupJson(payload);
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.profile.name).toBe("Mi negocio");
+  });
+
   it("rechaza archivos inválidos", () => {
     const result = parseBackupJson({ foo: "bar" });
     expect(result).toHaveProperty("error");
+  });
+
+  it("construye metadata local de copia de seguridad", () => {
+    const payload = createBackupPayload(EMPTY_DATA, NOW);
+
+    expect(payload.metadata).toEqual({
+      app: "factura-autonomo",
+      exportVersion: 1,
+      exportedAt: NOW,
+      source: "local",
+      warning:
+        "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No se sube a ningún servidor ni restaura datos automáticamente.",
+    });
+  });
+
+  it("incluye clientes, documentos y configuración del perfil", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          name: "Taller Demo",
+          nif: "12345678Z",
+        },
+        customers: [
+          {
+            id: "customer-1",
+            firstName: "Ana",
+            lastName: "López",
+            name: "Ana López",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        documents: [
+          {
+            id: "doc-1",
+            type: "factura",
+            number: "F-2026-0001",
+            date: "2026-06-24",
+            client: { name: "Ana López" },
+            items: [],
+            status: "borrador",
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    expect(payload.data.profile.name).toBe("Taller Demo");
+    expect(payload.data.customers).toHaveLength(1);
+    expect(payload.data.documents).toHaveLength(1);
+  });
+
+  it("no exporta metadata interna, secrets ni tokens", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        meta: {
+          lastModified: NOW,
+          pendingChanges: [
+            {
+              entityType: "profile",
+              entityId: "profile",
+              deleted: false,
+              updatedAt: NOW,
+              payload: {
+                accessToken: "SHOULD_NOT_LEAK",
+                apiKey: "ALSO_BLOCKED",
+              },
+            },
+          ],
+        },
+      },
+      NOW,
+    );
+    const serialized = JSON.stringify(payload);
+
+    expect(payload.data.meta).toBeUndefined();
+    expect(serialized).not.toContain("SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("ALSO_BLOCKED");
+    expect(serialized).not.toMatch(/accessToken|apiKey|secret|password/i);
+  });
+
+  it("genera nombre de archivo con fecha", () => {
+    expect(createBackupFilename(NOW)).toBe(
+      "factu-autonomo-backup-2026-06-24.json",
+    );
+  });
+
+  it("usa Blob y descarga controlada desde el navegador", () => {
+    const click = vi.fn();
+    const anchor = {
+      href: "",
+      download: "",
+      rel: "",
+      click,
+    };
+    const createObjectURL = vi.fn(() => "blob:backup");
+    const revokeObjectURL = vi.fn();
+    const createElement = vi.fn(() => anchor);
+
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", { createElement });
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+
+    const result = downloadBackup(EMPTY_DATA, {
+      now: () => new Date(NOW),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      filename: "factu-autonomo-backup-2026-06-24.json",
+    });
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(anchor.href).toBe("blob:backup");
+    expect(anchor.download).toBe("factu-autonomo-backup-2026-06-24.json");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:backup");
+  });
+
+  it("devuelve feedback seguro si no hay descarga de navegador", () => {
+    const result = downloadBackup(EMPTY_DATA, {
+      now: () => new Date(NOW),
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "La descarga no está disponible en este navegador.",
+    });
+  });
+
+  it("expone solo exportación visible en configuración", () => {
+    const source = readFileSync(
+      new URL("../components/settings/DataOwnershipCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("Copia de seguridad");
+    expect(source).toContain("Exportar copia de seguridad");
+    expect(source).not.toContain("Importar");
+    expect(source).not.toContain("Restaurar");
+  });
+
+  it("la exportación no usa FileReader ni escribe localStorage", () => {
+    const helperSource = readFileSync(
+      new URL("./backup.ts", import.meta.url),
+      "utf8",
+    );
+    const cardSource = readFileSync(
+      new URL("../components/settings/DataOwnershipCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const source = `${helperSource}\n${cardSource}`;
+
+    expect(source).not.toContain("FileReader");
+    expect(source).not.toContain("localStorage.setItem");
   });
 
   it("exportar e importar copia conserva campos de integridad documental", async () => {

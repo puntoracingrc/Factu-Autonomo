@@ -154,6 +154,28 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No hay firma, certificados ni transporte.
 - No se crea QR oficial nuevo sin validación.
 
+## Copia de seguridad local
+
+- En `/configuracion`, dentro de la tarjeta de datos, aparece el bloque `Copia de seguridad`.
+- El botón visible es `Exportar copia de seguridad`.
+- La acción descarga un JSON local con metadata de exportación y los datos actuales de la app.
+- El archivo usa el nombre `factu-autonomo-backup-YYYY-MM-DD.json`.
+- La metadata identifica la app, la versión de exportación, la fecha, el origen local y una advertencia.
+- La copia incluye clientes, documentos, gastos, proveedores, recordatorios y configuración del perfil guardados en el navegador.
+- La descarga se genera con `Blob` y el mecanismo nativo del navegador.
+- Si el navegador no permite iniciar la descarga, la tarjeta muestra un aviso y la app no se rompe.
+- La copia puede contener datos personales o fiscales del usuario y de sus clientes.
+- El usuario debe guardarla en un lugar seguro.
+- Esta copia no se sube a ningún servidor.
+- La exportación no escribe en `localStorage`.
+- No se añade importación de backup.
+- No se añade restauración de backup.
+- No se leen archivos JSON del usuario desde este bloque.
+- No se usa `FileReader` para exportar la copia.
+- No se cambia la sincronización en nube ni Supabase.
+- No toca AEAT real, XML, firma, certificado ni transporte.
+- No cambia PDF, QR existente, conversión, emisión ni cobro local.
+
 ## PDF, vista previa e impresión
 
 - `Abrir PDF` genera el PDF existente y lo abre en una pestaña nueva cuando el navegador lo permite.
