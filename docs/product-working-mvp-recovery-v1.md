@@ -249,6 +249,29 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No toca Supabase remoto ni producción.
 - No toca AEAT real, XML, QR oficial nuevo, firma, certificado ni transporte.
 
+## Resumen del negocio
+
+- La home muestra un bloque `Resumen del negocio`.
+- El resumen usa solo datos locales guardados en este navegador.
+- Las cifras son orientativas y estimadas.
+- No sustituyen una revisión contable o fiscal.
+- No es contabilidad oficial.
+- No es una declaración fiscal.
+- No hay AEAT real.
+- No hay XML, firma, certificado ni transporte.
+- `Facturado` suma facturas emitidas.
+- Los presupuestos no se cuentan como ingresos.
+- Las facturas en borrador no se cuentan como facturado.
+- Las facturas anuladas, rectificadas o rectificativas se excluyen del resumen simple.
+- `Cobrado` suma facturas marcadas como cobradas localmente.
+- El cobro local no es banco ni pasarela de pago.
+- `Pendiente` suma facturas emitidas pendientes de cobro.
+- `Gastos` suma gastos registrados en local.
+- `IVA estimado` separa IVA repercutido estimado e IVA soportado estimado.
+- `Balance estimado` calcula facturado emitido menos gastos registrados.
+- La home muestra últimos documentos, últimos gastos y pendientes de cobro.
+- Las acciones rápidas mantienen cliente, presupuesto, factura, gasto, configuración y exportar copia.
+
 ## PDF, vista previa e impresión
 
 - `Abrir PDF` genera el PDF existente y lo abre en una pestaña nueva cuando el navegador lo permite.
