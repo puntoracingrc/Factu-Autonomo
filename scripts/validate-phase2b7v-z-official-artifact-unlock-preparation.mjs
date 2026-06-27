@@ -144,6 +144,7 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/phase2c35-/,
   /^scripts\/phase2c4[056]-/,
   /^scripts\/phase2c5[1234]-/,
+  /^scripts\/phase2c63-/,
   /^scripts\/validate-phase2c/,
   /^docs\/phase2c/,
   /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,

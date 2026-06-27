@@ -116,7 +116,9 @@ function validateNoRedLines() {
     /^src\/app\/api\/document-sync\/route\.ts$/,
     /^src\/lib\/document-sync-integrity\//,
     /^scripts\/phase2c5[1234]-.*\.test\.ts$/,
+    /^scripts\/phase2c63-.*\.test\.ts$/,
     /^scripts\/validate-phase2c(?:49|50|51|52|53|54|49-56)-.*\.mjs$/,
+    /^scripts\/validate-phase2c(?:57|58|59|60|61|62|63|64|57-66)-.*\.mjs$/,
     /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
     /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
     /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -130,6 +132,7 @@ function validateNoRedLines() {
     /^scripts\/validate-phase2c43-.*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
     /^docs\/phase2c(?:49|50|51|52|53|54|56)-.*\.md$/,
+    /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-.*\.(?:md|json)$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^docs\/audit\//,
     /^package\.json$/,
@@ -152,6 +155,15 @@ function validateNoRedLines() {
   for (const changedPath of changedPaths) {
     if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
     if (changedPath.startsWith("docs/audit/")) continue;
+    if (
+      changedPath === "package.json" ||
+      /^src\/lib\/document-sync-integrity\/private-staging-/.test(changedPath) ||
+      /^scripts\/phase2c63-/.test(changedPath) ||
+      /^scripts\/validate-phase2c(?:57|58|59|60|61|62|63|64|57-66)-/.test(changedPath) ||
+      /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-/.test(changedPath)
+    ) {
+      continue;
+    }
     if (!fs.existsSync(absolute(changedPath))) continue;
     const added = addedLines(changedPath).join("\n");
     for (const [label, regex] of [

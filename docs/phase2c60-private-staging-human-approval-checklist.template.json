@@ -1,0 +1,12 @@
+{
+  "securityReviewApproved": false,
+  "legalReviewApproved": false,
+  "dataProtectionReviewApproved": false,
+  "stagingEnvironmentApproved": false,
+  "rollbackPlanApproved": false,
+  "observabilityApproved": false,
+  "noRealDataConfirmed": false,
+  "noProductionConfirmed": false,
+  "routeStillDisabledByDefaultConfirmed": false,
+  "ownerApproval": false
+}

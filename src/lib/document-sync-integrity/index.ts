@@ -272,6 +272,69 @@ export type {
   DocumentSyncSupabaseLocalHandlerHarnessInput,
   DocumentSyncSupabaseLocalHandlerHarnessMetadata,
 } from "./route-supabase-local-harness";
+export {
+  DOCUMENT_SYNC_PRIVATE_STAGING_AUDIENCE_INTERNAL,
+  DOCUMENT_SYNC_PRIVATE_STAGING_AUDIENCE_KEY,
+  DOCUMENT_SYNC_PRIVATE_STAGING_ENABLED_KEY,
+  DOCUMENT_SYNC_PRIVATE_STAGING_KILL_SWITCH_KEY,
+  DOCUMENT_SYNC_PRIVATE_STAGING_MODE_KEY,
+  DOCUMENT_SYNC_PRIVATE_STAGING_MODE_REVIEW,
+  evaluatePrivateStagingEnvironmentContract,
+  summarizePrivateStagingEnvironmentContract,
+} from "./private-staging-environment";
+export type {
+  DocumentSyncPrivateStagingEnvironmentEvaluation,
+  DocumentSyncPrivateStagingEnvironmentReason,
+  DocumentSyncPrivateStagingEnvironmentSafeSummary,
+  DocumentSyncPrivateStagingEnvironmentStatus,
+  DocumentSyncPrivateStagingEnvLike,
+} from "./private-staging-environment";
+export {
+  evaluatePrivateStagingSecretBoundary,
+  redactPrivateStagingSecretSummary,
+} from "./private-staging-secret-boundary";
+export type {
+  PrivateStagingCredentialValueKind,
+  PrivateStagingSecretBoundaryEvaluation,
+  PrivateStagingSecretBoundaryReason,
+  PrivateStagingSecretBoundarySafeSummary,
+  PrivateStagingSecretBoundaryStatus,
+  PrivateStagingSecretBoundaryVariable,
+} from "./private-staging-secret-boundary";
+export {
+  buildPrivateStagingRedactionChecklist,
+  evaluatePrivateStagingObservabilityReadiness,
+  summarizePrivateStagingObservability,
+} from "./private-staging-observability";
+export type {
+  PrivateStagingObservabilityEvaluation,
+  PrivateStagingObservabilityInput,
+  PrivateStagingObservabilityReason,
+  PrivateStagingObservabilitySafeSummary,
+  PrivateStagingObservabilityStatus,
+} from "./private-staging-observability";
+export {
+  buildDocumentSyncPrivateStagingBlockers,
+  evaluateDocumentSyncPrivateStagingReadiness,
+  summarizeDocumentSyncPrivateStagingReadiness,
+} from "./private-staging-readiness";
+export type {
+  PrivateStagingHumanApprovalChecklist,
+  PrivateStagingReadinessEvaluation,
+  PrivateStagingReadinessInput,
+  PrivateStagingReadinessReason,
+  PrivateStagingReadinessSafeSummary,
+  PrivateStagingReadinessStatus,
+} from "./private-staging-readiness";
+export {
+  assertPrivateStagingDryRunReportSafe,
+  buildPrivateStagingDryRunReport,
+  redactPrivateStagingDryRunReport,
+} from "./private-staging-dry-run-report";
+export type {
+  PrivateStagingDryRunReport,
+  PrivateStagingDryRunReportInput,
+} from "./private-staging-dry-run-report";
 export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,
