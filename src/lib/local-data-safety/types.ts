@@ -1,4 +1,5 @@
 // PHASE2D1_10_LOCAL_DATA_BACKUP_RESTORE_SAFETY_V1
+// PHASE2D11_20_LOCAL_DATA_IMPORT_RESTORE_REVIEW_FLOW_V1
 // PHASE2D2_BACKUP_MANIFEST_CONTRACT_V1
 
 export type LocalDataRecordId = string;
@@ -26,7 +27,14 @@ export type LocalDataRiskFlag =
   | "incoming_counter_change"
   | "restore_would_change_protected"
   | "restore_would_remove_protected"
-  | "restore_snapshot_missing";
+  | "restore_snapshot_missing"
+  | "backup_intake_rejected"
+  | "backup_validation_failed"
+  | "backup_malformed"
+  | "review_manual_confirmation_required"
+  | "apply_import_blocked"
+  | "apply_restore_blocked"
+  | "storage_adapter_disabled";
 
 export interface LocalDataSafetyDocumentLike {
   id?: string;
@@ -312,4 +320,275 @@ export interface InMemoryLocalDataSafetyAuditSink {
   record(input: LocalDataSafetyAuditEventInput): LocalDataSafetyAuditEvent;
   list(): LocalDataSafetyAuditEvent[];
   clear(): void;
+}
+
+export interface LocalDataBackupIntakeCandidate {
+  // PHASE2D11_BACKUP_FILE_INTAKE_CONTRACT_V1
+  fileName: string;
+  mimeType?: string;
+  byteLength: number;
+  parsedObject?: unknown;
+}
+
+export interface LocalDataBackupIntakeOptions {
+  maxBytes?: number;
+  inspectedAt?: string;
+  allowEmptyMimeType?: boolean;
+}
+
+export interface LocalDataBackupIntakeError {
+  code:
+    | "MISSING_FILE_NAME"
+    | "SUSPICIOUS_FILE_NAME"
+    | "FORBIDDEN_EXTENSION"
+    | "UNEXPECTED_EXTENSION"
+    | "UNEXPECTED_MIME_TYPE"
+    | "BACKUP_TOO_LARGE"
+    | "INVALID_PARSED_OBJECT";
+  message: string;
+}
+
+export interface LocalDataBackupIntakeSafeSummary {
+  fileName: string;
+  extension: string;
+  mimeType: string;
+  byteLength: number;
+  accepted: boolean;
+  inspectedAt: string;
+  errorCodes: LocalDataBackupIntakeError["code"][];
+}
+
+export interface LocalDataBackupIntakeResult {
+  marker: "PHASE2D11_BACKUP_FILE_INTAKE_CONTRACT_V1";
+  accepted: boolean;
+  inspectedAt: string;
+  candidate: {
+    fileName: string;
+    extension: string;
+    mimeType: string;
+    byteLength: number;
+    parsedObjectPresent: boolean;
+  };
+  errors: LocalDataBackupIntakeError[];
+}
+
+export type LocalDataBackupValidationStage =
+  | "intake"
+  | "malformed_hardening"
+  | "manifest"
+  | "integrity"
+  | "import_dry_run"
+  | "recovery_snapshot"
+  | "safe_report"
+  | "completed";
+
+export interface LocalDataBackupValidationPipelineOptions {
+  validatedAt?: string;
+  intake?: LocalDataBackupIntakeOptions;
+}
+
+export interface LocalDataBackupValidationPipelineError {
+  stage: LocalDataBackupValidationStage;
+  code: string;
+  message: string;
+}
+
+export interface LocalDataBackupValidationPipelineResult {
+  marker: "PHASE2D12_BACKUP_VALIDATION_PIPELINE_V1";
+  status: "valid" | "invalid";
+  validatedAt: string;
+  stoppedAt: LocalDataBackupValidationStage;
+  intake: LocalDataBackupIntakeResult;
+  malformedFindings?: LocalDataMalformedBackupSummary;
+  manifest?: LocalDataBackupManifest;
+  integrityDigest?: LocalDataBackupIntegrityDigest;
+  importPlan?: LocalDataImportDryRunPlan;
+  recoverySnapshot?: LocalDataRecoverySnapshotSummary;
+  safeReport?: LocalDataSafetyReport;
+  errors: LocalDataBackupValidationPipelineError[];
+  riskFlags: LocalDataRiskFlag[];
+}
+
+export interface LocalDataBackupValidationPipelineSummary {
+  status: "valid" | "invalid";
+  validatedAt: string;
+  stoppedAt: LocalDataBackupValidationStage;
+  intake: LocalDataBackupIntakeSafeSummary;
+  totals?: LocalDataBackupManifest["totals"];
+  importPlan?: LocalDataImportDryRunSummary;
+  recoverySnapshotPresent: boolean;
+  safeReportPresent: boolean;
+  errorCodes: string[];
+  riskFlags: LocalDataRiskFlag[];
+}
+
+export type LocalDataReviewSeverity = "info" | "warning" | "blocked";
+
+export type LocalDataReviewDecision =
+  | "dry_run_ready"
+  | "manual_review_required"
+  | "blocked_until_review";
+
+export interface LocalDataReviewActionState {
+  allowDryRunOnly: true;
+  allowApplyImport: false;
+  allowApplyRestore: false;
+  requiresHumanConfirmation: boolean;
+}
+
+export interface LocalDataReviewSection {
+  id: "overview" | "backup_summary" | "import_risks" | "restore_risks" | "blockers";
+  title: string;
+  severity: LocalDataReviewSeverity;
+  count: number;
+  messages: string[];
+}
+
+export interface LocalDataImportRestoreReviewModel {
+  marker: "PHASE2D13_IMPORT_RESTORE_REVIEW_MODEL_V1";
+  generatedAt: string;
+  status: "ready_for_review" | "blocked";
+  severity: LocalDataReviewSeverity;
+  decision: LocalDataReviewDecision;
+  manualReviewRequired: boolean;
+  protectedDocumentsCount: number;
+  sections: LocalDataReviewSection[];
+  actions: LocalDataReviewActionState;
+  riskFlags: LocalDataRiskFlag[];
+}
+
+export interface LocalDataImportRestoreReviewModelSummary {
+  status: LocalDataImportRestoreReviewModel["status"];
+  severity: LocalDataReviewSeverity;
+  decision: LocalDataReviewDecision;
+  manualReviewRequired: boolean;
+  protectedDocumentsCount: number;
+  actions: LocalDataReviewActionState;
+  riskFlags: LocalDataRiskFlag[];
+}
+
+export interface LocalDataImportRestoreConfirmationApprovals {
+  backupReviewed?: boolean;
+  protectedDocumentsReviewed?: boolean;
+  numberingRisksReviewed?: boolean;
+  snapshotRisksReviewed?: boolean;
+  dryRunReportReviewed?: boolean;
+  externalReviewAccepted?: boolean;
+}
+
+export interface LocalDataImportRestoreConfirmationChecklist {
+  marker: "PHASE2D14_IMPORT_RESTORE_HUMAN_CONFIRMATION_GATE_V1";
+  backupReviewed: false;
+  protectedDocumentsReviewed: false;
+  numberingRisksReviewed: false;
+  snapshotRisksReviewed: false;
+  dryRunReportReviewed: false;
+  externalReviewAccepted: false;
+}
+
+export interface LocalDataImportRestoreConfirmationResult {
+  marker: "PHASE2D14_IMPORT_RESTORE_HUMAN_CONFIRMATION_GATE_V1";
+  evaluatedAt: string;
+  requiresHumanConfirmation: boolean;
+  manualReviewRequired: boolean;
+  approvals: Required<LocalDataImportRestoreConfirmationApprovals>;
+  canProceedToApply: false;
+  reasons: string[];
+}
+
+export interface LocalDataImportRestoreConfirmationSummary {
+  evaluatedAt: string;
+  requiresHumanConfirmation: boolean;
+  manualReviewRequired: boolean;
+  canProceedToApply: false;
+  reasons: string[];
+}
+
+export interface LocalDataApplyBlockedResult {
+  marker: "PHASE2D15_IMPORT_RESTORE_APPLY_BLOCKER_V1";
+  blocked: true;
+  operation: "import" | "restore";
+  reason: "APPLY_DISABLED_PENDING_UI_AND_EXTERNAL_REVIEW";
+  generatedAt: string;
+  safe: true;
+}
+
+export interface LocalDataStorageAdapterReadiness {
+  marker: "PHASE2D16_DISABLED_LOCALSTORAGE_ADAPTER_CONTRACT_V1";
+  status: "disabled";
+  canRead: false;
+  canWrite: false;
+  reason: "DISABLED_PENDING_UI_REVIEW_AND_BACKUP";
+  evaluatedAt: string;
+}
+
+export interface DisabledLocalDataStorageAdapter {
+  marker: "PHASE2D16_DISABLED_LOCALSTORAGE_ADAPTER_CONTRACT_V1";
+  read(): LocalDataStorageAdapterReadiness;
+  write(): LocalDataStorageAdapterReadiness;
+  summarize(): LocalDataStorageAdapterReadiness;
+}
+
+export interface LocalDataMalformedBackupFinding {
+  code:
+    | "UNSAFE_KEY"
+    | "CIRCULAR_REFERENCE"
+    | "TOO_DEEP"
+    | "ARRAY_TOO_LARGE"
+    | "UNEXPECTED_FUNCTION"
+    | "UNEXPECTED_INSTANCE"
+    | "SUSPICIOUS_STRING";
+  path: string;
+  severity: LocalDataReviewSeverity;
+}
+
+export interface LocalDataMalformedBackupOptions {
+  maxDepth?: number;
+  maxArrayLength?: number;
+}
+
+export interface LocalDataMalformedBackupSummary {
+  marker: "PHASE2D17_MALFORMED_BACKUP_HARDENING_V1";
+  safe: boolean;
+  totalFindings: number;
+  maxSeverity: LocalDataReviewSeverity;
+  findingCodes: LocalDataMalformedBackupFinding["code"][];
+}
+
+export interface LocalDataMalformedBackupResult {
+  marker: "PHASE2D17_MALFORMED_BACKUP_HARDENING_V1";
+  safe: boolean;
+  findings: LocalDataMalformedBackupFinding[];
+}
+
+export interface LocalDataImportRestoreReviewReportInput {
+  validationResult: LocalDataBackupValidationPipelineResult;
+  reviewModel: LocalDataImportRestoreReviewModel;
+  confirmation: LocalDataImportRestoreConfirmationResult;
+  importBlocker: LocalDataApplyBlockedResult;
+  restoreBlocker: LocalDataApplyBlockedResult;
+  generatedAt?: string;
+}
+
+export interface LocalDataImportRestoreReviewReport {
+  marker: "PHASE2D18_IMPORT_RESTORE_REVIEW_FLOW_SAFE_REPORT_V1";
+  status: LocalDataImportRestoreReviewModel["status"];
+  severity: LocalDataReviewSeverity;
+  generatedAt: string;
+  counts: {
+    protectedDocuments: number;
+    blockers: number;
+    manualReviewSections: number;
+  };
+  blockers: string[];
+  manualReview: boolean;
+  applyAllowed: false;
+  restoreAllowed: false;
+  nextSteps: string[];
+  safeSummaries: {
+    validation: LocalDataBackupValidationPipelineSummary;
+    review: LocalDataImportRestoreReviewModelSummary;
+    confirmation: LocalDataImportRestoreConfirmationSummary;
+  };
+  safe: true;
 }

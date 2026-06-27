@@ -1,0 +1,9 @@
+{
+  "marker": "PHASE2D14_IMPORT_RESTORE_HUMAN_CONFIRMATION_GATE_V1",
+  "backupReviewed": false,
+  "protectedDocumentsReviewed": false,
+  "numberingRisksReviewed": false,
+  "snapshotRisksReviewed": false,
+  "dryRunReportReviewed": false,
+  "externalReviewAccepted": false
+}
