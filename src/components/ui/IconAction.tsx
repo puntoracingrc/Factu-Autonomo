@@ -11,7 +11,7 @@ function TooltipBubble({ text }: { text: string }) {
   return (
     <span
       role="tooltip"
-      className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:block"
+      className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden max-w-72 -translate-x-1/2 whitespace-normal rounded-lg bg-slate-800 px-2.5 py-1 text-center text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:inline-block"
     >
       {text}
       <span

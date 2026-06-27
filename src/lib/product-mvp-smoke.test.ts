@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildDocumentPdfBlob } from "./pdf";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildDocumentPdfBlob, openDocumentPdfPreview } from "./pdf";
 import { buildInvoiceDraftFromQuote } from "./quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "./share";
 import { documentTotals } from "./calculations";
@@ -51,6 +51,10 @@ const quote: Document = {
 };
 
 describe("MVP document smoke", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("convierte presupuesto a factura, emite, genera QR/PDF y conserva contacto", async () => {
     const originalQuote = structuredClone(quote);
     const invoiceDraft = buildInvoiceDraftFromQuote(quote, {
@@ -95,5 +99,15 @@ describe("MVP document smoke", () => {
     expect(pdf.type).toBe("application/pdf");
     expect(pdf.size).toBeGreaterThan(1000);
     expect(quote).toEqual(originalQuote);
+  });
+
+  it("detecta cuando el navegador bloquea abrir el PDF", async () => {
+    vi.stubGlobal("window", {
+      open: vi.fn(() => null),
+    });
+
+    await expect(openDocumentPdfPreview(quote, profile)).rejects.toThrow(
+      "popup_blocked",
+    );
   });
 });
