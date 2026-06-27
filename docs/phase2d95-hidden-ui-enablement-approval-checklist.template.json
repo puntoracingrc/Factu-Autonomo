@@ -1,0 +1,17 @@
+{
+  "marker": "PHASE2D95_HIDDEN_UI_ENABLEMENT_APPROVAL_CHECKLIST_V1",
+  "uxReviewApproved": false,
+  "legalReviewApproved": false,
+  "dataLossReviewApproved": false,
+  "ownerApproved": false,
+  "noRouteConfirmed": false,
+  "noNavigationConfirmed": false,
+  "noStorageWriteConfirmed": false,
+  "noFileReaderConfirmed": false,
+  "noDownloadConfirmed": false,
+  "applyStillBlockedConfirmed": false,
+  "rollbackPlanReviewed": false,
+  "supportPlanReviewed": false,
+  "userCopyReviewed": false,
+  "auditEvidenceReviewed": false
+}

@@ -1,0 +1,4 @@
+import { runPhase2D93To104Validation } from "./validate-phase2d93-104-hidden-ui-enablement-safety-gates-lib.mjs";
+
+runPhase2D93To104Validation({ phase: "93" });
+console.log("PHASE2D93_HIDDEN_IMPORT_RESTORE_UI_ENABLEMENT_GATE_V1: OK");
