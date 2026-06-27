@@ -195,8 +195,30 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No se aplica ningún cambio todavía.
 - No se escribe en `localStorage`.
 - No se sube ningún archivo a servidor.
-- No hay botón de restauración en esta fase.
+- La vista previa por sí sola no aplica datos.
 - No toca Supabase, AEAT real, XML, firma, certificado ni transporte.
+
+## Restaurar copia de seguridad
+
+- La restauración se inicia desde el mismo bloque de `/configuracion`.
+- Primero hay que seleccionar un JSON y generar una vista previa válida.
+- La app no permite restaurar una copia que no pase la validación previa.
+- Antes de aplicar nada, el usuario debe descargar una copia actual.
+- Si la descarga de la copia actual falla, la restauración queda bloqueada.
+- La copia actual se descarga en el navegador y no se sube a ningún servidor.
+- El usuario debe marcar que entiende que se reemplazarán los datos locales.
+- El usuario debe marcar que ha descargado una copia de seguridad actual.
+- Solo entonces se habilita el botón `Restaurar copia`.
+- Restaurar reemplaza los datos locales de este navegador por los datos del JSON validado.
+- La restauración usa el store de la app y el guardado local existente.
+- No aplica datos desde un JSON desconocido, sin metadata o con campos peligrosos.
+- No aplica copias con claves que parezcan secretos, tokens o variables de entorno.
+- Después de restaurar se muestra un mensaje de éxito.
+- Si la app necesita refrescar vistas, el usuario puede recargar el navegador.
+- No es sincronización cloud.
+- No toca Supabase remoto ni producción.
+- No toca AEAT real, XML, QR oficial nuevo, firma, certificado ni transporte.
+- No cambia PDF, QR existente, conversión, emisión ni cobro local.
 
 ## PDF, vista previa e impresión
 
