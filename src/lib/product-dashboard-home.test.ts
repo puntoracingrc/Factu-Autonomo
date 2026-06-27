@@ -18,6 +18,8 @@ describe("product dashboard home", () => {
     expect(component).toContain("Gastos");
     expect(component).toContain("Balance estimado");
     expect(component).toContain("IVA estimado");
+    expect(component).toContain("Resumen por periodo");
+    expect(component).toContain("Periodo:");
   });
 
   it("mantiene acciones rapidas utiles desde inicio", () => {

@@ -61,6 +61,7 @@ export function ExpenseFiltersBar({
       <Field label="Periodo">
         <Select
           value={periodKind}
+          aria-label="Periodo de gastos"
           onChange={(e) =>
             onPeriodKindChange(e.target.value as ExpensePeriodKind)
           }
@@ -74,6 +75,7 @@ export function ExpenseFiltersBar({
       <Field label="Año">
         <Select
           value={year}
+          aria-label="Año de gastos"
           onChange={(e) => onYearChange(Number(e.target.value))}
         >
           {years.map((y) => (
@@ -88,6 +90,7 @@ export function ExpenseFiltersBar({
         <Field label="Mes">
           <Select
             value={month}
+            aria-label="Mes de gastos"
             onChange={(e) => onMonthChange(Number(e.target.value))}
           >
             {MONTH_NAMES.map((name, index) => (
@@ -103,6 +106,7 @@ export function ExpenseFiltersBar({
         <Field label="Trimestre">
           <Select
             value={quarter}
+            aria-label="Trimestre de gastos"
             onChange={(e) => onQuarterChange(Number(e.target.value) as Quarter)}
           >
             {ALL_QUARTERS.map((q) => (
@@ -117,6 +121,7 @@ export function ExpenseFiltersBar({
       <Field label="Proveedor">
         <Select
           value={supplierFilter ?? ""}
+          aria-label="Proveedor de gastos"
           onChange={(e) =>
             onSupplierFilterChange(e.target.value || null)
           }
