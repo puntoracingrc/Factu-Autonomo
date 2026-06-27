@@ -5,7 +5,11 @@ export type LocalDataSafetyErrorCode =
   | "INVALID_MANIFEST"
   | "INVALID_RECOVERY_SNAPSHOT"
   | "INTEGRITY_MISMATCH"
-  | "UNSAFE_REPORT";
+  | "UNSAFE_REPORT"
+  | "INVALID_BACKUP_INTAKE"
+  | "MALFORMED_BACKUP"
+  | "APPLY_BLOCKED"
+  | "STORAGE_ADAPTER_DISABLED";
 
 export class LocalDataSafetyError extends Error {
   constructor(

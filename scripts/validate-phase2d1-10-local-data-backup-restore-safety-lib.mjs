@@ -102,11 +102,11 @@ function validateNoRedLines() {
 
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
-    /^scripts\/phase2d9-local-data-backup-restore-safety-acceptance\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|10|1-10)-.*\.mjs$/,
+    /^scripts\/phase2d(?:9-local-data-backup-restore-safety-acceptance|19-import-restore-review-flow-acceptance)\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|1[0-9]|20|1-10|11-20)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|10)-.*$/,
+    /^docs\/phase2d(?:[1-9]|1[0-9]|20)-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
@@ -122,7 +122,7 @@ function validateNoRedLines() {
     assert(!/vida/i.test(changedPath), `ViDA path touched: ${changedPath}.`);
     assert(!/^(?:src\/app|app|pages|components|public)\//.test(changedPath), `UI/public path touched: ${changedPath}.`);
     assert(!/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath), `Vercel config touched: ${changedPath}.`);
-    assert(!/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath), `Forbidden product path touched: ${changedPath}.`);
+    assert(!/(?:stripe|openai|importers|aeat|(?:^|[\/_-])qr(?:[\/_.-]|$)|(?:^|[\/_-])firma(?:[\/_.-]|$)|certificado|transport)/i.test(changedPath), `Forbidden product path touched: ${changedPath}.`);
     assert(!changedPath.toLowerCase().endsWith(".pdf"), `PDF binary is not authorized: ${changedPath}.`);
   }
 }

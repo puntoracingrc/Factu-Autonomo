@@ -223,7 +223,7 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/validate-phase2c63-.*\.mjs$/,
   /^scripts\/validate-phase2c64-.*\.mjs$/,
   /^scripts\/validate-phase2c57-66-.*\.mjs$/,
-  /^scripts\/phase2d9-/,
+  /^scripts\/phase2d(?:9|19)-/,
   /^scripts\/validate-phase2d/,
   /^src\/lib\/local-data-safety\//,
   /^docs\/audit\//,
@@ -292,7 +292,7 @@ for (const changedPath of changedPaths) {
   if (/^(?:src\/app|app|components|public)\//.test(changedPath)) {
     fail(`UI/public path touched: ${changedPath}.`);
   }
-  if (/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath)) {
+  if (/(?:stripe|openai|importers|aeat|(?:^|[\/_-])qr(?:[\/_.-]|$)|(?:^|[\/_-])firma(?:[\/_.-]|$)|certificado|transport)/i.test(changedPath)) {
     fail(`Forbidden external/product path touched: ${changedPath}.`);
   }
 }

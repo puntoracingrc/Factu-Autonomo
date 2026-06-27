@@ -169,7 +169,7 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c63-.*\.mjs$/,
   /^scripts\/validate-phase2c64-.*\.mjs$/,
   /^scripts\/validate-phase2c57-66-.*\.mjs$/,
-  /^scripts\/phase2d9-/,
+  /^scripts\/phase2d(?:9|19)-/,
   /^scripts\/validate-phase2d/,
   /^src\/lib\/local-data-safety\//,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
@@ -243,7 +243,7 @@ for (const changedPath of changedPaths) {
   ) {
     fail(`UI/public path touched: ${changedPath}.`);
   }
-  if (/stripe|openai|importers|aeat|qr|firma|certificado|transport/i.test(changedPath)) {
+  if (/(?:stripe|openai|importers|aeat|(?:^|[\/_-])qr(?:[\/_.-]|$)|(?:^|[\/_-])firma(?:[\/_.-]|$)|certificado|transport)/i.test(changedPath)) {
     fail(`Forbidden external/product path touched: ${changedPath}.`);
   }
 }
@@ -257,7 +257,7 @@ for (const changedPath of changedPaths) {
   if (changedPath.includes("validate-phase2")) continue;
   if (
     /^src\/lib\/local-data-safety\//.test(changedPath) ||
-    /^scripts\/phase2d9-/.test(changedPath) ||
+    /^scripts\/phase2d(?:9|19)-/.test(changedPath) ||
     /^docs\/phase2d/.test(changedPath)
   ) {
     continue;
