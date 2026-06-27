@@ -106,9 +106,17 @@ const allowedPatterns = [
   /^scripts\/validate-phase2c45-.*\.mjs$/,
   /^scripts\/validate-phase2c46-.*\.mjs$/,
   /^scripts\/validate-phase2c37-48-.*\.mjs$/,
+  /^scripts\/validate-phase2c49-.*\.mjs$/,
+  /^scripts\/validate-phase2c50-.*\.mjs$/,
+  /^scripts\/validate-phase2c51-.*\.mjs$/,
+  /^scripts\/validate-phase2c52-.*\.mjs$/,
+  /^scripts\/validate-phase2c53-.*\.mjs$/,
+  /^scripts\/validate-phase2c54-.*\.mjs$/,
+  /^scripts\/validate-phase2c49-56-.*\.mjs$/,
   /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
   /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
   /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
+  /^scripts\/phase2c5[1234]-.*\.test\.ts$/,
   /^src\/app\/api\/document-sync\/route\.ts$/,
   /^src\/lib\/document-sync-integrity\//,
   /^docs\/phase2c37-.*\.md$/,
@@ -122,6 +130,13 @@ const allowedPatterns = [
   /^docs\/phase2c45-.*\.md$/,
   /^docs\/phase2c46-.*\.md$/,
   /^docs\/phase2c48-.*\.md$/,
+  /^docs\/phase2c49-.*\.md$/,
+  /^docs\/phase2c50-.*\.md$/,
+  /^docs\/phase2c51-.*\.md$/,
+  /^docs\/phase2c52-.*\.md$/,
+  /^docs\/phase2c53-.*\.md$/,
+  /^docs\/phase2c54-.*\.md$/,
+  /^docs\/phase2c56-.*\.md$/,
   /^package\.json$/,
 ];
 
@@ -130,8 +145,11 @@ function isPhase2C37To48Path(changedPath) {
     /^src\/app\/api\/document-sync\/route\.ts$/,
     /^src\/lib\/document-sync-integrity\//,
     /^scripts\/phase2c4[056]-/,
+    /^scripts\/phase2c5[1234]-/,
     /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-/,
+    /^scripts\/validate-phase2c(?:49|50|51|52|53|54|49-56)-/,
     /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/,
+    /^docs\/phase2c(?:49|50|51|52|53|54|56)-/,
   ].some((pattern) => pattern.test(changedPath));
 }
 

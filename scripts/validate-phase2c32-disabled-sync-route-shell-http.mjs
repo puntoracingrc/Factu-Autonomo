@@ -14,6 +14,8 @@ function read(relativePath) {
 }
 
 const route = read("src/app/api/document-sync/route.ts");
+const handler = read("src/lib/document-sync-integrity/route-handler.ts");
+const routeAndHandler = `${route}\n${handler}`;
 const doc = read("docs/phase2c32-disabled-sync-route-shell-http-v1.md");
 const packageJson = JSON.parse(read("package.json") || "{}");
 
@@ -26,10 +28,10 @@ if (!route.includes("export async function GET") || !route.includes("export asyn
 if (!route.includes("evaluateDocumentSyncRouteShellFlag(process.env)")) {
   fail("Route boundary must evaluate the private flag from process.env.");
 }
-if (!route.includes("buildDocumentSyncRouteDisabledResponse")) {
+if (!routeAndHandler.includes("buildDocumentSyncRouteDisabledResponse")) {
   fail("Route shell must build disabled responses.");
 }
-if (!route.includes("route_shell_enabled_but_operations_disabled")) {
+if (!routeAndHandler.includes("route_shell_enabled_but_operations_disabled")) {
   fail("Local shell path must keep operations disabled.");
 }
 const laterLocalFakeBoundary = route.includes(
