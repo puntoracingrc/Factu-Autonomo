@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66, local data safety / backup restore 2D.1-2D.10 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -96,6 +96,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2C.37-2C.48 | Ejecucion privada local/fake de la route shell y hardening operacional. | PR 2C private local sync route fake hardening | Contrato local/fake; fake adapter in-memory; boundary en route shell; abuso/payload; rate limit y requestId in-memory; idempotencia/replay in-memory; method/content-type/cache/CORS; telemetria in-memory segura; checkpoint. | Validadores 2C.37-2C.48; tests unitarios de `src/lib/document-sync-integrity`; acceptance local fake execution; operational hardening acceptance; audit export verificado. | `PHASE2C_PRIVATE_LOCAL_SYNC_ROUTE_FAKE_EXECUTION: LOCAL FAKE EXECUTION HARDENED / NO PRODUCTION / NO REAL DATA`; evidencia tecnica interna local/staging con fake adapter, server-only, route shell deshabilitada por defecto, ejecucion local/fake solo con flags privadas, sin produccion, sin Supabase remoto, sin documentos reales y sin endpoint publico operativo. |
 | Fase 2C.49-2C.56 | Handler privado local/staging para pruebas de sync con dependencias inyectadas. | PR 2C private local sync handler harness | Security review; handler privado server-only; dependencias inyectadas; route thin boundary; harness Supabase local opt-in; paridad fake-vs-Supabase-local; matriz auth/scope; failure injection; checkpoint. | Validadores 2C.49-2C.56; tests unitarios de `src/lib/document-sync-integrity`; scripts 2C.51-2C.54; audit export verificado. | `PHASE2C_PRIVATE_LOCAL_SYNC_HANDLER_HARNESS: READY FOR PRIVATE STAGING DESIGN REVIEW / NO PRODUCTION`; evidencia tecnica interna local/staging con handler privado, dependencias inyectadas, fake adapter default, Supabase local opt-in, sin produccion, sin Supabase remoto, sin endpoint publico operativo y sin documentos reales. |
 | Fase 2C.57-2C.66 | Private staging readiness gates para document sync. | PR 2C private staging readiness gates | Gate server-only bloqueado por defecto; contrato de entorno sin config real; boundary de secrets/variables con placeholders; checklist humana; kill switch/runbook; observabilidad redactada; remote/staging blocker tests; dry-run report; checkpoint. | Validadores 2C.57-2C.66; tests unitarios de `src/lib/document-sync-integrity`; `test:phase2c63-sync-route-remote-staging-blocker`; audit export verificado. | `PHASE2C_PRIVATE_STAGING_READINESS: BLOCKED BY DEFAULT / READY FOR HUMAN REVIEW`; evidencia tecnica interna de private staging readiness con gates de autorizacion, route disabled by default, fake adapter default, Supabase local opt-in only, sin produccion, sin Supabase remoto, sin endpoint publico operativo, sin documentos reales y sin activacion remota. |
+| Fase 2D.1-2D.10 | Seguridad de datos locales, backup, import dry-run y restore planning. | PR 2D local data safety | Auditoria de superficie, manifiesto de backup, backup integrity, import dry-run, recovery snapshot, restore planning, reporte seguro, eventos in-memory, acceptance y checkpoint. | Validadores 2D.1-2D.10; tests unitarios de `src/lib/local-data-safety`; `test:phase2d9-local-data-backup-restore-safety-acceptance`; audit export verificado. | `PHASE2D_LOCAL_DATA_BACKUP_RESTORE_SAFETY: READY FOR UI INTEGRATION DESIGN / NO DATA MUTATION`; evidencia tecnica interna de local data safety, sin produccion, sin Supabase, sin documentos reales, sin UI y sin mutaciones reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export seguro del dossier vivo para auditoria. | PR audit export v1 | Metadata JSON; politica de snapshot; export HTML imprimible; guia PDF manual; validadores; dossier actualizado. | `export:compliance-dossier:html`; validadores audit export; validaciones generales del repo. | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; evidencia tecnica interna; sin cumplimiento productivo, sin certificacion, sin PDF binario commiteado. |
 
 Archivos internos relevantes:
@@ -123,6 +124,16 @@ Archivos internos relevantes:
 - `docs/phase2c63-sync-route-remote-staging-blocker-tests-v1.md`
 - `docs/phase2c64-private-staging-dry-run-report-v1.md`
 - `docs/phase2c66-private-staging-readiness-gate-checkpoint-v1.md`
+- `docs/phase2d1-local-data-backup-import-surface-audit-v1.md`
+- `docs/phase2d2-backup-manifest-contract-v1.md`
+- `docs/phase2d3-backup-integrity-hash-v1.md`
+- `docs/phase2d4-import-dry-run-planner-v1.md`
+- `docs/phase2d5-pre-import-recovery-snapshot-builder-v1.md`
+- `docs/phase2d6-restore-planner-document-protection-v1.md`
+- `docs/phase2d7-local-data-safety-report-v1.md`
+- `docs/phase2d8-local-data-safety-audit-events-v1.md`
+- `docs/phase2d9-local-data-backup-restore-safety-acceptance-v1.md`
+- `docs/phase2d10-local-data-backup-restore-safety-checkpoint-v1.md`
 
 ## 6. Seguridad de Supabase y permisos
 
@@ -274,6 +285,7 @@ Trabajo pendiente:
 - mantener la evidencia de acceptance Supabase 2C local, del servicio server-only 2C.25-2C.30, de la route shell deshabilitada 2C.31-2C.36, de la ejecucion privada local/fake endurecida 2C.37-2C.48 y del handler privado local/staging 2C.49-2C.56; cualquier validacion remota queda fuera de estos PR y requiere orden separada. No hay produccion, Supabase remoto, endpoint publico operativo ni UI.
 - la route shell de document sync queda deshabilitada por defecto mediante flag privada de servidor. La ejecucion local/fake solo se activa con flags privadas, usa fake adapter in-memory y datos `SYNTHETIC_ONLY_*`; no usa Supabase remoto, no toca documentos reales y no crea endpoint publico operativo.
 - el handler privado 2C.49-2C.56 separa la route HTTP de la ejecucion testable, recibe dependencias inyectadas, mantiene fake adapter default y permite harness Supabase local opt-in sin route publica operativa.
+- la seguridad de datos locales 2D.1-2D.10 queda limitada a contratos puros, backup integrity, import dry-run, recovery snapshot, restore planning, reporte seguro y eventos in-memory. No lee ni escribe datos reales, no aplica importaciones/restauraciones, no crea UI y no usa Supabase.
 - proximos pasos posibles: pausa de revision tecnica, security review externa, diseno de private staging con autorizacion explicita o hardening adicional antes de ampliar superficie HTTP.
 
 Evidencia tecnica interna de sync 2C.37-2C.48:
@@ -299,6 +311,18 @@ Evidencia tecnica interna de sync 2C.49-2C.56:
 - matriz adversarial auth/scope sin aceptar identidad del payload;
 - failure injection para adapter, service, telemetry, rate limit, idempotencia y requestId;
 - sin produccion, sin Supabase remoto, sin staging remoto, sin endpoint publico operativo, sin documentos reales y sin UI.
+
+Evidencia tecnica interna de local data safety 2D.1-2D.10:
+
+- `PHASE2D_LOCAL_DATA_BACKUP_RESTORE_SAFETY: READY FOR UI INTEGRATION DESIGN / NO DATA MUTATION`;
+- manifiesto de backup con conteos y referencias seguras;
+- backup integrity por digest SHA-256 sobre proyeccion canonica;
+- import dry-run sin aplicacion de cambios;
+- recovery snapshot en memoria para planificacion;
+- restore planning con bloqueo de documentos protegidos;
+- reporte seguro y redaccion de campos no aptos;
+- eventos in-memory con `persisted: false`;
+- sin produccion, sin Supabase, sin documentos reales, sin UI y sin mutaciones reales.
 
 ## 9. VERI*FACTU
 
@@ -523,14 +547,16 @@ Controles existentes:
 - normalización conservadora de datos cargados;
 - preservación de campos desconocidos en documentos durante normalización;
 - tests de backup y storage para campos de integridad documental.
+- contratos puros 2D.1-2D.10 para local data safety, backup integrity, import dry-run, recovery snapshot, restore planning, reporte seguro y auditoria in-memory.
 
 Pendiente:
 
 - backups automáticos o recordatorios de backup;
-- snapshots preimportación;
+- snapshots preimportación reales con UI y aprobacion humana;
 - IndexedDB o almacenamiento local más robusto;
 - historial de restauración;
-- protección adicional ante sobrescritura local/nube.
+- protección adicional ante sobrescritura local/nube;
+- diseno UI posterior para importar/restaurar datos locales sin saltarse el dry-run ni el bloqueo de documentos protegidos.
 
 ## 12. IA y tratamiento externo
 
@@ -617,6 +643,7 @@ Declaraciones no permitidas todavía:
 | Fase 2C.31-2C.36 | Route shell deshabilitada para document sync | `PHASE2C_DISABLED_SYNC_ROUTE_SHELL: DISABLED BY DEFAULT / NO OPERATIONS ENABLED`; evidencia tecnica interna; server-only; flag privada de servidor; sin endpoint publico operativo, sin UI, sin produccion, sin Supabase remoto y sin documentos reales. |
 | Fase 2C.37-2C.48 | Ejecucion local/fake endurecida de route shell | `PHASE2C_PRIVATE_LOCAL_SYNC_ROUTE_FAKE_EXECUTION: LOCAL FAKE EXECUTION HARDENED / NO PRODUCTION / NO REAL DATA`; evidencia tecnica interna local/staging; fake adapter; server-only; route shell deshabilitada por defecto; ejecucion local/fake solo con flags privadas; sin produccion, sin Supabase remoto, sin documentos reales y sin endpoint publico operativo. |
 | Fase 2C.49-2C.56 | Handler privado local/staging con harness opt-in | `PHASE2C_PRIVATE_LOCAL_SYNC_HANDLER_HARNESS: READY FOR PRIVATE STAGING DESIGN REVIEW / NO PRODUCTION`; evidencia tecnica interna local/staging; handler privado; dependencias inyectadas; fake adapter default; Supabase local opt-in; sin produccion, sin Supabase remoto, sin endpoint publico operativo y sin documentos reales. |
+| Fase 2D.1-2D.10 | Local data safety, backup y restore planning | `PHASE2D_LOCAL_DATA_BACKUP_RESTORE_SAFETY: READY FOR UI INTEGRATION DESIGN / NO DATA MUTATION`; evidencia tecnica interna; backup integrity, import dry-run, recovery snapshot, restore planning, reporte seguro y eventos in-memory; sin produccion, sin Supabase, sin documentos reales, sin UI y sin mutaciones reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export del dossier vivo | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; HTML/PDF son snapshots derivados; el Markdown sigue siendo canonico; no declaran cumplimiento productivo. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
@@ -648,6 +675,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-27 | Snapshot/export AUDIT_EXPORT_V1 añadido para generar HTML imprimible y guiar PDF derivado desde el dossier canonico, sin declaracion productiva. | Audit export | PR audit export v1 | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Ejecucion privada local/fake de route shell endurecida con fake adapter, rate limit, requestId, idempotencia/replay, method/content-type/cache/CORS, telemetria segura, acceptance local y checkpoint 2C.48. | Fase 2C.37-2C.48 | PR 2C private local sync route fake hardening | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Handler privado local/staging añadido con dependencias inyectadas, route thin boundary, harness Supabase local opt-in, paridad fake-vs-Supabase-local, matriz auth/scope, failure injection y checkpoint 2C.56. | Fase 2C.49-2C.56 | PR 2C private local sync handler harness | Equipo Factura Autónomo / Codex |
+| 2026-06-27 | Seguridad de datos locales 2D.1-2D.10 añadida con manifiesto, backup integrity, import dry-run, recovery snapshot, restore planning, reporte seguro, eventos in-memory, acceptance y checkpoint sin mutacion. | Fase 2D.1-2D.10 | PR 2D local data safety | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 

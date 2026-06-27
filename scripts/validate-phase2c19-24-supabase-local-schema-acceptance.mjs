@@ -200,6 +200,9 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c63-.*\.mjs$/,
   /^scripts\/validate-phase2c64-.*\.mjs$/,
   /^scripts\/validate-phase2c57-66-.*\.mjs$/,
+  /^scripts\/phase2d9-/,
+  /^scripts\/validate-phase2d/,
+  /^src\/lib\/local-data-safety\//,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -249,6 +252,7 @@ const allowedPathPatterns = [
   /^docs\/phase2c63-.*\.md$/,
   /^docs\/phase2c64-.*\.md$/,
   /^docs\/phase2c66-.*\.md$/,
+  /^docs\/phase2d/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -280,6 +284,13 @@ for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (changedPath === "package.json") continue;
   if (changedPath.includes("validate-phase2")) continue;
+  if (
+    /^src\/lib\/local-data-safety\//.test(changedPath) ||
+    /^scripts\/phase2d9-/.test(changedPath) ||
+    /^docs\/phase2d/.test(changedPath)
+  ) {
+    continue;
+  }
   if (
     /^src\/lib\/document-sync-integrity\/private-staging-/.test(changedPath) ||
     /^src\/lib\/document-sync-integrity\/route-(?:local-execution-contract|fake-adapter|rate-limit|idempotency|telemetry)(?:\.test)?\.ts$/.test(

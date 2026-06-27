@@ -136,7 +136,11 @@ function validateNoRedLines() {
     /^scripts\/validate-phase2c37-48-.*\.mjs$/,
     /^scripts\/validate-phase2c49-56-.*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
+    /^scripts\/phase2d9-/,
+    /^scripts\/validate-phase2d/,
     /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-.*$/,
+    /^docs\/phase2d/,
+    /^src\/lib\/local-data-safety\//,
     /^docs\/compliance-evidence-v1\.md$/,
     /^docs\/audit\//,
     /^package\.json$/,
@@ -160,6 +164,13 @@ function validateNoRedLines() {
   for (const changedPath of changedPaths) {
     if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
     if (changedPath.startsWith("docs/audit/")) continue;
+    if (
+      /^src\/lib\/local-data-safety\//.test(changedPath) ||
+      /^scripts\/phase2d9-/.test(changedPath) ||
+      /^docs\/phase2d/.test(changedPath)
+    ) {
+      continue;
+    }
     if (changedPath.endsWith(".mjs") && changedPath.includes("validate-phase2")) continue;
     if (!fs.existsSync(absolute(changedPath))) continue;
     const body = untrackedPaths.has(changedPath)
