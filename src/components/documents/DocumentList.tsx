@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileWarning, Pencil, Search } from "lucide-react";
+import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
@@ -15,6 +15,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
@@ -137,7 +138,9 @@ export function DocumentList({
         <FactuEmptyState
           variant={type}
           action={
-            <ButtonLink href={`${basePath}/nuevo`}>Crear el primero</ButtonLink>
+            <ButtonLink href={`${basePath}/nuevo`}>
+              {DOCUMENT_EMPTY_ACTION_LABELS[type]}
+            </ButtonLink>
           }
         />
       ) : documents.length === 0 ? (
@@ -232,7 +235,7 @@ export function DocumentList({
                       <FileWarning className="h-5 w-5" />
                     </IconActionLink>
                   )}
-                  {editable && (
+                  {editable ? (
                     <IconActionLink
                       href={`${basePath}/${doc.id}`}
                       label="Editar"
@@ -240,6 +243,15 @@ export function DocumentList({
                       className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                     >
                       <Pencil className="h-5 w-5" />
+                    </IconActionLink>
+                  ) : (
+                    <IconActionLink
+                      href={`${basePath}/${doc.id}`}
+                      label="Ver"
+                      tooltip="Ver detalle"
+                      className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    >
+                      <Eye className="h-5 w-5" />
                     </IconActionLink>
                   )}
                   <DeleteDocumentButton doc={doc} />

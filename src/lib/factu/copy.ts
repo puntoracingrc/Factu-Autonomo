@@ -16,17 +16,17 @@ export type FactuEmptyVariant =
 
 export const FACTU_EMPTY_MESSAGES: Record<FactuEmptyVariant, string> = {
   factura:
-    "¡Aquí no hay nada! Esto está más desierto que mi banco de memoria. Venga, jefe, creemos la primera factura Veri Legal y Very Bonito.",
+    "Aún no tienes facturas. Crea la primera para emitirla, descargar su PDF y enviarla al cliente.",
   presupuesto:
-    "Sin presupuestos todavía. Ni yo puedo adivinar cuánto cobrarás si no me das datos. ¡Crea el primero!",
+    "Aún no tienes presupuestos. Crea uno para enviarlo al cliente y convertirlo en factura cuando lo acepte.",
   recibo:
-    "Cero recibos. Cuando cobres, yo celebro contigo. Mientras tanto, esto parece una caja vacía.",
+    "Aún no tienes recibos. Crea uno cuando quieras registrar un cobro.",
   cliente:
-    "No tengo a quién facturar. Añade tu primer cliente y dejamos de hablar con las paredes.",
+    "Aún no tienes clientes. Crea un cliente para usarlo en facturas y presupuestos.",
   gasto:
-    "Sin gastos registrados. O eres muy ahorrador o aún no me has contado las compras.",
+    "Aún no tienes gastos. Añade el primero para llevar el control del trimestre.",
   proveedor:
-    "Ningún proveedor por aquí. Cuando sepamos quién te vende cosas, lo apuntamos juntos.",
+    "Aún no tienes proveedores. Guarda los datos habituales para registrar gastos más rápido.",
 };
 
 export const FACTU_DAILY_GREETINGS = [
