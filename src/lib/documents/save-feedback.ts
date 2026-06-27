@@ -30,23 +30,24 @@ export function toastDocumentSaved(type: DocumentType, number: string): void {
   );
 }
 
-export function finishDocumentSave(input: {
+export async function finishDocumentSave(input: {
   type: DocumentType;
   number: string;
   router: AppRouter;
   download?: { doc: Document; profile: BusinessProfile };
-}): void {
+}): Promise<void> {
   toastDocumentSaved(input.type, input.number);
-  input.router.replace(LIST_PATHS[input.type]);
-  input.router.refresh();
 
   if (input.download) {
-    void downloadDocumentPdf(input.download.doc, input.download.profile).catch(
-      () => {
-        showFactuToast(
-          "No se pudo descargar el PDF. Puedes hacerlo desde el listado.",
-        );
-      },
-    );
+    try {
+      await downloadDocumentPdf(input.download.doc, input.download.profile);
+    } catch {
+      showFactuToast(
+        "No se pudo descargar el PDF. Puedes hacerlo desde el listado.",
+      );
+    }
   }
+
+  input.router.replace(LIST_PATHS[input.type]);
+  input.router.refresh();
 }

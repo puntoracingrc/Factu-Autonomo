@@ -75,6 +75,7 @@ import {
 import { withVerifactuOnDocument } from "@/lib/verifactu/store";
 import {
   applyGenericDocumentUpdate,
+  deriveDocumentLifecycle,
   issueDocument as issueDocumentWithIntegrity,
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
@@ -105,7 +106,7 @@ interface AppStoreValue {
       "id" | "number" | "type" | "createdAt" | "updatedAt" | "rectification"
     > & { rectification: RectificationInfo },
   ) => Document | null;
-  updateDocument: (doc: Document) => void;
+  updateDocument: (doc: Document) => Document;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
   markQuoteAsAccepted: (id: string) => void;
@@ -156,6 +157,52 @@ const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+function saveEditableDocument(
+  current: Document,
+  next: Document,
+  profile: BusinessProfile,
+  updatedAt: string,
+): Document {
+  if (deriveDocumentLifecycle(current) !== "draft" || next.status === "borrador") {
+    return applyGenericDocumentUpdate(current, next, updatedAt);
+  }
+
+  const requestedStatus = next.status;
+  const draft = applyGenericDocumentUpdate(
+    current,
+    {
+      ...next,
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+    },
+    updatedAt,
+  );
+  const issued = issueDocumentWithIntegrity(draft, profile, updatedAt);
+
+  if (
+    requestedStatus === "pagado" &&
+    (issued.type === "factura" || issued.type === "recibo")
+  ) {
+    return markDocumentPaidWithIntegrity(issued, updatedAt);
+  }
+
+  if (requestedStatus === "aceptado" && issued.type === "presupuesto") {
+    return acceptQuoteWithIntegrity(issued, updatedAt);
+  }
+
+  if (requestedStatus === "vencido" && issued.type === "factura") {
+    return {
+      ...issued,
+      status: "vencido",
+      paymentStatus: "overdue",
+      updatedAt,
+    };
+  }
+
+  return issued;
 }
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
@@ -226,35 +273,31 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (
       doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
     ): Document => {
-      let created!: Document;
+      const year = new Date(doc.date).getFullYear();
+      const kind: DocumentKind =
+        doc.type === "factura"
+          ? "factura"
+          : doc.type === "presupuesto"
+            ? "presupuesto"
+            : "recibo";
+      const numbering = data.profile.numbering;
+      const { number, sequence } = assignNextDocumentNumberByType(
+        data.documents,
+        doc.type,
+        year,
+        configuredLastForKind(numbering, kind, year),
+        numbering,
+      );
+      const now = new Date().toISOString();
+      const created: Document = {
+        ...doc,
+        id: newId(),
+        number,
+        createdAt: now,
+        updatedAt: now,
+      };
       setAppData((prev) => {
-        const year = new Date(doc.date).getFullYear();
-        const kind: DocumentKind =
-          doc.type === "factura"
-            ? "factura"
-            : doc.type === "presupuesto"
-              ? "presupuesto"
-              : "recibo";
-        const numbering = prev.profile.numbering;
-        const { number, sequence } = assignNextDocumentNumberByType(
-          prev.documents,
-          doc.type,
-          year,
-          configuredLastForKind(numbering, kind, year),
-          numbering,
-        );
-        const now = new Date().toISOString();
-        const nextDocuments = [
-          ...prev.documents,
-          {
-            ...doc,
-            id: newId(),
-            number,
-            createdAt: now,
-            updatedAt: now,
-          },
-        ];
-        created = nextDocuments[nextDocuments.length - 1];
+        const nextDocuments = [...prev.documents, created];
         return {
           ...prev,
           profile: {
@@ -272,20 +315,26 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       });
       return created;
     },
-    [setAppData],
+    [data.documents, data.profile.numbering, setAppData],
   );
 
-  const updateDocument = useCallback((doc: Document) => {
+  const updateDocument = useCallback((doc: Document): Document => {
+    const current = data.documents.find((item) => item.id === doc.id);
+    if (!current) {
+      throw new Error("Documento no encontrado");
+    }
+    const now = new Date().toISOString();
+    const saved = saveEditableDocument(current, doc, data.profile, now);
     setAppData((prev) => {
-      const now = new Date().toISOString();
       return {
         ...prev,
         documents: prev.documents.map((d) =>
-          d.id === doc.id ? applyGenericDocumentUpdate(d, doc, now) : d,
+          d.id === doc.id ? saved : d,
         ),
       };
     });
-  }, [setAppData]);
+    return saved;
+  }, [data.documents, data.profile, setAppData]);
 
   const issueDocument = useCallback(
     (id: string): Document => {
