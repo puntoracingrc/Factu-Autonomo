@@ -16,34 +16,19 @@ import { Field, Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
-import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
-import type { Document, DocumentType } from "@/lib/types";
-
-const STATUS_LABELS: Record<Document["status"], string> = {
-  borrador: "Borrador",
-  enviado: "Enviado",
-  aceptado: "Aceptado",
-  pagado: "Pagado",
-  vencido: "Vencido",
-  rectificada: "Rectificada",
-  anulada: "Anulada",
-};
-
-const STATUS_COLORS: Record<Document["status"], string> = {
-  borrador: "bg-slate-100 text-slate-600",
-  enviado: "bg-amber-100 text-amber-700",
-  aceptado: "bg-green-100 text-green-700",
-  pagado: "bg-green-100 text-green-700",
-  vencido: "bg-red-100 text-red-700",
-  rectificada: "bg-orange-100 text-orange-700",
-  anulada: "bg-red-100 text-red-800",
-};
+import {
+  RECTIFICATION_ACTION_COPY,
+  documentStatusColor,
+  documentStatusHint,
+  documentStatusLabel,
+} from "@/lib/invoice-status-actions";
+import type { DocumentType } from "@/lib/types";
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
   factura: "Número, cliente, NIF, dirección o importe...",
@@ -62,32 +47,6 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
   presupuesto: "presupuesto",
   recibo: "recibo",
 };
-
-function statusLabel(doc: Document, type: DocumentType): string {
-  if (
-    deriveDocumentLifecycle(doc) === "issued" &&
-    doc.deliveryStatus === "not_sent"
-  ) {
-    return "Emitido";
-  }
-  if (type === "presupuesto" && isAcceptedQuote(doc)) {
-    return "Aceptado";
-  }
-  if (doc.status === "pagado" && (type === "factura" || type === "recibo")) {
-    return "Cobrado";
-  }
-  return STATUS_LABELS[doc.status];
-}
-
-function statusColor(doc: Document): string {
-  if (
-    deriveDocumentLifecycle(doc) === "issued" &&
-    doc.deliveryStatus === "not_sent"
-  ) {
-    return "bg-blue-100 text-blue-700";
-  }
-  return STATUS_COLORS[doc.status];
-}
 
 interface DocumentListProps {
   type: DocumentType;
@@ -154,6 +113,7 @@ export function DocumentList({
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
+            const statusHint = documentStatusHint(doc, type);
             const linkedReceipt =
               type === "factura"
                 ? findReceiptForInvoice(
@@ -177,10 +137,10 @@ export function DocumentList({
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         isCollectedDocument(doc) || isAcceptedQuote(doc)
                           ? "bg-green-100 text-green-700"
-                          : statusColor(doc)
+                          : documentStatusColor(doc)
                       }`}
                     >
-                      {statusLabel(doc, type)}
+                      {documentStatusLabel(doc, type)}
                     </span>
                     {doc.verifactu && type === "factura" && (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
@@ -192,6 +152,9 @@ export function DocumentList({
                   <p className="text-sm text-slate-500">
                     {formatShortDate(doc.date)} · {formatMoney(total)}
                   </p>
+                  {statusHint && (
+                    <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
+                  )}
                   {doc.rectification && (
                     <p className="text-xs text-orange-700">
                       Rectifica: {doc.rectification.originalNumber}
@@ -228,8 +191,8 @@ export function DocumentList({
                   {rectifiable && (
                     <IconActionLink
                       href={`${basePath}/${doc.id}/rectificar`}
-                      label="Rectificar"
-                      tooltip="Rectificar factura"
+                      label={RECTIFICATION_ACTION_COPY.label}
+                      tooltip={RECTIFICATION_ACTION_COPY.tooltip}
                       className="bg-orange-50 text-orange-700 hover:bg-orange-100"
                     >
                       <FileWarning className="h-5 w-5" />

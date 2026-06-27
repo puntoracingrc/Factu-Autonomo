@@ -526,7 +526,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === id ? { ...d, status: newStatus, updatedAt: now } : d,
+            d.id === id
+              ? {
+                  ...d,
+                  status: newStatus,
+                  paymentStatus: newStatus === "vencido" ? "overdue" : "pending",
+                  paidAt: undefined,
+                  updatedAt: now,
+                }
+              : d,
           ),
         };
       });

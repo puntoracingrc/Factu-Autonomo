@@ -4,6 +4,7 @@ import { CheckCircle2, Circle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
 import { canMarkAsCollected, isCollectedDocument } from "@/lib/income";
+import { collectionActionCopy } from "@/lib/invoice-status-actions";
 import type { Document } from "@/lib/types";
 
 interface MarkAsPaidButtonProps {
@@ -16,6 +17,7 @@ export function MarkAsPaidButton({ doc }: MarkAsPaidButtonProps) {
   if (!canMarkAsCollected(doc)) return null;
 
   const collected = isCollectedDocument(doc);
+  const copy = collectionActionCopy(doc, collected);
 
   function toggleCollected() {
     if (collected) {
@@ -25,16 +27,10 @@ export function MarkAsPaidButton({ doc }: MarkAsPaidButtonProps) {
     markAsCollected(doc.id);
   }
 
-  const tooltip = collected
-    ? "Cobrado — pulsa para desmarcar"
-    : doc.type === "factura"
-      ? "Marcar como cobrado y crear recibo"
-      : "Marcar como cobrado";
-
   return (
     <IconActionButton
-      label={collected ? "Cobrado" : "Cobrar"}
-      tooltip={tooltip}
+      label={copy.label}
+      tooltip={copy.tooltip}
       onClick={toggleCollected}
       aria-pressed={collected}
       className={`transition-colors ${

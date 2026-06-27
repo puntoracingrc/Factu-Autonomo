@@ -6,6 +6,12 @@ import {
 } from "./documents";
 import type { Document, NumberingSettings } from "./types";
 
+function paymentStatusAfterUnmark(
+  status: Document["status"],
+): Document["paymentStatus"] {
+  return status === "vencido" ? "overdue" : "pending";
+}
+
 export function buildReceiptFromInvoice(
   invoice: Document,
 ): Omit<Document, "id" | "number" | "createdAt" | "updatedAt"> {
@@ -75,6 +81,8 @@ export function unmarkInvoiceCollection(
       ? {
           ...doc,
           status: nextStatus,
+          paymentStatus: paymentStatusAfterUnmark(nextStatus),
+          paidAt: undefined,
           receiptDocumentId: undefined,
           updatedAt,
         }

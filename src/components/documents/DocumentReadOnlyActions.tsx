@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
+import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
@@ -31,12 +32,15 @@ export function DocumentReadOnlyActions({
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm font-semibold text-slate-800">
-        Enviar {typeLabel} al cliente
+        Acciones de {typeLabel}
       </p>
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
         {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
         {doc.type === "presupuesto" && (
           <ConvertQuoteToInvoiceButton doc={doc} />
+        )}
+        {(doc.type === "factura" || doc.type === "recibo") && (
+          <MarkAsPaidButton doc={doc} />
         )}
         {doc.type === "factura" && canShowPaymentReminder(doc) && (
           <PaymentReminderButton
