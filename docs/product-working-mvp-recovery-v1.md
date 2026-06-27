@@ -487,6 +487,30 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - Pendiente:
   - capturas E2E permanentes si se quiere automatizar la revisión visual.
 
+## Bloqueos reales antes de beta privada
+
+A. Bloqueos reales:
+
+- No se ha detectado un bloqueo crítico en el smoke local para una beta privada acotada.
+- Antes de invitar usuarios, conviene definir que la beta usa datos locales del navegador.
+- La persistencia local exige explicar copia de seguridad y restauración desde el primer uso.
+- La beta debe evitar prometer conexión bancaria, trámites automáticos o envío real a organismos.
+
+B. Pendientes no bloqueantes:
+
+- Capturas E2E permanentes de los recorridos principales.
+- Mejora de textos de ayuda en formularios si aparecen dudas de usuarios.
+- Más automatización visual para móvil y escritorio.
+- Exportaciones adicionales para gestor si se priorizan después.
+
+C. Fuera de alcance:
+
+- AEAT real.
+- XML definitivo.
+- Firma, certificados y transporte.
+- Sincronización cloud.
+- Banco, pasarela de pago y conciliación automática.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.

@@ -511,6 +511,7 @@ export default function ProveedoresPage() {
                       onClick={() => startEdit(supplier)}
                       className="rounded-xl bg-slate-100 p-2 text-slate-700"
                       title="Editar"
+                      aria-label={`Editar ${supplier.name}`}
                     >
                       <Pencil className="h-5 w-5" />
                     </button>
@@ -522,6 +523,7 @@ export default function ProveedoresPage() {
                       }}
                       className="rounded-xl bg-red-50 p-2 text-red-600"
                       title="Borrar"
+                      aria-label={`Borrar ${supplier.name}`}
                     >
                       <Trash2 className="h-5 w-5" />
                     </button>
