@@ -251,6 +251,27 @@ export type {
   DocumentSyncRouteTelemetryEventType,
   InMemoryDocumentSyncRouteTelemetry,
 } from "./route-telemetry";
+export {
+  createDocumentSyncRouteHandler,
+  summarizeDocumentSyncRouteHandlerResult,
+} from "./route-handler";
+export type {
+  DocumentSyncRouteHandler,
+  DocumentSyncRouteHandlerDependencies,
+  DocumentSyncRouteHandlerLocalExecutionEvaluation,
+  DocumentSyncRouteHandlerOptions,
+  DocumentSyncRouteHandlerRequestInput,
+  DocumentSyncRouteHandlerResultSummary,
+} from "./route-handler";
+export {
+  createDocumentSyncSupabaseLocalHandlerHarness,
+  DocumentSyncSupabaseLocalHandlerHarnessError,
+} from "./route-supabase-local-harness";
+export type {
+  DocumentSyncSupabaseLocalHandlerHarness,
+  DocumentSyncSupabaseLocalHandlerHarnessInput,
+  DocumentSyncSupabaseLocalHandlerHarnessMetadata,
+} from "./route-supabase-local-harness";
 export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,

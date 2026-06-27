@@ -173,11 +173,13 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/phase2c29-/,
   /^scripts\/phase2c35-/,
   /^scripts\/phase2c4[056]-/,
+  /^scripts\/phase2c5[1234]-/,
   /^scripts\/validate-phase2c(?:13|14|15|16|17|13-18)-/,
   /^scripts\/validate-phase2c(?:19|20|21|22|23|19-24)-/,
   /^scripts\/validate-phase2c(?:25|26|27|28|29|25-30)-/,
   /^scripts\/validate-phase2c(?:31|32|33|34|35|31-36)-/,
   /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-/,
+  /^scripts\/validate-phase2c(?:49|50|51|52|53|54|49-56)-/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -188,6 +190,7 @@ const unrelatedLaterPhasePatterns = [
   /^docs\/phase2c(?:25|26|27|28|29|30)-/,
   /^docs\/phase2c(?:31|32|33|34|35|36)-/,
   /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/,
+  /^docs\/phase2c(?:49|50|51|52|53|54|56)-/,
   /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
   /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
@@ -229,7 +232,8 @@ const runtimeFiles = walk("src/lib/document-sync-integrity").filter(
     filePath.endsWith(".ts") &&
     !filePath.endsWith(".test.ts") &&
     filePath !== "src/lib/document-sync-integrity/index.ts" &&
-    !filePath.includes("/supabase-"),
+    !filePath.includes("/supabase-") &&
+    !filePath.includes("/route-supabase"),
 );
 
 for (const filePath of runtimeFiles) {
@@ -270,7 +274,9 @@ for (const changedPath of changedPaths) {
       changedPath,
     ) ||
     /^scripts\/phase2c4[056]-/.test(changedPath) ||
-    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath)
+    /^scripts\/phase2c5[1234]-/.test(changedPath) ||
+    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath) ||
+    /^docs\/phase2c(?:49|50|51|52|53|54|56)-/.test(changedPath)
   ) {
     continue;
   }

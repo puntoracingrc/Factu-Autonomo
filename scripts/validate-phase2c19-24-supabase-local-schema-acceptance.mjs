@@ -151,6 +151,7 @@ const allowedPathPatterns = [
   /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
   /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
   /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
+  /^scripts\/phase2c5[1234]-.*\.test\.ts$/,
   /^src\/app\/api\/document-sync\/route\.ts$/,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
   /^scripts\/validate-phase2c19-.*\.mjs$/,
@@ -182,6 +183,13 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c45-.*\.mjs$/,
   /^scripts\/validate-phase2c46-.*\.mjs$/,
   /^scripts\/validate-phase2c37-48-.*\.mjs$/,
+  /^scripts\/validate-phase2c49-.*\.mjs$/,
+  /^scripts\/validate-phase2c50-.*\.mjs$/,
+  /^scripts\/validate-phase2c51-.*\.mjs$/,
+  /^scripts\/validate-phase2c52-.*\.mjs$/,
+  /^scripts\/validate-phase2c53-.*\.mjs$/,
+  /^scripts\/validate-phase2c54-.*\.mjs$/,
+  /^scripts\/validate-phase2c49-56-.*\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -215,6 +223,13 @@ const allowedPathPatterns = [
   /^docs\/phase2c45-.*\.md$/,
   /^docs\/phase2c46-.*\.md$/,
   /^docs\/phase2c48-.*\.md$/,
+  /^docs\/phase2c49-.*\.md$/,
+  /^docs\/phase2c50-.*\.md$/,
+  /^docs\/phase2c51-.*\.md$/,
+  /^docs\/phase2c52-.*\.md$/,
+  /^docs\/phase2c53-.*\.md$/,
+  /^docs\/phase2c54-.*\.md$/,
+  /^docs\/phase2c56-.*\.md$/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -250,7 +265,9 @@ for (const changedPath of changedPaths) {
       changedPath,
     ) ||
     /^scripts\/phase2c4[056]-/.test(changedPath) ||
-    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath)
+    /^scripts\/phase2c5[1234]-/.test(changedPath) ||
+    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath) ||
+    /^docs\/phase2c(?:49|50|51|52|53|54|56)-/.test(changedPath)
   ) {
     continue;
   }

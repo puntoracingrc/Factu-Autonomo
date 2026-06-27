@@ -164,9 +164,11 @@ export function validatePhase2C39() {
     "docs/phase2c39-sync-route-local-fake-execution-boundary-v1.md",
     "PHASE2C39_SYNC_ROUTE_LOCAL_FAKE_EXECUTION_BOUNDARY_V1",
   );
+  const routeAndHandler = `${read("src/app/api/document-sync/route.ts")}\n${read("src/lib/document-sync-integrity/route-handler.ts")}`;
   for (const required of [
     "evaluateDocumentSyncLocalExecutionMode",
     "getDocumentSyncRouteFakeRuntime",
+    "createDocumentSyncRouteHandler",
     "route_shell_enabled_but_operations_disabled",
     "route_fake_execution_completed",
     "dry_run_single",
@@ -177,7 +179,7 @@ export function validatePhase2C39() {
     "get_conflict_report",
     "!flag.enabled",
   ]) {
-    assertIncludes("src/app/api/document-sync/route.ts", required);
+    assert(routeAndHandler.includes(required), `Route/handler missing ${required}.`);
   }
   assertNoRuntimePattern("src/app/api/document-sync/route.ts", [
     ["Supabase import", /@supabase/i],
@@ -285,6 +287,7 @@ export function validatePhase2C43() {
     "docs/phase2c43-sync-route-method-content-cache-cors-hardening-v1.md",
     "PHASE2C43_SYNC_ROUTE_METHOD_CONTENT_CACHE_CORS_HARDENING_V1",
   );
+  const routeAndHandler = `${read("src/app/api/document-sync/route.ts")}\n${read("src/lib/document-sync-integrity/route-handler.ts")}`;
   for (const required of [
     "export async function PUT",
     "export async function PATCH",
@@ -293,7 +296,7 @@ export function validatePhase2C43() {
     "UNSUPPORTED_CONTENT_TYPE",
     "allow = \"GET, POST\"",
   ]) {
-    assertIncludes("src/app/api/document-sync/route.ts", required);
+    assert(routeAndHandler.includes(required), `Route/handler missing ${required}.`);
   }
   for (const required of ["cache-control", "no-store"]) {
     assertIncludes("src/lib/document-sync-integrity/route-envelope.ts", required);
@@ -400,7 +403,9 @@ export function validatePhase2C37To48Aggregate() {
     /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
     /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
     /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
+    /^scripts\/phase2c5[1234]-.*\.test\.ts$/,
     /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-.*\.mjs$/,
+    /^scripts\/validate-phase2c(?:49|50|51|52|53|54|49-56)-.*\.mjs$/,
     /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
     /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
     /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -411,6 +416,7 @@ export function validatePhase2C37To48Aggregate() {
     /^scripts\/validate-phase2c31-36-disabled-sync-route-shell\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
     /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-.*\.md$/,
+    /^docs\/phase2c(?:49|50|51|52|53|54|56)-.*\.md$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^docs\/audit\//,
     /^package\.json$/,
@@ -438,14 +444,18 @@ export function validatePhase2C37To48Aggregate() {
     "src/lib/document-sync-integrity/route-rate-limit.ts",
     "src/lib/document-sync-integrity/route-idempotency.ts",
     "src/lib/document-sync-integrity/route-telemetry.ts",
+    "src/lib/document-sync-integrity/route-handler.ts",
+    "src/lib/document-sync-integrity/route-supabase-local-harness.ts",
   ]) {
     assertNoRuntimePattern(runtimePath, noExternalRuntimePatterns);
   }
 
   const route = read("src/app/api/document-sync/route.ts");
-  assert(route.includes("if (!flag.enabled)"), "Route must stay disabled by default.");
-  assert(route.includes("buildDocumentSyncRouteDisabledResponse"), "Route disabled response is required.");
-  assert(!/Access-Control-Allow-Origin["']?\s*:\s*["']\*/i.test(route), "Route must not open CORS wildcard.");
+  const handler = read("src/lib/document-sync-integrity/route-handler.ts");
+  const routeAndHandler = `${route}\n${handler}`;
+  assert(routeAndHandler.includes("if (!flag.enabled)"), "Route handler must stay disabled by default.");
+  assert(routeAndHandler.includes("buildDocumentSyncRouteDisabledResponse"), "Route disabled response is required.");
+  assert(!/Access-Control-Allow-Origin["']?\s*:\s*["']\*/i.test(routeAndHandler), "Route must not open CORS wildcard.");
   assert(!/console\.(?:log|warn|error)/.test(route), "Route must not log by default.");
 
   const compliance = read("docs/compliance-evidence-v1.md");
