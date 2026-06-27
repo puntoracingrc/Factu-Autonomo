@@ -4,6 +4,7 @@
 // PHASE2D33_44_DISABLED_IMPORT_RESTORE_UI_WIRING_GATES_V1
 // PHASE2D45_56_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS_V1
 // PHASE2D57_68_LOCAL_DATA_SAFETY_REGRESSION_CORPUS_V1
+// PHASE2D69_80_IMPORT_RESTORE_WIRING_DECISION_PACKAGE_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -216,6 +217,49 @@ export {
   buildCompositeLocalDataLossRiskAssessment,
   summarizeCompositeLocalDataLossRiskAssessment,
 } from "./composite-data-loss-risk";
+export {
+  buildImportRestoreWiringDecisionBlockers,
+  evaluateImportRestoreWiringDecisionGate,
+  summarizeImportRestoreWiringDecisionGate,
+} from "./import-restore-wiring-decision-gate";
+export {
+  buildCorpusScenarioDecisionMatrix,
+  classifyCorpusScenarioDecision,
+  summarizeCorpusScenarioDecisionMatrix,
+} from "./corpus-scenario-decision-matrix";
+export {
+  assertUxDataLossDecisionPacketSafe,
+  buildUxDataLossDecisionPacket,
+  redactUxDataLossDecisionPacket,
+  summarizeUxDataLossDecisionPacket,
+} from "./ux-data-loss-decision-packet";
+export {
+  buildCorpusViewModelCatalog,
+  getCorpusViewModelCatalogItem,
+  summarizeCorpusViewModelCatalog,
+} from "./corpus-view-model-catalog";
+export {
+  assertImportRestoreReviewBoardPacketSafe,
+  buildImportRestoreReviewBoardPacket,
+  redactImportRestoreReviewBoardPacket,
+  summarizeImportRestoreReviewBoardPacket,
+} from "./import-restore-review-board-packet";
+export {
+  createImportRestoreApprovalState,
+  summarizeImportRestoreApprovalState,
+  transitionImportRestoreApprovalState,
+} from "./import-restore-approval-state-machine";
+export {
+  buildSafeImportRestoreReviewerNote,
+  redactImportRestoreReviewerNote,
+  validateImportRestoreReviewerNote,
+} from "./import-restore-reviewer-notes";
+export {
+  assertImportRestoreDecisionReportSafe,
+  buildImportRestoreDecisionReport,
+  redactImportRestoreDecisionReport,
+  summarizeImportRestoreDecisionReport,
+} from "./import-restore-decision-report";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -238,6 +282,50 @@ export type {
   ImportRestoreReviewViewModelSummary,
 } from "./import-restore-view-model";
 export type { ImportRestoreSafeErrorPresentation } from "./import-restore-error-presenter";
+export type {
+  ImportRestoreWiringDecisionGate,
+  ImportRestoreWiringDecisionGateInput,
+  ImportRestoreWiringDecisionGateStatus,
+  ImportRestoreWiringDecisionGateSummary,
+} from "./import-restore-wiring-decision-gate";
+export type {
+  CorpusScenarioDecision,
+  CorpusScenarioDecisionMatrix,
+  CorpusScenarioDecisionMatrixEntry,
+  CorpusScenarioDecisionMatrixSummary,
+  CorpusScenarioRiskClassification,
+} from "./corpus-scenario-decision-matrix";
+export type {
+  UxDataLossDecisionPacket,
+  UxDataLossDecisionPacketInput,
+  UxDataLossDecisionPacketSummary,
+} from "./ux-data-loss-decision-packet";
+export type {
+  CorpusViewModelCatalog,
+  CorpusViewModelCatalogItem,
+  CorpusViewModelCatalogSummary,
+} from "./corpus-view-model-catalog";
+export type {
+  ImportRestoreReviewBoardPacket,
+  ImportRestoreReviewBoardPacketInput,
+  ImportRestoreReviewBoardPacketSummary,
+} from "./import-restore-review-board-packet";
+export type {
+  ImportRestoreApprovalEvent,
+  ImportRestoreApprovalState,
+  ImportRestoreApprovalStateName,
+  ImportRestoreApprovalStateSummary,
+} from "./import-restore-approval-state-machine";
+export type {
+  SafeImportRestoreReviewerNote,
+  SafeImportRestoreReviewerNoteInput,
+  SafeImportRestoreReviewerNoteValidation,
+} from "./import-restore-reviewer-notes";
+export type {
+  ImportRestoreDecisionReport,
+  ImportRestoreDecisionReportInput,
+  ImportRestoreDecisionReportSummary,
+} from "./import-restore-decision-report";
 export type {
   ImportRestoreUiAuditEvent,
   ImportRestoreUiAuditEventInput,

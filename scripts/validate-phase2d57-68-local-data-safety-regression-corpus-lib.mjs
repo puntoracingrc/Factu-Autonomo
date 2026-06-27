@@ -174,11 +174,11 @@ const newRuntimeFiles = phases.map((entry) => entry.code).filter(Boolean);
 function validateNoRedLines() {
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66)-.*\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|[1-5][0-9]|6[0-8]|1-10|11-20|21-32|33-44|45-56|57-68)-.*\.mjs$/,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-.*\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|[1-7][0-9]|80|1-10|11-20|21-32|33-44|45-56|57-68|69-80)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|[1-5][0-9]|6[0-8])-.*$/,
+    /^docs\/phase2d(?:[1-9]|[1-7][0-9]|80)-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
