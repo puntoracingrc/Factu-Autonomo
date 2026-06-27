@@ -2,14 +2,17 @@
 
 import {
   Bell,
+  Download,
   FileText,
   Receipt,
   ShoppingCart,
+  Settings,
   Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
+import { HomeBusinessSummary } from "@/components/dashboard/HomeBusinessSummary";
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { PageHeader } from "@/components/ui/Card";
@@ -26,7 +29,7 @@ const quickActions = [
   },
   {
     href: "/clientes",
-    label: "Clientes",
+    label: "Nuevo cliente",
     icon: Users,
     color: "bg-sky-600 text-white",
   },
@@ -54,6 +57,18 @@ const quickActions = [
     icon: ShoppingCart,
     color: "bg-emerald-600 text-white",
   },
+  {
+    href: "/configuracion",
+    label: "Configuración",
+    icon: Settings,
+    color: "bg-slate-700 text-white",
+  },
+  {
+    href: "/configuracion",
+    label: "Exportar copia",
+    icon: Download,
+    color: "bg-teal-700 text-white",
+  },
 ];
 
 export default function HomePage() {
@@ -73,6 +88,8 @@ export default function HomePage() {
       />
 
       <HomeUserReminders />
+
+      <HomeBusinessSummary data={data} />
 
       <HomeFactuTip />
 
