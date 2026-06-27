@@ -3,6 +3,7 @@
 // PHASE2D21_32_DISABLED_IMPORT_RESTORE_UI_SHELL_V1
 // PHASE2D33_44_DISABLED_IMPORT_RESTORE_UI_WIRING_GATES_V1
 // PHASE2D45_56_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS_V1
+// PHASE2D57_68_LOCAL_DATA_SAFETY_REGRESSION_CORPUS_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -173,6 +174,48 @@ export {
   redactImportRestoreUxLegalReviewPacket,
   summarizeImportRestoreUxLegalReviewPacket,
 } from "./import-restore-ux-legal-review-packet";
+export {
+  getLocalDataSyntheticBackupCorpusCase,
+  listLocalDataSyntheticBackupCorpusCases,
+  summarizeLocalDataSyntheticBackupCorpusCase,
+  validateLocalDataSyntheticBackupCorpusCase,
+} from "./synthetic-backup-corpus";
+export {
+  buildDocumentLifecycleRiskMatrix,
+  classifyDocumentLifecycleImportRisk,
+  summarizeDocumentLifecycleRiskMatrix,
+} from "./document-lifecycle-risk-matrix";
+export {
+  analyzeNumberingCountersRisk,
+  compareBackupCounters,
+  summarizeNumberingCountersRisk,
+} from "./numbering-counters-risk";
+export {
+  analyzeSnapshotPdfHashRisk,
+  compareDocumentSnapshotReferences,
+  summarizeSnapshotPdfHashRisk,
+} from "./snapshot-pdf-hash-risk";
+export {
+  analyzeCustomerIdentityImportRisk,
+  summarizeCustomerIdentityImportRisk,
+} from "./customer-identity-risk";
+export {
+  classifyLegacyBackupCompatibility,
+  summarizeLegacyBackupCompatibility,
+} from "./legacy-backup-compatibility";
+export {
+  listAdversarialBackupCorpusCases,
+  runAdversarialBackupCorpusCase,
+  summarizeAdversarialBackupCorpus,
+} from "./adversarial-backup-corpus";
+export {
+  evaluateLargeBackupBoundary,
+  summarizeLargeBackupBoundary,
+} from "./large-backup-boundary";
+export {
+  buildCompositeLocalDataLossRiskAssessment,
+  summarizeCompositeLocalDataLossRiskAssessment,
+} from "./composite-data-loss-risk";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -273,6 +316,60 @@ export type {
   ImportRestoreUxLegalReviewPacketInput,
   ImportRestoreUxLegalReviewPacketSummary,
 } from "./import-restore-ux-legal-review-packet";
+export type {
+  LocalDataSyntheticBackupCorpusCase,
+  LocalDataSyntheticBackupCorpusCaseId,
+  LocalDataSyntheticBackupCorpusCaseSummary,
+  LocalDataSyntheticBackupCorpusCaseValidation,
+} from "./synthetic-backup-corpus";
+export type {
+  DocumentLifecycleImportRiskClassification,
+  DocumentLifecycleRiskEntry,
+  DocumentLifecycleRiskMatrix,
+  DocumentLifecycleRiskMatrixSummary,
+} from "./document-lifecycle-risk-matrix";
+export type {
+  NumberingCountersRisk,
+  NumberingCountersRiskAssessment,
+  NumberingCountersRiskId,
+  NumberingCountersRiskSummary,
+} from "./numbering-counters-risk";
+export type {
+  SnapshotPdfHashRisk,
+  SnapshotPdfHashRiskAssessment,
+  SnapshotPdfHashRiskId,
+  SnapshotPdfHashRiskSummary,
+} from "./snapshot-pdf-hash-risk";
+export type {
+  CustomerIdentityRisk,
+  CustomerIdentityRiskAssessment,
+  CustomerIdentityRiskId,
+  CustomerIdentityRiskSummary,
+} from "./customer-identity-risk";
+export type {
+  LegacyBackupCompatibilityClassification,
+  LegacyBackupCompatibilityIssue,
+  LegacyBackupCompatibilityIssueId,
+  LegacyBackupCompatibilitySummary,
+} from "./legacy-backup-compatibility";
+export type {
+  AdversarialBackupCorpusCase,
+  AdversarialBackupCorpusCaseId,
+  AdversarialBackupCorpusCaseResult,
+  AdversarialBackupCorpusSummary,
+} from "./adversarial-backup-corpus";
+export type {
+  LargeBackupBoundaryAssessment,
+  LargeBackupBoundaryOptions,
+  LargeBackupBoundaryStatus,
+  LargeBackupBoundarySummary,
+} from "./large-backup-boundary";
+export type {
+  CompositeDataLossSeverity,
+  CompositeLocalDataLossRiskAssessment,
+  CompositeLocalDataLossRiskAssessmentInput,
+  CompositeLocalDataLossRiskAssessmentSummary,
+} from "./composite-data-loss-risk";
 export type {
   DisabledLocalDataStorageAdapter,
   InMemoryLocalDataSafetyAuditSink,
