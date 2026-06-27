@@ -6,6 +6,7 @@
 // PHASE2D57_68_LOCAL_DATA_SAFETY_REGRESSION_CORPUS_V1
 // PHASE2D69_80_IMPORT_RESTORE_WIRING_DECISION_PACKAGE_V1
 // PHASE2D81_92_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL_V1
+// PHASE2D93_104_HIDDEN_IMPORT_RESTORE_UI_ENABLEMENT_SAFETY_GATES_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -276,6 +277,42 @@ export {
   renderHiddenImportRestoreUiShellModel,
   summarizeHiddenImportRestoreUiShellHarness,
 } from "./hidden-ui-shell-render-harness";
+export {
+  buildHiddenImportRestoreUiEnablementBlockers,
+  evaluateHiddenImportRestoreUiEnablementGate,
+  summarizeHiddenImportRestoreUiEnablementGate,
+} from "./hidden-ui-enablement-gate";
+export {
+  evaluateHiddenUiEnablementEnvironment,
+  summarizeHiddenUiEnablementEnvironment,
+} from "./hidden-ui-enablement-environment";
+export {
+  buildImportRestoreFinalReviewPack,
+  assertImportRestoreFinalReviewPackSafe,
+  redactImportRestoreFinalReviewPack,
+  summarizeImportRestoreFinalReviewPack,
+} from "./import-restore-final-review-pack";
+export {
+  listImportRestoreNoGoConditions,
+  evaluateImportRestoreNoGoConditions,
+  summarizeImportRestoreNoGoConditions,
+} from "./import-restore-no-go-conditions";
+export {
+  buildHiddenImportRestoreShellReadinessReport,
+  assertHiddenImportRestoreShellReadinessReportSafe,
+  redactHiddenImportRestoreShellReadinessReport,
+  summarizeHiddenImportRestoreShellReadinessReport,
+} from "./hidden-shell-readiness-report";
+export {
+  buildHiddenUiOwnerDecisionPacket,
+  assertHiddenUiOwnerDecisionPacketSafe,
+  summarizeHiddenUiOwnerDecisionPacket,
+} from "./hidden-ui-owner-decision-packet";
+export {
+  createHiddenUiEnablementDryRunStateMachine,
+  transitionHiddenUiEnablementDryRunStateMachine,
+  summarizeHiddenUiEnablementDryRunStateMachine,
+} from "./hidden-ui-enablement-state-machine";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -358,6 +395,49 @@ export type {
   HiddenImportRestoreUiShellHarnessSummary,
   HiddenImportRestoreUiShellRenderModel,
 } from "./hidden-ui-shell-render-harness";
+export type {
+  HiddenImportRestoreUiEnablementBlocker,
+  HiddenImportRestoreUiEnablementGate,
+  HiddenImportRestoreUiEnablementGateInput,
+  HiddenImportRestoreUiEnablementGateStatus,
+  HiddenImportRestoreUiEnablementGateSummary,
+  HiddenUiEnablementApprovalInputs,
+} from "./hidden-ui-enablement-gate";
+export type {
+  HiddenUiEnablementEnvironment,
+  HiddenUiEnablementEnvironmentInput,
+  HiddenUiEnablementEnvironmentStatus,
+  HiddenUiEnablementEnvironmentSummary,
+  HiddenUiEnablementRuntime,
+} from "./hidden-ui-enablement-environment";
+export type {
+  ImportRestoreFinalReviewPack,
+  ImportRestoreFinalReviewPackInput,
+  ImportRestoreFinalReviewPackSummary,
+} from "./import-restore-final-review-pack";
+export type {
+  ImportRestoreNoGoCondition,
+  ImportRestoreNoGoConditionId,
+  ImportRestoreNoGoConditionInput,
+  ImportRestoreNoGoConditionsRegistry,
+  ImportRestoreNoGoConditionsSummary,
+} from "./import-restore-no-go-conditions";
+export type {
+  HiddenImportRestoreShellReadinessReport,
+  HiddenImportRestoreShellReadinessReportInput,
+  HiddenImportRestoreShellReadinessReportSummary,
+} from "./hidden-shell-readiness-report";
+export type {
+  HiddenUiOwnerDecisionPacket,
+  HiddenUiOwnerDecisionPacketInput,
+  HiddenUiOwnerDecisionPacketSummary,
+} from "./hidden-ui-owner-decision-packet";
+export type {
+  HiddenUiEnablementDryRunEvent,
+  HiddenUiEnablementDryRunState,
+  HiddenUiEnablementDryRunStateMachine,
+  HiddenUiEnablementDryRunStateMachineSummary,
+} from "./hidden-ui-enablement-state-machine";
 export type {
   ImportRestoreUiAuditEvent,
   ImportRestoreUiAuditEventInput,
