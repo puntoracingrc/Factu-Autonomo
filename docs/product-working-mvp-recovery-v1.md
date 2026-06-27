@@ -163,6 +163,38 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No hay AEAT real, XML, firma, certificado ni transporte.
 - Queda para después una revisión visual más amplia y posibles accesos rápidos configurables.
 
+## Pulido formulario y totales
+
+- Revisado el formulario real de presupuestos/facturas:
+  - cliente;
+  - fechas y estado;
+  - líneas;
+  - totales;
+  - vista previa PDF;
+  - guardar y descargar PDF.
+- Corregido el flujo de líneas:
+  - una línea vacía no rompe totales;
+  - valores no finitos se tratan como cero en el formulario;
+  - se evita guardar líneas sin concepto;
+  - eliminar una línea recalcula el total visible.
+- Totales visibles revisados:
+  - cantidad decimal;
+  - precio decimal;
+  - IVA 0;
+  - IVA 21;
+  - redondeo a dos decimales.
+- Para probar:
+  - crear cliente;
+  - crear presupuesto con una línea de 100 euros;
+  - comprobar total 121,00 euros;
+  - guardar, descargar PDF y convertir a factura;
+  - editar la factura en borrador y emitirla desde el estado.
+- Limitaciones:
+  - no hay AEAT real;
+  - no hay XML;
+  - no hay QR oficial nuevo;
+  - no hay firma, certificado ni transporte.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.
