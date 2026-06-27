@@ -180,6 +180,7 @@ export {
   DOCUMENT_SYNC_ROUTE_ENVELOPE_MAX_BYTES,
   buildDocumentSyncRouteDisabledResponse,
   buildDocumentSyncRouteErrorResponse,
+  buildDocumentSyncRouteLocalFakeResponse,
   buildDocumentSyncRouteSafeResponse,
   parseDocumentSyncRouteEnvelope,
 } from "./route-envelope";
@@ -191,6 +192,65 @@ export type {
   DocumentSyncRouteSafeResponse,
   DocumentSyncRouteSafeResponseBody,
 } from "./route-envelope";
+export {
+  DOCUMENT_SYNC_ROUTE_FAKE_ADAPTER_ENABLED_KEY,
+  DOCUMENT_SYNC_ROUTE_FAKE_ADAPTER_MODE_IN_MEMORY,
+  DOCUMENT_SYNC_ROUTE_FAKE_ADAPTER_MODE_KEY,
+  assertDocumentSyncLocalExecutionAllowed,
+  evaluateDocumentSyncLocalExecutionMode,
+  summarizeDocumentSyncLocalExecutionMode,
+} from "./route-local-execution-contract";
+export type {
+  DocumentSyncLocalExecutionEvaluation,
+  DocumentSyncLocalExecutionReason,
+  DocumentSyncLocalExecutionSafeSummary,
+  DocumentSyncLocalExecutionStatus,
+} from "./route-local-execution-contract";
+export {
+  DOCUMENT_SYNC_ROUTE_FAKE_SCOPE_ID,
+  DOCUMENT_SYNC_ROUTE_FAKE_USER_ID,
+  buildDocumentSyncRouteFakeCommand,
+  createDocumentSyncRouteFakeAdapter,
+  createDocumentSyncRouteFakeService,
+  seedDocumentSyncRouteFakeStore,
+} from "./route-fake-adapter";
+export type {
+  DocumentSyncRouteFakeRuntime,
+} from "./route-fake-adapter";
+export {
+  createInMemoryDocumentSyncRouteRateLimiter,
+  evaluateDocumentSyncRouteRateLimit,
+  generateSafeDocumentSyncRouteRequestId,
+  normalizeDocumentSyncRouteRequestId,
+  summarizeDocumentSyncRouteRateLimit,
+} from "./route-rate-limit";
+export type {
+  DocumentSyncRouteRateLimitOptions,
+  DocumentSyncRouteRateLimitResult,
+  InMemoryDocumentSyncRouteRateLimiter,
+} from "./route-rate-limit";
+export {
+  buildDocumentSyncRouteIdempotencyKey,
+  createInMemoryDocumentSyncRouteIdempotencyStore,
+  evaluateDocumentSyncRouteIdempotency,
+  normalizeDocumentSyncRouteIdempotencyKey,
+  summarizeDocumentSyncRouteIdempotency,
+} from "./route-idempotency";
+export type {
+  DocumentSyncRouteIdempotencyResult,
+  InMemoryDocumentSyncRouteIdempotencyStore,
+} from "./route-idempotency";
+export {
+  buildDocumentSyncRouteTelemetryReport,
+  createInMemoryDocumentSyncRouteTelemetry,
+  recordDocumentSyncRouteTelemetryEvent,
+  redactDocumentSyncRouteTelemetryEvent,
+} from "./route-telemetry";
+export type {
+  DocumentSyncRouteTelemetryEvent,
+  DocumentSyncRouteTelemetryEventType,
+  InMemoryDocumentSyncRouteTelemetry,
+} from "./route-telemetry";
 export type {
   DocumentSyncCandidate,
   DocumentSyncConflict,

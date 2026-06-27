@@ -41,11 +41,14 @@ export type DocumentSyncRouteEnvelopeResult =
     };
 
 export interface DocumentSyncRouteSafeResponseBody {
-  ok: false;
+  ok: boolean;
   code: string;
   requestId?: string;
   status: "disabled" | "error" | "safe";
-  routeShell: "disabled_by_default" | "operations_disabled";
+  routeShell:
+    | "disabled_by_default"
+    | "operations_disabled"
+    | "local_fake_execution";
   flag?: DocumentSyncRouteShellFlagSafeSummary;
   summary?: unknown;
 }
@@ -94,7 +97,11 @@ function unsafeString(value: string): boolean {
   );
 }
 
-function assertSafeEnvelopeValue(value: unknown, key = ""): void {
+function assertSafeEnvelopeValue(value: unknown, key = "", depth = 0): void {
+  if (depth > 8) {
+    throw new Error("UNSAFE_ROUTE_ENVELOPE");
+  }
+
   if (unsafeString(key)) {
     throw new Error("UNSAFE_ROUTE_ENVELOPE");
   }
@@ -104,13 +111,16 @@ function assertSafeEnvelopeValue(value: unknown, key = ""): void {
   }
 
   if (Array.isArray(value)) {
-    for (const entry of value) assertSafeEnvelopeValue(entry);
+    if (value.length > 50) throw new Error("UNSAFE_ROUTE_ENVELOPE");
+    for (const entry of value) assertSafeEnvelopeValue(entry, "", depth + 1);
     return;
   }
 
   if (value && typeof value === "object") {
-    for (const [entryKey, entryValue] of Object.entries(value)) {
-      assertSafeEnvelopeValue(entryValue, entryKey);
+    const entries = Object.entries(value);
+    if (entries.length > 60) throw new Error("UNSAFE_ROUTE_ENVELOPE");
+    for (const [entryKey, entryValue] of entries) {
+      assertSafeEnvelopeValue(entryValue, entryKey, depth + 1);
     }
   }
 }
@@ -263,6 +273,26 @@ export function buildDocumentSyncRouteSafeResponse(
       requestId: safeRequestId(requestId),
       status: "safe",
       routeShell: "operations_disabled",
+      summary,
+    },
+  };
+}
+
+export function buildDocumentSyncRouteLocalFakeResponse(
+  code: string,
+  summary: unknown,
+  requestId?: string,
+  status = 200,
+): DocumentSyncRouteSafeResponse {
+  return {
+    status,
+    headers: safeHeaders(),
+    body: {
+      ok: status >= 200 && status < 300,
+      code,
+      requestId: safeRequestId(requestId),
+      status: "safe",
+      routeShell: "local_fake_execution",
       summary,
     },
   };

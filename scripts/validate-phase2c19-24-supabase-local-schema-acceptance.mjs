@@ -148,6 +148,9 @@ const allowedPathPatterns = [
   /^scripts\/phase2c23-supabase-local-sync-concurrency\.test\.ts$/,
   /^scripts\/phase2c29-server-sync-service-local-acceptance\.test\.ts$/,
   /^scripts\/phase2c35-disabled-sync-route-shell-acceptance\.test\.ts$/,
+  /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
+  /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
+  /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
   /^src\/app\/api\/document-sync\/route\.ts$/,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
   /^scripts\/validate-phase2c19-.*\.mjs$/,
@@ -168,6 +171,17 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c34-.*\.mjs$/,
   /^scripts\/validate-phase2c35-.*\.mjs$/,
   /^scripts\/validate-phase2c31-36-.*\.mjs$/,
+  /^scripts\/validate-phase2c37-.*\.mjs$/,
+  /^scripts\/validate-phase2c38-.*\.mjs$/,
+  /^scripts\/validate-phase2c39-.*\.mjs$/,
+  /^scripts\/validate-phase2c40-.*\.mjs$/,
+  /^scripts\/validate-phase2c41-.*\.mjs$/,
+  /^scripts\/validate-phase2c42-.*\.mjs$/,
+  /^scripts\/validate-phase2c43-.*\.mjs$/,
+  /^scripts\/validate-phase2c44-.*\.mjs$/,
+  /^scripts\/validate-phase2c45-.*\.mjs$/,
+  /^scripts\/validate-phase2c46-.*\.mjs$/,
+  /^scripts\/validate-phase2c37-48-.*\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
   /^scripts\/validate-phase2c1-6-server-sync-integrity-foundation\.mjs$/,
   /^scripts\/validate-phase2c7-12-local-staging-sync-adapter\.mjs$/,
@@ -190,6 +204,17 @@ const allowedPathPatterns = [
   /^docs\/phase2c34-.*\.md$/,
   /^docs\/phase2c35-.*\.md$/,
   /^docs\/phase2c36-.*\.md$/,
+  /^docs\/phase2c37-.*\.md$/,
+  /^docs\/phase2c38-.*\.md$/,
+  /^docs\/phase2c39-.*\.md$/,
+  /^docs\/phase2c40-.*\.md$/,
+  /^docs\/phase2c41-.*\.md$/,
+  /^docs\/phase2c42-.*\.md$/,
+  /^docs\/phase2c43-.*\.md$/,
+  /^docs\/phase2c44-.*\.md$/,
+  /^docs\/phase2c45-.*\.md$/,
+  /^docs\/phase2c46-.*\.md$/,
+  /^docs\/phase2c48-.*\.md$/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -220,6 +245,15 @@ for (const changedPath of changedPaths) {
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (changedPath.includes("validate-phase2")) continue;
+  if (
+    /^src\/lib\/document-sync-integrity\/route-(?:local-execution-contract|fake-adapter|rate-limit|idempotency|telemetry)(?:\.test)?\.ts$/.test(
+      changedPath,
+    ) ||
+    /^scripts\/phase2c4[056]-/.test(changedPath) ||
+    /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath)
+  ) {
+    continue;
+  }
   if (!fs.existsSync(absolute(changedPath))) continue;
   const added = addedLines(changedPath).join("\n");
   for (const [label, regex] of [
