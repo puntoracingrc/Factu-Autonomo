@@ -223,6 +223,9 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/validate-phase2c63-.*\.mjs$/,
   /^scripts\/validate-phase2c64-.*\.mjs$/,
   /^scripts\/validate-phase2c57-66-.*\.mjs$/,
+  /^scripts\/phase2d9-/,
+  /^scripts\/validate-phase2d/,
+  /^src\/lib\/local-data-safety\//,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -271,6 +274,7 @@ const unrelatedLaterPhasePatterns = [
   /^docs\/phase2c63-.*\.md$/,
   /^docs\/phase2c64-.*\.md$/,
   /^docs\/phase2c66-.*\.md$/,
+  /^docs\/phase2d/,
 ];
 
 for (const changedPath of changedPaths) {
