@@ -103,11 +103,11 @@ function validateNoRedLines() {
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
     /^src\/components\/local-data-safety\//,
-    /^scripts\/phase2d(?:9-local-data-backup-restore-safety-acceptance|19-import-restore-review-flow-acceptance|29-import-restore-ui-facing-data-hardening|30-disabled-import-restore-ui-shell-acceptance)\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|[12][0-9]|30|3[0-2]|1-10|11-20|21-32)-.*\.mjs$/,
+    /^scripts\/phase2d(?:9-local-data-backup-restore-safety-acceptance|19-import-restore-review-flow-acceptance|29-import-restore-ui-facing-data-hardening|30-disabled-import-restore-ui-shell-acceptance|39-local-import-restore-preview-harness-acceptance|40-import-restore-ui-action-abuse-hardening|41-import-restore-accessibility-regression-acceptance|42-import-restore-route-navigation-blocker-validation)\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|[1-3][0-9]|4[0-4]|1-10|11-20|21-32|33-44)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|[12][0-9]|30|3[0-2])-.*$/,
+    /^docs\/phase2d(?:[1-9]|[1-3][0-9]|4[0-4])-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
