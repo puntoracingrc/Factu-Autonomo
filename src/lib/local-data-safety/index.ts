@@ -5,6 +5,7 @@
 // PHASE2D45_56_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS_V1
 // PHASE2D57_68_LOCAL_DATA_SAFETY_REGRESSION_CORPUS_V1
 // PHASE2D69_80_IMPORT_RESTORE_WIRING_DECISION_PACKAGE_V1
+// PHASE2D81_92_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -260,6 +261,21 @@ export {
   redactImportRestoreDecisionReport,
   summarizeImportRestoreDecisionReport,
 } from "./import-restore-decision-report";
+export {
+  assertHiddenImportRestoreUiShellDisabledByDefault,
+  evaluateHiddenImportRestoreUiShellFlag,
+  summarizeHiddenImportRestoreUiShellFlag,
+} from "./hidden-ui-shell-flag";
+export {
+  buildSyntheticImportRestoreFixtureSelector,
+  selectSyntheticImportRestoreFixture,
+  summarizeSyntheticImportRestoreFixtureSelector,
+} from "./synthetic-fixture-selector";
+export {
+  buildHiddenImportRestoreUiShellHarnessProps,
+  renderHiddenImportRestoreUiShellModel,
+  summarizeHiddenImportRestoreUiShellHarness,
+} from "./hidden-ui-shell-render-harness";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -326,6 +342,22 @@ export type {
   ImportRestoreDecisionReportInput,
   ImportRestoreDecisionReportSummary,
 } from "./import-restore-decision-report";
+export type {
+  HiddenImportRestoreUiShellFlag,
+  HiddenImportRestoreUiShellFlagInput,
+  HiddenImportRestoreUiShellFlagStatus,
+  HiddenImportRestoreUiShellFlagSummary,
+} from "./hidden-ui-shell-flag";
+export type {
+  SyntheticImportRestoreFixtureSelector,
+  SyntheticImportRestoreFixtureSelectorItem,
+  SyntheticImportRestoreFixtureSelectorSummary,
+} from "./synthetic-fixture-selector";
+export type {
+  HiddenImportRestoreUiShellHarnessProps,
+  HiddenImportRestoreUiShellHarnessSummary,
+  HiddenImportRestoreUiShellRenderModel,
+} from "./hidden-ui-shell-render-harness";
 export type {
   ImportRestoreUiAuditEvent,
   ImportRestoreUiAuditEventInput,
