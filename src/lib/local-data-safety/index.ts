@@ -1,6 +1,7 @@
 // PHASE2D1_10_LOCAL_DATA_BACKUP_RESTORE_SAFETY_V1
 // PHASE2D11_20_LOCAL_DATA_IMPORT_RESTORE_REVIEW_FLOW_V1
 // PHASE2D21_32_DISABLED_IMPORT_RESTORE_UI_SHELL_V1
+// PHASE2D33_44_DISABLED_IMPORT_RESTORE_UI_WIRING_GATES_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -109,6 +110,33 @@ export {
   buildImportRestoreUiAuditEvent,
   createInMemoryImportRestoreUiAuditSink,
 } from "./import-restore-ui-audit";
+export {
+  buildImportRestoreUiWiringBlockers,
+  evaluateImportRestoreUiWiringReadiness,
+  summarizeImportRestoreUiWiringReadiness,
+} from "./import-restore-ui-wiring-gate";
+export {
+  assertBackupFileSelectionDisabled,
+  createDisabledBackupFileSelectionAdapter,
+  summarizeBackupFileSelectionAdapter,
+} from "./disabled-file-selection-adapter";
+export {
+  buildInMemoryBackupPreviewHarnessResult,
+  parseInMemoryBackupJsonForPreview,
+  summarizeInMemoryBackupPreviewHarness,
+} from "./in-memory-backup-preview-harness";
+export {
+  createImportRestoreDisabledUiEventHandlers,
+  handleImportRestoreApplyImportClicked,
+  handleImportRestoreApplyRestoreClicked,
+  handleImportRestorePreviewRequested,
+  summarizeImportRestoreUiHandlerResult,
+} from "./import-restore-ui-event-handlers";
+export {
+  assertDisabledImportRestoreShellPropsSafe,
+  buildDisabledImportRestoreShellProps,
+  summarizeDisabledImportRestoreShellProps,
+} from "./import-restore-wiring-props";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -143,6 +171,31 @@ export type {
   LocalDataSafetyUiShellScopeStatus,
   LocalDataSafetyUiShellScopeSummary,
 } from "./ui-shell-scope";
+export type {
+  ImportRestoreUiWiringReadiness,
+  ImportRestoreUiWiringReadinessInput,
+  ImportRestoreUiWiringReadinessStatus,
+  ImportRestoreUiWiringReadinessSummary,
+} from "./import-restore-ui-wiring-gate";
+export type {
+  DisabledBackupFileSelectionAdapter,
+  DisabledBackupFileSelectionResult,
+  DisabledBackupFileSelectionSummary,
+} from "./disabled-file-selection-adapter";
+export type {
+  InMemoryBackupPreviewHarnessInput,
+  InMemoryBackupPreviewHarnessResult,
+  InMemoryBackupPreviewHarnessSummary,
+} from "./in-memory-backup-preview-harness";
+export type {
+  ImportRestoreDisabledUiEventHandlers,
+  ImportRestoreUiHandlerResult,
+  ImportRestoreUiHandlerSummary,
+} from "./import-restore-ui-event-handlers";
+export type {
+  DisabledImportRestoreShellProps,
+  DisabledImportRestoreShellPropsSummary,
+} from "./import-restore-wiring-props";
 export type {
   DisabledLocalDataStorageAdapter,
   InMemoryLocalDataSafetyAuditSink,

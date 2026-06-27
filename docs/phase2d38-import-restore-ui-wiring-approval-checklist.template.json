@@ -1,0 +1,11 @@
+{
+  "marker": "PHASE2D38_IMPORT_RESTORE_UI_WIRING_APPROVAL_CHECKLIST_V1",
+  "uxReviewApproved": false,
+  "legalReviewApproved": false,
+  "dataLossRiskReviewed": false,
+  "backupBeforeImportRequired": false,
+  "applyStillBlockedConfirmed": false,
+  "localStorageAdapterStillDisabledConfirmed": false,
+  "routeNavigationApproved": false,
+  "ownerApproval": false
+}
