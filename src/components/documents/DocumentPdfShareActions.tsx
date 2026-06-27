@@ -33,7 +33,7 @@ export function DocumentPdfShareActions({
       </IconActionButton>
       <IconActionButton
         label="Imprimir"
-        tooltip="Imprimir vista actual"
+        tooltip="Imprimir vista actual; descarga el PDF para imprimirlo exacto"
         onClick={handlePrint}
         className="bg-slate-100 text-slate-700 hover:bg-slate-200"
       >

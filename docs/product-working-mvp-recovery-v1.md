@@ -102,6 +102,31 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No se crea QR oficial nuevo.
 - Si después se emite la factura, se usa el flujo existente y se conserva el comportamiento QR ya implementado.
 
+## Smoke MVP PDF / impresión / conversión
+
+- Flujo probado con datos sintéticos:
+  - cliente con email y teléfono;
+  - presupuesto con línea e IVA;
+  - conversión a factura;
+  - factura en borrador;
+  - emisión posterior;
+  - PDF generado;
+  - QR existente en entorno de pruebas;
+  - persistencia local tras recarga.
+- La descarga PDF queda cubierta en dos puntos:
+  - desde acciones del listado;
+  - desde el flujo de guardar y descargar.
+- El botón `Imprimir` imprime la vista actual del navegador.
+- Para imprimir el PDF exacto, el usuario debe descargar el PDF y usar el visor del sistema/navegador.
+- Email y WhatsApp siguen visibles cuando el cliente tiene datos de contacto.
+- El presupuesto original no se modifica durante la conversión.
+- La factura convertida no nace emitida y no nace con QR.
+- El QR aparece solo después de emitir una factura que lo requiere.
+- No hay AEAT real.
+- No hay XML.
+- No hay firma, certificados ni transporte.
+- No se crea QR oficial nuevo sin validación.
+
 ## 5. Qué se deja para después
 
 - Vista de impresión dedicada si se quiere imprimir el PDF exacto, no solo la vista actual.
