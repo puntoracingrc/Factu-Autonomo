@@ -10,7 +10,7 @@ export default function PresupuestosPage() {
     <div>
       <PageHeader
         title="Presupuestos"
-        subtitle="Crea presupuestos y envíalos por email o WhatsApp"
+        subtitle="Crea presupuestos y prepara su envío por email o WhatsApp"
       />
       <PageCreateButton
         href="/presupuestos/nuevo"

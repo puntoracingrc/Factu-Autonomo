@@ -9,6 +9,14 @@ export function canMarkQuoteAsAccepted(doc: Document): boolean {
   );
 }
 
+export function canMarkQuoteAsRejected(doc: Document): boolean {
+  return (
+    doc.type === "presupuesto" &&
+    doc.status !== "anulada" &&
+    deriveDocumentLifecycle(doc) === "issued"
+  );
+}
+
 export function isAcceptedQuote(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
@@ -16,7 +24,15 @@ export function isAcceptedQuote(doc: Document): boolean {
   );
 }
 
+export function isRejectedQuote(doc: Document): boolean {
+  return doc.type === "presupuesto" && doc.status === "rechazado";
+}
+
 export function statusAfterUnmarkingQuoteAcceptance(): Document["status"] {
+  return "enviado";
+}
+
+export function statusAfterUnmarkingQuoteRejection(): Document["status"] {
   return "enviado";
 }
 

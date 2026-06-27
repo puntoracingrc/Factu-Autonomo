@@ -5,6 +5,7 @@ import { assignNextDocumentNumberByType } from "./documents";
 import {
   buildInvoiceDraftFromQuote,
   canConvertQuoteToInvoice,
+  findInvoiceCreatedFromQuote,
 } from "./quote-to-invoice";
 import { DEFAULT_PROFILE, type Document } from "./types";
 
@@ -157,5 +158,21 @@ describe("quote to invoice conversion", () => {
     expect(canConvertQuoteToInvoice(quote)).toBe(true);
     expect(canConvertQuoteToInvoice({ ...quote, type: "factura" })).toBe(false);
     expect(canConvertQuoteToInvoice({ ...quote, status: "anulada" })).toBe(false);
+    expect(canConvertQuoteToInvoice({ ...quote, status: "rechazado" })).toBe(false);
+  });
+
+  it("localiza la factura ya creada desde un presupuesto", () => {
+    const invoice = {
+      ...quote,
+      id: "invoice-from-quote",
+      type: "factura",
+      number: "F-2026-0004",
+      status: "borrador",
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+    } satisfies Document;
+
+    expect(findInvoiceCreatedFromQuote([quote, invoice], quote.id)).toBe(invoice);
+    expect(findInvoiceCreatedFromQuote([quote, invoice], "other-quote")).toBeUndefined();
   });
 });

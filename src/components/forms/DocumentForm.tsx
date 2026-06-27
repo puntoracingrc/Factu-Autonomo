@@ -70,6 +70,12 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   recibo: "recibo",
 };
 
+const TYPE_ARTICLES: Record<DocumentType, string> = {
+  factura: "esta",
+  presupuesto: "este",
+  recibo: "este",
+};
+
 const EMPTY_CLIENT: ClientFormValues = {
   firstName: "",
   lastName: "",
@@ -109,6 +115,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const [formError, setFormError] = useState<string | null>(null);
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
+  const article = TYPE_ARTICLES[type];
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     existing ? clientToFormValues(existing.client) : EMPTY_CLIENT,
@@ -462,12 +469,20 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 <option value="borrador">Borrador</option>
                 <option value="enviado">Enviado</option>
                 {type === "presupuesto" ? (
-                  <option value="aceptado">Aceptado</option>
+                  <>
+                    <option value="aceptado">Aceptado</option>
+                    <option value="rechazado">Rechazado</option>
+                  </>
                 ) : (
                   <option value="pagado">Cobrado</option>
                 )}
                 {type === "factura" && <option value="vencido">Vencido</option>}
               </Select>
+              {type === "presupuesto" && status !== "borrador" && (
+                <span className="text-xs text-amber-700">
+                  Estado comercial local. No crea firma ni portal de cliente.
+                </span>
+              )}
               {type === "factura" && status !== "borrador" && (
                 <span className="text-xs text-amber-700">
                   Al guardar, la factura se emitirá y quedará bloqueada. No se
@@ -611,7 +626,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           <div>
             <p className="font-semibold text-slate-900">Enviar al cliente</p>
             <p className="mt-1 text-sm text-slate-500">
-              Comparte este {label} por email o WhatsApp. Guarda antes si has
+              Comparte {article} {label} por email o WhatsApp. Guarda antes si has
               hecho cambios.
             </p>
           </div>

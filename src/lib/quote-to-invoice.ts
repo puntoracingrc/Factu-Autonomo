@@ -22,7 +22,22 @@ function cloneLineItem(
 }
 
 export function canConvertQuoteToInvoice(doc: Document): boolean {
-  return doc.type === "presupuesto" && doc.status !== "anulada";
+  return (
+    doc.type === "presupuesto" &&
+    doc.status !== "anulada" &&
+    doc.status !== "rechazado"
+  );
+}
+
+export function findInvoiceCreatedFromQuote(
+  documents: Document[],
+  quoteId: string,
+): Document | undefined {
+  return documents.find(
+    (doc) =>
+      doc.type === "factura" &&
+      doc.sourceQuoteDocumentId === quoteId,
+  );
 }
 
 export function buildInvoiceDraftFromQuote(

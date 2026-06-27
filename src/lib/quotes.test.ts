@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   canMarkQuoteAsAccepted,
+  canMarkQuoteAsRejected,
   isAcceptedQuote,
+  isRejectedQuote,
   normalizeQuoteDocument,
+  statusAfterUnmarkingQuoteRejection,
 } from "./quotes";
 import type { Document } from "./types";
 
@@ -26,10 +29,21 @@ describe("quotes", () => {
     expect(canMarkQuoteAsAccepted(presupuesto("borrador"))).toBe(false);
   });
 
+  it("permite marcar presupuestos emitidos como rechazados", () => {
+    expect(canMarkQuoteAsRejected(presupuesto("enviado"))).toBe(true);
+    expect(canMarkQuoteAsRejected(presupuesto("borrador"))).toBe(false);
+  });
+
   it("detecta presupuestos aceptados", () => {
     expect(isAcceptedQuote(presupuesto("aceptado"))).toBe(true);
     expect(isAcceptedQuote(presupuesto("pagado"))).toBe(true);
     expect(isAcceptedQuote(presupuesto("enviado"))).toBe(false);
+  });
+
+  it("detecta presupuestos rechazados y los devuelve a enviado al desmarcar", () => {
+    expect(isRejectedQuote(presupuesto("rechazado"))).toBe(true);
+    expect(isRejectedQuote(presupuesto("enviado"))).toBe(false);
+    expect(statusAfterUnmarkingQuoteRejection()).toBe("enviado");
   });
 
   it("migra pagado antiguo a aceptado", () => {

@@ -8,6 +8,7 @@ import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButto
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
+import { MarkAsRejectedButton } from "@/components/documents/MarkAsRejectedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
@@ -19,6 +20,7 @@ import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
 import { isCollectedDocument } from "@/lib/income";
+import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
@@ -122,6 +124,10 @@ export function DocumentList({
                     doc.receiptDocumentId,
                   )
                 : undefined;
+            const linkedInvoice =
+              type === "presupuesto"
+                ? findInvoiceCreatedFromQuote(data.documents, doc.id)
+                : undefined;
 
             return (
               <Card key={doc.id} className="flex flex-col gap-4">
@@ -145,6 +151,11 @@ export function DocumentList({
                     {doc.verifactu && type === "factura" && (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                         Veri*Factu
+                      </span>
+                    )}
+                    {linkedInvoice && (
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        Convertido a factura
                       </span>
                     )}
                   </div>
@@ -175,9 +186,15 @@ export function DocumentList({
                       Creada desde presupuesto: {doc.sourceQuoteNumber}
                     </p>
                   )}
+                  {linkedInvoice && (
+                    <p className="text-xs text-blue-700">
+                      Factura creada: {linkedInvoice.number}
+                    </p>
+                  )}
                 </div>
                 <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
                   {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
+                  {type === "presupuesto" && <MarkAsRejectedButton doc={doc} />}
                   {type === "presupuesto" && (
                     <ConvertQuoteToInvoiceButton doc={doc} />
                   )}

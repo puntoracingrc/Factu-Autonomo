@@ -14,6 +14,7 @@ import {
   isDocumentIntegrityLocked,
   markDocumentPaid,
   markDocumentSent,
+  rejectQuote,
   stableStringifySnapshot,
 } from ".";
 import { buildDocumentPdf } from "../pdf";
@@ -504,6 +505,22 @@ describe("document snapshots", () => {
     expect(accepted.pdfSnapshot).toBe(quote.pdfSnapshot);
   });
 
+  it("rejectQuote no modifica snapshots", () => {
+    const quote = issueDocument(
+      invoice({
+        type: "presupuesto",
+        number: "P-2026-0002",
+        verifactu: undefined,
+      }),
+      profile,
+      NOW,
+    );
+    const rejected = rejectQuote(quote, LATER);
+
+    expect(rejected.documentSnapshot).toBe(quote.documentSnapshot);
+    expect(rejected.pdfSnapshot).toBe(quote.pdfSnapshot);
+  });
+
   it("operaciones repetidas no modifican snapshots ni hashes", () => {
     const issued = issueDocument(invoice(), profile, NOW);
     const sent = markDocumentSent(markDocumentSent(issued, LATER), LATER);
@@ -518,6 +535,7 @@ describe("document snapshots", () => {
       NOW,
     );
     const accepted = acceptQuote(acceptQuote(quote, LATER), LATER);
+    const rejected = rejectQuote(rejectQuote(quote, LATER), LATER);
 
     for (const current of [sent, paid]) {
       expect(current.documentSnapshot).toBe(issued.documentSnapshot);
@@ -533,6 +551,11 @@ describe("document snapshots", () => {
     expect(accepted.documentSnapshot).toBe(quote.documentSnapshot);
     expect(accepted.pdfSnapshot).toBe(quote.pdfSnapshot);
     expect(accepted.documentSnapshot?.snapshotHash).toBe(
+      quote.documentSnapshot?.snapshotHash,
+    );
+    expect(rejected.documentSnapshot).toBe(quote.documentSnapshot);
+    expect(rejected.pdfSnapshot).toBe(quote.pdfSnapshot);
+    expect(rejected.documentSnapshot?.snapshotHash).toBe(
       quote.documentSnapshot?.snapshotHash,
     );
   });

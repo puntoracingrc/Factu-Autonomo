@@ -9,6 +9,7 @@ import {
   issueDocument,
   markDocumentPaid,
   markDocumentSent,
+  rejectQuote,
 } from ".";
 import type { BusinessProfile, Document, IssuerSnapshot } from "../types";
 
@@ -390,5 +391,40 @@ describe("document integrity domain", () => {
     expect(protectedContent(second)).toEqual(protectedContent(first));
     expect(second.acceptanceStatus).toBe("accepted");
     expect(second.acceptedAt).toBe(first.acceptedAt);
+  });
+
+  it("rechazar presupuesto no modifica contenido protegido", () => {
+    const draftQuote = doc({
+      type: "presupuesto",
+      number: "P-2026-0002",
+      verifactu: undefined,
+    });
+    const issuedQuote = issueDocument(draftQuote, profile, NOW);
+    const before = protectedContent(issuedQuote);
+
+    const rejected = rejectQuote(issuedQuote, "2026-06-24T10:15:00.000Z");
+
+    expect(protectedContent(rejected)).toEqual(before);
+    expect(rejected.status).toBe("rechazado");
+    expect(rejected.acceptanceStatus).toBe("rejected");
+    expect(rejected.acceptedAt).toBeUndefined();
+  });
+
+  it("rechazar presupuesto dos veces es estable e idempotente", () => {
+    const issuedQuote = issueDocument(
+      doc({
+        type: "presupuesto",
+        number: "P-2026-0002",
+        verifactu: undefined,
+      }),
+      profile,
+      NOW,
+    );
+    const first = rejectQuote(issuedQuote, "2026-06-24T10:15:00.000Z");
+    const second = rejectQuote(first, "2026-06-24T10:30:00.000Z");
+
+    expect(protectedContent(second)).toEqual(protectedContent(first));
+    expect(second.acceptanceStatus).toBe("rejected");
+    expect(second.acceptedAt).toBeUndefined();
   });
 });

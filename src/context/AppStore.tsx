@@ -52,12 +52,16 @@ import type { DocumentKind } from "@/lib/types";
 import { canMarkAsCollected, statusAfterUnmarkingCollection } from "@/lib/income";
 import {
   canMarkQuoteAsAccepted,
+  canMarkQuoteAsRejected,
   isAcceptedQuote,
+  isRejectedQuote,
   statusAfterUnmarkingQuoteAcceptance,
+  statusAfterUnmarkingQuoteRejection,
 } from "@/lib/quotes";
 import {
   buildInvoiceDraftFromQuote,
   canConvertQuoteToInvoice,
+  findInvoiceCreatedFromQuote,
 } from "@/lib/quote-to-invoice";
 import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
@@ -84,6 +88,7 @@ import {
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
   acceptQuote as acceptQuoteWithIntegrity,
+  rejectQuote as rejectQuoteWithIntegrity,
 } from "@/lib/document-integrity";
 import {
   applyCustomerMergeToDocument,
@@ -115,6 +120,8 @@ interface AppStoreValue {
   unmarkAsCollected: (id: string) => void;
   markQuoteAsAccepted: (id: string) => void;
   unmarkQuoteAsAccepted: (id: string) => void;
+  markQuoteAsRejected: (id: string) => void;
+  unmarkQuoteAsRejected: (id: string) => void;
   convertQuoteToInvoice: (id: string) => Document | null;
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
@@ -196,6 +203,10 @@ function saveEditableDocument(
 
   if (requestedStatus === "aceptado" && issued.type === "presupuesto") {
     return acceptQuoteWithIntegrity(issued, updatedAt);
+  }
+
+  if (requestedStatus === "rechazado" && issued.type === "presupuesto") {
+    return rejectQuoteWithIntegrity(issued, updatedAt);
   }
 
   if (requestedStatus === "vencido" && issued.type === "factura") {
@@ -577,6 +588,54 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               ? {
                   ...d,
                   status: statusAfterUnmarkingQuoteAcceptance(),
+                  acceptanceStatus: "pending",
+                  acceptedAt: undefined,
+                  updatedAt: now,
+                }
+              : d,
+          ),
+        };
+      });
+    },
+    [setAppData],
+  );
+
+  const markQuoteAsRejected = useCallback(
+    (id: string) => {
+      setAppData((prev) => {
+        const doc = prev.documents.find((d) => d.id === id);
+        if (!doc || !canMarkQuoteAsRejected(doc) || isRejectedQuote(doc)) {
+          return prev;
+        }
+
+        const now = new Date().toISOString();
+        const rejected = rejectQuoteWithIntegrity(doc, now);
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === id ? rejected : d,
+          ),
+        };
+      });
+    },
+    [setAppData],
+  );
+
+  const unmarkQuoteAsRejected = useCallback(
+    (id: string) => {
+      setAppData((prev) => {
+        const doc = prev.documents.find((d) => d.id === id);
+        if (!doc || !isRejectedQuote(doc)) return prev;
+
+        const now = new Date().toISOString();
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  status: statusAfterUnmarkingQuoteRejection(),
+                  acceptanceStatus: "pending",
                   updatedAt: now,
                 }
               : d,
@@ -588,10 +647,58 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const convertQuoteToInvoice = useCallback((id: string): Document | null => {
-    const quote = data.documents.find((doc) => doc.id === id);
-    if (!quote || !canConvertQuoteToInvoice(quote)) return null;
-    return addDocument(buildInvoiceDraftFromQuote(quote));
-  }, [addDocument, data.documents]);
+    let result: Document | null = null;
+
+    setAppData((prev) => {
+      const existing = findInvoiceCreatedFromQuote(prev.documents, id);
+      if (existing) {
+        result = existing;
+        return prev;
+      }
+
+      const quote = prev.documents.find((doc) => doc.id === id);
+      if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
+
+      const draft = buildInvoiceDraftFromQuote(quote);
+      const year = new Date(draft.date).getFullYear();
+      const kind: DocumentKind = "factura";
+      const numbering = prev.profile.numbering;
+      const { number, sequence } = assignNextDocumentNumberByType(
+        prev.documents,
+        "factura",
+        year,
+        configuredLastForKind(numbering, kind, year),
+        numbering,
+      );
+      const now = new Date().toISOString();
+      const created: Document = {
+        ...draft,
+        id: newId(),
+        number,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const nextDocuments = [...prev.documents, created];
+      result = created;
+
+      return {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          numbering: bumpNumberingAfterAssign(
+            prev.profile.numbering,
+            kind,
+            year,
+            sequence,
+          ),
+        },
+        documents: nextDocuments,
+        counters: countersFromDocuments(nextDocuments, year, numbering),
+      };
+    });
+
+    return result;
+  }, [setAppData]);
 
   const addRectificativa = useCallback(
     (
@@ -1109,6 +1216,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       unmarkAsCollected,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
+      markQuoteAsRejected,
+      unmarkQuoteAsRejected,
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
@@ -1147,6 +1256,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       unmarkAsCollected,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
+      markQuoteAsRejected,
+      unmarkQuoteAsRejected,
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
