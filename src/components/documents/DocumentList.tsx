@@ -5,6 +5,7 @@ import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
+import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
@@ -219,9 +220,17 @@ export function DocumentList({
                       Recibo creado: {linkedReceipt.number}
                     </p>
                   )}
+                  {type === "factura" && doc.sourceQuoteNumber && (
+                    <p className="text-xs text-blue-700">
+                      Creada desde presupuesto: {doc.sourceQuoteNumber}
+                    </p>
+                  )}
                 </div>
                 <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
                   {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
+                  {type === "presupuesto" && (
+                    <ConvertQuoteToInvoiceButton doc={doc} />
+                  )}
                   {(type === "factura" || type === "recibo") && (
                     <MarkAsPaidButton doc={doc} />
                   )}

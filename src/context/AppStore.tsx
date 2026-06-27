@@ -55,6 +55,10 @@ import {
   isAcceptedQuote,
   statusAfterUnmarkingQuoteAcceptance,
 } from "@/lib/quotes";
+import {
+  buildInvoiceDraftFromQuote,
+  canConvertQuoteToInvoice,
+} from "@/lib/quote-to-invoice";
 import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
   buildReceiptFromInvoice,
@@ -111,6 +115,7 @@ interface AppStoreValue {
   unmarkAsCollected: (id: string) => void;
   markQuoteAsAccepted: (id: string) => void;
   unmarkQuoteAsAccepted: (id: string) => void;
+  convertQuoteToInvoice: (id: string) => Document | null;
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   deleteExpense: (id: string) => void;
@@ -573,6 +578,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     },
     [setAppData],
   );
+
+  const convertQuoteToInvoice = useCallback((id: string): Document | null => {
+    const quote = data.documents.find((doc) => doc.id === id);
+    if (!quote || !canConvertQuoteToInvoice(quote)) return null;
+    return addDocument(buildInvoiceDraftFromQuote(quote));
+  }, [addDocument, data.documents]);
 
   const addRectificativa = useCallback(
     (
@@ -1090,6 +1101,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       unmarkAsCollected,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
+      convertQuoteToInvoice,
       deleteDocument,
       addExpense,
       deleteExpense,
@@ -1127,6 +1139,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       unmarkAsCollected,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
+      convertQuoteToInvoice,
       deleteDocument,
       addExpense,
       deleteExpense,

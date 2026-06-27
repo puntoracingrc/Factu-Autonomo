@@ -150,6 +150,9 @@ export interface Document {
   sentAt?: string;
   paidAt?: string;
   acceptedAt?: string;
+  /** Presupuesto desde el que se creó esta factura en borrador. */
+  sourceQuoteDocumentId?: string;
+  sourceQuoteNumber?: string;
   /** Recibo generado automáticamente al cobrar una factura */
   sourceDocumentId?: string;
   /** Recibo vinculado cuando la factura se marca como cobrada */
