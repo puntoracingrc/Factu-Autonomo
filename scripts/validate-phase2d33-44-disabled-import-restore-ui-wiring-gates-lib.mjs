@@ -148,11 +148,11 @@ function validateNoRedLines() {
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
     /^src\/components\/local-data-safety\//,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42)-.*\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|[1-3][0-9]|4[0-4]|1-10|11-20|21-32|33-44)-.*\.mjs$/,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54)-.*\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|[1-4][0-9]|5[0-6]|1-10|11-20|21-32|33-44|45-56)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|[1-3][0-9]|4[0-4])-.*$/,
+    /^docs\/phase2d(?:[1-9]|[1-4][0-9]|5[0-6])-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
