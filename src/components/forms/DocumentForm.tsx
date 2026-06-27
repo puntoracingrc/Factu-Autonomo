@@ -583,7 +583,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
             </p>
           </div>
           <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
-            <DocumentPdfShareActions doc={shareDoc} profile={data.profile} />
+            <DocumentPdfShareActions
+              doc={shareDoc}
+              profile={data.profile}
+              showPreview={false}
+            />
           </div>
         </Card>
       )}

@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Eye } from "lucide-react";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
-import { IconActionButton } from "@/components/ui/IconAction";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
-import { openDocumentPdfPreview } from "@/lib/pdf";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -31,20 +27,6 @@ export function DocumentReadOnlyActions({
 }: DocumentReadOnlyActionsProps) {
   const missingContact = !doc.client.email && !doc.client.phone;
   const typeLabel = TYPE_LABELS[doc.type];
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  async function handlePdfPreview() {
-    setPreviewLoading(true);
-    try {
-      await openDocumentPdfPreview(doc, profile);
-    } catch {
-      alert(
-        "No se pudo abrir la vista previa. Permite ventanas emergentes o descarga el PDF.",
-      );
-    } finally {
-      setPreviewLoading(false);
-    }
-  }
 
   return (
     <div className="mt-6 space-y-4">
@@ -63,15 +45,6 @@ export function DocumentReadOnlyActions({
             variant="button"
           />
         )}
-        <IconActionButton
-          label="Vista"
-          tooltip="Vista previa PDF"
-          onClick={() => void handlePdfPreview()}
-          disabled={previewLoading}
-          className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-        >
-          <Eye className="h-5 w-5" />
-        </IconActionButton>
         <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 

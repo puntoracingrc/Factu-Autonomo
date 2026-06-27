@@ -116,8 +116,8 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - La descarga PDF queda cubierta en dos puntos:
   - desde acciones del listado;
   - desde el flujo de guardar y descargar.
-- El botón `Imprimir` imprime la vista actual del navegador.
-- Para imprimir el PDF exacto, el usuario debe descargar el PDF y usar el visor del sistema/navegador.
+- El botón `Imprimir vista` imprime la vista actual del navegador.
+- Para imprimir el PDF exacto, el usuario debe abrir o descargar el PDF y usar el visor del navegador/sistema.
 - Email y WhatsApp siguen visibles cuando el cliente tiene datos de contacto.
 - El presupuesto original no se modifica durante la conversión.
 - La factura convertida no nace emitida y no nace con QR.
@@ -126,6 +126,24 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No hay XML.
 - No hay firma, certificados ni transporte.
 - No se crea QR oficial nuevo sin validación.
+
+## PDF, vista previa e impresión
+
+- `Abrir PDF` genera el PDF existente y lo abre en una pestaña nueva cuando el navegador lo permite.
+- Desde el visor del navegador el usuario puede revisar el documento e imprimir el PDF exacto.
+- Si el navegador bloquea la pestaña, se muestra un aviso y queda disponible la descarga.
+- `PDF` descarga el archivo generado con el motor actual.
+- `Guardar y descargar PDF` conserva el flujo de guardado y descarga del formulario.
+- `Imprimir vista` imprime la pantalla actual de la app, no un render PDF controlado.
+- Para imprimir el PDF exacto:
+  - abrir PDF y usar el visor del navegador;
+  - o descargar PDF y abrirlo en el visor del sistema/navegador.
+- Email y WhatsApp se mantienen como acciones separadas cuando el cliente tiene contacto.
+- El QR existente se conserva donde ya aparecía.
+- No se crea QR oficial nuevo.
+- No hay AEAT real.
+- No hay XML.
+- No hay firma, certificado ni transporte.
 
 ## 5. Qué se deja para después
 

@@ -455,14 +455,23 @@ export async function openDocumentPdfPreview(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const viewModel = buildPdfViewModelForDocument(doc, profile);
-  const artifacts = await preparePdfArtifactsForViewModel(viewModel);
-  const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  const opened = window.open("", "_blank");
   if (!opened) {
-    URL.revokeObjectURL(url);
     throw new Error("popup_blocked");
   }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  opened.opener = null;
+
+  try {
+    const viewModel = buildPdfViewModelForDocument(doc, profile);
+    const artifacts = await preparePdfArtifactsForViewModel(viewModel);
+    const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output(
+      "blob",
+    );
+    const url = URL.createObjectURL(blob);
+    opened.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    opened.close();
+    throw error;
+  }
 }
