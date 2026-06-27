@@ -133,6 +133,7 @@ const allowedPathPatterns = [
   /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
   /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
   /^scripts\/phase2c5[1234]-.*\.test\.ts$/,
+  /^scripts\/phase2c63-.*\.test\.ts$/,
   /^scripts\/validate-phase2c31-.*\.mjs$/,
   /^scripts\/validate-phase2c32-.*\.mjs$/,
   /^scripts\/validate-phase2c33-.*\.mjs$/,
@@ -157,6 +158,15 @@ const allowedPathPatterns = [
   /^scripts\/validate-phase2c53-.*\.mjs$/,
   /^scripts\/validate-phase2c54-.*\.mjs$/,
   /^scripts\/validate-phase2c49-56-.*\.mjs$/,
+  /^scripts\/validate-phase2c57-.*\.mjs$/,
+  /^scripts\/validate-phase2c58-.*\.mjs$/,
+  /^scripts\/validate-phase2c59-.*\.mjs$/,
+  /^scripts\/validate-phase2c60-.*\.mjs$/,
+  /^scripts\/validate-phase2c61-.*\.mjs$/,
+  /^scripts\/validate-phase2c62-.*\.mjs$/,
+  /^scripts\/validate-phase2c63-.*\.mjs$/,
+  /^scripts\/validate-phase2c64-.*\.mjs$/,
+  /^scripts\/validate-phase2c57-66-.*\.mjs$/,
   /^scripts\/validate-phase2c1-sync-surface-audit\.mjs$/,
   /^scripts\/validate-phase2b3e-ingest-route-safety\.mjs$/,
   /^scripts\/validate-phase2b7v-z-official-artifact-unlock-preparation\.mjs$/,
@@ -189,6 +199,15 @@ const allowedPathPatterns = [
   /^docs\/phase2c53-.*\.md$/,
   /^docs\/phase2c54-.*\.md$/,
   /^docs\/phase2c56-.*\.md$/,
+  /^docs\/phase2c57-.*\.(?:md|json)$/,
+  /^docs\/phase2c58-.*\.md$/,
+  /^docs\/phase2c59-.*\.md$/,
+  /^docs\/phase2c60-.*\.(?:md|json)$/,
+  /^docs\/phase2c61-.*\.md$/,
+  /^docs\/phase2c62-.*\.md$/,
+  /^docs\/phase2c63-.*\.md$/,
+  /^docs\/phase2c64-.*\.md$/,
+  /^docs\/phase2c66-.*\.md$/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
   /^scripts\/validate-audit-.*\.mjs$/,
@@ -229,17 +248,21 @@ if (!routeAndHandler.includes("route_shell_enabled_but_operations_disabled")) {
 for (const changedPath of changedPaths) {
   if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
   if (changedPath.startsWith("docs/audit/")) continue;
+  if (changedPath === "package.json") continue;
   if (changedPath === "scripts/export-compliance-dossier-html.mjs") continue;
   if (/^scripts\/validate-audit-.*\.mjs$/.test(changedPath)) continue;
   if (changedPath.includes("validate-phase2")) continue;
   if (
+    /^src\/lib\/document-sync-integrity\/private-staging-/.test(changedPath) ||
     /^src\/lib\/document-sync-integrity\/route-(?:local-execution-contract|fake-adapter|rate-limit|idempotency|telemetry)(?:\.test)?\.ts$/.test(
       changedPath,
     ) ||
     /^scripts\/phase2c4[056]-/.test(changedPath) ||
     /^scripts\/phase2c5[1234]-/.test(changedPath) ||
+    /^scripts\/phase2c63-/.test(changedPath) ||
     /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/.test(changedPath) ||
-    /^docs\/phase2c(?:49|50|51|52|53|54|56)-/.test(changedPath)
+    /^docs\/phase2c(?:49|50|51|52|53|54|56)-/.test(changedPath) ||
+    /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-/.test(changedPath)
   ) {
     continue;
   }
