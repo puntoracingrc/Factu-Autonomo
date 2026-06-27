@@ -1,18 +1,30 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  CalendarRange,
   FileText,
   ShoppingCart,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { Field, Select } from "@/components/ui/Field";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
 import {
-  buildProductBusinessSummary,
   type ProductBusinessSummary,
 } from "@/lib/product-business-summary";
+import {
+  PRODUCT_MONTH_NAMES,
+  PRODUCT_QUARTERS,
+  availableProductPeriodYears,
+  buildProductPeriodSummary,
+  formatProductPeriodLabel,
+  getDefaultProductPeriod,
+  type ProductPeriodKind,
+  type ProductPeriodSelection,
+} from "@/lib/product-period-summary";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { expenseTotals } from "@/lib/expenses";
 import type { AppData, Document, Expense } from "@/lib/types";
@@ -29,19 +41,44 @@ interface MetricCard {
 }
 
 export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
-  const summary = buildProductBusinessSummary(data);
+  const [period, setPeriod] = useState<ProductPeriodSelection>(() =>
+    getDefaultProductPeriod(),
+  );
+  const years = useMemo(
+    () => availableProductPeriodYears(data.documents, data.expenses),
+    [data.documents, data.expenses],
+  );
+  const periodSummary = useMemo(
+    () => buildProductPeriodSummary(data, period),
+    [data, period],
+  );
+  const summary = periodSummary.business;
   const metrics = businessMetricCards(summary);
+
+  function updatePeriod(patch: Partial<ProductPeriodSelection>) {
+    setPeriod((current) => ({ ...current, ...patch }));
+  }
 
   return (
     <section className="mb-6 space-y-4" aria-labelledby="business-summary-title">
-      <div>
-        <h2 id="business-summary-title" className="text-lg font-bold text-slate-900">
-          Resumen del negocio
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Datos calculados desde la información guardada en este navegador. No
-          sustituyen una revisión contable o fiscal.
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 id="business-summary-title" className="text-lg font-bold text-slate-900">
+            Resumen del negocio
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Datos calculados desde la información guardada en este navegador. No
+            sustituyen una revisión contable o fiscal.
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Periodo: {periodSummary.label}
+          </p>
+        </div>
+        <PeriodSelector
+          period={period}
+          years={years}
+          onChange={updatePeriod}
+        />
       </div>
 
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -108,6 +145,95 @@ function businessMetricCards(summary: ProductBusinessSummary): MetricCard[] {
       tone: "border-violet-100 bg-violet-50/60",
     },
   ];
+}
+
+function PeriodSelector({
+  period,
+  years,
+  onChange,
+}: {
+  period: ProductPeriodSelection;
+  years: number[];
+  onChange: (patch: Partial<ProductPeriodSelection>) => void;
+}) {
+  return (
+    <Card className="min-w-0 p-3 lg:max-w-3xl">
+      <div className="flex items-center gap-2 pb-3 text-sm font-bold text-slate-900">
+        <CalendarRange className="h-4 w-4 text-blue-600" aria-hidden />
+        Resumen por periodo
+      </div>
+      <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <Field label="Periodo">
+          <Select
+            value={period.kind}
+            onChange={(event) =>
+              onChange({ kind: event.target.value as ProductPeriodKind })
+            }
+            aria-label="Periodo del resumen"
+          >
+            <option value="all">Todos</option>
+            <option value="month">Este mes</option>
+            <option value="quarter">Este trimestre</option>
+            <option value="year">Este año</option>
+          </Select>
+        </Field>
+
+        {period.kind !== "all" && (
+          <Field label="Año">
+            <Select
+              value={period.year}
+              onChange={(event) => onChange({ year: Number(event.target.value) })}
+              aria-label="Año del resumen"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {period.kind === "month" && (
+          <Field label="Mes">
+            <Select
+              value={period.month}
+              onChange={(event) =>
+                onChange({ month: Number(event.target.value) })
+              }
+              aria-label="Mes del resumen"
+            >
+              {PRODUCT_MONTH_NAMES.map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {period.kind === "quarter" && (
+          <Field label="Trimestre">
+            <Select
+              value={period.quarter}
+              onChange={(event) =>
+                onChange({
+                  quarter: Number(event.target.value) as ProductPeriodSelection["quarter"],
+                })
+              }
+              aria-label="Trimestre del resumen"
+            >
+              {PRODUCT_QUARTERS.map((quarter) => (
+                <option key={quarter} value={quarter}>
+                  {formatProductPeriodLabel({ ...period, kind: "quarter", quarter })}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 function RecentDocumentsCard({

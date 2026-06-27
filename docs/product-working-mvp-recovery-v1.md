@@ -272,6 +272,23 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - La home muestra últimos documentos, últimos gastos y pendientes de cobro.
 - Las acciones rápidas mantienen cliente, presupuesto, factura, gasto, configuración y exportar copia.
 
+## Filtros y resumen por periodo
+
+- La home permite ver el resumen local por todos los periodos, mes, trimestre o año.
+- El selector muestra el periodo aplicado junto a las cifras.
+- Facturas y presupuestos incorporan filtros locales por periodo y estado.
+- Facturas se pueden revisar por borrador, emitida, cobrada, pendiente o rectificada.
+- Presupuestos se pueden revisar por borrador, enviado, aceptado, rechazado o convertido.
+- Gastos mantiene filtros locales por mes, trimestre, año y proveedor.
+- El resumen por periodo calcula facturado emitido, cobrado localmente, pendiente, gastos, IVA estimado y balance estimado.
+- Los presupuestos no se suman como ingresos.
+- Las facturas en borrador no se suman como facturado emitido.
+- Todo sale de datos guardados en este navegador.
+- Las cifras son orientativas y estimadas.
+- No es una declaración fiscal.
+- No hay AEAT real.
+- No se añade backend, Supabase remoto, XML, firma, certificado ni transporte.
+
 ## PDF, vista previa e impresión
 
 - `Abrir PDF` genera el PDF existente y lo abre en una pestaña nueva cuando el navegador lo permite.
