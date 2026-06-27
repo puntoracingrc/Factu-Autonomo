@@ -358,7 +358,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         updatedAt: new Date().toISOString(),
       };
       try {
-        updateDocument(saved);
+        saved = updateDocument(saved);
       } catch (error) {
         setSaveAction("idle");
         alert(
@@ -394,7 +394,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
 
     maybeCelebrateFirstInvoice(data.documents, saved);
     setSaveAction("idle");
-    finishDocumentSave({
+    await finishDocumentSave({
       type,
       number: saved.number,
       router,

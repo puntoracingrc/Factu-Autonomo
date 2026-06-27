@@ -461,7 +461,7 @@ export function DocumentTemplateDesignerCard({
                     ))}
                   </div>
                   <p className="mx-auto mt-1 max-w-[9rem] text-[9px] leading-tight text-slate-500">
-                    Factura verificable en la sede electrónica de la AEAT
+                    QR Veri*Factu en entorno de pruebas
                   </p>
                 </div>
 
@@ -733,7 +733,7 @@ export function DocumentTemplateDesignerCard({
                         ))}
                       </div>
                       <p className="mx-auto mt-2 max-w-[11rem] text-xs leading-tight text-slate-500">
-                        Factura verificable en la sede electrónica de la AEAT
+                        QR Veri*Factu en entorno de pruebas
                       </p>
                     </div>
                   </section>

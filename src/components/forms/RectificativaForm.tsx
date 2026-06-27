@@ -217,7 +217,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
 
     maybeCelebrateFirstRectificativa(data.documents, saved);
     setSaveAction("idle");
-    finishDocumentSave({
+    await finishDocumentSave({
       type: "factura",
       number: saved.number,
       router,
