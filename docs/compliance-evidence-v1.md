@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66, local data safety / backup restore 2D.1-2D.10, backup/import review flow 2D.11-2D.20, disabled UI shell 2D.21-2D.32, disabled UI wiring 2D.33-2D.44 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66, local data safety / backup restore 2D.1-2D.10, backup/import review flow 2D.11-2D.20, disabled UI shell 2D.21-2D.32, disabled UI wiring 2D.33-2D.44, routeless UI preview harness 2D.45-2D.56 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -100,6 +100,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2D.11-2D.20 | Backup/import review flow y contratos UI-facing sin UI. | PR 2D import restore review flow | Intake seguro de backup, validation pipeline, review model, human confirmation gate, apply blockers, disabled localStorage adapter contract, malformed backup hardening, safe report, acceptance y checkpoint. | Validadores 2D.11-2D.20; tests unitarios de `src/lib/local-data-safety`; `test:phase2d19-import-restore-review-flow-acceptance`; audit export verificado. | `PHASE2D_IMPORT_RESTORE_REVIEW_FLOW: READY FOR DISABLED UI SHELL DESIGN / NO APPLY`; evidencia tecnica interna de local data safety y backup/import review flow, UI-facing contracts, no UI real, no localStorage write, no import/restore apply, sin produccion, sin Supabase y sin documentos reales. |
 | Fase 2D.21-2D.32 | Disabled UI shell no conectada para revision import/restore. | PR 2D disabled import restore UI shell | UI shell scope, review view model, disabled action model, React shell deshabilitada, copy/accessibility, preview list, safe error presenter, UI audit in-memory, hardening, acceptance y checkpoint. | Validadores 2D.21-2D.32; tests unitarios de `src/lib/local-data-safety`; render test de `src/components/local-data-safety`; `test:phase2d29-import-restore-ui-facing-data-hardening`; `test:phase2d30-disabled-import-restore-ui-shell-acceptance`; audit export verificado. | `PHASE2D_DISABLED_IMPORT_RESTORE_UI_SHELL: READY FOR EXPLICIT UI WIRING DECISION / NO APPLY`; evidencia tecnica interna, disabled UI shell, view models seguros, no UI conectada, no rutas, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.33-2D.44 | Disabled UI wiring gates para import/restore. | PR 2D disabled import restore UI wiring gates | UI wiring readiness gate, disabled file selection adapter, local file preview harness sintetico, handlers UI no-op/blocked, wiring props factory, approval checklist all false, hardening, accessibility, route/navigation blocker y checkpoint. | Validadores 2D.33-2D.44; tests unitarios de `src/lib/local-data-safety`; `test:phase2d39-local-import-restore-preview-harness-acceptance`; `test:phase2d40-import-restore-ui-action-abuse-hardening`; `test:phase2d41-import-restore-accessibility-regression-acceptance`; `test:phase2d42-import-restore-route-navigation-blocker-validation`; audit export verificado. | `PHASE2D_DISABLED_IMPORT_RESTORE_UI_WIRING: READY FOR EXPLICIT ROUTELESS UI WIRING REVIEW / NO APPLY`; evidencia tecnica interna, disabled UI wiring, UI wiring gates, no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
+| Fase 2D.45-2D.56 | Routeless UI preview harness para import/restore. | PR 2D routeless UI preview harness | Routeless harness scope, fixtures sinteticos, state machine de preview, review session model, data-loss warning model, recovery snapshot download placeholder disabled, UX/legal review packet, interaction/copy/wiring acceptance y checkpoint. | Validadores 2D.45-2D.56; tests unitarios de `src/lib/local-data-safety`; `test:phase2d52-routeless-import-restore-ui-interaction-acceptance`; `test:phase2d53-import-restore-visual-copy-regression-acceptance`; `test:phase2d54-import-restore-wiring-final-blockers`; audit export verificado. | `PHASE2D_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS: READY FOR UX_LEGAL_REVIEW / NO WIRING / NO APPLY`; evidencia tecnica interna, routeless UI preview harness, fixtures sinteticos, state machine de preview, no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export seguro del dossier vivo para auditoria. | PR audit export v1 | Metadata JSON; politica de snapshot; export HTML imprimible; guia PDF manual; validadores; dossier actualizado. | `export:compliance-dossier:html`; validadores audit export; validaciones generales del repo. | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; evidencia tecnica interna; sin cumplimiento productivo, sin certificacion, sin PDF binario commiteado. |
 
 Archivos internos relevantes:
@@ -171,6 +172,17 @@ Archivos internos relevantes:
 - `docs/phase2d41-import-restore-accessibility-regression-acceptance-v1.md`
 - `docs/phase2d42-import-restore-route-navigation-blocker-validation-v1.md`
 - `docs/phase2d44-disabled-import-restore-ui-wiring-gates-checkpoint-v1.md`
+- `docs/phase2d45-routeless-import-restore-ui-harness-scope-v1.md`
+- `docs/phase2d46-import-restore-synthetic-ui-fixtures-v1.md`
+- `docs/phase2d47-import-restore-preview-flow-state-machine-v1.md`
+- `docs/phase2d48-import-restore-review-session-model-v1.md`
+- `docs/phase2d49-import-restore-data-loss-warning-model-v1.md`
+- `docs/phase2d50-disabled-recovery-snapshot-download-placeholder-v1.md`
+- `docs/phase2d51-import-restore-ux-legal-review-packet-v1.md`
+- `docs/phase2d52-routeless-import-restore-ui-interaction-acceptance-v1.md`
+- `docs/phase2d53-import-restore-visual-copy-regression-acceptance-v1.md`
+- `docs/phase2d54-import-restore-wiring-final-blockers-v1.md`
+- `docs/phase2d56-routeless-import-restore-ui-preview-harness-checkpoint-v1.md`
 
 ## 6. Seguridad de Supabase y permisos
 
@@ -326,7 +338,8 @@ Trabajo pendiente:
 - el backup/import review flow 2D.11-2D.20 anade UI-facing contracts para intake seguro, validation pipeline, review model, confirmacion humana, apply blockers, disabled localStorage adapter contract, malformed backup hardening, safe report y acceptance sintetica. No crea UI real, no hace localStorage write, no aplica import/restore, no toca documentos reales y no usa Supabase.
 - la disabled UI shell 2D.21-2D.32 anade view models seguros, shell React no conectada, acciones deshabilitadas, copy prudente, preview list, error presenter seguro y eventos UI in-memory. No crea rutas, no añade navegación, no conecta UI, no hace localStorage write, no aplica import/restore, no toca documentos reales y no usa Supabase.
 - el disabled UI wiring 2D.33-2D.44 anade UI wiring gates, adapter de seleccion de archivo bloqueado, local file preview harness sintetico, handlers UI no-op/blocked, props factory segura, checklist de aprobacion all false, hardening de acciones, regresion de accesibilidad y validacion de route/navigation blocker. No UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
-- proximos pasos posibles: pausa de revision tecnica, security review externa, decision explicita de routeless UI wiring para datos locales o hardening adicional antes de ampliar superficie.
+- el routeless UI preview harness 2D.45-2D.56 anade scope routeless, fixtures sinteticos, state machine de preview, review session model, data-loss warning model, recovery snapshot download placeholder disabled, UX/legal review packet, interaction acceptance, visual/copy regression y final wiring blockers. No UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
+- proximos pasos posibles: pausa de revision tecnica, security review externa, revision UX/legal/data-loss, decision explicita de routeless UI wiring para datos locales o hardening adicional antes de ampliar superficie.
 
 Evidencia tecnica interna de sync 2C.37-2C.48:
 
@@ -403,6 +416,19 @@ Evidencia tecnica interna de disabled UI wiring 2D.33-2D.44:
 - props factory segura para shell deshabilitado, sin routeConnected, navigationConnected ni filePickerConnected;
 - checklist de aprobacion futura con todos los campos `false`;
 - acceptance local, action abuse hardening, accessibility regression y route/navigation blocker;
+- no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
+
+Evidencia tecnica interna de routeless UI preview harness 2D.45-2D.56:
+
+- `PHASE2D_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS: READY FOR UX_LEGAL_REVIEW / NO WIRING / NO APPLY`;
+- routeless harness scope con `routeAllowed: false`, `navigationAllowed: false`, `importApplyAllowed: false` y `restoreApplyAllowed: false`;
+- fixtures sinteticos `SYNTHETIC_ONLY_*` para safe preview, overwrite protegido, malformado, mismatch de snapshot, riesgo de numeracion, backup vacio y lista paginable;
+- state machine de preview con `idle_disabled`, `fixture_selected`, `parsing_preview`, `validation_ready`, `review_ready`, `manual_review_required`, `apply_blocked` y `error_safe`;
+- review session model in-memory con `persisted: false`, resumen de view model, flags de revision manual y eventos seguros;
+- data-loss warning model con avisos prudentes de documentos protegidos, snapshot mismatch, numeracion, backup desconocido, backup malformado, apply disabled y copia previa futura;
+- recovery snapshot download placeholder disabled, sin descarga real;
+- UX/legal review packet con aprobaciones `false`, placeholders de capturas sin imagen y sin datos crudos;
+- interaction acceptance, visual/copy regression y final wiring blockers;
 - no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
 
 ## 9. VERI*FACTU
@@ -632,6 +658,7 @@ Controles existentes:
 - UI-facing contracts 2D.11-2D.20 para backup/import review flow: intake, validation pipeline, review model, human confirmation gate, apply blockers, disabled localStorage adapter contract, malformed backup hardening, safe report y acceptance sintetica.
 - disabled UI shell 2D.21-2D.32 con view models seguros, React shell no conectada, disabled actions, preview list, safe error presenter y eventos UI in-memory.
 - disabled UI wiring 2D.33-2D.44 con UI wiring gates, adapter de seleccion de archivo bloqueado, local file preview harness sintetico, handlers no-op/blocked, props factory segura, checklist all false y route/navigation blocker.
+- routeless UI preview harness 2D.45-2D.56 con fixtures sinteticos, state machine de preview, review session model, data-loss warning model, recovery snapshot download placeholder disabled, UX/legal review packet y wiring final blockers.
 
 Pendiente:
 
@@ -644,6 +671,7 @@ Pendiente:
 - disabled UI shell design antes de conectar lectura/escritura real, manteniendo no localStorage write, no import/restore apply, sin produccion, sin Supabase y sin documentos reales hasta orden separada.
 - decision explicita de UI wiring antes de cualquier pantalla visible, ruta, navegación, lectura/escritura real, import real o restore real.
 - decision explicita de routeless UI wiring antes de cualquier conexion visible, manteniendo no UI conectada, no ruta, no navegación, no file picker real, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
+- revision UX/legal/data-loss antes de cualquier wiring, descarga, lectura real, apply import o apply restore.
 
 ## 12. IA y tratamiento externo
 
@@ -734,6 +762,7 @@ Declaraciones no permitidas todavía:
 | Fase 2D.11-2D.20 | Backup/import review flow y contratos UI-facing | `PHASE2D_IMPORT_RESTORE_REVIEW_FLOW: READY FOR DISABLED UI SHELL DESIGN / NO APPLY`; evidencia tecnica interna; intake, validation pipeline, review model, human confirmation gate, apply blockers, disabled localStorage adapter contract, malformed backup hardening, safe report y acceptance; no UI real, no localStorage write, no import/restore apply, sin produccion, sin Supabase y sin documentos reales. |
 | Fase 2D.21-2D.32 | Disabled UI shell no conectada para revision import/restore | `PHASE2D_DISABLED_IMPORT_RESTORE_UI_SHELL: READY FOR EXPLICIT UI WIRING DECISION / NO APPLY`; evidencia tecnica interna; disabled UI shell, view models seguros, disabled actions, copy/accessibility, preview list, safe error presenter, UI audit in-memory, hardening y acceptance; no UI conectada, no rutas, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.33-2D.44 | Disabled UI wiring gates para import/restore | `PHASE2D_DISABLED_IMPORT_RESTORE_UI_WIRING: READY FOR EXPLICIT ROUTELESS UI WIRING REVIEW / NO APPLY`; evidencia tecnica interna; disabled UI wiring, UI wiring gates, local file preview harness sintetico, disabled file selection adapter, handlers no-op/blocked, props factory segura, checklist all false, hardening, accesibilidad y route/navigation blocker; no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
+| Fase 2D.45-2D.56 | Routeless UI preview harness para import/restore | `PHASE2D_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS: READY FOR UX_LEGAL_REVIEW / NO WIRING / NO APPLY`; evidencia tecnica interna; routeless UI preview harness, fixtures sinteticos, state machine de preview, review session model, data-loss warnings, recovery snapshot download placeholder disabled, UX/legal review packet, interaction/copy/wiring acceptance; no UI conectada, no ruta, no navegación, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export del dossier vivo | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; HTML/PDF son snapshots derivados; el Markdown sigue siendo canonico; no declaran cumplimiento productivo. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
@@ -769,6 +798,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-27 | Backup/import review flow 2D.11-2D.20 anadido con UI-facing contracts, validation pipeline, human confirmation gate, apply blockers, disabled localStorage adapter contract, malformed backup hardening, safe report, acceptance y checkpoint sin apply. | Fase 2D.11-2D.20 | PR 2D import restore review flow | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Disabled UI shell 2D.21-2D.32 anadida con view models seguros, React shell no conectada, acciones deshabilitadas, copy/accessibility, preview list, safe error presenter, UI audit in-memory, hardening y acceptance sin apply. | Fase 2D.21-2D.32 | PR 2D disabled import restore UI shell | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Disabled UI wiring 2D.33-2D.44 anadido con UI wiring gates, adapter de archivo bloqueado, local file preview harness sintetico, handlers no-op/blocked, props factory, checklist all false, hardening, accesibilidad y route/navigation blocker sin apply. | Fase 2D.33-2D.44 | PR 2D disabled import restore UI wiring gates | Equipo Factura Autónomo / Codex |
+| 2026-06-27 | Routeless UI preview harness 2D.45-2D.56 anadido con scope routeless, fixtures sinteticos, state machine de preview, review session model, data-loss warnings, recovery snapshot download placeholder disabled, UX/legal review packet y acceptance sin wiring ni apply. | Fase 2D.45-2D.56 | PR 2D routeless import restore UI preview harness | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -910,6 +940,17 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `docs/phase2d41-import-restore-accessibility-regression-acceptance-v1.md`;
 - `docs/phase2d42-import-restore-route-navigation-blocker-validation-v1.md`;
 - `docs/phase2d44-disabled-import-restore-ui-wiring-gates-checkpoint-v1.md`;
+- `docs/phase2d45-routeless-import-restore-ui-harness-scope-v1.md`;
+- `docs/phase2d46-import-restore-synthetic-ui-fixtures-v1.md`;
+- `docs/phase2d47-import-restore-preview-flow-state-machine-v1.md`;
+- `docs/phase2d48-import-restore-review-session-model-v1.md`;
+- `docs/phase2d49-import-restore-data-loss-warning-model-v1.md`;
+- `docs/phase2d50-disabled-recovery-snapshot-download-placeholder-v1.md`;
+- `docs/phase2d51-import-restore-ux-legal-review-packet-v1.md`;
+- `docs/phase2d52-routeless-import-restore-ui-interaction-acceptance-v1.md`;
+- `docs/phase2d53-import-restore-visual-copy-regression-acceptance-v1.md`;
+- `docs/phase2d54-import-restore-wiring-final-blockers-v1.md`;
+- `docs/phase2d56-routeless-import-restore-ui-preview-harness-checkpoint-v1.md`;
 - `src/lib/local-data-safety/backup-intake.ts`;
 - `src/lib/local-data-safety/backup-validation-pipeline.ts`;
 - `src/lib/local-data-safety/import-restore-review-model.ts`;
@@ -930,6 +971,13 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `src/lib/local-data-safety/in-memory-backup-preview-harness.ts`;
 - `src/lib/local-data-safety/import-restore-ui-event-handlers.ts`;
 - `src/lib/local-data-safety/import-restore-wiring-props.ts`;
+- `src/lib/local-data-safety/routeless-ui-harness-scope.ts`;
+- `src/lib/local-data-safety/import-restore-ui-fixtures.ts`;
+- `src/lib/local-data-safety/import-restore-preview-state-machine.ts`;
+- `src/lib/local-data-safety/import-restore-review-session.ts`;
+- `src/lib/local-data-safety/import-restore-data-loss-warning.ts`;
+- `src/lib/local-data-safety/recovery-snapshot-download-placeholder.ts`;
+- `src/lib/local-data-safety/import-restore-ux-legal-review-packet.ts`;
 - `src/components/local-data-safety/ImportRestoreReviewShell.tsx`;
 - `scripts/phase2d19-import-restore-review-flow-acceptance.test.ts`;
 - `scripts/phase2d29-import-restore-ui-facing-data-hardening.test.ts`;
@@ -938,6 +986,9 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `scripts/phase2d40-import-restore-ui-action-abuse-hardening.test.ts`;
 - `scripts/phase2d41-import-restore-accessibility-regression-acceptance.test.ts`;
 - `scripts/phase2d42-import-restore-route-navigation-blocker-validation.test.ts`;
+- `scripts/phase2d52-routeless-import-restore-ui-interaction-acceptance.test.ts`;
+- `scripts/phase2d53-import-restore-visual-copy-regression-acceptance.test.ts`;
+- `scripts/phase2d54-import-restore-wiring-final-blockers.test.ts`;
 - `scripts/validate-phase2d11-backup-file-intake-contract.mjs`;
 - `scripts/validate-phase2d12-backup-validation-pipeline.mjs`;
 - `scripts/validate-phase2d13-import-restore-review-model.mjs`;
@@ -970,6 +1021,17 @@ Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 - `scripts/validate-phase2d41-import-restore-accessibility-regression-acceptance.mjs`;
 - `scripts/validate-phase2d42-import-restore-route-navigation-blocker-validation.mjs`;
 - `scripts/validate-phase2d33-44-disabled-import-restore-ui-wiring-gates.mjs`;
+- `scripts/validate-phase2d45-routeless-import-restore-ui-harness-scope.mjs`;
+- `scripts/validate-phase2d46-import-restore-synthetic-ui-fixtures.mjs`;
+- `scripts/validate-phase2d47-import-restore-preview-flow-state-machine.mjs`;
+- `scripts/validate-phase2d48-import-restore-review-session-model.mjs`;
+- `scripts/validate-phase2d49-import-restore-data-loss-warning-model.mjs`;
+- `scripts/validate-phase2d50-disabled-recovery-snapshot-download-placeholder.mjs`;
+- `scripts/validate-phase2d51-import-restore-ux-legal-review-packet.mjs`;
+- `scripts/validate-phase2d52-routeless-import-restore-ui-interaction-acceptance.mjs`;
+- `scripts/validate-phase2d53-import-restore-visual-copy-regression-acceptance.mjs`;
+- `scripts/validate-phase2d54-import-restore-wiring-final-blockers.mjs`;
+- `scripts/validate-phase2d45-56-routeless-import-restore-ui-preview-harness.mjs`;
 - `scripts/validate-phase2c31-disabled-sync-route-private-flag-contract.mjs`;
 - `scripts/validate-phase2c32-disabled-sync-route-shell-http.mjs`;
 - `scripts/validate-phase2c33-sync-route-auth-context-adapter.mjs`;

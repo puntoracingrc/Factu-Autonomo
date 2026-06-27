@@ -2,6 +2,7 @@
 // PHASE2D11_20_LOCAL_DATA_IMPORT_RESTORE_REVIEW_FLOW_V1
 // PHASE2D21_32_DISABLED_IMPORT_RESTORE_UI_SHELL_V1
 // PHASE2D33_44_DISABLED_IMPORT_RESTORE_UI_WIRING_GATES_V1
+// PHASE2D45_56_ROUTELESS_IMPORT_RESTORE_UI_PREVIEW_HARNESS_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -137,6 +138,41 @@ export {
   buildDisabledImportRestoreShellProps,
   summarizeDisabledImportRestoreShellProps,
 } from "./import-restore-wiring-props";
+export {
+  buildRoutelessImportRestoreUiHarnessBlockers,
+  evaluateRoutelessImportRestoreUiHarnessScope,
+  summarizeRoutelessImportRestoreUiHarnessScope,
+} from "./routeless-ui-harness-scope";
+export {
+  getImportRestoreSyntheticUiFixture,
+  listImportRestoreSyntheticUiFixtures,
+  validateImportRestoreSyntheticUiFixture,
+} from "./import-restore-ui-fixtures";
+export {
+  createImportRestorePreviewFlowState,
+  summarizeImportRestorePreviewFlowState,
+  transitionImportRestorePreviewFlowState,
+} from "./import-restore-preview-state-machine";
+export {
+  createImportRestoreReviewSession,
+  summarizeImportRestoreReviewSession,
+  updateImportRestoreReviewSession,
+} from "./import-restore-review-session";
+export {
+  buildImportRestoreDataLossWarnings,
+  summarizeImportRestoreDataLossWarnings,
+} from "./import-restore-data-loss-warning";
+export {
+  assertRecoverySnapshotDownloadDisabled,
+  buildDisabledRecoverySnapshotDownloadPlaceholder,
+  summarizeRecoverySnapshotDownloadPlaceholder,
+} from "./recovery-snapshot-download-placeholder";
+export {
+  assertImportRestoreUxLegalReviewPacketSafe,
+  buildImportRestoreUxLegalReviewPacket,
+  redactImportRestoreUxLegalReviewPacket,
+  summarizeImportRestoreUxLegalReviewPacket,
+} from "./import-restore-ux-legal-review-packet";
 export type {
   ImportRestoreDisabledAction,
   ImportRestoreDisabledActionId,
@@ -196,6 +232,47 @@ export type {
   DisabledImportRestoreShellProps,
   DisabledImportRestoreShellPropsSummary,
 } from "./import-restore-wiring-props";
+export type {
+  RoutelessImportRestoreUiHarnessScope,
+  RoutelessImportRestoreUiHarnessScopeInput,
+  RoutelessImportRestoreUiHarnessScopeStatus,
+  RoutelessImportRestoreUiHarnessScopeSummary,
+} from "./routeless-ui-harness-scope";
+export type {
+  ImportRestoreSyntheticUiFixture,
+  ImportRestoreSyntheticUiFixtureId,
+  ImportRestoreSyntheticUiFixtureValidation,
+  ImportRestoreSyntheticUiScenario,
+} from "./import-restore-ui-fixtures";
+export type {
+  ImportRestorePreviewFlowAuditEvent,
+  ImportRestorePreviewFlowEvent,
+  ImportRestorePreviewFlowState,
+  ImportRestorePreviewFlowStatus,
+  ImportRestorePreviewFlowSummary,
+} from "./import-restore-preview-state-machine";
+export type {
+  ImportRestoreReviewSession,
+  ImportRestoreReviewSessionInput,
+  ImportRestoreReviewSessionSummary,
+} from "./import-restore-review-session";
+export type {
+  ImportRestoreDataLossWarning,
+  ImportRestoreDataLossWarningId,
+  ImportRestoreDataLossWarningInput,
+  ImportRestoreDataLossWarningsModel,
+  ImportRestoreDataLossWarningsSummary,
+} from "./import-restore-data-loss-warning";
+export type {
+  DisabledRecoverySnapshotDownloadPlaceholder,
+  DisabledRecoverySnapshotDownloadPlaceholderInput,
+  DisabledRecoverySnapshotDownloadPlaceholderSummary,
+} from "./recovery-snapshot-download-placeholder";
+export type {
+  ImportRestoreUxLegalReviewPacket,
+  ImportRestoreUxLegalReviewPacketInput,
+  ImportRestoreUxLegalReviewPacketSummary,
+} from "./import-restore-ux-legal-review-packet";
 export type {
   DisabledLocalDataStorageAdapter,
   InMemoryLocalDataSafetyAuditSink,
