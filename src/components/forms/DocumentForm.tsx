@@ -20,10 +20,16 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, todayISO } from "@/lib/calculations";
 import {
-  documentAmounts,
   isVatExempt,
   zeroIvaItems,
 } from "@/lib/vat-regime";
+import {
+  documentFormAmounts,
+  documentFormItemsForSave,
+  firstDocumentFormLineIssue,
+  lineItemFormTotal,
+  sanitizeDocumentFormItems,
+} from "@/lib/document-form-flow";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
@@ -100,6 +106,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     "idle",
   );
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
 
@@ -160,6 +167,10 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       : [emptyLine(defaultIva, defaultUnit)];
     return normalizeLineItemUnits(baseItems, unitsSettings);
   });
+  const safeItems = useMemo(
+    () => sanitizeDocumentFormItems(items, vatExempt),
+    [items, vatExempt],
+  );
 
   useEffect(() => {
     if (!vatExempt) return;
@@ -217,7 +228,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         clientForm.address ||
         undefined,
     },
-    items,
+    items: safeItems,
     notes,
     paymentTerms: paymentTerms || undefined,
     status,
@@ -225,7 +236,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     updatedAt: new Date().toISOString(),
   };
 
-  const totals = documentAmounts(previewDoc, vatExempt);
+  const totals = documentFormAmounts(items, vatExempt);
 
   const shareDoc: Document | null = existing
     ? {
@@ -237,12 +248,14 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     : null;
 
   function updateItem(id: string, patch: Partial<LineItem>) {
+    setFormError(null);
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
   }
 
   function handleSelectCustomer(customer: Customer) {
+    setFormError(null);
     setSelectedCustomerId(customer.id);
     setClientForm(customerToFormValues(customer));
   }
@@ -251,14 +264,16 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     field: keyof ClientFormValues,
     value: string,
   ) {
+    setFormError(null);
     setClientForm((prev) => ({ ...prev, [field]: value }));
   }
 
   async function handlePreview() {
     if (saving || previewLoading) return;
 
-    if (items.every((i) => !i.description.trim())) {
-      alert("Añade al menos un concepto para la vista previa");
+    const lineIssue = firstDocumentFormLineIssue(items);
+    if (lineIssue) {
+      setFormError(`${lineIssue} Revisa las líneas antes de abrir el PDF.`);
       return;
     }
 
@@ -280,8 +295,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   async function handleSave(download = false) {
     if (saving) return;
 
-    if (items.every((i) => !i.description.trim())) {
-      alert("Añade al menos un concepto");
+    const lineIssue = firstDocumentFormLineIssue(items);
+    if (lineIssue) {
+      setFormError(lineIssue);
       return;
     }
 
@@ -314,7 +330,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     );
 
     if (!customerResult.ok) {
-      alert(customerResult.error);
+      setFormError(customerResult.error);
       setSaveAction("idle");
       return;
     }
@@ -329,9 +345,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       customerId: customerResult.customerId,
       client: customerResult.client,
       items: normalizeLineItemUnits(
-        (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
-          i.description.trim(),
-        ),
+        documentFormItemsForSave(items, vatExempt),
         unitsSettings,
       ),
       notes: notes || undefined,
@@ -345,7 +359,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       type,
     );
     if (!emissionCheck.ok) {
-      alert(emissionCheck.message);
+      setFormError(emissionCheck.message ?? "Revisa los datos del documento.");
       setSaveAction("idle");
       return;
     }
@@ -361,7 +375,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         saved = updateDocument(saved);
       } catch (error) {
         setSaveAction("idle");
-        alert(
+        setFormError(
           error instanceof DocumentIntegrityError
             ? error.message
             : "No se pudo guardar el documento.",
@@ -384,7 +398,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       });
     } catch (error) {
       setSaveAction("idle");
-      alert(
+      setFormError(
         error instanceof Error
           ? `No se pudo completar el registro tributario: ${error.message}`
           : "No se pudo completar el registro tributario. El documento está guardado; prueba desde el listado.",
@@ -393,6 +407,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     }
 
     maybeCelebrateFirstInvoice(data.documents, saved);
+    setFormError(null);
     setSaveAction("idle");
     await finishDocumentSave({
       type,
@@ -453,7 +468,19 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 )}
                 {type === "factura" && <option value="vencido">Vencido</option>}
               </Select>
+              {type === "factura" && status !== "borrador" && (
+                <span className="text-xs text-amber-700">
+                  Al guardar, la factura se emitirá y quedará bloqueada. No se
+                  enviará nada a AEAT real.
+                </span>
+              )}
             </Field>
+          )}
+          {!existing && type === "factura" && (
+            <p className="text-sm text-slate-500 sm:col-span-2">
+              Primero guarda la factura como borrador. Después podrás editarla,
+              cambiar el estado a Enviado y emitirla.
+            </p>
           )}
         </div>
       </Card>
@@ -463,9 +490,10 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
           <button
             type="button"
-            onClick={() =>
-              setItems((prev) => [...prev, emptyLine(defaultIva, defaultUnit)])
-            }
+            onClick={() => {
+              setFormError(null);
+              setItems((prev) => [...prev, emptyLine(defaultIva, defaultUnit)]);
+            }}
             className="flex items-center gap-1 text-sm font-semibold text-blue-600"
           >
             <Plus className="h-4 w-4" /> Añadir línea
@@ -484,9 +512,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 {items.length > 1 && (
                   <button
                     type="button"
-                    onClick={() =>
-                      setItems((prev) => prev.filter((i) => i.id !== item.id))
-                    }
+                    onClick={() => {
+                      setFormError(null);
+                      setItems((prev) => prev.filter((i) => i.id !== item.id));
+                    }}
+                    aria-label={`Eliminar línea ${index + 1}`}
                     className="text-red-500"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -537,6 +567,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   </Field>
                 )}
               </div>
+              <p className="mt-3 text-right text-sm font-semibold text-slate-600">
+                Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
+              </p>
             </div>
           ))}
         </div>
@@ -592,6 +625,15 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         </Card>
       )}
 
+      {formError && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900"
+        >
+          {formError}
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         <Button
           variant="secondary"
@@ -604,7 +646,13 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         </Button>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button fullWidth onClick={() => void handleSave(false)} disabled={saving || previewLoading}>
-            {saveAction === "save" ? "Guardando…" : `Guardar ${label}`}
+            {saveAction === "save"
+              ? "Guardando…"
+              : status === "borrador"
+                ? "Guardar borrador"
+                : type === "factura"
+                  ? "Emitir factura"
+                  : `Guardar ${label}`}
           </Button>
           <Button
             variant="secondary"
