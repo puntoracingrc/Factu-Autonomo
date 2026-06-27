@@ -1,5 +1,6 @@
 // PHASE2D1_10_LOCAL_DATA_BACKUP_RESTORE_SAFETY_V1
 // PHASE2D11_20_LOCAL_DATA_IMPORT_RESTORE_REVIEW_FLOW_V1
+// PHASE2D21_32_DISABLED_IMPORT_RESTORE_UI_SHELL_V1
 
 export { LocalDataSafetyError } from "./errors";
 export type { LocalDataSafetyErrorCode } from "./errors";
@@ -74,6 +75,74 @@ export {
   buildLocalDataImportRestoreReviewReport,
   redactLocalDataImportRestoreReviewReport,
 } from "./import-restore-review-report";
+export {
+  evaluateLocalDataSafetyUiShellScope,
+  summarizeLocalDataSafetyUiShellScope,
+} from "./ui-shell-scope";
+export {
+  assertImportRestoreReviewViewModelSafe,
+  buildImportRestoreReviewViewModel,
+  summarizeImportRestoreReviewViewModel,
+} from "./import-restore-view-model";
+export {
+  assertImportRestoreActionBlocked,
+  buildImportRestoreDisabledActions,
+  summarizeImportRestoreDisabledActions,
+} from "./import-restore-disabled-actions";
+export {
+  buildImportRestoreReviewCopy,
+  summarizeImportRestoreReviewCopy,
+  validateImportRestoreReviewCopy,
+} from "./import-restore-copy";
+export {
+  buildImportRestorePreviewList,
+  paginateImportRestorePreviewItems,
+  summarizeImportRestorePreviewList,
+} from "./import-restore-preview-list";
+export {
+  assertImportRestoreErrorPresentationSafe,
+  buildImportRestoreSafeErrorPresentation,
+  redactImportRestoreErrorForDisplay,
+} from "./import-restore-error-presenter";
+export {
+  assertImportRestoreUiAuditEventSafe,
+  buildImportRestoreUiAuditEvent,
+  createInMemoryImportRestoreUiAuditSink,
+} from "./import-restore-ui-audit";
+export type {
+  ImportRestoreDisabledAction,
+  ImportRestoreDisabledActionId,
+  ImportRestoreDisabledActionsModel,
+  ImportRestoreDisabledActionsSummary,
+  ImportRestoreDisabledActionState,
+} from "./import-restore-disabled-actions";
+export type {
+  ImportRestoreReviewCopy,
+  ImportRestoreReviewCopySummary,
+} from "./import-restore-copy";
+export type {
+  ImportRestorePreviewItem,
+  ImportRestorePreviewItemInput,
+  ImportRestorePreviewList,
+  ImportRestorePreviewListSummary,
+} from "./import-restore-preview-list";
+export type {
+  ImportRestoreReviewViewModel,
+  ImportRestoreReviewViewModelSummary,
+} from "./import-restore-view-model";
+export type { ImportRestoreSafeErrorPresentation } from "./import-restore-error-presenter";
+export type {
+  ImportRestoreUiAuditEvent,
+  ImportRestoreUiAuditEventInput,
+  ImportRestoreUiAuditEventType,
+  ImportRestoreUiAuditSink,
+} from "./import-restore-ui-audit";
+export type {
+  LocalDataSafetyUiShellScope,
+  LocalDataSafetyUiShellScopeInput,
+  LocalDataSafetyUiShellScopeStatus,
+  LocalDataSafetyUiShellScopeSummary,
+} from "./ui-shell-scope";
 export type {
   DisabledLocalDataStorageAdapter,
   InMemoryLocalDataSafetyAuditSink,
