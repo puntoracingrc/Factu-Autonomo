@@ -300,7 +300,7 @@ export function DataOwnershipCard() {
                 {restoreDraft.preview.source}
               </p>
             </div>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
                 <dt className="text-xs text-emerald-800">Clientes</dt>
                 <dd className="font-bold">
@@ -335,6 +335,18 @@ export function DataOwnershipCard() {
                 <dt className="text-xs text-emerald-800">Cobradas</dt>
                 <dd className="font-bold">
                   {restoreDraft.preview.counts.paidInvoices}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-emerald-800">Proveedores</dt>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.suppliers}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-emerald-800">Gastos</dt>
+                <dd className="font-bold">
+                  {restoreDraft.preview.counts.expenses}
                 </dd>
               </div>
             </dl>

@@ -44,6 +44,8 @@ export interface BackupImportPreview {
     invoices: number;
     issuedInvoices: number;
     paidInvoices: number;
+    expenses: number;
+    suppliers: number;
   };
   hasIssuerProfile: boolean;
   warnings: string[];
@@ -276,6 +278,8 @@ function normalizeBackupDataForImport(
         (document) =>
           document.status === "pagado" || document.paymentStatus === "paid",
       ).length,
+      expenses: normalized.expenses.length,
+      suppliers: normalized.suppliers.length,
     },
     hasIssuerProfile: Boolean(
       normalized.profile.name.trim() ||

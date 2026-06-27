@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Pencil, Trash2 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
@@ -205,11 +205,20 @@ export default function GastosPage() {
                 <span className="font-bold text-red-700">
                   {formatMoney(expenseAmount(expense, vatExempt))}
                 </span>
+                <ButtonLink
+                  href={`/gastos/nuevo?editar=${encodeURIComponent(expense.id)}`}
+                  variant="secondary"
+                  className="min-h-10 px-3 text-sm"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </ButtonLink>
                 <button
                   onClick={() => {
                     if (confirm("¿Borrar este gasto?")) deleteExpense(expense.id);
                   }}
-                  className="rounded-xl bg-red-50 p-2 text-red-600"
+                  className="rounded-xl bg-red-50 p-2 text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                  aria-label={`Borrar gasto ${expense.description}`}
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>

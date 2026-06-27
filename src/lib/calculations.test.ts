@@ -107,4 +107,36 @@ describe("expenseTotal", () => {
     };
     expect(expenseTotal(expense)).toBe(121);
   });
+
+  it("mantiene el total igual a la base con IVA 0", () => {
+    const expense: Expense = {
+      id: "1",
+      date: "2026-06-09",
+      supplierName: "Proveedor",
+      description: "Compra",
+      amount: 100,
+      ivaPercent: 0,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-06-09",
+    };
+
+    expect(expenseTotal(expense)).toBe(100);
+  });
+
+  it("evita totales NaN con importes no finitos", () => {
+    const expense: Expense = {
+      id: "1",
+      date: "2026-06-09",
+      supplierName: "Proveedor",
+      description: "Compra",
+      amount: Number.NaN,
+      ivaPercent: Number.NaN,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-06-09",
+    };
+
+    expect(expenseTotal(expense)).toBe(0);
+  });
 });

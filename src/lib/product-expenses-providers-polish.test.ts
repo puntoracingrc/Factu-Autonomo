@@ -1,0 +1,51 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+function source(path: string): string {
+  return readFileSync(new URL(path, import.meta.url), "utf8");
+}
+
+describe("product expenses/providers polish wiring", () => {
+  it("mantiene creacion y edicion visibles para proveedores", () => {
+    const page = source("../app/proveedores/page.tsx");
+    const store = source("../context/AppStore.tsx");
+
+    expect(page).toContain("Nuevo proveedor");
+    expect(page).toContain("Editar proveedor");
+    expect(page).toContain("Guardar cambios");
+    expect(store).toContain("expense.supplierId === supplier.id");
+    expect(store).toContain("supplierName: supplier.name");
+  });
+
+  it("conecta edicion de gastos desde el listado y el formulario", () => {
+    const listPage = source("../app/gastos/page.tsx");
+    const formPage = source("../app/gastos/nuevo/page.tsx");
+
+    expect(listPage).toContain("/gastos/nuevo?editar=");
+    expect(listPage).toContain("Editar");
+    expect(formPage).toContain("updateExpense");
+    expect(formPage).toContain("Editar gasto");
+    expect(formPage).toContain("Sin proveedor");
+  });
+
+  it("el listado de gastos conserva proveedor, categoria, pago y total", () => {
+    const listPage = source("../app/gastos/page.tsx");
+
+    expect(listPage).toContain("expense.supplierName");
+    expect(listPage).toContain("expense.category");
+    expect(listPage).toContain("expense.paymentMethod");
+    expect(listPage).toContain("formatMoney(expenseAmount");
+  });
+
+  it("evita claims prohibidos en copy visible de gastos y proveedores", () => {
+    const copy = [
+      source("../app/gastos/page.tsx"),
+      source("../app/gastos/nuevo/page.tsx"),
+      source("../app/proveedores/page.tsx"),
+    ].join("\n");
+
+    expect(copy).not.toMatch(
+      /cumplimiento|declaraci[oó]n oficial|presentaci[oó]n de impuestos|AEAT/i,
+    );
+  });
+});
