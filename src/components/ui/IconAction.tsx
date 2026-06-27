@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 function actionShellClass(className?: string) {
-  return `group relative flex min-h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:min-w-11 sm:px-0 ${className ?? ""}`;
+  return `group relative flex min-h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:min-w-11 sm:px-0 ${className ?? ""}`;
 }
 
 function TooltipBubble({ text }: { text: string }) {

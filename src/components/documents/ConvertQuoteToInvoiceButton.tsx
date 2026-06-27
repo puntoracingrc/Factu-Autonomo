@@ -51,7 +51,7 @@ export function ConvertQuoteToInvoiceButton({
 
   return (
     <IconActionButton
-      label={existingInvoice ? "Factura" : "Convertir"}
+      label={existingInvoice ? "Ver factura" : "Convertir"}
       tooltip={
         existingInvoice
           ? `Ya convertido a ${existingInvoice.number}. Abrir factura.`
