@@ -147,7 +147,7 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/phase2c63-/,
   /^scripts\/validate-phase2c/,
   /^docs\/phase2c/,
-  /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/,
+  /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90)-/,
   /^scripts\/validate-phase2d/,
   /^src\/lib\/local-data-safety\//,
     /^src\/components\/local-data-safety\//,

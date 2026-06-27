@@ -103,11 +103,11 @@ function validateNoRedLines() {
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
     /^src\/components\/local-data-safety\//,
-    /^scripts\/phase2d(?:9-local-data-backup-restore-safety-acceptance|19-import-restore-review-flow-acceptance|29-import-restore-ui-facing-data-hardening|30-disabled-import-restore-ui-shell-acceptance|39-local-import-restore-preview-harness-acceptance|40-import-restore-ui-action-abuse-hardening|41-import-restore-accessibility-regression-acceptance|42-import-restore-route-navigation-blocker-validation|52-routeless-import-restore-ui-interaction-acceptance|53-import-restore-visual-copy-regression-acceptance|54-import-restore-wiring-final-blockers|66-local-data-safety-corpus-regression-acceptance|77-import-restore-decision-package-acceptance|78-import-restore-full-corpus-decision-regression)\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|[1-7][0-9]|80|1-10|11-20|21-32|33-44|45-56|57-68|69-80)-.*\.mjs$/,
+    /^scripts\/phase2d(?:9-local-data-backup-restore-safety-acceptance|19-import-restore-review-flow-acceptance|29-import-restore-ui-facing-data-hardening|30-disabled-import-restore-ui-shell-acceptance|39-local-import-restore-preview-harness-acceptance|40-import-restore-ui-action-abuse-hardening|41-import-restore-accessibility-regression-acceptance|42-import-restore-route-navigation-blocker-validation|52-routeless-import-restore-ui-interaction-acceptance|53-import-restore-visual-copy-regression-acceptance|54-import-restore-wiring-final-blockers|66-local-data-safety-corpus-regression-acceptance|77-import-restore-decision-package-acceptance|78-import-restore-full-corpus-decision-regression|89-hidden-import-restore-ui-no-route-acceptance|90-hidden-import-restore-ui-no-apply-storage-acceptance)\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|[1-8][0-9]|9[0-2]|1-10|11-20|21-32|33-44|45-56|57-68|69-80|81-92)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|[1-7][0-9]|80)-.*$/,
+    /^docs\/phase2d(?:[1-9]|[1-8][0-9]|9[0-2])-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];

@@ -136,7 +136,7 @@ function validateNoRedLines() {
     /^scripts\/validate-phase2c37-48-.*\.mjs$/,
     /^scripts\/validate-phase2c49-56-.*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90)-/,
     /^scripts\/validate-phase2d/,
     /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-.*$/,
     /^docs\/phase2d/,
@@ -167,7 +167,7 @@ function validateNoRedLines() {
     if (changedPath.startsWith("docs/audit/")) continue;
     if (
       /^src\/lib\/local-data-safety\//.test(changedPath) ||
-      /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/.test(changedPath) ||
+      /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90)-/.test(changedPath) ||
       /^docs\/phase2d/.test(changedPath)
     ) {
       continue;

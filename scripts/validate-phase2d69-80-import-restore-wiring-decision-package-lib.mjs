@@ -175,11 +175,12 @@ const runtimeFiles = phases.map((entry) => entry.code).filter(Boolean);
 function validateNoRedLines() {
   const allowedPatterns = [
     /^src\/lib\/local-data-safety\//,
-    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-.*\.test\.ts$/,
-    /^scripts\/validate-phase2d(?:[1-9]|[1-7][0-9]|80|1-10|11-20|21-32|33-44|45-56|57-68|69-80)-.*\.mjs$/,
+    /^src\/components\/local-data-safety\//,
+    /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90)-.*\.test\.ts$/,
+    /^scripts\/validate-phase2d(?:[1-9]|[1-8][0-9]|9[0-2]|1-10|11-20|21-32|33-44|45-56|57-68|69-80|81-92)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
-    /^docs\/phase2d(?:[1-9]|[1-7][0-9]|80)-.*$/,
+    /^docs\/phase2d(?:[1-9]|[1-8][0-9]|9[0-2])-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
@@ -194,7 +195,10 @@ function validateNoRedLines() {
     assert(!/^supabase\//.test(changedPath), `Supabase path touched: ${changedPath}.`);
     assert(!/vida/i.test(changedPath), `ViDA path touched: ${changedPath}.`);
     assert(!/^(?:src\/app|app|pages|public)\//.test(changedPath), `Route/public path touched: ${changedPath}.`);
-    assert(!/^src\/components\//.test(changedPath), `UI component path touched: ${changedPath}.`);
+    assert(
+      !/^src\/components\//.test(changedPath) || /^src\/components\/local-data-safety\//.test(changedPath),
+      `Connected component path touched: ${changedPath}.`,
+    );
     assert(!/^(?:vercel\.json|\.vercel\/)|\/vercel\.json$/i.test(changedPath), `Vercel config touched: ${changedPath}.`);
     assert(!/(?:stripe|openai|importers|aeat|(?:^|[\/_-])qr(?:[\/_.-]|$)|(?:^|[\/_-])firma(?:[\/_.-]|$)|certificado|transport)/i.test(changedPath), `Forbidden product path touched: ${changedPath}.`);
     assert(!(new RegExp(fiscalTransportTable, "i")).test(changedPath), `Fiscal transport path touched: ${changedPath}.`);

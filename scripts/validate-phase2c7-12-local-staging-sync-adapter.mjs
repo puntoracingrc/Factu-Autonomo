@@ -175,7 +175,7 @@ const unrelatedLaterPhasePatterns = [
   /^scripts\/validate-phase2c(?:37|38|39|40|41|42|43|44|45|46|37-48)-/,
   /^scripts\/validate-phase2c(?:49|50|51|52|53|54|49-56)-/,
   /^scripts\/validate-phase2c(?:57|58|59|60|61|62|63|64|57-66)-/,
-  /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78)-/,
+  /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90)-/,
   /^scripts\/validate-phase2d/,
   /^docs\/audit\//,
   /^scripts\/export-compliance-dossier-html\.mjs$/,
