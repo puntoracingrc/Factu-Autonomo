@@ -81,6 +81,9 @@ describe("MVP usability polish", () => {
     expect(canConvertQuoteToInvoice({ ...quote, status: "anulada" })).toBe(
       false,
     );
+    expect(canConvertQuoteToInvoice({ ...quote, status: "rechazado" })).toBe(
+      false,
+    );
   });
 
   it("evita claims prohibidos en copy de uso diario", () => {

@@ -1,6 +1,6 @@
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { isCollectedDocument } from "./income";
-import { isAcceptedQuote } from "./quotes";
+import { isAcceptedQuote, isRejectedQuote } from "./quotes";
 import { isRectificativa } from "./rectificativas";
 import type { Document, DocumentType } from "./types";
 
@@ -8,6 +8,7 @@ const STATUS_LABELS: Record<Document["status"], string> = {
   borrador: "Borrador",
   enviado: "Enviado",
   aceptado: "Aceptado",
+  rechazado: "Rechazado",
   pagado: "Pagado",
   vencido: "Vencido",
   rectificada: "Rectificada",
@@ -18,6 +19,7 @@ const STATUS_COLORS: Record<Document["status"], string> = {
   borrador: "bg-slate-100 text-slate-600",
   enviado: "bg-amber-100 text-amber-700",
   aceptado: "bg-green-100 text-green-700",
+  rechazado: "bg-red-100 text-red-700",
   pagado: "bg-green-100 text-green-700",
   vencido: "bg-red-100 text-red-700",
   rectificada: "bg-orange-100 text-orange-700",
@@ -36,6 +38,7 @@ export function documentStatusLabel(
   type: DocumentType = doc.type,
 ): string {
   if (type === "presupuesto" && isAcceptedQuote(doc)) return "Aceptado";
+  if (type === "presupuesto" && isRejectedQuote(doc)) return "Rechazado";
 
   if (type === "factura" && isCollectedDocument(doc)) return "Cobrada";
   if (type === "recibo" && isCollectedDocument(doc)) return "Cobrado";
@@ -49,13 +52,18 @@ export function documentStatusLabel(
   }
 
   if (isIssuedNotSent(doc)) {
-    return type === "factura" ? "Emitida" : "Emitido";
+    if (type === "factura") return "Emitida";
+    if (type === "presupuesto") return "Enviado";
+    return "Emitido";
   }
 
   return STATUS_LABELS[doc.status];
 }
 
 export function documentStatusColor(doc: Document): string {
+  if (doc.type === "presupuesto" && (isAcceptedQuote(doc) || isRejectedQuote(doc))) {
+    return STATUS_COLORS[doc.status];
+  }
   if (isIssuedNotSent(doc)) return "bg-blue-100 text-blue-700";
   return STATUS_COLORS[doc.status];
 }
@@ -64,6 +72,24 @@ export function documentStatusHint(
   doc: Document,
   type: DocumentType = doc.type,
 ): string | null {
+  if (type === "presupuesto") {
+    switch (doc.status) {
+      case "borrador":
+        return "Editable. Guarda y cambia a Enviado cuando quieras preparar el envío.";
+      case "enviado":
+        return "Listo para preparar email o WhatsApp. La app no envía nada automáticamente.";
+      case "aceptado":
+      case "pagado":
+        return "Aceptado en tu registro local. Puedes convertirlo a factura.";
+      case "rechazado":
+        return "Rechazado en tu registro local. Desmárcalo si necesitas retomarlo o convertirlo.";
+      case "anulada":
+        return "Anulado en tu registro local.";
+      default:
+        return null;
+    }
+  }
+
   if (type !== "factura") return null;
 
   if (isRectificativa(doc)) {

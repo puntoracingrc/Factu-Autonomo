@@ -10,6 +10,7 @@ export type DocumentStatus =
   | "borrador"
   | "enviado"
   | "aceptado"
+  | "rechazado"
   | "pagado"
   | "vencido"
   | "rectificada"

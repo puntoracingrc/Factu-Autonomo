@@ -52,8 +52,11 @@ function issuedInvoice(overrides: Partial<Document> = {}): Document {
 }
 
 const forbiddenCopy = [
+  "Aceptado online",
   "Enviado automaticamente",
   "Enviado automáticamente",
+  "Firmado digitalmente",
+  "Cliente confirmó desde portal",
   "Cobro garantizado",
   "Pasarela activada",
   "Banco conectado",
@@ -83,6 +86,40 @@ describe("invoice status action copy", () => {
     ).toContain("No es pasarela ni banco");
     expect(documentStatusHint(issuedInvoice({ status: "vencido" }))).toContain(
       "preparar un recordatorio",
+    );
+  });
+
+  it("diferencia estados comerciales locales de presupuestos", () => {
+    const draftQuote = baseDocument({
+      type: "presupuesto",
+      number: "P-2026-0001",
+      status: "borrador",
+    });
+    const sentQuote = baseDocument({
+      type: "presupuesto",
+      number: "P-2026-0001",
+      status: "enviado",
+    });
+    const acceptedQuote = baseDocument({
+      type: "presupuesto",
+      number: "P-2026-0001",
+      status: "aceptado",
+    });
+    const rejectedQuote = baseDocument({
+      type: "presupuesto",
+      number: "P-2026-0001",
+      status: "rechazado",
+    });
+
+    expect(documentStatusLabel(draftQuote, "presupuesto")).toBe("Borrador");
+    expect(documentStatusLabel(sentQuote, "presupuesto")).toBe("Enviado");
+    expect(documentStatusLabel(acceptedQuote, "presupuesto")).toBe("Aceptado");
+    expect(documentStatusLabel(rejectedQuote, "presupuesto")).toBe("Rechazado");
+    expect(documentStatusHint(sentQuote, "presupuesto")).toContain(
+      "La app no envía nada automáticamente",
+    );
+    expect(documentStatusHint(rejectedQuote, "presupuesto")).toContain(
+      "Rechazado en tu registro local",
     );
   });
 
@@ -141,5 +178,28 @@ describe("invoice status action copy", () => {
 
     expect(message).toContain("la factura F-2026-0001");
     expect(message).not.toContain("IBAN:");
+  });
+
+  it("copy de acciones y estados no promete firma, portal ni envio automatico", () => {
+    const quoteCopies = [
+      documentStatusHint(
+        baseDocument({ type: "presupuesto", status: "enviado" }),
+        "presupuesto",
+      ),
+      documentStatusHint(
+        baseDocument({ type: "presupuesto", status: "aceptado" }),
+        "presupuesto",
+      ),
+      documentStatusHint(
+        baseDocument({ type: "presupuesto", status: "rechazado" }),
+        "presupuesto",
+      ),
+      ...Object.values(PAYMENT_REMINDER_COPY),
+      ...Object.values(RECTIFICATION_ACTION_COPY),
+    ].join("\n");
+
+    for (const claim of forbiddenCopy) {
+      expect(quoteCopies).not.toContain(claim);
+    }
   });
 });

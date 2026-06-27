@@ -102,6 +102,33 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No se crea QR oficial nuevo.
 - Si después se emite la factura, se usa el flujo existente y se conserva el comportamiento QR ya implementado.
 
+## Estados y seguimiento de presupuestos
+
+- Estados visibles revisados para uso diario:
+  - borrador: presupuesto editable antes de preparar el envío;
+  - enviado: presupuesto emitido y listo para compartir;
+  - aceptado: aceptación registrada localmente por el usuario;
+  - rechazado: rechazo registrado localmente por el usuario;
+  - convertido: existe una factura creada desde ese presupuesto.
+- Aceptar un presupuesto no crea firma ni portal de cliente.
+- Rechazar un presupuesto no borra el presupuesto original.
+- Aceptar o rechazar solo cambia el seguimiento comercial local.
+- El usuario puede desmarcar aceptación o rechazo y volver a enviado.
+- Email y WhatsApp siguen siendo acciones de preparación manual.
+- La app no envía presupuestos automáticamente.
+- PDF, abrir PDF e imprimir vista se mantienen como acciones separadas.
+- Convertir a factura crea una factura en borrador para revisión.
+- Si el presupuesto ya tiene factura vinculada, la acción abre la factura existente.
+- No se crean facturas duplicadas al pulsar de nuevo sobre el mismo presupuesto.
+- La lista muestra cuándo un presupuesto ya está convertido.
+- La factura convertida conserva referencia al número de presupuesto origen.
+- El presupuesto original conserva sus líneas, cliente, PDF y estado propio.
+- Un presupuesto rechazado no ofrece conversión mientras siga rechazado.
+- Si se desmarca el rechazo, puede retomarse el flujo normal.
+- No se añaden envíos reales, firmas, pasarelas ni aceptación online.
+- No hay AEAT real, XML, QR oficial nuevo, certificado ni transporte.
+- Este pulido se limita a producto local y seguimiento comercial visible.
+
 ## Smoke MVP PDF / impresión / conversión
 
 - Flujo probado con datos sintéticos:

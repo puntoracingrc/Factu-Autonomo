@@ -247,6 +247,30 @@ export function acceptQuote(
   };
 }
 
+export function rejectQuote(
+  doc: Document,
+  rejectedAt: Date | string = new Date(),
+): Document {
+  assertIssued(doc);
+
+  if (doc.type !== "presupuesto") {
+    throw new DocumentIntegrityError("INVALID_DOCUMENT_TYPE");
+  }
+
+  const timestamp = nowIso(rejectedAt);
+  const acceptanceStatus: DocumentAcceptanceStatus = "rejected";
+
+  return {
+    ...doc,
+    status: "rechazado",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    acceptanceStatus,
+    acceptedAt: undefined,
+    updatedAt: timestamp,
+  };
+}
+
 export function applyGenericDocumentUpdate(
   current: Document,
   next: Document,

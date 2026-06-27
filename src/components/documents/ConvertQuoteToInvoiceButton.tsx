@@ -6,7 +6,10 @@ import { FileText } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
 import { showFactuToast } from "@/lib/factu/occasional";
-import { canConvertQuoteToInvoice } from "@/lib/quote-to-invoice";
+import {
+  canConvertQuoteToInvoice,
+  findInvoiceCreatedFromQuote,
+} from "@/lib/quote-to-invoice";
 import type { Document } from "@/lib/types";
 
 interface ConvertQuoteToInvoiceButtonProps {
@@ -17,13 +20,20 @@ export function ConvertQuoteToInvoiceButton({
   doc,
 }: ConvertQuoteToInvoiceButtonProps) {
   const router = useRouter();
-  const { convertQuoteToInvoice } = useAppStore();
+  const { data, convertQuoteToInvoice } = useAppStore();
   const [busy, setBusy] = useState(false);
+  const existingInvoice = findInvoiceCreatedFromQuote(data.documents, doc.id);
 
-  if (!canConvertQuoteToInvoice(doc)) return null;
+  if (!existingInvoice && !canConvertQuoteToInvoice(doc)) return null;
 
   function handleConvert() {
     if (busy) return;
+
+    if (existingInvoice) {
+      router.push(`/facturas/${existingInvoice.id}`);
+      return;
+    }
+
     setBusy(true);
     const invoice = convertQuoteToInvoice(doc.id);
     if (!invoice) {
@@ -41,11 +51,19 @@ export function ConvertQuoteToInvoiceButton({
 
   return (
     <IconActionButton
-      label="Convertir"
-      tooltip="Convertir a factura"
+      label={existingInvoice ? "Factura" : "Convertir"}
+      tooltip={
+        existingInvoice
+          ? `Ya convertido a ${existingInvoice.number}. Abrir factura.`
+          : "Convertir a factura en borrador"
+      }
       onClick={handleConvert}
       disabled={busy}
-      className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+      className={
+        existingInvoice
+          ? "bg-green-50 text-green-700 hover:bg-green-100"
+          : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+      }
     >
       <FileText className={`h-5 w-5 ${busy ? "animate-pulse" : ""}`} />
     </IconActionButton>
