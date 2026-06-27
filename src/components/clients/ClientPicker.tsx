@@ -283,14 +283,20 @@ export function ClientPicker({
               placeholder="12345678A"
             />
           </Field>
-          <Field label="Teléfono">
+          <Field
+            label="Teléfono"
+            hint="El teléfono se usará para WhatsApp si está informado."
+          >
             <Input
               value={values.phone}
               onChange={(e) => handleFieldChange("phone", e.target.value)}
               placeholder="600 000 000"
             />
           </Field>
-          <Field label="Email">
+          <Field
+            label="Email"
+            hint="Se usará para activar el envío por email en documentos guardados."
+          >
             <Input
               type="email"
               value={values.email}

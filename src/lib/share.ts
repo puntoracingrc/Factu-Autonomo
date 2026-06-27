@@ -4,6 +4,7 @@ import {
   buildPdfViewModelForDocument,
   documentPdfViewAmounts,
 } from "./document-integrity/pdf-source";
+import { isValidCustomerEmail } from "./customers";
 import { isCollectedDocument } from "./income";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
@@ -148,7 +149,8 @@ export async function shareDocumentByWhatsApp(
 }
 
 export function hasClientEmail(doc: Document): boolean {
-  return Boolean(doc.client.email?.trim());
+  const email = doc.client.email?.trim();
+  return Boolean(email && isValidCustomerEmail(email));
 }
 
 export function hasClientPhone(doc: Document): boolean {

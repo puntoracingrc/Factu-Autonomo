@@ -195,6 +195,36 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
   - no hay QR oficial nuevo;
   - no hay firma, certificado ni transporte.
 
+## Pulido de clientes y contacto
+
+- Revisado el flujo real de clientes:
+  - crear cliente desde `/clientes`;
+  - editar cliente existente;
+  - buscar cliente en el listado;
+  - crear presupuesto desde la ficha;
+  - crear factura desde la ficha.
+- Validaciones ajustadas:
+  - nombre y apellidos obligatorios para guardar;
+  - NIF opcional;
+  - NIF duplicado bloqueado solo dentro de la lista local;
+  - email con formato básico si está informado;
+  - teléfono limpiado de espacios repetidos sin validación fiscal.
+- Ficha de cliente:
+  - muestra NIF si existe;
+  - muestra email y teléfono como datos de contacto;
+  - indica cuándo no hay contacto de envío;
+  - mantiene acciones rápidas de factura, presupuesto y edición.
+- Documentos:
+  - `/facturas/nuevo?cliente=...` preselecciona cliente;
+  - `/presupuestos/nuevo?cliente=...` preselecciona cliente;
+  - email activa la acción de email en documentos guardados;
+  - teléfono compatible activa WhatsApp;
+  - documentos emitidos conservan snapshot y no se actualizan retroactivamente.
+- Importante:
+  - el NIF no se contrasta con servicios oficiales;
+  - no se verifica el cliente ante AEAT;
+  - no hay AEAT real, XML, firma, certificado ni transporte.
+
 ## Estados de factura, cobro y recordatorios
 
 - Estados visibles revisados:
