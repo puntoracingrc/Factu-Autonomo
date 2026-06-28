@@ -15,6 +15,18 @@
 
 DNS en Vercel → Settings → Domains. Tras cambiar dominio, **Redeploy** obligatorio si actualizas variables.
 
+## Alias automático tras merge
+
+El workflow de GitHub Actions mueve `facturacion-autonomos.app` al deployment de
+Vercel asociado al commit de `main` cuando han terminado correctamente:
+
+- `Quality`;
+- `Supabase Acceptance`;
+- deployment de Vercel en `Production`.
+
+El job se llama `Production Domain` y requiere el secret de GitHub Actions
+`VERCEL_TOKEN`. No ejecutes `alias set` manual salvo rollback o incidencia.
+
 ## Variables en Vercel → Settings → Environment Variables
 
 Copia desde tu `.env.local` (Production + Preview):
