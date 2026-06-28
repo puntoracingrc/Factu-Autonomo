@@ -99,7 +99,7 @@ export default function HomePage() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {quickActions.map(({ href, label, icon: Icon, color, showBadge }) => (
           <Link
-            key={href}
+            key={`${href}-${label}`}
             href={href}
             className={`relative flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center font-semibold shadow-md transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 active:scale-[0.98] ${color}`}
           >

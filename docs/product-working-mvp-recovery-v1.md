@@ -218,6 +218,31 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - No es sincronización cloud.
 - No toca Supabase remoto ni producción.
 - No toca AEAT real, XML, QR oficial nuevo, firma, certificado ni transporte.
+
+## Cloud, cuenta y publicación web
+
+- El dominio público objetivo es `https://facturacion-autonomos.app/`.
+- La cuenta de usuario usa la integración Supabase Auth existente.
+- El alta y el acceso se mantienen desde la tarjeta de cuenta/nube.
+- La confirmación de email puede ser necesaria según la configuración de Supabase.
+- La sesión se conserva con el cliente Supabase del navegador.
+- El cierre de sesión no borra automáticamente los datos locales.
+- La nube usa las tablas y RLS existentes por usuario.
+- La sincronización cloud queda separada por `user_id`.
+- El acceso cloud con billing activo crea o recupera el trial existente antes de decidir.
+- Así un usuario nuevo no queda bloqueado como plan gratuito antes de crear su trial.
+- La migración local -> cloud sigue usando el flujo existente de sincronización.
+- La exportación, vista previa e importación local no se sustituyen por cloud.
+- Stripe usa las rutas existentes de checkout, portal y webhook.
+- Checkout y portal construyen sus URLs desde `NEXT_PUBLIC_APP_URL`.
+- En producción, las URLs apuntan al dominio público.
+- El webhook valida firma con `STRIPE_WEBHOOK_SECRET`.
+- La respuesta del email de bienvenida no bloquea el alta si el proveedor rechaza el envío.
+- No se añaden precios nuevos ni productos nuevos desde esta nota.
+- No hay AEAT real.
+- No hay XML real nuevo.
+- No hay QR oficial nuevo.
+- No hay firma, certificado ni transporte.
 - No cambia PDF, QR existente, conversión, emisión ni cobro local.
 
 ## Gastos y proveedores

@@ -1,6 +1,6 @@
 import { isBillingEnforced } from "./config";
 import { isProPlan, type PlanId } from "./plans";
-import { fetchUserSubscription } from "./repository";
+import { ensureTrialSubscription, fetchUserSubscription } from "./repository";
 import { resolveEffectivePlan } from "./subscription";
 
 export async function canUseCloudForUser(
@@ -10,7 +10,8 @@ export async function canUseCloudForUser(
     return { allowed: true };
   }
 
-  const subscription = await fetchUserSubscription(userId);
+  const subscription =
+    (await fetchUserSubscription(userId)) ?? (await ensureTrialSubscription(userId));
   const plan: PlanId = resolveEffectivePlan(subscription);
 
   if (!isProPlan(plan)) {
