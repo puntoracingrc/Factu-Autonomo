@@ -87,12 +87,6 @@ export default function HomePage() {
         subtitle="Accesos rápidos a lo que más usas"
       />
 
-      <HomeUserReminders />
-
-      <HomeBusinessSummary data={data} />
-
-      <HomeFactuTip />
-
       <h2 className="mb-3 text-lg font-bold text-slate-900">
         ¿Qué quieres hacer?
       </h2>
@@ -113,6 +107,12 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
+
+      <HomeUserReminders />
+
+      <HomeBusinessSummary data={data} />
+
+      <HomeFactuTip />
     </div>
   );
 }
