@@ -40,6 +40,8 @@ const STATUS_LABELS = {
   error: "Error — reintentando",
 } as const;
 
+type AuthMode = "signin" | "signup";
+
 export function CloudAccountCard() {
   const {
     cloudEnabled,
@@ -72,6 +74,7 @@ export function CloudAccountCard() {
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,7 +96,16 @@ export function CloudAccountCard() {
     }
   }, [signupSuccess]);
 
-  async function runAuth(action: "signup" | "signin") {
+  function changeAuthMode(mode: AuthMode) {
+    setAuthMode(mode);
+    setAuthError(null);
+    setResendNotice(null);
+    if (mode === "signin") {
+      setSignupSuccess(null);
+    }
+  }
+
+  async function runAuth(action: AuthMode) {
     setAuthError(null);
     if (action === "signin") setSignupSuccess(null);
     setBusy(true);
@@ -159,7 +171,7 @@ export function CloudAccountCard() {
 
   return (
     <Card className="mb-6 space-y-4">
-      <div className="flex items-start gap-3">
+      <div id="inicio-sesion" className="flex scroll-mt-24 items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
           <Cloud className="h-5 w-5" />
         </div>
@@ -289,6 +301,31 @@ export function CloudAccountCard() {
           ) : null}
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-1">
+              <button
+                type="button"
+                onClick={() => changeAuthMode("signin")}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                  authMode === "signin"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Iniciar sesión
+              </button>
+              <button
+                type="button"
+                onClick={() => changeAuthMode("signup")}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                  authMode === "signup"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Crear cuenta
+              </button>
+            </div>
+
             <Field label="Email">
               <Input
                 type="email"
@@ -306,7 +343,7 @@ export function CloudAccountCard() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pr-14"
                   autoComplete={
-                    signupSuccess ? "current-password" : "new-password"
+                    authMode === "signin" ? "current-password" : "new-password"
                   }
                 />
                 <button
@@ -328,7 +365,7 @@ export function CloudAccountCard() {
                 </button>
               </div>
             </Field>
-            {billingEnabled ? (
+            {billingEnabled && authMode === "signup" ? (
               <Field
                 label="Código de invitación"
                 hint={`Opcional — ${REFERRAL_BONUS_SCANS} escaneos extra para ti y quien te invita`}
@@ -343,45 +380,43 @@ export function CloudAccountCard() {
                 />
               </Field>
             ) : null}
-            <label className="flex items-start gap-2 rounded-xl bg-white px-3 py-2 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={legalAccepted}
-                onChange={(event) => setLegalAccepted(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded"
-              />
-              <span>
-                Al crear cuenta acepto los{" "}
-                <Link href="/legal/terminos" className="font-semibold underline">
-                  términos de uso
-                </Link>{" "}
-                y la{" "}
-                <Link
-                  href="/legal/privacidad"
-                  className="font-semibold underline"
-                >
-                  política de privacidad
-                </Link>
-                .
-              </span>
-            </label>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                fullWidth
-                onClick={() => void runAuth("signin")}
-                disabled={busy}
-              >
-                {busy ? "Comprobando…" : "Iniciar sesión"}
-              </Button>
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={() => void runAuth("signup")}
-                disabled={busy}
-              >
-                {busy ? "Creando cuenta…" : "Crear cuenta"}
-              </Button>
-            </div>
+            {authMode === "signup" ? (
+              <label className="flex items-start gap-2 rounded-xl bg-white px-3 py-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={legalAccepted}
+                  onChange={(event) => setLegalAccepted(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded"
+                />
+                <span>
+                  Al crear cuenta acepto los{" "}
+                  <Link href="/legal/terminos" className="font-semibold underline">
+                    términos de uso
+                  </Link>{" "}
+                  y la{" "}
+                  <Link
+                    href="/legal/privacidad"
+                    className="font-semibold underline"
+                  >
+                    política de privacidad
+                  </Link>
+                  .
+                </span>
+              </label>
+            ) : null}
+            <Button
+              fullWidth
+              onClick={() => void runAuth(authMode)}
+              disabled={busy}
+            >
+              {busy
+                ? authMode === "signup"
+                  ? "Creando cuenta…"
+                  : "Comprobando…"
+                : authMode === "signup"
+                  ? "Crear cuenta"
+                  : "Iniciar sesión"}
+            </Button>
           </div>
         </div>
       )}

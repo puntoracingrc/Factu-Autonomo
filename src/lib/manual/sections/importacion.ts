@@ -14,24 +14,24 @@ export const importacionSection: ManualSection = {
       title: "1. Elegir el programa de origen",
       paragraphs: [
         "En **Importar datos**, usa **Programa de origen**. Puedes dejar **Detectar automáticamente** o elegir un conector concreto si sabes de dónde viene la copia.",
-        "Ahora mismo el conector disponible es **PC Facturación 3.0**. Otros orígenes, como PrestaShop o Excel/CSV, aparecerán cuando tengan importador propio.",
+        "Cada conector interpreta una estructura concreta. Otros orígenes aparecerán cuando tengan importador propio.",
       ],
-      tip: "No todos los archivos sirven para todos los conectores. Una base de PC Facturación no tiene la misma estructura que una tienda PrestaShop.",
+      tip: "No todos los archivos sirven para todos los conectores. Usa el origen que corresponda a la copia que quieres traer.",
     },
     {
       title: "2. Subir el archivo de datos",
       paragraphs: [
-        "Para PC Facturación, selecciona la copia **MDB** del programa antiguo. La app analiza el archivo y muestra una previsualización antes de importar nada.",
+        "Selecciona el archivo principal generado por el programa de origen. La app analiza el archivo y muestra una previsualización antes de importar nada.",
         "La previsualización indica empresa detectada, clientes, facturas, presupuestos, líneas y avisos si hay datos antiguos que no se pueden casar con documentos activos.",
       ],
     },
     {
-      title: "3. Archivo DWI opcional en PC Facturación",
+      title: "3. Archivo auxiliar opcional",
       paragraphs: [
-        "Si eliges **PC Facturación 3.0**, aparece el campo **Archivo DWI opcional**. Ese archivo suele estar junto al MDB y guarda la numeración configurada por el usuario.",
-        "No es obligatorio. Si lo tienes, ayuda a continuar con el siguiente número de factura, presupuesto o recibo usando el formato del programa antiguo.",
+        "Algunos orígenes permiten añadir un archivo auxiliar. Suele estar junto al archivo principal y puede guardar ajustes como numeraciones configuradas por el usuario.",
+        "No es obligatorio. Si lo tienes, ayuda a continuar con el siguiente número de factura, presupuesto o recibo usando el formato anterior.",
       ],
-      tip: "El DWI solo aparece para PC Facturación porque es un archivo propio de ese programa.",
+      tip: "Si el origen elegido no necesita archivo auxiliar, puedes seguir solo con el archivo principal.",
     },
     {
       title: "4. Aplicar la importación",

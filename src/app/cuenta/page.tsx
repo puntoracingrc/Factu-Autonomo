@@ -30,7 +30,8 @@ export default function CuentaPage() {
         <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
         <p className="text-sm text-slate-600">
           Trae clientes, presupuestos, facturas y datos de empresa desde
-          archivos compatibles. Ahora puedes importar copias MDB compatibles.
+          archivos compatibles. Revisa una previsualización antes de aplicar la
+          importación.
         </p>
         <ButtonLink href="/importar" variant="secondary">
           Abrir importador

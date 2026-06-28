@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ) : (
               <Link
-                href="/cuenta"
+                href="/cuenta#inicio-sesion"
                 className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
               >
                 <LogIn className="h-3.5 w-3.5" />

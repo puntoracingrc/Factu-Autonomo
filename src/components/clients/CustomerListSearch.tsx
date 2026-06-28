@@ -88,7 +88,7 @@ export function CustomerListSearch({
   }
 
   return (
-    <div className="relative mb-4" ref={containerRef}>
+    <div className="relative" ref={containerRef}>
       <Field
         label="Buscar cliente"
         hint="Escribe nombre, apellidos o NIF y elige en la lista"
