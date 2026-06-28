@@ -10,13 +10,20 @@ export const DEFAULT_VERIFACTU_SETTINGS: VerifactuSettings = {
   environment: "test",
 };
 
+export function isVerifactuProductionModeAllowed(): boolean {
+  return process.env.NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION === "true";
+}
+
 export function normalizeVerifactuSettings(
   settings?: Partial<VerifactuSettings>,
 ): VerifactuSettings {
+  const productionAllowed = isVerifactuProductionModeAllowed();
   return {
     enabled: settings?.enabled ?? DEFAULT_VERIFACTU_SETTINGS.enabled,
     environment:
-      settings?.environment === "production" ? "production" : "test",
+      productionAllowed && settings?.environment === "production"
+        ? "production"
+        : "test",
   };
 }
 

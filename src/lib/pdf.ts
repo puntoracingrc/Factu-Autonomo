@@ -88,9 +88,7 @@ function drawVerifactuQrBlock(
   pdf.addImage(artifacts.qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
   const verifactuText =
-    doc.verifactu.environment === "test"
-      ? "QR Veri*Factu en entorno de pruebas"
-      : "QR Veri*Factu generado para verificación tributaria";
+    "Factura verificable en la sede electrónica de la AEAT";
   const verifactuLines = pdf.splitTextToSize(verifactuText, 52);
   const phraseY = qrY + qrSize + 6;
   pdf.text(verifactuLines, centerX, phraseY, {

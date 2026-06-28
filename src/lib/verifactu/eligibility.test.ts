@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
 import {
+  normalizeVerifactuSettings,
   needsVerifactuRegistration,
   verifactuRecordType,
 } from "./eligibility";
@@ -25,6 +26,23 @@ const factura: Document = {
 };
 
 describe("verifactu eligibility", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("normaliza producción a pruebas si no está habilitada explícitamente", () => {
+    expect(
+      normalizeVerifactuSettings({ enabled: true, environment: "production" }),
+    ).toEqual({ enabled: true, environment: "test" });
+  });
+
+  it("permite producción solo con marca pública explícita", () => {
+    vi.stubEnv("NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION", "true");
+    expect(
+      normalizeVerifactuSettings({ enabled: true, environment: "production" }),
+    ).toEqual({ enabled: true, environment: "production" });
+  });
+
   it("requires registration for emitted factura", () => {
     expect(needsVerifactuRegistration(factura, profile)).toBe(true);
   });
