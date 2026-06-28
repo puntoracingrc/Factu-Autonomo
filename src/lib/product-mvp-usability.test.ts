@@ -210,4 +210,16 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain('<Card className="space-y-4">');
     expect(customerSearchSource).not.toContain("relative mb-4");
   });
+
+  it("evita overflow movil con clientes de texto largo", () => {
+    const customersPageSource = readFileSync(
+      new URL("../app/clientes/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(customersPageSource).toContain("min-w-0 flex-1");
+    expect(customersPageSource).toContain("break-words font-bold");
+    expect(customersPageSource).toContain("inline-flex min-w-0 max-w-full");
+    expect(customersPageSource).toContain("break-words text-sm text-slate-400");
+  });
 });

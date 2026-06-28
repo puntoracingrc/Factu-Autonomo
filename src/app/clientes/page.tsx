@@ -545,22 +545,22 @@ export default function ClientesPage() {
                     aria-label={`Seleccionar ${getCustomerDisplayName(customer)}`}
                   />
                 )}
-                <div>
-                  <p className="font-bold text-slate-900">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-bold text-slate-900">
                     {getCustomerDisplayName(customer)}
                   </p>
                   {customer.nif && (
                     <p className="text-sm text-slate-500">NIF: {customer.nif}</p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex min-w-0 flex-wrap gap-2">
                     {migrated.phone && (
-                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                         <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{migrated.phone}</span>
                       </span>
                     )}
                     {migrated.email && (
-                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
                         <Mail className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{migrated.email}</span>
                       </span>
@@ -572,7 +572,7 @@ export default function ClientesPage() {
                     )}
                   </div>
                   {(migrated.address || customer.city) && (
-                    <p className="text-sm text-slate-400">
+                    <p className="break-words text-sm text-slate-400">
                       {[
                         formatStreetLine(migrated.streetType, migrated.address),
                         customer.postalCode,
