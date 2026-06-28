@@ -1,4 +1,5 @@
 import type { BusinessProfile } from "./types";
+import { normalizeQuoteValidityDays } from "./quote-validity";
 
 export interface BusinessProfileFields {
   name: string;
@@ -69,6 +70,7 @@ export function normalizeBusinessProfileForSave(
     phone: text(profile.phone),
     email: text(profile.email).toLowerCase(),
     iban: text(profile.iban) || undefined,
+    quoteValidityDays: normalizeQuoteValidityDays(profile.quoteValidityDays),
   };
 }
 

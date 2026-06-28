@@ -159,6 +159,14 @@ describe("quote to invoice conversion", () => {
     expect(canConvertQuoteToInvoice({ ...quote, type: "factura" })).toBe(false);
     expect(canConvertQuoteToInvoice({ ...quote, status: "anulada" })).toBe(false);
     expect(canConvertQuoteToInvoice({ ...quote, status: "rechazado" })).toBe(false);
+    expect(canConvertQuoteToInvoice({ ...quote, status: "vencido" })).toBe(false);
+    expect(
+      canConvertQuoteToInvoice({
+        ...quote,
+        status: "enviado",
+        dueDate: "2020-01-01",
+      }),
+    ).toBe(false);
   });
 
   it("localiza la factura ya creada desde un presupuesto", () => {

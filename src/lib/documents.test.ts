@@ -439,6 +439,17 @@ describe("isDocumentEditable", () => {
     expect(isDocumentEditable(doc("2", "recibo", "R-1", "Ana"))).toBe(true);
   });
 
+  it("permite editar una factura en borrador creada desde un presupuesto", () => {
+    const invoiceFromQuote = {
+      ...doc("5", "factura", "F-1", "Ana"),
+      sourceQuoteDocumentId: "quote-1",
+      sourceQuoteNumber: "P-1",
+      status: "borrador" as const,
+    };
+
+    expect(isDocumentEditable(invoiceFromQuote)).toBe(true);
+  });
+
   it("bloquea documentos enviados o rectificados", () => {
     const sent = { ...doc("3", "presupuesto", "P-2", "Ana"), status: "enviado" as const };
     const receipt = { ...doc("4", "recibo", "R-2", "Ana"), status: "pagado" as const };

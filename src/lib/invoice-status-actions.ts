@@ -1,6 +1,7 @@
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { isCollectedDocument } from "./income";
 import { isAcceptedQuote, isRejectedQuote } from "./quotes";
+import { isQuoteExpired } from "./quote-validity";
 import { isRectificativa } from "./rectificativas";
 import type { Document, DocumentType } from "./types";
 
@@ -37,6 +38,8 @@ export function documentStatusLabel(
   doc: Document,
   type: DocumentType = doc.type,
 ): string {
+  if (type === "presupuesto" && isQuoteExpired(doc)) return "Caducado";
+  if (type === "presupuesto" && doc.status === "vencido") return "Caducado";
   if (type === "presupuesto" && isAcceptedQuote(doc)) return "Aceptado";
   if (type === "presupuesto" && isRejectedQuote(doc)) return "Rechazado";
 
@@ -61,6 +64,9 @@ export function documentStatusLabel(
 }
 
 export function documentStatusColor(doc: Document): string {
+  if (doc.type === "presupuesto" && isQuoteExpired(doc)) {
+    return "bg-slate-200 text-slate-700";
+  }
   if (doc.type === "presupuesto" && (isAcceptedQuote(doc) || isRejectedQuote(doc))) {
     return STATUS_COLORS[doc.status];
   }
@@ -77,7 +83,12 @@ export function documentStatusHint(
       case "borrador":
         return "Editable. Guarda y cambia a Enviado cuando quieras preparar el envío.";
       case "enviado":
+        if (isQuoteExpired(doc)) {
+          return "La validez indicada ya venció. Puedes duplicarlo para preparar una nueva versión.";
+        }
         return "Listo para preparar email o WhatsApp. La app no envía nada automáticamente.";
+      case "vencido":
+        return "Caducado en tu registro local.";
       case "aceptado":
       case "pagado":
         return "Aceptado en tu registro local. Puedes convertirlo a factura.";

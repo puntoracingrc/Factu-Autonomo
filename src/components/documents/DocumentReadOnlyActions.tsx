@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
-import { MarkAsRejectedButton } from "@/components/documents/MarkAsRejectedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
@@ -56,7 +55,6 @@ export function DocumentReadOnlyActions({
       )}
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
         {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
-        {doc.type === "presupuesto" && <MarkAsRejectedButton doc={doc} />}
         {doc.type === "presupuesto" && (
           <ConvertQuoteToInvoiceButton doc={doc} />
         )}

@@ -18,7 +18,7 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
-import { formatMoney, todayISO } from "@/lib/calculations";
+import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
 import {
   isVatExempt,
   zeroIvaItems,
@@ -49,6 +49,7 @@ import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { openDocumentPdfPreview } from "@/lib/pdf";
+import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
@@ -153,6 +154,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
 
   const [date, setDate] = useState(existing?.date ?? todayISO());
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
+  const automaticQuoteDueDate =
+    type === "presupuesto" && !existing
+      ? defaultQuoteDueDate(date, data.profile)
+      : "";
+  const effectiveDueDate =
+    type === "presupuesto" && !existing ? automaticQuoteDueDate : dueDate;
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const defaultNotesApplied = useRef(Boolean(existing?.notes));
   const [paymentTerms, setPaymentTerms] = useState(existing?.paymentTerms ?? "");
@@ -217,7 +224,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     type,
     number: existing?.number ?? "BORRADOR",
     date,
-    dueDate: dueDate || undefined,
+    dueDate: effectiveDueDate || undefined,
     customerId: selectedCustomerId ?? existing?.customerId,
     client: {
       firstName: clientForm.firstName,
@@ -350,7 +357,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     const payload = {
       type,
       date,
-      dueDate: dueDate || undefined,
+      dueDate: effectiveDueDate || undefined,
       customerId: customerResult.customerId,
       client: customerResult.client,
       items: normalizeLineItemUnits(
@@ -460,6 +467,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
               />
             </Field>
           )}
+          {type === "presupuesto" && effectiveDueDate && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <span className="font-semibold text-slate-900">Válido hasta: </span>
+              {formatShortDate(effectiveDueDate)}
+            </div>
+          )}
           {existing && (
             <Field label="Estado">
               <Select
@@ -473,7 +486,6 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 {type === "presupuesto" ? (
                   <>
                     <option value="aceptado">Aceptado</option>
-                    <option value="rechazado">Rechazado</option>
                   </>
                 ) : (
                   <option value="pagado">Cobrado</option>
