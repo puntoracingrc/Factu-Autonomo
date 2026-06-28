@@ -259,33 +259,34 @@ export default function ProveedoresPage() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-col gap-3">
-        {!formOpen && (
-          <>
-            {!mergeMode ? (
-              <>
-                <Button onClick={openNewForm} fullWidth className="gap-2">
-                  <Truck className="h-5 w-5" />
-                  Nuevo proveedor
-                </Button>
-                {data.suppliers.length >= 2 && (
-                  <PageActionButton
-                    icon={GitMerge}
-                    label="Unificar manualmente"
-                    onClick={() => setMergeMode(true)}
-                    className="mb-0"
-                  />
-                )}
-              </>
-            ) : (
-              <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
-                <X className="h-5 w-5" />
-                Cancelar unificación
+      {!formOpen && (
+        <Card className="mb-6 space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+            Acciones
+          </h2>
+          {!mergeMode ? (
+            <>
+              <Button onClick={openNewForm} fullWidth className="gap-2">
+                <Truck className="h-5 w-5" />
+                Nuevo proveedor
               </Button>
-            )}
-          </>
-        )}
-      </div>
+              {data.suppliers.length >= 2 && (
+                <PageActionButton
+                  icon={GitMerge}
+                  label="Unificar manualmente"
+                  onClick={() => setMergeMode(true)}
+                  className="mb-0"
+                />
+              )}
+            </>
+          ) : (
+            <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+              <X className="h-5 w-5" />
+              Cancelar unificación
+            </Button>
+          )}
+        </Card>
+      )}
 
       {saved && !formOpen && (
         <p className="mb-4 text-center text-sm font-medium text-green-600">
@@ -423,11 +424,10 @@ export default function ProveedoresPage() {
       ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
           {!mergeMode && (
-            <FormSection
-              variant="search"
-              title="Buscar y ordenar"
-              hint="Localiza un proveedor o cambia el criterio de la lista."
-            >
+            <Card className="space-y-4">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                Buscar y ordenar
+              </h2>
               <SupplierListSearch
                 suppliers={suppliers}
                 selectedSupplierId={listFilterId}
@@ -441,7 +441,7 @@ export default function ProveedoresPage() {
                 onSortFieldChange={setSortField}
                 onSortDirectionChange={setSortDirection}
               />
-            </FormSection>
+            </Card>
           )}
           <p className="text-sm font-medium text-slate-500">
             {listFilterId
