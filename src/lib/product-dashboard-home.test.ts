@@ -26,6 +26,12 @@ describe("product dashboard home", () => {
     expect(component).toContain("IVA estimado");
     expect(component).toContain("Resumen por periodo");
     expect(component).toContain("Periodo:");
+    expect(component).toContain("<option value=\"month\">Mes</option>");
+    expect(component).toContain("<option value=\"quarter\">Trimestre</option>");
+    expect(component).toContain("<option value=\"year\">Año</option>");
+    expect(component).not.toContain("<option value=\"month\">Este mes</option>");
+    expect(component).not.toContain("<option value=\"quarter\">Este trimestre</option>");
+    expect(component).not.toContain("<option value=\"year\">Este año</option>");
   });
 
   it("coloca las acciones rapidas antes del bloque largo de recordatorios", () => {
