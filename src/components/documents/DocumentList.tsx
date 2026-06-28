@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
@@ -61,6 +61,9 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
   recibo: "recibo",
 };
 
+const DOCUMENT_LIST_BATCH_SIZE = 30;
+const PAGINATED_DOCUMENT_TYPES: DocumentType[] = ["factura", "recibo"];
+
 type DocumentStatusFilter =
   | "all"
   | "draft"
@@ -118,6 +121,7 @@ export function DocumentList({
     kind: "all",
   }));
   const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>("all");
+  const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
 
   const allDocuments = getDocumentsByType(type);
   const years = useMemo(
@@ -136,10 +140,27 @@ export function DocumentList({
 
   const totalCount = allDocuments.length;
   const label = SEARCH_LABELS[type];
+  const paginateList = PAGINATED_DOCUMENT_TYPES.includes(type);
+  const visibleDocuments = paginateList
+    ? documents.slice(0, visibleCount)
+    : documents;
+  const hiddenCount = Math.max(documents.length - visibleDocuments.length, 0);
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
     setPeriod((current) => ({ ...current, ...patch }));
   }
+
+  useEffect(() => {
+    setVisibleCount(DOCUMENT_LIST_BATCH_SIZE);
+  }, [
+    period.kind,
+    period.month,
+    period.quarter,
+    period.year,
+    search,
+    statusFilter,
+    type,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -260,6 +281,9 @@ export function DocumentList({
           <p className="text-xs font-semibold text-slate-400">
             Periodo: {formatProductPeriodLabel(period)} · {documents.length} de{" "}
             {totalCount} resultados
+            {paginateList && documents.length > 0
+              ? ` · Mostrando ${visibleDocuments.length}`
+              : ""}
           </p>
         </Card>
       )}
@@ -279,7 +303,7 @@ export function DocumentList({
         </Card>
       ) : (
         <div className="space-y-3">
-          {documents.map((doc) => {
+          {visibleDocuments.map((doc) => {
             const total = documentAmounts(doc, vatExempt).total;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
@@ -413,6 +437,28 @@ export function DocumentList({
               </Card>
             );
           })}
+          {paginateList && hiddenCount > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCount((current) =>
+                    Math.min(
+                      current + DOCUMENT_LIST_BATCH_SIZE,
+                      documents.length,
+                    ),
+                  )
+                }
+                className="min-h-12 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Cargar {Math.min(DOCUMENT_LIST_BATCH_SIZE, hiddenCount)} más
+              </button>
+              <p className="mt-2 text-center text-xs font-medium text-slate-400">
+                Mostrando {visibleDocuments.length} de {documents.length}{" "}
+                {label}s
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
