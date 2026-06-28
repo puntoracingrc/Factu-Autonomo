@@ -59,6 +59,15 @@ describe("product dashboard home", () => {
     expect(page).toContain("Exportar copia");
   });
 
+  it("no duplica accesos ni ultimos documentos en la sugerencia de Factu", () => {
+    const component = source("../components/recommendations/HomeFactuTip.tsx");
+
+    expect(component).toContain("Factu te sugiere");
+    expect(component).not.toContain("Últimos documentos");
+    expect(component).not.toContain("HOME_CREATE_ACTIONS");
+    expect(component).not.toContain("HOME_REVIEW_ACTIONS");
+  });
+
   it("incluye copy prudente sin claims prohibidos", () => {
     const component = source("../components/dashboard/HomeBusinessSummary.tsx");
     const page = source("../app/page.tsx");

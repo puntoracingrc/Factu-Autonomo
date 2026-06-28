@@ -194,8 +194,9 @@ export function CloudAccountCard() {
 
       {billingEnabled && !limits.cloudSync && (
         <p className="rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-900">
-          La sincronización automática en la nube es una función <strong>Pro</strong>.
-          Puedes crear cuenta y usar exportar/importar copia en el plan Gratis.
+          La sincronización automática en la nube y el importador de datos son
+          funciones <strong>Pro</strong>. En el plan Gratis puedes crear cuenta
+          y exportar una copia manual cuando lo necesites.
         </p>
       )}
 

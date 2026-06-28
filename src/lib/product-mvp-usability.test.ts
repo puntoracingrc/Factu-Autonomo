@@ -127,4 +127,27 @@ describe("MVP usability polish", () => {
     expect(iconActionSource).toContain("focus-visible:outline");
     expect(iconActionSource).toContain("MobileLabel");
   });
+
+  it("mantiene una pista visual de desplazamiento en el menu movil", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain("nav-scroll");
+    expect(appShellSource).toContain("ChevronRight");
+    expect(appShellSource).toContain("bg-gradient-to-l");
+    expect(appShellSource).toContain("sm:hidden");
+  });
+
+  it("distingue exportacion gratis de importador Pro en cuenta", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudAccountSource).toContain("importador de datos");
+    expect(cloudAccountSource).toContain("exportar una copia manual");
+    expect(cloudAccountSource).not.toContain("exportar/importar copia");
+  });
 });
