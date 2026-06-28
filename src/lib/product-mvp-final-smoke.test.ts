@@ -192,6 +192,7 @@ describe("product MVP final smoke", () => {
       "../components/documents/DocumentList.tsx",
       "../components/documents/DocumentPdfShareActions.tsx",
       "../components/documents/PaymentReminderButton.tsx",
+      "../components/layout/AppShell.tsx",
       "../components/settings/DataOwnershipCard.tsx",
     ]
       .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
@@ -207,6 +208,9 @@ describe("product MVP final smoke", () => {
     expect(sources).toContain("Imprimir PDF");
     expect(sources).toContain("PDF");
     expect(sources).toContain("WhatsApp");
+    expect(sources).toContain("Hazte Pro");
+    expect(sources).toContain("Miembro Pro");
+    expect(sources).toContain("Prueba Pro");
     expect(sources).not.toContain("window.print()");
     expect(sources).not.toMatch(
       /IVA a pagar|Modelo 303|Resultado fiscal|cumplimiento garantizado|QR oficial/i,
