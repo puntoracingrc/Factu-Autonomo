@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { SendToOfficeForm } from "@/components/reminders/SendToOfficeForm";
@@ -59,6 +59,16 @@ export function UserRemindersPanel() {
     linkKind === "document" ||
     linkKind === "rectify";
 
+  useEffect(() => {
+    if (window.location.hash !== "#nuevo-recordatorio") return;
+    setShowForm(true);
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("nuevo-recordatorio")
+        ?.scrollIntoView({ block: "start" });
+    });
+  }, []);
+
   function resetForm() {
     setText("");
     setDueDate("");
@@ -102,7 +112,11 @@ export function UserRemindersPanel() {
       <SendToOfficeForm />
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Button type="button" onClick={() => setShowForm((open) => !open)}>
+        <Button
+          type="button"
+          id="nuevo-recordatorio"
+          onClick={() => setShowForm((open) => !open)}
+        >
           <Plus className="h-4 w-4" />
           Nuevo recordatorio
         </Button>

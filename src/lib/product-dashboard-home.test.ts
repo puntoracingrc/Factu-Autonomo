@@ -48,17 +48,37 @@ describe("product dashboard home", () => {
     expect(page).not.toContain("Accesos rápidos a lo que más usas");
     expect(reminders).not.toContain("SendToOfficeForm");
     expect(reminders).toContain('href="/avisos"');
+    expect(reminders).toContain("if (pending.length === 0) return null");
+    expect(reminders).not.toContain("Apunta instrucciones para la oficina");
+    expect(reminders).not.toContain("Crear recordatorio");
   });
 
   it("mantiene acciones rapidas utiles desde inicio", () => {
     const page = source("../app/page.tsx");
+    const createReminderIndex = page.indexOf('href: "/avisos#nuevo-recordatorio"');
+    const alertsIndex = page.indexOf('href: "/avisos"');
 
+    expect(createReminderIndex).toBeGreaterThan(-1);
+    expect(alertsIndex).toBeGreaterThan(createReminderIndex);
+    expect(page).toContain("Crear recordatorio");
     expect(page).toContain("Nuevo cliente");
     expect(page).toContain("Nueva factura");
     expect(page).toContain("Nuevo presupuesto");
     expect(page).toContain("Añadir gasto");
     expect(page).toContain("Configuración");
     expect(page).not.toContain("Exportar copia");
+  });
+
+  it("no enlaza recordatorios libres a nueva factura por defecto", () => {
+    const sendToOffice = source("../components/reminders/SendToOfficeForm.tsx");
+    const panel = source("../components/reminders/UserRemindersPanel.tsx");
+
+    expect(sendToOffice).toContain(
+      'useState<UserReminderLinkKind>("none")',
+    );
+    expect(sendToOffice).toContain('setLinkKind("none")');
+    expect(panel).toContain('"#nuevo-recordatorio"');
+    expect(panel).toContain('id="nuevo-recordatorio"');
   });
 
   it("no duplica accesos ni ultimos documentos en la sugerencia de Factu", () => {
