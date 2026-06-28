@@ -4,7 +4,11 @@ import { Download, Eye, Printer } from "lucide-react";
 import { useState } from "react";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { IconActionButton } from "@/components/ui/IconAction";
-import { downloadDocumentPdf, openDocumentPdfPreview } from "@/lib/pdf";
+import {
+  downloadDocumentPdf,
+  openDocumentPdfPreview,
+  printDocumentPdf,
+} from "@/lib/pdf";
 import type { BusinessProfile, Document } from "@/lib/types";
 
 interface DocumentPdfShareActionsProps {
@@ -21,6 +25,7 @@ export function DocumentPdfShareActions({
   showPreview = true,
 }: DocumentPdfShareActionsProps) {
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
 
   async function handlePdfPreview() {
     setPreviewLoading(true);
@@ -35,8 +40,17 @@ export function DocumentPdfShareActions({
     }
   }
 
-  function handlePrint() {
-    window.print();
+  async function handlePrint() {
+    setPrintLoading(true);
+    try {
+      await printDocumentPdf(doc, profile);
+    } catch {
+      alert(
+        "No se pudo preparar la impresión del PDF. Permite ventanas emergentes o descárgalo.",
+      );
+    } finally {
+      setPrintLoading(false);
+    }
   }
 
   return (
@@ -61,9 +75,10 @@ export function DocumentPdfShareActions({
         <Download className="h-5 w-5" />
       </IconActionButton>
       <IconActionButton
-        label="Imprimir vista"
-        tooltip="Imprime la pantalla actual. Para imprimir el PDF exacto, abre o descarga el PDF."
-        onClick={handlePrint}
+        label="Imprimir PDF"
+        tooltip="Genera e imprime solo el PDF de este documento"
+        onClick={() => void handlePrint()}
+        disabled={printLoading}
         className="bg-slate-100 text-slate-700 hover:bg-slate-200"
       >
         <Printer className="h-5 w-5" />

@@ -29,6 +29,7 @@ import {
 } from "@/lib/cloud/repository";
 import {
   clearSyncPending,
+  buildCloudUploadChanges,
   hasUnsyncedChanges,
   isBrowserOnline,
   isSyncPendingFlag,
@@ -112,7 +113,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage("Sin conexión. Los cambios se subirán cuando vuelva internet.");
       return;
     }
-    if (hasPendingSyncChanges(data) || isSyncPendingFlag()) {
+    if (hasPendingSyncChanges(data) || hasUnsyncedChanges(data) || isSyncPendingFlag()) {
       setSyncStatus("pending");
       setSyncMessage(
         pendingChangeCount > 0
@@ -169,10 +170,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const changes = payload.meta?.pendingChanges ?? [];
+      const changes = buildCloudUploadChanges(payload);
       if (changes.length === 0) {
-        if (!hasUnsyncedChanges(payload)) return true;
-        return false;
+        clearSyncPending();
+        setSyncStatus("synced");
+        return true;
       }
 
       if (!silent) setSyncStatus("syncing");
@@ -209,8 +211,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const flushPendingUpload = useCallback(
     async (silent = true, payload = dataRef.current) => {
-      if (!user || !hasPendingSyncChanges(payload)) {
-        if (!hasUnsyncedChanges(payload)) return true;
+      if (!user) return false;
+      if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
+        clearSyncPending();
+        setSyncStatus("synced");
+        return true;
       }
       if (syncing.current) return false;
       syncing.current = true;
@@ -239,10 +244,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     let workingData = dataRef.current;
 
-    if (hasPendingSyncChanges(workingData)) {
+    if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
       const uploaded = await flushPendingUpload(true, workingData);
       workingData = dataRef.current;
-      if (!uploaded && hasPendingSyncChanges(workingData)) return;
+      if (!uploaded && hasUnsyncedChanges(workingData)) return;
     }
 
     setSyncStatus("syncing");
@@ -306,12 +311,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncMessage("Todo sincronizado");
       }
 
-      if (hasPendingSyncChanges(workingData)) {
+      if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
         await flushPendingUpload(true, workingData);
         workingData = dataRef.current;
       }
 
-      if (!hasPendingSyncChanges(workingData)) {
+      if (!hasPendingSyncChanges(workingData) && !hasUnsyncedChanges(workingData)) {
         finalizeSyncState(workingData);
       }
     } catch (error) {
@@ -403,7 +408,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const schedulePush = useCallback(() => {
     if (!ready || !user || skipPush.current) return;
-    if (!hasPendingSyncChanges(data)) return;
+    if (!pendingUpload) return;
 
     markSyncPending();
     updatePendingStatus();
@@ -412,7 +417,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     pushTimer.current = setTimeout(() => {
       void flushPendingUpload(true);
     }, 2000);
-  }, [data, flushPendingUpload, ready, updatePendingStatus, user]);
+  }, [flushPendingUpload, pendingUpload, ready, updatePendingStatus, user]);
 
   useEffect(() => {
     setOnline(isBrowserOnline());

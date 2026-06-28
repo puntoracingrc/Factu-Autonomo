@@ -429,6 +429,102 @@ function pdfFilename(doc: Document): string {
   return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function openPdfWindow(title: string): Window {
+  const opened = window.open("", "_blank");
+  if (!opened) {
+    throw new Error("popup_blocked");
+  }
+
+  opened.opener = null;
+  opened.document.open();
+  opened.document.write(`<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #f8fafc; color: #0f172a; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .loading { display: grid; min-height: 100%; place-items: center; padding: 2rem; text-align: center; }
+      .loading p { margin: 0; font-size: 1rem; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main class="loading"><p>Generando PDF...</p></main>
+  </body>
+</html>`);
+  opened.document.close();
+  return opened;
+}
+
+function renderPdfWindow(
+  opened: Window,
+  blobUrl: string,
+  filename: string,
+  options: { print?: boolean } = {},
+): void {
+  const title = escapeHtml(filename);
+  const src = escapeHtml(blobUrl);
+  const printScript = options.print
+    ? `
+    <script>
+      const frame = document.getElementById("pdf-frame");
+      const status = document.getElementById("print-status");
+      let attempted = false;
+      function printPdf() {
+        if (attempted) return;
+        attempted = true;
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          status.textContent = "Impresión preparada. Si no aparece el diálogo, usa el botón de imprimir del visor.";
+        } catch (error) {
+          status.textContent = "No se pudo abrir el diálogo automáticamente. Usa el botón de imprimir del visor.";
+        }
+      }
+      frame.addEventListener("load", () => window.setTimeout(printPdf, 350));
+      window.setTimeout(printPdf, 1800);
+    </script>`
+    : "";
+
+  opened.document.open();
+  opened.document.write(`<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #111827; color: #0f172a; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { display: flex; flex-direction: column; }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; background: #fff; border-bottom: 1px solid #e2e8f0; }
+      h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+      a { border-radius: .75rem; background: #2563eb; color: #fff; padding: .55rem .85rem; text-decoration: none; font-size: .85rem; font-weight: 700; }
+      iframe { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
+      .fallback { margin: 0; padding: .5rem 1rem; background: #fef3c7; color: #78350f; font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>${title}</h1>
+      <a href="${src}" download="${title}">Descargar PDF</a>
+    </header>
+    <p id="print-status" class="fallback">${options.print ? "Preparando impresión del PDF seleccionado..." : "Vista previa del PDF seleccionado."}</p>
+    <iframe id="pdf-frame" src="${src}" title="${title}"></iframe>
+    ${printScript}
+  </body>
+</html>`);
+  opened.document.close();
+}
+
 /** Descarga fiable en móvil (Safari bloquea jsPDF.save tras async largos). */
 export function triggerPdfBlobDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -456,9 +552,7 @@ export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const viewModel = buildPdfViewModelForDocument(doc, profile);
-  const artifacts = await preparePdfArtifactsForViewModel(viewModel);
-  const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
+  const blob = await buildDocumentPdfBlob(doc, profile);
   triggerPdfBlobDownload(blob, pdfFilename(doc));
 }
 
@@ -466,20 +560,29 @@ export async function openDocumentPdfPreview(
   doc: Document,
   profile: BusinessProfile,
 ): Promise<void> {
-  const opened = window.open("", "_blank");
-  if (!opened) {
-    throw new Error("popup_blocked");
-  }
-  opened.opener = null;
+  const opened = openPdfWindow(pdfFilename(doc));
 
   try {
-    const viewModel = buildPdfViewModelForDocument(doc, profile);
-    const artifacts = await preparePdfArtifactsForViewModel(viewModel);
-    const blob = buildDocumentPdfFromViewModel(viewModel, artifacts).output(
-      "blob",
-    );
+    const blob = await buildDocumentPdfBlob(doc, profile);
     const url = URL.createObjectURL(blob);
-    opened.location.href = url;
+    renderPdfWindow(opened, url, pdfFilename(doc));
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    opened.close();
+    throw error;
+  }
+}
+
+export async function printDocumentPdf(
+  doc: Document,
+  profile: BusinessProfile,
+): Promise<void> {
+  const opened = openPdfWindow(`Imprimir ${pdfFilename(doc)}`);
+
+  try {
+    const blob = await buildDocumentPdfBlob(doc, profile);
+    const url = URL.createObjectURL(blob);
+    renderPdfWindow(opened, url, pdfFilename(doc), { print: true });
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     opened.close();

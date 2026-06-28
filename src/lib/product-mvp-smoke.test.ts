@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildDocumentPdfBlob, openDocumentPdfPreview } from "./pdf";
+import {
+  buildDocumentPdfBlob,
+  openDocumentPdfPreview,
+  printDocumentPdf,
+} from "./pdf";
 import { buildInvoiceDraftFromQuote } from "./quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "./share";
 import { documentTotals } from "./calculations";
@@ -107,6 +111,16 @@ describe("MVP document smoke", () => {
     });
 
     await expect(openDocumentPdfPreview(quote, profile)).rejects.toThrow(
+      "popup_blocked",
+    );
+  });
+
+  it("detecta cuando el navegador bloquea imprimir el PDF", async () => {
+    vi.stubGlobal("window", {
+      open: vi.fn(() => null),
+    });
+
+    await expect(printDocumentPdf(quote, profile)).rejects.toThrow(
       "popup_blocked",
     );
   });
