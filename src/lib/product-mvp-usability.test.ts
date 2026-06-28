@@ -135,8 +135,14 @@ describe("MVP usability polish", () => {
     );
 
     expect(appShellSource).toContain("nav-scroll");
+    expect(appShellSource).toContain("canScrollLeft");
+    expect(appShellSource).toContain("canScrollRight");
+    expect(appShellSource).toContain("Ver opciones anteriores del menú");
+    expect(appShellSource).toContain("Ver más opciones del menú");
+    expect(appShellSource).toContain("ChevronLeft");
     expect(appShellSource).toContain("ChevronRight");
     expect(appShellSource).toContain("bg-gradient-to-l");
+    expect(appShellSource).toContain("bg-gradient-to-r");
     expect(appShellSource).toContain("sm:hidden");
   });
 
@@ -241,6 +247,35 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("break-words font-bold");
     expect(customersPageSource).toContain("inline-flex min-w-0 max-w-full");
     expect(customersPageSource).toContain("break-words text-sm text-slate-400");
+  });
+
+  it("carga clientes por bloques para listas grandes", () => {
+    const customersPageSource = readFileSync(
+      new URL("../app/clientes/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(customersPageSource).toContain("CUSTOMER_LIST_BATCH_SIZE = 30");
+    expect(customersPageSource).toContain("visibleCustomers");
+    expect(customersPageSource).toContain("hiddenCustomerCount");
+    expect(customersPageSource).toContain("Cargar");
+    expect(customersPageSource).toContain("Mostrando");
+  });
+
+  it("carga facturas y recibos por bloques sin cambiar presupuestos", () => {
+    const documentListSource = readFileSync(
+      new URL("../components/documents/DocumentList.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 30");
+    expect(documentListSource).toContain(
+      'PAGINATED_DOCUMENT_TYPES: DocumentType[] = ["factura", "recibo"]',
+    );
+    expect(documentListSource).toContain("visibleDocuments");
+    expect(documentListSource).toContain("hiddenCount");
+    expect(documentListSource).toContain("Cargar");
+    expect(documentListSource).toContain("Mostrando");
   });
 
   it("expone instalacion PWA con iconos de marca", () => {

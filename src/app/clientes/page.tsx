@@ -57,6 +57,8 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const CUSTOMER_LIST_BATCH_SIZE = 30;
+
 export default function ClientesPage() {
   const { data, addCustomer, updateCustomer, deleteCustomer, mergeCustomers } =
     useAppStore();
@@ -76,6 +78,9 @@ export default function ClientesPage() {
   const [sortField, setSortField] = useState<CustomerSortField>("apellido");
   const [sortDirection, setSortDirection] =
     useState<CustomerSortDirection>("asc");
+  const [visibleCustomerCount, setVisibleCustomerCount] = useState(
+    CUSTOMER_LIST_BATCH_SIZE,
+  );
 
   const customerInvoicedTotals = useMemo(
     () => buildCustomerInvoicedTotals(data.customers, data.documents),
@@ -106,6 +111,16 @@ export default function ClientesPage() {
     return match ? [match] : customers;
   }, [customers, listFilterId]);
 
+  const visibleCustomers = useMemo(
+    () => displayedCustomers.slice(0, visibleCustomerCount),
+    [displayedCustomers, visibleCustomerCount],
+  );
+
+  const hiddenCustomerCount = Math.max(
+    displayedCustomers.length - visibleCustomers.length,
+    0,
+  );
+
   const duplicateGroups = useMemo(
     () => findDuplicateCustomerGroups(data.customers),
     [data.customers],
@@ -126,6 +141,10 @@ export default function ClientesPage() {
       selectedIds.includes(current) ? current : canonical.id,
     );
   }, [selectedCustomers, selectedIds, data.documents]);
+
+  useEffect(() => {
+    setVisibleCustomerCount(CUSTOMER_LIST_BATCH_SIZE);
+  }, [data.customers.length, listFilterId, sortDirection, sortField]);
 
   function openNewForm() {
     setEditingId(null);
@@ -521,8 +540,11 @@ export default function ClientesPage() {
             {listFilterId
               ? "1 cliente seleccionado"
               : `${customers.length} cliente(s) — ${CUSTOMER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${customerSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
+            {!listFilterId && displayedCustomers.length > 0
+              ? ` · mostrando ${visibleCustomers.length}`
+              : ""}
           </p>
-          {displayedCustomers.map((customer) => {
+          {visibleCustomers.map((customer) => {
             const selected = selectedIds.includes(customer.id);
             const invoiced = customerInvoicedTotals.get(customer.id) ?? 0;
             const migrated = migrateCustomer(customer);
@@ -616,6 +638,29 @@ export default function ClientesPage() {
             </Card>
             );
           })}
+          {hiddenCustomerCount > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCustomerCount((current) =>
+                    Math.min(
+                      current + CUSTOMER_LIST_BATCH_SIZE,
+                      displayedCustomers.length,
+                    ),
+                  )
+                }
+                className="min-h-12 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Cargar {Math.min(CUSTOMER_LIST_BATCH_SIZE, hiddenCustomerCount)}{" "}
+                más
+              </button>
+              <p className="mt-2 text-center text-xs font-medium text-slate-400">
+                Mostrando {visibleCustomers.length} de{" "}
+                {displayedCustomers.length} clientes
+              </p>
+            </div>
+          )}
         </div>
       ) : null}
 
