@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  deployments: read
+  statuses: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -145,3 +147,84 @@ jobs:
             kill "$(cat /tmp/factura-autonomo-next.pid)" 2>/dev/null || true
           fi
           supabase stop --no-backup || true
+
+  production-domain:
+    name: Production Domain
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - quality
+      - supabase-acceptance
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      PRODUCTION_DOMAIN: facturacion-autonomos.app
+      VERCEL_SCOPE: team_igEbPlyUgBxnP6cO2sUObD5a
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Check Vercel token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN secret is required to assign the production domain."
+            exit 1
+          fi
+
+      - name: Wait for Vercel production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          deployment_url=""
+          for attempt in {1..60}; do
+            deployments_json="$(
+              gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&environment=Production"
+            )"
+            statuses_url="$(jq -r '.[0].statuses_url // empty' <<< "$deployments_json")"
+
+            if [ -n "$statuses_url" ]; then
+              statuses_json="$(gh api -H "Accept: application/vnd.github+json" "$statuses_url")"
+              state="$(jq -r '.[0].state // empty' <<< "$statuses_json")"
+              deployment_url="$(jq -r '.[0].environment_url // .[0].target_url // empty' <<< "$statuses_json")"
+
+              if [ "$state" = "success" ] && [ -n "$deployment_url" ]; then
+                if [[ "$deployment_url" != https://*.vercel.app ]]; then
+                  echo "Unexpected Vercel deployment URL: $deployment_url"
+                  exit 1
+                fi
+                echo "VERCEL_DEPLOYMENT_URL=$deployment_url" >> "$GITHUB_ENV"
+                exit 0
+              fi
+
+              if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
+                echo "Vercel deployment failed with state: $state"
+                exit 1
+              fi
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for a successful Vercel production deployment."
+          exit 1
+
+      - name: Assign production domain
+        run: |
+          npx --yes vercel@latest alias set "$VERCEL_DEPLOYMENT_URL" "$PRODUCTION_DOMAIN" \
+            --scope "$VERCEL_SCOPE" \
+            --token "$VERCEL_TOKEN"
+
+      - name: Verify production domain
+        run: |
+          for attempt in {1..30}; do
+            body="$(curl -fsSL "https://${PRODUCTION_DOMAIN}" || true)"
+            if grep -q "Factura Autónomo" <<< "$body"; then
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Production domain did not respond with the app after alias assignment."
+          exit 1
