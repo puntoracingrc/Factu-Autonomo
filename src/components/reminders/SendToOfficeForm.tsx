@@ -17,7 +17,7 @@ export function SendToOfficeForm() {
   const { addUserReminder } = useAppStore();
   const { user, syncNow } = useCloudSync();
   const [text, setText] = useState("");
-  const [linkKind, setLinkKind] = useState<UserReminderLinkKind>("new_invoice");
+  const [linkKind, setLinkKind] = useState<UserReminderLinkKind>("none");
   const [sent, setSent] = useState(false);
 
   function applyTemplate(templateText: string, kind: UserReminderLinkKind) {
@@ -39,6 +39,7 @@ export function SendToOfficeForm() {
     });
 
     setText("");
+    setLinkKind("none");
     setSent(true);
     if (user) {
       void syncNow();

@@ -3,6 +3,7 @@
 import {
   Bell,
   FileText,
+  Plus,
   Receipt,
   ShoppingCart,
   Settings,
@@ -19,10 +20,16 @@ import { useAppStore } from "@/context/AppStore";
 
 const quickActions = [
   {
+    href: "/avisos#nuevo-recordatorio",
+    label: "Crear recordatorio",
+    icon: Plus,
+    color: "bg-amber-500 text-white",
+  },
+  {
     href: "/avisos",
     label: "Avisos",
     icon: Bell,
-    color: "bg-amber-500 text-white",
+    color: "bg-orange-500 text-white",
     showBadge: true,
   },
   {
