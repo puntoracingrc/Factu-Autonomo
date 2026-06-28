@@ -222,4 +222,54 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("inline-flex min-w-0 max-w-full");
     expect(customersPageSource).toContain("break-words text-sm text-slate-400");
   });
+
+  it("expone instalacion PWA con iconos de marca", () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        new URL("../../public/manifest.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const layoutSource = readFileSync(
+      new URL("../app/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const accountPageSource = readFileSync(
+      new URL("../app/cuenta/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const installCardSource = readFileSync(
+      new URL("../components/pwa/InstallAppCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const serviceWorkerSource = readFileSync(
+      new URL("../components/pwa/RegisterServiceWorker.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual(
+      expect.arrayContaining([
+        "/icon-192.png",
+        "/icon-512.png",
+        "/maskable-icon-192.png",
+        "/maskable-icon-512.png",
+        "/apple-touch-icon.png",
+      ]),
+    );
+    expect(layoutSource).toContain("RegisterServiceWorker");
+    expect(appShellSource).toContain("/brand/app-icon.png");
+    expect(appShellSource).toContain("object-contain");
+    expect(appShellSource).not.toContain("object-cover");
+    expect(appShellSource).not.toContain(">FA<");
+    expect(accountPageSource).toContain("InstallAppCard");
+    expect(installCardSource).toContain("beforeinstallprompt");
+    expect(installCardSource).toContain("appinstalled");
+    expect(installCardSource).toContain("object-contain");
+    expect(installCardSource).not.toContain("object-cover");
+    expect(serviceWorkerSource).toContain('register("/sw.js")');
+  });
 });

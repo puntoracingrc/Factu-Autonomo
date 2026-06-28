@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Building2, ChevronRight, Crown, LogIn } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -93,9 +94,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Ir al inicio"
             className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              FA
-            </div>
+            <Image
+              src="/brand/app-icon.png"
+              alt=""
+              width={40}
+              height={40}
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-sm"
+              priority
+            />
             <div className="min-w-0">
               <p className="truncate text-base font-bold text-slate-900">
                 Factura Autónomo
