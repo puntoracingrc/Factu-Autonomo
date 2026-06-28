@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { verifyDocumentHashChain } from "@/lib/verifactu/chain-verify";
+import {
+  isVerifactuProductionModeAllowed,
+  normalizeVerifactuSettings,
+} from "@/lib/verifactu/eligibility";
 import { getProducerConfigStatus } from "@/lib/verifactu/producer-config";
 import { VERIFACTU_SOFTWARE } from "@/lib/verifactu/constants";
 import type { BusinessProfile, VerifactuSettings } from "@/lib/types";
@@ -19,7 +23,8 @@ interface Props {
 
 export function VerifactuSettingsCard({ form, onChange }: Props) {
   const { data } = useAppStore();
-  const settings = form.verifactu ?? { enabled: true, environment: "test" };
+  const settings = normalizeVerifactuSettings(form.verifactu);
+  const productionAllowed = isVerifactuProductionModeAllowed();
   const producer = getProducerConfigStatus();
   const [chainStatus, setChainStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -57,8 +62,8 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Veri*Factu</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Registro encadenado, QR tributario en PDF y remisión a AEAT (entorno
-            de pruebas por defecto). Obligatorio para autónomos antes del{" "}
+            Registro encadenado y QR tributario en PDF (entorno de pruebas por
+            defecto). Obligatorio para autónomos antes del{" "}
             <strong>1 julio 2027</strong>.
           </p>
         </div>
@@ -108,20 +113,25 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
       {settings.enabled && (
         <Field
           label="Entorno AEAT"
-          hint="Usa «Pruebas» hasta tener certificado de producción configurado en el servidor."
+          hint="Ahora trabajamos en pruebas; producción se activará cuando esté listo el transporte."
         >
           <select
             value={settings.environment}
             onChange={(e) =>
-              onChange({
-                ...settings,
-                environment: e.target.value === "production" ? "production" : "test",
-              })
+              onChange(
+                normalizeVerifactuSettings({
+                  ...settings,
+                  environment:
+                    e.target.value === "production" ? "production" : "test",
+                }),
+              )
             }
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
           >
             <option value="test">Pruebas (prewww2.aeat.es)</option>
-            <option value="production">Producción</option>
+            <option value="production" disabled={!productionAllowed}>
+              Producción
+            </option>
           </select>
         </Field>
       )}
