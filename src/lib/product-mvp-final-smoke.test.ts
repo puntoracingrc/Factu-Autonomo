@@ -204,8 +204,10 @@ describe("product MVP final smoke", () => {
     expect(sources).toContain("Resumen del negocio");
     expect(sources).toContain("Periodo:");
     expect(sources).toContain("Abrir PDF");
+    expect(sources).toContain("Imprimir PDF");
     expect(sources).toContain("PDF");
     expect(sources).toContain("WhatsApp");
+    expect(sources).not.toContain("window.print()");
     expect(sources).not.toMatch(
       /IVA a pagar|Modelo 303|Resultado fiscal|cumplimiento garantizado|QR oficial/i,
     );

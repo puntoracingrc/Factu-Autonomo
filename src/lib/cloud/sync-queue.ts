@@ -1,4 +1,5 @@
 import { hasPendingSyncChanges } from "./incremental";
+import { appDataToSyncChanges, type SyncChange } from "./diff";
 import { getDataTimestamp } from "../storage";
 import type { AppData } from "../types";
 
@@ -10,6 +11,18 @@ export function hasUnsyncedChanges(data: AppData): boolean {
   const lastSynced = data.meta?.lastSyncedAt;
   if (!lastSynced) return lastModified > "1970-01-01T00:00:00.000Z";
   return lastModified > lastSynced;
+}
+
+export function buildCloudUploadChanges(data: AppData): SyncChange[] {
+  const pending = data.meta?.pendingChanges ?? [];
+  if (pending.length > 0) return pending;
+  if (!hasUnsyncedChanges(data)) return [];
+
+  const updatedAt = new Date().toISOString();
+  return appDataToSyncChanges(data).map((change) => ({
+    ...change,
+    updatedAt,
+  }));
 }
 
 export function markSyncPending(): void {
