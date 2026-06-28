@@ -89,10 +89,6 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
             Recomendado: {producer.warnings.join(", ")}
           </p>
         )}
-        <p className="mt-2 text-xs">
-          Guía paso a paso:{" "}
-          <code className="rounded bg-white/60 px-1">docs/FASES.md</code>
-        </p>
       </div>
 
       <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">

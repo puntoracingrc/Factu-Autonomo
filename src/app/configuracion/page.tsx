@@ -855,26 +855,6 @@ export default function ConfiguracionPage() {
         </Suspense>
         <DataOwnershipCard />
         <ManualHelpLink />
-        <Card className="border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-semibold">Plan por fases (solo tú puedes hacer)</p>
-          <p className="mt-2 leading-relaxed">
-            Sigue la guía{" "}
-            <code className="rounded bg-white/70 px-1">docs/FASES.md</code> en
-            el repositorio: Supabase → Vercel → Stripe → pruebas Veri*Factu.
-            Cuando termines una fase, dímelo y seguimos.
-          </p>
-        </Card>
-        <Card className="bg-slate-100">
-          <h2 className="font-bold text-slate-900">Cómo usar la app</h2>
-          <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            <li>1. Rellena tus datos, numeración y tipos de IVA (solo una vez).</li>
-            <li>2. Crea facturas, presupuestos o recibos desde el inicio.</li>
-            <li>3. Anota tus gastos en «Gastos».</li>
-            <li>
-              4. En el móvil: menú del navegador → «Añadir a pantalla de inicio».
-            </li>
-          </ul>
-        </Card>
       </SettingsSection>
 
       <div className="sticky bottom-24 z-20 mt-6 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">

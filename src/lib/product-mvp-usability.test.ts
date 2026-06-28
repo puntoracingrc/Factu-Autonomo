@@ -182,9 +182,25 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).not.toContain("Al iniciar sesión acepto");
   });
 
+  it("muestra invitacion con CTA real cuando falta sesion", () => {
+    const referralSource = readFileSync(
+      new URL("../components/referrals/ReferralCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(referralSource).toContain('if (!user)');
+    expect(referralSource).toContain('href="/cuenta#inicio-sesion"');
+    expect(referralSource).toContain("Crear cuenta");
+    expect(referralSource).not.toContain("Crea cuenta abajo");
+  });
+
   it("mantiene accesos de configuracion como pastillas compactas", () => {
     const settingsSource = readFileSync(
       new URL("../app/configuracion/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const verifactuSource = readFileSync(
+      new URL("../components/verifactu/VerifactuSettingsCard.tsx", import.meta.url),
       "utf8",
     );
 
@@ -192,6 +208,10 @@ describe("MVP usability polish", () => {
     expect(settingsSource).toContain("flex flex-wrap gap-2");
     expect(settingsSource).not.toContain("Datos, logo y contacto");
     expect(settingsSource).not.toContain("Plan, datos y ayuda");
+    expect(settingsSource).not.toContain("Plan por fases");
+    expect(settingsSource).not.toContain("Cómo usar la app");
+    expect(settingsSource).not.toContain("docs/FASES.md");
+    expect(verifactuSource).not.toContain("docs/FASES.md");
   });
 
   it("encapsula acciones y filtros de clientes en bloques separados", () => {

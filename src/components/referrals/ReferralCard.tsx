@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Gift, Share2, Users } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Copy, Gift, LogIn, Share2, Users } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
@@ -148,9 +148,8 @@ export function ReferralCard() {
               ¿Te invitó alguien?
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Crea cuenta abajo e introduce su código: los dos recibiréis{" "}
-              {REFERRAL_BONUS_SCANS} escaneos extra para digitalizar facturas de
-              gasto.
+              Guarda el código y crea tu cuenta para recibir{" "}
+              {REFERRAL_BONUS_SCANS} escaneos extra junto con quien te invitó.
             </p>
           </div>
         </div>
@@ -164,6 +163,10 @@ export function ReferralCard() {
             }}
           />
         </Field>
+        <ButtonLink href="/cuenta#inicio-sesion">
+          <LogIn className="h-4 w-4" />
+          Crear cuenta
+        </ButtonLink>
       </Card>
     );
   }
