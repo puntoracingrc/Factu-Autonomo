@@ -1,9 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Building2, ChevronRight, Crown, LogIn } from "lucide-react";
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Crown,
+  LogIn,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   CloudSyncHeaderIndicator,
@@ -67,8 +73,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
   const [factuDismissed, setFactuDismissed] = useState(false);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+  const [navScrollState, setNavScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
   const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
+
+  const updateNavScrollState = useCallback(() => {
+    const node = mobileNavRef.current;
+    if (!node) return;
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    setNavScrollState({
+      canScrollLeft: node.scrollLeft > 2,
+      canScrollRight: node.scrollLeft < maxScrollLeft - 2,
+    });
+  }, []);
+
+  const scrollMobileNav = useCallback((direction: "left" | "right") => {
+    const node = mobileNavRef.current;
+    if (!node) return;
+    node.scrollBy({
+      left: direction === "left" ? -180 : 180,
+      behavior: "smooth",
+    });
+  }, []);
 
   useEffect(() => {
     setFactuDismissed(isFactuWidgetDismissed());
@@ -80,6 +110,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () =>
       window.removeEventListener("factu-widget-dismissed", handleDismissed);
   }, []);
+
+  useEffect(() => {
+    const node = mobileNavRef.current;
+    if (!node) return;
+
+    updateNavScrollState();
+    const frame = window.requestAnimationFrame(updateNavScrollState);
+    const timeout = window.setTimeout(updateNavScrollState, 150);
+    const resizeObserver = new ResizeObserver(updateNavScrollState);
+    resizeObserver.observe(node);
+    if (node.firstElementChild) {
+      resizeObserver.observe(node.firstElementChild);
+    }
+    node.addEventListener("scroll", updateNavScrollState, { passive: true });
+    window.addEventListener("resize", updateNavScrollState);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+      resizeObserver.disconnect();
+      node.removeEventListener("scroll", updateNavScrollState);
+      window.removeEventListener("resize", updateNavScrollState);
+    };
+  }, [pathname, updateNavScrollState]);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
@@ -181,16 +235,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
         <div className="relative mx-auto max-w-3xl">
+          {navScrollState.canScrollLeft && (
+            <div
+              className="absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden"
+            >
+              <button
+                type="button"
+                onClick={() => scrollMobileNav("left")}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                aria-label="Ver opciones anteriores del menú"
+                title="Ver opciones anteriores"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {navScrollState.canScrollRight && (
+            <div
+              className="absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden"
+            >
+              <button
+                type="button"
+                onClick={() => scrollMobileNav("right")}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                aria-label="Ver más opciones del menú"
+                title="Ver más opciones"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div
-            className="pointer-events-none absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden"
-            aria-hidden
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm">
-              <ChevronRight className="h-4 w-4" />
-            </span>
-          </div>
-          <div
-            className="nav-scroll mx-auto overflow-x-auto px-2 py-2 pr-10 sm:pr-2"
+            ref={mobileNavRef}
+            className={`nav-scroll mx-auto overflow-x-auto px-2 py-2 sm:px-2 ${
+              navScrollState.canScrollLeft ? "pl-10" : ""
+            } ${navScrollState.canScrollRight ? "pr-10" : ""}`}
             aria-label="Navegación principal"
           >
             <div className="flex w-max min-w-full items-stretch justify-start gap-1 sm:justify-center">
