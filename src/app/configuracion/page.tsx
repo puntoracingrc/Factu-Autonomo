@@ -79,35 +79,30 @@ const SETTINGS_NAV_ITEMS: Array<{
   key: SettingsSectionKey;
   id: string;
   title: string;
-  description: string;
   Icon: LucideIcon;
 }> = [
   {
     key: "business",
     id: "ajustes-negocio",
     title: "Negocio",
-    description: "Datos, logo y contacto",
     Icon: Building2,
   },
   {
     key: "documents",
     id: "ajustes-documentos",
     title: "Documentos",
-    description: "Presupuestos, plantillas y numeración",
     Icon: FileText,
   },
   {
     key: "taxes",
     id: "ajustes-impuestos",
     title: "Impuestos",
-    description: "IVA, IRPF y VeriFactu",
     Icon: Calculator,
   },
   {
     key: "account",
     id: "ajustes-cuenta",
     title: "Cuenta",
-    description: "Plan, datos y ayuda",
     Icon: CreditCard,
   },
 ];
@@ -322,26 +317,19 @@ export default function ConfiguracionPage() {
 
       <nav
         aria-label="Secciones de configuración"
-        className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="mb-5 flex flex-wrap gap-2"
       >
         {SETTINGS_NAV_ITEMS.map((item) => (
           <a
             key={item.key}
             href={`#${item.id}`}
             onClick={() => setSectionOpen(item.key, true)}
-            className="group flex min-h-24 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-700">
-              <item.Icon className="h-5 w-5" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-700">
+              <item.Icon className="h-4 w-4" />
             </span>
-            <span className="min-w-0">
-              <span className="block font-bold text-slate-900">
-                {item.title}
-              </span>
-              <span className="mt-1 block text-sm leading-snug text-slate-500">
-                {item.description}
-              </span>
-            </span>
+            <span>{item.title}</span>
           </a>
         ))}
       </nav>

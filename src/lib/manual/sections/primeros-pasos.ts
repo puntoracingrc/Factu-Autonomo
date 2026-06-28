@@ -52,7 +52,7 @@ export const primerosPasosSection: ManualSection = {
         "En **Cuenta** puedes registrarte, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o recuperar una copia JSON.",
         "También encontrarás el bloque **Legal y privacidad** con términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
         "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
-        "Para migrar datos desde programas antiguos, usa **Cuenta → Importar MDB** o entra en **Importar datos**. La importación de bases de datos externas requiere Pro.",
+        "Para migrar datos desde programas antiguos, usa **Cuenta → Importar datos** o entra en **Importar datos** desde el menú. La importación de bases de datos externas requiere Pro.",
       ],
       screenshot: {
         src: "/ayuda/capturas/cuenta-nube.png",

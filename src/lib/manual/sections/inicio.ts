@@ -14,7 +14,7 @@ export const inicioSection: ManualSection = {
       title: "1. Recordatorios del equipo",
       paragraphs: [
         "Arriba verás **Recordatorios del equipo**: marca el check al completarlos.",
-        "Desde el móvil puedes usar **Enviar a oficina** con plantillas (factura pendiente, devolver llamada, rectificar…).",
+        "En **Avisos > Mis tareas** puedes usar **Enviar a oficina** con plantillas (factura pendiente, devolver llamada, rectificar…).",
         "Compartid la **misma cuenta Pro con nube**: los recordatorios «Para oficina» se sincronizan cada ~45 s si la pestaña está abierta.",
       ],
       screenshot: {
@@ -26,7 +26,7 @@ export const inicioSection: ManualSection = {
     {
       title: "2. Accesos rápidos",
       paragraphs: [
-        "En **¿Qué quieres hacer?** tienes acceso directo a **Avisos** (con contador si hay pendientes), **Clientes**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo** y **Añadir gasto**.",
+        "Debajo de los recordatorios tienes acceso directo a **Avisos** (con contador si hay pendientes), **Clientes**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo** y **Añadir gasto**.",
         "Factu también puede mostrarte un consejo para descubrir funciones que aún no has probado.",
         "Si la barra de Factu tapa algo en la parte inferior, pulsa la **X** para cerrarla durante esa sesión.",
       ],

@@ -3,14 +3,12 @@
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SendToOfficeForm } from "@/components/reminders/SendToOfficeForm";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import {
   countUnseenOfficeReminders,
-  guessReminderOrigin,
   markRemindersSeen,
 } from "@/lib/reminder-team";
 import {
@@ -39,7 +37,6 @@ export function HomeUserReminders() {
 
   const visible = pending.slice(0, HOME_REMINDER_LIMIT);
   const hiddenCount = pending.length - visible.length;
-  const showSendForm = guessReminderOrigin() === "field";
 
   useEffect(() => {
     if (unseenOffice === 0) return;
@@ -70,9 +67,7 @@ export function HomeUserReminders() {
         ) : null}
       </div>
 
-      {showSendForm ? <SendToOfficeForm /> : null}
-
-      {officePending.length > 0 && !showSendForm ? (
+      {officePending.length > 0 ? (
         <p className="mb-2 text-sm text-slate-600">
           {officePending.length} tarea(s) enviada(s) desde otro dispositivo
         </p>

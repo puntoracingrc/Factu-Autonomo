@@ -278,74 +278,82 @@ function PeriodSelector({
         <CalendarRange className="h-4 w-4 text-blue-600" aria-hidden />
         Resumen por periodo
       </div>
-      <div className="grid min-w-0 gap-2 sm:grid-cols-2">
-        <Field label="Periodo">
-          <Select
-            value={period.kind}
-            onChange={(event) =>
-              onChange({ kind: event.target.value as ProductPeriodKind })
-            }
-            aria-label="Periodo del resumen"
-          >
-            <option value="all">Todos</option>
-            <option value="month">Este mes</option>
-            <option value="quarter">Este trimestre</option>
-            <option value="year">Este año</option>
-          </Select>
-        </Field>
-
-        {period.kind !== "all" && (
-          <Field label="Año">
+      <div className="grid min-w-0 gap-3">
+        <div>
+          <Field label="Periodo">
             <Select
-              value={period.year}
-              onChange={(event) => onChange({ year: Number(event.target.value) })}
-              aria-label="Año del resumen"
+              value={period.kind}
+              onChange={(event) =>
+                onChange({ kind: event.target.value as ProductPeriodKind })
+              }
+              aria-label="Periodo del resumen"
             >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
+              <option value="all">Todos</option>
+              <option value="month">Mes</option>
+              <option value="quarter">Trimestre</option>
+              <option value="year">Año</option>
             </Select>
           </Field>
+        </div>
+
+        {period.kind !== "all" && (
+          <div>
+            <Field label="Año">
+              <Select
+                value={period.year}
+                onChange={(event) => onChange({ year: Number(event.target.value) })}
+                aria-label="Año del resumen"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         )}
 
         {period.kind === "month" && (
-          <Field label="Mes">
-            <Select
-              value={period.month}
-              onChange={(event) =>
-                onChange({ month: Number(event.target.value) })
-              }
-              aria-label="Mes del resumen"
-            >
-              {PRODUCT_MONTH_NAMES.map((name, index) => (
-                <option key={name} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <div>
+            <Field label="Mes">
+              <Select
+                value={period.month}
+                onChange={(event) =>
+                  onChange({ month: Number(event.target.value) })
+                }
+                aria-label="Mes del resumen"
+              >
+                {PRODUCT_MONTH_NAMES.map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         )}
 
         {period.kind === "quarter" && (
-          <Field label="Trimestre">
-            <Select
-              value={period.quarter}
-              onChange={(event) =>
-                onChange({
-                  quarter: Number(event.target.value) as ProductPeriodSelection["quarter"],
-                })
-              }
-              aria-label="Trimestre del resumen"
-            >
-              {PRODUCT_QUARTERS.map((quarter) => (
-                <option key={quarter} value={quarter}>
-                  {formatProductPeriodLabel({ ...period, kind: "quarter", quarter })}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <div>
+            <Field label="Trimestre">
+              <Select
+                value={period.quarter}
+                onChange={(event) =>
+                  onChange({
+                    quarter: Number(event.target.value) as ProductPeriodSelection["quarter"],
+                  })
+                }
+                aria-label="Trimestre del resumen"
+              >
+                {PRODUCT_QUARTERS.map((quarter) => (
+                  <option key={quarter} value={quarter}>
+                    {formatProductPeriodLabel({ ...period, kind: "quarter", quarter })}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         )}
       </div>
     </Card>

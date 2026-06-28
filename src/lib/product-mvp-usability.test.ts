@@ -127,4 +127,87 @@ describe("MVP usability polish", () => {
     expect(iconActionSource).toContain("focus-visible:outline");
     expect(iconActionSource).toContain("MobileLabel");
   });
+
+  it("mantiene una pista visual de desplazamiento en el menu movil", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain("nav-scroll");
+    expect(appShellSource).toContain("ChevronRight");
+    expect(appShellSource).toContain("bg-gradient-to-l");
+    expect(appShellSource).toContain("sm:hidden");
+  });
+
+  it("distingue exportacion gratis de importador Pro en cuenta", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudAccountSource).toContain("importador de datos");
+    expect(cloudAccountSource).toContain("exportar una copia manual");
+    expect(cloudAccountSource).not.toContain("exportar/importar copia");
+  });
+
+  it("lleva el inicio de sesion directamente a la seccion de cuenta", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const authCallbackSource = readFileSync(
+      new URL("../app/auth/callback/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain('href="/cuenta#inicio-sesion"');
+    expect(authCallbackSource).toContain("/cuenta?auth=");
+    expect(authCallbackSource).toContain("#inicio-sesion");
+    expect(cloudAccountSource).toContain('id="inicio-sesion"');
+  });
+
+  it("muestra terminos solo en el modo de crear cuenta", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudAccountSource).toContain('authMode === "signup"');
+    expect(cloudAccountSource).toContain("Al crear cuenta acepto");
+    expect(cloudAccountSource).not.toContain("Al iniciar sesión acepto");
+  });
+
+  it("mantiene accesos de configuracion como pastillas compactas", () => {
+    const settingsSource = readFileSync(
+      new URL("../app/configuracion/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("rounded-full");
+    expect(settingsSource).toContain("flex flex-wrap gap-2");
+    expect(settingsSource).not.toContain("Datos, logo y contacto");
+    expect(settingsSource).not.toContain("Plan, datos y ayuda");
+  });
+
+  it("encapsula acciones y filtros de clientes en bloques separados", () => {
+    const customersPageSource = readFileSync(
+      new URL("../app/clientes/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const customerSearchSource = readFileSync(
+      new URL("../components/clients/CustomerListSearch.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(customersPageSource).toContain("Acciones");
+    expect(customersPageSource).toContain("Buscar y ordenar");
+    expect(customersPageSource).toContain('<Card className="mb-6 space-y-3">');
+    expect(customersPageSource).toContain('<Card className="space-y-4">');
+    expect(customerSearchSource).not.toContain("relative mb-4");
+  });
 });

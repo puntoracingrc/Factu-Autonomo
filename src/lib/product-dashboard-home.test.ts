@@ -26,20 +26,28 @@ describe("product dashboard home", () => {
     expect(component).toContain("IVA estimado");
     expect(component).toContain("Resumen por periodo");
     expect(component).toContain("Periodo:");
+    expect(component).toContain("<option value=\"month\">Mes</option>");
+    expect(component).toContain("<option value=\"quarter\">Trimestre</option>");
+    expect(component).toContain("<option value=\"year\">Año</option>");
+    expect(component).not.toContain("<option value=\"month\">Este mes</option>");
+    expect(component).not.toContain("<option value=\"quarter\">Este trimestre</option>");
+    expect(component).not.toContain("<option value=\"year\">Este año</option>");
   });
 
-  it("coloca las acciones rapidas antes del bloque largo de recordatorios", () => {
+  it("coloca recordatorios antes de accesos rapidos sin encabezados redundantes", () => {
     const page = source("../app/page.tsx");
-    const headerIndex = page.indexOf("<PageHeader");
+    const reminders = source("../components/reminders/HomeUserReminders.tsx");
     const remindersIndex = page.indexOf("<HomeUserReminders />");
-    const actionsIndex = page.indexOf("¿Qué quieres hacer?");
+    const actionsIndex = page.indexOf("quickActions.map");
     const summaryIndex = page.indexOf("<HomeBusinessSummary data={data} />");
 
-    expect(headerIndex).toBeGreaterThan(-1);
     expect(remindersIndex).toBeGreaterThan(-1);
-    expect(actionsIndex).toBeGreaterThan(headerIndex);
-    expect(remindersIndex).toBeGreaterThan(actionsIndex);
-    expect(summaryIndex).toBeGreaterThan(remindersIndex);
+    expect(actionsIndex).toBeGreaterThan(remindersIndex);
+    expect(summaryIndex).toBeGreaterThan(actionsIndex);
+    expect(page).not.toContain("¿Qué quieres hacer?");
+    expect(page).not.toContain("Accesos rápidos a lo que más usas");
+    expect(reminders).not.toContain("SendToOfficeForm");
+    expect(reminders).toContain('href="/avisos"');
   });
 
   it("mantiene acciones rapidas utiles desde inicio", () => {
@@ -50,7 +58,16 @@ describe("product dashboard home", () => {
     expect(page).toContain("Nuevo presupuesto");
     expect(page).toContain("Añadir gasto");
     expect(page).toContain("Configuración");
-    expect(page).toContain("Exportar copia");
+    expect(page).not.toContain("Exportar copia");
+  });
+
+  it("no duplica accesos ni ultimos documentos en la sugerencia de Factu", () => {
+    const component = source("../components/recommendations/HomeFactuTip.tsx");
+
+    expect(component).toContain("Factu te sugiere");
+    expect(component).not.toContain("Últimos documentos");
+    expect(component).not.toContain("HOME_CREATE_ACTIONS");
+    expect(component).not.toContain("HOME_REVIEW_ACTIONS");
   });
 
   it("incluye copy prudente sin claims prohibidos", () => {

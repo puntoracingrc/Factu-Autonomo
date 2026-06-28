@@ -2,7 +2,6 @@
 
 import {
   Bell,
-  Download,
   FileText,
   Receipt,
   ShoppingCart,
@@ -15,7 +14,6 @@ import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { HomeBusinessSummary } from "@/components/dashboard/HomeBusinessSummary";
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
-import { PageHeader } from "@/components/ui/Card";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
 
@@ -63,12 +61,6 @@ const quickActions = [
     icon: Settings,
     color: "bg-slate-700 text-white",
   },
-  {
-    href: "/configuracion",
-    label: "Exportar copia",
-    icon: Download,
-    color: "bg-teal-700 text-white",
-  },
 ];
 
 export default function HomePage() {
@@ -82,14 +74,9 @@ export default function HomePage() {
   return (
     <div>
       <FactuDailyGreeting enabled={ready} />
-      <PageHeader
-        title={`Hola${data.profile.name ? `, ${data.profile.name}` : ""}`}
-        subtitle="Accesos rápidos a lo que más usas"
-      />
 
-      <h2 className="mb-3 text-lg font-bold text-slate-900">
-        ¿Qué quieres hacer?
-      </h2>
+      <HomeUserReminders />
+
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {quickActions.map(({ href, label, icon: Icon, color, showBadge }) => (
           <Link
@@ -107,8 +94,6 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
-
-      <HomeUserReminders />
 
       <HomeBusinessSummary data={data} />
 

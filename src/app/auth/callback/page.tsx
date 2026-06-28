@@ -60,7 +60,7 @@ export default function AuthCallbackPage() {
           setMessage("La nube no está configurada en este servidor.");
           return;
         }
-        router.replace(`/configuracion?auth=${result}`);
+        router.replace(`/cuenta?auth=${result}#inicio-sesion`);
       } catch {
         setMessage(
           "No se pudo confirmar. Vuelve a Ajustes y pulsa «Reenviar email de confirmación».",

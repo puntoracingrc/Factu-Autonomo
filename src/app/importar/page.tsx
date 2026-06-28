@@ -211,7 +211,7 @@ export default function ImportarPage() {
 
         <Field
           label="Archivo de datos"
-          hint="Para PC Facturación, selecciona la copia MDB."
+          hint="Selecciona el archivo principal generado por el programa de origen."
         >
           <Input
             type="file"
@@ -224,8 +224,8 @@ export default function ImportarPage() {
         {showPcFacturacionOptions ? (
           <div className="space-y-4">
             <Field
-              label="Archivo DWI opcional"
-              hint="Sirve para continuar la numeración antigua. Suele estar en la misma carpeta que el MDB y tener el mismo nombre de empresa, por ejemplo Mi empresa.dwi."
+              label="Archivo auxiliar opcional"
+              hint="Si el origen lo genera, puede ayudar a continuar numeraciones antiguas."
             >
               <Input
                 type="file"
@@ -238,12 +238,12 @@ export default function ImportarPage() {
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center gap-2 font-semibold text-slate-900">
                 <FileCog className="h-4 w-4" />
-                ¿Dónde encuentro el DWI?
+                ¿Dónde encuentro el archivo auxiliar?
               </div>
               <p className="mt-1">
-                Normalmente aparece junto a la base de datos MDB, dentro de la
+                Normalmente aparece junto al archivo principal, dentro de la
                 carpeta del programa o de la copia. No es obligatorio: si no lo
-                tienes, importa solo el MDB.
+                tienes, importa solo el archivo principal.
               </p>
             </div>
           </div>
@@ -459,7 +459,7 @@ export default function ImportarPage() {
 
           {hasCurrentData ? (
             <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-              Si ya habías importado este MDB antes, se reemplazará esa
+              Si ya habías importado este archivo antes, se reemplazará esa
               importación. Los datos creados manualmente en la app se conservan.
             </p>
           ) : null}
