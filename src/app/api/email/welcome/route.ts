@@ -37,8 +37,8 @@ export async function POST(request: Request) {
 
   if (!result.ok && !result.skipped) {
     return NextResponse.json(
-      { ok: false, error: result.error ?? "No se pudo enviar" },
-      { status: 500 },
+      { ok: false, skipped: false, error: "Email de bienvenida pendiente" },
+      { status: 202 },
     );
   }
 
