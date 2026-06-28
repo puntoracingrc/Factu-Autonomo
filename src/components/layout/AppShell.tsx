@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data, ready } = useAppStore();
   const { user } = useCloudSync();
-  const { isPro, billingEnabled } = useBilling();
+  const { isPro, billingEnabled, plan } = useBilling();
   const [factuDismissed, setFactuDismissed] = useState(false);
   const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
@@ -125,13 +125,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Iniciar sesión
               </Link>
             )}
+            {billingEnabled && isPro && (
+              <Link
+                href="/precios"
+                className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold ${
+                  plan === "trial"
+                    ? "bg-violet-100 text-violet-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                <Crown className="h-3.5 w-3.5" />
+                {plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
+              </Link>
+            )}
             {billingEnabled && !isPro && (
               <Link
                 href="/precios"
                 className="flex items-center gap-1 rounded-xl bg-violet-100 px-2.5 py-1.5 text-xs font-bold text-violet-800"
               >
                 <Crown className="h-3.5 w-3.5" />
-                Pro
+                Hazte Pro
               </Link>
             )}
             <CloudSyncHeaderIndicator />
