@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
+import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
@@ -12,10 +13,21 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Factura Autónomo",
   title: "Factura Autónomo",
   description:
     "Programa sencillo de facturación para autónomos. Facturas, presupuestos, recibos y control de gastos.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -42,6 +54,7 @@ export default function RootLayout({
           <CloudSyncProvider>
             <BillingProvider>
               <ConditionalAppShell>{children}</ConditionalAppShell>
+              <RegisterServiceWorker />
             </BillingProvider>
           </CloudSyncProvider>
         </AppStoreProvider>
