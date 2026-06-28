@@ -42,6 +42,7 @@ export function IconActionButton({
   tooltip,
   children,
   className,
+  title,
   ...props
 }: IconActionCommon & ButtonHTMLAttributes<HTMLButtonElement>) {
   const tip = tooltip ?? label;
@@ -50,6 +51,7 @@ export function IconActionButton({
     <button
       type="button"
       aria-label={tip}
+      title={title ?? tip}
       className={actionShellClass(className)}
       {...props}
     >
@@ -70,7 +72,12 @@ export function IconActionLink({
   const tip = tooltip ?? label;
 
   return (
-    <Link href={href} aria-label={tip} className={actionShellClass(className)}>
+    <Link
+      href={href}
+      aria-label={tip}
+      title={tip}
+      className={actionShellClass(className)}
+    >
       <TooltipBubble text={tip} />
       {children}
       <MobileLabel text={label} />
