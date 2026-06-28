@@ -338,34 +338,6 @@ function invoicePaymentRecommendations(
     });
   }
 
-  const pendingQuotes = documents.filter(
-    (doc) => doc.type === "presupuesto" && doc.status === "enviado",
-  );
-
-  for (const doc of pendingQuotes.slice(0, 5)) {
-    items.push({
-      id: `quote-pending-${doc.id}`,
-      priority: "info",
-      category: "invoices",
-      title: `Presupuesto pendiente: ${doc.number}`,
-      message: `${doc.client.name || "Cliente"} aún no lo ha aceptado.`,
-      href: `/presupuestos/${doc.id}`,
-      actionLabel: "Ver presupuesto",
-    });
-  }
-
-  if (pendingQuotes.length > 5) {
-    items.push({
-      id: "quotes-pending-more",
-      priority: "tip",
-      category: "invoices",
-      title: "Más presupuestos en espera",
-      message: `Hay ${pendingQuotes.length - 5} presupuesto(s) adicional(es) enviados sin respuesta.`,
-      href: "/presupuestos",
-      actionLabel: "Ver presupuestos",
-    });
-  }
-
   return items;
 }
 

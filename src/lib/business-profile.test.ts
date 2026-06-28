@@ -23,6 +23,7 @@ describe("business profile document data", () => {
       phone: " 600 000 000 ",
       email: " HOLA@NEGOCIO.ES ",
       iban: " ",
+      quoteValidityDays: 999,
     });
 
     expect(normalized).toMatchObject({
@@ -34,6 +35,7 @@ describe("business profile document data", () => {
       phone: "600 000 000",
       email: "hola@negocio.es",
       iban: undefined,
+      quoteValidityDays: 365,
     });
   });
 

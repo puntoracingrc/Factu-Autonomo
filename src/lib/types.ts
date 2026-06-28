@@ -423,6 +423,8 @@ export interface BusinessProfile {
   vatExempt?: boolean;
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
+  /** Días de validez aplicados por defecto a presupuestos nuevos; 0 desactiva la fecha automática. */
+  quoteValidityDays?: number;
   numbering: NumberingSettings;
   /** Veri*Factu: registro encadenado y QR en facturas emitidas */
   verifactu?: VerifactuSettings;
@@ -518,6 +520,7 @@ export const DEFAULT_PROFILE: BusinessProfile = {
     defaultRate: 21,
   },
   irpfPercent: 20,
+  quoteValidityDays: 30,
   vatExempt: false,
   verifactu: {
     enabled: true,

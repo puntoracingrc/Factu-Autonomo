@@ -8,7 +8,6 @@ import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButto
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
-import { MarkAsRejectedButton } from "@/components/documents/MarkAsRejectedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +21,8 @@ import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
-import { isAcceptedQuote, isRejectedQuote } from "@/lib/quotes";
+import { isAcceptedQuote } from "@/lib/quotes";
+import { isQuoteExpired } from "@/lib/quote-validity";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import {
@@ -66,7 +66,7 @@ type DocumentStatusFilter =
   | "draft"
   | "sent"
   | "accepted"
-  | "rejected"
+  | "expired"
   | "converted"
   | "issued"
   | "collected"
@@ -90,7 +90,7 @@ const DOCUMENT_STATUS_OPTIONS: Record<
     { value: "draft", label: "Borrador" },
     { value: "sent", label: "Enviado" },
     { value: "accepted", label: "Aceptado" },
-    { value: "rejected", label: "Rechazado" },
+    { value: "expired", label: "Caducado" },
     { value: "converted", label: "Convertido" },
   ],
   recibo: [
@@ -369,7 +369,6 @@ export function DocumentList({
                 </div>
                 <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
                   {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
-                  {type === "presupuesto" && <MarkAsRejectedButton doc={doc} />}
                   {type === "presupuesto" && (
                     <ConvertQuoteToInvoiceButton doc={doc} />
                   )}
@@ -428,7 +427,7 @@ function matchesDocumentStatusFilter(
   if (filter === "all") return true;
   if (filter === "draft") return deriveDocumentLifecycle(document) === "draft";
   if (filter === "accepted") return isAcceptedQuote(document);
-  if (filter === "rejected") return isRejectedQuote(document);
+  if (filter === "expired") return isQuoteExpired(document) || document.status === "vencido";
   if (filter === "converted") {
     return Boolean(findInvoiceCreatedFromQuote(allDocuments, document.id));
   }
@@ -446,7 +445,8 @@ function matchesDocumentStatusFilter(
       document.type === "presupuesto" &&
       deriveDocumentLifecycle(document) === "issued" &&
       !isAcceptedQuote(document) &&
-      !isRejectedQuote(document) &&
+      document.status !== "rechazado" &&
+      !isQuoteExpired(document) &&
       !findInvoiceCreatedFromQuote(allDocuments, document.id)
     );
   }

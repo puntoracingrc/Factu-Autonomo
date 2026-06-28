@@ -31,7 +31,7 @@ import {
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 
 const STATUS_LABELS = {
-  disabled: "Nube no configurada en el servidor",
+  disabled: "Sincronización no disponible",
   offline: "Sin conexión — en cola",
   idle: "Listo",
   pending: "Pendiente de subir",
@@ -201,9 +201,9 @@ export function CloudAccountCard() {
 
       {!cloudEnabled ? (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          La sincronización automática requiere configurar Supabase en el
-          servidor (variables en .env.local). Mientras tanto puedes usar
-          exportar/importar copia manualmente.
+          La sincronización automática no está disponible ahora mismo. Puedes
+          seguir usando la app en este dispositivo y guardar una copia manual
+          cuando lo necesites.
         </p>
       ) : user ? (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">

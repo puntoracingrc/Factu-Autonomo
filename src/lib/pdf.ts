@@ -260,6 +260,9 @@ export function buildDocumentPdfFromViewModel(
   if (doc.dueDate && doc.type === "factura" && !isRect) {
     pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
   }
+  if (doc.dueDate && doc.type === "presupuesto") {
+    pdf.text(`Válido hasta: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
+  }
 
   let clientBoxY = baseY + (issuerWarning ? 46 : 38);
   if (isRect && doc.rectification) {

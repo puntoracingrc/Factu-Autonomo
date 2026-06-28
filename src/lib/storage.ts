@@ -11,6 +11,7 @@ import { normalizeDocumentPaymentMethods } from "./document-payment-methods";
 import { normalizeDocumentUnits } from "./document-units";
 import { normalizeDocumentTemplate } from "./document-templates";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
+import { normalizeQuoteValidityDays } from "./quote-validity";
 import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -21,6 +22,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     iva: normalizeIvaSettings(profile?.iva),
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
     vatExempt: normalizeVatExempt(profile?.vatExempt),
+    quoteValidityDays: normalizeQuoteValidityDays(profile?.quoteValidityDays),
     numbering: normalizeNumbering(profile?.numbering),
     verifactu: normalizeVerifactuSettings(profile?.verifactu),
     documentPhrases: normalizeDocumentPhrases(profile?.documentPhrases),

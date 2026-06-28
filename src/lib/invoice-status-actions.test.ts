@@ -98,6 +98,13 @@ describe("invoice status action copy", () => {
     const sentQuote = baseDocument({
       type: "presupuesto",
       number: "P-2026-0001",
+      dueDate: "2099-01-01",
+      status: "enviado",
+    });
+    const expiredQuote = baseDocument({
+      type: "presupuesto",
+      number: "P-2026-0002",
+      dueDate: "2020-01-01",
       status: "enviado",
     });
     const acceptedQuote = baseDocument({
@@ -113,10 +120,20 @@ describe("invoice status action copy", () => {
 
     expect(documentStatusLabel(draftQuote, "presupuesto")).toBe("Borrador");
     expect(documentStatusLabel(sentQuote, "presupuesto")).toBe("Enviado");
+    expect(documentStatusLabel(expiredQuote, "presupuesto")).toBe("Caducado");
+    expect(
+      documentStatusLabel(
+        { ...expiredQuote, status: "vencido" },
+        "presupuesto",
+      ),
+    ).toBe("Caducado");
     expect(documentStatusLabel(acceptedQuote, "presupuesto")).toBe("Aceptado");
     expect(documentStatusLabel(rejectedQuote, "presupuesto")).toBe("Rechazado");
     expect(documentStatusHint(sentQuote, "presupuesto")).toContain(
       "La app no envía nada automáticamente",
+    );
+    expect(documentStatusHint(expiredQuote, "presupuesto")).toContain(
+      "validez indicada ya venció",
     );
     expect(documentStatusHint(rejectedQuote, "presupuesto")).toContain(
       "Rechazado en tu registro local",

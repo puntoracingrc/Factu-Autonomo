@@ -1,4 +1,5 @@
 import { todayISO } from "./calculations";
+import { isQuoteExpired } from "./quote-validity";
 import type { Document, LineItem } from "./types";
 
 export type InvoiceDraftFromQuote = Omit<
@@ -25,7 +26,9 @@ export function canConvertQuoteToInvoice(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
     doc.status !== "anulada" &&
-    doc.status !== "rechazado"
+    doc.status !== "rechazado" &&
+    doc.status !== "vencido" &&
+    !isQuoteExpired(doc)
   );
 }
 

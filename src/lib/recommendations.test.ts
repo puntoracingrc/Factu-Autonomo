@@ -149,4 +149,29 @@ describe("collectAppRecommendations", () => {
       items.find((item) => item.id === "invoice-unpaid-open")?.actionLabel,
     ).toBe("Recordar cobro");
   });
+
+  it("no crea avisos automáticos por presupuestos enviados", () => {
+    const quote: Document = {
+      id: "q1",
+      type: "presupuesto",
+      number: "P-2026-0001",
+      date: "2026-06-01",
+      client: { name: "Ana García" },
+      items: [],
+      status: "enviado",
+      createdAt: "2026-06-01",
+      updatedAt: "2026-06-01",
+    };
+    const items = collectAppRecommendations({
+      data: {
+        ...EMPTY_DATA,
+        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        documents: [quote],
+      },
+      referenceDate: "2026-06-09",
+      billing: baseBilling,
+    });
+
+    expect(items.some((item) => item.id.startsWith("quote-pending"))).toBe(false);
+  });
 });

@@ -27,13 +27,13 @@ export default function CuentaPage() {
       </Suspense>
 
       <Card className="mb-6 space-y-3">
-        <h2 className="text-lg font-bold text-slate-900">Importar programa antiguo</h2>
+        <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
         <p className="text-sm text-slate-600">
-          Trae clientes, presupuestos, facturas y datos de empresa desde una
-          copia MDB de PC Facturación 3.0.
+          Trae clientes, presupuestos, facturas y datos de empresa desde
+          archivos compatibles. Ahora puedes importar copias MDB compatibles.
         </p>
         <ButtonLink href="/importar" variant="secondary">
-          Importar MDB
+          Abrir importador
         </ButtonLink>
       </Card>
 
