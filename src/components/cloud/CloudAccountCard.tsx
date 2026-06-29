@@ -23,6 +23,7 @@ import {
   friendlyAuthError,
   isEmailNotConfirmedError,
 } from "@/lib/supabase/auth-errors";
+import { isGoogleAuthEnabled } from "@/lib/supabase/config";
 import {
   captureReferralFromSearchParams,
   readPendingReferralCode,
@@ -50,6 +51,7 @@ export function CloudAccountCard() {
     setEmail,
     signUp,
     signIn,
+    signInWithGoogle,
     resendConfirmationEmail,
     signOut,
     syncNow,
@@ -77,6 +79,7 @@ export function CloudAccountCard() {
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
+  const googleAuthEnabled = isGoogleAuthEnabled();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +137,19 @@ export function CloudAccountCard() {
     setBusy(false);
     if (error) setAuthError(friendlyAuthError(error));
     else setPassword("");
+  }
+
+  async function runGoogleAuth() {
+    setAuthError(null);
+    setSignupSuccess(null);
+    setResendNotice(null);
+    if (referralCode.trim()) storePendingReferralCode(referralCode);
+    setBusy(true);
+    const error = await signInWithGoogle();
+    if (error) {
+      setBusy(false);
+      setAuthError(friendlyAuthError(error));
+    }
   }
 
   async function handleResendConfirmation() {
@@ -325,6 +341,38 @@ export function CloudAccountCard() {
                 Crear cuenta
               </button>
             </div>
+
+            {googleAuthEnabled ? (
+              <div className="space-y-2">
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  onClick={() => void runGoogleAuth()}
+                  disabled={busy}
+                >
+                  <span
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900"
+                    aria-hidden
+                  >
+                    G
+                  </span>
+                  {busy
+                    ? "Abriendo Google…"
+                    : authMode === "signup"
+                      ? "Crear cuenta con Google"
+                      : "Continuar con Google"}
+                </Button>
+                <p className="text-xs text-slate-500">
+                  Google solo se usa para iniciar sesión. Drive se conectará
+                  aparte si activas la copia extra.
+                </p>
+                <div className="flex items-center gap-3 text-xs font-semibold uppercase text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  O con email
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              </div>
+            ) : null}
 
             <Field label="Email">
               <Input

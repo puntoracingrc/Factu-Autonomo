@@ -188,6 +188,35 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).not.toContain("Al iniciar sesión acepto");
   });
 
+  it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudContextSource = readFileSync(
+      new URL("../context/CloudSyncContext.tsx", import.meta.url),
+      "utf8",
+    );
+    const supabaseConfigSource = readFileSync(
+      new URL("../lib/supabase/config.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(supabaseConfigSource).toContain("NEXT_PUBLIC_GOOGLE_AUTH_ENABLED");
+    expect(cloudAccountSource).toContain("googleAuthEnabled");
+    expect(cloudAccountSource).toContain("Continuar con Google");
+    expect(cloudAccountSource).toContain("Crear cuenta con Google");
+    expect(cloudAccountSource).toContain(
+      "Google solo se usa para iniciar sesión",
+    );
+    expect(cloudContextSource).toContain("signInWithOAuth");
+    expect(cloudContextSource).toContain('provider: "google"');
+    expect(cloudContextSource).toContain("redirectTo: getAuthCallbackUrl()");
+    expect(cloudContextSource).toContain('prompt: "select_account"');
+    expect(cloudContextSource).not.toContain("drive.file");
+    expect(cloudContextSource).not.toContain("drive.metadata");
+  });
+
   it("muestra invitacion con CTA real cuando falta sesion", () => {
     const referralSource = readFileSync(
       new URL("../components/referrals/ReferralCard.tsx", import.meta.url),

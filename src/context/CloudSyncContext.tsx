@@ -38,7 +38,7 @@ import {
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
-import { isCloudEnabled } from "@/lib/supabase/config";
+import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { EMPTY_DATA } from "@/lib/types";
 
@@ -66,6 +66,7 @@ interface CloudSyncValue {
   setEmail: (value: string) => void;
   signUp: (password: string) => Promise<SignUpResult>;
   signIn: (password: string) => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
@@ -595,6 +596,27 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [email, pullFromCloud, ready],
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) return "La nube no está configurada en este servidor";
+    if (!isGoogleAuthEnabled()) {
+      return "El acceso con Google aún no está activado.";
+    }
+
+    setSyncMessage("Abriendo Google para iniciar sesión…");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: getAuthCallbackUrl(),
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
+    });
+    if (error) return error.message;
+    return null;
+  }, []);
+
   const resendConfirmationEmail = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
     if (!supabase) return "La nube no está configurada en este servidor";
@@ -674,6 +696,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setEmail,
       signUp,
       signIn,
+      signInWithGoogle,
       resendConfirmationEmail,
       signOut,
       syncNow,
@@ -691,6 +714,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       pendingChangeCount,
       signUp,
       signIn,
+      signInWithGoogle,
       resendConfirmationEmail,
       signOut,
       syncNow,
