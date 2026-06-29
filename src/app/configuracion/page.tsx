@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Building2,
@@ -17,12 +16,8 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
-import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
-import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
-import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
-import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
@@ -63,15 +58,6 @@ import type {
   NumberingFormats,
   NumberingLastSequence,
 } from "@/lib/types";
-
-const ReferralCard = dynamic(
-  () =>
-    import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
 
 type SettingsSectionKey = "business" | "documents" | "taxes" | "account";
 
@@ -867,11 +853,12 @@ export default function ConfiguracionPage() {
         <Card className="space-y-3 border-blue-100 bg-white">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              Cuenta y copias
+              Cuenta, nube y plan
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Accede a inicio de sesión, sincronización, instalación de la app,
-              importación y copia extra en Drive.
+              Toda la gestión de cuenta vive en una sola página: inicio de
+              sesión, sincronización, Drive, importación, plan, facturación,
+              datos, legal y copia extra en Drive.
             </p>
           </div>
           <ButtonLink href="/cuenta" variant="secondary">
@@ -879,13 +866,6 @@ export default function ConfiguracionPage() {
             <ArrowRight className="h-4 w-4" />
           </ButtonLink>
         </Card>
-        <PlanStatusCard />
-        <SubscriptionBillingCard />
-        <Suspense fallback={null}>
-          <ReferralCard />
-        </Suspense>
-        <DataOwnershipCard />
-        <ManualHelpLink />
       </SettingsSection>
 
       <div className="sticky bottom-24 z-20 mt-6 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
