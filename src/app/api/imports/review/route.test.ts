@@ -3,7 +3,10 @@ import { POST } from "./route";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeImportAiReview } from "@/lib/billing/scan-usage-server";
-import { reviewImportWithAi } from "@/lib/import-ai/review";
+import {
+  isImportAiReviewConfigured,
+  reviewImportWithAi,
+} from "@/lib/import-ai/review";
 
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
@@ -21,6 +24,7 @@ vi.mock("@/lib/import-ai/review", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/import-ai/review")>();
   return {
     ...actual,
+    isImportAiReviewConfigured: vi.fn(() => true),
     reviewImportWithAi: vi.fn(),
   };
 });
@@ -163,6 +167,25 @@ describe("POST /api/imports/review", () => {
 
     expect(response.status).toBe(503);
     expect(payload.error).not.toContain("Supabase");
+    expect(reviewImportWithAi).not.toHaveBeenCalled();
+  });
+
+  it("no consume saldo si la revision IA no esta configurada", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(isImportAiReviewConfigured).mockReturnValue(false);
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-pro",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(fetchUserSubscriptionServer).mockResolvedValue(
+      proSubscription("user-pro"),
+    );
+
+    const response = await POST(request("token-pro", body()));
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.error).toContain("no está configurada");
+    expect(consumeImportAiReview).not.toHaveBeenCalled();
     expect(reviewImportWithAi).not.toHaveBeenCalled();
   });
 });

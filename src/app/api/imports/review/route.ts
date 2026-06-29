@@ -6,6 +6,7 @@ import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeImportAiReview } from "@/lib/billing/scan-usage-server";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import {
+  isImportAiReviewConfigured,
   normalizeImportAiReviewInput,
   reviewImportWithAi,
 } from "@/lib/import-ai/review";
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
   const gate = user ? await canUseImportAi(user.id) : { allowed: true };
   if (!gate.allowed) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
+  }
+
+  if (!isImportAiReviewConfigured()) {
+    return NextResponse.json(
+      { error: "La revisión IA no está configurada en el servidor." },
+      { status: 503 },
+    );
   }
 
   const userId = user?.id ?? "dev";
