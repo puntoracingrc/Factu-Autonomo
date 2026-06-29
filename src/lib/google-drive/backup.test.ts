@@ -157,6 +157,71 @@ describe("Google Drive backup", () => {
     ).toBe(true);
   });
 
+  it("crea carpeta y sube un JSON de copia usando el permiso de Drive", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ files: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "folder-id" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "file-id",
+            name: "factu-autonomo-drive-backup-2026-06-29-1200.json",
+            webViewLink: "https://drive.google.com/file/d/file-id/view",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await uploadAppBackupToGoogleDriveWithAccessToken(
+      dataWithDocument("2026-06-29T10:00:00.000Z"),
+      "access-token",
+      { now: () => NOW },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      fileId: "file-id",
+      fileName: "factu-autonomo-drive-backup-2026-06-29-1200.json",
+      webViewLink: "https://drive.google.com/file/d/file-id/view",
+      exportedAt: "2026-06-29T12:00:00.000Z",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "https://www.googleapis.com/drive/v3/files",
+    );
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      "https://www.googleapis.com/drive/v3/files?fields=id",
+    );
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+    );
+
+    const createFolderInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(createFolderInit.method).toBe("POST");
+    expect(createFolderInit.body).toContain("Factu - copias de seguridad");
+
+    const uploadInit = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(uploadInit.method).toBe("POST");
+    expect(uploadInit.body).toContain(
+      "factu-autonomo-drive-backup-2026-06-29-1200.json",
+    );
+    expect(uploadInit.body).toContain('"documents"');
+    expect(uploadInit.body).toContain('"exportVersion"');
+  });
+
   it("olvida el permiso temporal cuando Google responde no autorizado", async () => {
     cacheDriveAccessToken("access-token", 3600);
     expect(hasUsableDriveToken()).toBe(true);
