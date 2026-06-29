@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   if (!usage.allowed) {
     return NextResponse.json(
       { error: usage.reason, quota: usage.quota },
-      { status: 402 },
+      { status: usage.blockedByQuota ? 402 : 503 },
     );
   }
 

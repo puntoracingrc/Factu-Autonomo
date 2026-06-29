@@ -134,6 +134,91 @@ describe("AI unit consumption", () => {
     );
   });
 
+  it("mantiene el autorrelleno Pro si falta temporalmente el contador nuevo", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const upsert = vi.fn(async (payload: Record<string, unknown>) => ({
+      error: Object.hasOwn(payload, "customer_ai_autofills_created")
+        ? {
+            code: "42703",
+            message:
+              'column "customer_ai_autofills_created" of relation "user_usage" does not exist',
+          }
+        : null,
+    }));
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: "42703",
+        message:
+          'column "customer_ai_autofills_created" of relation "user_usage" does not exist',
+      },
+    }));
+
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_usage") {
+          throw new Error(`Unexpected table ${table}`);
+        }
+        const builder: {
+          columns?: string;
+          select: ReturnType<typeof vi.fn>;
+          eq: ReturnType<typeof vi.fn>;
+          maybeSingle: ReturnType<typeof vi.fn>;
+          upsert: typeof upsert;
+        } = {
+          select: vi.fn((columns: string) => {
+            builder.columns = columns;
+            return builder;
+          }),
+          eq: vi.fn(() => builder),
+          maybeSingle: vi.fn(async () => {
+            if (builder.columns?.includes("customer_ai_autofills_created")) {
+              return {
+                data: null,
+                error: {
+                  code: "42703",
+                  message:
+                    'column "customer_ai_autofills_created" of relation "user_usage" does not exist',
+                },
+              };
+            }
+            return {
+              data: {
+                documents_created: 0,
+                expense_scans_created: 4,
+              },
+              error: null,
+            };
+          }),
+          upsert,
+        };
+        return builder;
+      }),
+      rpc,
+    } as unknown as ReturnType<typeof getSupabaseAdmin>);
+    vi.mocked(fetchUserSubscriptionServer).mockResolvedValue({
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      plan: "pro",
+      status: "active",
+      currentPeriodEnd: null,
+      trialEndsAt: null,
+      scanTrialRemaining: 0,
+      scanCredits: 0,
+      aiCreditUnits: 0,
+    });
+
+    const result = await consumeCustomerAiAutofill(
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
+
+    expect(result.allowed).toBe(true);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.not.objectContaining({ customer_ai_autofills_created: expect.anything() }),
+      { onConflict: "user_id,month_key" },
+    );
+  });
+
   it("no usa el fallback si la RPC falla por permisos", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     const upsert = vi.fn();

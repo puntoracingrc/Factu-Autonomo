@@ -111,3 +111,10 @@ export function scanBlockedMessage(plan: PlanId): string {
   }
   return `Has agotado tus ${FREE_EXPENSE_SCAN_TRIAL} escaneos de prueba. Pasa a Pro (${PLANS.pro.priceMonthlyEur} €/mes) para escanear hasta ${PRO_EXPENSE_SCANS_PER_MONTH} facturas al mes.`;
 }
+
+export function aiUsageBlockedMessage(plan: PlanId): string {
+  if (isProPlan(plan)) {
+    return `Has agotado las unidades IA incluidas este mes. Compra un pack de ${SCAN_PACK_SIZE} escaneos extra (${formatScanPackPrice()} + IVA) para añadir saldo IA o espera al mes que viene.`;
+  }
+  return `El autorrelleno con IA requiere plan Pro. Pasa a Pro (${PLANS.pro.priceMonthlyEur} €/mes) para usarlo.`;
+}
