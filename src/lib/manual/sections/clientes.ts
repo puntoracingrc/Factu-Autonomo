@@ -34,7 +34,9 @@ export const clientesSection: ManualSection = {
       title: "3. Buscar y facturar rápido",
       paragraphs: [
         "Usa el **buscador** para localizar un cliente por nombre o NIF. Al elegirlo, verás solo su ficha en el listado.",
+        "El listado no carga todos los clientes de golpe: muestra un bloque inicial y después el botón **Cargar más** para que la página sea más ligera con bases grandes.",
         "En cada cliente puedes pulsar el icono de **factura** o **presupuesto** para crear el documento con sus datos ya rellenados.",
+        "Los iconos muestran una pista al pasar el ratón o enfocar con teclado.",
       ],
     },
     {

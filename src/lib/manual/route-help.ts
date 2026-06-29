@@ -22,6 +22,7 @@ export function resolveManualSlug(pathname: string): string | null {
   if (path.startsWith("/gastos")) return "gastos";
   if (path.startsWith("/impuestos")) return "impuestos";
   if (path.startsWith("/proveedores")) return "proveedores";
+  if (path.startsWith("/cuenta")) return "cuenta";
   if (path.startsWith("/configuracion")) return "configuracion";
   if (path.startsWith("/importar")) return "importacion";
 

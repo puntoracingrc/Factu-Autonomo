@@ -3,10 +3,10 @@ import type { ManualSection } from "../types";
 export const primerosPasosSection: ManualSection = {
   slug: "primeros-pasos",
   title: "Primeros pasos",
-  summary: "Configura tu negocio y entiende cómo moverte por la app.",
+  summary: "Configura tu negocio, entiende la navegación y prepara tus copias.",
   order: 1,
   intro: [
-    "Factura Autónomo está pensada para usarse desde el móvil o el ordenador sin complicaciones. En unos minutos puedes dejar lista la base para emitir facturas con tus datos.",
+    "Factura Autónomo está pensada para usarse desde el móvil o el ordenador sin complicaciones. En unos minutos puedes dejar lista la base para crear documentos con tus datos.",
   ],
   steps: [
     {
@@ -14,6 +14,7 @@ export const primerosPasosSection: ManualSection = {
       paragraphs: [
         "Ve a **Ajustes** (icono de engranaje en la barra inferior) y completa al menos tu **nombre** y **NIF/CIF**. Esos datos salen en el PDF de tus facturas.",
         "Si quieres, añade también dirección, teléfono, email e **IBAN**: el IBAN aparece en facturas pendientes de cobro y en los recordatorios de pago.",
+        "Ajustes está organizado por bloques: **Negocio**, **Documentos**, **Impuestos** y **Cuenta**. Usa las pastillas superiores para saltar rápido a cada parte.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-datos-negocio.png",
@@ -37,7 +38,8 @@ export const primerosPasosSection: ManualSection = {
       title: "3. Aprende la barra de navegación",
       paragraphs: [
         "Abajo tienes acceso rápido a **Inicio**, **Clientes**, **Facturas**, **Presupuestos**, **Recibos**, **Gastos**, **Impuestos**, **Proveedores** y **Ajustes**.",
-        "En móvil puedes deslizar la barra si no ves todos los iconos.",
+        "En móvil puedes deslizar la barra si no ves todos los iconos. Las flechas laterales aparecen solo cuando queda contenido por mover.",
+        "Arriba verás el icono de ayuda **?**. Abre la sección del manual correspondiente a la pantalla en la que estés.",
       ],
       screenshot: {
         src: "/ayuda/capturas/navegacion-inferior.png",
@@ -46,10 +48,17 @@ export const primerosPasosSection: ManualSection = {
       },
     },
     {
-      title: "4. (Opcional) Crea tu cuenta en la nube",
+      title: "4. Instala la app si quieres usarla como acceso directo",
+      paragraphs: [
+        "En **Inicio** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
+        "Si no aparece el botón de instalación, usa el menú del navegador y busca **Instalar app** o **Añadir a pantalla de inicio**.",
+      ],
+    },
+    {
+      title: "5. (Opcional) Crea tu cuenta en la nube",
       paragraphs: [
         "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos se sincronizan entre móvil y PC.",
-        "En **Cuenta** puedes registrarte, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o recuperar una copia JSON.",
+        "En **Cuenta** puedes registrarte con email o continuar con Google, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o importar una copia JSON.",
         "También encontrarás el bloque **Legal y privacidad** con términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
         "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
         "Para migrar datos desde programas antiguos, usa **Cuenta → Importar datos** o entra en **Importar datos** desde el menú. La importación de bases de datos externas requiere Pro.",

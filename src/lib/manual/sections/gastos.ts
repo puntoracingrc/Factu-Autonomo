@@ -12,6 +12,7 @@ export const gastosSection: ManualSection = {
         "Ve a **Gastos** → **+ Añadir gasto**. Indica proveedor, importe base, IVA, categoría y forma de pago.",
         "Puedes escanear una factura de compra con la cámara si tienes escaneos disponibles (plan Pro).",
         "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
+        "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. La app intenta reutilizar proveedores parecidos para evitar duplicados.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-nuevo.png",
@@ -23,6 +24,7 @@ export const gastosSection: ManualSection = {
       paragraphs: [
         "En el listado usa los filtros de **periodo** y, si quieres, filtra por **proveedor** pulsando el gráfico circular.",
         "El total gastado se actualiza según los filtros activos.",
+        "Los gastos se ordenan de más nuevos a más antiguos, muestran separadores por mes y cargan 30 resultados cada vez para que la página no pese con historiales grandes.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-filtros.png",
@@ -34,6 +36,7 @@ export const gastosSection: ManualSection = {
       paragraphs: [
         "Pulsa **Exportar CSV** para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
         "El archivo respeta los filtros que tengas activos.",
+        "La exportación manual de copia de datos está en **Cuenta**; este CSV es el listado de gastos para revisión o gestor.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-exportar.png",

@@ -5,6 +5,7 @@
  */
 import type { ManualSection } from "../types";
 import { clientesSection } from "./clientes";
+import { cuentaSection } from "./cuenta";
 import { configuracionSection, proveedoresSection } from "./proveedores-ajustes";
 import { facturasSection } from "./facturas";
 import { gastosSection } from "./gastos";
@@ -24,6 +25,7 @@ export const manualSections: ManualSection[] = [
   gastosSection,
   impuestosSection,
   proveedoresSection,
+  cuentaSection,
   configuracionSection,
   importacionSection,
 ].sort((a, b) => a.order - b.order);

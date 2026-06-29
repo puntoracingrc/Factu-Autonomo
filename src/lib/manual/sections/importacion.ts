@@ -4,7 +4,7 @@ export const importacionSection: ManualSection = {
   slug: "importacion",
   title: "Importar datos",
   summary: "Trae clientes, facturas y presupuestos desde otros programas.",
-  order: 11,
+  order: 12,
   intro: [
     "El importador está pensado para migrar datos desde programas antiguos o externos. Cada origen guarda la información de una forma distinta, por eso primero se elige o detecta el programa de origen.",
     "La importación de bases de datos externas es una función Pro. Puedes revisar la pantalla y los orígenes disponibles, pero para analizar e importar necesitas Pro o la prueba Pro activa.",
@@ -22,7 +22,8 @@ export const importacionSection: ManualSection = {
       title: "2. Subir el archivo de datos",
       paragraphs: [
         "Selecciona el archivo principal generado por el programa de origen. La app analiza el archivo y muestra una previsualización antes de importar nada.",
-        "La previsualización indica empresa detectada, clientes, facturas, presupuestos, líneas y avisos si hay datos antiguos que no se pueden casar con documentos activos.",
+        "La previsualización indica empresa detectada, clientes, facturas, presupuestos, líneas, fechas y avisos si hay datos antiguos que no se pueden casar con documentos activos.",
+        "Si la app detecta datos de empresa o tipos de IVA, te mostrará un resumen comparando **Actual** y **Detectado**. Si marcas la casilla, solo rellena campos vacíos y añade tipos de IVA que falten; no pisa cambios que ya tengas escritos.",
       ],
     },
     {
@@ -36,7 +37,7 @@ export const importacionSection: ManualSection = {
     {
       title: "4. Aplicar la importación",
       paragraphs: [
-        "Cuando la previsualización sea correcta, pulsa **Importar a esta cuenta**. Si ya habías importado ese origen antes, la app reemplaza esa importación para evitar duplicados.",
+        "Cuando la previsualización sea correcta, pulsa **Importar a esta cuenta**. Si ya habías importado ese origen antes, la app reemplaza esa importación para evitar duplicados del mismo lote.",
         "Si el archivo trae facturas antiguas marcadas como impagadas, la app te preguntará si quieres mantener ese estado o marcarlas como pagadas al importar.",
         "Los datos creados manualmente en Factura Autónomo se conservan. Si tienes sesión en la nube y plan Pro, los cambios se sincronizan con tus otros dispositivos.",
       ],
