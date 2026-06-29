@@ -4,6 +4,7 @@ import { currentMonthKey } from "./usage";
 import {
   AI_UNITS_PER_SCAN,
   CUSTOMER_AI_AUTOFILL_UNITS,
+  IMPORT_AI_REVIEW_UNITS,
   aiUsageBlockedMessage,
   buildScanQuota,
   FREE_EXPENSE_SCAN_TRIAL,
@@ -444,6 +445,18 @@ export async function consumeCustomerAiAutofill(userId: string) {
     CUSTOMER_AI_AUTOFILL_UNITS,
     {
       customerAiAutofillsCreated: 1,
+    },
+    "No hemos podido descontar el uso de IA. Inténtalo de nuevo en unos minutos.",
+    aiUsageBlockedMessage,
+  );
+}
+
+export async function consumeImportAiReview(userId: string) {
+  return consumeAiUnits(
+    userId,
+    IMPORT_AI_REVIEW_UNITS,
+    {
+      customerAiAutofillsCreated: IMPORT_AI_REVIEW_UNITS,
     },
     "No hemos podido descontar el uso de IA. Inténtalo de nuevo en unos minutos.",
     aiUsageBlockedMessage,

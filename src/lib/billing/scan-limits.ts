@@ -14,6 +14,9 @@ export const AI_UNITS_PER_SCAN = 10;
 /** Rellenar un cliente desde texto es barato: 10 rellenos equivalen a 1 escaneo. */
 export const CUSTOMER_AI_AUTOFILL_UNITS = 1;
 
+/** Revisar una previsualización de importación con IA es un uso pequeño. */
+export const IMPORT_AI_REVIEW_UNITS = 1;
+
 export interface ScanQuota {
   plan: PlanId;
   /** Cupo mensual incluido en el plan (Pro). */

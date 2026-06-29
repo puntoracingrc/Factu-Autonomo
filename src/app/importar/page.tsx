@@ -1,12 +1,29 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Crown, Database, FileCog, FileUp, Lock, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  Crown,
+  Database,
+  FileCog,
+  FileUp,
+  Loader2,
+  Lock,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
+import {
+  AiProcessingConsentNotice,
+  useAiProcessingConsent,
+} from "@/components/legal/AiProcessingConsentNotice";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
+import type { ScanQuota } from "@/lib/billing/scan-limits";
 import {
   PC_FACTURACION_SOURCE_NAME,
   readPcFacturacionMdb,
@@ -27,6 +44,10 @@ import {
   applyBusinessProfileAutofillSuggestion,
   hasBusinessProfileAutofillSuggestion,
 } from "@/lib/business-profile-autofill";
+import type {
+  ImportAiReviewInput,
+  ImportAiReviewResult,
+} from "@/lib/import-ai/review";
 
 type ImportSource =
   | "auto"
@@ -77,9 +98,98 @@ function isHoldedResult(result: ImportResult): result is HoldedImportResult {
   return result.preview.sourceName === HOLDED_SOURCE_NAME;
 }
 
+function resultUnsupported(
+  result: ImportResult,
+): ImportAiReviewInput["unsupported"] {
+  if (!isFacturaDirectaResult(result) && !isHoldedResult(result)) return [];
+  return result.unsupported.map((item) => ({
+    label: item.label,
+    reason: item.reason,
+    count: item.count,
+  }));
+}
+
+function buildImportAiPayload(result: ImportResult): ImportAiReviewInput {
+  if (isFacturaDirectaResult(result)) {
+    return {
+      sourceName: result.preview.sourceName,
+      summary: {
+        customers: result.preview.customers,
+        suppliers: result.preview.suppliers,
+        invoices: result.preview.invoices,
+        invoiceLines: result.preview.invoiceLines,
+        estimates: result.preview.estimates,
+        expenses: result.preview.expenses,
+        productsRead: result.preview.productsRead,
+        productsUsedForLines: result.preview.productsUsedForLines,
+        dateRange: formatRange(
+          result.preview.dateRange.from,
+          result.preview.dateRange.to,
+        ),
+        ignoredFiles: result.preview.ignoredFiles,
+        partialDueDateDocuments: result.preview.partialDueDateDocuments,
+      },
+      warnings: result.warnings,
+      unsupported: resultUnsupported(result),
+    };
+  }
+
+  if (isHoldedResult(result)) {
+    return {
+      sourceName: result.preview.sourceName,
+      confidenceLabel: result.preview.confidence,
+      summary: {
+        customers: result.preview.customers,
+        suppliers: result.preview.suppliers,
+        mixedRoleContacts: result.preview.mixedRoleContacts,
+        invoices: result.preview.invoices,
+        invoiceLines: result.preview.invoiceLines,
+        estimates: result.preview.estimates,
+        estimateLines: result.preview.estimateLines,
+        expenses: result.preview.expenses,
+        expenseLines: result.preview.expenseLines,
+        productsRead: result.preview.productsRead,
+        productsUsedForLines: result.preview.productsUsedForLines,
+        attachments: result.preview.attachments,
+        totalMismatches: result.preview.totalMismatches.length,
+        dateRange: formatRange(
+          result.preview.dateRange.from,
+          result.preview.dateRange.to,
+        ),
+      },
+      warnings: result.warnings,
+      unsupported: resultUnsupported(result),
+    };
+  }
+
+  return {
+    sourceName: result.preview.sourceName,
+    summary: {
+      companyName: result.preview.companyName,
+      customersToImport: result.preview.customersToImport,
+      customersWithDocuments: result.preview.customersWithDocuments,
+      unusedCustomers: result.preview.unusedCustomers,
+      invoices: result.preview.invoices,
+      invoiceLines: result.preview.invoiceLines,
+      unpaidInvoices: result.preview.unpaidInvoices,
+      offers: result.preview.offers,
+      offerLines: result.preview.offerLines,
+      orphanInvoiceLineDocuments: result.preview.orphanInvoiceLineDocuments,
+      orphanOfferLineDocuments: result.preview.orphanOfferLineDocuments,
+      dateRange: formatRange(
+        result.preview.dateRange.from,
+        result.preview.dateRange.to,
+      ),
+    },
+    warnings: result.warnings,
+    unsupported: [],
+  };
+}
+
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
-  const { billingEnabled, limits } = useBilling();
+  const { user } = useCloudSync();
+  const { billingEnabled, isPro, limits } = useBilling();
   const [source, setSource] = useState<ImportSource>("auto");
   const [file, setFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -92,6 +202,15 @@ export default function ImportarPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [aiReview, setAiReview] = useState<ImportAiReviewResult | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const [upgradeMode, setUpgradeMode] = useState<"upgrade" | "scanPack">(
+    "upgrade",
+  );
+  const aiConsent = useAiProcessingConsent();
 
   const hasCurrentData = useMemo(
     () => data.customers.length > 0 || data.documents.length > 0,
@@ -101,6 +220,12 @@ export default function ImportarPage() {
   const showPcFacturacionOptions = source === "pcfacturacion3";
   const showFacturaDirectaOptions = source === "facturadirecta";
   const showHoldedOptions = source === "holded";
+
+  function resetAiReview() {
+    setAiReview(null);
+    setAiError(null);
+    setAiBusy(false);
+  }
 
   async function readDwiText(nextDwiFile: File | null) {
     if (!nextDwiFile) return undefined;
@@ -119,6 +244,7 @@ export default function ImportarPage() {
     setError(null);
     setDone(false);
     setApplyDetectedProfile(false);
+    resetAiReview();
     try {
       if (importLocked) {
         throw new Error(
@@ -168,6 +294,7 @@ export default function ImportarPage() {
     setFile(null);
     setFiles([]);
     setResult(null);
+    resetAiReview();
     setError(null);
     setDone(false);
     setApplyDetectedProfile(false);
@@ -176,6 +303,7 @@ export default function ImportarPage() {
   function handleFile(nextFile: File | undefined) {
     setFile(nextFile ?? null);
     setResult(null);
+    resetAiReview();
     setError(null);
     setDone(false);
     setApplyDetectedProfile(false);
@@ -187,6 +315,7 @@ export default function ImportarPage() {
     setFiles(selected);
     setFile(null);
     setResult(null);
+    resetAiReview();
     setError(null);
     setDone(false);
     setApplyDetectedProfile(false);
@@ -199,6 +328,7 @@ export default function ImportarPage() {
     const nextDwiFile = nextFile ?? null;
     setDwiFile(nextDwiFile);
     setResult(null);
+    resetAiReview();
     setError(null);
     setDone(false);
     setApplyDetectedProfile(false);
@@ -208,6 +338,7 @@ export default function ImportarPage() {
   function handleInvoicePaymentMode(nextMode: InvoicePaymentImportMode) {
     setInvoicePaymentMode(nextMode);
     setDone(false);
+    resetAiReview();
     if ((showFacturaDirectaOptions ? files.length > 0 : file) && !busy) {
       void analyze(file, dwiFile, nextMode, files);
     }
@@ -215,6 +346,73 @@ export default function ImportarPage() {
 
   async function refreshAnalysis() {
     await analyze();
+  }
+
+  async function getAccessToken() {
+    if (!user) return null;
+    const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+    const supabase = await getSupabaseClientAsync();
+    const { data: sessionData } = await supabase?.auth.getSession() ?? {
+      data: { session: null },
+    };
+    return sessionData.session?.access_token ?? null;
+  }
+
+  async function runAiReview() {
+    if (!result) return;
+    setAiError(null);
+
+    if (billingEnabled && !limits.aiTextAutofill) {
+      setUpgradeMode("upgrade");
+      setUpgradeReason(
+        "La revisión de importaciones con IA requiere plan Pro.",
+      );
+      setUpgradeOpen(true);
+      return;
+    }
+
+    if (!aiConsent.accepted) {
+      setAiError("Acepta primero el aviso de tratamiento con IA.");
+      return;
+    }
+
+    setAiBusy(true);
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      const token = await getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch("/api/imports/review", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(buildImportAiPayload(result)),
+      });
+      const body = (await res.json()) as {
+        data?: ImportAiReviewResult;
+        error?: string;
+        quota?: ScanQuota;
+      };
+
+      if (!res.ok || !body.data) {
+        if (res.status === 402) {
+          const quotaPlan = body.quota?.plan;
+          const needsExtraAiBalance =
+            isPro || quotaPlan === "pro" || quotaPlan === "trial";
+          setUpgradeMode(needsExtraAiBalance ? "scanPack" : "upgrade");
+          setUpgradeReason(body.error);
+          setUpgradeOpen(true);
+        } else {
+          setAiError(body.error ?? "No se pudo revisar la importación con IA.");
+        }
+        return;
+      }
+
+      setAiReview(body.data);
+    } catch {
+      setAiError("Error de conexión. Comprueba internet e inténtalo de nuevo.");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   function importData() {
@@ -602,6 +800,19 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
+          <ImportAiReviewCard
+            accepted={aiConsent.accepted}
+            onAccept={() => {
+              aiConsent.accept();
+              setAiError(null);
+            }}
+            loading={aiBusy}
+            error={aiError}
+            review={aiReview}
+            onReview={() => void runAiReview()}
+            locked={billingEnabled && !limits.aiTextAutofill}
+          />
+
           {hasCurrentData ? (
             <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
               Si ya habías importado este origen antes, se reemplazará esa
@@ -621,8 +832,183 @@ export default function ImportarPage() {
           ) : null}
         </Card>
       ) : null}
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+        mode={upgradeMode}
+      />
     </div>
   );
+}
+
+function ImportAiReviewCard({
+  accepted,
+  onAccept,
+  loading,
+  error,
+  review,
+  onReview,
+  locked,
+}: {
+  accepted: boolean;
+  onAccept: () => void;
+  loading: boolean;
+  error: string | null;
+  review: ImportAiReviewResult | null;
+  onReview: () => void;
+  locked: boolean;
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-semibold text-slate-900">
+            ¿Quieres una segunda revisión con IA?
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Si algo no te cuadra, Factu puede revisar la previsualización,
+            detectar riesgos y sugerir qué mirar antes de importar.
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Consume 1 unidad IA. No aplica cambios ni importa datos.
+          </p>
+        </div>
+      </div>
+
+      <AiProcessingConsentNotice
+        accepted={accepted}
+        onAccepted={onAccept}
+        compact
+      />
+
+      <Button
+        variant="secondary"
+        onClick={onReview}
+        disabled={loading || !accepted}
+      >
+        {loading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Revisando…
+          </>
+        ) : (
+          <>
+            <Sparkles className="h-4 w-4" />
+            Mejorar revisión con IA
+          </>
+        )}
+      </Button>
+
+      {locked ? (
+        <p className="text-sm text-sky-800">
+          Función Pro. Puedes seguir importando con la previsualización normal.
+        </p>
+      ) : null}
+
+      {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+
+      {review ? <ImportAiReviewResultView review={review} /> : null}
+    </div>
+  );
+}
+
+function ImportAiReviewResultView({
+  review,
+}: {
+  review: ImportAiReviewResult;
+}) {
+  const confidenceClasses: Record<
+    ImportAiReviewResult["overallConfidence"],
+    string
+  > = {
+    alta: "bg-emerald-100 text-emerald-800",
+    media: "bg-amber-100 text-amber-900",
+    baja: "bg-red-100 text-red-800",
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${confidenceClasses[review.overallConfidence]}`}
+        >
+          Confianza {review.overallConfidence}
+        </span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+          {recommendedActionLabel(review.recommendedAction)}
+        </span>
+      </div>
+      <p className="font-semibold text-slate-900">{review.verdict}</p>
+
+      {review.improvements.length > 0 ? (
+        <ImportAiReviewList
+          title="Mejoras o comprobaciones útiles"
+          items={review.improvements}
+        />
+      ) : null}
+
+      {review.risks.length > 0 ? (
+        <ImportAiReviewList title="Riesgos a revisar" items={review.risks} />
+      ) : null}
+
+      {review.questions.length > 0 ? (
+        <div>
+          <p className="font-semibold text-slate-900">Dudas antes de importar</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">
+            {review.questions.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ImportAiReviewList({
+  title,
+  items,
+}: {
+  title: string;
+  items: ImportAiReviewResult["improvements"];
+}) {
+  return (
+    <div>
+      <p className="font-semibold text-slate-900">{title}</p>
+      <ul className="mt-2 space-y-2">
+        {items.map((item) => (
+          <li key={`${item.title}-${item.detail}`} className="rounded-lg bg-slate-50 p-3">
+            <p className="font-semibold text-slate-900">{item.title}</p>
+            <p className="mt-1 text-slate-600">{item.detail}</p>
+            {item.impact ? (
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                {item.impact}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function recommendedActionLabel(action: ImportAiReviewResult["recommendedAction"]) {
+  switch (action) {
+    case "importar":
+      return "IA: se puede importar";
+    case "pedir_archivos":
+      return "IA: faltan archivos";
+    case "no_importar":
+      return "IA: mejor no importar";
+    case "revisar":
+    default:
+      return "IA: revisar antes";
+  }
 }
 
 function PcFacturacionPreview({ result }: { result: PcFacturacionImportResult }) {
