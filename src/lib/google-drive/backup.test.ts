@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildGoogleDriveAuthorizationUrl,
   buildDriveBackupFileName,
   buildDriveBackupSignature,
+  cacheDriveAccessToken,
+  clearDriveAccessToken,
   DRIVE_BACKUP_CALLBACK_PATH,
   DRIVE_BACKUP_SCOPE,
+  hasUsableDriveToken,
   normalizeDriveBackupSettings,
   shouldRunAutomaticDriveBackup,
+  uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
 import { DEFAULT_PROFILE, type AppData } from "@/lib/types";
 
@@ -46,6 +50,11 @@ function dataWithDocument(updatedAt: string): AppData {
 }
 
 describe("Google Drive backup", () => {
+  afterEach(() => {
+    clearDriveAccessToken();
+    vi.unstubAllGlobals();
+  });
+
   it("normaliza ajustes locales sin aceptar valores raros", () => {
     expect(
       normalizeDriveBackupSettings({
@@ -146,5 +155,34 @@ describe("Google Drive backup", () => {
         NOW,
       ).due,
     ).toBe(true);
+  });
+
+  it("olvida el permiso temporal cuando Google responde no autorizado", async () => {
+    cacheDriveAccessToken("access-token", 3600);
+    expect(hasUsableDriveToken()).toBe(true);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            error: { message: "Invalid Credentials" },
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+
+    const result = await uploadAppBackupToGoogleDriveWithAccessToken(
+      dataWithDocument("2026-06-29T10:00:00.000Z"),
+      "access-token",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
+    });
+    expect(hasUsableDriveToken()).toBe(false);
   });
 });

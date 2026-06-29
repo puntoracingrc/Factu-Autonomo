@@ -172,6 +172,19 @@ export default function ConfiguracionPage() {
   });
 
   useEffect(() => {
+    function openSectionFromHash() {
+      const id = window.location.hash.replace("#", "");
+      const item = SETTINGS_NAV_ITEMS.find((entry) => entry.id === id);
+      if (!item) return;
+      setOpenSections((prev) => ({ ...prev, [item.key]: true }));
+    }
+
+    openSectionFromHash();
+    window.addEventListener("hashchange", openSectionFromHash);
+    return () => window.removeEventListener("hashchange", openSectionFromHash);
+  }, []);
+
+  useEffect(() => {
     setForm({
       ...data.profile,
       numbering: normalizeNumbering(data.profile.numbering),
@@ -848,6 +861,21 @@ export default function ConfiguracionPage() {
         open={openSections.account}
         onToggle={(open) => setSectionOpen("account", open)}
       >
+        <Card className="space-y-3 border-blue-100 bg-white">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              Cuenta y copias
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Accede a inicio de sesión, sincronización, instalación de la app,
+              importación y copia extra en Drive.
+            </p>
+          </div>
+          <ButtonLink href="/cuenta" variant="secondary">
+            Abrir Cuenta
+            <ArrowRight className="h-4 w-4" />
+          </ButtonLink>
+        </Card>
         <PlanStatusCard />
         <SubscriptionBillingCard />
         <Suspense fallback={null}>

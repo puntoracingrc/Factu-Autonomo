@@ -9,6 +9,7 @@ import { useAppStore } from "@/context/AppStore";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   buildDriveBackupSignature,
+  clearDriveAccessToken,
   hasUsableDriveToken,
   loadDriveBackupSettings,
   saveDriveBackupSettings,
@@ -48,6 +49,7 @@ export function GoogleDriveBackupCard() {
   );
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tokenReady, setTokenReady] = useState(false);
   const [feedback, setFeedback] = useState<{
     tone: FeedbackTone;
     message: string;
@@ -56,6 +58,7 @@ export function GoogleDriveBackupCard() {
 
   useEffect(() => {
     setSettings(loadDriveBackupSettings());
+    setTokenReady(hasUsableDriveToken());
     setHydrated(true);
   }, []);
 
@@ -100,9 +103,12 @@ export function GoogleDriveBackupCard() {
       setBusy(false);
 
       if (!result.ok) {
+        setTokenReady(hasUsableDriveToken());
         setFeedback({ tone: "error", message: result.error });
         return;
       }
+
+      setTokenReady(true);
 
       const signature =
         options.signature ||
@@ -146,9 +152,12 @@ export function GoogleDriveBackupCard() {
     }
 
     if (settings.enabled && hasUsableDriveToken()) {
+      setTokenReady(true);
       void runDriveBackup();
       return;
     }
+
+    setTokenReady(false);
 
     setBusy(true);
     setFeedback({
@@ -180,6 +189,7 @@ export function GoogleDriveBackupCard() {
     if (!decision.due) return;
 
     if (!hasUsableDriveToken()) {
+      setTokenReady(false);
       if (autoNoticeSignatureRef.current !== decision.signature) {
         autoNoticeSignatureRef.current = decision.signature;
         setFeedback({
@@ -190,6 +200,8 @@ export function GoogleDriveBackupCard() {
       }
       return;
     }
+
+    setTokenReady(true);
 
     const timer = window.setTimeout(() => {
       void runDriveBackup({
@@ -206,6 +218,8 @@ export function GoogleDriveBackupCard() {
   }
 
   function disableDriveBackups() {
+    clearDriveAccessToken();
+    setTokenReady(false);
     persistSettings((current) => ({
       ...current,
       enabled: false,
@@ -217,6 +231,17 @@ export function GoogleDriveBackupCard() {
       message: "Copia extra en Drive desactivada en este navegador.",
     });
   }
+
+  const driveStatus = settings.enabled
+    ? tokenReady
+      ? "Drive activado"
+      : "Drive pendiente de reconectar"
+    : "Drive no activado";
+  const actionLabel = settings.enabled
+    ? tokenReady
+      ? "Guardar en Drive ahora"
+      : "Reconectar Drive"
+    : "Conectar Drive";
 
   return (
     <section id="drive-backup">
@@ -276,7 +301,7 @@ export function GoogleDriveBackupCard() {
             ) : (
               <ShieldCheck className="h-5 w-5" />
             )}
-            {settings.enabled ? "Guardar en Drive ahora" : "Conectar Drive"}
+            {actionLabel}
           </Button>
           {settings.enabled ? (
             <Button type="button" variant="ghost" onClick={disableDriveBackups}>
@@ -290,9 +315,15 @@ export function GoogleDriveBackupCard() {
         <p>
           Estado:{" "}
           <strong className="text-slate-900">
-            {settings.enabled ? "Drive activado" : "Drive no activado"}
+            {driveStatus}
           </strong>
         </p>
+        {settings.enabled && !tokenReady ? (
+          <p className="mt-1">
+            Google puede pedirte permiso de nuevo antes de guardar la próxima
+            copia.
+          </p>
+        ) : null}
         <p className="mt-1">Última copia: {formatLastBackup(settings.lastBackupAt)}</p>
         {settings.lastWebViewLink ? (
           <a
