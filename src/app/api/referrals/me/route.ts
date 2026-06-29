@@ -28,10 +28,15 @@ export async function GET(request: Request) {
 
   const code = await getOrCreateReferralCode(user.id);
   if (!code) {
-    return NextResponse.json(
-      { error: "No se pudo generar tu código" },
-      { status: 500 },
-    );
+    return NextResponse.json({
+      code: null,
+      shareUrl: null,
+      bonusPerReferral: REFERRAL_BONUS_SCANS,
+      referralsCount: 0,
+      scansEarned: 0,
+      hasRedeemed: false,
+      referralsUnavailable: true,
+    });
   }
 
   const stats = await getReferralStats(user.id);

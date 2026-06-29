@@ -5,12 +5,13 @@ import {
 } from "@/lib/referrals/storage";
 
 export interface ReferralProfile {
-  code: string;
-  shareUrl: string;
+  code: string | null;
+  shareUrl: string | null;
   bonusPerReferral: number;
   referralsCount: number;
   scansEarned: number;
   hasRedeemed: boolean;
+  referralsUnavailable?: boolean;
 }
 
 async function getAccessToken(): Promise<string | null> {

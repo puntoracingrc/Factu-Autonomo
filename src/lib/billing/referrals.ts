@@ -22,16 +22,26 @@ export function generateReferralCodeValue(length = 8): string {
   return code;
 }
 
+function isMissingReferralSchemaError(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  const message = error.message ?? "";
+  return (
+    error.code === "42P01" ||
+    /relation .*referral_(codes|redemptions).* does not exist/i.test(message)
+  );
+}
+
 export async function getOrCreateReferralCode(userId: string): Promise<string | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
 
-  const { data: existing } = await admin
+  const { data: existing, error: existingError } = await admin
     .from("referral_codes")
     .select("code")
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (isMissingReferralSchemaError(existingError)) return null;
   if (existing?.code) return String(existing.code);
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -40,6 +50,7 @@ export async function getOrCreateReferralCode(userId: string): Promise<string | 
       user_id: userId,
       code,
     });
+    if (isMissingReferralSchemaError(error)) return null;
     if (!error) return code;
   }
 
