@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
+import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
@@ -28,6 +29,8 @@ export default function CuentaPage() {
       >
         <CloudAccountCard />
       </Suspense>
+
+      <GoogleDriveBackupCard />
 
       <Card className="mb-6 space-y-3">
         <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
