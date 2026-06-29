@@ -193,6 +193,18 @@ describe("MVP usability polish", () => {
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
       "utf8",
     );
+    const driveBackupSource = readFileSync(
+      new URL("../components/cloud/GoogleDriveBackupCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const driveConfigSource = readFileSync(
+      new URL("../lib/google-drive/config.ts", import.meta.url),
+      "utf8",
+    );
+    const driveBackupLibSource = readFileSync(
+      new URL("../lib/google-drive/backup.ts", import.meta.url),
+      "utf8",
+    );
     const cloudContextSource = readFileSync(
       new URL("../context/CloudSyncContext.tsx", import.meta.url),
       "utf8",
@@ -215,6 +227,12 @@ describe("MVP usability polish", () => {
     expect(cloudContextSource).toContain('prompt: "select_account"');
     expect(cloudContextSource).not.toContain("drive.file");
     expect(cloudContextSource).not.toContain("drive.metadata");
+    expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
+    expect(driveBackupSource).toContain("Copia extra en Google Drive");
+    expect(driveBackupSource).toContain("Google solo da permiso");
+    expect(driveBackupLibSource).toContain(
+      "https://www.googleapis.com/auth/drive.file",
+    );
   });
 
   it("muestra invitacion con CTA real cuando falta sesion", () => {

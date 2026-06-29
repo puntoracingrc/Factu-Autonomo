@@ -44,6 +44,7 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (o legacy `anon` JWT) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` (o legacy `service_role` JWT) |
 | `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` solo cuando Google OAuth esté configurado en Supabase |
+| `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` | client id público de Google OAuth para guardar copias extra en Drive |
 | `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos y autorrelleno IA de clientes, servidor) |
 | `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
@@ -70,7 +71,8 @@ Ver `supabase/README.md`. Resumen:
 
 - **Site URL:** `https://facturacion-autonomos.app`
 - **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`, `http://localhost:3001/auth/callback`
-- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. Este login no pide permiso de Drive; Drive se conectará aparte en la fase de copia externa.
+- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. Este login no pide permiso de Drive.
+- **Google Drive:** configurar el OAuth client con origen autorizado `https://facturacion-autonomos.app` y, para probar en local, `http://localhost:3000` y `http://localhost:3001`. La copia extra en Drive usa `drive.file` y se activa aparte desde Cuenta.
 
 ## Estado actual
 
