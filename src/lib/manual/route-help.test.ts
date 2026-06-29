@@ -24,4 +24,9 @@ describe("manual route help", () => {
       "/ayuda/impuestos?from=%2Fimpuestos",
     );
   });
+
+  it("usa el indice del manual como ayuda global si no hay seccion concreta", () => {
+    expect(resolveManualSlug("/cuenta")).toBeNull();
+    expect(manualHelpHref("/cuenta")).toBe("/ayuda?from=%2Fcuenta");
+  });
 });

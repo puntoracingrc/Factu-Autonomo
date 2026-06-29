@@ -9,17 +9,18 @@ import { manualHelpHref, resolveManualSlug } from "@/lib/manual/route-help";
 export function FactuHelpButton() {
   const pathname = usePathname();
   const slug = resolveManualSlug(pathname);
-  const href = slug ? manualHelpHref(pathname) : null;
+  const href = manualHelpHref(pathname);
   const section = slug ? getManualSection(slug) : undefined;
+  const helpTitle = section?.title ?? "Manual de usuario";
 
-  if (!href || !section) return null;
+  if (!href) return null;
 
   return (
     <Link
       href={href}
       className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95"
-      title={`Ayuda: ${section.title}`}
-      aria-label={`Ayuda sobre ${section.title}. Abre el manual de usuario.`}
+      title={`Ayuda: ${helpTitle}`}
+      aria-label={`Ayuda: ${helpTitle}. Abre el manual de usuario.`}
     >
       <BookOpen className="h-5 w-5" aria-hidden />
       <span

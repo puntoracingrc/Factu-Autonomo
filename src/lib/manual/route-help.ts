@@ -30,6 +30,5 @@ export function resolveManualSlug(pathname: string): string | null {
 
 export function manualHelpHref(pathname: string): string | null {
   const slug = resolveManualSlug(pathname);
-  if (!slug) return null;
-  return buildManualHref(`/ayuda/${slug}`, pathname);
+  return buildManualHref(slug ? `/ayuda/${slug}` : "/ayuda", pathname);
 }

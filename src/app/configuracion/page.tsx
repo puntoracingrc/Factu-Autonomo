@@ -177,6 +177,9 @@ export default function ConfiguracionPage() {
       const item = SETTINGS_NAV_ITEMS.find((entry) => entry.id === id);
       if (!item) return;
       setOpenSections((prev) => ({ ...prev, [item.key]: true }));
+      window.setTimeout(() => {
+        document.getElementById(item.id)?.scrollIntoView({ block: "start" });
+      }, 0);
     }
 
     openSectionFromHash();

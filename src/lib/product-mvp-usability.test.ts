@@ -267,6 +267,7 @@ describe("MVP usability polish", () => {
     expect(settingsSource).toContain("flex flex-wrap gap-2");
     expect(settingsSource).toContain("openSectionFromHash");
     expect(settingsSource).toContain("hashchange");
+    expect(settingsSource).toContain("scrollIntoView");
     expect(settingsSource).not.toContain("Datos, logo y contacto");
     expect(settingsSource).not.toContain("Plan, datos y ayuda");
     expect(settingsSource).not.toContain("Plan por fases");
@@ -289,15 +290,15 @@ describe("MVP usability polish", () => {
 
     expect(accountPageSource).toContain("Opciones de cuenta");
     expect(accountPageSource).toContain("flex flex-wrap gap-2");
-    expect(accountPageSource).toContain("#manual-cuenta");
-    expect(accountPageSource).toContain("#instalar-app");
     expect(accountPageSource).toContain("#inicio-sesion");
     expect(accountPageSource).toContain("#drive-backup");
     expect(accountPageSource).toContain("#importar-datos");
     expect(accountPageSource).toContain("#datos-privacidad");
     expect(accountPageSource).toContain("#legal-privacidad");
-    expect(accountPageSource).toContain('id="manual-cuenta"');
-    expect(accountPageSource).toContain('id="instalar-app"');
+    expect(accountPageSource).not.toContain("#manual-cuenta");
+    expect(accountPageSource).not.toContain("#instalar-app");
+    expect(accountPageSource).not.toContain("ManualHelpLink");
+    expect(accountPageSource).not.toContain("InstallAppCard");
     expect(accountPageSource).toContain('id="importar-datos"');
     expect(accountPageSource).toContain('id="datos-privacidad"');
     expect(accountPageSource).toContain('id="legal-privacidad"');
@@ -415,8 +416,12 @@ describe("MVP usability polish", () => {
       new URL("../components/layout/AppShell.tsx", import.meta.url),
       "utf8",
     );
-    const accountPageSource = readFileSync(
-      new URL("../app/cuenta/page.tsx", import.meta.url),
+    const homePageSource = readFileSync(
+      new URL("../app/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const helpButtonSource = readFileSync(
+      new URL("../components/manual/FactuHelpButton.tsx", import.meta.url),
       "utf8",
     );
     const installCardSource = readFileSync(
@@ -442,7 +447,10 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain("object-contain");
     expect(appShellSource).not.toContain("object-cover");
     expect(appShellSource).not.toContain(">FA<");
-    expect(accountPageSource).toContain("InstallAppCard");
+    expect(homePageSource).toContain("InstallAppCard");
+    expect(helpButtonSource).toContain('section?.title ?? "Manual de usuario"');
+    expect(helpButtonSource).toContain("const href = manualHelpHref(pathname)");
+    expect(helpButtonSource).not.toContain("if (!href || !section) return null");
     expect(installCardSource).toContain("beforeinstallprompt");
     expect(installCardSource).toContain("appinstalled");
     expect(installCardSource).toContain("object-contain");
