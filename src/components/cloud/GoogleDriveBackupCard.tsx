@@ -13,6 +13,7 @@ import {
   loadDriveBackupSettings,
   saveDriveBackupSettings,
   shouldRunAutomaticDriveBackup,
+  startGoogleDriveBackupRedirect,
   uploadAppBackupToGoogleDrive,
   type DriveBackupSettings,
 } from "@/lib/google-drive/backup";
@@ -88,7 +89,7 @@ export function GoogleDriveBackupCard() {
         tone: "info",
         message: options.automatic
           ? "Guardando copia automática en Drive…"
-          : "Abriendo Google Drive…",
+          : "Guardando copia en Drive…",
       });
 
       const result = await uploadAppBackupToGoogleDrive(data, {
@@ -134,6 +135,43 @@ export function GoogleDriveBackupCard() {
       settings.frequency,
     ],
   );
+
+  const startDriveConnection = useCallback(() => {
+    if (!driveConfigured) {
+      setFeedback({
+        tone: "error",
+        message: "La copia extra en Google Drive aún no está disponible aquí.",
+      });
+      return;
+    }
+
+    if (settings.enabled && hasUsableDriveToken()) {
+      void runDriveBackup();
+      return;
+    }
+
+    setBusy(true);
+    setFeedback({
+      tone: "info",
+      message: "Te llevamos a Google para dar permiso y volver a Factu.",
+    });
+
+    const result = startGoogleDriveBackupRedirect({
+      clientId,
+      frequency: settings.frequency,
+    });
+
+    if (!result.ok) {
+      setBusy(false);
+      setFeedback({ tone: "error", message: result.error });
+    }
+  }, [
+    clientId,
+    driveConfigured,
+    runDriveBackup,
+    settings.enabled,
+    settings.frequency,
+  ]);
 
   useEffect(() => {
     if (!hydrated || !driveConfigured || busy) return;
@@ -181,7 +219,8 @@ export function GoogleDriveBackupCard() {
   }
 
   return (
-    <Card className="mb-6 space-y-4 border-blue-100 bg-white">
+    <section id="drive-backup">
+      <Card className="mb-6 space-y-4 border-blue-100 bg-white">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
           <HardDrive className="h-5 w-5" />
@@ -229,7 +268,7 @@ export function GoogleDriveBackupCard() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             type="button"
-            onClick={() => void runDriveBackup()}
+            onClick={startDriveConnection}
             disabled={!driveConfigured || busy}
           >
             {busy ? (
@@ -281,6 +320,7 @@ export function GoogleDriveBackupCard() {
           {feedback.message}
         </p>
       ) : null}
-    </Card>
+      </Card>
+    </section>
   );
 }

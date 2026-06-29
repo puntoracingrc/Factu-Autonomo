@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGoogleDriveAuthorizationUrl,
   buildDriveBackupFileName,
   buildDriveBackupSignature,
+  DRIVE_BACKUP_CALLBACK_PATH,
+  DRIVE_BACKUP_SCOPE,
   normalizeDriveBackupSettings,
   shouldRunAutomaticDriveBackup,
 } from "./backup";
@@ -65,6 +68,27 @@ describe("Google Drive backup", () => {
     expect(buildDriveBackupFileName("2026-06-29T12:34:56.000Z")).toBe(
       "factu-autonomo-drive-backup-2026-06-29-1234.json",
     );
+  });
+
+  it("construye el permiso de Drive con callback propio", () => {
+    const url = new URL(
+      buildGoogleDriveAuthorizationUrl({
+        clientId: "google-client-id",
+        redirectUri: `https://facturacion-autonomos.app${DRIVE_BACKUP_CALLBACK_PATH}`,
+        state: "state-123",
+      }),
+    );
+
+    expect(url.origin).toBe("https://accounts.google.com");
+    expect(url.pathname).toBe("/o/oauth2/v2/auth");
+    expect(url.searchParams.get("client_id")).toBe("google-client-id");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      `https://facturacion-autonomos.app${DRIVE_BACKUP_CALLBACK_PATH}`,
+    );
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("scope")).toBe(DRIVE_BACKUP_SCOPE);
+    expect(url.searchParams.get("state")).toBe("state-123");
+    expect(url.searchParams.get("prompt")).toBe("consent");
   });
 
   it("evita repetir la copia diaria en el mismo día", () => {
