@@ -7,6 +7,7 @@ import type { AppData } from "../types";
 
 const ENTITIES_TABLE = "sync_entities";
 const LEGACY_TABLE = "user_backups";
+const SYNC_PAGE_SIZE = 500;
 
 interface SyncEntityRow {
   entity_type: string;
@@ -44,10 +45,13 @@ export async function pushSyncChanges(
     updated_at: change.updatedAt || syncedAt,
   }));
 
-  const { error } = await supabase.from(ENTITIES_TABLE).upsert(rows, {
-    onConflict: "user_id,entity_type,entity_id",
-  });
-  if (error) throw error;
+  for (let index = 0; index < rows.length; index += SYNC_PAGE_SIZE) {
+    const chunk = rows.slice(index, index + SYNC_PAGE_SIZE);
+    const { error } = await supabase.from(ENTITIES_TABLE).upsert(chunk, {
+      onConflict: "user_id,entity_type,entity_id",
+    });
+    if (error) throw error;
+  }
 
   return syncedAt;
 }
@@ -59,19 +63,31 @@ export async function pullSyncChanges(
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return [];
 
-  let query = supabase
-    .from(ENTITIES_TABLE)
-    .select("entity_type, entity_id, payload, deleted, updated_at")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: true });
+  const rows: SyncEntityRow[] = [];
 
-  if (since) {
-    query = query.gt("updated_at", since);
+  for (let page = 0; ; page += 1) {
+    const from = page * SYNC_PAGE_SIZE;
+    const to = from + SYNC_PAGE_SIZE - 1;
+    let query = supabase
+      .from(ENTITIES_TABLE)
+      .select("entity_type, entity_id, payload, deleted, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: true })
+      .range(from, to);
+
+    if (since) {
+      query = query.gt("updated_at", since);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const pageRows = (data ?? []) as SyncEntityRow[];
+    rows.push(...pageRows);
+    if (pageRows.length < SYNC_PAGE_SIZE) break;
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data as SyncEntityRow[]).map(rowToChange);
+  return rows.map(rowToChange);
 }
 
 /** Migra una copia completa antigua a entidades incrementales */
