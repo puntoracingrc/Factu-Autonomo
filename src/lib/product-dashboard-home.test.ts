@@ -9,6 +9,8 @@ describe("product dashboard home", () => {
   it("mantiene el resumen financiero colapsado y ligado a Pro", () => {
     const component = source("../components/dashboard/HomeBusinessSummary.tsx");
     const page = source("../app/page.tsx");
+    const periodSelectorIndex = component.indexOf("<PeriodSelector");
+    const flowChartIndex = component.indexOf("<BusinessFlowChart");
 
     expect(page).toContain("HomeBusinessSummary");
     expect(component).toContain("Resumen del negocio");
@@ -25,6 +27,10 @@ describe("product dashboard home", () => {
     expect(component).toContain("Balance estimado");
     expect(component).toContain("IVA estimado");
     expect(component).toContain("Resumen por periodo");
+    expect(periodSelectorIndex).toBeGreaterThan(-1);
+    expect(flowChartIndex).toBeGreaterThan(-1);
+    expect(periodSelectorIndex).toBeLessThan(flowChartIndex);
+    expect(component).toContain("compactPeriodSelectClass");
     expect(component).toContain("Periodo:");
     expect(component).toContain("<option value=\"month\">Mes</option>");
     expect(component).toContain("<option value=\"quarter\">Trimestre</option>");

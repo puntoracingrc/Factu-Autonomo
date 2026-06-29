@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
@@ -8,8 +8,13 @@ import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
+import {
+  formatTimelineMonthLabel,
+  timelineMonthKey,
+} from "@/lib/timeline";
 import {
   buildExpensesExportCsv,
   downloadExpensesCsv,
@@ -28,6 +33,8 @@ import {
 import type { Quarter } from "@/lib/periods";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
+const EXPENSE_LIST_BATCH_SIZE = 30;
+
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
@@ -39,6 +46,9 @@ export default function GastosPage() {
   const [month, setMonth] = useState(defaultPeriod.month);
   const [quarter, setQuarter] = useState<Quarter>(defaultPeriod.quarter);
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
+  const [visibleExpenseCount, setVisibleExpenseCount] = useState(
+    EXPENSE_LIST_BATCH_SIZE,
+  );
 
   const periodExpenses = useMemo(
     () =>
@@ -66,15 +76,29 @@ export default function GastosPage() {
     const matched = periodExpenses.filter((expense) =>
       matchesSupplierFilter(expense, supplierFilter, chartSlices),
     );
-    return [...matched].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    return [...matched].sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return (
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    });
   }, [periodExpenses, supplierFilter, chartSlices]);
+
+  const visibleExpenses = filteredExpenses.slice(0, visibleExpenseCount);
+  const hiddenExpenseCount = Math.max(
+    filteredExpenses.length - visibleExpenses.length,
+    0,
+  );
 
   const total = filteredExpenses.reduce(
     (sum, expense) => sum + expenseAmount(expense, vatExempt),
     0,
   );
+
+  useEffect(() => {
+    setVisibleExpenseCount(EXPENSE_LIST_BATCH_SIZE);
+  }, [month, periodKind, quarter, supplierFilter, year]);
 
   function handlePeriodKindChange(kind: ExpensePeriodKind) {
     setPeriodKind(kind);
@@ -187,44 +211,88 @@ export default function GastosPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredExpenses.map((expense) => (
-            <Card
-              key={expense.id}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="min-w-0">
-                <p className="font-bold text-slate-900">{expense.supplierName}</p>
-                <p className="text-sm text-slate-600">{expense.description}</p>
-                <p className="text-xs text-slate-400">
-                  {formatShortDate(expense.date)} · {expense.category} ·{" "}
-                  {expense.paymentMethod}
-                  {expense.recurringExpenseId && " · Gasto fijo"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-red-700">
-                  {formatMoney(expenseAmount(expense, vatExempt))}
-                </span>
-                <ButtonLink
-                  href={`/gastos/nuevo?editar=${encodeURIComponent(expense.id)}`}
-                  variant="secondary"
-                  className="min-h-10 px-3 text-sm"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </ButtonLink>
-                <button
-                  onClick={() => {
-                    if (confirm("¿Borrar este gasto?")) deleteExpense(expense.id);
-                  }}
-                  className="rounded-xl bg-red-50 p-2 text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                  aria-label={`Borrar gasto ${expense.description}`}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
-            </Card>
-          ))}
+          {visibleExpenses.map((expense, index) => {
+            const previousExpense =
+              index > 0 ? visibleExpenses[index - 1] : null;
+            const showTimelineDivider =
+              !previousExpense ||
+              timelineMonthKey(previousExpense.date) !==
+                timelineMonthKey(expense.date);
+
+            return (
+              <Fragment key={expense.id}>
+                {showTimelineDivider && (
+                  <TimelineMonthDivider
+                    label={formatTimelineMonthLabel(expense.date)}
+                  />
+                )}
+                <Card className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900">
+                      {expense.supplierName}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {expense.description}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {formatShortDate(expense.date)} · {expense.category} ·{" "}
+                      {expense.paymentMethod}
+                      {expense.recurringExpenseId && " · Gasto fijo"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-red-700">
+                      {formatMoney(expenseAmount(expense, vatExempt))}
+                    </span>
+                    <ButtonLink
+                      href={`/gastos/nuevo?editar=${encodeURIComponent(
+                        expense.id,
+                      )}`}
+                      variant="secondary"
+                      className="min-h-10 px-3 text-sm"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </ButtonLink>
+                    <button
+                      onClick={() => {
+                        if (confirm("¿Borrar este gasto?")) {
+                          deleteExpense(expense.id);
+                        }
+                      }}
+                      className="rounded-xl bg-red-50 p-2 text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                      aria-label={`Borrar gasto ${expense.description}`}
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </Card>
+              </Fragment>
+            );
+          })}
+          {hiddenExpenseCount > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleExpenseCount((current) =>
+                    Math.min(
+                      current + EXPENSE_LIST_BATCH_SIZE,
+                      filteredExpenses.length,
+                    ),
+                  )
+                }
+                className="min-h-12 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Cargar {Math.min(EXPENSE_LIST_BATCH_SIZE, hiddenExpenseCount)}{" "}
+                más
+              </button>
+              <p className="mt-2 text-center text-xs font-medium text-slate-400">
+                Mostrando {visibleExpenses.length} de {filteredExpenses.length}{" "}
+                gastos
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -5,6 +5,7 @@ import {
   extractSpanishTaxId,
   parsePcFacturacionDwi,
 } from "./pcfacturacion";
+import { applyBusinessProfileAutofillSuggestion } from "../business-profile-autofill";
 import { EMPTY_DATA } from "../types";
 
 const baseTables = {
@@ -169,7 +170,8 @@ describe("PC Facturacion importer", () => {
     expect(result.preview.invoiceLines).toBe(1);
     expect(result.preview.orphanInvoiceLineDocuments).toBe(1);
 
-    expect(result.data.profile.name).toBe("Persianas Almar");
+    expect(result.data.profile.name).toBe("");
+    expect(result.profileSuggestion.emptyFieldCount).toBeGreaterThan(0);
     expect(result.data.customers).toHaveLength(1);
     expect(result.data.documents).toHaveLength(2);
     expect(result.data.documents.find((doc) => doc.type === "factura")?.status).toBe(
@@ -181,6 +183,113 @@ describe("PC Facturacion importer", () => {
       unitPrice: 50,
       ivaPercent: 21,
     });
+  });
+
+  it("reimporta sin duplicar el lote antiguo y conserva documentos manuales", () => {
+    const firstImport = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
+      includeUnusedCustomers: false,
+    });
+    const manualDocument = {
+      ...firstImport.data.documents[0],
+      id: "manual-factura",
+      number: "F-2026-0001",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+    const secondTables = {
+      ...baseTables,
+      Invoice: [
+        ...baseTables.Invoice,
+        {
+          InvoiceNumber: "Factura/2/",
+          Date: new Date("2024-02-15T00:00:00.000Z"),
+          CustomerNumber: "1001",
+          Customer: "Ana Garcia",
+          GrossAmount: 60.5,
+          Paid: true,
+          Canceled: false,
+        },
+      ],
+      Positions: [
+        ...baseTables.Positions,
+        {
+          Document: "Factura",
+          DocumentNumber: "Factura/2/",
+          LineItemNumber: "1",
+          ShortText: "Nueva factura añadida",
+          Quantity: 1,
+          UnitpriceNet: 50,
+          UnitpriceVat: 10.5,
+          VatCode: "N 21 %",
+        },
+      ],
+    };
+
+    const secondImport = buildPcFacturacionImport(
+      {
+        ...firstImport.data,
+        documents: [...firstImport.data.documents, manualDocument],
+      },
+      secondTables,
+      { includeUnusedCustomers: false },
+    );
+
+    expect(
+      secondImport.data.documents.filter((doc) => doc.number === "Factura/1/"),
+    ).toHaveLength(1);
+    expect(
+      secondImport.data.documents.filter((doc) => doc.number === "Factura/2/"),
+    ).toHaveLength(1);
+    expect(
+      secondImport.data.documents.some((doc) => doc.id === "manual-factura"),
+    ).toBe(true);
+  });
+
+  it("propone autorrellenar ajustes de empresa desde campos alternativos del importador", () => {
+    const result = buildPcFacturacionImport(
+      EMPTY_DATA,
+      {
+        ...baseTables,
+        Client: [
+          {
+            ClientName: "Taller Importado SL",
+            FiscalNumber: "CIF B-65305450",
+            Direccion: "Avenida Taller 15",
+            CP: "28001",
+            City: "Madrid",
+            Phone: "910000000",
+            Mail: "hola@taller.test",
+            IBAN: "ES12 0000 0000 0000 0000 0000",
+          },
+        ],
+        Positions: [
+          {
+            ...baseTables.Positions[0],
+            UnitpriceVat: 2.5,
+            VatCode: "N 5 %",
+          },
+          ...baseTables.Positions.slice(1),
+        ],
+      },
+      { includeUnusedCustomers: false },
+    );
+    const appliedProfile = applyBusinessProfileAutofillSuggestion(
+      result.data.profile,
+      result.profileSuggestion,
+    );
+
+    expect(result.data.profile.name).toBe("");
+    expect(appliedProfile).toMatchObject({
+      name: "Taller Importado SL",
+      nif: "B65305450",
+      address: "Avenida Taller 15",
+      postalCode: "28001",
+      city: "Madrid",
+      phone: "910000000",
+      email: "hola@taller.test",
+      iban: "ES12 0000 0000 0000 0000 0000",
+    });
+    expect(appliedProfile.iva.rates).toContain(5);
   });
 
   it("permite marcar como pagadas las facturas importadas que vienen impagadas", () => {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Field, Select } from "@/components/ui/Field";
+import { Select } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
@@ -120,15 +120,14 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
       {locked && <LockedFinanceSummary />}
 
       {!locked && expanded && (
-        <div id="business-summary-details" className="space-y-4">
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
-            <BusinessFlowChart summary={summary} />
-            <PeriodSelector
-              period={period}
-              years={years}
-              onChange={updatePeriod}
-            />
-          </div>
+        <div id="business-summary-details" className="space-y-3">
+          <PeriodSelector
+            period={period}
+            years={years}
+            onChange={updatePeriod}
+          />
+
+          <BusinessFlowChart summary={summary} />
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-3">
             <RecentDocumentsCard data={data} summary={summary} />
@@ -273,36 +272,43 @@ function PeriodSelector({
   onChange: (patch: Partial<ProductPeriodSelection>) => void;
 }) {
   return (
-    <Card className="min-w-0 p-3 lg:max-w-3xl">
-      <div className="flex items-center gap-2 pb-3 text-sm font-bold text-slate-900">
-        <CalendarRange className="h-4 w-4 text-blue-600" aria-hidden />
-        Resumen por periodo
-      </div>
-      <div className="grid min-w-0 gap-3">
-        <div>
-          <Field label="Periodo">
+    <Card className="min-w-0 p-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-900 lg:w-56 lg:pb-2">
+          <CalendarRange className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
+          <span className="truncate">Resumen por periodo</span>
+        </div>
+
+        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="min-w-0 space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Periodo
+            </span>
             <Select
               value={period.kind}
               onChange={(event) =>
                 onChange({ kind: event.target.value as ProductPeriodKind })
               }
               aria-label="Periodo del resumen"
+              className={compactPeriodSelectClass}
             >
               <option value="all">Todos</option>
               <option value="month">Mes</option>
               <option value="quarter">Trimestre</option>
               <option value="year">Año</option>
             </Select>
-          </Field>
-        </div>
+          </label>
 
-        {period.kind !== "all" && (
-          <div>
-            <Field label="Año">
+          {period.kind !== "all" && (
+            <label className="min-w-0 space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Año
+              </span>
               <Select
                 value={period.year}
                 onChange={(event) => onChange({ year: Number(event.target.value) })}
                 aria-label="Año del resumen"
+                className={compactPeriodSelectClass}
               >
                 {years.map((year) => (
                   <option key={year} value={year}>
@@ -310,19 +316,21 @@ function PeriodSelector({
                   </option>
                 ))}
               </Select>
-            </Field>
-          </div>
-        )}
+            </label>
+          )}
 
-        {period.kind === "month" && (
-          <div>
-            <Field label="Mes">
+          {period.kind === "month" && (
+            <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Mes
+              </span>
               <Select
                 value={period.month}
                 onChange={(event) =>
                   onChange({ month: Number(event.target.value) })
                 }
                 aria-label="Mes del resumen"
+                className={compactPeriodSelectClass}
               >
                 {PRODUCT_MONTH_NAMES.map((name, index) => (
                   <option key={name} value={index + 1}>
@@ -330,13 +338,14 @@ function PeriodSelector({
                   </option>
                 ))}
               </Select>
-            </Field>
-          </div>
-        )}
+            </label>
+          )}
 
-        {period.kind === "quarter" && (
-          <div>
-            <Field label="Trimestre">
+          {period.kind === "quarter" && (
+            <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Trimestre
+              </span>
               <Select
                 value={period.quarter}
                 onChange={(event) =>
@@ -345,6 +354,7 @@ function PeriodSelector({
                   })
                 }
                 aria-label="Trimestre del resumen"
+                className={compactPeriodSelectClass}
               >
                 {PRODUCT_QUARTERS.map((quarter) => (
                   <option key={quarter} value={quarter}>
@@ -352,13 +362,16 @@ function PeriodSelector({
                   </option>
                 ))}
               </Select>
-            </Field>
-          </div>
-        )}
+            </label>
+          )}
+        </div>
       </div>
     </Card>
   );
 }
+
+const compactPeriodSelectClass =
+  "min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
 
 function RecentDocumentsCard({
   data,

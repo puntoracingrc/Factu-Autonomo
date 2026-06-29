@@ -12,6 +12,10 @@ import {
   readPcFacturacionMdb,
   type PcFacturacionImportResult,
 } from "@/lib/importers/pcfacturacion";
+import {
+  applyBusinessProfileAutofillSuggestion,
+  hasBusinessProfileAutofillSuggestion,
+} from "@/lib/business-profile-autofill";
 
 type ImportSource = "auto" | "pcfacturacion3" | "prestashop" | "csv";
 type InvoicePaymentImportMode = "keep" | "markPaid";
@@ -32,6 +36,14 @@ function formatRange(from: string | null, to: string | null): string {
   return `${from} a ${to}`;
 }
 
+function formatDetectedValue(value: string): string {
+  return value || "Vacío";
+}
+
+function formatIvaRates(rates: number[]): string {
+  return rates.map((rate) => `${rate}%`).join(", ");
+}
+
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
   const { billingEnabled, limits } = useBilling();
@@ -42,6 +54,7 @@ export default function ImportarPage() {
   const [invoicePaymentMode, setInvoicePaymentMode] =
     useState<InvoicePaymentImportMode>("keep");
   const [result, setResult] = useState<PcFacturacionImportResult | null>(null);
+  const [applyDetectedProfile, setApplyDetectedProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -68,6 +81,7 @@ export default function ImportarPage() {
     setBusy(true);
     setError(null);
     setDone(false);
+    setApplyDetectedProfile(false);
     try {
       if (importLocked) {
         throw new Error(
@@ -109,6 +123,7 @@ export default function ImportarPage() {
     setResult(null);
     setError(null);
     setDone(false);
+    setApplyDetectedProfile(false);
   }
 
   function handleFile(nextFile: File | undefined) {
@@ -116,6 +131,7 @@ export default function ImportarPage() {
     setResult(null);
     setError(null);
     setDone(false);
+    setApplyDetectedProfile(false);
     if (nextFile && !importLocked) void analyze(nextFile);
   }
 
@@ -125,6 +141,7 @@ export default function ImportarPage() {
     setResult(null);
     setError(null);
     setDone(false);
+    setApplyDetectedProfile(false);
     if (file) void analyze(file, nextDwiFile);
   }
 
@@ -144,7 +161,18 @@ export default function ImportarPage() {
       setError("La importación de datos desde otros programas requiere plan Pro.");
       return;
     }
-    replaceData(result.data);
+    const dataToImport =
+      applyDetectedProfile &&
+      hasBusinessProfileAutofillSuggestion(result.profileSuggestion)
+        ? {
+            ...result.data,
+            profile: applyBusinessProfileAutofillSuggestion(
+              result.data.profile,
+              result.profileSuggestion,
+            ),
+          }
+        : result.data;
+    replaceData(dataToImport);
     setDone(true);
   }
 
@@ -302,6 +330,12 @@ export default function ImportarPage() {
               <strong>{result.preview.companyName || "sin nombre"}</strong>
             </p>
           </div>
+
+          <DetectedBusinessSettings
+            result={result}
+            applyDetectedProfile={applyDetectedProfile}
+            onApplyDetectedProfileChange={setApplyDetectedProfile}
+          />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-slate-50 p-3">
@@ -476,6 +510,107 @@ export default function ImportarPage() {
           ) : null}
         </Card>
       ) : null}
+    </div>
+  );
+}
+
+function DetectedBusinessSettings({
+  result,
+  applyDetectedProfile,
+  onApplyDetectedProfileChange,
+}: {
+  result: PcFacturacionImportResult;
+  applyDetectedProfile: boolean;
+  onApplyDetectedProfileChange: (value: boolean) => void;
+}) {
+  const suggestion = result.profileSuggestion;
+  if (!hasBusinessProfileAutofillSuggestion(suggestion)) return null;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+      <div>
+        <p className="font-semibold">
+          Hemos detectado configuración de empresa en tus datos importados
+        </p>
+        <p className="mt-1 text-blue-900">
+          Si lo aceptas, se rellenarán solo los campos vacíos y se añadirán los
+          tipos de IVA que falten. Los campos que ya tengan valor no se cambian
+          automáticamente.
+        </p>
+      </div>
+
+      {suggestion.fields.length > 0 ? (
+        <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-3 py-2 font-bold uppercase">Campo</th>
+                <th className="px-3 py-2 font-bold uppercase">Actual</th>
+                <th className="px-3 py-2 font-bold uppercase">Detectado</th>
+                <th className="px-3 py-2 font-bold uppercase">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {suggestion.fields.map((field) => (
+                <tr key={field.field}>
+                  <td className="px-3 py-2 font-semibold text-slate-900">
+                    {field.label}
+                  </td>
+                  <td className="px-3 py-2">
+                    {formatDetectedValue(field.currentValue)}
+                  </td>
+                  <td className="px-3 py-2 font-medium">
+                    {field.detectedValue}
+                  </td>
+                  <td className="px-3 py-2">
+                    {field.willFillEmptyField
+                      ? "Se rellenará si lo aceptas"
+                      : "No se cambia automáticamente"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {suggestion.differentCurrentValueCount > 0 ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+          Hay {suggestion.differentCurrentValueCount} campo(s) con valor actual
+          distinto al detectado. Los dejamos como están para evitar pisar una
+          corrección manual.
+        </p>
+      ) : null}
+
+      {suggestion.missingIvaRates.length > 0 ? (
+        <p className="rounded-lg border border-blue-100 bg-white px-3 py-2">
+          Tipos de IVA actuales:{" "}
+          <strong>{formatIvaRates(suggestion.currentIvaRates)}</strong>
+          <br />
+          Tipos detectados que faltan:{" "}
+          <strong>{formatIvaRates(suggestion.missingIvaRates)}</strong>
+        </p>
+      ) : null}
+
+      <label className="flex items-start gap-3 rounded-xl border border-blue-200 bg-white p-3 text-slate-800">
+        <input
+          type="checkbox"
+          checked={applyDetectedProfile}
+          onChange={(event) =>
+            onApplyDetectedProfileChange(event.target.checked)
+          }
+          className="mt-1 h-4 w-4"
+        />
+        <span>
+          <span className="block font-semibold">
+            Rellenar ajustes vacíos con estos datos al importar
+          </span>
+          <span className="block text-xs text-slate-600">
+            Si no lo marcas, se importarán documentos y clientes, pero no se
+            tocarán tus ajustes de empresa.
+          </span>
+        </span>
+      </label>
     </div>
   );
 }
