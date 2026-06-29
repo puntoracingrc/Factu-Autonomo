@@ -181,6 +181,10 @@ export function buildImportAiReviewPrompt(): string {
   ].join("\n");
 }
 
+export function isImportAiReviewConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
+}
+
 export async function reviewImportWithAi(
   input: ImportAiReviewInput,
 ): Promise<{ data?: ImportAiReviewResult; error?: string }> {
