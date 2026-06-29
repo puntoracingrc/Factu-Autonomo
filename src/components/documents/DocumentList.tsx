@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
@@ -13,6 +13,7 @@ import { PaymentReminderButton } from "@/components/documents/PaymentReminderBut
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
@@ -29,6 +30,10 @@ import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
 import { findReceiptForInvoice } from "@/lib/receipts";
+import {
+  formatTimelineMonthLabel,
+  timelineMonthKey,
+} from "@/lib/timeline";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import {
   PRODUCT_MONTH_NAMES,
@@ -67,7 +72,11 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
 };
 
 const DOCUMENT_LIST_BATCH_SIZE = 30;
-const PAGINATED_DOCUMENT_TYPES: DocumentType[] = ["factura", "recibo"];
+const PAGINATED_DOCUMENT_TYPES: DocumentType[] = [
+  "factura",
+  "presupuesto",
+  "recibo",
+];
 
 type DocumentStatusFilter =
   | "all"
@@ -308,7 +317,13 @@ export function DocumentList({
         </Card>
       ) : (
         <div className="space-y-3">
-          {visibleDocuments.map((doc) => {
+          {visibleDocuments.map((doc, index) => {
+            const previousDocument =
+              index > 0 ? visibleDocuments[index - 1] : null;
+            const showTimelineDivider =
+              !previousDocument ||
+              timelineMonthKey(previousDocument.date) !==
+                timelineMonthKey(doc.date);
             const total = documentAmounts(doc, vatExempt).total;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
@@ -332,117 +347,128 @@ export function DocumentList({
               : doc.number;
 
             return (
-              <Card key={doc.id} className="flex flex-col gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-900">{displayNumber}</span>
-                    {rect && (
-                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                        Rectificativa
+              <Fragment key={doc.id}>
+                {showTimelineDivider && (
+                  <TimelineMonthDivider
+                    label={formatTimelineMonthLabel(doc.date)}
+                  />
+                )}
+                <Card className="flex flex-col gap-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900">
+                        {displayNumber}
                       </span>
+                      {rect && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                          Rectificativa
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          isCollectedDocument(doc) || isAcceptedQuote(doc)
+                            ? "bg-green-100 text-green-700"
+                            : documentStatusColor(doc)
+                        }`}
+                      >
+                        {documentStatusLabel(doc, type)}
+                      </span>
+                      {doc.verifactu && type === "factura" && (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                          Veri*Factu
+                        </span>
+                      )}
+                      {linkedInvoice && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          Convertido a factura
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-slate-700">{doc.client.name}</p>
+                    <p className="text-sm text-slate-500">
+                      {formatShortDate(doc.date)} · {formatMoney(total)}
+                    </p>
+                    {statusHint && (
+                      <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
                     )}
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        isCollectedDocument(doc) || isAcceptedQuote(doc)
-                          ? "bg-green-100 text-green-700"
-                          : documentStatusColor(doc)
-                      }`}
-                    >
-                      {documentStatusLabel(doc, type)}
-                    </span>
-                    {doc.verifactu && type === "factura" && (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                        Veri*Factu
-                      </span>
+                    {doc.rectification && (
+                      <p className="text-xs text-orange-700">
+                        Rectifica: {doc.rectification.originalNumber}
+                      </p>
+                    )}
+                    {doc.rectifiedById && (
+                      <p className="text-xs text-slate-400">
+                        Tiene factura rectificativa asociada
+                      </p>
+                    )}
+                    {linkedReceipt && (
+                      <p className="text-xs text-green-700">
+                        Recibo creado: {linkedReceipt.number}
+                      </p>
+                    )}
+                    {type === "factura" && doc.sourceQuoteNumber && (
+                      <p className="text-xs text-blue-700">
+                        Creada desde presupuesto: {doc.sourceQuoteNumber}
+                      </p>
                     )}
                     {linkedInvoice && (
-                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                        Convertido a factura
-                      </span>
+                      <p className="text-xs text-blue-700">
+                        Factura creada: {linkedInvoice.number}
+                      </p>
+                    )}
+                    {missingShareContact && (
+                      <p className="text-xs text-slate-500">
+                        Sin email ni teléfono para enviar desde aquí.
+                      </p>
                     )}
                   </div>
-                  <p className="mt-1 text-slate-700">{doc.client.name}</p>
-                  <p className="text-sm text-slate-500">
-                    {formatShortDate(doc.date)} · {formatMoney(total)}
-                  </p>
-                  {statusHint && (
-                    <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
-                  )}
-                  {doc.rectification && (
-                    <p className="text-xs text-orange-700">
-                      Rectifica: {doc.rectification.originalNumber}
-                    </p>
-                  )}
-                  {doc.rectifiedById && (
-                    <p className="text-xs text-slate-400">
-                      Tiene factura rectificativa asociada
-                    </p>
-                  )}
-                  {linkedReceipt && (
-                    <p className="text-xs text-green-700">
-                      Recibo creado: {linkedReceipt.number}
-                    </p>
-                  )}
-                  {type === "factura" && doc.sourceQuoteNumber && (
-                    <p className="text-xs text-blue-700">
-                      Creada desde presupuesto: {doc.sourceQuoteNumber}
-                    </p>
-                  )}
-                  {linkedInvoice && (
-                    <p className="text-xs text-blue-700">
-                      Factura creada: {linkedInvoice.number}
-                    </p>
-                  )}
-                  {missingShareContact && (
-                    <p className="text-xs text-slate-500">
-                      Sin email ni teléfono para enviar desde aquí.
-                    </p>
-                  )}
-                </div>
-                <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
-                  {type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
-                  {type === "presupuesto" && (
-                    <ConvertQuoteToInvoiceButton doc={doc} />
-                  )}
-                  {(type === "factura" || type === "recibo") && (
-                    <MarkAsPaidButton doc={doc} />
-                  )}
-                  {type === "factura" && (
-                    <PaymentReminderButton doc={doc} profile={data.profile} />
-                  )}
-                  <DocumentPdfShareActions doc={doc} profile={data.profile} />
-                  {rectifiable && (
-                    <IconActionLink
-                      href={`${basePath}/${doc.id}/rectificar`}
-                      label={RECTIFICATION_ACTION_COPY.label}
-                      tooltip={RECTIFICATION_ACTION_COPY.tooltip}
-                      className="bg-orange-50 text-orange-700 hover:bg-orange-100"
-                    >
-                      <FileWarning className="h-5 w-5" />
-                    </IconActionLink>
-                  )}
-                  {editable ? (
-                    <IconActionLink
-                      href={`${basePath}/${doc.id}`}
-                      label="Editar"
-                      tooltip="Editar"
-                      className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </IconActionLink>
-                  ) : (
-                    <IconActionLink
-                      href={`${basePath}/${doc.id}`}
-                      label="Ver"
-                      tooltip="Ver detalle"
-                      className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    >
-                      <Eye className="h-5 w-5" />
-                    </IconActionLink>
-                  )}
-                  <DeleteDocumentButton doc={doc} />
-                </div>
-              </Card>
+                  <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+                    {type === "presupuesto" && (
+                      <MarkAsAcceptedButton doc={doc} />
+                    )}
+                    {type === "presupuesto" && (
+                      <ConvertQuoteToInvoiceButton doc={doc} />
+                    )}
+                    {(type === "factura" || type === "recibo") && (
+                      <MarkAsPaidButton doc={doc} />
+                    )}
+                    {type === "factura" && (
+                      <PaymentReminderButton doc={doc} profile={data.profile} />
+                    )}
+                    <DocumentPdfShareActions doc={doc} profile={data.profile} />
+                    {rectifiable && (
+                      <IconActionLink
+                        href={`${basePath}/${doc.id}/rectificar`}
+                        label={RECTIFICATION_ACTION_COPY.label}
+                        tooltip={RECTIFICATION_ACTION_COPY.tooltip}
+                        className="bg-orange-50 text-orange-700 hover:bg-orange-100"
+                      >
+                        <FileWarning className="h-5 w-5" />
+                      </IconActionLink>
+                    )}
+                    {editable ? (
+                      <IconActionLink
+                        href={`${basePath}/${doc.id}`}
+                        label="Editar"
+                        tooltip="Editar"
+                        className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </IconActionLink>
+                    ) : (
+                      <IconActionLink
+                        href={`${basePath}/${doc.id}`}
+                        label="Ver"
+                        tooltip="Ver detalle"
+                        className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      >
+                        <Eye className="h-5 w-5" />
+                      </IconActionLink>
+                    )}
+                    <DeleteDocumentButton doc={doc} />
+                  </div>
+                </Card>
+              </Fragment>
             );
           })}
           {paginateList && hiddenCount > 0 && (

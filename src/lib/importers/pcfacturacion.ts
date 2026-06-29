@@ -1,6 +1,13 @@
 import { countersFromDocuments, formatDocumentNumber } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import {
+  buildBusinessProfileAutofillSuggestion,
+  completeBusinessProfileIvaFromDocuments,
+  fillMissingBusinessProfileFields,
+  type BusinessProfileAutofillCandidate,
+  type BusinessProfileAutofillSuggestion,
+} from "../business-profile-autofill";
 import type {
   AppData,
   BusinessProfile,
@@ -61,6 +68,7 @@ export interface PcFacturacionImportPreview {
 export interface PcFacturacionImportResult {
   data: AppData;
   preview: PcFacturacionImportPreview;
+  profileSuggestion: BusinessProfileAutofillSuggestion;
   warnings: string[];
 }
 
@@ -90,6 +98,22 @@ function text(value: unknown): string {
 
 function memo(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function firstText(row: MdbRow | undefined, keys: string[]): string {
+  if (!row) return "";
+  for (const key of keys) {
+    const direct = text(row[key]);
+    if (direct) return direct;
+    const match = Object.keys(row).find(
+      (rowKey) => rowKey.toLowerCase() === key.toLowerCase(),
+    );
+    if (match) {
+      const value = text(row[match]);
+      if (value) return value;
+    }
+  }
+  return "";
 }
 
 function amount(value: unknown): number {
@@ -215,22 +239,55 @@ function parseCustomer(row: MdbRow, index: number): ParsedCustomer | null {
   return { sourceId: source, customer };
 }
 
-function parseCompanyProfile(row: MdbRow | undefined, base: BusinessProfile): BusinessProfile {
-  if (!row) return base;
+function parseCompanyProfileCandidate(
+  row: MdbRow | undefined,
+): BusinessProfileAutofillCandidate {
+  if (!row) return {};
   return {
-    ...base,
-    name: text(row.Company) || base.name,
-    nif: extractSpanishTaxId(row.VatID, row.TaxNumber) ?? base.nif,
-    address: text(row.Street) || base.address,
-    city: text(row.Town) || base.city,
-    postalCode: text(row.ZIP) || base.postalCode,
-    phone: text(row.Telephone) || text(row.Mobile) || base.phone,
-    email: text(row.Email) || base.email,
-    iban: text(row.AccountNumber1) || base.iban,
-    iva: {
-      rates: [0, 10, 21],
-      defaultRate: 21,
-    },
+    name: firstText(row, [
+      "Company",
+      "CompanyName",
+      "ClientName",
+      "Name",
+      "Firma",
+      "RazonSocial",
+      "RazónSocial",
+      "BusinessName",
+    ]),
+    nif: extractSpanishTaxId(
+      row.VatID,
+      row.TaxNumber,
+      row.NIF,
+      row.CIF,
+      row.TaxId,
+      row.VATNumber,
+      row.FiscalNumber,
+      ...Object.values(row),
+    ),
+    address: firstText(row, [
+      "Street",
+      "Address",
+      "Address1",
+      "FiscalAddress",
+      "Direccion",
+      "Dirección",
+      "Strasse",
+      "Straße",
+    ]),
+    city: firstText(row, ["Town", "City", "Localidad", "Poblacion", "Población", "Ort"]),
+    postalCode: firstText(row, [
+      "ZIP",
+      "Zip",
+      "PostalCode",
+      "PostCode",
+      "CP",
+      "CodigoPostal",
+      "CódigoPostal",
+      "PLZ",
+    ]),
+    phone: firstText(row, ["Telephone", "Phone", "Mobile", "Telefono", "Teléfono"]),
+    email: firstText(row, ["Email", "EMail", "Mail", "Correo"]),
+    iban: firstText(row, ["IBAN", "AccountNumber1", "AccountNumber", "BankAccount", "Cuenta"]),
   };
 }
 
@@ -533,7 +590,11 @@ export function buildPcFacturacionImport(
   const invoices = tables.Invoice ?? [];
   const offers = tables.Offer ?? [];
   const positions = tables.Positions ?? [];
-  const profile = parseCompanyProfile(tables.Client?.[0], current.profile);
+  const detectedProfileCandidate = parseCompanyProfileCandidate(tables.Client?.[0]);
+  const profileForImportedDocuments = fillMissingBusinessProfileFields(
+    current.profile,
+    detectedProfileCandidate,
+  );
   const { numbering, dwi } = applyDwiNumbering(
     current.profile.numbering,
     options.dwiText,
@@ -574,7 +635,7 @@ export function buildPcFacturacionImport(
         numberField: "InvoiceNumber",
         positions: invoicePositions.get(text(row.InvoiceNumber)) ?? [],
         customerBySource,
-        profile,
+        profile: profileForImportedDocuments,
         markUnpaidInvoicesAsPaid: options.markUnpaidInvoicesAsPaid ?? false,
       }),
     );
@@ -587,7 +648,7 @@ export function buildPcFacturacionImport(
         numberField: "OfferNumber",
         positions: offerPositions.get(text(row.OfferNumber)) ?? [],
         customerBySource,
-        profile,
+        profile: profileForImportedDocuments,
         markUnpaidInvoicesAsPaid: false,
       }),
     );
@@ -601,8 +662,16 @@ export function buildPcFacturacionImport(
     (customer) => !customer.id.startsWith(`${PCF_ID_PREFIX}:customer:`),
   );
   const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const profileSuggestion = buildBusinessProfileAutofillSuggestion(
+    current.profile,
+    completeBusinessProfileIvaFromDocuments(
+      profileForImportedDocuments,
+      importedDocuments,
+      { preferMostUsedDefault: false },
+    ),
+  );
   const nextProfile = {
-    ...profile,
+    ...current.profile,
     numbering,
   };
   const data = normalizeLoadedData({
@@ -619,7 +688,8 @@ export function buildPcFacturacionImport(
 
   const preview: PcFacturacionImportPreview = {
     sourceName: PC_FACTURACION_SOURCE_NAME,
-    companyName: profile.name,
+    companyName:
+      detectedProfileCandidate.name || current.profile.name || "",
     customersWithDocuments: customersWithDocuments.length,
     unusedCustomers: unusedCustomers.length,
     blankCustomers,
@@ -660,7 +730,7 @@ export function buildPcFacturacionImport(
     );
   }
 
-  return { data, preview, warnings };
+  return { data, preview, profileSuggestion, warnings };
 }
 
 export async function readPcFacturacionMdb(

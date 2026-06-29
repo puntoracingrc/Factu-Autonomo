@@ -265,20 +265,59 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("Mostrando");
   });
 
-  it("carga facturas y recibos por bloques sin cambiar presupuestos", () => {
+  it("carga facturas, presupuestos y recibos por bloques", () => {
     const documentListSource = readFileSync(
       new URL("../components/documents/DocumentList.tsx", import.meta.url),
       "utf8",
     );
 
     expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 30");
-    expect(documentListSource).toContain(
-      'PAGINATED_DOCUMENT_TYPES: DocumentType[] = ["factura", "recibo"]',
-    );
+    expect(documentListSource).toContain('"factura"');
+    expect(documentListSource).toContain('"presupuesto"');
+    expect(documentListSource).toContain('"recibo"');
     expect(documentListSource).toContain("visibleDocuments");
     expect(documentListSource).toContain("hiddenCount");
     expect(documentListSource).toContain("Cargar");
     expect(documentListSource).toContain("Mostrando");
+    expect(documentListSource).toContain("TimelineMonthDivider");
+    expect(documentListSource).toContain("formatTimelineMonthLabel");
+  });
+
+  it("carga gastos por bloques y muestra separadores por mes", () => {
+    const expensesPageSource = readFileSync(
+      new URL("../app/gastos/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(expensesPageSource).toContain("EXPENSE_LIST_BATCH_SIZE = 30");
+    expect(expensesPageSource).toContain("visibleExpenses");
+    expect(expensesPageSource).toContain("hiddenExpenseCount");
+    expect(expensesPageSource).toContain("TimelineMonthDivider");
+    expect(expensesPageSource).toContain("formatTimelineMonthLabel");
+    expect(expensesPageSource).toContain("Cargar");
+    expect(expensesPageSource).toContain("Mostrando");
+  });
+
+  it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
+    const importPageSource = readFileSync(
+      new URL("../app/importar/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(importPageSource).toContain(
+      "Hemos detectado configuración de empresa en tus datos importados",
+    );
+    expect(importPageSource).toContain("Actual");
+    expect(importPageSource).toContain("Detectado");
+    expect(importPageSource).toContain(
+      "Rellenar ajustes vacíos con estos datos al importar",
+    );
+    expect(importPageSource).toContain(
+      "Los campos que ya tengan valor no se cambian",
+    );
+    expect(importPageSource).toContain(
+      "applyBusinessProfileAutofillSuggestion",
+    );
   });
 
   it("expone instalacion PWA con iconos de marca", () => {
