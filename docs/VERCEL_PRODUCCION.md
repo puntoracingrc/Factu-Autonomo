@@ -69,7 +69,7 @@ El `whsec_` del webhook local **no sirve** para Vercel: usa el secret del endpoi
 Ver `supabase/README.md`. Resumen:
 
 - **Site URL:** `https://facturacion-autonomos.app`
-- **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`
+- **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`, `http://localhost:3001/auth/callback`
 - **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. Este login no pide permiso de Drive; Drive se conectará aparte en la fase de copia externa.
 
 ## Estado actual
