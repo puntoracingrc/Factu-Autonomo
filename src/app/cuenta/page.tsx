@@ -1,14 +1,18 @@
 "use client";
 
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import {
   Cloud,
+  CreditCard,
   HardDrive,
   Scale,
   Shield,
   Upload,
   type LucideIcon,
 } from "lucide-react";
+import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
+import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
@@ -16,12 +20,22 @@ import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
+const ReferralCard = dynamic(
+  () =>
+    import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
+
 const ACCOUNT_NAV_ITEMS: Array<{
   href: string;
   label: string;
   Icon: LucideIcon;
 }> = [
   { href: "#inicio-sesion", label: "Cuenta y nube", Icon: Cloud },
+  { href: "#plan-cuenta", label: "Plan", Icon: CreditCard },
   { href: "#drive-backup", label: "Drive", Icon: HardDrive },
   { href: "#importar-datos", label: "Importar", Icon: Upload },
   { href: "#datos-privacidad", label: "Tus datos", Icon: Shield },
@@ -64,6 +78,14 @@ export default function CuentaPage() {
       >
         <CloudAccountCard />
       </Suspense>
+
+      <section id="plan-cuenta" className="scroll-mt-24">
+        <PlanStatusCard />
+        <SubscriptionBillingCard />
+        <Suspense fallback={null}>
+          <ReferralCard />
+        </Suspense>
+      </section>
 
       <GoogleDriveBackupCard />
 

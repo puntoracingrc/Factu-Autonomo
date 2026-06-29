@@ -18,13 +18,28 @@ import {
   type FacturaDirectaImportResult,
 } from "@/lib/importers/facturadirecta";
 import {
+  HOLDED_CONFIDENCE,
+  HOLDED_SOURCE_NAME,
+  readHoldedWorkbook,
+  type HoldedImportResult,
+} from "@/lib/importers/holded";
+import {
   applyBusinessProfileAutofillSuggestion,
   hasBusinessProfileAutofillSuggestion,
 } from "@/lib/business-profile-autofill";
 
-type ImportSource = "auto" | "pcfacturacion3" | "facturadirecta" | "prestashop" | "csv";
+type ImportSource =
+  | "auto"
+  | "pcfacturacion3"
+  | "facturadirecta"
+  | "holded"
+  | "prestashop"
+  | "csv";
 type InvoicePaymentImportMode = "keep" | "markPaid";
-type ImportResult = PcFacturacionImportResult | FacturaDirectaImportResult;
+type ImportResult =
+  | PcFacturacionImportResult
+  | FacturaDirectaImportResult
+  | HoldedImportResult;
 
 const IMPORT_SOURCES: Array<{
   value: ImportSource;
@@ -34,6 +49,7 @@ const IMPORT_SOURCES: Array<{
   { value: "auto", label: "Detectar automáticamente" },
   { value: "pcfacturacion3", label: PC_FACTURACION_SOURCE_NAME },
   { value: "facturadirecta", label: FACTURADIRECTA_SOURCE_NAME },
+  { value: "holded", label: `${HOLDED_SOURCE_NAME} (en validación)` },
   { value: "prestashop", label: "PrestaShop (próximamente)", disabled: true },
   { value: "csv", label: "Excel o CSV (próximamente)", disabled: true },
 ];
@@ -55,6 +71,10 @@ function isFacturaDirectaResult(
   result: ImportResult,
 ): result is FacturaDirectaImportResult {
   return result.preview.sourceName === FACTURADIRECTA_SOURCE_NAME;
+}
+
+function isHoldedResult(result: ImportResult): result is HoldedImportResult {
+  return result.preview.sourceName === HOLDED_SOURCE_NAME;
 }
 
 export default function ImportarPage() {
@@ -80,6 +100,7 @@ export default function ImportarPage() {
   const importLocked = billingEnabled && !limits.databaseImport;
   const showPcFacturacionOptions = source === "pcfacturacion3";
   const showFacturaDirectaOptions = source === "facturadirecta";
+  const showHoldedOptions = source === "holded";
 
   async function readDwiText(nextDwiFile: File | null) {
     if (!nextDwiFile) return undefined;
@@ -104,19 +125,26 @@ export default function ImportarPage() {
           "La importación de datos desde otros programas requiere plan Pro.",
         );
       }
-      if (source !== "auto" && source !== "pcfacturacion3" && source !== "facturadirecta") {
+      if (
+        source !== "auto" &&
+        source !== "pcfacturacion3" &&
+        source !== "facturadirecta" &&
+        source !== "holded"
+      ) {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
 
       const parsed = showFacturaDirectaOptions
         ? await readFacturaDirectaFiles(nextFiles, data)
-        : await readPcFacturacionMdb(nextFile as File, data, {
-            includeUnusedCustomers,
-            dwiText: showPcFacturacionOptions
-              ? await readDwiText(nextDwiFile)
-              : undefined,
-            markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
-          });
+        : showHoldedOptions
+          ? await readHoldedWorkbook(nextFile as File, data)
+          : await readPcFacturacionMdb(nextFile as File, data, {
+              includeUnusedCustomers,
+              dwiText: showPcFacturacionOptions
+                ? await readDwiText(nextDwiFile)
+                : undefined,
+              markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
+            });
       setResult(parsed);
     } catch (err) {
       setResult(null);
@@ -300,6 +328,31 @@ export default function ImportarPage() {
               </div>
             ) : null}
           </div>
+        ) : showHoldedOptions ? (
+          <div className="space-y-4">
+            <Field
+              label="Excel multihoja de Holded"
+              hint="Primera versión en validación: acepta el fixture inferido de Holded para previsualizar contactos, productos, facturas, gastos y presupuestos. Antes de declarar compatibilidad real necesitaremos probar una exportación oficial."
+            >
+              <Input
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                disabled={importLocked}
+                onChange={(event) => handleFile(event.target.files?.[0])}
+              />
+            </Field>
+            {file ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                <p className="font-semibold">Compatibilidad en validación</p>
+                <p className="mt-1">
+                  Este analizador de Holded trabaja con confianza{" "}
+                  <strong>{HOLDED_CONFIDENCE}</strong>. Importará lo que encaje
+                  con la app y mostrará aparte los campos que todavía no
+                  soportamos.
+                </p>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <Field
             label="Archivo de datos"
@@ -396,7 +449,7 @@ export default function ImportarPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Origen detectado: <strong>{result.preview.sourceName}</strong>
-              {!isFacturaDirectaResult(result) ? (
+              {!isFacturaDirectaResult(result) && !isHoldedResult(result) ? (
                 <>
                   <br />
                   Empresa detectada:{" "}
@@ -414,11 +467,15 @@ export default function ImportarPage() {
 
           {isFacturaDirectaResult(result) ? (
             <FacturaDirectaPreview result={result} />
+          ) : isHoldedResult(result) ? (
+            <HoldedPreview result={result} />
           ) : (
             <PcFacturacionPreview result={result} />
           )}
 
-          {!isFacturaDirectaResult(result) && result.preview.numbering ? (
+          {!isFacturaDirectaResult(result) &&
+          !isHoldedResult(result) &&
+          result.preview.numbering ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
               <p className="font-semibold">Numeración detectada en el DWI</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -450,7 +507,9 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
-          {!isFacturaDirectaResult(result) && result.preview.unpaidInvoices > 0 ? (
+          {!isFacturaDirectaResult(result) &&
+          !isHoldedResult(result) &&
+          result.preview.unpaidInvoices > 0 ? (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -522,7 +581,8 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
-          {isFacturaDirectaResult(result) && result.unsupported.length > 0 ? (
+          {(isFacturaDirectaResult(result) || isHoldedResult(result)) &&
+          result.unsupported.length > 0 ? (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center gap-2 font-semibold text-slate-900">
                 <FileCog className="h-4 w-4" />
@@ -544,7 +604,7 @@ export default function ImportarPage() {
 
           {hasCurrentData ? (
             <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-              Si ya habías importado este archivo antes, se reemplazará esa
+              Si ya habías importado este origen antes, se reemplazará esa
               importación. Los datos creados manualmente en la app se conservan.
             </p>
           ) : null}
@@ -693,6 +753,106 @@ function FacturaDirectaPreview({
   );
 }
 
+function HoldedPreview({ result }: { result: HoldedImportResult }) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="font-semibold">Holded en validación</p>
+        <p className="mt-1">
+          Esta previsualización usa confianza{" "}
+          <strong>{result.preview.confidence}</strong>. Sirve para probar el
+          parser con el fixture actual; antes de activar soporte público hará
+          falta validar una exportación real de Holded.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <PreviewStat
+          label="Clientes"
+          value={result.preview.customers}
+          detail={
+            result.preview.mixedRoleContacts > 0
+              ? `${result.preview.mixedRoleContacts} contacto(s) con doble rol`
+              : "Contactos tipo cliente"
+          }
+        />
+        <PreviewStat
+          label="Proveedores"
+          value={result.preview.suppliers}
+          detail="Contactos tipo proveedor"
+        />
+        <PreviewStat
+          label="Facturas"
+          value={result.preview.invoices}
+          detail={`${result.preview.invoiceLines} línea(s) leídas`}
+        />
+        <PreviewStat
+          label="Presupuestos"
+          value={result.preview.estimates}
+          detail={`${result.preview.estimateLines} línea(s) leídas`}
+        />
+        <PreviewStat
+          label="Gastos"
+          value={result.preview.expenses}
+          detail={`${result.preview.expenseLines} línea(s) leídas`}
+        />
+        <PreviewStat
+          label="Productos leídos"
+          value={result.preview.productsRead}
+          detail={`${result.preview.productsUsedForLines} usados en líneas`}
+        />
+      </div>
+
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Fechas
+        </p>
+        <p className="mt-1 text-sm font-bold text-slate-900">
+          {formatRange(result.preview.dateRange.from, result.preview.dateRange.to)}
+        </p>
+      </div>
+
+      {result.preview.totalMismatches.length > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-900">Totales a revisar</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {result.preview.totalMismatches.slice(0, 6).map((item) => (
+              <div
+                key={item.documentNumber}
+                className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-950"
+              >
+                <p className="font-medium">{item.documentNumber}</p>
+                <p className="text-xs">
+                  Holded: {item.expected.toFixed(2)} · Recalculado:{" "}
+                  {item.calculated.toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+        <p className="font-semibold text-slate-900">Hojas reconocidas</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {result.preview.sheets.map((sheet) => (
+            <div
+              key={`${sheet.name}-${sheet.kind}`}
+              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+            >
+              <p className="truncate font-medium text-slate-900">{sheet.name}</p>
+              <p className="text-xs text-slate-500">
+                {holdedKindLabel(sheet.kind)}
+                {sheet.rows > 0 ? ` · ${sheet.rows} fila(s)` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PreviewStat({
   label,
   value,
@@ -735,6 +895,37 @@ function facturaDirectaKindLabel(kind: string): string {
       return "PDF de referencia";
     default:
       return "No reconocido";
+  }
+}
+
+function holdedKindLabel(kind: string): string {
+  switch (kind) {
+    case "contacts":
+      return "Contactos";
+    case "products":
+      return "Productos";
+    case "invoices":
+      return "Facturas";
+    case "invoiceLines":
+      return "Líneas de factura";
+    case "purchases":
+      return "Gastos y compras";
+    case "purchaseLines":
+      return "Líneas de gasto";
+    case "estimates":
+      return "Presupuestos";
+    case "estimateLines":
+      return "Líneas de presupuesto";
+    case "attachments":
+      return "Adjuntos de referencia";
+    case "fieldMap":
+      return "Mapa de campos";
+    case "sources":
+      return "Fuentes";
+    case "readme":
+      return "Notas del fixture";
+    default:
+      return "Hoja informativa";
   }
 }
 
