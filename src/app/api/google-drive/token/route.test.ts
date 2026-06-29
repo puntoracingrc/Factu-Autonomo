@@ -66,6 +66,32 @@ describe("Google Drive token route", () => {
     expect(params.get("grant_type")).toBe("authorization_code");
   });
 
+  it("acepta el callback local permitido para pruebas en navegador", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          access_token: "local-access-token",
+          expires_in: 900,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      makeRequest({
+        code: "local-oauth-code",
+        redirectUri: "http://localhost:3001/drive/callback",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      accessToken: "local-access-token",
+      expiresIn: 900,
+    });
+  });
+
   it("rechaza callbacks externos", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -80,6 +106,25 @@ describe("Google Drive token route", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "El retorno de Google Drive no es válido.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("no intenta hablar con Google si falta configuracion del servidor", async () => {
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET = "";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      makeRequest({
+        code: "oauth-code",
+        redirectUri: "https://facturacion-autonomos.app/drive/callback",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "Google Drive no está configurado en el servidor.",
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
