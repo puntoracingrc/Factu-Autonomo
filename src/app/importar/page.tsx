@@ -13,12 +13,18 @@ import {
   type PcFacturacionImportResult,
 } from "@/lib/importers/pcfacturacion";
 import {
+  FACTURADIRECTA_SOURCE_NAME,
+  readFacturaDirectaFiles,
+  type FacturaDirectaImportResult,
+} from "@/lib/importers/facturadirecta";
+import {
   applyBusinessProfileAutofillSuggestion,
   hasBusinessProfileAutofillSuggestion,
 } from "@/lib/business-profile-autofill";
 
-type ImportSource = "auto" | "pcfacturacion3" | "prestashop" | "csv";
+type ImportSource = "auto" | "pcfacturacion3" | "facturadirecta" | "prestashop" | "csv";
 type InvoicePaymentImportMode = "keep" | "markPaid";
+type ImportResult = PcFacturacionImportResult | FacturaDirectaImportResult;
 
 const IMPORT_SOURCES: Array<{
   value: ImportSource;
@@ -27,6 +33,7 @@ const IMPORT_SOURCES: Array<{
 }> = [
   { value: "auto", label: "Detectar automáticamente" },
   { value: "pcfacturacion3", label: PC_FACTURACION_SOURCE_NAME },
+  { value: "facturadirecta", label: FACTURADIRECTA_SOURCE_NAME },
   { value: "prestashop", label: "PrestaShop (próximamente)", disabled: true },
   { value: "csv", label: "Excel o CSV (próximamente)", disabled: true },
 ];
@@ -44,16 +51,23 @@ function formatIvaRates(rates: number[]): string {
   return rates.map((rate) => `${rate}%`).join(", ");
 }
 
+function isFacturaDirectaResult(
+  result: ImportResult,
+): result is FacturaDirectaImportResult {
+  return result.preview.sourceName === FACTURADIRECTA_SOURCE_NAME;
+}
+
 export default function ImportarPage() {
   const { data, replaceData } = useAppStore();
   const { billingEnabled, limits } = useBilling();
   const [source, setSource] = useState<ImportSource>("auto");
   const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [dwiFile, setDwiFile] = useState<File | null>(null);
   const [includeUnusedCustomers, setIncludeUnusedCustomers] = useState(false);
   const [invoicePaymentMode, setInvoicePaymentMode] =
     useState<InvoicePaymentImportMode>("keep");
-  const [result, setResult] = useState<PcFacturacionImportResult | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [applyDetectedProfile, setApplyDetectedProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +79,7 @@ export default function ImportarPage() {
   );
   const importLocked = billingEnabled && !limits.databaseImport;
   const showPcFacturacionOptions = source === "pcfacturacion3";
+  const showFacturaDirectaOptions = source === "facturadirecta";
 
   async function readDwiText(nextDwiFile: File | null) {
     if (!nextDwiFile) return undefined;
@@ -76,8 +91,9 @@ export default function ImportarPage() {
     nextFile = file,
     nextDwiFile = dwiFile,
     nextInvoicePaymentMode = invoicePaymentMode,
+    nextFiles = files,
   ) {
-    if (!nextFile) return;
+    if (showFacturaDirectaOptions ? nextFiles.length === 0 : !nextFile) return;
     setBusy(true);
     setError(null);
     setDone(false);
@@ -88,18 +104,19 @@ export default function ImportarPage() {
           "La importación de datos desde otros programas requiere plan Pro.",
         );
       }
-      if (source !== "auto" && source !== "pcfacturacion3") {
+      if (source !== "auto" && source !== "pcfacturacion3" && source !== "facturadirecta") {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
 
-      const dwiText = showPcFacturacionOptions
-        ? await readDwiText(nextDwiFile)
-        : undefined;
-      const parsed = await readPcFacturacionMdb(nextFile, data, {
-        includeUnusedCustomers,
-        dwiText,
-        markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
-      });
+      const parsed = showFacturaDirectaOptions
+        ? await readFacturaDirectaFiles(nextFiles, data)
+        : await readPcFacturacionMdb(nextFile as File, data, {
+            includeUnusedCustomers,
+            dwiText: showPcFacturacionOptions
+              ? await readDwiText(nextDwiFile)
+              : undefined,
+            markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
+          });
       setResult(parsed);
     } catch (err) {
       setResult(null);
@@ -120,6 +137,8 @@ export default function ImportarPage() {
   function handleSource(nextSource: ImportSource) {
     setSource(nextSource);
     if (nextSource !== "pcfacturacion3") setDwiFile(null);
+    setFile(null);
+    setFiles([]);
     setResult(null);
     setError(null);
     setDone(false);
@@ -135,6 +154,19 @@ export default function ImportarPage() {
     if (nextFile && !importLocked) void analyze(nextFile);
   }
 
+  function handleFacturaDirectaFiles(nextFiles: FileList | null) {
+    const selected = Array.from(nextFiles ?? []);
+    setFiles(selected);
+    setFile(null);
+    setResult(null);
+    setError(null);
+    setDone(false);
+    setApplyDetectedProfile(false);
+    if (selected.length > 0 && !importLocked) {
+      void analyze(file, dwiFile, invoicePaymentMode, selected);
+    }
+  }
+
   function handleDwiFile(nextFile: File | undefined) {
     const nextDwiFile = nextFile ?? null;
     setDwiFile(nextDwiFile);
@@ -148,7 +180,9 @@ export default function ImportarPage() {
   function handleInvoicePaymentMode(nextMode: InvoicePaymentImportMode) {
     setInvoicePaymentMode(nextMode);
     setDone(false);
-    if (file && !busy) void analyze(file, dwiFile, nextMode);
+    if ((showFacturaDirectaOptions ? files.length > 0 : file) && !busy) {
+      void analyze(file, dwiFile, nextMode, files);
+    }
   }
 
   async function refreshAnalysis() {
@@ -237,17 +271,48 @@ export default function ImportarPage() {
           </Select>
         </Field>
 
-        <Field
-          label="Archivo de datos"
-          hint="Selecciona el archivo principal generado por el programa de origen."
-        >
-          <Input
-            type="file"
-            accept=".mdb,application/msaccess,application/x-msaccess"
-            disabled={importLocked}
-            onChange={(event) => handleFile(event.target.files?.[0])}
-          />
-        </Field>
+        {showFacturaDirectaOptions ? (
+          <div className="space-y-4">
+            <Field
+              label="Pack de archivos de FacturaDirecta"
+              hint="Selecciona juntos los CSV, Excel, PDF, XSIG o ficheros contables exportados desde FacturaDirecta. Importaremos lo que la app soporte y te diremos qué queda fuera."
+            >
+              <Input
+                type="file"
+                multiple
+                accept=".csv,.xlsx,.xls,.pdf,.xsig,.xml,.dat,.zip,text/csv,application/pdf"
+                disabled={importLocked}
+                onChange={(event) =>
+                  handleFacturaDirectaFiles(event.target.files)
+                }
+              />
+            </Field>
+            {files.length > 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">
+                  {files.length} archivo(s) seleccionados
+                </p>
+                <p className="mt-1">
+                  Puedes mezclar contactos, productos, ventas, líneas,
+                  vencimientos y compras. Los PDF/XSIG/contabilidad se mostrarán
+                  como referencia o pendiente si la app todavía no lo soporta.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Field
+            label="Archivo de datos"
+            hint="Selecciona el archivo principal generado por el programa de origen."
+          >
+            <Input
+              type="file"
+              accept=".mdb,application/msaccess,application/x-msaccess"
+              disabled={importLocked}
+              onChange={(event) => handleFile(event.target.files?.[0])}
+            />
+          </Field>
+        )}
 
         {showPcFacturacionOptions ? (
           <div className="space-y-4">
@@ -277,29 +342,35 @@ export default function ImportarPage() {
           </div>
         ) : null}
 
-        <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={includeUnusedCustomers}
-            disabled={importLocked}
-            onChange={(event) => {
-              setIncludeUnusedCustomers(event.target.checked);
-              setResult(null);
-              setDone(false);
-            }}
-            className="mt-1 h-4 w-4"
-          />
-          <span>
-            Importar también clientes sin facturas ni presupuestos. Si no lo
-            marcas, solo se importan los clientes usados en documentos.
-          </span>
-        </label>
+        {source === "pcfacturacion3" ? (
+          <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={includeUnusedCustomers}
+              disabled={importLocked}
+              onChange={(event) => {
+                setIncludeUnusedCustomers(event.target.checked);
+                setResult(null);
+                setDone(false);
+              }}
+              className="mt-1 h-4 w-4"
+            />
+            <span>
+              Importar también clientes sin facturas ni presupuestos. Si no lo
+              marcas, solo se importan los clientes usados en documentos.
+            </span>
+          </label>
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <Button
             variant="secondary"
             onClick={() => void refreshAnalysis()}
-            disabled={!file || busy || importLocked}
+            disabled={
+              (showFacturaDirectaOptions ? files.length === 0 : !file) ||
+              busy ||
+              importLocked
+            }
           >
             {busy ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -325,9 +396,13 @@ export default function ImportarPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Origen detectado: <strong>{result.preview.sourceName}</strong>
-              <br />
-              Empresa detectada:{" "}
-              <strong>{result.preview.companyName || "sin nombre"}</strong>
+              {!isFacturaDirectaResult(result) ? (
+                <>
+                  <br />
+                  Empresa detectada:{" "}
+                  <strong>{result.preview.companyName || "sin nombre"}</strong>
+                </>
+              ) : null}
             </p>
           </div>
 
@@ -337,57 +412,13 @@ export default function ImportarPage() {
             onApplyDetectedProfileChange={setApplyDetectedProfile}
           />
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase text-slate-500">
-                Clientes
-              </p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {result.preview.customersToImport}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {result.preview.customersWithDocuments} con documentos
-                {result.preview.unusedCustomers > 0
-                  ? `, ${result.preview.unusedCustomers} sin documentos`
-                  : ""}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase text-slate-500">
-                Facturas
-              </p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {result.preview.invoices}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {result.preview.invoiceLines} líneas
-                {result.preview.unpaidInvoices > 0
-                  ? ` · ${result.preview.unpaidInvoices} sin pagar`
-                  : ""}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase text-slate-500">
-                Presupuestos
-              </p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {result.preview.offers}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {result.preview.offerLines} líneas
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase text-slate-500">
-                Fechas
-              </p>
-              <p className="mt-1 text-sm font-bold text-slate-900">
-                {formatRange(result.preview.dateRange.from, result.preview.dateRange.to)}
-              </p>
-            </div>
-          </div>
+          {isFacturaDirectaResult(result) ? (
+            <FacturaDirectaPreview result={result} />
+          ) : (
+            <PcFacturacionPreview result={result} />
+          )}
 
-          {result.preview.numbering ? (
+          {!isFacturaDirectaResult(result) && result.preview.numbering ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
               <p className="font-semibold">Numeración detectada en el DWI</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -419,7 +450,7 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
-          {result.preview.unpaidInvoices > 0 ? (
+          {!isFacturaDirectaResult(result) && result.preview.unpaidInvoices > 0 ? (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -491,6 +522,26 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
+          {isFacturaDirectaResult(result) && result.unsupported.length > 0 ? (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2 font-semibold text-slate-900">
+                <FileCog className="h-4 w-4" />
+                No importado todavía
+              </div>
+              <ul className="space-y-2">
+                {result.unsupported.map((item) => (
+                  <li key={item.label} className="rounded-lg bg-white p-3">
+                    <p className="font-semibold text-slate-900">
+                      {item.label}
+                      {item.count ? ` (${item.count})` : ""}
+                    </p>
+                    <p className="mt-1 text-slate-600">{item.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {hasCurrentData ? (
             <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
               Si ya habías importado este archivo antes, se reemplazará esa
@@ -514,12 +565,185 @@ export default function ImportarPage() {
   );
 }
 
+function PcFacturacionPreview({ result }: { result: PcFacturacionImportResult }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Clientes
+        </p>
+        <p className="mt-1 text-2xl font-bold text-slate-900">
+          {result.preview.customersToImport}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {result.preview.customersWithDocuments} con documentos
+          {result.preview.unusedCustomers > 0
+            ? `, ${result.preview.unusedCustomers} sin documentos`
+            : ""}
+        </p>
+      </div>
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Facturas
+        </p>
+        <p className="mt-1 text-2xl font-bold text-slate-900">
+          {result.preview.invoices}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {result.preview.invoiceLines} líneas
+          {result.preview.unpaidInvoices > 0
+            ? ` · ${result.preview.unpaidInvoices} sin pagar`
+            : ""}
+        </p>
+      </div>
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Presupuestos
+        </p>
+        <p className="mt-1 text-2xl font-bold text-slate-900">
+          {result.preview.offers}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {result.preview.offerLines} líneas
+        </p>
+      </div>
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Fechas
+        </p>
+        <p className="mt-1 text-sm font-bold text-slate-900">
+          {formatRange(result.preview.dateRange.from, result.preview.dateRange.to)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FacturaDirectaPreview({
+  result,
+}: {
+  result: FacturaDirectaImportResult;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <PreviewStat
+          label="Clientes"
+          value={result.preview.customers}
+          detail="Contactos marcados o usados como clientes"
+        />
+        <PreviewStat
+          label="Proveedores"
+          value={result.preview.suppliers}
+          detail="Contactos marcados o usados como proveedores"
+        />
+        <PreviewStat
+          label="Facturas"
+          value={result.preview.invoices}
+          detail={`${result.preview.invoiceLines} línea(s) importadas`}
+        />
+        <PreviewStat
+          label="Presupuestos"
+          value={result.preview.estimates}
+          detail={
+            result.preview.estimateFallbackLines > 0
+              ? `${result.preview.estimateFallbackLines} con línea resumen`
+              : "Con datos disponibles"
+          }
+        />
+        <PreviewStat
+          label="Gastos"
+          value={result.preview.expenses}
+          detail="Compras y tickets básicos"
+        />
+        <PreviewStat
+          label="Productos leídos"
+          value={result.preview.productsRead}
+          detail={`${result.preview.productsUsedForLines} usados para líneas`}
+        />
+      </div>
+
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Fechas
+        </p>
+        <p className="mt-1 text-sm font-bold text-slate-900">
+          {formatRange(result.preview.dateRange.from, result.preview.dateRange.to)}
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+        <p className="font-semibold text-slate-900">Archivos reconocidos</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {result.preview.files.map((file) => (
+            <div
+              key={`${file.name}-${file.kind}`}
+              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+            >
+              <p className="truncate font-medium text-slate-900">{file.name}</p>
+              <p className="text-xs text-slate-500">
+                {facturaDirectaKindLabel(file.kind)}
+                {file.rows > 0 ? ` · ${file.rows} fila(s)` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function facturaDirectaKindLabel(kind: string): string {
+  switch (kind) {
+    case "contacts":
+      return "Contactos";
+    case "products":
+      return "Productos";
+    case "sales":
+      return "Ventas";
+    case "invoiceLines":
+      return "Líneas facturadas";
+    case "salesDueDates":
+      return "Vencimientos de ventas";
+    case "purchases":
+      return "Compras";
+    case "purchaseDueDates":
+      return "Vencimientos de compras";
+    case "facturae":
+      return "Facturae / XML";
+    case "accounting":
+      return "Contabilidad";
+    case "pdf":
+      return "PDF de referencia";
+    default:
+      return "No reconocido";
+  }
+}
+
 function DetectedBusinessSettings({
   result,
   applyDetectedProfile,
   onApplyDetectedProfileChange,
 }: {
-  result: PcFacturacionImportResult;
+  result: ImportResult;
   applyDetectedProfile: boolean;
   onApplyDetectedProfileChange: (value: boolean) => void;
 }) {
