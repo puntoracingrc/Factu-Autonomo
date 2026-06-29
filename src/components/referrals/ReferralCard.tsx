@@ -76,7 +76,7 @@ export function ReferralCard() {
   }
 
   async function handleShare() {
-    if (!profile) return;
+    if (!profile?.code || !profile.shareUrl) return;
     const text = `Te invito a Factura Autónomo. Usa mi código ${profile.code} al crear cuenta: los dos recibimos ${profile.bonusPerReferral} escaneos IA extra. ${profile.shareUrl}`;
     if (navigator.share) {
       try {
@@ -198,6 +198,11 @@ export function ReferralCard() {
 
       {loading ? (
         <p className="text-sm text-slate-500">Cargando tu código…</p>
+      ) : profile?.referralsUnavailable ? (
+        <p className="text-sm text-slate-600">
+          Las invitaciones estarán disponibles más adelante. Tu cuenta Pro y la
+          sincronización siguen funcionando con normalidad.
+        </p>
       ) : profile ? (
         <>
           <div className="rounded-xl border border-violet-100 bg-white p-4">
@@ -239,7 +244,7 @@ export function ReferralCard() {
         </p>
       )}
 
-      {!profile?.hasRedeemed ? (
+      {profile?.referralsUnavailable ? null : !profile?.hasRedeemed ? (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white/80 p-4">
           <p className="text-sm font-semibold text-slate-800">
             ¿Alguien te invitó?

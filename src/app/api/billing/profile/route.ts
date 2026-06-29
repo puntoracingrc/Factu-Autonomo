@@ -3,6 +3,15 @@ import { billingProfileFromDbRow } from "@/lib/billing/billing-profile";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+function isMissingBillingProfileSchemaError(error: { code?: string; message?: string }) {
+  const message = error.message ?? "";
+  return (
+    error.code === "42703" ||
+    /column .*billing_.* does not exist/i.test(message) ||
+    /column user_subscriptions\..* does not exist/i.test(message)
+  );
+}
+
 export async function GET(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
   if (!user) {
@@ -26,6 +35,14 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (error) {
+    if (isMissingBillingProfileSchemaError(error)) {
+      return NextResponse.json({
+        profile: null,
+        hasStripeCustomer: false,
+        billingProfileUnavailable: true,
+      });
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
