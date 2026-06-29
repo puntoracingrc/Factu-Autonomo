@@ -7,6 +7,11 @@ import { createDisabledLocalDataStorageAdapter } from "../src/lib/local-data-saf
 // PHASE2D42_IMPORT_RESTORE_ROUTE_NAVIGATION_BLOCKER_VALIDATION_V1
 
 const root = path.resolve(new URL("../", import.meta.url).pathname);
+const ALLOWED_NON_IMPORT_ROUTE_PATHS = new Set([
+  "src/app/api/google-drive/token/route.ts",
+  "src/app/api/google-drive/token/route.test.ts",
+  "src/app/drive/callback/page.tsx",
+]);
 
 function read(relativePath: string): string {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -45,6 +50,7 @@ describe("phase 2D.42 import restore route navigation blocker validation", () =>
       if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
       if (/^(?:scripts|docs)\/phase2d42-/.test(changedPath)) continue;
       if (/^scripts\/validate-phase2d42-/.test(changedPath)) continue;
+      if (ALLOWED_NON_IMPORT_ROUTE_PATHS.has(changedPath)) continue;
       if (addedPaths.has(changedPath)) {
         expect(changedPath).not.toMatch(/^(src\/app|app|pages|public)\//);
       }

@@ -233,6 +233,9 @@ describe("MVP usability polish", () => {
     expect(driveBackupLibSource).toContain(
       "https://www.googleapis.com/auth/drive.file",
     );
+    expect(driveBackupLibSource).toContain("/drive/callback");
+    expect(driveBackupLibSource).toContain("response_type");
+    expect(driveBackupLibSource).toContain("code");
   });
 
   it("muestra invitacion con CTA real cuando falta sesion", () => {

@@ -45,6 +45,7 @@ Copia desde tu `.env.local` (Production + Preview):
 | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` (o legacy `service_role` JWT) |
 | `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` solo cuando Google OAuth esté configurado en Supabase |
 | `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` | client id público de Google OAuth para guardar copias extra en Drive |
+| `GOOGLE_DRIVE_CLIENT_SECRET` | secreto del cliente OAuth de Google, solo servidor, para completar el retorno de Drive |
 | `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos y autorrelleno IA de clientes, servidor) |
 | `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
@@ -52,6 +53,21 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |
 
 Después: **Deployments → Redeploy** (sin caché si cambias muchas variables).
+
+## Google Drive opcional
+
+La copia extra en Drive usa el mismo cliente OAuth de Google, pero con retorno
+propio a la app. En Google Cloud, añade como redirect URIs autorizadas:
+
+```
+https://facturacion-autonomos.app/drive/callback
+http://localhost:3000/drive/callback
+http://localhost:3001/drive/callback
+```
+
+Si la app OAuth está en modo pruebas, añade el email que vaya a probarlo como
+usuario de prueba. Para abrirlo a cualquier usuario habrá que publicar/verificar
+la app OAuth de Google.
 
 ## Webhook Stripe (producción)
 

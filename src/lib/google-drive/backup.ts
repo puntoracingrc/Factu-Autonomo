@@ -4,6 +4,10 @@ import type { AppData } from "@/lib/types";
 export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const DRIVE_BACKUP_FOLDER_NAME = "Factu - copias de seguridad";
 export const DRIVE_BACKUP_SETTINGS_KEY = "factura-autonomo-drive-backup";
+export const DRIVE_BACKUP_CALLBACK_PATH = "/drive/callback";
+export const DRIVE_BACKUP_PENDING_KEY =
+  "factura-autonomo-drive-backup-pending";
+export const DRIVE_BACKUP_TOKEN_KEY = "factura-autonomo-drive-access-token";
 
 export type DriveBackupFrequency =
   | "manual"
@@ -19,6 +23,12 @@ export interface DriveBackupSettings {
   lastFileName?: string;
   lastWebViewLink?: string;
   lastAutoSignature?: string;
+}
+
+export interface PendingDriveBackupRequest {
+  state: string;
+  frequency: DriveBackupFrequency;
+  requestedAt: string;
 }
 
 export interface DriveBackupDueDecision {
@@ -71,6 +81,7 @@ declare global {
 const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
 
 const DRIVE_FILE_FIELDS = "id,name,webViewLink";
+const DRIVE_BACKUP_PENDING_MAX_AGE_MS = 30 * 60 * 1000;
 
 let scriptPromise: Promise<void> | null = null;
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -125,6 +136,113 @@ export function loadDriveBackupSettings(): DriveBackupSettings {
 export function saveDriveBackupSettings(settings: DriveBackupSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(DRIVE_BACKUP_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function normalizePendingDriveBackupRequest(
+  raw: unknown,
+): PendingDriveBackupRequest | null {
+  if (!isRecord(raw)) return null;
+  const state = safeString(raw.state);
+  const requestedAt = safeString(raw.requestedAt);
+  if (!state || !requestedAt) return null;
+
+  const requestedTime = Date.parse(requestedAt);
+  if (!Number.isFinite(requestedTime)) return null;
+  if (Date.now() - requestedTime > DRIVE_BACKUP_PENDING_MAX_AGE_MS) return null;
+
+  return {
+    state,
+    frequency: normalizeFrequency(raw.frequency),
+    requestedAt,
+  };
+}
+
+export function loadPendingDriveBackupRequest(
+  expectedState?: string,
+): PendingDriveBackupRequest | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const pending = normalizePendingDriveBackupRequest(
+      JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null"),
+    );
+    if (!pending) return null;
+    if (expectedState && pending.state !== expectedState) return null;
+    return pending;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingDriveBackupRequest(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(DRIVE_BACKUP_PENDING_KEY);
+}
+
+function createOauthState(): string {
+  const webCrypto = globalThis.crypto;
+  if (webCrypto?.randomUUID) {
+    return webCrypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  if (webCrypto?.getRandomValues) {
+    webCrypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+      "",
+    );
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+export function buildGoogleDriveAuthorizationUrl(input: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+}): string {
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", input.clientId);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", DRIVE_BACKUP_SCOPE);
+  url.searchParams.set("include_granted_scopes", "true");
+  url.searchParams.set("access_type", "online");
+  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("state", input.state);
+  return url.toString();
+}
+
+export function startGoogleDriveBackupRedirect(input: {
+  clientId: string;
+  frequency: DriveBackupFrequency;
+}): { ok: true } | { ok: false; error: string } {
+  if (typeof window === "undefined") {
+    return { ok: false, error: "Google Drive solo funciona en el navegador." };
+  }
+
+  const clientId = input.clientId.trim();
+  if (!clientId) {
+    return { ok: false, error: "Google Drive no está configurado." };
+  }
+
+  const pending: PendingDriveBackupRequest = {
+    state: createOauthState(),
+    frequency: input.frequency,
+    requestedAt: new Date().toISOString(),
+  };
+  sessionStorage.setItem(DRIVE_BACKUP_PENDING_KEY, JSON.stringify(pending));
+
+  const redirectUri = `${window.location.origin}${DRIVE_BACKUP_CALLBACK_PATH}`;
+  window.location.assign(
+    buildGoogleDriveAuthorizationUrl({
+      clientId,
+      redirectUri,
+      state: pending.state,
+    }),
+  );
+
+  return { ok: true };
 }
 
 export function buildDriveBackupFileName(
@@ -194,10 +312,45 @@ export function shouldRunAutomaticDriveBackup(
   };
 }
 
+function loadSessionToken(): { accessToken: string; expiresAt: number } | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_TOKEN_KEY) ?? "null");
+    if (!isRecord(raw)) return null;
+    const accessToken = safeString(raw.accessToken);
+    const expiresAt = Number(raw.expiresAt);
+    if (!accessToken || !Number.isFinite(expiresAt)) return null;
+    return { accessToken, expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+export function cacheDriveAccessToken(
+  accessToken: string,
+  expiresIn = 3600,
+): void {
+  const cleanToken = accessToken.trim();
+  if (!cleanToken) return;
+
+  cachedToken = {
+    accessToken: cleanToken,
+    expiresAt: Date.now() + expiresIn * 1000,
+  };
+
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(DRIVE_BACKUP_TOKEN_KEY, JSON.stringify(cachedToken));
+}
+
 function getCachedToken(): string | null {
+  if (!cachedToken) cachedToken = loadSessionToken();
   if (!cachedToken) return null;
   if (cachedToken.expiresAt - Date.now() < 60_000) {
     cachedToken = null;
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(DRIVE_BACKUP_TOKEN_KEY);
+    }
     return null;
   }
   return cachedToken.accessToken;
@@ -271,10 +424,7 @@ async function requestDriveAccessToken(
           return;
         }
 
-        cachedToken = {
-          accessToken: response.access_token,
-          expiresAt: Date.now() + (response.expires_in ?? 3600) * 1000,
-        };
+        cacheDriveAccessToken(response.access_token, response.expires_in);
         resolve(response.access_token);
       },
       error_callback: () => {
@@ -413,11 +563,37 @@ export async function uploadAppBackupToGoogleDrive(
       return { ok: false, error: "Google Drive no está configurado." };
     }
 
-    const exportedAt = (options.now?.() ?? new Date()).toISOString();
     const accessToken = await requestDriveAccessToken(
       options.clientId,
       options.prompt ?? "",
     );
+    return await uploadAppBackupToGoogleDriveWithAccessToken(data, accessToken, {
+      now: options.now,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la copia en Drive.",
+    };
+  }
+}
+
+export async function uploadAppBackupToGoogleDriveWithAccessToken(
+  data: AppData,
+  accessToken: string,
+  options: {
+    now?: () => Date;
+  } = {},
+): Promise<DriveBackupUploadResult> {
+  try {
+    if (!accessToken.trim()) {
+      return { ok: false, error: "Google Drive no ha devuelto permiso." };
+    }
+
+    const exportedAt = (options.now?.() ?? new Date()).toISOString();
     const folderId = await findOrCreateBackupFolder(accessToken);
     const fileName = buildDriveBackupFileName(exportedAt);
     const payload = createBackupPayload(data, exportedAt);
