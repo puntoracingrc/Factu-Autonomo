@@ -40,6 +40,8 @@ describe("withVerifactuOnDocument", () => {
     expect(result.doc.verifactu?.qrUrl).toContain("prewww2.aeat.es");
     expect(result.chain?.recordCount).toBe(1);
     expect(result.chain?.lastHash).toHaveLength(64);
+    expect(result.chain?.lastNumSerie).toBe("F-2026-0001");
+    expect(result.chain?.lastFechaExpedicion).toBe("2026-06-09");
   });
 
   it("chains second invoice to first hash", async () => {
@@ -64,5 +66,6 @@ describe("withVerifactuOnDocument", () => {
 
     expect(second.doc.verifactu?.previousHash).toBe(first.doc.verifactu?.recordHash);
     expect(second.chain?.recordCount).toBe(2);
+    expect(second.chain?.lastNumSerie).toBe("F-2026-0002");
   });
 });

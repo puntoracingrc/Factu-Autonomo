@@ -16,7 +16,7 @@ import type { BusinessProfile, Document, VerifactuChainState } from "@/lib/types
 
 interface RegisterBody {
   document: Document;
-  profile: Pick<BusinessProfile, "nif" | "verifactu">;
+  profile: Pick<BusinessProfile, "name" | "nif" | "vatExempt" | "verifactu">;
   chain?: VerifactuChainState | null;
 }
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const profile: BusinessProfile = {
-    name: "",
+    name: body.profile.name ?? "",
     nif: body.profile.nif ?? "",
     address: "",
     city: "",
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     phone: "",
     email: "",
     iva: { rates: [21], defaultRate: 21 },
+    vatExempt: body.profile.vatExempt,
     numbering: {
       year: new Date().getFullYear(),
       lastSequence: {
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
     userId: user.id,
     documentId: doc.id,
     issuerNif: profile.nif,
-    numserie: doc.number,
+    numserie: result.chain.lastNumSerie ?? doc.number,
     verifactu: result.verifactu,
     xml: result.xml,
     aeatResponse: aeat.rawResponse,

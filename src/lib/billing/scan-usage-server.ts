@@ -102,9 +102,42 @@ interface ConsumeAiUnitsRpcRow {
   reason?: string | null;
 }
 
+interface ConsumptionRpcError {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}
+
 function firstRpcRow(data: unknown): ConsumeAiUnitsRpcRow | null {
   if (Array.isArray(data)) return (data[0] as ConsumeAiUnitsRpcRow | undefined) ?? null;
   return (data as ConsumeAiUnitsRpcRow | null) ?? null;
+}
+
+function shouldFallbackToLegacyConsumption(error: ConsumptionRpcError): boolean {
+  const code = error.code ?? "";
+  const text = [
+    error.message,
+    error.details,
+    error.hint,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    code === "PGRST202" ||
+    code === "42883" ||
+    code === "42703" ||
+    (
+      text.includes("consume_ai_units") &&
+      (text.includes("could not find") ||
+        text.includes("schema cache") ||
+        text.includes("does not exist"))
+    ) ||
+    text.includes("customer_ai_autofills_created") ||
+    text.includes("ai_credit_units")
+  );
 }
 
 function reasonForAtomicFailure(
@@ -119,6 +152,175 @@ function reasonForAtomicFailure(
     return scanBlockedMessage(quota.plan);
   }
   return fallback;
+}
+
+async function updateAiCreditUnitsLegacy(
+  userId: string,
+  units: number,
+): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return false;
+
+  const scanCredits = Math.floor(units / AI_UNITS_PER_SCAN);
+  const { error } = await admin
+    .from("user_subscriptions")
+    .update({
+      ai_credit_units: units,
+      scan_credits: scanCredits,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (!error) return true;
+
+  const { error: legacyError } = await admin
+    .from("user_subscriptions")
+    .update({
+      scan_credits: scanCredits,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  return !legacyError;
+}
+
+async function consumeAiUnitsLegacy(
+  userId: string,
+  costUnits: number,
+  increments: {
+    expenseScansCreated?: number;
+    customerAiAutofillsCreated?: number;
+  },
+  failureReason: string,
+  quotaBefore: ScanQuota,
+): Promise<{
+  allowed: boolean;
+  reason?: string;
+  quota: ScanQuota;
+}> {
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    return {
+      allowed: false,
+      reason: "No se pudo registrar el escaneo. Inténtalo más tarde.",
+      quota: quotaBefore,
+    };
+  }
+
+  const monthKey = currentMonthKey();
+  const sub = await fetchUserSubscriptionServer(userId);
+  const plan = resolveEffectivePlan(sub);
+
+  if (plan === "pro" || plan === "trial") {
+    const usage = await getMonthlyAiUsage(userId, monthKey);
+    const usedUnits =
+      usage.expenseScansCreated * AI_UNITS_PER_SCAN +
+      usage.customerAiAutofillsCreated;
+    const includedRemainingUnits = Math.max(
+      0,
+      PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN - usedUnits,
+    );
+    const aiCreditUnits =
+      sub?.aiCreditUnits ?? (sub?.scanCredits ?? 0) * AI_UNITS_PER_SCAN;
+
+    if (includedRemainingUnits + aiCreditUnits < costUnits) {
+      return {
+        allowed: false,
+        reason: scanBlockedMessage(plan),
+        quota: quotaBefore,
+      };
+    }
+
+    const payload = {
+      user_id: userId,
+      month_key: monthKey,
+      documents_created: usage.documentsCreated,
+      expense_scans_created:
+        usage.expenseScansCreated + (increments.expenseScansCreated ?? 0),
+      customer_ai_autofills_created:
+        usage.customerAiAutofillsCreated +
+        (increments.customerAiAutofillsCreated ?? 0),
+    };
+
+    const { error } = await admin
+      .from("user_usage")
+      .upsert(payload, { onConflict: "user_id,month_key" });
+    if (error) {
+      let legacySaved = false;
+      if ((increments.customerAiAutofillsCreated ?? 0) <= 0) {
+        const { error: legacyError } = await admin
+          .from("user_usage")
+          .upsert(
+            {
+              user_id: userId,
+              month_key: monthKey,
+              documents_created: usage.documentsCreated,
+              expense_scans_created: payload.expense_scans_created,
+            },
+            { onConflict: "user_id,month_key" },
+          );
+        legacySaved = !legacyError;
+      }
+      if (!legacySaved) {
+        return {
+          allowed: false,
+          reason: failureReason,
+          quota: quotaBefore,
+        };
+      }
+    }
+
+    const unitsFromCredit = Math.max(0, costUnits - includedRemainingUnits);
+    if (unitsFromCredit > 0) {
+      const updated = await updateAiCreditUnitsLegacy(
+        userId,
+        aiCreditUnits - unitsFromCredit,
+      );
+      if (!updated) {
+        return {
+          allowed: false,
+          reason: failureReason,
+          quota: quotaBefore,
+        };
+      }
+    }
+  } else {
+    if (!sub) {
+      return {
+        allowed: false,
+        reason: "Crea una cuenta en Ajustes para usar el escáner.",
+        quota: quotaBefore,
+      };
+    }
+
+    const current = sub.scanTrialRemaining ?? FREE_EXPENSE_SCAN_TRIAL;
+    if (current <= 0) {
+      return {
+        allowed: false,
+        reason: scanBlockedMessage("free"),
+        quota: quotaBefore,
+      };
+    }
+
+    const { error } = await admin
+      .from("user_subscriptions")
+      .update({
+        scan_trial_remaining: current - 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (error) {
+      return {
+        allowed: false,
+        reason: failureReason,
+        quota: quotaBefore,
+      };
+    }
+  }
+
+  const quota = await getExpenseScanQuota(userId);
+  return { allowed: true, quota };
 }
 
 async function consumeAiUnits(
@@ -171,6 +373,16 @@ async function consumeAiUnits(
   });
 
   if (error) {
+    if (shouldFallbackToLegacyConsumption(error)) {
+      return consumeAiUnitsLegacy(
+        userId,
+        costUnits,
+        increments,
+        failureReason,
+        quotaBefore,
+      );
+    }
+
     return {
       allowed: false,
       reason: failureReason,

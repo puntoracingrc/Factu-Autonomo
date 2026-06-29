@@ -28,6 +28,17 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("Sin proveedor");
   });
 
+  it("mantiene el escaneo conectado al alta/reutilizacion de proveedores", () => {
+    const formPage = source("../app/gastos/nuevo/page.tsx");
+
+    expect(formPage).toContain("function applyScanResult");
+    expect(formPage).toContain("findBestSupplierMatch(data.suppliers");
+    expect(formPage).toContain("setSelectedSupplierId(match.supplier.id)");
+    expect(formPage).toContain("setSaveSupplier(true)");
+    expect(formPage).toContain("ensureSupplierForExpense(data.suppliers");
+    expect(formPage).toContain("const created = addSupplier(resolved.create)");
+  });
+
   it("el listado de gastos conserva proveedor, categoria, pago y total", () => {
     const listPage = source("../app/gastos/page.tsx");
 

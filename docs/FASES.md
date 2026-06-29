@@ -101,11 +101,12 @@ Si algo falla, dímelo y lo corregimos en código.
 - [ ] Certificado FNMT o sello de empresa → P12
 - [ ] `VERIFACTU_CERT_P12_BASE64`, `VERIFACTU_CERT_PASSWORD`
 - [ ] `VERIFACTU_AEAT_SUBMIT=true`, `VERIFACTU_ENVIRONMENT=test`
+- [ ] `VERIFACTU_AEAT_CERT_CHANNEL=personal` para la opción A
 
-**Código (pendiente / en curso):**
+**Código:**
 
-- [ ] mTLS con certificado en servidor
-- [ ] XML 100 % XSD AEAT
+- [x] mTLS con certificado en servidor
+- [x] XML base oficial `RegFactuSistemaFacturacion`
 - [ ] Registro de eventos completo
 
 ---

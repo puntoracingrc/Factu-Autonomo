@@ -50,6 +50,8 @@ describe("registerDocumentVerifactu", () => {
     expect(result?.verifactu.qrUrl).toContain("prewww2.aeat.es");
     expect(result?.verifactu.recordHash).toHaveLength(64);
     expect(result?.chain.recordCount).toBe(1);
-    expect(result?.xml).toContain("<RegistroFacturacion");
+    expect(result?.chain.lastNumSerie).toBe("F-2026-0001");
+    expect(result?.chain.lastFechaExpedicion).toBe("2026-06-09");
+    expect(result?.xml).toContain("<sum:RegFactuSistemaFacturacion");
   });
 });

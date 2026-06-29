@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { submitRegistroToAeat } from "./aeat-submit";
+import {
+  buildVerifactuSoapEnvelope,
+  parseAeatSubmitResponse,
+  submitRegistroToAeat,
+} from "./aeat-submit";
 
 describe("aeat submit", () => {
   afterEach(() => {
@@ -7,38 +11,66 @@ describe("aeat submit", () => {
     vi.restoreAllMocks();
   });
 
-  it("simulates success when cert is not configured", async () => {
+  it("simulates success in test mode when real send is disabled", async () => {
     const result = await submitRegistroToAeat({
-      xml: "<RegistroFacturacion/>",
+      xml: "<sum:RegFactuSistemaFacturacion/>",
       environment: "test",
     });
     expect(result.ok).toBe(true);
     expect(result.rawResponse).toBe("SIMULATED_TEST_MODE");
   });
 
-  it("does not open a real AEAT request from the current test-mode flow", async () => {
-    vi.stubEnv("VERIFACTU_CERT_P12_BASE64", "test-cert-placeholder");
-    vi.stubEnv("VERIFACTU_CERT_PASSWORD", "test-password-placeholder");
+  it("reports missing certificate when real send is enabled", async () => {
     vi.stubEnv("VERIFACTU_AEAT_SUBMIT", "true");
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     const result = await submitRegistroToAeat({
-      xml: "<RegistroFacturacion/>",
+      xml: "<sum:RegFactuSistemaFacturacion/>",
       environment: "test",
     });
 
-    expect(result.ok).toBe(true);
-    expect(result.rawResponse).toBe("SIMULATED_TEST_MODE");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    expect(result.rawResponse).toBe("AEAT_CERTIFICATE_NOT_CONFIGURED");
   });
 
   it("does not simulate success for production without real transport", async () => {
     const result = await submitRegistroToAeat({
-      xml: "<RegistroFacturacion/>",
+      xml: "<sum:RegFactuSistemaFacturacion/>",
       environment: "production",
     });
 
     expect(result.ok).toBe(false);
     expect(result.rawResponse).toBe("REAL_AEAT_TRANSPORT_NOT_ENABLED");
+  });
+
+  it("wraps the registry payload in the official SOAP envelope", () => {
+    const envelope = buildVerifactuSoapEnvelope(
+      '<?xml version="1.0"?><sum:RegFactuSistemaFacturacion/>',
+    );
+
+    expect(envelope).toContain("<soapenv:Envelope");
+    expect(envelope).toContain("<soapenv:Body>");
+    expect(envelope).toContain("<sum:RegFactuSistemaFacturacion/>");
+  });
+
+  it("parses an accepted AEAT response", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 200,
+      rawResponse: `
+        <soapenv:Envelope>
+          <soapenv:Body>
+            <RespuestaRegFactuSistemaFacturacion>
+              <CSV>TESTCSV123</CSV>
+              <EstadoEnvio>Correcto</EstadoEnvio>
+              <RespuestaLinea>
+                <EstadoRegistro>Correcta</EstadoRegistro>
+              </RespuestaLinea>
+            </RespuestaRegFactuSistemaFacturacion>
+          </soapenv:Body>
+        </soapenv:Envelope>`,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.csv).toBe("TESTCSV123");
+    expect(result.estadoRegistro).toBe("Correcta");
   });
 });
