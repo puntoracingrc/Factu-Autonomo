@@ -253,6 +253,17 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   };
 
   const totals = documentFormAmounts(items, vatExempt);
+  const isDraftStatus = status === "borrador";
+  const previewButtonLabel =
+    type === "factura" && isDraftStatus ? "Vista previa borrador" : "Vista previa PDF";
+  const downloadStatusOverride: Document["status"] | undefined =
+    type === "factura" && !existing ? "enviado" : undefined;
+  const downloadButtonLabel =
+    type === "factura" && (!existing || !isDraftStatus)
+      ? "Emitir y descargar PDF"
+      : isDraftStatus
+        ? "Guardar borrador y descargar PDF"
+        : "Guardar y descargar PDF";
 
   const shareDoc: Document | null = existing
     ? {
@@ -300,7 +311,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     } catch (error) {
       alert(
         error instanceof Error && error.message === "popup_blocked"
-          ? "Permite ventanas emergentes para ver la vista previa, o usa «Guardar y descargar PDF»."
+          ? "Permite ventanas emergentes para ver la vista previa, o usa la descarga del PDF."
           : "No se pudo generar la vista previa del PDF.",
       );
     } finally {
@@ -308,7 +319,10 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     }
   }
 
-  async function handleSave(download = false) {
+  async function handleSave(
+    download = false,
+    statusOverride?: Document["status"],
+  ) {
     if (saving) return;
 
     const lineIssue = firstDocumentFormLineIssue(items);
@@ -351,8 +365,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       return;
     }
 
+    const requestedStatus = statusOverride ?? status;
     const resolvedStatus =
-      type === "presupuesto" && status === "pagado" ? "aceptado" : status;
+      type === "presupuesto" && requestedStatus === "pagado"
+        ? "aceptado"
+        : requestedStatus;
 
     const payload = {
       type,
@@ -499,8 +516,8 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
               )}
               {type === "factura" && status !== "borrador" && (
                 <span className="text-xs text-amber-700">
-                  Al guardar, la factura se emitirá y quedará bloqueada. No se
-                  enviará nada a AEAT real.
+                  Al guardar, la factura se emitirá, tendrá número definitivo y
+                  quedará bloqueada.
                 </span>
               )}
               {type === "factura" &&
@@ -515,8 +532,8 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           )}
           {!existing && type === "factura" && (
             <p className="text-sm text-slate-500 sm:col-span-2">
-              Primero guarda la factura como borrador. Después podrás editarla,
-              cambiar el estado a Enviado y emitirla.
+              El borrador no reserva número fiscal. Al emitir se asignan número
+              y fecha definitivos y, si corresponde, se genera el QR tributario.
             </p>
           )}
         </div>
@@ -679,13 +696,13 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           disabled={saving || previewLoading}
         >
           <Eye className="h-5 w-5" />
-          {previewLoading ? "Generando vista previa…" : "Vista previa PDF"}
+          {previewLoading ? "Generando vista previa…" : previewButtonLabel}
         </Button>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button fullWidth onClick={() => void handleSave(false)} disabled={saving || previewLoading}>
             {saveAction === "save"
               ? "Guardando…"
-              : status === "borrador"
+              : isDraftStatus
                 ? "Guardar borrador"
                 : type === "factura"
                   ? "Emitir factura"
@@ -694,12 +711,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           <Button
             variant="secondary"
             fullWidth
-            onClick={() => void handleSave(true)}
+            onClick={() => void handleSave(true, downloadStatusOverride)}
             disabled={saving || previewLoading}
           >
             {saveAction === "save-pdf"
               ? "Guardando y preparando PDF…"
-              : "Guardar y descargar PDF"}
+              : downloadButtonLabel}
           </Button>
         </div>
       </div>

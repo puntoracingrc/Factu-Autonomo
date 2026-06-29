@@ -23,6 +23,7 @@ import {
   normalizeDocumentTemplate,
 } from "./document-templates";
 import { livePdfIssuerWarning } from "./business-profile";
+import { isDraftInvoiceNumber } from "./documents";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 
 export interface PdfArtifacts {
@@ -36,6 +37,7 @@ export interface PdfArtifacts {
 
 function documentLabel(doc: Document): string {
   if (isRectificativa(doc)) return "FACTURA RECTIFICATIVA";
+  if (isDraftInvoiceNumber(doc)) return "BORRADOR DE FACTURA";
   const labels: Record<Document["type"], string> = {
     factura: "FACTURA",
     presupuesto: "PRESUPUESTO",
@@ -255,8 +257,15 @@ export function buildDocumentPdfFromViewModel(
   pdf.setTextColor(0, 0, 0);
   pdf.text(`Nº ${doc.number}`, 140, contentStartY + 4);
   pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, contentStartY + 10);
+  let documentMetaY = contentStartY + 16;
+  if (isDraftInvoiceNumber(doc)) {
+    pdf.setTextColor(180, 83, 9);
+    pdf.text("No emitida", 140, documentMetaY);
+    pdf.setTextColor(0, 0, 0);
+    documentMetaY += 6;
+  }
   if (doc.dueDate && doc.type === "factura" && !isRect) {
-    pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
+    pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, documentMetaY);
   }
   if (doc.dueDate && doc.type === "presupuesto") {
     pdf.text(`Válido hasta: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
@@ -426,6 +435,10 @@ export async function buildDocumentPdfBlob(
 }
 
 function pdfFilename(doc: Document): string {
+  if (isDraftInvoiceNumber(doc)) {
+    const suffix = doc.id.replace(/[^\w.-]+/g, "_").slice(0, 8) || "nuevo";
+    return `factura-borrador-${suffix}.pdf`;
+  }
   const base = doc.number.replace(/[^\w.-]+/g, "_").trim() || "documento";
   return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
 }

@@ -32,9 +32,12 @@ import {
   assignNextDocumentNumber,
   assignNextDocumentNumberByType,
   countersFromDocuments,
+  DRAFT_INVOICE_NUMBER,
   getDocumentYear,
   getFacturasIncludingRectificativas,
+  isDraftInvoiceNumber,
   renumberDocumentsForKindYear,
+  shouldUseDraftInvoiceNumber,
 } from "@/lib/documents";
 import {
   canRectifyInvoice,
@@ -90,6 +93,7 @@ import {
   acceptQuote as acceptQuoteWithIntegrity,
   rejectQuote as rejectQuoteWithIntegrity,
 } from "@/lib/document-integrity";
+import { todayISO } from "@/lib/calculations";
 import {
   applyCustomerMergeToDocument,
   mergeCustomerRecords,
@@ -170,6 +174,50 @@ const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+function documentKindForType(type: DocumentType): DocumentKind {
+  return type === "factura"
+    ? "factura"
+    : type === "presupuesto"
+      ? "presupuesto"
+      : "recibo";
+}
+
+interface FinalInvoiceIdentityAssignment {
+  kind: DocumentKind;
+  year: number;
+  sequence: number;
+}
+
+function assignFinalInvoiceIdentityIfNeeded(
+  doc: Document,
+  documents: Document[],
+  numbering: BusinessProfile["numbering"],
+): { doc: Document; assignment?: FinalInvoiceIdentityAssignment } {
+  if (!isDraftInvoiceNumber(doc)) {
+    return { doc };
+  }
+
+  const issueDate = todayISO();
+  const year = new Date(issueDate).getFullYear();
+  const kind: DocumentKind = "factura";
+  const { number, sequence } = assignNextDocumentNumberByType(
+    documents.filter((item) => item.id !== doc.id),
+    "factura",
+    year,
+    configuredLastForKind(numbering, kind, year),
+    numbering,
+  );
+
+  return {
+    doc: {
+      ...doc,
+      date: issueDate,
+      number,
+    },
+    assignment: { kind, year, sequence },
+  };
 }
 
 function saveEditableDocument(
@@ -291,48 +339,59 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
     ): Document => {
       const year = new Date(doc.date).getFullYear();
-      const kind: DocumentKind =
-        doc.type === "factura"
-          ? "factura"
-          : doc.type === "presupuesto"
-            ? "presupuesto"
-            : "recibo";
+      const kind = documentKindForType(doc.type);
       const numbering = data.profile.numbering;
-      const { number, sequence } = assignNextDocumentNumberByType(
-        data.documents,
-        doc.type,
-        year,
-        configuredLastForKind(numbering, kind, year),
-        numbering,
-      );
+      const usesDraftNumber = shouldUseDraftInvoiceNumber(doc);
+      const assigned = usesDraftNumber
+        ? { number: DRAFT_INVOICE_NUMBER, sequence: null }
+        : assignNextDocumentNumberByType(
+            data.documents,
+            doc.type,
+            year,
+            configuredLastForKind(numbering, kind, year),
+            numbering,
+          );
       const now = new Date().toISOString();
-      const created: Document = {
+      const createdDraft: Document = {
         ...doc,
+        status: doc.status === "borrador" ? doc.status : "borrador",
         id: newId(),
-        number,
+        number: assigned.number,
         createdAt: now,
         updatedAt: now,
       };
+      const created =
+        doc.status === "borrador"
+          ? createdDraft
+          : saveEditableDocument(
+              createdDraft,
+              { ...createdDraft, status: doc.status },
+              data.profile,
+              now,
+            );
       setAppData((prev) => {
         const nextDocuments = [...prev.documents, created];
         return {
           ...prev,
-          profile: {
-            ...prev.profile,
-            numbering: bumpNumberingAfterAssign(
-              prev.profile.numbering,
-              kind,
-              year,
-              sequence,
-            ),
-          },
+          profile:
+            assigned.sequence === null
+              ? prev.profile
+              : {
+                  ...prev.profile,
+                  numbering: bumpNumberingAfterAssign(
+                    prev.profile.numbering,
+                    kind,
+                    year,
+                    assigned.sequence,
+                  ),
+                },
           documents: nextDocuments,
           counters: countersFromDocuments(nextDocuments, year, numbering),
         };
       });
       return created;
     },
-    [data.documents, data.profile.numbering, setAppData],
+    [data.documents, data.profile, setAppData],
   );
 
   const updateDocument = useCallback((doc: Document): Document => {
@@ -341,10 +400,30 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Documento no encontrado");
     }
     const now = new Date().toISOString();
-    const saved = saveEditableDocument(current, doc, data.profile, now);
+    const shouldIssue =
+      deriveDocumentLifecycle(current) === "draft" && doc.status !== "borrador";
+    const prepared = shouldIssue
+      ? assignFinalInvoiceIdentityIfNeeded(
+          doc,
+          data.documents,
+          data.profile.numbering,
+        )
+      : { doc };
+    const saved = saveEditableDocument(current, prepared.doc, data.profile, now);
     setAppData((prev) => {
       return {
         ...prev,
+        profile: prepared.assignment
+          ? {
+              ...prev.profile,
+              numbering: bumpNumberingAfterAssign(
+                prev.profile.numbering,
+                prepared.assignment.kind,
+                prepared.assignment.year,
+                prepared.assignment.sequence,
+              ),
+            }
+          : prev.profile,
         documents: prev.documents.map((d) =>
           d.id === doc.id ? saved : d,
         ),
@@ -360,10 +439,26 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const current = prev.documents.find((doc) => doc.id === id);
         if (!current) return prev;
 
-        issued = issueDocumentWithIntegrity(current, prev.profile);
+        const prepared = assignFinalInvoiceIdentityIfNeeded(
+          current,
+          prev.documents,
+          prev.profile.numbering,
+        );
+        issued = issueDocumentWithIntegrity(prepared.doc, prev.profile);
 
         return {
           ...prev,
+          profile: prepared.assignment
+            ? {
+                ...prev.profile,
+                numbering: bumpNumberingAfterAssign(
+                  prev.profile.numbering,
+                  prepared.assignment.kind,
+                  prepared.assignment.year,
+                  prepared.assignment.sequence,
+                ),
+              }
+            : prev.profile,
           documents: prev.documents.map((doc) =>
             doc.id === id ? issued! : doc,
           ),
@@ -662,20 +757,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       const draft = buildInvoiceDraftFromQuote(quote);
       const year = new Date(draft.date).getFullYear();
-      const kind: DocumentKind = "factura";
       const numbering = prev.profile.numbering;
-      const { number, sequence } = assignNextDocumentNumberByType(
-        prev.documents,
-        "factura",
-        year,
-        configuredLastForKind(numbering, kind, year),
-        numbering,
-      );
       const now = new Date().toISOString();
       const created: Document = {
         ...draft,
         id: newId(),
-        number,
+        number: DRAFT_INVOICE_NUMBER,
         createdAt: now,
         updatedAt: now,
       };
@@ -684,15 +771,6 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       return {
         ...prev,
-        profile: {
-          ...prev.profile,
-          numbering: bumpNumberingAfterAssign(
-            prev.profile.numbering,
-            kind,
-            year,
-            sequence,
-          ),
-        },
         documents: nextDocuments,
         counters: countersFromDocuments(nextDocuments, year, numbering),
       };
