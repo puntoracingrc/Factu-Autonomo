@@ -12,7 +12,7 @@ export const proveedoresSection: ManualSection = {
         "En **Proveedores** pulsa **Nuevo proveedor** y guarda nombre, NIF, teléfono, web y dirección.",
         "Para la dirección, elige el **tipo de vía** y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni similares.",
         "Usa el **buscador** para localizar un proveedor y el **ordenador** por nombre, volumen de compras o dirección.",
-        "Al registrar un gasto, si eliges proveedor, su NIF puede salir en las exportaciones CSV.",
+        "Al registrar o escanear un gasto, si aparece un proveedor nuevo la app puede añadirlo a Proveedores y usar su NIF en las exportaciones CSV.",
       ],
       screenshot: {
         src: "/ayuda/capturas/proveedores-nuevo.png",
@@ -35,13 +35,21 @@ export const proveedoresSection: ManualSection = {
 export const configuracionSection: ManualSection = {
   slug: "configuracion",
   title: "Ajustes avanzados",
-  summary: "Plantillas PDF, frases, formas de pago, numeración, Veri*Factu y copia de datos.",
-  order: 10,
+  summary: "Plantillas PDF, validez de presupuestos, numeración, Veri*Factu y cuenta.",
+  order: 11,
   steps: [
     {
-      title: "1. Frases y formas de pago reutilizables",
+      title: "1. Moverse por Ajustes",
+      paragraphs: [
+        "La parte superior muestra accesos compactos a **Negocio**, **Documentos**, **Impuestos** y **Cuenta**.",
+        "En **Cuenta** verás un bloque breve con **Abrir Cuenta**. La pantalla completa de cuenta, Drive e importación vive en **Cuenta**, no dentro de Ajustes.",
+      ],
+    },
+    {
+      title: "2. Frases, validez y formas de pago",
       paragraphs: [
         "En Ajustes puedes guardar **frases** y **formas de pago** que aparecerán como atajos al crear facturas, presupuestos y recibos.",
+        "También puedes fijar los días de validez de tus presupuestos. La app usará ese valor automáticamente al crear uno nuevo.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-frases.png",
@@ -49,7 +57,7 @@ export const configuracionSection: ManualSection = {
       },
     },
     {
-      title: "2. Diseñador de plantillas PDF",
+      title: "3. Diseñador de plantillas PDF",
       paragraphs: [
         "Con plan **Pro** puedes abrir el **Diseñador de formularios** desde Ajustes para cambiar el estilo visual de facturas, presupuestos y recibos en una pantalla dedicada.",
         "Puedes elegir estilo, fuente profesional, tamaños de texto, color de marca, densidad de la tabla y algunos bloques visibles del PDF. Usa **Ver grande** para revisar una factura ficticia completa antes de guardar. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR fiscal obligatorio y líneas reales.",
@@ -58,9 +66,10 @@ export const configuracionSection: ManualSection = {
       ],
     },
     {
-      title: "3. Numeración de documentos",
+      title: "4. Numeración de documentos",
       paragraphs: [
         "Revisa el formato de numeración (F-2026-0001, etc.) y el último número usado para evitar saltos o duplicados.",
+        "Las facturas en borrador no consumen número definitivo. El número se fija al emitir.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-numeracion.png",
@@ -68,9 +77,19 @@ export const configuracionSection: ManualSection = {
       },
     },
     {
-      title: "4. Tus datos y copia de seguridad",
+      title: "5. Veri*Factu",
       paragraphs: [
-        "La tarjeta **Tus datos** explica dónde viven tus facturas y gastos, y te permite **exportar una copia JSON** para guardarla o moverla.",
+        "En **Impuestos** dentro de Ajustes está la tarjeta **Veri*Factu**.",
+        "Puedes dejarlo desactivado hasta que corresponda. Si está apagado, no se registran facturas en Veri*Factu.",
+        "La pantalla distingue entre **modo simulado**, preparación de envío a AEAT y falta de certificado. No guarda ni muestra claves privadas en esta tarjeta.",
+        "El QR y la huella se aplican a facturas emitidas cuando la configuración lo permite; los borradores no se registran.",
+      ],
+    },
+    {
+      title: "6. Tus datos y copia de seguridad",
+      paragraphs: [
+        "La tarjeta **Tus datos** explica dónde viven tus facturas y gastos.",
+        "Para exportar o importar copias JSON, entra en **Cuenta**. Si usas Drive, la copia extra también se configura allí.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-copia.png",

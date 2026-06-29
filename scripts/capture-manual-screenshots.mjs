@@ -110,22 +110,49 @@ async function main() {
   await waitForApp(page);
   await page.waitForTimeout(1000);
   await shot(page, "ajustes-datos-negocio", {
-    locator: "input[value='Estudio López']",
+    locator:
+      "text=Datos del negocio en documentos >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
+
+  await page.goto(`${BASE_URL}/configuracion#ajustes-impuestos`, {
+    waitUntil: "networkidle",
+  });
+  await waitForApp(page);
+  await page.waitForTimeout(800);
   await shot(page, "ajustes-iva-irpf", {
-    locator: "text=Régimen de IVA",
+    locator:
+      "text=Régimen de IVA >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
+
+  await page.goto(`${BASE_URL}/configuracion#ajustes-documentos`, {
+    waitUntil: "networkidle",
+  });
+  await waitForApp(page);
+  await page.waitForTimeout(800);
   await shot(page, "ajustes-frases", {
-    locator: "text=Frases en documentos",
+    locator:
+      "text=Frases en documentos >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
   await shot(page, "ajustes-numeracion", {
-    locator: "h2:text-is('Numeración')",
+    locator:
+      "h2:text-is('Numeración') >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
+
+  await page.goto(`${BASE_URL}/configuracion#ajustes-cuenta`, {
+    waitUntil: "networkidle",
+  });
+  await waitForApp(page);
+  await page.waitForTimeout(800);
   await shot(page, "ajustes-copia", {
-    locator: "text=¿Dónde están mis datos?",
+    locator:
+      "text=¿Dónde están mis datos? >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
+
+  await page.goto(`${BASE_URL}/cuenta`, { waitUntil: "networkidle" });
+  await waitForApp(page);
   await shot(page, "cuenta-nube", {
-    locator: "text=Copia de seguridad y cuenta",
+    locator:
+      "text=Cuenta y copia de seguridad >> xpath=ancestor::div[contains(@class,'rounded-2xl')][1]",
   });
 
   await page.goto(`${BASE_URL}/clientes`, { waitUntil: "networkidle" });
@@ -152,14 +179,14 @@ async function main() {
     locator: unpaidRow.locator(".action-scroll"),
   });
   await shot(page, "facturas-cobrar", {
-    locator: unpaidRow.getByRole("button", {
-      name: /Marcar como cobrado/i,
-    }),
+    locator: page.getByRole("button", {
+      name: /Marcar como cobrada/i,
+    }).first(),
   });
 
   const rectRow = documentRow(page, "F-2026-0003");
   await shot(page, "facturas-rectificar", {
-    locator: rectRow.getByRole("link", { name: "Rectificar" }),
+    locator: rectRow.locator("a[href$='/rectificar']").first(),
   });
 
   try {

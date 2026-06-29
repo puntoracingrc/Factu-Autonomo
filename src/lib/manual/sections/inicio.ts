@@ -3,36 +3,36 @@ import type { ManualSection } from "../types";
 export const inicioSection: ManualSection = {
   slug: "inicio",
   title: "Inicio y avisos",
-  summary: "Recordatorios del equipo, accesos rápidos y centro de avisos.",
+  summary: "Accesos rápidos, recordatorios, instalación y resumen del negocio.",
   order: 2,
   intro: [
-    "La pantalla de inicio está pensada para actuar rápido: recordatorios compartidos, botones de avisos, cliente, factura, presupuesto, recibo y gasto.",
-    "El resumen fiscal (trimestre, año o historial completo) está en **Impuestos**.",
+    "La pantalla de inicio está pensada para actuar rápido: crear recordatorios, abrir avisos, cliente, factura, presupuesto, recibo y gasto sin bajar por la app.",
+    "También incluye la instalación de la app y un resumen del negocio oculto por defecto para que no se vean cifras de un vistazo.",
   ],
   steps: [
     {
-      title: "1. Recordatorios del equipo",
+      title: "1. Accesos rápidos",
       paragraphs: [
-        "Arriba verás **Recordatorios del equipo**: marca el check al completarlos.",
-        "En **Avisos > Mis tareas** puedes crear un recordatorio normal o elegir **Enviar a oficina**; usa el mismo formulario con plantillas (factura pendiente, devolver llamada, rectificar…).",
-        "Compartid la **misma cuenta Pro con nube**: los recordatorios «Para oficina» se sincronizan cada ~45 s si la pestaña está abierta.",
+        "El primer botón es **Crear recordatorio**. Después tienes **Avisos** (con contador si hay pendientes), **Nuevo cliente**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo**, **Añadir gasto** y **Configuración**.",
+        "Los accesos son botones grandes para móvil. Si Factu muestra un consejo abajo y te molesta, pulsa la **X** para cerrarlo durante esa sesión.",
+        "El botón de **Exportar copia** ya no está en Inicio: está en **Cuenta**, junto a sincronización y copias.",
+      ],
+      screenshot: {
+        src: "/ayuda/capturas/inicio-accesos-rapidos.png",
+        alt: "Botones de acceso rápido en inicio",
+      },
+    },
+    {
+      title: "2. Recordatorios del equipo",
+      paragraphs: [
+        "La sección **Recordatorios del equipo** solo aparece en Inicio cuando hay tareas pendientes.",
+        "Marca el check al completarlas o pulsa **Ir** si el recordatorio tiene un enlace rápido. Si no elegiste enlace al crearlo, no se fuerza ninguna pantalla concreta.",
+        "En **Avisos > Mis tareas** puedes crear recordatorios personales o de oficina. Si compartís la **misma cuenta Pro con nube**, los recordatorios «Para oficina» se sincronizan mientras la app está abierta.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-recordatorios.png",
         alt: "Recordatorios del equipo y enviar a oficina en Inicio",
         caption: "Los recordatorios «Para oficina» los ve quien esté en el PC con la misma cuenta.",
-      },
-    },
-    {
-      title: "2. Accesos rápidos",
-      paragraphs: [
-        "Debajo de los recordatorios tienes acceso directo a **Avisos** (con contador si hay pendientes), **Clientes**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo** y **Añadir gasto**.",
-        "Factu también puede mostrarte un consejo para descubrir funciones que aún no has probado.",
-        "Si la barra de Factu tapa algo en la parte inferior, pulsa la **X** para cerrarla durante esa sesión.",
-      ],
-      screenshot: {
-        src: "/ayuda/capturas/inicio-accesos-rapidos.png",
-        alt: "Botones de acceso rápido en inicio",
       },
     },
     {
@@ -47,16 +47,12 @@ export const inicioSection: ManualSection = {
       },
     },
     {
-      title: "4. Resumen fiscal",
+      title: "4. Instalar app y resumen del negocio",
       paragraphs: [
-        "En el menú **Impuestos** eliges **Trimestre** (por defecto el actual), **Año** o **Todo**.",
-        "En trimestre verás ingresos, gastos, balance y beneficio bruto; en «Todo», el acumulado con **Por cobrar**.",
+        "El bloque **Instalar app** te ayuda a añadir Factura Autónomo como acceso directo en móvil, Windows o Mac.",
+        "El **Resumen del negocio** está colapsado por defecto. Pulsa **Mostrar resumen** para ver cifras, gráfica y últimos movimientos por mes, trimestre, año o todo.",
+        "Las cifras son orientativas y se calculan con los datos guardados en la app. Para el resumen fiscal trimestral, entra en **Impuestos**.",
       ],
-      screenshot: {
-        src: "/ayuda/capturas/impuestos-trimestre.png",
-        alt: "Resumen fiscal por trimestre en Impuestos",
-        caption: "El resumen del trimestre está en Impuestos, no en Inicio.",
-      },
     },
   ],
 };

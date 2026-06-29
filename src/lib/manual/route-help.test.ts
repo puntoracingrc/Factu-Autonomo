@@ -9,6 +9,7 @@ describe("manual route help", () => {
     expect(resolveManualSlug("/facturas/abc-123")).toBe("facturas");
     expect(resolveManualSlug("/gastos/fijos")).toBe("gastos");
     expect(resolveManualSlug("/configuracion")).toBe("configuracion");
+    expect(resolveManualSlug("/cuenta")).toBe("cuenta");
     expect(resolveManualSlug("/importar")).toBe("importacion");
   });
 
@@ -26,7 +27,7 @@ describe("manual route help", () => {
   });
 
   it("usa el indice del manual como ayuda global si no hay seccion concreta", () => {
-    expect(resolveManualSlug("/cuenta")).toBeNull();
-    expect(manualHelpHref("/cuenta")).toBe("/ayuda?from=%2Fcuenta");
+    expect(resolveManualSlug("/sin-seccion")).toBeNull();
+    expect(manualHelpHref("/sin-seccion")).toBe("/ayuda?from=%2Fsin-seccion");
   });
 });

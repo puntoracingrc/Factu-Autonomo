@@ -15,20 +15,20 @@ export const facturasSection: ManualSection = {
         "Ve a **Facturas** → **Nueva factura** (o usa el acceso rápido en Inicio).",
         "Elige o crea un **cliente**, añade líneas con concepto, cantidad y precio, y revisa el IVA de cada línea.",
         "Si tienes plan **Pro**, puedes pegar datos de facturación en **Rellenar con IA** dentro de **Datos del cliente**. La app rellena la ficha y, si es un cliente nuevo, lo guarda automáticamente al guardar la factura.",
-        "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar.",
+        "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar. La **Vista previa borrador** usa el mismo generador de PDF que la descarga, pero sin emitir la factura.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-nueva.png",
         alt: "Formulario de nueva factura",
       },
-      tip: "Usa **Vista previa PDF** antes de emitir para comprobar que todo se ve bien.",
+      tip: "Usa la vista previa antes de emitir para comprobar que todo se ve bien.",
     },
     {
-      title: "2. Emitir y descargar el PDF",
+      title: "2. Guardar borrador o emitir",
       paragraphs: [
-        "Cuando guardas una factura emitida, se genera un **número automático** (por ejemplo F-2026-0001) y ya no puedes editarla libremente: solo verla o rectificarla.",
-        "Pulsa el icono del **ojo** en el listado para abrir una vista previa del PDF sin descargarlo.",
-        "Pulsa **PDF** en el listado para descargar el documento.",
+        "**Guardar borrador** mantiene la factura editable. El borrador no reserva número fiscal, no bloquea el documento y no genera registro Veri*Factu.",
+        "**Emitir factura** o **Emitir y descargar PDF** asigna el número definitivo según la numeración actual, guarda la fecha del documento y bloquea la factura.",
+        "Si Veri*Factu está activado, el QR tributario y la huella se generan al emitir, no mientras la factura sigue en borrador.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-pdf.png",
@@ -36,7 +36,15 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "3. Enviar al cliente (email o WhatsApp)",
+      title: "3. Listado, PDF y búsqueda",
+      paragraphs: [
+        "El listado de facturas está ordenado de más nueva a más antigua y muestra separadores por mes para orientarte al bajar.",
+        "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
+        "Pulsa el icono del **ojo** para abrir la vista previa del PDF y el icono de descarga para guardar el PDF. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
+      ],
+    },
+    {
+      title: "4. Enviar al cliente (email o WhatsApp)",
       paragraphs: [
         "Si el cliente tiene **email** o **teléfono** guardado, verás iconos de **Email** y **WhatsApp**.",
         "La app prepara un mensaje con el importe y, si aplica, el IBAN. En muchos móviles puedes compartir el PDF directamente; si no, se descarga para que lo adjuntes tú.",
@@ -47,7 +55,7 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "4. Marcar como cobrada",
+      title: "5. Marcar como cobrada",
       paragraphs: [
         "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado** y, en facturas normales, se crea un **recibo** vinculado.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
@@ -58,7 +66,7 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "5. Recordar el pago (facturas impagadas)",
+      title: "6. Recordar el pago (facturas impagadas)",
       paragraphs: [
         "En facturas **pendientes** con contacto del cliente aparece **Recordar** (icono de campana).",
         "Se abre un cuadro con un **mensaje amable sugerido** que puedes editar antes de enviar.",
@@ -71,9 +79,10 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "6. Rectificar una factura",
+      title: "7. Rectificar una factura",
       paragraphs: [
         "Si necesitas corregir una factura ya emitida, usa **Rectificar** en el listado. Se creará una factura rectificativa vinculada a la original.",
+        "Las facturas emitidas no se editan libremente. Si aún es borrador, sí puedes editarla o borrarla antes de emitir.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-rectificar.png",

@@ -9,7 +9,8 @@ export const impuestosSection: ManualSection = {
     {
       title: "1. Ver el resumen fiscal",
       paragraphs: [
-        "En **Impuestos** eliges **trimestre**, **año** o **todo** y ves bases de ventas y gastos, IVA neto, beneficio bruto e IRPF estimado.",
+        "En **Impuestos** eliges **Trimestre**, **Año** o **Todo** y luego seleccionas el periodo concreto.",
+        "Verás bases de ventas y gastos, IVA neto, beneficio bruto e IRPF estimado.",
         "Son cifras **orientativas** para preparar el 303 o hablar con tu gestor; no sustituyen la declaración oficial.",
       ],
       screenshot: {
