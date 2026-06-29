@@ -2,10 +2,8 @@
 
 import { Suspense } from "react";
 import {
-  BookOpen,
   Cloud,
   HardDrive,
-  MonitorSmartphone,
   Scale,
   Shield,
   Upload,
@@ -14,8 +12,6 @@ import {
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
-import { ManualHelpLink } from "@/components/manual/ManualHelpLink";
-import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -25,8 +21,6 @@ const ACCOUNT_NAV_ITEMS: Array<{
   label: string;
   Icon: LucideIcon;
 }> = [
-  { href: "#manual-cuenta", label: "Manual", Icon: BookOpen },
-  { href: "#instalar-app", label: "Instalar app", Icon: MonitorSmartphone },
   { href: "#inicio-sesion", label: "Cuenta y nube", Icon: Cloud },
   { href: "#drive-backup", label: "Drive", Icon: HardDrive },
   { href: "#importar-datos", label: "Importar", Icon: Upload },
@@ -62,14 +56,6 @@ export default function CuentaPage() {
       />
 
       <AccountQuickLinks />
-
-      <div id="manual-cuenta" className="scroll-mt-24">
-        <ManualHelpLink />
-      </div>
-
-      <section id="instalar-app" className="scroll-mt-24">
-        <InstallAppCard />
-      </section>
 
       <Suspense
         fallback={

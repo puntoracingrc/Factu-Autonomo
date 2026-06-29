@@ -15,6 +15,7 @@ import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { HomeBusinessSummary } from "@/components/dashboard/HomeBusinessSummary";
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
+import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
 
@@ -101,6 +102,8 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
+
+      <InstallAppCard />
 
       <HomeBusinessSummary data={data} />
 
