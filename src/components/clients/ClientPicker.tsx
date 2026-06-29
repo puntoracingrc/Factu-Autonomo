@@ -16,7 +16,7 @@ import {
   customerToClient,
   filterCustomers,
   getCustomerDisplayName,
-  sortCustomersByName,
+  sortCustomers,
 } from "@/lib/customers";
 import type { Client, Customer } from "@/lib/types";
 
@@ -50,7 +50,7 @@ export function ClientPicker({
 }: ClientPickerProps) {
   const { data } = useAppStore();
   const sorted = useMemo(
-    () => sortCustomersByName(data.customers),
+    () => sortCustomers(data.customers, [], "reciente", "desc"),
     [data.customers],
   );
 
@@ -155,11 +155,11 @@ export function ClientPicker({
         <FormSection
           variant="search"
           title="Buscar o elegir cliente"
-          hint="Lista alfabética o búsqueda por nombre, apellidos o NIF."
+          hint="Lista de clientes recientes o búsqueda por nombre, apellidos o NIF."
         >
           <Field
             label="Lista de clientes"
-            hint="Ordenados alfabéticamente por apellidos"
+            hint="Últimos añadidos primero"
           >
             <Select
               value={selectedCustomerId ?? ""}

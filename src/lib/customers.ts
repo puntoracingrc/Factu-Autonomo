@@ -302,10 +302,16 @@ export function sortCustomersByName(customers: Customer[]): Customer[] {
     );
 }
 
-export type CustomerSortField = "nombre" | "apellido" | "facturacion" | "direccion";
+export type CustomerSortField =
+  | "reciente"
+  | "nombre"
+  | "apellido"
+  | "facturacion"
+  | "direccion";
 export type CustomerSortDirection = "asc" | "desc";
 
 export const CUSTOMER_SORT_FIELD_LABELS: Record<CustomerSortField, string> = {
+  reciente: "Últimos añadidos",
   nombre: "Nombre",
   apellido: "Apellidos",
   facturacion: "Volumen facturado",
@@ -320,10 +326,18 @@ export function customerSortDirectionLabel(
   field: CustomerSortField,
   direction: CustomerSortDirection,
 ): string {
+  if (field === "reciente") {
+    return direction === "asc" ? "Más antiguos primero" : "Más nuevos primero";
+  }
   if (field === "facturacion") {
     return direction === "asc" ? "Menor a mayor" : "Mayor a menor";
   }
   return direction === "asc" ? "A → Z" : "Z → A";
+}
+
+function customerCreatedAtTime(customer: Customer): number {
+  const time = new Date(customer.createdAt).getTime();
+  return Number.isFinite(time) ? time : 0;
 }
 
 export function sortCustomers(
@@ -343,9 +357,17 @@ export function sortCustomers(
     left.localeCompare(right, "es", {
       sensitivity: "base",
     });
+  const compareDisplayName = (left: Customer, right: Customer) =>
+    getCustomerDisplayName(left).localeCompare(getCustomerDisplayName(right), "es", {
+      sensitivity: "base",
+    });
 
   return [...customers].map(migrateCustomer).sort((a, b) => {
     switch (field) {
+      case "reciente": {
+        const byDate = factor * (customerCreatedAtTime(a) - customerCreatedAtTime(b));
+        return byDate || compareDisplayName(a, b);
+      }
       case "nombre":
         return compareText(a.firstName, b.firstName);
       case "apellido":

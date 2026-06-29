@@ -95,6 +95,17 @@ describe("sortCustomers", () => {
     expect(sorted.map((c) => c.lastName)).toEqual(["García", "López", "Servicios"]);
   });
 
+  it("ordena por últimos añadidos de más nuevo a más antiguo", () => {
+    const customers: Customer[] = [
+      { ...sample[0], createdAt: "2026-01-01T10:00:00.000Z" },
+      { ...sample[1], createdAt: "2026-06-01T10:00:00.000Z" },
+      { ...sample[2], createdAt: "2026-06-01T10:00:00.000Z" },
+    ];
+    const sorted = sortCustomers(customers, [], "reciente", "desc");
+
+    expect(sorted.map((c) => c.id)).toEqual(["2", "3", "1"]);
+  });
+
   it("ordena por volumen facturado de mayor a menor", () => {
     const sorted = sortCustomers(
       sample,
