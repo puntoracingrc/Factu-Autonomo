@@ -76,15 +76,16 @@ describe("product dashboard home", () => {
   });
 
   it("no enlaza recordatorios libres a nueva factura por defecto", () => {
-    const sendToOffice = source("../components/reminders/SendToOfficeForm.tsx");
     const panel = source("../components/reminders/UserRemindersPanel.tsx");
 
-    expect(sendToOffice).toContain(
-      'useState<UserReminderLinkKind>("none")',
-    );
-    expect(sendToOffice).toContain('setLinkKind("none")');
+    expect(panel).toContain('useState<UserReminderLinkKind>("none")');
+    expect(panel).toContain('setLinkKind("none")');
     expect(panel).toContain('"#nuevo-recordatorio"');
     expect(panel).toContain('id="nuevo-recordatorio"');
+    expect(panel).toContain("OFFICE_REMINDER_TEMPLATES");
+    expect(panel).toContain("Plantillas rápidas");
+    expect(panel).toContain("Enviar a oficina");
+    expect(panel).not.toContain("<SendToOfficeForm");
   });
 
   it("no duplica accesos ni ultimos documentos en la sugerencia de Factu", () => {

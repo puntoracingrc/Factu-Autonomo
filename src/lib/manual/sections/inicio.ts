@@ -14,7 +14,7 @@ export const inicioSection: ManualSection = {
       title: "1. Recordatorios del equipo",
       paragraphs: [
         "Arriba verás **Recordatorios del equipo**: marca el check al completarlos.",
-        "En **Avisos > Mis tareas** puedes usar **Enviar a oficina** con plantillas (factura pendiente, devolver llamada, rectificar…).",
+        "En **Avisos > Mis tareas** puedes crear un recordatorio normal o elegir **Enviar a oficina**; usa el mismo formulario con plantillas (factura pendiente, devolver llamada, rectificar…).",
         "Compartid la **misma cuenta Pro con nube**: los recordatorios «Para oficina» se sincronizan cada ~45 s si la pestaña está abierta.",
       ],
       screenshot: {

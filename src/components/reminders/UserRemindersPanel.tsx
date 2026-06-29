@@ -1,20 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
-import { SendToOfficeForm } from "@/components/reminders/SendToOfficeForm";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   completedUserReminders,
   linkKindLabel,
   pendingUserReminders,
   resolveReminderHref,
 } from "@/lib/user-reminders";
-import { guessReminderOrigin } from "@/lib/reminder-team";
+import {
+  OFFICE_REMINDER_TEMPLATES,
+  guessReminderOrigin,
+} from "@/lib/reminder-team";
 import type { UserReminderLinkKind } from "@/lib/types";
 
 const LINK_KINDS: UserReminderLinkKind[] = [
@@ -34,6 +37,7 @@ export function UserRemindersPanel() {
     reopenUserReminder,
     deleteUserReminder,
   } = useAppStore();
+  const { user, syncNow } = useCloudSync();
 
   const [showForm, setShowForm] = useState(false);
   const [text, setText] = useState("");
@@ -43,6 +47,7 @@ export function UserRemindersPanel() {
   const [entityId, setEntityId] = useState("");
   const [target, setTarget] = useState<"self" | "office">("self");
   const [showCompleted, setShowCompleted] = useState(false);
+  const [sentToOffice, setSentToOffice] = useState(false);
 
   const pending = useMemo(
     () => pendingUserReminders(data.userReminders),
@@ -78,12 +83,23 @@ export function UserRemindersPanel() {
     setTarget("self");
   }
 
-  function openOfficeTemplate(kind: UserReminderLinkKind, presetText: string) {
+  function openForm(nextTarget: "self" | "office") {
     setShowForm(true);
+    setTarget(nextTarget);
+    setSentToOffice(false);
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("nuevo-recordatorio")
+        ?.scrollIntoView({ block: "start" });
+    });
+  }
+
+  function applyOfficeTemplate(kind: UserReminderLinkKind, presetText: string) {
     setTarget("office");
     setLinkKind(kind);
     setText(presetText);
     setEntityId("");
+    setSentToOffice(false);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -103,19 +119,27 @@ export function UserRemindersPanel() {
       },
     });
 
+    if (target === "office" && user) {
+      void syncNow();
+    }
+
+    if (target === "office") {
+      setSentToOffice(true);
+    }
+
     resetForm();
     setShowForm(false);
   }
 
   return (
     <div>
-      <SendToOfficeForm />
-
       <div className="mb-4 flex flex-wrap gap-2">
         <Button
           type="button"
           id="nuevo-recordatorio"
-          onClick={() => setShowForm((open) => !open)}
+          onClick={() =>
+            showForm && target === "self" ? setShowForm(false) : openForm("self")
+          }
         >
           <Plus className="h-4 w-4" />
           Nuevo recordatorio
@@ -123,33 +147,45 @@ export function UserRemindersPanel() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => openOfficeTemplate("new_invoice", "Hacer factura a … por … € — ")}
+          onClick={() =>
+            showForm && target === "office"
+              ? setShowForm(false)
+              : openForm("office")
+          }
         >
-          Enviar instrucción a oficina
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => openOfficeTemplate("customer", "Hacer factura a ")}
-        >
-          Facturar a…
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => openOfficeTemplate("rectify", "Rectificar factura de ")}
-        >
-          Rectificar…
+          <Send className="h-4 w-4" />
+          Enviar a oficina
         </Button>
       </div>
+
+      {sentToOffice ? (
+        <p className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          Enviado a oficina. Si hay nube activa, se sincronizará con el otro
+          dispositivo.
+        </p>
+      ) : null}
 
       {showForm ? (
         <Card className="mb-6 border-violet-200 bg-violet-50/40">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <p className="text-lg font-bold text-slate-900">
+                {target === "office" ? "Enviar a oficina" : "Nuevo recordatorio"}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                {target === "office"
+                  ? "Deja una tarea para el equipo usando la misma cuenta."
+                  : "Apunta una tarea personal para tenerla visible en Inicio."}
+              </p>
+            </div>
+
             <Field label="Qué quieres recordar" hint="Escribe la tarea con tus palabras">
               <Textarea
                 value={text}
-                onChange={(event) => setText(event.target.value)}
+                onChange={(event) => {
+                  setText(event.target.value);
+                  setSentToOffice(false);
+                }}
                 placeholder="Ej.: Esta tarde hacer la factura a María"
                 required
               />
@@ -158,14 +194,42 @@ export function UserRemindersPanel() {
             <Field label="Destino">
               <Select
                 value={target}
-                onChange={(event) =>
-                  setTarget(event.target.value as "self" | "office")
-                }
+                onChange={(event) => {
+                  setTarget(event.target.value as "self" | "office");
+                  setSentToOffice(false);
+                }}
               >
                 <option value="self">Para mí</option>
                 <option value="office">Para oficina / equipo</option>
               </Select>
             </Field>
+
+            {target === "office" ? (
+              <div className="rounded-2xl border border-sky-200 bg-white/80 p-4">
+                <p className="text-sm font-semibold text-slate-800">
+                  Plantillas rápidas
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {OFFICE_REMINDER_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() =>
+                        applyOfficeTemplate(template.linkKind, template.text)
+                      }
+                      className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-900 transition hover:bg-sky-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+                {!user ? (
+                  <p className="mt-3 text-xs font-medium text-amber-800">
+                    Para verlo en otro dispositivo necesitas la cuenta en la nube.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Fecha (opcional)">
@@ -252,7 +316,16 @@ export function UserRemindersPanel() {
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit">Guardar recordatorio</Button>
+              <Button type="submit">
+                {target === "office" ? (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Enviar a oficina
+                  </>
+                ) : (
+                  "Guardar recordatorio"
+                )}
+              </Button>
               <Button
                 type="button"
                 variant="secondary"
