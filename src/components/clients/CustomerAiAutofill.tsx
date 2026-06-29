@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Textarea } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import type { ScanQuota } from "@/lib/billing/scan-limits";
 
 export interface CustomerAiAutofillValues {
   firstName: string;
@@ -30,7 +31,7 @@ interface CustomerAiAutofillProps {
 }
 
 export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
-  const { billingEnabled, limits } = useBilling();
+  const { billingEnabled, isPro, limits } = useBilling();
   const { user } = useCloudSync();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,9 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
+  const [upgradeMode, setUpgradeMode] = useState<"upgrade" | "scanPack">(
+    "upgrade",
+  );
   const aiConsent = useAiProcessingConsent();
 
   const locked = billingEnabled && !limits.aiTextAutofill;
@@ -48,6 +52,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     setWarnings([]);
 
     if (locked) {
+      setUpgradeMode("upgrade");
       setUpgradeReason("El autorrelleno de clientes con IA requiere plan Pro.");
       setUpgradeOpen(true);
       return;
@@ -87,10 +92,15 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           warnings: string[];
         };
         error?: string;
+        quota?: ScanQuota;
       };
 
       if (!res.ok || !body.data) {
         if (res.status === 402) {
+          const quotaPlan = body.quota?.plan;
+          const needsExtraAiBalance =
+            isPro || quotaPlan === "pro" || quotaPlan === "trial";
+          setUpgradeMode(needsExtraAiBalance ? "scanPack" : "upgrade");
           setUpgradeReason(body.error);
           setUpgradeOpen(true);
         } else {
@@ -176,6 +186,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         open={upgradeOpen}
         onClose={() => setUpgradeOpen(false)}
         reason={upgradeReason}
+        mode={upgradeMode}
       />
     </section>
   );

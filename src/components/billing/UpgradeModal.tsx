@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, X } from "lucide-react";
+import { Crown, ShoppingBag, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBilling } from "@/context/BillingContext";
 import {
@@ -9,15 +9,22 @@ import {
   PLANS,
   yearlySavingsPercent,
 } from "@/lib/billing/plans";
+import { scanPackLabel } from "@/lib/billing/scan-packs";
 
 interface UpgradeModalProps {
   open: boolean;
   onClose: () => void;
   reason?: string;
+  mode?: "upgrade" | "scanPack";
 }
 
-export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
-  const { checkout } = useBilling();
+export function UpgradeModal({
+  open,
+  onClose,
+  reason,
+  mode = "upgrade",
+}: UpgradeModalProps) {
+  const { checkout, checkoutScanPack } = useBilling();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,6 +38,17 @@ export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
     if (result) setError(result);
   }
 
+  async function startScanPackCheckout() {
+    setBusy(true);
+    setError(null);
+    const result = await checkoutScanPack();
+    setBusy(false);
+    if (result) setError(result);
+  }
+
+  const isScanPackMode = mode === "scanPack";
+  const Icon = isScanPackMode ? ShoppingBag : Crown;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
       <div
@@ -41,14 +59,16 @@ export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-              <Crown className="h-5 w-5" />
+              <Icon className="h-5 w-5" />
             </div>
             <div>
               <h2 id="upgrade-title" className="text-lg font-bold text-slate-900">
-                Pasa a Pro
+                {isScanPackMode ? "Añadir saldo IA" : "Pasa a Pro"}
               </h2>
               <p className="text-sm text-slate-600">
-                Factura sin límites y sincroniza todos tus dispositivos.
+                {isScanPackMode
+                  ? "Compra un pack extra para seguir usando escaneos y rellenos IA."
+                  : "Factura sin límites y sincroniza todos tus dispositivos."}
               </p>
             </div>
           </div>
@@ -68,28 +88,46 @@ export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
           </p>
         )}
 
-        <ul className="mb-4 space-y-2 text-sm text-slate-700">
-          <li>Documentos y clientes ilimitados</li>
-          <li>Sincronización en la nube (móvil + PC)</li>
-          <li>Resumen trimestral y export CSV para tu gestor</li>
-          <li>Diseñador de plantillas de PDF</li>
-          <li>Logo personalizado en PDF</li>
-        </ul>
+        {isScanPackMode ? (
+          <ul className="mb-4 space-y-2 text-sm text-slate-700">
+            <li>10 escaneos extra para facturas y tickets</li>
+            <li>También añade saldo para rellenos IA pequeños</li>
+            <li>El saldo extra no caduca al cambiar de mes</li>
+          </ul>
+        ) : (
+          <ul className="mb-4 space-y-2 text-sm text-slate-700">
+            <li>Documentos y clientes ilimitados</li>
+            <li>Sincronización en la nube (móvil + PC)</li>
+            <li>Resumen trimestral y export CSV para tu gestor</li>
+            <li>Diseñador de plantillas de PDF</li>
+            <li>Logo personalizado en PDF</li>
+          </ul>
+        )}
 
-        <div className="space-y-3">
-          <Button fullWidth onClick={() => void startCheckout("yearly")} disabled={busy}>
-            {formatPlanPrice(PLANS.pro.priceYearlyEur ?? 0, "year")} — ahorra{" "}
-            {yearlySavingsPercent()}%
-          </Button>
+        {isScanPackMode ? (
           <Button
-            variant="secondary"
             fullWidth
-            onClick={() => void startCheckout("monthly")}
+            onClick={() => void startScanPackCheckout()}
             disabled={busy}
           >
-            {formatPlanPrice(PLANS.pro.priceMonthlyEur ?? 0, "month")}
+            {busy ? "Abriendo pago…" : `Comprar ${scanPackLabel()}`}
           </Button>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            <Button fullWidth onClick={() => void startCheckout("yearly")} disabled={busy}>
+              {formatPlanPrice(PLANS.pro.priceYearlyEur ?? 0, "year")} — ahorra{" "}
+              {yearlySavingsPercent()}%
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => void startCheckout("monthly")}
+              disabled={busy}
+            >
+              {formatPlanPrice(PLANS.pro.priceMonthlyEur ?? 0, "month")}
+            </Button>
+          </div>
+        )}
 
         {error && (
           <p className="mt-3 text-sm font-medium text-red-600">{error}</p>

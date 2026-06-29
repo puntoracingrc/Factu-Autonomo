@@ -4,6 +4,7 @@ import { currentMonthKey } from "./usage";
 import {
   AI_UNITS_PER_SCAN,
   CUSTOMER_AI_AUTOFILL_UNITS,
+  aiUsageBlockedMessage,
   buildScanQuota,
   FREE_EXPENSE_SCAN_TRIAL,
   PRO_EXPENSE_SCANS_PER_MONTH,
@@ -109,21 +110,34 @@ interface ConsumptionRpcError {
   hint?: string | null;
 }
 
+interface ConsumeAiUnitsResult {
+  allowed: boolean;
+  reason?: string;
+  quota: ScanQuota;
+  blockedByQuota?: boolean;
+}
+
 function firstRpcRow(data: unknown): ConsumeAiUnitsRpcRow | null {
   if (Array.isArray(data)) return (data[0] as ConsumeAiUnitsRpcRow | undefined) ?? null;
   return (data as ConsumeAiUnitsRpcRow | null) ?? null;
 }
 
-function shouldFallbackToLegacyConsumption(error: ConsumptionRpcError): boolean {
-  const code = error.code ?? "";
-  const text = [
-    error.message,
-    error.details,
-    error.hint,
-  ]
+function errorText(error: ConsumptionRpcError): string {
+  return [error.message, error.details, error.hint]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function isMissingUsageColumnError(error: ConsumptionRpcError): boolean {
+  const code = error.code ?? "";
+  const text = errorText(error);
+  return code === "42703" || text.includes("customer_ai_autofills_created");
+}
+
+function shouldFallbackToLegacyConsumption(error: ConsumptionRpcError): boolean {
+  const code = error.code ?? "";
+  const text = errorText(error);
 
   return (
     code === "PGRST202" ||
@@ -144,12 +158,13 @@ function reasonForAtomicFailure(
   reason: string | null | undefined,
   fallback: string,
   quota: ScanQuota,
+  quotaReason: (plan: ScanQuota["plan"]) => string,
 ): string {
   if (reason === "missing_subscription") {
     return "Crea una cuenta en Ajustes para usar el escáner.";
   }
   if (reason === "insufficient_units" || reason === "trial_exhausted") {
-    return scanBlockedMessage(quota.plan);
+    return quotaReason(quota.plan);
   }
   return fallback;
 }
@@ -193,11 +208,8 @@ async function consumeAiUnitsLegacy(
   },
   failureReason: string,
   quotaBefore: ScanQuota,
-): Promise<{
-  allowed: boolean;
-  reason?: string;
-  quota: ScanQuota;
-}> {
+  quotaReason: (plan: ScanQuota["plan"]) => string,
+): Promise<ConsumeAiUnitsResult> {
   const admin = getSupabaseAdmin();
   if (!admin) {
     return {
@@ -226,8 +238,9 @@ async function consumeAiUnitsLegacy(
     if (includedRemainingUnits + aiCreditUnits < costUnits) {
       return {
         allowed: false,
-        reason: scanBlockedMessage(plan),
+        reason: quotaReason(plan),
         quota: quotaBefore,
+        blockedByQuota: true,
       };
     }
 
@@ -247,7 +260,15 @@ async function consumeAiUnitsLegacy(
       .upsert(payload, { onConflict: "user_id,month_key" });
     if (error) {
       let legacySaved = false;
-      if ((increments.customerAiAutofillsCreated ?? 0) <= 0) {
+      const canSaveWithoutCustomerAiCounter =
+        (increments.customerAiAutofillsCreated ?? 0) > 0 &&
+        (increments.expenseScansCreated ?? 0) <= 0 &&
+        isMissingUsageColumnError(error);
+
+      if (
+        (increments.customerAiAutofillsCreated ?? 0) <= 0 ||
+        canSaveWithoutCustomerAiCounter
+      ) {
         const { error: legacyError } = await admin
           .from("user_usage")
           .upsert(
@@ -297,8 +318,9 @@ async function consumeAiUnitsLegacy(
     if (current <= 0) {
       return {
         allowed: false,
-        reason: scanBlockedMessage("free"),
+        reason: quotaReason("free"),
         quota: quotaBefore,
+        blockedByQuota: true,
       };
     }
 
@@ -331,11 +353,8 @@ async function consumeAiUnits(
     customerAiAutofillsCreated?: number;
   },
   failureReason = "No se pudo registrar el escaneo.",
-): Promise<{
-  allowed: boolean;
-  reason?: string;
-  quota: ScanQuota;
-}> {
+  quotaReason: (plan: ScanQuota["plan"]) => string = scanBlockedMessage,
+): Promise<ConsumeAiUnitsResult> {
   const monthKey = currentMonthKey();
   const quotaBefore = await getExpenseScanQuota(userId);
 
@@ -346,8 +365,9 @@ async function consumeAiUnits(
   if (quotaBefore.remainingUnits < costUnits) {
     return {
       allowed: false,
-      reason: scanBlockedMessage(quotaBefore.plan),
+      reason: quotaReason(quotaBefore.plan),
       quota: quotaBefore,
+      blockedByQuota: true,
     };
   }
 
@@ -380,6 +400,7 @@ async function consumeAiUnits(
         increments,
         failureReason,
         quotaBefore,
+        quotaReason,
       );
     }
 
@@ -394,8 +415,16 @@ async function consumeAiUnits(
   if (!result?.allowed) {
     return {
       allowed: false,
-      reason: reasonForAtomicFailure(result?.reason, failureReason, quotaBefore),
+      reason: reasonForAtomicFailure(
+        result?.reason,
+        failureReason,
+        quotaBefore,
+        quotaReason,
+      ),
       quota: quotaBefore,
+      blockedByQuota:
+        result?.reason === "insufficient_units" ||
+        result?.reason === "trial_exhausted",
     };
   }
 
@@ -416,6 +445,7 @@ export async function consumeCustomerAiAutofill(userId: string) {
     {
       customerAiAutofillsCreated: 1,
     },
-    "No se pudo registrar el uso IA. Revisa la migración de saldo IA en Supabase.",
+    "No hemos podido descontar el uso de IA. Inténtalo de nuevo en unos minutos.",
+    aiUsageBlockedMessage,
   );
 }

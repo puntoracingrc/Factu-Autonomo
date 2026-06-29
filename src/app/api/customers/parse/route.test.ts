@@ -206,4 +206,34 @@ describe("POST /api/customers/parse", () => {
     expect(response.status).toBe(402);
     expect(consumeCustomerAiAutofill).not.toHaveBeenCalled();
   });
+
+  it("devuelve error temporal si no puede registrar el consumo IA", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-pro",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(fetchUserSubscriptionServer).mockResolvedValue(
+      proSubscription("user-pro"),
+    );
+    vi.mocked(consumeCustomerAiAutofill).mockResolvedValue({
+      allowed: false,
+      reason:
+        "No hemos podido descontar el uso de IA. Inténtalo de nuevo en unos minutos.",
+      quota: {} as Awaited<
+        ReturnType<typeof consumeCustomerAiAutofill>
+      >["quota"],
+      blockedByQuota: false,
+    });
+
+    const response = await POST(
+      request("token-pro", {
+        text: "Cliente Pro SL Calle Mayor 1 Barcelona",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error).not.toContain("Supabase");
+    expect(extractCustomerFromText).not.toHaveBeenCalled();
+  });
 });

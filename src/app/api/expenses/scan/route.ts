@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   if (!gate.allowed) {
     return NextResponse.json(
       { error: gate.reason, quota: gate.quota },
-      { status: 402 },
+      { status: gate.blockedByQuota ? 402 : 503 },
     );
   }
 
