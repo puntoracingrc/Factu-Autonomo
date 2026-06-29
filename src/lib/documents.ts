@@ -22,11 +22,28 @@ const KIND_TO_TYPE: Record<DocumentKind, DocumentType> = {
   recibo: "recibo",
 };
 
+export const DRAFT_INVOICE_NUMBER = "BORRADOR";
+
 export type { DocumentKind };
 
 export function getDocumentKind(doc: Document): DocumentKind {
   if (isRectificativa(doc)) return "factura_rectificativa";
   return doc.type;
+}
+
+export function isDraftInvoiceNumber(
+  doc: Pick<Document, "type" | "number">,
+): boolean {
+  return (
+    doc.type === "factura" &&
+    doc.number.trim().toUpperCase() === DRAFT_INVOICE_NUMBER
+  );
+}
+
+export function shouldUseDraftInvoiceNumber(
+  doc: Pick<Document, "type" | "status">,
+): boolean {
+  return doc.type === "factura" && doc.status === "borrador";
 }
 
 export function formatDocumentNumber(
@@ -244,6 +261,19 @@ export function countersFromDocuments(
 export function compareDocumentsByNewest(a: Document, b: Document): number {
   const byDate = b.date.localeCompare(a.date);
   if (byDate !== 0) return byDate;
+
+  const parsedA = parseDocumentNumber(a.number);
+  const parsedB = parseDocumentNumber(b.number);
+  if (
+    parsedA &&
+    parsedB &&
+    parsedA.kind === parsedB.kind &&
+    parsedA.year === parsedB.year &&
+    parsedA.sequence !== parsedB.sequence
+  ) {
+    return parsedB.sequence - parsedA.sequence;
+  }
+
   return b.createdAt.localeCompare(a.createdAt);
 }
 

@@ -4,13 +4,16 @@ import { ensureCustomerForDocument } from "./customers";
 import {
   assignNextDocumentNumberByType,
   compareDocumentsByNewest,
+  DRAFT_INVOICE_NUMBER,
   filterDocumentsByQuery,
   formatDocumentNumber,
   getDocumentReadOnlyMessage,
   getMaxSequence,
+  isDraftInvoiceNumber,
   isDocumentEditable,
   renumberDocumentsForKindYear,
   renumberDocumentsForTypeYear,
+  shouldUseDraftInvoiceNumber,
   sortDocumentsByNewest,
 } from "./documents";
 import { issueDocument } from "./document-integrity";
@@ -45,6 +48,40 @@ function doc(
 }
 
 describe("numeración automática", () => {
+  it("usa un número provisional para facturas en borrador sin consumir secuencia", () => {
+    const draft = doc("draft", "factura", DRAFT_INVOICE_NUMBER, "Ana García");
+    const issued = issueDocument(
+      doc("issued", "factura", "F-2026-0001", "Luis Pérez"),
+      EMPTY_DATA.profile,
+      "2026-06-24T10:00:00.000Z",
+    );
+
+    expect(isDraftInvoiceNumber(draft)).toBe(true);
+    expect(shouldUseDraftInvoiceNumber(draft)).toBe(true);
+    expect(getMaxSequence([draft, issued], "factura", 2026)).toBe(1);
+    expect(
+      assignNextDocumentNumberByType([draft, issued], "factura", 2026).number,
+    ).toBe("F-2026-0002");
+  });
+
+  it("ordena documentos del mismo día por número descendente antes de fecha interna", () => {
+    const olderCreatedButHigherNumber = {
+      ...doc("a", "factura", "F-2026-0010", "Ana García"),
+      createdAt: "2026-06-09T08:00:00.000Z",
+    };
+    const newerCreatedButLowerNumber = {
+      ...doc("b", "factura", "F-2026-0002", "Luis Pérez"),
+      createdAt: "2026-06-09T20:00:00.000Z",
+    };
+
+    expect(
+      sortDocumentsByNewest([
+        newerCreatedButLowerNumber,
+        olderCreatedButHigherNumber,
+      ]).map((item) => item.number),
+    ).toEqual(["F-2026-0010", "F-2026-0002"]);
+  });
+
   it("respeta el último número configurado al migrar", () => {
     const next = assignNextDocumentNumberByType([], "recibo", 2026, 99);
     expect(next.number).toBe("R-2026-0100");

@@ -1,4 +1,5 @@
 import { showFactuToast } from "@/lib/factu/occasional";
+import { DRAFT_INVOICE_NUMBER } from "@/lib/documents";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 import type { useRouter } from "next/navigation";
@@ -24,6 +25,11 @@ const LIST_PATHS: Record<DocumentType, string> = {
 };
 
 export function toastDocumentSaved(type: DocumentType, number: string): void {
+  if (type === "factura" && number.trim().toUpperCase() === DRAFT_INVOICE_NUMBER) {
+    showFactuToast("Borrador de factura guardado correctamente", 4000);
+    return;
+  }
+
   showFactuToast(
     `${SAVED_LABELS[type]} ${number} ${SAVED_PARTICIPLE[type]} correctamente`,
     4000,

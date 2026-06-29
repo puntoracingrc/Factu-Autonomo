@@ -18,7 +18,12 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
-import { filterDocumentsByQuery, isDocumentEditable, sortDocumentsByNewest } from "@/lib/documents";
+import {
+  filterDocumentsByQuery,
+  isDocumentEditable,
+  isDraftInvoiceNumber,
+  sortDocumentsByNewest,
+} from "@/lib/documents";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
@@ -322,12 +327,15 @@ export function DocumentList({
                 ? findInvoiceCreatedFromQuote(data.documents, doc.id)
                 : undefined;
             const missingShareContact = !doc.client.email && !doc.client.phone;
+            const displayNumber = isDraftInvoiceNumber(doc)
+              ? "Borrador de factura"
+              : doc.number;
 
             return (
               <Card key={doc.id} className="flex flex-col gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-900">{doc.number}</span>
+                    <span className="font-bold text-slate-900">{displayNumber}</span>
                     {rect && (
                       <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                         Rectificativa
