@@ -43,6 +43,7 @@ Configura en **Vercel** (o `.env.local`):
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | Recomendado | Contacto (anexo art. 15.2.a) |
 | `NEXT_PUBLIC_APP_URL` | Recomendado | URL del producto (anexo art. 15.2.b) |
 | `NEXT_PUBLIC_VERIFACTU_SYSTEM_ID` | No | Código corto del SIF (default: `FA`) |
+| `NEXT_PUBLIC_VERIFACTU_INSTALLATION_ID` | **Sí** | Identificador estable de instalación del SIF |
 | `NEXT_PUBLIC_APP_VERSION` | **Sí** | Versión mostrada en declaración |
 
 Visible para el usuario en **Configuración → Veri*Factu** y en `/legal/declaracion-responsable`.

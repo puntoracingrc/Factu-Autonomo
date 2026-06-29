@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { documentTotals } from "./calculations";
-import {
-  clientInputToSnapshot,
-  ensureCustomerForDocument,
-} from "./customers";
+import { ensureCustomerForDocument } from "./customers";
 import {
   assignNextDocumentNumberByType,
   compareDocumentsByNewest,
@@ -385,10 +382,12 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
       expect(ensured.ok).toBe(true);
       if (!ensured.ok) return;
 
+      let customerId = "";
       if (ensured.created) {
+        customerId = `cust-${customers.length + 1}`;
         customers = [
           ...customers,
-          { ...ensured.customer, id: `cust-${customers.length + 1}` },
+          { ...ensured.customer, id: customerId },
         ];
       }
 
@@ -402,11 +401,8 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
         type: flow.type,
         number,
         date: "2026-06-09",
-        client: clientInputToSnapshot({
-          firstName: flow.firstName,
-          lastName: flow.lastName,
-          nif: "12345678A",
-        }),
+        customerId,
+        client: ensured.client,
         items: [
           {
             id: "line-1",
@@ -430,6 +426,46 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
       "R-2026-0001",
     ]);
     expect(documents.every((d) => documentTotals(d).total > 0)).toBe(true);
+    expect(documents.map((d) => d.customerId)).toEqual([
+      "cust-1",
+      "cust-2",
+      "cust-3",
+    ]);
+    expect(documents.map((d) => d.client.nif)).toEqual([
+      "11111111H",
+      "22222222J",
+      "33333333E",
+    ]);
+  });
+
+  it("evita duplicar clientes existentes al crear documentos", () => {
+    const customers = [
+      {
+        id: "cust-1",
+        firstName: "Ana",
+        lastName: "García",
+        name: "Ana García",
+        nif: "12345678A",
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+
+    for (const type of ["factura", "presupuesto", "recibo"] as DocumentType[]) {
+      const byName = ensureCustomerForDocument(
+        customers,
+        { firstName: "Ana", lastName: "García" },
+        null,
+      );
+      expect(byName.ok, `${type} duplica por nombre`).toBe(false);
+
+      const byNif = ensureCustomerForDocument(
+        customers,
+        { firstName: "Ana", lastName: "Nueva", nif: "12345678a" },
+        null,
+      );
+      expect(byNif.ok, `${type} duplica por NIF`).toBe(false);
+    }
   });
 });
 

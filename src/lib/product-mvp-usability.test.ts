@@ -217,6 +217,9 @@ describe("MVP usability polish", () => {
     expect(settingsSource).not.toContain("Plan por fases");
     expect(settingsSource).not.toContain("Cómo usar la app");
     expect(settingsSource).not.toContain("docs/FASES.md");
+    expect(verifactuSource).toContain("Conexión con AEAT");
+    expect(verifactuSource).toContain("Modo simulado");
+    expect(verifactuSource).toContain("no guarda ni muestra claves privadas");
     expect(verifactuSource).not.toContain("docs/FASES.md");
   });
 

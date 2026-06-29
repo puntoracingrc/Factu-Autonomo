@@ -22,11 +22,6 @@ import { buildRegistroFacturacionXml } from "./xml";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { formatQrAmount } from "./qr";
 
-function generateTestCsv(numserie: string): string {
-  const suffix = numserie.replace(/[^A-Z0-9]/gi, "").slice(-8).toUpperCase();
-  return `A-TEST${suffix.padStart(8, "0").slice(0, 8)}`;
-}
-
 function normalizeChainHash(hash: string | null | undefined): string {
   const normalized = normalizeHuellaAnterior(hash);
   return normalized ?? "";
@@ -42,11 +37,20 @@ export function resolveChainState(
   const base = initialChainState(profile);
   if (!chain) return base;
   if (chain.issuerNif !== base.issuerNif) return base;
+  const lastHash = normalizeChainHash(
+    chain.lastHash === GENESIS_HASH ? "" : chain.lastHash,
+  );
+  if (
+    lastHash &&
+    (!chain.lastNumSerie?.trim() || !chain.lastFechaExpedicion?.trim())
+  ) {
+    return base;
+  }
   return {
     issuerNif: chain.issuerNif,
-    lastHash: normalizeChainHash(
-      chain.lastHash === GENESIS_HASH ? "" : chain.lastHash,
-    ),
+    lastHash,
+    lastNumSerie: chain.lastNumSerie,
+    lastFechaExpedicion: chain.lastFechaExpedicion,
     recordCount: chain.recordCount ?? 0,
   };
 }
@@ -86,20 +90,28 @@ export async function registerDocumentVerifactu(input: {
     environment,
   });
 
-  const csv = input.csv ?? generateTestCsv(doc.number);
+  const csv = input.csv;
   const status =
     input.status ??
     (environment === "test" ? "test_registered" : "registered");
 
   const vatExempt = isVatExempt(profile);
   const amounts = documentAmounts(doc, vatExempt);
+  const chainNumSerie =
+    recordType === "anulacion" && doc.rectification
+      ? doc.rectification.originalNumber
+      : doc.number;
+  const chainFechaExpedicion =
+    recordType === "anulacion" && doc.rectification
+      ? doc.rectification.originalDate
+      : doc.date;
 
   const verifactu: VerifactuInfo = {
     recordHash,
     previousHash: chain.lastHash,
     recordTimestamp,
     qrUrl,
-    csv,
+    ...(csv ? { csv } : {}),
     status,
     recordType,
     environment,
@@ -110,17 +122,21 @@ export async function registerDocumentVerifactu(input: {
   };
 
   const xml = buildRegistroFacturacionXml({
+    doc,
+    profile,
     issuerNif: issuerNif,
-    numserie: doc.number,
-    fecha: doc.date,
+    numserie: chainNumSerie,
+    fecha: chainFechaExpedicion,
     importe: amounts.total,
     cuotaTotal: amounts.iva,
     tipoFactura: verifactu.tipoFactura ?? "F1",
     recordType,
     recordHash,
     previousHash: chain.lastHash,
+    previousNumSerie: chain.lastNumSerie,
+    previousFechaExpedicion: chain.lastFechaExpedicion,
     recordTimestamp,
-    csv,
+    vatExempt,
   });
 
   return {
@@ -129,6 +145,8 @@ export async function registerDocumentVerifactu(input: {
     chain: {
       issuerNif: chain.issuerNif,
       lastHash: recordHash,
+      lastNumSerie: chainNumSerie,
+      lastFechaExpedicion: chainFechaExpedicion,
       recordCount: chain.recordCount + 1,
     },
   };

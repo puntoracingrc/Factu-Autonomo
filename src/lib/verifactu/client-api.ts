@@ -32,7 +32,9 @@ export async function submitVerifactuToServer(input: {
       body: JSON.stringify({
         document: input.doc,
         profile: {
+          name: input.profile.name,
           nif: input.profile.nif,
+          vatExempt: input.profile.vatExempt,
           verifactu: input.profile.verifactu,
         },
         chain: input.chain ?? null,

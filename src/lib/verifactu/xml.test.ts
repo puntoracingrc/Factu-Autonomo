@@ -1,9 +1,40 @@
 import { describe, expect, it } from "vitest";
+import type { BusinessProfile, Document } from "../types";
+import { DEFAULT_PROFILE } from "../types";
 import { buildRegistroFacturacionXml } from "./xml";
 
+const profile: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autonomo Test",
+  nif: "12345678Z",
+  verifactu: { enabled: true, environment: "test" },
+};
+
+const doc: Document = {
+  id: "doc-1",
+  type: "factura",
+  number: "F-2026-0001",
+  date: "2026-06-09",
+  client: { name: "Cliente Test", nif: "87654321X" },
+  items: [
+    {
+      id: "l1",
+      description: "Servicio",
+      quantity: 1,
+      unitPrice: 100,
+      ivaPercent: 21,
+    },
+  ],
+  status: "enviado",
+  createdAt: "2026-06-09T10:00:00.000Z",
+  updatedAt: "2026-06-09T10:00:00.000Z",
+};
+
 describe("registro facturacion xml", () => {
-  it("builds alta record with TipoFactura, CuotaTotal and hash", () => {
+  it("builds official alta wrapper with breakdown and hash", () => {
     const xml = buildRegistroFacturacionXml({
+      doc,
+      profile,
       issuerNif: "12345678Z",
       numserie: "F-2026-0001",
       fecha: "2026-06-09",
@@ -14,19 +45,24 @@ describe("registro facturacion xml", () => {
       recordHash: "ABC123",
       previousHash: "",
       recordTimestamp: "2026-06-09T11:00:00+02:00",
-      csv: "A-TEST0001",
+      vatExempt: false,
     });
 
-    expect(xml).toContain("<TipoFactura>F1</TipoFactura>");
-    expect(xml).toContain("<CuotaTotal>21.00</CuotaTotal>");
-    expect(xml).toContain("<NumSerieFactura>F-2026-0001</NumSerieFactura>");
-    expect(xml).toContain("<Huella>ABC123</Huella>");
-    expect(xml).not.toContain("<Encadenamiento>");
-    expect(xml).toContain("<CodigoSeguroVerificacion>A-TEST0001</CodigoSeguroVerificacion>");
+    expect(xml).toContain("<sum:RegFactuSistemaFacturacion");
+    expect(xml).toContain("<sum1:RegistroAlta>");
+    expect(xml).toContain("<sum1:IDVersion>1.0</sum1:IDVersion>");
+    expect(xml).toContain("<sum1:TipoFactura>F1</sum1:TipoFactura>");
+    expect(xml).toContain("<sum1:CuotaTotal>21.00</sum1:CuotaTotal>");
+    expect(xml).toContain("<sum1:NumSerieFactura>F-2026-0001</sum1:NumSerieFactura>");
+    expect(xml).toContain("<sum1:PrimerRegistro>S</sum1:PrimerRegistro>");
+    expect(xml).toContain("<sum1:Huella>ABC123</sum1:Huella>");
+    expect(xml).not.toContain("CodigoSeguroVerificacion");
   });
 
-  it("includes encadenamiento when previous hash exists", () => {
+  it("includes official previous invoice identity when previous hash exists", () => {
     const xml = buildRegistroFacturacionXml({
+      doc: { ...doc, id: "doc-2", number: "F-2026-0002", date: "2026-06-10" },
+      profile,
       issuerNif: "12345678Z",
       numserie: "F-2026-0002",
       fecha: "2026-06-10",
@@ -36,10 +72,15 @@ describe("registro facturacion xml", () => {
       recordType: "alta",
       recordHash: "DEF456",
       previousHash: "ABC123",
+      previousNumSerie: "F-2026-0001",
+      previousFechaExpedicion: "2026-06-09",
       recordTimestamp: "2026-06-10T11:00:00+02:00",
+      vatExempt: false,
     });
 
-    expect(xml).toContain("<Encadenamiento>");
-    expect(xml).toContain("<Huella>ABC123</Huella>");
+    expect(xml).toContain("<sum1:RegistroAnterior>");
+    expect(xml).toContain("<sum1:NumSerieFactura>F-2026-0001</sum1:NumSerieFactura>");
+    expect(xml).toContain("<sum1:FechaExpedicionFactura>09-06-2026</sum1:FechaExpedicionFactura>");
+    expect(xml).toContain("<sum1:Huella>ABC123</sum1:Huella>");
   });
 });

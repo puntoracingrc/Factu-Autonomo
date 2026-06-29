@@ -16,8 +16,8 @@ export async function persistVerifactuRecord(input: {
   const { error } = await admin.from("verifactu_records").insert({
     user_id: input.userId,
     document_id: input.documentId,
-    issuer_nif: input.issuerNif,
-    numserie: input.numserie,
+      issuer_nif: input.issuerNif,
+      numserie: input.numserie,
     record_type: input.verifactu.recordType,
     record_hash: input.verifactu.recordHash,
     previous_hash: input.verifactu.previousHash,
@@ -43,6 +43,8 @@ export async function upsertVerifactuChain(input: {
       user_id: input.userId,
       issuer_nif: input.chain.issuerNif,
       last_hash: input.chain.lastHash,
+      last_numserie: input.chain.lastNumSerie ?? null,
+      last_fecha_expedicion: input.chain.lastFechaExpedicion ?? null,
       record_count: input.chain.recordCount,
       updated_at: new Date().toISOString(),
     },
@@ -107,7 +109,7 @@ export async function loadVerifactuChain(input: {
 
   const { data, error } = await admin
     .from("verifactu_chain_state")
-    .select("issuer_nif, last_hash, record_count")
+    .select("issuer_nif, last_hash, last_numserie, last_fecha_expedicion, record_count")
     .eq("user_id", input.userId)
     .eq("issuer_nif", input.issuerNif)
     .maybeSingle();
@@ -117,6 +119,8 @@ export async function loadVerifactuChain(input: {
   return {
     issuerNif: data.issuer_nif,
     lastHash: data.last_hash,
+    lastNumSerie: data.last_numserie ?? undefined,
+    lastFechaExpedicion: data.last_fecha_expedicion ?? undefined,
     recordCount: data.record_count,
   };
 }

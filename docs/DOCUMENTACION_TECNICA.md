@@ -14,7 +14,7 @@
 | Aspecto | Estado actual |
 |---------|---------------|
 | Facturación básica (facturas, presupuestos, recibos) | Funcional en entorno de uso personal / pruebas |
-| Veri\*Factu | Implementación parcial: huella, QR, XML y cadena local; remisión real a AEAT **no operativa** (sin mTLS/certificado) |
+| Veri\*Factu | Implementación parcial avanzada: huella, QR, XML oficial base y transporte SOAP/mTLS preparado; remisión real pendiente de certificado y prueba AEAT test |
 | Cumplimiento legal / fiscal | Orientativo; el usuario es responsable de validar con su asesor |
 | Billing / suscripciones | Implementado pero desactivable (`NEXT_PUBLIC_BILLING_ENABLED`) |
 | Sincronización en la nube | Opcional, requiere Supabase + plan Pro cuando billing está activo |
@@ -535,8 +535,8 @@ DocumentForm.handleSave()
 |---------|-------------------|--------------------------------------|
 | Requisito | Siempre disponible | Usuario autenticado en Supabase |
 | Cadena de huellas | `AppData.verifactuChain` | Tabla `verifactu_chain_state` (prioritaria si hay sesión) |
-| Remisión AEAT | Nunca | Intento si `VERIFACTU_AEAT_SUBMIT=true` + certificado |
-| CSV | Sintético de prueba | Real de AEAT si remisión OK |
+| Remisión AEAT | Nunca; modo simulado local | Intento real si `VERIFACTU_AEAT_SUBMIT=true` + certificado |
+| CSV | No se genera CSV real | Real de AEAT si remisión OK |
 | Persistencia | localStorage | Supabase (`verifactu_records`) |
 
 ### 6.4 Algoritmo de huella (AEAT spec v0.1.2)
@@ -566,7 +566,9 @@ Cada registro encadena con el anterior (`previousHash` → `lastHash` en cadena)
 
 - XML generado: `buildRegistroFacturacionXml()` (`src/lib/verifactu/xml.ts`)
 - Remisión: `submitRegistroToAeat()` (`src/lib/verifactu/aeat-submit.ts`)
-- **Limitación crítica:** el certificado P12 está contemplado en variables de entorno pero **no se usa mTLS real** en el `fetch` actual. La remisión a AEAT es simulada o incompleta.
+- XML base: `RegFactuSistemaFacturacion` con `RegistroAlta` / `RegistroAnulacion`
+- Transporte: SOAP sobre mTLS con certificado `.p12` / `.pfx` en servidor
+- Estado operativo: por defecto funciona en modo simulado; el envío real queda bloqueado hasta configurar certificado, `VERIFACTU_AEAT_SUBMIT=true` y validar una prueba oficial en entorno AEAT test.
 
 ### 6.7 Configuración del productor SIF (despliegue)
 
@@ -596,9 +598,9 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 
 **Aspectos no implementados o WIP:**
 
-- mTLS con certificado FNMT/sello
 - Registro de eventos SIF completo
 - Validación XSD estricta del XML
+- Prueba oficial AEAT test con certificado real
 - `RegistroAnulacion` AEAT desde UI (rectificativas usan alta R1/R4)
 - Reintento automático de registros fallidos
 - Modo dual VERI\*Factu + no-VERI\*Factu certificado
@@ -724,7 +726,7 @@ Variables críticas: Supabase URL/keys, Stripe keys, OpenAI key (escaneo), Veri\
 1. **Proyecto en desarrollo** — no comercializable como SIF certificado.
 2. **Datos en el navegador** — riesgo de pérdida si no hay backup ni sync cloud.
 3. **Sin edición de gastos** — solo alta y borrado.
-4. **Veri\*Factu incompleto** — cadena y QR funcionan; remisión AEAT real no operativa.
+4. **Veri\*Factu pendiente de prueba oficial** — cadena, QR, XML base y transporte están preparados; falta certificado y aceptación en AEAT test.
 5. **Fiscal orientativo** — no sustituye gestoría ni modelos oficiales.
 6. **Legal en borrador** — privacidad y términos no revisados legalmente.
 7. **Billing opcional** — puede estar desactivado en producción.

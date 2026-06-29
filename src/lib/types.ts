@@ -288,6 +288,8 @@ export interface VerifactuSettings {
 export interface VerifactuChainState {
   issuerNif: string;
   lastHash: string;
+  lastNumSerie?: string;
+  lastFechaExpedicion?: string;
   recordCount: number;
 }
 

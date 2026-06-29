@@ -91,9 +91,10 @@ function buildComplianceAnnexNotes(): string {
     "QR tributario conforme a especificación AEAT (validación en prewww2 / www2).",
     "Encadenamiento de registros de facturación de alta; rectificativas como alta (F1/R1/R4).",
     "Verificación in situ en Configuración → Veri*Factu (productor, NIF, software, versión).",
-    "Remisión a AEAT: no activa en esta versión; el flujo actual funciona en modo pruebas sin enviar datos a AEAT.",
+    "Remisión a AEAT: transporte SOAP/mTLS preparado; por defecto funciona en modo simulado sin enviar datos a AEAT.",
+    "El envío real requiere certificado .p12/.pfx, variables de servidor y prueba oficial en entorno AEAT test.",
     "Comprobación de cadena de huellas bajo demanda en Configuración → Veri*Factu.",
-    "Pendiente: registro de eventos completo, mTLS con certificado P12, y XML 100 % XSD AEAT.",
+    "Pendiente: registro de eventos completo, validación XSD estricta y aceptación oficial de pruebas AEAT.",
   ].join(" ");
 }
 
