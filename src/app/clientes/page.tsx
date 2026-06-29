@@ -75,9 +75,9 @@ export default function ClientesPage() {
   const [keepId, setKeepId] = useState("");
   const [updateDraftDocuments, setUpdateDraftDocuments] = useState(false);
   const [listFilterId, setListFilterId] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<CustomerSortField>("apellido");
+  const [sortField, setSortField] = useState<CustomerSortField>("reciente");
   const [sortDirection, setSortDirection] =
-    useState<CustomerSortDirection>("asc");
+    useState<CustomerSortDirection>("desc");
   const [visibleCustomerCount, setVisibleCustomerCount] = useState(
     CUSTOMER_LIST_BATCH_SIZE,
   );
