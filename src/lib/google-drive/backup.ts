@@ -343,14 +343,18 @@ export function cacheDriveAccessToken(
   sessionStorage.setItem(DRIVE_BACKUP_TOKEN_KEY, JSON.stringify(cachedToken));
 }
 
+export function clearDriveAccessToken(): void {
+  cachedToken = null;
+
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(DRIVE_BACKUP_TOKEN_KEY);
+}
+
 function getCachedToken(): string | null {
   if (!cachedToken) cachedToken = loadSessionToken();
   if (!cachedToken) return null;
   if (cachedToken.expiresAt - Date.now() < 60_000) {
-    cachedToken = null;
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem(DRIVE_BACKUP_TOKEN_KEY);
-    }
+    clearDriveAccessToken();
     return null;
   }
   return cachedToken.accessToken;
@@ -471,6 +475,13 @@ async function driveFetch<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearDriveAccessToken();
+      throw new Error(
+        "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
+      );
+    }
+
     throw new Error(await parseDriveError(response));
   }
 

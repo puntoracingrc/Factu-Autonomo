@@ -230,6 +230,9 @@ describe("MVP usability polish", () => {
     expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
     expect(driveBackupSource).toContain("Copia extra en Google Drive");
     expect(driveBackupSource).toContain("Google solo da permiso");
+    expect(driveBackupSource).toContain("Drive pendiente de reconectar");
+    expect(driveBackupSource).toContain("Reconectar Drive");
+    expect(driveBackupSource).toContain("clearDriveAccessToken");
     expect(driveBackupLibSource).toContain(
       "https://www.googleapis.com/auth/drive.file",
     );
@@ -262,11 +265,16 @@ describe("MVP usability polish", () => {
 
     expect(settingsSource).toContain("rounded-full");
     expect(settingsSource).toContain("flex flex-wrap gap-2");
+    expect(settingsSource).toContain("openSectionFromHash");
+    expect(settingsSource).toContain("hashchange");
     expect(settingsSource).not.toContain("Datos, logo y contacto");
     expect(settingsSource).not.toContain("Plan, datos y ayuda");
     expect(settingsSource).not.toContain("Plan por fases");
     expect(settingsSource).not.toContain("Cómo usar la app");
     expect(settingsSource).not.toContain("docs/FASES.md");
+    expect(settingsSource).toContain('href="/cuenta"');
+    expect(settingsSource).toContain("Abrir Cuenta");
+    expect(settingsSource).toContain("copia extra en Drive");
     expect(verifactuSource).toContain("Conexión con AEAT");
     expect(verifactuSource).toContain("Modo simulado");
     expect(verifactuSource).toContain("no guarda ni muestra claves privadas");
