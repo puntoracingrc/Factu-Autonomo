@@ -273,6 +273,28 @@ describe("MVP usability polish", () => {
     expect(verifactuSource).not.toContain("docs/FASES.md");
   });
 
+  it("mantiene accesos rapidos de cuenta hacia sus secciones", () => {
+    const accountPageSource = readFileSync(
+      new URL("../app/cuenta/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(accountPageSource).toContain("Opciones de cuenta");
+    expect(accountPageSource).toContain("flex flex-wrap gap-2");
+    expect(accountPageSource).toContain("#manual-cuenta");
+    expect(accountPageSource).toContain("#instalar-app");
+    expect(accountPageSource).toContain("#inicio-sesion");
+    expect(accountPageSource).toContain("#drive-backup");
+    expect(accountPageSource).toContain("#importar-datos");
+    expect(accountPageSource).toContain("#datos-privacidad");
+    expect(accountPageSource).toContain("#legal-privacidad");
+    expect(accountPageSource).toContain('id="manual-cuenta"');
+    expect(accountPageSource).toContain('id="instalar-app"');
+    expect(accountPageSource).toContain('id="importar-datos"');
+    expect(accountPageSource).toContain('id="datos-privacidad"');
+    expect(accountPageSource).toContain('id="legal-privacidad"');
+  });
+
   it("encapsula acciones y filtros de clientes en bloques separados", () => {
     const customersPageSource = readFileSync(
       new URL("../app/clientes/page.tsx", import.meta.url),

@@ -1,6 +1,16 @@
 "use client";
 
 import { Suspense } from "react";
+import {
+  BookOpen,
+  Cloud,
+  HardDrive,
+  MonitorSmartphone,
+  Scale,
+  Shield,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
@@ -10,6 +20,39 @@ import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
+const ACCOUNT_NAV_ITEMS: Array<{
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+}> = [
+  { href: "#manual-cuenta", label: "Manual", Icon: BookOpen },
+  { href: "#instalar-app", label: "Instalar app", Icon: MonitorSmartphone },
+  { href: "#inicio-sesion", label: "Cuenta y nube", Icon: Cloud },
+  { href: "#drive-backup", label: "Drive", Icon: HardDrive },
+  { href: "#importar-datos", label: "Importar", Icon: Upload },
+  { href: "#datos-privacidad", label: "Tus datos", Icon: Shield },
+  { href: "#legal-privacidad", label: "Legal", Icon: Scale },
+];
+
+function AccountQuickLinks() {
+  return (
+    <nav aria-label="Opciones de cuenta" className="mb-5 flex flex-wrap gap-2">
+      {ACCOUNT_NAV_ITEMS.map(({ href, label, Icon }) => (
+        <a
+          key={href}
+          href={href}
+          className="group inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-900 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-700">
+            <Icon className="h-4 w-4" />
+          </span>
+          <span>{label}</span>
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 export default function CuentaPage() {
   return (
     <div>
@@ -18,9 +61,15 @@ export default function CuentaPage() {
         subtitle="Inicia sesión, sincroniza tus dispositivos y guarda una copia de seguridad."
       />
 
-      <ManualHelpLink />
+      <AccountQuickLinks />
 
-      <InstallAppCard />
+      <div id="manual-cuenta" className="scroll-mt-24">
+        <ManualHelpLink />
+      </div>
+
+      <section id="instalar-app" className="scroll-mt-24">
+        <InstallAppCard />
+      </section>
 
       <Suspense
         fallback={
@@ -32,21 +81,27 @@ export default function CuentaPage() {
 
       <GoogleDriveBackupCard />
 
-      <Card className="mb-6 space-y-3">
-        <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
-        <p className="text-sm text-slate-600">
-          Trae clientes, presupuestos, facturas y datos de empresa desde
-          archivos compatibles. Revisa una previsualización antes de aplicar la
-          importación.
-        </p>
-        <ButtonLink href="/importar" variant="secondary">
-          Abrir importador
-        </ButtonLink>
-      </Card>
+      <section id="importar-datos" className="scroll-mt-24">
+        <Card className="mb-6 space-y-3">
+          <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
+          <p className="text-sm text-slate-600">
+            Trae clientes, presupuestos, facturas y datos de empresa desde
+            archivos compatibles. Revisa una previsualización antes de aplicar la
+            importación.
+          </p>
+          <ButtonLink href="/importar" variant="secondary">
+            Abrir importador
+          </ButtonLink>
+        </Card>
+      </section>
 
-      <DataOwnershipCard />
+      <div id="datos-privacidad" className="scroll-mt-24">
+        <DataOwnershipCard />
+      </div>
 
-      <LegalLinksCard />
+      <div id="legal-privacidad" className="scroll-mt-24">
+        <LegalLinksCard />
+      </div>
     </div>
   );
 }
