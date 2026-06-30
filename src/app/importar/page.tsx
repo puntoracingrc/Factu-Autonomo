@@ -41,6 +41,11 @@ import {
   type HoldedImportResult,
 } from "@/lib/importers/holded";
 import {
+  GENERIC_DOCUMENTS_SOURCE_NAME,
+  readGenericDocumentFiles,
+  type GenericDocumentImportResult,
+} from "@/lib/importers/generic-documents";
+import {
   applyBusinessProfileAutofillSuggestion,
   hasBusinessProfileAutofillSuggestion,
 } from "@/lib/business-profile-autofill";
@@ -54,13 +59,15 @@ type ImportSource =
   | "pcfacturacion3"
   | "facturadirecta"
   | "holded"
+  | "generic-documents"
   | "prestashop"
   | "csv";
 type InvoicePaymentImportMode = "keep" | "markPaid";
 type ImportResult =
   | PcFacturacionImportResult
   | FacturaDirectaImportResult
-  | HoldedImportResult;
+  | HoldedImportResult
+  | GenericDocumentImportResult;
 
 const IMPORT_SOURCES: Array<{
   value: ImportSource;
@@ -71,6 +78,7 @@ const IMPORT_SOURCES: Array<{
   { value: "pcfacturacion3", label: PC_FACTURACION_SOURCE_NAME },
   { value: "facturadirecta", label: FACTURADIRECTA_SOURCE_NAME },
   { value: "holded", label: `${HOLDED_SOURCE_NAME} (en validación)` },
+  { value: "generic-documents", label: GENERIC_DOCUMENTS_SOURCE_NAME },
   { value: "prestashop", label: "PrestaShop (próximamente)", disabled: true },
   { value: "csv", label: "Excel o CSV (próximamente)", disabled: true },
 ];
@@ -98,10 +106,22 @@ function isHoldedResult(result: ImportResult): result is HoldedImportResult {
   return result.preview.sourceName === HOLDED_SOURCE_NAME;
 }
 
+function isGenericDocumentResult(
+  result: ImportResult,
+): result is GenericDocumentImportResult {
+  return result.preview.sourceName === GENERIC_DOCUMENTS_SOURCE_NAME;
+}
+
 function resultUnsupported(
   result: ImportResult,
 ): ImportAiReviewInput["unsupported"] {
-  if (!isFacturaDirectaResult(result) && !isHoldedResult(result)) return [];
+  if (
+    !isFacturaDirectaResult(result) &&
+    !isHoldedResult(result) &&
+    !isGenericDocumentResult(result)
+  ) {
+    return [];
+  }
   return result.unsupported.map((item) => ({
     label: item.label,
     reason: item.reason,
@@ -151,6 +171,30 @@ function buildImportAiPayload(result: ImportResult): ImportAiReviewInput {
         productsRead: result.preview.productsRead,
         productsUsedForLines: result.preview.productsUsedForLines,
         attachments: result.preview.attachments,
+        totalMismatches: result.preview.totalMismatches.length,
+        dateRange: formatRange(
+          result.preview.dateRange.from,
+          result.preview.dateRange.to,
+        ),
+      },
+      warnings: result.warnings,
+      unsupported: resultUnsupported(result),
+    };
+  }
+
+  if (isGenericDocumentResult(result)) {
+    return {
+      sourceName: result.preview.sourceName,
+      confidenceLabel: result.preview.confidence,
+      summary: {
+        customers: result.preview.customers,
+        suppliers: result.preview.suppliers,
+        invoices: result.preview.invoices,
+        invoiceLines: result.preview.invoiceLines,
+        estimates: result.preview.estimates,
+        estimateLines: result.preview.estimateLines,
+        files: result.preview.files.length,
+        unsupportedFiles: result.preview.unsupportedFiles,
         totalMismatches: result.preview.totalMismatches.length,
         dateRange: formatRange(
           result.preview.dateRange.from,
@@ -220,6 +264,9 @@ export default function ImportarPage() {
   const showPcFacturacionOptions = source === "pcfacturacion3";
   const showFacturaDirectaOptions = source === "facturadirecta";
   const showHoldedOptions = source === "holded";
+  const showGenericDocumentOptions = source === "generic-documents";
+  const showMultiFileOptions =
+    showFacturaDirectaOptions || showGenericDocumentOptions;
 
   function resetAiReview() {
     setAiReview(null);
@@ -239,7 +286,7 @@ export default function ImportarPage() {
     nextInvoicePaymentMode = invoicePaymentMode,
     nextFiles = files,
   ) {
-    if (showFacturaDirectaOptions ? nextFiles.length === 0 : !nextFile) return;
+    if (showMultiFileOptions ? nextFiles.length === 0 : !nextFile) return;
     setBusy(true);
     setError(null);
     setDone(false);
@@ -255,13 +302,16 @@ export default function ImportarPage() {
         source !== "auto" &&
         source !== "pcfacturacion3" &&
         source !== "facturadirecta" &&
-        source !== "holded"
+        source !== "holded" &&
+        source !== "generic-documents"
       ) {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
 
       const parsed = showFacturaDirectaOptions
         ? await readFacturaDirectaFiles(nextFiles, data)
+        : showGenericDocumentOptions
+          ? await readGenericDocumentFiles(nextFiles, data)
         : showHoldedOptions
           ? await readHoldedWorkbook(nextFile as File, data)
           : await readPcFacturacionMdb(nextFile as File, data, {
@@ -310,7 +360,7 @@ export default function ImportarPage() {
     if (nextFile && !importLocked) void analyze(nextFile);
   }
 
-  function handleFacturaDirectaFiles(nextFiles: FileList | null) {
+  function handleMultiFiles(nextFiles: FileList | null) {
     const selected = Array.from(nextFiles ?? []);
     setFiles(selected);
     setFile(null);
@@ -508,9 +558,7 @@ export default function ImportarPage() {
                 multiple
                 accept=".csv,.xlsx,.xls,.pdf,.xsig,.xml,.dat,.zip,text/csv,application/pdf"
                 disabled={importLocked}
-                onChange={(event) =>
-                  handleFacturaDirectaFiles(event.target.files)
-                }
+                onChange={(event) => handleMultiFiles(event.target.files)}
               />
             </Field>
             {files.length > 0 ? (
@@ -522,6 +570,33 @@ export default function ImportarPage() {
                   Puedes mezclar contactos, productos, ventas, líneas,
                   vencimientos y compras. Los PDF/XSIG/contabilidad se mostrarán
                   como referencia o pendiente si la app todavía no lo soporta.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : showGenericDocumentOptions ? (
+          <div className="space-y-4">
+            <Field
+              label="Excel, Word o PDF"
+              hint="Selecciona varios documentos sueltos: facturas, presupuestos, listados de clientes o listados de proveedores. La app previsualiza lo que entiende antes de importar."
+            >
+              <Input
+                type="file"
+                multiple
+                accept=".xlsx,.xls,.docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                disabled={importLocked}
+                onChange={(event) => handleMultiFiles(event.target.files)}
+              />
+            </Field>
+            {files.length > 0 ? (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+                <p className="font-semibold">
+                  {files.length} documento(s) seleccionados
+                </p>
+                <p className="mt-1">
+                  Esta lectura es documental: detecta datos y dudas, pero no
+                  guarda adjuntos ni replica la maquetación original. Si algo no
+                  cuadra, puedes pedir una segunda revisión con IA.
                 </p>
               </div>
             ) : null}
@@ -618,7 +693,7 @@ export default function ImportarPage() {
             variant="secondary"
             onClick={() => void refreshAnalysis()}
             disabled={
-              (showFacturaDirectaOptions ? files.length === 0 : !file) ||
+              (showMultiFileOptions ? files.length === 0 : !file) ||
               busy ||
               importLocked
             }
@@ -647,7 +722,9 @@ export default function ImportarPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Origen detectado: <strong>{result.preview.sourceName}</strong>
-              {!isFacturaDirectaResult(result) && !isHoldedResult(result) ? (
+              {!isFacturaDirectaResult(result) &&
+              !isHoldedResult(result) &&
+              !isGenericDocumentResult(result) ? (
                 <>
                   <br />
                   Empresa detectada:{" "}
@@ -665,6 +742,8 @@ export default function ImportarPage() {
 
           {isFacturaDirectaResult(result) ? (
             <FacturaDirectaPreview result={result} />
+          ) : isGenericDocumentResult(result) ? (
+            <GenericDocumentPreview result={result} />
           ) : isHoldedResult(result) ? (
             <HoldedPreview result={result} />
           ) : (
@@ -673,6 +752,7 @@ export default function ImportarPage() {
 
           {!isFacturaDirectaResult(result) &&
           !isHoldedResult(result) &&
+          !isGenericDocumentResult(result) &&
           result.preview.numbering ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
               <p className="font-semibold">Numeración detectada en el DWI</p>
@@ -707,6 +787,7 @@ export default function ImportarPage() {
 
           {!isFacturaDirectaResult(result) &&
           !isHoldedResult(result) &&
+          !isGenericDocumentResult(result) &&
           result.preview.unpaidInvoices > 0 ? (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
               <div className="flex items-start gap-2">
@@ -779,7 +860,9 @@ export default function ImportarPage() {
             </div>
           ) : null}
 
-          {(isFacturaDirectaResult(result) || isHoldedResult(result)) &&
+          {(isFacturaDirectaResult(result) ||
+            isHoldedResult(result) ||
+            isGenericDocumentResult(result)) &&
           result.unsupported.length > 0 ? (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center gap-2 font-semibold text-slate-900">
@@ -1139,6 +1222,103 @@ function FacturaDirectaPreview({
   );
 }
 
+function GenericDocumentPreview({
+  result,
+}: {
+  result: GenericDocumentImportResult;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+        <p className="font-semibold">Lectura documental</p>
+        <p className="mt-1">
+          Esta previsualización usa confianza{" "}
+          <strong>{result.preview.confidence}</strong>. Sirve para traer datos
+          desde Excel, Word o PDF sueltos; revisa siempre antes de importar.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <PreviewStat
+          label="Clientes"
+          value={result.preview.customers}
+          detail="Detectados en listados o documentos"
+        />
+        <PreviewStat
+          label="Proveedores"
+          value={result.preview.suppliers}
+          detail="Detectados en listados"
+        />
+        <PreviewStat
+          label="Facturas"
+          value={result.preview.invoices}
+          detail={`${result.preview.invoiceLines} línea(s) leídas`}
+        />
+        <PreviewStat
+          label="Presupuestos"
+          value={result.preview.estimates}
+          detail={`${result.preview.estimateLines} línea(s) leídas`}
+        />
+        <PreviewStat
+          label="Archivos"
+          value={result.preview.files.length}
+          detail={
+            result.preview.unsupportedFiles > 0
+              ? `${result.preview.unsupportedFiles} sin clasificar`
+              : "Clasificados por tipo"
+          }
+        />
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+        <p className="font-semibold text-slate-900">Rango de fechas detectado</p>
+        <p className="mt-1 text-slate-600">
+          {formatRange(result.preview.dateRange.from, result.preview.dateRange.to)}
+        </p>
+      </div>
+
+      {result.preview.totalMismatches.length > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-900">Totales a revisar</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {result.preview.totalMismatches.slice(0, 6).map((item) => (
+              <div
+                key={`${item.fileName}-${item.documentNumber}`}
+                className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-950"
+              >
+                <p className="font-medium">{item.documentNumber}</p>
+                <p className="text-xs">
+                  Documento: {item.expected.toFixed(2)} · Recalculado:{" "}
+                  {item.calculated.toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+        <p className="font-semibold text-slate-900">Archivos leídos</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {result.preview.files.map((file) => (
+            <div
+              key={`${file.name}-${file.kind}`}
+              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+            >
+              <p className="truncate font-medium text-slate-900">{file.name}</p>
+              <p className="text-xs text-slate-500">
+                {genericDocumentFormatLabel(file.format)} ·{" "}
+                {genericDocumentKindLabel(file.kind)}
+                {file.rows > 0 ? ` · ${file.rows} fila(s)` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HoldedPreview({ result }: { result: HoldedImportResult }) {
   return (
     <div className="space-y-4">
@@ -1255,6 +1435,34 @@ function PreviewStat({
       <p className="mt-1 text-xs text-slate-500">{detail}</p>
     </div>
   );
+}
+
+function genericDocumentFormatLabel(kind: string): string {
+  switch (kind) {
+    case "excel":
+      return "Excel";
+    case "word":
+      return "Word";
+    case "pdf":
+      return "PDF";
+    default:
+      return "Formato no reconocido";
+  }
+}
+
+function genericDocumentKindLabel(kind: string): string {
+  switch (kind) {
+    case "invoice":
+      return "Factura";
+    case "estimate":
+      return "Presupuesto";
+    case "customers":
+      return "Clientes";
+    case "suppliers":
+      return "Proveedores";
+    default:
+      return "Sin clasificar";
+  }
 }
 
 function facturaDirectaKindLabel(kind: string): string {
