@@ -46,7 +46,8 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` solo cuando Google OAuth esté configurado en Supabase |
 | `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` | client id público de Google OAuth para guardar copias extra en Drive |
 | `GOOGLE_DRIVE_CLIENT_SECRET` | secreto del cliente OAuth de Google, solo servidor, para completar el retorno de Drive |
-| `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos y autorrelleno IA de clientes, servidor) |
+| `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos, autorrelleno IA, revisión IA y Voz IA en recordatorios, servidor) |
+| `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | opcional, por defecto `gpt-realtime-whisper` para Voz IA en recordatorios |
 | `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
 | `EMAIL_FROM` | `Factu - Facturación Autónomos <info@facturacion-autonomos.app>` |
