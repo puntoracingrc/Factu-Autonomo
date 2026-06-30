@@ -29,6 +29,7 @@ import {
   expensePurchaseLineBaseTotal,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
+  findExpensePurchaseLinePriceAlerts,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
 } from "@/lib/expenses";
@@ -280,6 +281,24 @@ export default function NuevoGastoPage() {
     supplierName,
   ]);
 
+  const priceAlerts = useMemo(
+    () =>
+      findExpensePurchaseLinePriceAlerts({
+        currentLines: purchaseLines,
+        expenses: data.expenses,
+        supplierId: selectedSupplierId ?? undefined,
+        supplierName,
+        excludeExpenseId: editingExpense?.id,
+      }),
+    [
+      data.expenses,
+      editingExpense?.id,
+      purchaseLines,
+      selectedSupplierId,
+      supplierName,
+    ],
+  );
+
   function handleSubmit() {
     const totals = expenseTotalsFromBase(
       parseDecimalInput(amountText),
@@ -396,6 +415,28 @@ export default function NuevoGastoPage() {
             <strong>{duplicateExpense.description}</strong>. Cambia el número si
             no corresponde o evita guardarla de nuevo.
           </p>
+        )}
+        {priceAlerts.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-bold">Revisa precios o descuentos</p>
+            <ul className="mt-2 space-y-1">
+              {priceAlerts.map((alert) => (
+                <li key={alert.lineId}>
+                  <strong>{alert.description}</strong>: ahora{" "}
+                  {formatMoney(alert.currentUnitPrice)}, antes{" "}
+                  {formatMoney(alert.previousUnitPrice)}
+                  {Math.abs(alert.priceChangePercent) >= 15
+                    ? ` (${alert.priceChangePercent > 0 ? "sube" : "baja"} ${Math.abs(alert.priceChangePercent)}%)`
+                    : ""}
+                  {Math.abs(alert.discountChangePoints) >= 5
+                    ? ` · descuento ${alert.previousDiscountPercent}% → ${alert.currentDiscountPercent}%`
+                    : ""}
+                  . Última referencia: {alert.previousExpenseDescription},{" "}
+                  {alert.previousExpenseDate}.
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         <Card className="space-y-5">
           <FormSection

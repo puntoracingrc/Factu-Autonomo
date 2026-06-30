@@ -3,9 +3,11 @@ import {
   expensePurchaseLineBaseTotal,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
+  findExpensePurchaseLinePriceAlerts,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
 } from "./expenses";
+import type { Expense } from "./types";
 
 describe("expenseTotalsFromBase", () => {
   it("calcula base 100 e IVA 21 con total 121", () => {
@@ -83,5 +85,107 @@ describe("expenseTotalsFromBase", () => {
       invoiceNumber: "FD-1",
       supplierNif: "B12345678",
     });
+  });
+
+  it("avisa si una línea escaneada sube mucho respecto a compras anteriores", () => {
+    const previousExpense: Expense = {
+      id: "expense-1",
+      date: "2026-06-01",
+      supplierId: "supplier-1",
+      supplierName: "Proveedor Demo",
+      description: "Compra anterior",
+      amount: 50,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      purchaseLines: [
+        {
+          id: "previous-line",
+          description: "Lama persiana blanca",
+          quantity: 1,
+          unitPrice: 10,
+          discountPercent: 10,
+        },
+      ],
+      createdAt: "2026-06-01T10:00:00.000Z",
+    };
+
+    const alerts = findExpensePurchaseLinePriceAlerts({
+      currentLines: [
+        {
+          id: "current-line",
+          description: "Lama persiana blanca",
+          quantity: 1,
+          unitPrice: 13,
+          discountPercent: 0,
+        },
+      ],
+      expenses: [previousExpense],
+      supplierId: "supplier-1",
+    });
+
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      description: "Lama persiana blanca",
+      previousUnitPrice: 10,
+      currentUnitPrice: 13,
+      priceChangePercent: 30,
+      discountChangePoints: -10,
+    });
+  });
+
+  it("no avisa por cambios pequeños de precio o por otros proveedores", () => {
+    const previousExpense: Expense = {
+      id: "expense-1",
+      date: "2026-06-01",
+      supplierId: "supplier-1",
+      supplierName: "Proveedor Demo",
+      description: "Compra anterior",
+      amount: 50,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      purchaseLines: [
+        {
+          id: "previous-line",
+          description: "Lama persiana blanca",
+          quantity: 1,
+          unitPrice: 10,
+          discountPercent: 10,
+        },
+      ],
+      createdAt: "2026-06-01T10:00:00.000Z",
+    };
+
+    expect(
+      findExpensePurchaseLinePriceAlerts({
+        currentLines: [
+          {
+            id: "current-line",
+            description: "Lama persiana blanca",
+            quantity: 1,
+            unitPrice: 10.5,
+            discountPercent: 8,
+          },
+        ],
+        expenses: [previousExpense],
+        supplierId: "supplier-1",
+      }),
+    ).toHaveLength(0);
+
+    expect(
+      findExpensePurchaseLinePriceAlerts({
+        currentLines: [
+          {
+            id: "current-line",
+            description: "Lama persiana blanca",
+            quantity: 1,
+            unitPrice: 13,
+          },
+        ],
+        expenses: [previousExpense],
+        supplierId: "supplier-2",
+      }),
+    ).toHaveLength(0);
   });
 });

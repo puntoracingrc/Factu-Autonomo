@@ -12,6 +12,20 @@ export interface ExpenseTotals {
   ivaPercent: number;
 }
 
+export interface ExpensePurchaseLinePriceAlert {
+  lineId: string;
+  description: string;
+  previousDescription: string;
+  currentUnitPrice: number;
+  previousUnitPrice: number;
+  priceChangePercent: number;
+  currentDiscountPercent: number;
+  previousDiscountPercent: number;
+  discountChangePoints: number;
+  previousExpenseDescription: string;
+  previousExpenseDate: string;
+}
+
 export function normalizeExpenseAmount(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
@@ -114,4 +128,104 @@ export function sanitizeExpensePurchaseDocument(
   };
 
   return Object.values(sanitized).some(Boolean) ? sanitized : undefined;
+}
+
+function purchaseLineSearchKey(description: string): string {
+  return description
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 2)
+    .join(" ");
+}
+
+function purchaseLineKeysMatch(current: string, previous: string): boolean {
+  if (!current || !previous) return false;
+  if (current === previous) return true;
+  return current.includes(previous) || previous.includes(current);
+}
+
+function expenseSupplierMatches(
+  expense: Expense,
+  options: { supplierId?: string; supplierName?: string },
+): boolean {
+  if (options.supplierId) return expense.supplierId === options.supplierId;
+  const supplierName = options.supplierName?.trim().toLowerCase();
+  if (!supplierName) return false;
+  return expense.supplierName.trim().toLowerCase() === supplierName;
+}
+
+export function findExpensePurchaseLinePriceAlerts(input: {
+  currentLines: ExpensePurchaseLine[];
+  expenses: Expense[];
+  supplierId?: string;
+  supplierName?: string;
+  excludeExpenseId?: string;
+  priceChangeThresholdPercent?: number;
+  discountChangeThresholdPoints?: number;
+}): ExpensePurchaseLinePriceAlert[] {
+  const priceThreshold = input.priceChangeThresholdPercent ?? 15;
+  const discountThreshold = input.discountChangeThresholdPoints ?? 5;
+  const currentLines = sanitizeExpensePurchaseLines(input.currentLines);
+
+  const previousExpenses = input.expenses
+    .filter((expense) => expense.id !== input.excludeExpenseId)
+    .filter((expense) => expense.purchaseLines?.length)
+    .filter((expense) =>
+      expenseSupplierMatches(expense, {
+        supplierId: input.supplierId,
+        supplierName: input.supplierName,
+      }),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return currentLines.flatMap((line) => {
+    const currentKey = purchaseLineSearchKey(line.description);
+    const previousMatch = previousExpenses
+      .flatMap((expense) =>
+        sanitizeExpensePurchaseLines(expense.purchaseLines).map((previous) => ({
+          expense,
+          previous,
+        })),
+      )
+      .find(({ previous }) =>
+        purchaseLineKeysMatch(currentKey, purchaseLineSearchKey(previous.description)),
+      );
+
+    if (!previousMatch || previousMatch.previous.unitPrice <= 0) return [];
+
+    const previousDiscount = previousMatch.previous.discountPercent ?? 0;
+    const currentDiscount = line.discountPercent ?? 0;
+    const priceChangePercent =
+      ((line.unitPrice - previousMatch.previous.unitPrice) /
+        previousMatch.previous.unitPrice) *
+      100;
+    const discountChangePoints = currentDiscount - previousDiscount;
+
+    if (
+      Math.abs(priceChangePercent) < priceThreshold &&
+      Math.abs(discountChangePoints) < discountThreshold
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        lineId: line.id,
+        description: line.description,
+        previousDescription: previousMatch.previous.description,
+        currentUnitPrice: line.unitPrice,
+        previousUnitPrice: previousMatch.previous.unitPrice,
+        priceChangePercent: roundMoney(priceChangePercent),
+        currentDiscountPercent: currentDiscount,
+        previousDiscountPercent: previousDiscount,
+        discountChangePoints: roundMoney(discountChangePoints),
+        previousExpenseDescription: previousMatch.expense.description,
+        previousExpenseDate: previousMatch.expense.date,
+      },
+    ];
+  });
 }
