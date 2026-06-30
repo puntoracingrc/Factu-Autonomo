@@ -22,8 +22,13 @@ import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 
 interface ExpenseScanCardProps {
-  onScanned: (payload: ExpenseScanPayload) => void;
+  onScanned: (
+    payload: ExpenseScanPayload,
+    options?: { fileName?: string; append?: boolean },
+  ) => void;
 }
+
+const MAX_SCAN_FILES = 5;
 
 export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const searchParams = useSearchParams();
@@ -76,8 +81,60 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     if (result) setError(result);
   }
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
+  async function scanFile(file: File): Promise<{
+    data?: ExpenseScanPayload;
+    error?: string;
+    quota?: ScanQuota;
+  }> {
+    let uploadFile = file;
+    try {
+      const prepared = await prepareScanFile(file);
+      uploadFile = prepared.file;
+    } catch (err) {
+      return {
+        error:
+          err instanceof Error
+            ? err.message
+            : "No se pudo preparar la imagen para escanear.",
+      };
+    }
+
+    const form = new FormData();
+    form.append("file", uploadFile);
+
+    const headers: HeadersInit = {};
+    if (user) {
+      const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+      const supabase = await getSupabaseClientAsync();
+      const { data } = await supabase?.auth.getSession() ?? { data: { session: null } };
+      const token = data.session?.access_token;
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch("/api/expenses/scan", {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    const body = (await res.json()) as {
+      data?: ExpenseScanPayload;
+      error?: string;
+      quota?: ScanQuota;
+    };
+
+    return {
+      data: res.ok ? body.data : undefined,
+      error:
+        !res.ok || !body.data
+          ? body.error ?? "No se pudo escanear la factura."
+          : undefined,
+      quota: body.quota,
+    };
+  }
+
+  async function handleFiles(fileList: FileList | null | undefined) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
     setError(null);
     setWarnings([]);
 
@@ -87,57 +144,43 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       return;
     }
 
+    if (files.length > MAX_SCAN_FILES) {
+      setError(`Puedes escanear hasta ${MAX_SCAN_FILES} archivos cada vez.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     setScanning(true);
 
     try {
-      let uploadFile = file;
-      try {
-        const prepared = await prepareScanFile(file);
-        uploadFile = prepared.file;
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "No se pudo preparar la imagen para escanear.",
-        );
-        return;
+      const allWarnings: string[] = [];
+      const errors: string[] = [];
+      let imported = 0;
+
+      for (const file of files) {
+        const result = await scanFile(file);
+        if (result.quota) setQuota(result.quota);
+
+        if (!result.data) {
+          errors.push(`${file.name}: ${result.error ?? "no se pudo leer"}`);
+          continue;
+        }
+
+        if (result.data.warnings.length > 0) {
+          allWarnings.push(
+            ...result.data.warnings.map((warning) => `${file.name}: ${warning}`),
+          );
+        }
+        onScanned(result.data, {
+          fileName: file.name,
+          append: imported > 0,
+        });
+        imported += 1;
       }
 
-      const form = new FormData();
-      form.append("file", uploadFile);
-
-      const headers: HeadersInit = {};
-      if (user) {
-        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
-        const supabase = await getSupabaseClientAsync();
-        const { data } = await supabase?.auth.getSession() ?? { data: { session: null } };
-        const token = data.session?.access_token;
-        if (token) headers.Authorization = `Bearer ${token}`;
-      }
-
-      const res = await fetch("/api/expenses/scan", {
-        method: "POST",
-        headers,
-        body: form,
-      });
-      const body = (await res.json()) as {
-        data?: ExpenseScanPayload;
-        error?: string;
-        quota?: ScanQuota;
-      };
-
-      if (body.quota) setQuota(body.quota);
-
-      if (!res.ok || !body.data) {
-        setError(body.error ?? "No se pudo escanear la factura.");
-        return;
-      }
-
-      if (body.data.warnings.length > 0) {
-        setWarnings(body.data.warnings);
-      }
-      markFactuFeatureUsed("expense_scan");
-      onScanned(body.data);
+      if (allWarnings.length > 0) setWarnings(allWarnings);
+      if (errors.length > 0) setError(errors.join(" · "));
+      if (imported > 0) markFactuFeatureUsed("expense_scan");
     } catch {
       setError("Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
     } finally {
@@ -220,8 +263,9 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             ref={inputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf"
+            multiple
             className="hidden"
-            onChange={(e) => void handleFile(e.target.files?.[0])}
+            onChange={(e) => void handleFiles(e.target.files)}
           />
 
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -267,6 +311,10 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
               {noScansLeft ? "Sin escaneos" : "Imagen o PDF"}
             </Button>
           </div>
+          <p className="text-xs text-slate-500">
+            Puedes seleccionar hasta {MAX_SCAN_FILES} archivos. Se revisan uno a
+            uno antes de guardar.
+          </p>
 
           {noScansLeft && (
             <div className="space-y-3">

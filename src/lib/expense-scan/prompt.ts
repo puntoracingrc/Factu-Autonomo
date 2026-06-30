@@ -17,6 +17,11 @@ Reglas:
 - Si un campo no es legible, estima lo razonable y añade un warning.
 - Si parece ticket sin datos fiscales completos, añade un warning claro.
 - Si parece gasto fijo recurrente, añade un warning sugiriendo revisar si conviene configurarlo como gasto fijo.
+- Si aparecen líneas de producto, material o servicio, rellena purchaseLines.
+- En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece.
+- Si el documento solo tiene resumen total y no muestra líneas claras, deja purchaseLines vacío u omitido.
+- Rellena purchaseDocument con número de factura del proveedor, vencimiento, NIF, dirección y condiciones de pago si aparecen.
+- No metas datos estructurados repetidos en notes si ya caben en purchaseDocument.
 - NIF/CIF español si aparece en el documento.
 - confidence entre 0 y 1 según claridad del documento.`;
 }

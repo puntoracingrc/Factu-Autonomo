@@ -484,7 +484,13 @@ export default function GastosPage() {
                   />
                 )}
                 <Card className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                  <Link
+                    href={`/gastos/nuevo?editar=${encodeURIComponent(
+                      expense.id,
+                    )}`}
+                    className="min-w-0 flex-1 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    aria-label={`Abrir gasto ${expense.description}`}
+                  >
                     <p className="font-bold text-slate-900">
                       {expense.supplierName}
                     </p>
@@ -506,7 +512,22 @@ export default function GastosPage() {
                         {expense.paymentMethod}
                       </span>
                     </div>
-                  </div>
+                    {(expense.purchaseDocument?.invoiceNumber ||
+                      expense.purchaseLines?.length) && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                        {expense.purchaseDocument?.invoiceNumber && (
+                          <span className="rounded-full bg-slate-100 px-2 py-1">
+                            Fra. {expense.purchaseDocument.invoiceNumber}
+                          </span>
+                        )}
+                        {expense.purchaseLines?.length ? (
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                            {expense.purchaseLines.length} línea(s)
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </Link>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-red-700">
                       {formatMoney(expenseAmount(expense, vatExempt))}
