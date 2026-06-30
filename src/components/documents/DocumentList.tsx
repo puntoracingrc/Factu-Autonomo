@@ -29,6 +29,7 @@ import {
   sortDocumentsByNewest,
 } from "@/lib/documents";
 import { buildDocumentPdfBlob } from "@/lib/pdf";
+import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
@@ -163,6 +164,10 @@ export function DocumentList({
     const sorted = sortDocumentsByNewest(statusDocuments);
     return filterDocumentsByQuery(sorted, search, { vatExempt });
   }, [allDocuments, data.documents, period, search, statusFilter, vatExempt]);
+
+  const workExpenseSummaries = useMemo(() => {
+    return summarizeWorkDocumentExpensesById(data.expenses);
+  }, [data.expenses]);
 
   const totalCount = allDocuments.length;
   const label = SEARCH_LABELS[type];
@@ -405,7 +410,16 @@ export function DocumentList({
               !previousDocument ||
               timelineMonthKey(previousDocument.date) !==
                 timelineMonthKey(doc.date);
-            const total = documentAmounts(doc, vatExempt).total;
+            const amounts = documentAmounts(doc, vatExempt);
+            const total = amounts.total;
+            const workExpenseSummary =
+              type === "factura" || type === "presupuesto"
+                ? workExpenseSummaries.get(doc.id)
+                : undefined;
+            const workMargin =
+              workExpenseSummary && workExpenseSummary.count > 0
+                ? amounts.subtotal - workExpenseSummary.cost
+                : undefined;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
@@ -465,6 +479,23 @@ export function DocumentList({
                       document={doc}
                       documents={data.documents}
                     />
+                    {workExpenseSummary && workMargin !== undefined && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+                          Costes vinculados:{" "}
+                          {formatMoney(workExpenseSummary.cost)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 ${
+                            workMargin >= 0
+                              ? "bg-emerald-50 text-emerald-800"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          Margen estimado: {formatMoney(workMargin)}
+                        </span>
+                      </div>
+                    )}
                     {statusHint && (
                       <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
                     )}

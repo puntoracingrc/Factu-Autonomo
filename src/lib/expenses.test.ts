@@ -6,6 +6,8 @@ import {
   findExpensePurchaseLinePriceAlerts,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
+  summarizeWorkDocumentExpensesById,
+  summarizeWorkDocumentExpenses,
 } from "./expenses";
 import type { Expense } from "./types";
 
@@ -84,6 +86,56 @@ describe("expenseTotalsFromBase", () => {
     ).toEqual({
       invoiceNumber: "FD-1",
       supplierNif: "B12345678",
+    });
+  });
+
+  it("resume costes vinculados a un trabajo", () => {
+    const expenses: Expense[] = [
+      {
+        id: "expense-1",
+        date: "2026-06-01",
+        supplierName: "Proveedor Demo",
+        description: "Material",
+        amount: 120.5,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        workDocumentId: "document-1",
+        createdAt: "2026-06-01T10:00:00.000Z",
+      },
+      {
+        id: "expense-2",
+        date: "2026-06-02",
+        supplierName: "Proveedor Demo",
+        description: "Recambio",
+        amount: 30,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        workDocumentId: "document-1",
+        createdAt: "2026-06-02T10:00:00.000Z",
+      },
+      {
+        id: "expense-3",
+        date: "2026-06-03",
+        supplierName: "Otro proveedor",
+        description: "Otro trabajo",
+        amount: 80,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        workDocumentId: "document-2",
+        createdAt: "2026-06-03T10:00:00.000Z",
+      },
+    ];
+
+    expect(summarizeWorkDocumentExpenses(expenses, "document-1")).toEqual({
+      count: 2,
+      cost: 150.5,
+    });
+    expect(summarizeWorkDocumentExpensesById(expenses).get("document-2")).toEqual({
+      count: 1,
+      cost: 80,
     });
   });
 

@@ -26,6 +26,11 @@ export interface ExpensePurchaseLinePriceAlert {
   previousExpenseDate: string;
 }
 
+export interface WorkDocumentExpenseSummary {
+  count: number;
+  cost: number;
+}
+
 export function normalizeExpenseAmount(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
@@ -82,6 +87,38 @@ export function expensePurchaseLinesBaseTotal(
   return roundMoney(
     lines.reduce((sum, line) => sum + expensePurchaseLineBaseTotal(line), 0),
   );
+}
+
+export function summarizeWorkDocumentExpenses(
+  expenses: Expense[],
+  documentId: string,
+): WorkDocumentExpenseSummary {
+  return (
+    summarizeWorkDocumentExpensesById(expenses).get(documentId) ?? {
+      count: 0,
+      cost: 0,
+    }
+  );
+}
+
+export function summarizeWorkDocumentExpensesById(
+  expenses: Expense[],
+): Map<string, WorkDocumentExpenseSummary> {
+  const summaries = new Map<string, WorkDocumentExpenseSummary>();
+
+  for (const expense of expenses) {
+    if (!expense.workDocumentId) continue;
+    const current = summaries.get(expense.workDocumentId) ?? {
+      count: 0,
+      cost: 0,
+    };
+    summaries.set(expense.workDocumentId, {
+      count: current.count + 1,
+      cost: roundMoney(current.cost + normalizeExpenseAmount(expense.amount)),
+    });
+  }
+
+  return summaries;
 }
 
 export function sanitizeExpensePurchaseLines(
