@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui/Card";
 
 export default function LegalVerifactuPage() {
@@ -12,6 +13,16 @@ export default function LegalVerifactuPage() {
           Esta página resume cómo se plantea el cumplimiento VeriFactu/SIF en
           Factura Autónomo. No sustituye asesoramiento fiscal ni la normativa
           oficial de la Agencia Tributaria.
+        </p>
+        <p>
+          Ver también:{" "}
+          <Link
+            href="/vida-factura-electronica"
+            className="font-semibold text-blue-700 underline"
+          >
+            ViDA y factura electrónica europea
+          </Link>
+          .
         </p>
         <h2>Qué hace la app</h2>
         <ul>
