@@ -1,8 +1,8 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Eye, FileWarning, Pencil, Search } from "lucide-react";
-import { IconActionLink } from "@/components/ui/IconAction";
+import { Download, Eye, FileWarning, Pencil, Search, X } from "lucide-react";
+import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
@@ -25,6 +25,7 @@ import {
   isDraftInvoiceNumber,
   sortDocumentsByNewest,
 } from "@/lib/documents";
+import { buildDocumentPdfBlob } from "@/lib/pdf";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
@@ -136,6 +137,13 @@ export function DocumentList({
   }));
   const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>("all");
   const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
+  const [previewingDocumentId, setPreviewingDocumentId] = useState<string | null>(
+    null,
+  );
+  const [pdfPreview, setPdfPreview] = useState<{
+    url: string;
+    filename: string;
+  } | null>(null);
 
   const allDocuments = getDocumentsByType(type);
   const years = useMemo(
@@ -164,6 +172,29 @@ export function DocumentList({
     setPeriod((current) => ({ ...current, ...patch }));
   }
 
+  async function handlePdfPreview(doc: Document) {
+    setPreviewingDocumentId(doc.id);
+    try {
+      const blob = await buildDocumentPdfBlob(doc, data.profile);
+      const url = URL.createObjectURL(blob);
+      setPdfPreview((current) => {
+        if (current) URL.revokeObjectURL(current.url);
+        return { url, filename: documentPreviewFilename(doc) };
+      });
+    } catch {
+      alert("No se pudo abrir el PDF. Descárgalo e inténtalo de nuevo.");
+    } finally {
+      setPreviewingDocumentId(null);
+    }
+  }
+
+  function closePdfPreview() {
+    setPdfPreview((current) => {
+      if (current) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  }
+
   useEffect(() => {
     setVisibleCount(DOCUMENT_LIST_BATCH_SIZE);
   }, [
@@ -176,8 +207,54 @@ export function DocumentList({
     type,
   ]);
 
+  useEffect(
+    () => () => {
+      if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
+    },
+    [pdfPreview],
+  );
+
   return (
     <div className="space-y-4">
+      {pdfPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Vista previa PDF"
+        >
+          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                {pdfPreview.filename}
+              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                <a
+                  href={pdfPreview.url}
+                  download={pdfPreview.filename}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  <Download className="h-4 w-4" />
+                  Descargar
+                </a>
+                <button
+                  type="button"
+                  onClick={closePdfPreview}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  aria-label="Cerrar vista previa"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={pdfPreview.url}
+              title="Vista previa PDF"
+              className="min-h-0 flex-1 bg-slate-100"
+            />
+          </div>
+        </div>
+      )}
       {totalCount > 0 && (
         <Card className="space-y-4 p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
@@ -435,7 +512,11 @@ export function DocumentList({
                     {type === "factura" && (
                       <PaymentReminderButton doc={doc} profile={data.profile} />
                     )}
-                    <DocumentPdfShareActions doc={doc} profile={data.profile} />
+                    <DocumentPdfShareActions
+                      doc={doc}
+                      profile={data.profile}
+                      showPreview={editable}
+                    />
                     {rectifiable && (
                       <IconActionLink
                         href={`${basePath}/${doc.id}/rectificar`}
@@ -456,14 +537,15 @@ export function DocumentList({
                         <Pencil className="h-5 w-5" />
                       </IconActionLink>
                     ) : (
-                      <IconActionLink
-                        href={`${basePath}/${doc.id}`}
-                        label="Ver"
-                        tooltip="Ver detalle"
+                      <IconActionButton
+                        label="Ver PDF"
+                        tooltip="Ver PDF"
+                        onClick={() => void handlePdfPreview(doc)}
+                        disabled={previewingDocumentId === doc.id}
                         className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                       >
                         <Eye className="h-5 w-5" />
-                      </IconActionLink>
+                      </IconActionButton>
                     )}
                     <DeleteDocumentButton doc={doc} />
                   </div>
@@ -534,4 +616,13 @@ function matchesDocumentStatusFilter(
     return deriveDocumentLifecycle(document) === "issued";
   }
   return true;
+}
+
+function documentPreviewFilename(doc: Document): string {
+  const base =
+    isDraftInvoiceNumber(doc) && doc.type === "factura"
+      ? `factura-borrador-${doc.id.slice(0, 8)}`
+      : doc.number || "documento";
+  const clean = base.replace(/[^\w.-]+/g, "_").trim() || "documento";
+  return clean.toLowerCase().endsWith(".pdf") ? clean : `${clean}.pdf`;
 }

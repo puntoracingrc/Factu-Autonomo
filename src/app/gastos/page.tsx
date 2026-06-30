@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Download,
   Keyboard,
@@ -14,7 +15,7 @@ import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
@@ -305,48 +306,52 @@ export default function GastosPage() {
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
           Buscar y ordenar
         </h2>
-        <ExpenseFiltersBar
-          expenses={data.expenses}
-          periodKind={periodKind}
-          year={year}
-          month={month}
-          quarter={quarter}
-          supplierFilter={supplierFilter}
-          supplierOptions={supplierOptions}
-          onPeriodKindChange={handlePeriodKindChange}
-          onYearChange={setYear}
-          onMonthChange={setMonth}
-          onQuarterChange={setQuarter}
-          onSupplierFilterChange={setSupplierFilter}
-        />
-      </Card>
-
-      <Card className="mb-4 border-emerald-200 bg-emerald-50 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-emerald-700">Total gastado</p>
-            <p className="text-2xl font-bold text-emerald-900">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-end">
+          <ExpenseFiltersBar
+            expenses={data.expenses}
+            periodKind={periodKind}
+            year={year}
+            month={month}
+            quarter={quarter}
+            supplierFilter={supplierFilter}
+            supplierOptions={supplierOptions}
+            onPeriodKindChange={handlePeriodKindChange}
+            onYearChange={setYear}
+            onMonthChange={setMonth}
+            onQuarterChange={setQuarter}
+            onSupplierFilterChange={setSupplierFilter}
+          />
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 xl:text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              Total gastado
+            </p>
+            <p className="mt-1 text-2xl font-bold text-emerald-900">
               {formatMoney(total)}
             </p>
+            {filteredExpenses.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="mt-2 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exportar CSV
+              </button>
+            )}
+            {supplierFilter && (
+              <p className="mt-1 text-xs text-emerald-800">
+                {filteredExpenses.length} gasto
+                {filteredExpenses.length === 1 ? "" : "s"} filtrado
+                {filteredExpenses.length === 1 ? "" : "s"}
+              </p>
+            )}
+            {vatExempt && (
+              <p className="mt-1 text-xs text-emerald-800">
+                Sin IVA deducible
+              </p>
+            )}
           </div>
-          {filteredExpenses.length > 0 && (
-            <Button variant="secondary" onClick={handleExportCsv}>
-              <Download className="h-4 w-4" />
-              Exportar CSV
-            </Button>
-          )}
         </div>
-        {supplierFilter && (
-          <p className="mt-1 text-xs text-emerald-800">
-            Filtrado por gasto · {filteredExpenses.length} gasto
-            {filteredExpenses.length === 1 ? "" : "s"}
-          </p>
-        )}
-        {vatExempt && (
-          <p className="mt-1 text-xs text-emerald-800">
-            Sin IVA deducible (exento de repercusión)
-          </p>
-        )}
       </Card>
 
       {(purchaseChartSlices.length > 0 || fixedChartSlices.length > 0) && (
@@ -446,16 +451,16 @@ export default function GastosPage() {
                     <span className="font-bold text-red-700">
                       {formatMoney(expenseAmount(expense, vatExempt))}
                     </span>
-                    <ButtonLink
+                    <Link
                       href={`/gastos/nuevo?editar=${encodeURIComponent(
                         expense.id,
                       )}`}
-                      variant="secondary"
-                      className="min-h-10 px-3 text-sm"
+                      aria-label={`Editar gasto ${expense.description}`}
+                      title="Editar"
+                      className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                     >
                       <Pencil className="h-4 w-4" />
-                      Editar
-                    </ButtonLink>
+                    </Link>
                     <button
                       onClick={() => {
                         if (confirm("¿Borrar este gasto?")) {

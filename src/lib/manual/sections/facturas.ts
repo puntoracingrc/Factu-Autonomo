@@ -40,7 +40,8 @@ export const facturasSection: ManualSection = {
       paragraphs: [
         "El listado de facturas está ordenado de más nueva a más antigua y muestra separadores por mes para orientarte al bajar.",
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
-        "Pulsa el icono del **ojo** para abrir la vista previa del PDF y el icono de descarga para guardar el PDF. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
+        "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
+        "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
       ],
     },
     {

@@ -188,7 +188,7 @@ export default function GastosFijosPage() {
         subtitle="Cuotas recurrentes que se registran solas en Gastos (autónomos, seguros, planes de pago…)"
         action={
           <ButtonLink href="/gastos" variant="secondary">
-            Ver gastos
+            Volver
           </ButtonLink>
         }
       />
