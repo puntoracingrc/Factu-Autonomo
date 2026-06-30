@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Bell, Mail, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
+import { useBilling } from "@/context/BillingContext";
 import { Field, Textarea } from "@/components/ui/Field";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
@@ -30,6 +31,7 @@ export function PaymentReminderButton({
   profile,
   variant = "icon",
 }: PaymentReminderButtonProps) {
+  const { billingEnabled, isPro } = useBilling();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<PaymentReminderChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export function PaymentReminderButton({
 
   const canEmail = canSendPaymentReminder(doc, "email");
   const canWhatsApp = canSendPaymentReminder(doc, "whatsapp");
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
     setMessage(defaultMessage);
@@ -63,7 +66,7 @@ export function PaymentReminderButton({
     setBusy(channel);
     setError(null);
 
-    const input = { doc, profile, message };
+    const input = { doc, profile, message, pdfOptions };
     const result =
       channel === "email"
         ? await sendPaymentReminderByEmail(input)

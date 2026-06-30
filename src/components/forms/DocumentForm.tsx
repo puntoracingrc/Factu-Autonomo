@@ -107,7 +107,13 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     upsertCustomerForDocument,
     registerVerifactuForDocument,
   } = useAppStore();
-  const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
+  const {
+    billingEnabled,
+    checkCanCreateDocument,
+    isPro,
+    recordDocumentCreated,
+  } = useBilling();
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
@@ -307,7 +313,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     setPreviewLoading(true);
     try {
       const doc = attachIssuerSnapshot(previewDoc, data.profile);
-      await openDocumentPdfPreview(doc, data.profile);
+      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
     } catch (error) {
       alert(
         error instanceof Error && error.message === "popup_blocked"
@@ -446,7 +452,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       type,
       number: saved.number,
       router,
-      download: download ? { doc: saved, profile: data.profile } : undefined,
+      download: download
+        ? { doc: saved, profile: data.profile, pdfOptions }
+        : undefined,
     });
   }
 

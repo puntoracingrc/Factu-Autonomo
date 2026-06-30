@@ -35,6 +35,13 @@ export interface PdfArtifacts {
   };
 }
 
+export interface DocumentPdfOptions {
+  freePlanBranding?: boolean;
+}
+
+const FREE_PLAN_BRANDING_TEXT =
+  "Factura realizada con facturacion-autonomos.app";
+
 function documentLabel(doc: Document): string {
   if (isRectificativa(doc)) return "FACTURA RECTIFICATIVA";
   if (isDraftInvoiceNumber(doc)) return "BORRADOR DE FACTURA";
@@ -44,6 +51,23 @@ function documentLabel(doc: Document): string {
     recibo: "RECIBO",
   };
   return labels[doc.type];
+}
+
+function drawFreePlanBranding(
+  pdf: jsPDF,
+  options: {
+    font: "helvetica" | "times" | "courier";
+  },
+): void {
+  const pageCount = pdf.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    pdf.setPage(page);
+    pdf.setFont(options.font, "normal");
+    pdf.setFontSize(7);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(FREE_PLAN_BRANDING_TEXT, 105, 292, { align: "center" });
+  }
+  pdf.setTextColor(0, 0, 0);
 }
 
 function pdfLineTotal(item: DocumentPdfLineView, vatExempt: boolean): number {
@@ -146,16 +170,19 @@ export function buildDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
   artifacts: PdfArtifacts = {},
+  options: DocumentPdfOptions = {},
 ): jsPDF {
   return buildDocumentPdfFromViewModel(
     buildPdfViewModelForDocument(doc, profile),
     artifacts,
+    options,
   );
 }
 
 export function buildDocumentPdfFromViewModel(
   viewModel: DocumentPdfViewModel,
   artifacts: PdfArtifacts = {},
+  options: DocumentPdfOptions = {},
 ): jsPDF {
   const pdf = new jsPDF();
   const doc = viewModel.doc;
@@ -354,6 +381,9 @@ export function buildDocumentPdfFromViewModel(
         : {
             fillColor: [248, 250, 252],
           },
+    margin: {
+      bottom: options.freePlanBranding ? 16 : 10,
+    },
   });
 
   const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } })
@@ -422,16 +452,23 @@ export function buildDocumentPdfFromViewModel(
     pdf.text(`IBAN: ${issuer.iban}`, 14, footerY + 4);
   }
 
+  if (options.freePlanBranding) {
+    drawFreePlanBranding(pdf, { font: pdfFont });
+  }
+
   return pdf;
 }
 
 export async function buildDocumentPdfBlob(
   doc: Document,
   profile: BusinessProfile,
+  options: DocumentPdfOptions = {},
 ): Promise<Blob> {
   const viewModel = buildPdfViewModelForDocument(doc, profile);
   const artifacts = await preparePdfArtifactsForViewModel(viewModel);
-  return buildDocumentPdfFromViewModel(viewModel, artifacts).output("blob");
+  return buildDocumentPdfFromViewModel(viewModel, artifacts, options).output(
+    "blob",
+  );
 }
 
 function pdfFilename(doc: Document): string {
@@ -565,19 +602,21 @@ export function triggerPdfBlobDownload(blob: Blob, filename: string): void {
 export async function downloadDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
+  options: DocumentPdfOptions = {},
 ): Promise<void> {
-  const blob = await buildDocumentPdfBlob(doc, profile);
+  const blob = await buildDocumentPdfBlob(doc, profile, options);
   triggerPdfBlobDownload(blob, pdfFilename(doc));
 }
 
 export async function openDocumentPdfPreview(
   doc: Document,
   profile: BusinessProfile,
+  options: DocumentPdfOptions = {},
 ): Promise<void> {
   const opened = openPdfWindow(pdfFilename(doc));
 
   try {
-    const blob = await buildDocumentPdfBlob(doc, profile);
+    const blob = await buildDocumentPdfBlob(doc, profile, options);
     const url = URL.createObjectURL(blob);
     renderPdfWindow(opened, url, pdfFilename(doc));
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -590,11 +629,12 @@ export async function openDocumentPdfPreview(
 export async function printDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
+  options: DocumentPdfOptions = {},
 ): Promise<void> {
   const opened = openPdfWindow(`Imprimir ${pdfFilename(doc)}`);
 
   try {
-    const blob = await buildDocumentPdfBlob(doc, profile);
+    const blob = await buildDocumentPdfBlob(doc, profile, options);
     const url = URL.createObjectURL(blob);
     renderPdfWindow(opened, url, pdfFilename(doc), { print: true });
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

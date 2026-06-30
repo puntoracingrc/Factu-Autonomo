@@ -17,6 +17,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
@@ -130,7 +131,9 @@ export function DocumentList({
   basePath,
 }: DocumentListProps) {
   const { data, getDocumentsByType } = useAppStore();
+  const { billingEnabled, isPro } = useBilling();
   const vatExempt = isVatExempt(data.profile);
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
@@ -176,7 +179,7 @@ export function DocumentList({
   async function handlePdfPreview(doc: Document) {
     setPreviewingDocumentId(doc.id);
     try {
-      const blob = await buildDocumentPdfBlob(doc, data.profile);
+      const blob = await buildDocumentPdfBlob(doc, data.profile, pdfOptions);
       const url = URL.createObjectURL(blob);
       setPdfPreview((current) => {
         if (current) URL.revokeObjectURL(current.url);

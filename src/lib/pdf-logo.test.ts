@@ -87,4 +87,30 @@ describe("buildDocumentPdf", () => {
 
     expect(pdf.getNumberOfPages()).toBe(1);
   });
+
+  it("añade la marca de plan gratis solo cuando se solicita", () => {
+    const doc: Document = {
+      ...baseDoc,
+      items: [
+        {
+          id: "l1",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+    };
+    const freePdf = buildDocumentPdf(doc, DEFAULT_PROFILE, {}, {
+      freePlanBranding: true,
+    });
+    const proPdf = buildDocumentPdf(doc, DEFAULT_PROFILE);
+
+    expect(freePdf.output()).toContain(
+      "Factura realizada con facturacion-autonomos.app",
+    );
+    expect(proPdf.output()).not.toContain(
+      "Factura realizada con facturacion-autonomos.app",
+    );
+  });
 });

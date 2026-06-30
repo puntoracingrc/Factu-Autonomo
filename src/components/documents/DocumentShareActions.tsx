@@ -12,17 +12,20 @@ import {
 } from "@/lib/share";
 import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
 import type { BusinessProfile, Document } from "@/lib/types";
+import type { DocumentPdfOptions } from "@/lib/pdf";
 
 interface DocumentShareActionsProps {
   doc: Document;
   profile: BusinessProfile;
   markSentOnShare?: boolean;
+  pdfOptions?: DocumentPdfOptions;
 }
 
 export function DocumentShareActions({
   doc,
   profile,
   markSentOnShare = true,
+  pdfOptions,
 }: DocumentShareActionsProps) {
   const { issueDocument, markDocumentSent } = useAppStore();
   const [busy, setBusy] = useState<"email" | "whatsapp" | null>(null);
@@ -39,7 +42,7 @@ export function DocumentShareActions({
         issueDocument,
         markDocumentSent,
         markSentOnShare,
-        share: (current) => shareDocumentByEmail(current, profile),
+        share: (current) => shareDocumentByEmail(current, profile, pdfOptions),
       });
     } finally {
       setBusy(null);
@@ -55,7 +58,8 @@ export function DocumentShareActions({
         issueDocument,
         markDocumentSent,
         markSentOnShare,
-        share: (current) => shareDocumentByWhatsApp(current, profile),
+        share: (current) =>
+          shareDocumentByWhatsApp(current, profile, pdfOptions),
       });
     } finally {
       setBusy(null);
