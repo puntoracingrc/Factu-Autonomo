@@ -13,7 +13,7 @@ export const facturasSection: ManualSection = {
       title: "1. Crear una factura nueva",
       paragraphs: [
         "Ve a **Facturas** → **Nueva factura** (o usa el acceso rápido en Inicio).",
-        "Elige o crea un **cliente**, añade líneas con concepto, cantidad y precio, y revisa el IVA de cada línea.",
+        "Elige o crea un **cliente**, añade líneas con concepto, cantidad, unidad, precio con o sin IVA, y revisa el IVA de cada línea. En escritorio se muestran compactas; en móvil se apilan para poder rellenarlas sin pelearte con la pantalla.",
         "Si tienes plan **Pro**, puedes pegar datos de facturación en **Rellenar con IA** dentro de **Datos del cliente**. La app rellena la ficha y, si es un cliente nuevo, lo guarda automáticamente al guardar la factura.",
         "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar. La **Vista previa borrador** usa el mismo generador de PDF que la descarga, pero sin emitir la factura.",
       ],
