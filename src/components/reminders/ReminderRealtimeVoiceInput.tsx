@@ -9,7 +9,10 @@ import {
 } from "@/components/legal/AiProcessingConsentNotice";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import { appendVoiceTranscript } from "@/lib/reminder-voice";
+import {
+  appendVoiceTranscript,
+  normalizeVoiceTranscript,
+} from "@/lib/reminder-voice";
 
 const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 
@@ -18,6 +21,7 @@ type VoiceStatus = "idle" | "connecting" | "listening" | "stopping";
 interface ReminderRealtimeVoiceInputProps {
   value: string;
   onChange: (value: string) => void;
+  onTranscript?: (transcript: string) => void;
   onActivity?: () => void;
 }
 
@@ -40,6 +44,7 @@ interface RealtimeMessage {
 export function ReminderRealtimeVoiceInput({
   value,
   onChange,
+  onTranscript,
   onActivity,
 }: ReminderRealtimeVoiceInputProps) {
   const { billingEnabled, isPro, loading: billingLoading } = useBilling();
@@ -80,7 +85,16 @@ export function ReminderRealtimeVoiceInput({
   }, []);
 
   function applyTranscript(transcript: string) {
-    const next = appendVoiceTranscript(currentValueRef.current, transcript);
+    const cleanTranscript = normalizeVoiceTranscript(transcript);
+    if (!cleanTranscript) return;
+
+    if (onTranscript) {
+      onActivity?.();
+      onTranscript(cleanTranscript);
+      return;
+    }
+
+    const next = appendVoiceTranscript(currentValueRef.current, cleanTranscript);
     if (next === currentValueRef.current) return;
     currentValueRef.current = next;
     onChange(next);
