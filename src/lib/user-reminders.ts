@@ -74,7 +74,14 @@ export function resolveReminderHref(
     case "none":
       return undefined;
     case "new_invoice":
+      if (link.entityId) return newDocumentUrl("factura", link.entityId);
       return "/facturas/nuevo";
+    case "new_quote":
+      if (link.entityId) return newDocumentUrl("presupuesto", link.entityId);
+      return "/presupuestos/nuevo";
+    case "new_receipt":
+      if (link.entityId) return newDocumentUrl("recibo", link.entityId);
+      return "/recibos/nuevo";
     case "new_expense":
       return "/gastos/nuevo";
     case "customer":
@@ -85,7 +92,7 @@ export function resolveReminderHref(
       return documentDetailPath(data.documents, link.entityId);
     case "rectify":
       if (!link.entityId) return undefined;
-      return `/facturas/${link.entityId}/rectificar`;
+      return documentRectificationPath(data.documents, link.entityId);
     default:
       return undefined;
   }
@@ -97,6 +104,17 @@ function documentDetailPath(documents: Document[], id: string): string | undefin
   if (doc.type === "factura") return `/facturas/${doc.id}`;
   if (doc.type === "presupuesto") return `/presupuestos/${doc.id}`;
   return `/recibos/${doc.id}`;
+}
+
+function documentRectificationPath(
+  documents: Document[],
+  id: string,
+): string | undefined {
+  const doc = documents.find((entry) => entry.id === id);
+  if (!doc) return undefined;
+  if (doc.type === "factura") return `/facturas/${doc.id}/rectificar`;
+  if (doc.type === "presupuesto") return `/presupuestos/${doc.id}`;
+  return undefined;
 }
 
 export function linkKindLabel(kind: UserReminderLink["kind"]): string {
@@ -111,6 +129,10 @@ export function linkKindLabel(kind: UserReminderLink["kind"]): string {
       return "Rectificar factura";
     case "new_invoice":
       return "Nueva factura";
+    case "new_quote":
+      return "Nuevo presupuesto";
+    case "new_receipt":
+      return "Nuevo recibo";
     case "new_expense":
       return "Nuevo gasto";
   }

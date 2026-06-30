@@ -439,6 +439,8 @@ export type UserReminderLinkKind =
   | "document"
   | "rectify"
   | "new_invoice"
+  | "new_quote"
+  | "new_receipt"
   | "new_expense";
 
 export type UserReminderTarget = "self" | "office";

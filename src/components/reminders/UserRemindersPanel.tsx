@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Plus, RotateCcw, Search, Send, Trash2, X } from "lucide-react";
+import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -10,24 +11,35 @@ import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   completedUserReminders,
-  linkKindLabel,
   pendingUserReminders,
   resolveReminderHref,
 } from "@/lib/user-reminders";
+import { formatShortDate } from "@/lib/calculations";
+import {
+  filterDocumentsByQuery,
+  sortDocumentsByNewest,
+} from "@/lib/documents";
 import {
   OFFICE_REMINDER_TEMPLATES,
   guessReminderOrigin,
 } from "@/lib/reminder-team";
-import type { UserReminderLinkKind } from "@/lib/types";
+import type {
+  Document,
+  DocumentType,
+  UserReminderLink,
+  UserReminderLinkKind,
+} from "@/lib/types";
 
-const LINK_KINDS: UserReminderLinkKind[] = [
-  "none",
-  "new_invoice",
-  "new_expense",
-  "customer",
-  "document",
-  "rectify",
-];
+type ReminderLinkMode = "none" | "generate" | "rectify";
+type GenerateReminderDocumentType = Extract<
+  DocumentType,
+  "factura" | "presupuesto" | "recibo"
+>;
+type RectifyReminderDocumentType = Extract<
+  DocumentType,
+  "factura" | "presupuesto"
+>;
+type GenerateCustomerMode = "none" | "customer";
 
 export function UserRemindersPanel() {
   const {
@@ -43,11 +55,21 @@ export function UserRemindersPanel() {
   const [text, setText] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
-  const [linkKind, setLinkKind] = useState<UserReminderLinkKind>("none");
-  const [entityId, setEntityId] = useState("");
+  const [linkMode, setLinkMode] = useState<ReminderLinkMode>("none");
+  const [generateType, setGenerateType] =
+    useState<GenerateReminderDocumentType>("factura");
+  const [generateCustomerMode, setGenerateCustomerMode] =
+    useState<GenerateCustomerMode>("none");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null,
+  );
+  const [rectifyType, setRectifyType] =
+    useState<RectifyReminderDocumentType>("factura");
+  const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [target, setTarget] = useState<"self" | "office">("self");
   const [showCompleted, setShowCompleted] = useState(false);
   const [sentToOffice, setSentToOffice] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const pending = useMemo(
     () => pendingUserReminders(data.userReminders),
@@ -58,11 +80,15 @@ export function UserRemindersPanel() {
     [data.userReminders],
   );
 
-  const invoiceDocuments = data.documents.filter((doc) => doc.type === "factura");
-  const needsEntity =
-    linkKind === "customer" ||
-    linkKind === "document" ||
-    linkKind === "rectify";
+  const rectifiableDocuments = useMemo(
+    () =>
+      data.documents.filter((doc) =>
+        rectifyType === "factura"
+          ? doc.type === "factura"
+          : doc.type === "presupuesto",
+      ),
+    [data.documents, rectifyType],
+  );
 
   useEffect(() => {
     if (window.location.hash !== "#nuevo-recordatorio") return;
@@ -78,15 +104,21 @@ export function UserRemindersPanel() {
     setText("");
     setDueDate("");
     setDueTime("");
-    setLinkKind("none");
-    setEntityId("");
+    setLinkMode("none");
+    setGenerateType("factura");
+    setGenerateCustomerMode("none");
+    setSelectedCustomerId(null);
+    setRectifyType("factura");
+    setSelectedDocumentId("");
     setTarget("self");
+    setFormError(null);
   }
 
   function openForm(nextTarget: "self" | "office") {
     setShowForm(true);
     setTarget(nextTarget);
     setSentToOffice(false);
+    setFormError(null);
     window.requestAnimationFrame(() => {
       document
         .getElementById("nuevo-recordatorio")
@@ -96,16 +128,72 @@ export function UserRemindersPanel() {
 
   function applyOfficeTemplate(kind: UserReminderLinkKind, presetText: string) {
     setTarget("office");
-    setLinkKind(kind);
+    applyLinkKindToForm(kind);
     setText(presetText);
-    setEntityId("");
+    setSelectedCustomerId(null);
+    setSelectedDocumentId("");
+    setFormError(null);
     setSentToOffice(false);
+  }
+
+  function applyLinkKindToForm(kind: UserReminderLinkKind) {
+    if (kind === "new_invoice" || kind === "customer") {
+      setLinkMode("generate");
+      setGenerateType("factura");
+      setGenerateCustomerMode(kind === "customer" ? "customer" : "none");
+    } else if (kind === "new_quote") {
+      setLinkMode("generate");
+      setGenerateType("presupuesto");
+      setGenerateCustomerMode("none");
+    } else if (kind === "new_receipt") {
+      setLinkMode("generate");
+      setGenerateType("recibo");
+      setGenerateCustomerMode("none");
+    } else if (kind === "rectify") {
+      setLinkMode("rectify");
+      setRectifyType("factura");
+    } else {
+      setLinkMode("none");
+    }
+  }
+
+  function buildReminderLink(): UserReminderLink | null {
+    if (linkMode === "none") {
+      return { kind: "none" };
+    }
+
+    if (linkMode === "generate") {
+      if (generateCustomerMode === "customer" && !selectedCustomerId) {
+        setFormError("Elige un cliente o cambia a Sin cliente.");
+        return null;
+      }
+      const entityId =
+        generateCustomerMode === "customer" && selectedCustomerId
+          ? selectedCustomerId
+          : undefined;
+      if (generateType === "factura") {
+        return { kind: "new_invoice", entityId };
+      }
+      if (generateType === "presupuesto") {
+        return { kind: "new_quote", entityId };
+      }
+      return { kind: "new_receipt", entityId };
+    }
+
+    if (!selectedDocumentId) {
+      setFormError("Elige el documento que quieres rectificar.");
+      return null;
+    }
+    return { kind: "rectify", entityId: selectedDocumentId };
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const trimmed = text.trim();
     if (!trimmed) return;
+    setFormError(null);
+    const link = buildReminderLink();
+    if (!link) return;
 
     addUserReminder({
       text: trimmed,
@@ -113,10 +201,7 @@ export function UserRemindersPanel() {
       dueTime: dueTime || undefined,
       target,
       origin: guessReminderOrigin(),
-      link: {
-        kind: linkKind,
-        entityId: needsEntity && entityId ? entityId : undefined,
-      },
+      link,
     });
 
     if (target === "office" && user) {
@@ -250,69 +335,99 @@ export function UserRemindersPanel() {
 
             <Field label="Enlace rápido (opcional)">
               <Select
-                value={linkKind}
+                value={linkMode}
                 onChange={(event) => {
-                  setLinkKind(event.target.value as UserReminderLinkKind);
-                  setEntityId("");
+                  setLinkMode(event.target.value as ReminderLinkMode);
+                  setSelectedCustomerId(null);
+                  setSelectedDocumentId("");
+                  setFormError(null);
                 }}
               >
-                {LINK_KINDS.map((kind) => (
-                  <option key={kind} value={kind}>
-                    {linkKindLabel(kind)}
-                  </option>
-                ))}
+                <option value="none">Sin enlace</option>
+                <option value="generate">Generar</option>
+                <option value="rectify">Rectificar</option>
               </Select>
             </Field>
 
-            {linkKind === "customer" ? (
-              <Field label="Cliente">
-                <Select
-                  value={entityId}
-                  onChange={(event) => setEntityId(event.target.value)}
-                  required
-                >
-                  <option value="">Elige un cliente</option>
-                  {data.customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            {linkMode === "generate" ? (
+              <div className="grid gap-4 rounded-2xl border border-blue-100 bg-white/80 p-4 sm:grid-cols-2">
+                <Field label="Qué generar">
+                  <Select
+                    value={generateType}
+                    onChange={(event) => {
+                      setGenerateType(
+                        event.target.value as GenerateReminderDocumentType,
+                      );
+                      setFormError(null);
+                    }}
+                  >
+                    <option value="presupuesto">Presupuesto</option>
+                    <option value="factura">Factura</option>
+                    <option value="recibo">Recibo</option>
+                  </Select>
+                </Field>
+
+                <Field label="Cliente">
+                  <Select
+                    value={generateCustomerMode}
+                    onChange={(event) => {
+                      const value = event.target.value as GenerateCustomerMode;
+                      setGenerateCustomerMode(value);
+                      if (value === "none") setSelectedCustomerId(null);
+                      setFormError(null);
+                    }}
+                  >
+                    <option value="none">Sin cliente</option>
+                    <option value="customer">Cliente</option>
+                  </Select>
+                </Field>
+                {generateCustomerMode === "customer" ? (
+                  <div className="sm:col-span-2">
+                    <CustomerListSearch
+                      customers={data.customers}
+                      selectedCustomerId={selectedCustomerId}
+                      onSelectCustomer={(customer) => {
+                        setSelectedCustomerId(customer?.id ?? null);
+                        setFormError(null);
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
 
-            {linkKind === "document" ? (
-              <Field label="Documento">
-                <Select
-                  value={entityId}
-                  onChange={(event) => setEntityId(event.target.value)}
-                  required
-                >
-                  <option value="">Elige un documento</option>
-                  {data.documents.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.number} · {doc.client.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            {linkMode === "rectify" ? (
+              <div className="grid gap-4 rounded-2xl border border-orange-100 bg-white/80 p-4">
+                <Field label="Documento a rectificar">
+                  <Select
+                    value={rectifyType}
+                    onChange={(event) => {
+                      setRectifyType(
+                        event.target.value as RectifyReminderDocumentType,
+                      );
+                      setSelectedDocumentId("");
+                      setFormError(null);
+                    }}
+                  >
+                    <option value="presupuesto">Presupuesto</option>
+                    <option value="factura">Factura</option>
+                  </Select>
+                </Field>
+                <DocumentPickerSearch
+                  documents={rectifiableDocuments}
+                  selectedDocumentId={selectedDocumentId}
+                  onSelectDocument={(doc) => {
+                    setSelectedDocumentId(doc?.id ?? "");
+                    setFormError(null);
+                  }}
+                />
+              </div>
             ) : null}
 
-            {linkKind === "rectify" ? (
-              <Field label="Factura a rectificar">
-                <Select
-                  value={entityId}
-                  onChange={(event) => setEntityId(event.target.value)}
-                  required
-                >
-                  <option value="">Elige una factura</option>
-                  {invoiceDocuments.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.number} · {doc.client.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            {formError ? (
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                {formError}
+              </p>
             ) : null}
 
             <div className="flex flex-wrap gap-2">
@@ -419,4 +534,162 @@ export function UserRemindersPanel() {
       ) : null}
     </div>
   );
+}
+
+function DocumentPickerSearch({
+  documents,
+  selectedDocumentId,
+  onSelectDocument,
+}: {
+  documents: Document[];
+  selectedDocumentId: string;
+  onSelectDocument: (document: Document | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedDocument = useMemo(
+    () =>
+      selectedDocumentId
+        ? documents.find((document) => document.id === selectedDocumentId) ?? null
+        : null,
+    [documents, selectedDocumentId],
+  );
+
+  const results = useMemo(() => {
+    const sorted = sortDocumentsByNewest(documents);
+    if (!search.trim()) return sorted.slice(0, 15);
+    return filterDocumentsByQuery(sorted, search).slice(0, 20);
+  }, [documents, search]);
+
+  useEffect(() => {
+    setHighlight(0);
+  }, [search]);
+
+  useEffect(() => {
+    if (selectedDocument) {
+      setSearch(documentPickerLabel(selectedDocument));
+    }
+  }, [selectedDocument]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function applyDocument(document: Document) {
+    onSelectDocument(document);
+    setSearch(documentPickerLabel(document));
+    setOpen(false);
+  }
+
+  function clearSelection() {
+    onSelectDocument(null);
+    setSearch("");
+    setOpen(false);
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || results.length === 0) {
+      if (event.key === "Enter" && results.length === 1) {
+        event.preventDefault();
+        applyDocument(results[0]);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((value) => Math.min(value + 1, results.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((value) => Math.max(value - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      applyDocument(results[highlight]);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <Field
+        label="Buscar documento"
+        hint="Escribe número, cliente, NIF, dirección o importe"
+      >
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setOpen(true);
+              if (selectedDocumentId) onSelectDocument(null);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ej.: cliente, número o importe..."
+            className="pl-10"
+          />
+          {selectedDocumentId && (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Quitar documento"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </Field>
+
+      {open && !selectedDocumentId && (
+        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+          {results.length === 0 ? (
+            <li className="px-4 py-3 text-sm text-slate-500">
+              No hay documentos que coincidan
+            </li>
+          ) : (
+            results.map((document, index) => (
+              <li key={document.id}>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => applyDocument(document)}
+                  className={`w-full px-4 py-3 text-left transition-colors ${
+                    index === highlight
+                      ? "bg-blue-50 text-blue-900"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="font-semibold text-slate-900">
+                    {documentPickerLabel(document)}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {document.client.name} · {formatShortDate(document.date)}
+                  </p>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function documentPickerLabel(document: Document): string {
+  return `${document.number} · ${document.client.name}`;
 }

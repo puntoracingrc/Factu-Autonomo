@@ -17,6 +17,12 @@ describe("newDocumentUrl", () => {
     );
   });
 
+  it("genera URL de recibo con cliente", () => {
+    expect(newDocumentUrl("recibo", "r-123")).toBe(
+      `/recibos/nuevo?${CUSTOMER_QUERY_PARAM}=r-123`,
+    );
+  });
+
   it("codifica el cliente para que la preselección viaje segura", () => {
     expect(newDocumentUrl("factura", "cliente con espacios")).toBe(
       `/facturas/nuevo?${CUSTOMER_QUERY_PARAM}=cliente%20con%20espacios`,

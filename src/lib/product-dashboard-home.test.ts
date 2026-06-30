@@ -78,8 +78,9 @@ describe("product dashboard home", () => {
   it("no enlaza recordatorios libres a nueva factura por defecto", () => {
     const panel = source("../components/reminders/UserRemindersPanel.tsx");
 
-    expect(panel).toContain('useState<UserReminderLinkKind>("none")');
-    expect(panel).toContain('setLinkKind("none")');
+    expect(panel).toContain('useState<ReminderLinkMode>("none")');
+    expect(panel).toContain('setLinkMode("none")');
+    expect(panel).toContain("DocumentPickerSearch");
     expect(panel).toContain('"#nuevo-recordatorio"');
     expect(panel).toContain('id="nuevo-recordatorio"');
     expect(panel).toContain("OFFICE_REMINDER_TEMPLATES");

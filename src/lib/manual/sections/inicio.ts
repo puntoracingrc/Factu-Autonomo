@@ -27,7 +27,8 @@ export const inicioSection: ManualSection = {
       paragraphs: [
         "La sección **Recordatorios del equipo** solo aparece en Inicio cuando hay tareas pendientes.",
         "Marca el check al completarlas o pulsa **Ir** si el recordatorio tiene un enlace rápido. Si no elegiste enlace al crearlo, no se fuerza ninguna pantalla concreta.",
-        "En **Avisos > Mis tareas** puedes crear recordatorios personales o de oficina. Si compartís la **misma cuenta Pro con nube**, los recordatorios «Para oficina» se sincronizan mientras la app está abierta.",
+        "En **Avisos > Mis tareas** puedes crear recordatorios personales o de oficina. El enlace rápido puede ser **Sin enlace**, **Generar** (presupuesto, factura o recibo, con cliente opcional) o **Rectificar** (buscando el documento por cliente, número o importe).",
+        "Si compartís la **misma cuenta Pro con nube**, los recordatorios «Para oficina» se sincronizan mientras la app está abierta.",
       ],
       screenshot: {
         src: "/ayuda/capturas/inicio-recordatorios.png",

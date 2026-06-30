@@ -46,7 +46,7 @@ describe("user-reminders", () => {
     ).toBe(true);
   });
 
-  it("resuelve enlaces a factura y rectificación", () => {
+  it("resuelve enlaces a documentos nuevos y rectificación", () => {
     const data = {
       ...EMPTY_DATA,
       customers: [
@@ -77,6 +77,15 @@ describe("user-reminders", () => {
     expect(
       resolveReminderHref(data, { kind: "customer", entityId: "c1" }),
     ).toBe("/facturas/nuevo?cliente=c1");
+    expect(
+      resolveReminderHref(data, { kind: "new_invoice", entityId: "c1" }),
+    ).toBe("/facturas/nuevo?cliente=c1");
+    expect(
+      resolveReminderHref(data, { kind: "new_quote", entityId: "c1" }),
+    ).toBe("/presupuestos/nuevo?cliente=c1");
+    expect(
+      resolveReminderHref(data, { kind: "new_receipt", entityId: "c1" }),
+    ).toBe("/recibos/nuevo?cliente=c1");
     expect(
       resolveReminderHref(data, { kind: "rectify", entityId: "f1" }),
     ).toBe("/facturas/f1/rectificar");

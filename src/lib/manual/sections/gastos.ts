@@ -22,8 +22,8 @@ export const gastosSection: ManualSection = {
     {
       title: "2. Filtrar por mes, trimestre o año",
       paragraphs: [
-        "En el listado usa los filtros de **periodo** y, si quieres, filtra por **proveedor** pulsando el gráfico circular.",
-        "El total gastado se actualiza según los filtros activos.",
+        "En el listado usa los filtros de **periodo** y **gasto**. También puedes filtrar pulsando un segmento del gráfico o su leyenda.",
+        "El total gastado aparece junto a los filtros y se actualiza según lo que tengas seleccionado. Pulsa **Restablecer** en el bloque de gráficos para volver al listado completo.",
         "Los gastos se ordenan de más nuevos a más antiguos, muestran separadores por mes y cargan 30 resultados cada vez para que la página no pese con historiales grandes.",
       ],
       screenshot: {
@@ -34,7 +34,7 @@ export const gastosSection: ManualSection = {
     {
       title: "3. Exportar CSV",
       paragraphs: [
-        "Pulsa **Exportar CSV** para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
+        "Pulsa **Exportar CSV** en el bloque de filtros para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
         "El archivo respeta los filtros que tengas activos.",
         "La exportación manual de copia de datos está en **Cuenta**; este CSV es el listado de gastos para revisión o gestor.",
       ],
@@ -47,7 +47,8 @@ export const gastosSection: ManualSection = {
     {
       title: "4. Gastos fijos",
       paragraphs: [
-        "En **Gastos fijos** defines pagos recurrentes (alquiler, software, etc.). La app te avisará cuando toque registrarlos.",
+        "En **Gastos fijos** defines pagos recurrentes (alquiler, software, cuota de autónomos, etc.). La app crea el gasto automáticamente cuando toca y lo verás en **Gastos y compras**.",
+        "Desde esa pantalla puedes volver al listado principal con **Volver**.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-fijos.png",
