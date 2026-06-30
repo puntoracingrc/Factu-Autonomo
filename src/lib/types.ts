@@ -214,6 +214,7 @@ export interface RecurringExpense {
 export interface Expense {
   id: string;
   date: string;
+  origin?: "manual" | "scan" | "import" | "recurring";
   supplierId?: string;
   supplierName: string;
   description: string;

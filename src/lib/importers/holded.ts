@@ -618,6 +618,7 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
     expense: {
       id: holdedId("expense", sourceKey),
       date: isoDate(get(row, "fecha")),
+      origin: "import",
       supplierId: supplier?.id,
       supplierName: supplier?.name || get(row, "proveedor_nombre") || "",
       description:

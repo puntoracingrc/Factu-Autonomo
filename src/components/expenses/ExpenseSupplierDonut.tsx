@@ -2,11 +2,14 @@
 
 import { formatMoney } from "@/lib/calculations";
 import type { SupplierSpendSlice } from "@/lib/expense-filters";
+import { useState } from "react";
 
 interface ExpenseSupplierDonutProps {
   slices: SupplierSpendSlice[];
   selectedKey: string | null;
   onSelect: (key: string | null) => void;
+  ariaLabel?: string;
+  maxLegendItems?: number;
 }
 
 const SIZE = 160;
@@ -46,10 +49,15 @@ export function ExpenseSupplierDonut({
   slices,
   selectedKey,
   onSelect,
+  ariaLabel = "Gastos por proveedor",
+  maxLegendItems = 5,
 }: ExpenseSupplierDonutProps) {
+  const [expanded, setExpanded] = useState(false);
   if (slices.length === 0) return null;
 
   let angle = 0;
+  const visibleSlices = expanded ? slices : slices.slice(0, maxLegendItems);
+  const hiddenCount = Math.max(slices.length - visibleSlices.length, 0);
 
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-6">
@@ -60,7 +68,7 @@ export function ExpenseSupplierDonut({
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           className="drop-shadow-sm"
           role="img"
-          aria-label="Gastos por proveedor"
+          aria-label={ariaLabel}
         >
           {slices.map((slice) => {
             const sweep = (slice.percent / 100) * 360;
@@ -79,6 +87,17 @@ export function ExpenseSupplierDonut({
                 onClick={() =>
                   onSelect(selectedKey === slice.key ? null : slice.key)
                 }
+                tabIndex={0}
+                role="button"
+                aria-label={`${slice.label}: ${formatMoney(
+                  slice.amount,
+                )}, ${slice.percent.toFixed(0)}%`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(selectedKey === slice.key ? null : slice.key);
+                  }
+                }}
               >
                 <title>
                   {slice.label}: {formatMoney(slice.amount)} (
@@ -91,7 +110,7 @@ export function ExpenseSupplierDonut({
       </div>
 
       <ul className="w-full min-w-0 space-y-2 sm:flex-1">
-        {slices.map((slice) => {
+        {visibleSlices.map((slice) => {
           const selected = selectedKey === slice.key;
           return (
             <li key={slice.key}>
@@ -100,29 +119,45 @@ export function ExpenseSupplierDonut({
                 onClick={() =>
                   onSelect(selected ? null : slice.key)
                 }
-                className={`flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-sm transition-colors ${
+                className={`grid w-full grid-cols-[auto,minmax(0,1fr)] items-center gap-x-2 rounded-xl px-2 py-1.5 text-left text-sm transition-colors ${
                   selected
                     ? "bg-blue-50 ring-1 ring-blue-200"
                     : "hover:bg-slate-50"
                 }`}
+                title={`${slice.label}: ${formatMoney(
+                  slice.amount,
+                )} (${slice.percent.toFixed(0)}%)`}
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-full"
                   style={{ backgroundColor: slice.color }}
                 />
-                <span className="min-w-0 flex-1 truncate font-medium text-slate-800">
-                  {slice.label}
-                </span>
-                <span className="shrink-0 tabular-nums text-slate-600">
-                  {slice.percent.toFixed(0)}%
-                </span>
-                <span className="shrink-0 tabular-nums font-semibold text-slate-900">
-                  {formatMoney(slice.amount)}
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-slate-800">
+                    {slice.label}
+                  </span>
+                  <span className="block text-xs tabular-nums text-slate-500">
+                    {slice.percent.toFixed(0)}% ·{" "}
+                    <strong className="font-semibold text-slate-900">
+                      {formatMoney(slice.amount)}
+                    </strong>
+                  </span>
                 </span>
               </button>
             </li>
           );
         })}
+        {hiddenCount > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="rounded-full border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              + {hiddenCount}
+            </button>
+          </li>
+        )}
       </ul>
     </div>
   );

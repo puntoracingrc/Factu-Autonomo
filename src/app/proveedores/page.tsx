@@ -260,12 +260,12 @@ export default function ProveedoresPage() {
       )}
 
       {!formOpen && (
-        <Card className="mb-6 space-y-3">
+        <Card className="mb-4 space-y-2 p-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
             Acciones
           </h2>
           {!mergeMode ? (
-            <>
+            <div className="grid gap-2 sm:grid-cols-2">
               <Button onClick={openNewForm} fullWidth className="gap-2">
                 <Truck className="h-5 w-5" />
                 Nuevo proveedor
@@ -278,7 +278,7 @@ export default function ProveedoresPage() {
                   className="mb-0"
                 />
               )}
-            </>
+            </div>
           ) : (
             <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
               <X className="h-5 w-5" />
@@ -424,7 +424,7 @@ export default function ProveedoresPage() {
       ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
           {!mergeMode && (
-            <Card className="space-y-4">
+            <Card className="space-y-3 p-4">
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Buscar y ordenar
               </h2>

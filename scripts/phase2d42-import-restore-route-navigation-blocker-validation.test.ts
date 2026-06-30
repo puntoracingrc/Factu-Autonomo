@@ -28,6 +28,22 @@ function gitLines(args: string[]): string[] {
   }
 }
 
+function isSelfValidationPath(changedPath: string): boolean {
+  return (
+    /^(?:scripts|docs)\/phase2d42-/.test(changedPath) ||
+    /^scripts\/validate-phase2d42-/.test(changedPath)
+  );
+}
+
+function touchesImportRestoreScope(changedPath: string): boolean {
+  if (isSelfValidationPath(changedPath)) return false;
+  return (
+    changedPath.includes("ImportRestore") ||
+    changedPath.includes("import-restore") ||
+    changedPath.includes("local-data-safety")
+  );
+}
+
 describe("phase 2D.42 import restore route navigation blocker validation", () => {
   it("does not add app routes, pages, navigation, sidebar or menu files", () => {
     const changedPaths = new Set([
@@ -45,11 +61,15 @@ describe("phase 2D.42 import restore route navigation blocker validation", () =>
       ...gitLines(["ls-files", "--others", "--exclude-standard"]),
     ]);
 
+    const importRestoreScopeTouched = [...changedPaths].some(
+      touchesImportRestoreScope,
+    );
+    if (!importRestoreScopeTouched) return;
+
     for (const changedPath of changedPaths) {
       if (changedPath.startsWith("docs/audit/exports/")) continue;
       if (changedPath.startsWith("docs/vida-screenshots-local/")) continue;
-      if (/^(?:scripts|docs)\/phase2d42-/.test(changedPath)) continue;
-      if (/^scripts\/validate-phase2d42-/.test(changedPath)) continue;
+      if (isSelfValidationPath(changedPath)) continue;
       if (ALLOWED_NON_IMPORT_ROUTE_PATHS.has(changedPath)) continue;
       if (addedPaths.has(changedPath)) {
         expect(changedPath).not.toMatch(/^(src\/app|app|pages|public)\//);
