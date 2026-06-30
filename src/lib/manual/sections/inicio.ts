@@ -28,7 +28,7 @@ export const inicioSection: ManualSection = {
         "La sección **Recordatorios del equipo** solo aparece en Inicio cuando hay tareas pendientes.",
         "Marca el check al completarlas o pulsa **Ir** si el recordatorio tiene un enlace rápido. Si no elegiste enlace al crearlo, no se fuerza ninguna pantalla concreta.",
         "En **Avisos > Mis tareas** puedes crear recordatorios personales o de oficina. El enlace rápido puede ser **Sin enlace**, **Generar** (presupuesto, factura o recibo, con cliente opcional) o **Rectificar** (buscando el documento por cliente, número o importe).",
-        "Si eres Pro, puedes usar **Dictar con IA** para hablar y convertir la voz en texto del recordatorio. Revisa siempre la transcripción antes de guardarlo.",
+        "Si eres Pro, puedes usar **Dictar con IA** para hablar y convertir la voz en texto del recordatorio. Si dices factura, presupuesto, recibo o rectificar, Factu prepara el enlace rápido y busca el cliente por cercanía. También entiende frases como «borra todo» o «empezamos de nuevo» para limpiar el borrador. Revisa siempre la transcripción antes de guardarlo.",
         "Si compartís la **misma cuenta Pro con nube**, los recordatorios «Para oficina» se sincronizan mientras la app está abierta.",
       ],
       screenshot: {

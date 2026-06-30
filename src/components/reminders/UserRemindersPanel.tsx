@@ -24,6 +24,12 @@ import {
   OFFICE_REMINDER_TEMPLATES,
   guessReminderOrigin,
 } from "@/lib/reminder-team";
+import {
+  interpretReminderVoiceIntent,
+  type ReminderVoiceIntent,
+} from "@/lib/reminder-voice-intent";
+import { appendVoiceTranscript } from "@/lib/reminder-voice";
+import { getCustomerDisplayName } from "@/lib/customers";
 import type {
   Document,
   DocumentType,
@@ -71,6 +77,7 @@ export function UserRemindersPanel() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [sentToOffice, setSentToOffice] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
 
   const pending = useMemo(
     () => pendingUserReminders(data.userReminders),
@@ -113,6 +120,7 @@ export function UserRemindersPanel() {
     setSelectedDocumentId("");
     setTarget("self");
     setFormError(null);
+    setVoiceHint(null);
   }
 
   function openForm(nextTarget: "self" | "office") {
@@ -120,6 +128,7 @@ export function UserRemindersPanel() {
     setTarget(nextTarget);
     setSentToOffice(false);
     setFormError(null);
+    setVoiceHint(null);
     window.requestAnimationFrame(() => {
       document
         .getElementById("nuevo-recordatorio")
@@ -134,6 +143,7 @@ export function UserRemindersPanel() {
     setSelectedCustomerId(null);
     setSelectedDocumentId("");
     setFormError(null);
+    setVoiceHint(null);
     setSentToOffice(false);
   }
 
@@ -156,6 +166,87 @@ export function UserRemindersPanel() {
     } else {
       setLinkMode("none");
     }
+  }
+
+  function clearVoiceDraft() {
+    setText("");
+    setDueDate("");
+    setDueTime("");
+    setLinkMode("none");
+    setGenerateType("factura");
+    setGenerateCustomerMode("none");
+    setSelectedCustomerId(null);
+    setRectifyType("factura");
+    setSelectedDocumentId("");
+    setSentToOffice(false);
+    setFormError(null);
+    setVoiceHint("He limpiado el recordatorio. Puedes empezar de nuevo.");
+  }
+
+  function applyVoiceIntent(intent: ReminderVoiceIntent) {
+    if (intent.linkMode === "reset") {
+      clearVoiceDraft();
+      return;
+    }
+
+    if (intent.linkMode === "none") {
+      setVoiceHint(null);
+      return;
+    }
+
+    if (intent.linkMode === "generate" && intent.generateType) {
+      setLinkMode("generate");
+      setGenerateType(intent.generateType);
+      setSelectedDocumentId("");
+      if (intent.customerMatch) {
+        setGenerateCustomerMode("customer");
+        setSelectedCustomerId(intent.customerMatch.customer.id);
+        setVoiceHint(
+          `Preparado: ${intent.generateType} para ${getCustomerDisplayName(
+            intent.customerMatch.customer,
+          )}.`,
+        );
+      } else {
+        setGenerateCustomerMode("none");
+        setSelectedCustomerId(null);
+        setVoiceHint(`Preparado: ${intent.generateType}.`);
+      }
+      return;
+    }
+
+    if (intent.linkMode === "rectify" && intent.rectifyType) {
+      setLinkMode("rectify");
+      setRectifyType(intent.rectifyType);
+      setGenerateCustomerMode("none");
+      setSelectedCustomerId(null);
+      if (intent.documentMatch) {
+        setSelectedDocumentId(intent.documentMatch.document.id);
+        setVoiceHint(`Preparado: rectificar ${intent.rectifyType}.`);
+      } else {
+        setSelectedDocumentId("");
+        setVoiceHint(`Preparado: rectificar ${intent.rectifyType}.`);
+      }
+    }
+  }
+
+  function handleVoiceTranscript(transcript: string) {
+    const intent = interpretReminderVoiceIntent({
+      transcript,
+      customers: data.customers,
+      documents: data.documents,
+    });
+
+    if (intent.linkMode === "reset") {
+      applyVoiceIntent(intent);
+      return;
+    }
+
+    const nextText = appendVoiceTranscript(text, transcript);
+    setText(nextText);
+    setSentToOffice(false);
+    setFormError(null);
+
+    applyVoiceIntent(intent);
   }
 
   function buildReminderLink(): UserReminderLink | null {
@@ -288,7 +379,11 @@ export function UserRemindersPanel() {
                   setText(nextText);
                   setSentToOffice(false);
                 }}
-                onActivity={() => setFormError(null)}
+                onTranscript={handleVoiceTranscript}
+                onActivity={() => {
+                  setFormError(null);
+                  setVoiceHint(null);
+                }}
               />
               <span className="text-xs text-slate-400">
                 Escribe la tarea con tus palabras
@@ -446,6 +541,11 @@ export function UserRemindersPanel() {
             {formError ? (
               <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
                 {formError}
+              </p>
+            ) : null}
+            {voiceHint ? (
+              <p className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900">
+                {voiceHint}
               </p>
             ) : null}
 
