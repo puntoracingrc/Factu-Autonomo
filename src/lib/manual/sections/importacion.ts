@@ -22,6 +22,7 @@ export const importacionSection: ManualSection = {
       title: "2. Subir el archivo de datos",
       paragraphs: [
         "Selecciona el archivo principal generado por el programa de origen. La app analiza el archivo y muestra una previsualización antes de importar nada.",
+        "Si eliges **Documentos sueltos**, puedes seleccionar varios Excel, Word o PDF con facturas, presupuestos, clientes o proveedores. La app leerá lo que pueda, clasificará cada archivo y te dirá qué queda fuera.",
         "La previsualización indica empresa detectada, clientes, facturas, presupuestos, líneas, fechas y avisos si hay datos antiguos que no se pueden casar con documentos activos.",
         "Si la app detecta datos de empresa o tipos de IVA, te mostrará un resumen comparando **Actual** y **Detectado**. Si marcas la casilla, solo rellena campos vacíos y añade tipos de IVA que falten; no pisa cambios que ya tengas escritos.",
       ],
@@ -39,6 +40,7 @@ export const importacionSection: ManualSection = {
       paragraphs: [
         "Cuando la previsualización sea correcta, pulsa **Importar a esta cuenta**. Si ya habías importado ese origen antes, la app reemplaza esa importación para evitar duplicados del mismo lote.",
         "Si el archivo trae facturas antiguas marcadas como impagadas, la app te preguntará si quieres mantener ese estado o marcarlas como pagadas al importar.",
+        "Antes de importar puedes pedir una **segunda revisión con IA**. Consume 1 unidad IA, no guarda cambios por sí sola y sirve para detectar dudas o riesgos en la previsualización.",
         "Los datos creados manualmente en Factura Autónomo se conservan. Si tienes sesión en la nube y plan Pro, los cambios se sincronizan con tus otros dispositivos.",
       ],
     },
