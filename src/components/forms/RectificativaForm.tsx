@@ -372,7 +372,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5.5rem_5.5rem] xl:grid-cols-[minmax(18rem,1fr)_5.5rem_5.5rem_8rem_8rem_9rem] xl:items-start">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem_7rem] lg:items-start">
                 <div className="col-span-2 md:col-span-1">
                   <Field label="Descripción">
                     <Input
