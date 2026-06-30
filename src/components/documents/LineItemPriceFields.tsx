@@ -35,14 +35,14 @@ export function LineItemPriceFields({
 
   return (
     <>
-      <Field label="Precio (sin IVA)">
+      <Field label="Sin IVA">
         <NumericFieldInput
           value={unitPrice}
           onChange={onUnitPriceChange}
           disabled={disabled}
         />
       </Field>
-      <Field label="Precio (con IVA)">
+      <Field label="Con IVA">
         <NumericFieldInput
           value={grossPrice}
           onChange={(gross) =>

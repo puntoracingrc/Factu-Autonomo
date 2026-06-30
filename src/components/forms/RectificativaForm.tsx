@@ -45,6 +45,7 @@ import {
   itemsForAnulacion,
   rectificationTypeLabel,
 } from "@/lib/rectificativas";
+import { lineItemFormTotal } from "@/lib/document-form-flow";
 import type { Document, LineItem, RectificationType } from "@/lib/types";
 import { RECTIFICATION_REASONS } from "@/lib/types";
 
@@ -343,39 +344,47 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
             </button>
           )}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {items.map((item, index) => (
             <div
               key={item.id}
-              className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+              className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-500">
-                  Línea {index + 1}
-                </span>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                    Línea {index + 1}
+                  </span>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">
+                    Trabajo, material o concepto rectificado
+                  </p>
+                </div>
                 {rectType === "correccion" && items.length > 1 && (
                   <button
                     type="button"
                     onClick={() =>
                       setItems((prev) => prev.filter((i) => i.id !== item.id))
                     }
-                    className="text-red-500"
+                    aria-label={`Eliminar línea ${index + 1}`}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Descripción">
-                  <Input
-                    value={item.description}
-                    onChange={(e) =>
-                      updateItem(item.id, { description: e.target.value })
-                    }
-                    disabled={rectType === "anulacion"}
-                  />
-                </Field>
-                <Field label="Cantidad">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5.5rem_5.5rem] xl:grid-cols-[minmax(18rem,1fr)_5.5rem_5.5rem_8rem_8rem_9rem] xl:items-start">
+                <div className="col-span-2 md:col-span-1">
+                  <Field label="Descripción">
+                    <Input
+                      value={item.description}
+                      onChange={(e) =>
+                        updateItem(item.id, { description: e.target.value })
+                      }
+                      disabled={rectType === "anulacion"}
+                    />
+                  </Field>
+                </div>
+                <Field label="Cant.">
                   <NumericFieldInput
                     value={item.quantity}
                     onChange={(quantity) =>
@@ -401,7 +410,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   disabled={rectType === "anulacion"}
                 />
                 {!vatExempt && (
-                  <Field label="IVA %">
+                  <Field label="IVA">
                     <IvaPercentSelect
                       value={item.ivaPercent}
                       onChange={(ivaPercent) =>
@@ -411,6 +420,11 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                     />
                   </Field>
                 )}
+              </div>
+              <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
+                <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
+                  Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
+                </p>
               </div>
             </div>
           ))}
