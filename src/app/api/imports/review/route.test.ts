@@ -146,7 +146,7 @@ describe("POST /api/imports/review", () => {
     expect(reviewImportWithAi).not.toHaveBeenCalled();
   });
 
-  it("si no puede descontar IA no llama al proveedor IA", async () => {
+  it("mantiene la revision Pro si falla temporalmente el registro de uso IA", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-pro",
@@ -161,13 +161,24 @@ describe("POST /api/imports/review", () => {
       quota: {} as Awaited<ReturnType<typeof consumeImportAiReview>>["quota"],
       blockedByQuota: false,
     });
+    vi.mocked(reviewImportWithAi).mockResolvedValue({
+      data: {
+        overallConfidence: "media",
+        verdict: "Importacion revisable, con adjuntos pendientes.",
+        improvements: [],
+        risks: [],
+        questions: [],
+        recommendedAction: "revisar",
+      },
+    });
 
     const response = await POST(request("token-pro", body()));
     const payload = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(payload.error).not.toContain("Supabase");
-    expect(reviewImportWithAi).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(payload.data.verdict).toContain("Importacion revisable");
+    expect(payload.usageWarning).not.toContain("Supabase");
+    expect(reviewImportWithAi).toHaveBeenCalled();
   });
 
   it("no consume saldo si la revision IA no esta configurada", async () => {

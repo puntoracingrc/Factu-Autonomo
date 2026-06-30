@@ -64,10 +64,12 @@ export async function POST(request: Request) {
 
   const userId = user?.id ?? "dev";
   const usage = await consumeImportAiReview(userId);
-  if (!usage.allowed) {
+  const softUsageWarning =
+    usage.allowed || usage.blockedByQuota ? undefined : usage.reason;
+  if (!usage.allowed && usage.blockedByQuota) {
     return NextResponse.json(
       { error: usage.reason, quota: usage.quota },
-      { status: usage.blockedByQuota ? 402 : 503 },
+      { status: 402 },
     );
   }
 
@@ -79,5 +81,9 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ data: result.data, quota: usage.quota });
+  return NextResponse.json({
+    data: result.data,
+    quota: usage.quota,
+    ...(softUsageWarning ? { usageWarning: softUsageWarning } : {}),
+  });
 }

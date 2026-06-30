@@ -207,7 +207,7 @@ describe("POST /api/customers/parse", () => {
     expect(consumeCustomerAiAutofill).not.toHaveBeenCalled();
   });
 
-  it("devuelve error temporal si no puede registrar el consumo IA", async () => {
+  it("mantiene el autorrelleno Pro si falla temporalmente el registro de uso IA", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-pro",
@@ -224,6 +224,18 @@ describe("POST /api/customers/parse", () => {
       >["quota"],
       blockedByQuota: false,
     });
+    vi.mocked(extractCustomerFromText).mockResolvedValue({
+      data: {
+        customer: { firstName: "Cliente", lastName: "Pro" },
+        confidence: 0.9,
+        warnings: [],
+      },
+    });
+    vi.mocked(enrichCustomerPostalCode).mockResolvedValue({
+      customer: { firstName: "Cliente", lastName: "Pro" },
+      confidence: 0.9,
+      warnings: [],
+    });
 
     const response = await POST(
       request("token-pro", {
@@ -232,8 +244,9 @@ describe("POST /api/customers/parse", () => {
     );
     const body = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(body.error).not.toContain("Supabase");
-    expect(extractCustomerFromText).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(body.data.customer.firstName).toBe("Cliente");
+    expect(body.usageWarning).not.toContain("Supabase");
+    expect(extractCustomerFromText).toHaveBeenCalled();
   });
 });
