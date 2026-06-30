@@ -678,6 +678,7 @@ function buildExpense(
     id: fdId("expense", number),
     date: isoDate(get(row, "Fecha registro")),
     origin: "import",
+    businessKind: "purchase_invoice",
     supplierId: supplier?.id,
     supplierName: supplier?.name || "",
     description: purchaseDescription(row, supplier),

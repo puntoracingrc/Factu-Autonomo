@@ -47,6 +47,18 @@ export function DocumentLinkManagerButton({
       : undefined;
   const linkedInvoiceFromReceipt =
     doc.type === "recibo" ? findInvoiceLinkedToReceipt(data.documents, doc) : undefined;
+  const hasCurrentLink =
+    doc.type === "factura"
+      ? Boolean(
+          linkedQuote ||
+            linkedReceipt ||
+            doc.sourceQuoteDocumentId ||
+            doc.sourceQuoteNumber ||
+            doc.receiptDocumentId,
+        )
+      : doc.type === "presupuesto"
+        ? Boolean(linkedInvoiceFromQuote)
+        : Boolean(linkedInvoiceFromReceipt || doc.sourceDocumentId);
 
   function openModal() {
     setQuoteId(linkedQuote?.id ?? "");
@@ -58,6 +70,58 @@ export function DocumentLinkManagerButton({
 
   function closeModal() {
     setOpen(false);
+  }
+
+  function unlinkCurrentDocument() {
+    let removedCount = 0;
+
+    if (doc.type === "factura") {
+      if (linkedQuote || doc.sourceQuoteDocumentId || doc.sourceQuoteNumber) {
+        updateDocumentLink({
+          relation: "quote_invoice",
+          invoiceId: doc.id,
+          quoteId: null,
+        });
+        setQuoteId("");
+        removedCount += 1;
+      }
+
+      if (linkedReceipt || doc.receiptDocumentId) {
+        updateDocumentLink({
+          relation: "invoice_receipt",
+          invoiceId: doc.id,
+          receiptId: null,
+        });
+        setReceiptId("");
+        removedCount += 1;
+      }
+    }
+
+    if (doc.type === "presupuesto" && linkedInvoiceFromQuote) {
+      updateDocumentLink({
+        relation: "quote_invoice",
+        invoiceId: linkedInvoiceFromQuote.id,
+        quoteId: null,
+      });
+      setInvoiceForQuoteId("");
+      removedCount += 1;
+    }
+
+    if (doc.type === "recibo" && linkedInvoiceFromReceipt) {
+      updateDocumentLink({
+        relation: "invoice_receipt",
+        invoiceId: linkedInvoiceFromReceipt.id,
+        receiptId: null,
+      });
+      setInvoiceForReceiptId("");
+      removedCount += 1;
+    }
+
+    if (removedCount > 0) {
+      showFactuToast(removedCount > 1 ? "Vínculos quitados." : "Vínculo quitado.");
+    } else {
+      openModal();
+    }
   }
 
   function confirmQuoteForInvoice(nextQuoteId: string | null) {
@@ -113,12 +177,24 @@ export function DocumentLinkManagerButton({
   return (
     <>
       <IconActionButton
-        label="Vincular"
-        tooltip="Ver o enlazar documentos relacionados"
-        onClick={openModal}
-        className="bg-sky-50 text-sky-700 hover:bg-sky-100"
+        label={hasCurrentLink ? "Desvincular" : "Vincular"}
+        tooltip={
+          hasCurrentLink
+            ? "Quitar vínculo relacionado"
+            : "Ver o enlazar documentos relacionados"
+        }
+        onClick={hasCurrentLink ? unlinkCurrentDocument : openModal}
+        className={
+          hasCurrentLink
+            ? "bg-red-50 text-red-700 hover:bg-red-100"
+            : "bg-sky-50 text-sky-700 hover:bg-sky-100"
+        }
       >
-        <Link2 className="h-5 w-5" />
+        {hasCurrentLink ? (
+          <Unlink className="h-5 w-5" />
+        ) : (
+          <Link2 className="h-5 w-5" />
+        )}
       </IconActionButton>
 
       {open ? (
@@ -226,6 +302,7 @@ function DocumentLinkSection({
   onClear: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(!selectedId);
   const selectedDocument = documents.find((document) => document.id === selectedId);
   const results = useMemo(() => {
     const source = query.trim()
@@ -233,6 +310,18 @@ function DocumentLinkSection({
       : documents;
     return source.slice(0, 8);
   }, [documents, query, vatExempt]);
+
+  function selectDocument(id: string) {
+    onSelectedIdChange(id);
+    setPickerOpen(false);
+    setQuery("");
+  }
+
+  function clearDocumentLink() {
+    onClear();
+    setPickerOpen(true);
+    setQuery("");
+  }
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -242,70 +331,83 @@ function DocumentLinkSection({
       </div>
 
       {selectedDocument ? (
-        <Link
-          href={documentDetailPath(selectedDocument)}
-          className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50"
-        >
-          <Link2 className="h-4 w-4" />
-          {documentShortNumber(selectedDocument)} · {selectedDocument.client.name}
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            href={documentDetailPath(selectedDocument)}
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50"
+          >
+            <Link2 className="h-4 w-4" />
+            {documentShortNumber(selectedDocument)} · {selectedDocument.client.name}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setPickerOpen((current) => !current)}
+            className="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            {pickerOpen ? "Ocultar búsqueda" : "Cambiar"}
+          </button>
+        </div>
       ) : (
         <p className="mt-3 text-sm font-semibold text-slate-500">
           Sin documento vinculado.
         </p>
       )}
 
-      <div className="mt-3">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-slate-700">
-            Buscar documento
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Número, cliente o importe..."
-              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pl-10 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-        </label>
-      </div>
-
-      <div className="mt-3 grid gap-2">
-        {results.length === 0 ? (
-          <p className="rounded-xl bg-white px-3 py-3 text-sm text-slate-500">
-            No hay resultados.
-          </p>
-        ) : (
-          results.map((document) => (
-            <button
-              key={document.id}
-              type="button"
-              onClick={() => onSelectedIdChange(document.id)}
-              aria-pressed={selectedId === document.id}
-              className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition ${
-                selectedId === document.id
-                  ? "border-blue-300 bg-blue-50 text-blue-900"
-                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-              }`}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold">
-                  {documentShortNumber(document)} · {document.client.name}
-                </span>
-                <span className="block text-xs text-slate-500">
-                  {formatShortDate(document.date)} ·{" "}
-                  {formatMoney(documentAmounts(document, vatExempt).total)}
-                </span>
+      {pickerOpen || !selectedDocument ? (
+        <>
+          <div className="mt-3">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Buscar documento
               </span>
-              {selectedId === document.id ? (
-                <Check className="h-5 w-5 shrink-0 text-blue-700" />
-              ) : null}
-            </button>
-          ))
-        )}
-      </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Número, cliente o importe..."
+                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pl-10 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-3 grid gap-2">
+            {results.length === 0 ? (
+              <p className="rounded-xl bg-white px-3 py-3 text-sm text-slate-500">
+                No hay resultados.
+              </p>
+            ) : (
+              results.map((document) => (
+                <button
+                  key={document.id}
+                  type="button"
+                  onClick={() => selectDocument(document.id)}
+                  aria-pressed={selectedId === document.id}
+                  className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                    selectedId === document.id
+                      ? "border-blue-300 bg-blue-50 text-blue-900"
+                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold">
+                      {documentShortNumber(document)} · {document.client.name}
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      {formatShortDate(document.date)} ·{" "}
+                      {formatMoney(documentAmounts(document, vatExempt).total)}
+                    </span>
+                  </span>
+                  {selectedId === document.id ? (
+                    <Check className="h-5 w-5 shrink-0 text-blue-700" />
+                  ) : null}
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
@@ -319,7 +421,7 @@ function DocumentLinkSection({
         </button>
         <button
           type="button"
-          onClick={onClear}
+          onClick={clearDocumentLink}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           <Unlink className="h-4 w-4" />

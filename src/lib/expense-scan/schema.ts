@@ -1,4 +1,9 @@
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from "../types";
+import {
+  inferScannedExpenseBusinessKind,
+  normalizeExpenseBusinessKind,
+} from "../expense-classification";
+import type { ExpenseBusinessKind } from "../types";
 
 export interface ExpenseScanPayload {
   supplier: {
@@ -8,6 +13,7 @@ export interface ExpenseScanPayload {
   };
   expense: {
     date: string;
+    businessKind?: ExpenseBusinessKind;
     description: string;
     amount: number;
     ivaPercent: number;
@@ -76,6 +82,14 @@ export function normalizeExpenseScanPayload(
     typeof expense.paymentMethod === "string"
       ? pickClosest(expense.paymentMethod, PAYMENT_METHODS)
       : PAYMENT_METHODS[1];
+  const businessKind =
+    normalizeExpenseBusinessKind(expense.businessKind) ??
+    inferScannedExpenseBusinessKind({
+      supplierNif: typeof supplier.nif === "string" ? supplier.nif : null,
+      description,
+      category,
+      notes: typeof expense.notes === "string" ? expense.notes : null,
+    });
 
   const warnings = Array.isArray(data.warnings)
     ? data.warnings.filter((w): w is string => typeof w === "string")
@@ -98,6 +112,7 @@ export function normalizeExpenseScanPayload(
     },
     expense: {
       date: parseDate(expense.date),
+      businessKind,
       description,
       amount: Math.round(amount * 100) / 100,
       ivaPercent: Number.isFinite(ivaPercent) ? ivaPercent : 21,
@@ -119,6 +134,8 @@ export const EXPENSE_SCAN_JSON_SCHEMA = {
   },
   expense: {
     date: "YYYY-MM-DD — fecha de la factura o ticket",
+    businessKind:
+      "purchase_invoice | purchase | quick_ticket | fixed — clasificación práctica",
     description: "string — resumen breve del gasto",
     amount: "number — base imponible SIN IVA en euros",
     ivaPercent: "number — tipo de IVA (21, 10, 4 o 0)",

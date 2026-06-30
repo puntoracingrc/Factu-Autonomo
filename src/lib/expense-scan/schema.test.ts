@@ -20,8 +20,27 @@ describe("expense scan schema", () => {
 
     expect(result?.supplier.name).toBe("Leroy Merlin");
     expect(result?.expense.date).toBe("2026-05-12");
+    expect(result?.expense.businessKind).toBe("purchase_invoice");
     expect(result?.expense.amount).toBe(42.5);
     expect(result?.expense.paymentMethod).toBe("Tarjeta");
+  });
+
+  it("clasifica tickets escaneados sin NIF como gasto rápido", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Gasolinera" },
+      expense: {
+        date: "2026-01-01",
+        description: "Ticket combustible",
+        amount: 15,
+        ivaPercent: 21,
+        category: "Vehículo",
+        paymentMethod: "Tarjeta",
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.expense.businessKind).toBe("quick_ticket");
   });
 
   it("rechaza datos incompletos", () => {

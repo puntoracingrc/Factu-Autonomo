@@ -59,7 +59,7 @@ export const facturasSection: ManualSection = {
       title: "5. Marcar como cobrada",
       paragraphs: [
         "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado** y, en facturas normales, se crea un **recibo** vinculado.",
-        "Los documentos relacionados aparecen como pastillas con icono de cadena. Desde el icono de **cadena** puedes enlazar o quitar manualmente un presupuesto de origen o un recibo asociado sin cambiar el PDF ya emitido.",
+        "Los documentos relacionados aparecen como pastillas con icono de cadena. Usa **Vincular** para enlazar manualmente un presupuesto de origen o un recibo asociado; si ya hay vínculo, el botón cambia a **Desvincular** y lo quita directamente sin cambiar el PDF ya emitido.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
       ],
       screenshot: {

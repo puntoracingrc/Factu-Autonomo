@@ -149,6 +149,7 @@ export function expenseFromRecurring(
     paymentMethod: template.paymentMethod,
     notes: template.notes,
     origin: "recurring",
+    businessKind: "fixed",
     recurringExpenseId: template.id,
     recurringOccurrenceKey: occurrenceKey(template.id, date),
   };

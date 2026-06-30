@@ -4,10 +4,13 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Download,
+  FileText,
   Keyboard,
   Pencil,
   Repeat2,
+  Receipt,
   ScanLine,
+  ShoppingCart,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -41,16 +44,17 @@ import {
   type SupplierSpendSlice,
   uniqueSupplierOptions,
 } from "@/lib/expense-filters";
+import {
+  expenseBusinessKindShortLabel,
+  inferExpenseBusinessKind,
+  isFixedExpense,
+} from "@/lib/expense-classification";
 import type { Quarter } from "@/lib/periods";
-import type { Expense } from "@/lib/types";
+import type { Expense, ExpenseBusinessKind, Supplier } from "@/lib/types";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
-
-function isFixedExpense(expense: Expense): boolean {
-  return Boolean(expense.recurringExpenseId) || expense.origin === "recurring";
-}
 
 function fixedExpenseFilterKey(expense: Expense): string {
   if (expense.recurringExpenseId) return `fixed:${expense.recurringExpenseId}`;
@@ -168,6 +172,49 @@ function ExpenseSourceIcon({ expense }: { expense: Expense }) {
   );
 }
 
+function ExpenseKindBadge({
+  expense,
+  supplier,
+}: {
+  expense: Expense;
+  supplier?: Supplier;
+}) {
+  const kind = inferExpenseBusinessKind(expense, supplier);
+  const label = expenseBusinessKindShortLabel(kind);
+  const Icon = expenseKindIcon(kind);
+  const tone = expenseKindTone(kind);
+
+  return (
+    <span
+      className={`inline-flex min-h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[11px] font-bold ${tone}`}
+      title={label}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </span>
+  );
+}
+
+function expenseKindIcon(kind: ExpenseBusinessKind) {
+  if (kind === "purchase_invoice") return FileText;
+  if (kind === "quick_ticket") return Receipt;
+  if (kind === "fixed") return Repeat2;
+  return ShoppingCart;
+}
+
+function expenseKindTone(kind: ExpenseBusinessKind): string {
+  if (kind === "purchase_invoice") {
+    return "border-blue-100 bg-blue-50 text-blue-700";
+  }
+  if (kind === "quick_ticket") {
+    return "border-amber-100 bg-amber-50 text-amber-800";
+  }
+  if (kind === "fixed") {
+    return "border-violet-100 bg-violet-50 text-violet-700";
+  }
+  return "border-emerald-100 bg-emerald-50 text-emerald-700";
+}
+
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
@@ -181,6 +228,11 @@ export default function GastosPage() {
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
   const [visibleExpenseCount, setVisibleExpenseCount] = useState(
     EXPENSE_LIST_BATCH_SIZE,
+  );
+
+  const suppliersById = useMemo(
+    () => new Map(data.suppliers.map((supplier) => [supplier.id, supplier])),
+    [data.suppliers],
   );
 
   const periodExpenses = useMemo(
@@ -441,6 +493,14 @@ export default function GastosPage() {
                     </p>
                     <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                       <ExpenseSourceIcon expense={expense} />
+                      <ExpenseKindBadge
+                        expense={expense}
+                        supplier={
+                          expense.supplierId
+                            ? suppliersById.get(expense.supplierId)
+                            : undefined
+                        }
+                      />
                       <span className="min-w-0 truncate">
                         {formatShortDate(expense.date)} · {expense.category} ·{" "}
                         {expense.paymentMethod}

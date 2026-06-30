@@ -211,10 +211,18 @@ export interface RecurringExpense {
   updatedAt: string;
 }
 
+export type ExpenseBusinessKind =
+  | "purchase"
+  | "purchase_invoice"
+  | "quick_ticket"
+  | "fixed";
+
 export interface Expense {
   id: string;
   date: string;
   origin?: "manual" | "scan" | "import" | "recurring";
+  /** Clasificación práctica para separar compras, facturas recibidas, tickets y fijos. */
+  businessKind?: ExpenseBusinessKind;
   supplierId?: string;
   supplierName: string;
   description: string;

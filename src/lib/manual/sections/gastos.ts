@@ -10,6 +10,7 @@ export const gastosSection: ManualSection = {
       title: "1. Registrar un gasto",
       paragraphs: [
         "Ve a **Gastos** → **+ Añadir gasto**. Indica proveedor, importe base, IVA, categoría y forma de pago.",
+        "Marca el **tipo de gasto**: factura de compra, compra a proveedor, ticket/gasto rápido o gasto fijo. Si escaneas un documento, la app propondrá una opción y puedes corregirla antes de guardar.",
         "Puedes escanear una factura de compra con la cámara si tienes escaneos disponibles (plan Pro).",
         "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
         "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. La app intenta reutilizar proveedores parecidos para evitar duplicados.",
@@ -23,6 +24,7 @@ export const gastosSection: ManualSection = {
       title: "2. Filtrar por mes, trimestre o año",
       paragraphs: [
         "En el listado usa los filtros de **periodo** y **gasto**. También puedes filtrar pulsando un segmento del gráfico o su leyenda.",
+        "Cada gasto muestra iconos compactos: de dónde viene (manual, escaneo, importación o fijo) y qué tipo es (factura, compra, ticket o fijo).",
         "El total gastado aparece junto a los filtros y se actualiza según lo que tengas seleccionado. Pulsa **Restablecer** en el bloque de gráficos para volver al listado completo.",
         "Los gastos se ordenan de más nuevos a más antiguos, muestran separadores por mes y cargan 30 resultados cada vez para que la página no pese con historiales grandes.",
       ],
