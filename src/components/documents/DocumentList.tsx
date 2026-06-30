@@ -6,6 +6,8 @@ import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
+import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
+import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
@@ -30,7 +32,6 @@ import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
-import { findReceiptForInvoice } from "@/lib/receipts";
 import {
   formatTimelineMonthLabel,
   timelineMonthKey,
@@ -406,14 +407,6 @@ export function DocumentList({
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
             const statusHint = documentStatusHint(doc, type);
-            const linkedReceipt =
-              type === "factura"
-                ? findReceiptForInvoice(
-                    data.documents,
-                    doc.id,
-                    doc.receiptDocumentId,
-                  )
-                : undefined;
             const linkedInvoice =
               type === "presupuesto"
                 ? findInvoiceCreatedFromQuote(data.documents, doc.id)
@@ -465,6 +458,10 @@ export function DocumentList({
                     <p className="text-sm text-slate-500">
                       {formatShortDate(doc.date)} · {formatMoney(total)}
                     </p>
+                    <DocumentLinkBadges
+                      document={doc}
+                      documents={data.documents}
+                    />
                     {statusHint && (
                       <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
                     )}
@@ -476,21 +473,6 @@ export function DocumentList({
                     {doc.rectifiedById && (
                       <p className="text-xs text-slate-400">
                         Tiene factura rectificativa asociada
-                      </p>
-                    )}
-                    {linkedReceipt && (
-                      <p className="text-xs text-green-700">
-                        Recibo creado: {linkedReceipt.number}
-                      </p>
-                    )}
-                    {type === "factura" && doc.sourceQuoteNumber && (
-                      <p className="text-xs text-blue-700">
-                        Creada desde presupuesto: {doc.sourceQuoteNumber}
-                      </p>
-                    )}
-                    {linkedInvoice && (
-                      <p className="text-xs text-blue-700">
-                        Factura creada: {linkedInvoice.number}
                       </p>
                     )}
                     {missingShareContact && (
@@ -512,6 +494,7 @@ export function DocumentList({
                     {type === "factura" && (
                       <PaymentReminderButton doc={doc} profile={data.profile} />
                     )}
+                    <DocumentLinkManagerButton doc={doc} />
                     <DocumentPdfShareActions
                       doc={doc}
                       profile={data.profile}

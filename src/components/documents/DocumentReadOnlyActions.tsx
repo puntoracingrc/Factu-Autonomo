@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
+import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
+import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
@@ -41,6 +43,7 @@ export function DocumentReadOnlyActions({
       <p className="text-sm font-semibold text-slate-800">
         Acciones de {typeLabel}
       </p>
+      <DocumentLinkBadges document={doc} documents={data.documents} />
       {linkedInvoice && (
         <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
           Este presupuesto ya tiene factura creada:{" "}
@@ -68,6 +71,7 @@ export function DocumentReadOnlyActions({
             variant="button"
           />
         )}
+        <DocumentLinkManagerButton doc={doc} />
         <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 

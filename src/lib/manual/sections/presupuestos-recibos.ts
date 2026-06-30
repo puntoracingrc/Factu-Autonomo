@@ -35,7 +35,8 @@ export const presupuestosSection: ManualSection = {
       paragraphs: [
         "Pulsa **Convertir** para crear una factura en **borrador** desde el presupuesto.",
         "La factura creada conserva cliente, conceptos y vínculo con el presupuesto, pero sigue siendo editable antes de emitirla. Esto permite ajustar extras o cambios acordados con el cliente.",
-        "Después de convertir, el presupuesto mostrará **Ver factura** para abrir la factura vinculada.",
+        "Después de convertir, el presupuesto mostrará el vínculo con la factura. En los listados verás una pastilla con icono de cadena para abrir el documento relacionado.",
+        "Si necesitas relacionar documentos manualmente, usa el icono de **cadena** del listado o de la vista del documento. Puedes enlazar presupuesto-factura o quitar el vínculo sin cambiar el PDF ya emitido.",
       ],
     },
     {
@@ -58,7 +59,7 @@ export const recibosSection: ManualSection = {
       title: "1. Recibo al cobrar una factura",
       paragraphs: [
         "Al marcar una factura como **Cobrada**, la app puede generar un **recibo** vinculado con el mismo importe.",
-        "Verás el número del recibo en el listado de facturas.",
+        "Verás el recibo vinculado en el listado de facturas con una pastilla de cadena. También puedes usar el icono de **cadena** para enlazar o desvincular manualmente una factura y un recibo.",
       ],
       screenshot: {
         src: "/ayuda/capturas/recibos-automatico.png",
