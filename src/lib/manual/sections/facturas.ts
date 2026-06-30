@@ -42,6 +42,7 @@ export const facturasSection: ManualSection = {
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
+        "Si has vinculado compras a esa factura desde **Gastos**, el listado muestra **Costes vinculados** y **Margen estimado**. Es una ayuda rápida para saber si ese trabajo va bien; no modifica el PDF ni la factura emitida.",
       ],
     },
     {
