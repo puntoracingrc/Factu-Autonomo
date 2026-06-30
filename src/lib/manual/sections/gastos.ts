@@ -12,7 +12,10 @@ export const gastosSection: ManualSection = {
         "Ve a **Gastos** → **+ Añadir gasto**. Indica proveedor, importe base, IVA, categoría y forma de pago.",
         "Marca el **tipo de gasto**: factura de compra, compra a proveedor, ticket/gasto rápido o gasto fijo. Si escaneas un documento, la app propondrá una opción y puedes corregirla antes de guardar.",
         "Puedes escanear una factura de compra con la cámara si tienes escaneos disponibles (plan Pro).",
+        "También puedes seleccionar varios PDF o imágenes a la vez. La app procesa hasta 5 archivos por tanda: revisas el primero, lo guardas y pasa al siguiente.",
         "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
+        "Si la IA detecta número de factura, NIF del proveedor, dirección, vencimiento o líneas de compra, esos datos quedan en el gasto y puedes corregirlos antes de guardar.",
+        "Cuando una línea de compra se parece a algo comprado antes al mismo proveedor, la app puede avisarte si el precio o el descuento han cambiado bastante.",
         "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. La app intenta reutilizar proveedores parecidos para evitar duplicados.",
       ],
       screenshot: {
