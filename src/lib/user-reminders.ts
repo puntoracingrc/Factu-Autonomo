@@ -1,5 +1,6 @@
 import { newDocumentUrl } from "./customer-document-links";
 import { formatShortDate } from "./calculations";
+import { encodeDocumentIdForPath } from "./document-links";
 import type { AppData, Document, UserReminder, UserReminderLink } from "./types";
 
 export function pendingUserReminders(reminders: UserReminder[]): UserReminder[] {
@@ -101,9 +102,10 @@ export function resolveReminderHref(
 function documentDetailPath(documents: Document[], id: string): string | undefined {
   const doc = documents.find((entry) => entry.id === id);
   if (!doc) return undefined;
-  if (doc.type === "factura") return `/facturas/${doc.id}`;
-  if (doc.type === "presupuesto") return `/presupuestos/${doc.id}`;
-  return `/recibos/${doc.id}`;
+  const pathId = encodeDocumentIdForPath(doc.id);
+  if (doc.type === "factura") return `/facturas/${pathId}`;
+  if (doc.type === "presupuesto") return `/presupuestos/${pathId}`;
+  return `/recibos/${pathId}`;
 }
 
 function documentRectificationPath(
@@ -112,8 +114,9 @@ function documentRectificationPath(
 ): string | undefined {
   const doc = documents.find((entry) => entry.id === id);
   if (!doc) return undefined;
-  if (doc.type === "factura") return `/facturas/${doc.id}/rectificar`;
-  if (doc.type === "presupuesto") return `/presupuestos/${doc.id}`;
+  const pathId = encodeDocumentIdForPath(doc.id);
+  if (doc.type === "factura") return `/facturas/${pathId}/rectificar`;
+  if (doc.type === "presupuesto") return `/presupuestos/${pathId}`;
   return undefined;
 }
 

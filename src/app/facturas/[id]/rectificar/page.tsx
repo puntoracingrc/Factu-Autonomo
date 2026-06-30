@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/Card";
 import { RectificativaForm } from "@/components/forms/RectificativaForm";
 import { useAppStore } from "@/context/AppStore";
+import { decodeDocumentIdFromPath } from "@/lib/document-links";
 import { canRectifyInvoice } from "@/lib/rectificativas";
 
 export default function RectificarFacturaPage({
@@ -12,7 +13,8 @@ export default function RectificarFacturaPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
+  const { id: pathId } = use(params);
+  const id = decodeDocumentIdFromPath(pathId);
   const { data } = useAppStore();
   const original = data.documents.find((d) => d.id === id);
 

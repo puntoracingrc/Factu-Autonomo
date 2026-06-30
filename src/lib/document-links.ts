@@ -32,8 +32,20 @@ const TYPE_PATHS: Record<DocumentType, string> = {
   recibo: "recibos",
 };
 
+export function encodeDocumentIdForPath(id: string): string {
+  return encodeURIComponent(encodeURIComponent(id));
+}
+
+export function decodeDocumentIdFromPath(id: string): string {
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
 export function documentDetailPath(document: Pick<Document, "id" | "type">): string {
-  return `/${TYPE_PATHS[document.type]}/${encodeURIComponent(document.id)}`;
+  return `/${TYPE_PATHS[document.type]}/${encodeDocumentIdForPath(document.id)}`;
 }
 
 export function documentShortNumber(document: Pick<Document, "type" | "number" | "id">): string {
