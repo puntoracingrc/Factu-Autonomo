@@ -31,6 +31,7 @@ import {
   buildExpensesExportCsv,
   downloadExpensesCsv,
 } from "@/lib/billing/export-expenses-csv";
+import { documentShortNumber } from "@/lib/document-links";
 import {
   aggregateExpensesBySupplier,
   EXPENSE_CHART_COLORS,
@@ -233,6 +234,10 @@ export default function GastosPage() {
   const suppliersById = useMemo(
     () => new Map(data.suppliers.map((supplier) => [supplier.id, supplier])),
     [data.suppliers],
+  );
+  const documentsById = useMemo(
+    () => new Map(data.documents.map((document) => [document.id, document])),
+    [data.documents],
   );
 
   const periodExpenses = useMemo(
@@ -513,7 +518,8 @@ export default function GastosPage() {
                       </span>
                     </div>
                     {(expense.purchaseDocument?.invoiceNumber ||
-                      expense.purchaseLines?.length) && (
+                      expense.purchaseLines?.length ||
+                      expense.workDocumentId) && (
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                         {expense.purchaseDocument?.invoiceNumber && (
                           <span className="rounded-full bg-slate-100 px-2 py-1">
@@ -523,6 +529,15 @@ export default function GastosPage() {
                         {expense.purchaseLines?.length ? (
                           <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
                             {expense.purchaseLines.length} línea(s)
+                          </span>
+                        ) : null}
+                        {expense.workDocumentId &&
+                        documentsById.get(expense.workDocumentId) ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                            Trabajo{" "}
+                            {documentShortNumber(
+                              documentsById.get(expense.workDocumentId)!,
+                            )}
                           </span>
                         ) : null}
                       </div>

@@ -265,6 +265,8 @@ export interface Expense {
   purchaseDocument?: ExpensePurchaseDocument;
   /** Líneas de compra detectadas por IA o introducidas manualmente. */
   purchaseLines?: ExpensePurchaseLine[];
+  /** Factura o presupuesto al que pertenece esta compra para calcular margen del trabajo. */
+  workDocumentId?: string;
   /** Gasto generado desde un gasto fijo */
   recurringExpenseId?: string;
   recurringOccurrenceKey?: string;

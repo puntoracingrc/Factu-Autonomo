@@ -12,6 +12,11 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, todayISO } from "@/lib/calculations";
+import {
+  filterDocumentsByQuery,
+  sortDocumentsByNewest,
+} from "@/lib/documents";
+import { documentShortNumber } from "@/lib/document-links";
 import { isVatExempt } from "@/lib/vat-regime";
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from "@/lib/types";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -95,6 +100,8 @@ export default function NuevoGastoPage() {
   const [purchaseDocument, setPurchaseDocument] =
     useState<ExpensePurchaseDocument>({});
   const [purchaseLines, setPurchaseLines] = useState<ExpensePurchaseLine[]>([]);
+  const [workDocumentId, setWorkDocumentId] = useState("");
+  const [workDocumentQuery, setWorkDocumentQuery] = useState("");
   const [pendingScans, setPendingScans] = useState<PendingExpenseScan[]>([]);
   const [, setSupplierHint] = useState<string | null>(null);
 
@@ -130,6 +137,7 @@ export default function NuevoGastoPage() {
     setNotes(editingExpense.notes ?? "");
     setPurchaseDocument(editingExpense.purchaseDocument ?? {});
     setPurchaseLines(editingExpense.purchaseLines ?? []);
+    setWorkDocumentId(editingExpense.workDocumentId ?? "");
     setExpenseOrigin(editingExpense.origin === "scan" ? "scan" : "manual");
     setBusinessKind(
       inferExpenseBusinessKind(
@@ -245,6 +253,26 @@ export default function NuevoGastoPage() {
   const purchaseLinesBaseTotal = expensePurchaseLinesBaseTotal(
     sanitizeExpensePurchaseLines(purchaseLines),
   );
+  const linkableWorkDocuments = useMemo(
+    () =>
+      sortDocumentsByNewest(
+        data.documents.filter(
+          (document) =>
+            document.type === "factura" || document.type === "presupuesto",
+        ),
+      ),
+    [data.documents],
+  );
+  const selectedWorkDocument =
+    linkableWorkDocuments.find((document) => document.id === workDocumentId) ??
+    null;
+  const workDocumentResults = useMemo(() => {
+    const query = workDocumentQuery.trim();
+    const source = query
+      ? filterDocumentsByQuery(linkableWorkDocuments, query, { vatExempt })
+      : linkableWorkDocuments;
+    return source.slice(0, 6);
+  }, [linkableWorkDocuments, vatExempt, workDocumentQuery]);
 
   function updatePurchaseDocument(patch: Partial<ExpensePurchaseDocument>) {
     setPurchaseDocument((prev) => ({ ...prev, ...patch }));
@@ -356,6 +384,7 @@ export default function NuevoGastoPage() {
       purchaseDocument: cleanedPurchaseDocument,
       purchaseLines:
         cleanedPurchaseLines.length > 0 ? cleanedPurchaseLines : undefined,
+      workDocumentId: workDocumentId || undefined,
       origin: expenseOrigin,
       businessKind,
     };
@@ -591,6 +620,87 @@ export default function NuevoGastoPage() {
                   />
                 </Field>
               </div>
+            </div>
+          </FormSection>
+
+          <FormSection
+            variant="search"
+            title="Trabajo relacionado"
+            hint="Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
+          >
+            {selectedWorkDocument ? (
+              <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-bold">
+                  {selectedWorkDocument.type === "factura"
+                    ? "Factura"
+                    : "Presupuesto"}{" "}
+                  {documentShortNumber(selectedWorkDocument)} ·{" "}
+                  {selectedWorkDocument.client.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setWorkDocumentId("")}
+                  className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
+                >
+                  Quitar vínculo
+                </button>
+              </div>
+            ) : null}
+            <Field label="Buscar factura o presupuesto">
+              <Input
+                value={workDocumentQuery}
+                onChange={(event) => setWorkDocumentQuery(event.target.value)}
+                placeholder="Número, cliente o importe..."
+              />
+            </Field>
+            <div className="space-y-2">
+              {workDocumentResults.length === 0 ? (
+                <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  No hay documentos que coincidan.
+                </p>
+              ) : (
+                workDocumentResults.map((document) => (
+                  <button
+                    key={document.id}
+                    type="button"
+                    onClick={() => {
+                      setWorkDocumentId(document.id);
+                      setWorkDocumentQuery("");
+                    }}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                      document.id === workDocumentId
+                        ? "border-blue-300 bg-blue-50 text-blue-900"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>
+                      <span className="block font-bold">
+                        {document.type === "factura"
+                          ? "Factura"
+                          : "Presupuesto"}{" "}
+                        {documentShortNumber(document)}
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        {document.client.name} · {formatMoney(
+                          document.items.reduce(
+                            (sum, item) =>
+                              sum +
+                              item.quantity *
+                                item.unitPrice *
+                                (1 + item.ivaPercent / 100),
+                            0,
+                          ),
+                        )}
+                      </span>
+                    </span>
+                    {document.id === workDocumentId ? (
+                      <span className="text-xs font-bold text-blue-700">
+                        Vinculado
+                      </span>
+                    ) : null}
+                  </button>
+                ))
+              )}
             </div>
           </FormSection>
 
