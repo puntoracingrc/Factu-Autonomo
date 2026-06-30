@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   applyDocumentLinkUpdate,
+  decodeDocumentIdFromPath,
   documentDetailPath,
+  encodeDocumentIdForPath,
   getDocumentLinkBadges,
 } from "./document-links";
 import type { Document, DocumentType } from "./types";
@@ -129,6 +131,8 @@ describe("document links", () => {
   it("codifica ids con barras para que los enlaces abran el detalle", () => {
     const invoice = document({ id: "Factura/2940/", type: "factura" });
 
-    expect(documentDetailPath(invoice)).toBe("/facturas/Factura%2F2940%2F");
+    expect(encodeDocumentIdForPath(invoice.id)).toBe("Factura%252F2940%252F");
+    expect(decodeDocumentIdFromPath("Factura%2F2940%2F")).toBe("Factura/2940/");
+    expect(documentDetailPath(invoice)).toBe("/facturas/Factura%252F2940%252F");
   });
 });
