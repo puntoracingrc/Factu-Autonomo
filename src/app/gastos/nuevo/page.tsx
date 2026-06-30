@@ -12,10 +12,7 @@ import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { todayISO } from "@/lib/calculations";
 import { isVatExempt } from "@/lib/vat-regime";
-import {
-  EXPENSE_CATEGORIES,
-  PAYMENT_METHODS,
-} from "@/lib/types";
+import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from "@/lib/types";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 import {
   buildSupplierMatchHint,
@@ -28,6 +25,12 @@ import {
   parseDecimalInput,
 } from "@/lib/decimal-input";
 import { expenseTotalsFromBase } from "@/lib/expenses";
+import {
+  EXPENSE_BUSINESS_KIND_OPTIONS,
+  expenseBusinessKindHint,
+  inferExpenseBusinessKind,
+} from "@/lib/expense-classification";
+import type { ExpenseBusinessKind } from "@/lib/types";
 
 export default function NuevoGastoPage() {
   const router = useRouter();
@@ -55,6 +58,8 @@ export default function NuevoGastoPage() {
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [expenseOrigin, setExpenseOrigin] =
     useState<"manual" | "scan">("manual");
+  const [businessKind, setBusinessKind] =
+    useState<ExpenseBusinessKind>("purchase");
   const [, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -88,13 +93,23 @@ export default function NuevoGastoPage() {
     setPaymentMethod(editingExpense.paymentMethod);
     setNotes(editingExpense.notes ?? "");
     setExpenseOrigin(editingExpense.origin === "scan" ? "scan" : "manual");
+    setBusinessKind(
+      inferExpenseBusinessKind(
+        editingExpense,
+        editingExpense.supplierId
+          ? data.suppliers.find(
+              (supplier) => supplier.id === editingExpense.supplierId,
+            )
+          : undefined,
+      ),
+    );
     setSaveSupplier(Boolean(editingExpense.supplierId));
     setSupplierHint(
       editingExpense.supplierId
         ? `Usando el proveedor guardado «${editingExpense.supplierName}».`
         : null,
     );
-  }, [editingExpense, loadedExpenseId, vatExempt]);
+  }, [data.suppliers, editingExpense, loadedExpenseId, vatExempt]);
 
   function applyScanResult(payload: ExpenseScanPayload) {
     const match = findBestSupplierMatch(data.suppliers, {
@@ -119,6 +134,7 @@ export default function NuevoGastoPage() {
     if (!vatExempt) setIvaPercent(payload.expense.ivaPercent);
     setCategory(payload.expense.category);
     setPaymentMethod(payload.expense.paymentMethod);
+    setBusinessKind(payload.expense.businessKind ?? "purchase_invoice");
     const extraNotes = [
       payload.expense.notes,
       payload.supplier.nif ? `NIF proveedor: ${payload.supplier.nif}` : null,
@@ -194,6 +210,7 @@ export default function NuevoGastoPage() {
       paymentMethod,
       notes: notes || undefined,
       origin: expenseOrigin,
+      businessKind,
     };
 
     if (editingExpense) {
@@ -232,6 +249,41 @@ export default function NuevoGastoPage() {
           </p>
         )}
         <Card className="space-y-5">
+          <FormSection
+            variant="fields"
+            title="Tipo de gasto"
+            hint="La app lo usa para separar compras, facturas recibidas, tickets y fijos. Puedes corregirlo antes de guardar."
+          >
+            <div className="grid gap-2 sm:grid-cols-2">
+              {EXPENSE_BUSINESS_KIND_OPTIONS.map((option) => {
+                const selected = businessKind === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setBusinessKind(option.value)}
+                    aria-pressed={selected}
+                    className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                      selected
+                        ? "border-blue-300 bg-blue-50 text-blue-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">
+                      {option.label}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {option.hint}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-slate-500">
+              {expenseBusinessKindHint(businessKind)}
+            </p>
+          </FormSection>
+
           <FormSection
             variant="search"
             title="Proveedor"

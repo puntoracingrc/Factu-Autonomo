@@ -33,7 +33,7 @@ const TYPE_PATHS: Record<DocumentType, string> = {
 };
 
 export function documentDetailPath(document: Pick<Document, "id" | "type">): string {
-  return `/${TYPE_PATHS[document.type]}/${document.id}`;
+  return `/${TYPE_PATHS[document.type]}/${encodeURIComponent(document.id)}`;
 }
 
 export function documentShortNumber(document: Pick<Document, "type" | "number" | "id">): string {
