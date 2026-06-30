@@ -118,15 +118,15 @@ export function ExpenseFiltersBar({
         </Field>
       )}
 
-      <Field label="Proveedor">
+      <Field label="Gasto">
         <Select
           value={supplierFilter ?? ""}
-          aria-label="Proveedor de gastos"
+          aria-label="Gasto o proveedor"
           onChange={(e) =>
             onSupplierFilterChange(e.target.value || null)
           }
         >
-          <option value="">Todos los proveedores</option>
+          <option value="">Todos los gastos</option>
           {supplierOptions.map((option) => (
             <option key={option.key} value={option.key}>
               {option.label}

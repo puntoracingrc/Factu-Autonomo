@@ -316,8 +316,10 @@ describe("MVP usability polish", () => {
 
     expect(customersPageSource).toContain("Acciones");
     expect(customersPageSource).toContain("Buscar y ordenar");
-    expect(customersPageSource).toContain('<Card className="mb-6 space-y-3">');
-    expect(customersPageSource).toContain('<Card className="space-y-4">');
+    expect(customersPageSource).toContain(
+      '<Card className="mb-4 space-y-2 p-4">',
+    );
+    expect(customersPageSource).toContain('<Card className="space-y-3 p-4">');
     expect(customerSearchSource).not.toContain("relative mb-4");
   });
 

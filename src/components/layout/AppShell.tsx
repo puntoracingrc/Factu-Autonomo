@@ -30,7 +30,6 @@ import {
 } from "@/lib/factu/occasional";
 import {
   FileText,
-  Home,
   Landmark,
   Receipt,
   Settings,
@@ -41,28 +40,27 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Inicio", shortLabel: "Inicio", icon: Home },
   { href: "/clientes", label: "Clientes", shortLabel: "Clientes", icon: Users },
-  { href: "/facturas", label: "Facturas", shortLabel: "Facturas", icon: FileText },
   {
     href: "/presupuestos",
     label: "Presupuestos",
     shortLabel: "Presup.",
     icon: Wallet,
   },
+  { href: "/facturas", label: "Facturas", shortLabel: "Factura", icon: FileText },
   { href: "/recibos", label: "Recibos", shortLabel: "Recibos", icon: Receipt },
   { href: "/gastos", label: "Gastos", shortLabel: "Gastos", icon: ShoppingCart },
+  {
+    href: "/proveedores",
+    label: "Proveedores",
+    shortLabel: "Proveedor",
+    icon: Truck,
+  },
   {
     href: "/impuestos",
     label: "Impuestos",
     shortLabel: "Impuestos",
     icon: Landmark,
-  },
-  {
-    href: "/proveedores",
-    label: "Proveedores",
-    shortLabel: "Prov.",
-    icon: Truck,
   },
   { href: "/configuracion", label: "Ajustes", shortLabel: "Ajustes", icon: Settings },
 ];
@@ -282,6 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={href}
                     href={href}
+                    aria-current={active ? "page" : undefined}
                     className={`relative flex h-[3.75rem] w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 transition-colors sm:h-16 sm:w-20 ${
                       active
                         ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"

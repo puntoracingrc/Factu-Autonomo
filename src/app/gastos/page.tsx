@@ -1,7 +1,15 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Download, Pencil, Trash2 } from "lucide-react";
+import {
+  Download,
+  Keyboard,
+  Pencil,
+  Repeat2,
+  ScanLine,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
@@ -21,6 +29,7 @@ import {
 } from "@/lib/billing/export-expenses-csv";
 import {
   aggregateExpensesBySupplier,
+  EXPENSE_CHART_COLORS,
   expenseExportFilenameStem,
   filterExpensesByPeriod,
   formatExpensePeriodLabel,
@@ -28,12 +37,135 @@ import {
   matchesSupplierFilter,
   supplierLabelFromKey,
   type ExpensePeriodKind,
+  type SupplierSpendSlice,
   uniqueSupplierOptions,
 } from "@/lib/expense-filters";
 import type { Quarter } from "@/lib/periods";
+import type { Expense } from "@/lib/types";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
+const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
+
+function isFixedExpense(expense: Expense): boolean {
+  return Boolean(expense.recurringExpenseId) || expense.origin === "recurring";
+}
+
+function fixedExpenseFilterKey(expense: Expense): string {
+  if (expense.recurringExpenseId) return `fixed:${expense.recurringExpenseId}`;
+  const label = `${expense.supplierName}:${expense.description}`
+    .trim()
+    .toLowerCase();
+  return `fixed:${label}`;
+}
+
+function fixedExpenseLabel(expense: Expense): string {
+  return expense.supplierName.trim() || expense.description.trim() || "Gasto fijo";
+}
+
+function aggregateFixedExpenses(
+  expenses: Expense[],
+  vatExempt: boolean,
+  maxSlices = 8,
+): SupplierSpendSlice[] {
+  const fixedExpenses = expenses.filter(isFixedExpense);
+  if (fixedExpenses.length === 0) return [];
+
+  const totals = new Map<string, { label: string; amount: number }>();
+  for (const expense of fixedExpenses) {
+    const key = fixedExpenseFilterKey(expense);
+    const amount = expenseAmount(expense, vatExempt);
+    const current = totals.get(key);
+    if (current) {
+      current.amount += amount;
+    } else {
+      totals.set(key, { label: fixedExpenseLabel(expense), amount });
+    }
+  }
+
+  const sorted = [...totals.entries()].sort((a, b) => b[1].amount - a[1].amount);
+  const grandTotal = sorted.reduce((sum, [, value]) => sum + value.amount, 0);
+  if (grandTotal <= 0) return [];
+
+  const limit = Math.max(2, maxSlices);
+  const main = sorted.slice(0, limit - 1);
+  const rest = sorted.slice(limit - 1);
+
+  const slices = main.map(([key, value], index) => ({
+    key,
+    label: value.label,
+    amount: value.amount,
+    percent: (value.amount / grandTotal) * 100,
+    color: EXPENSE_CHART_COLORS[index % EXPENSE_CHART_COLORS.length],
+  }));
+
+  if (rest.length > 0) {
+    const otrosAmount = rest.reduce((sum, [, value]) => sum + value.amount, 0);
+    slices.push({
+      key: FIXED_EXPENSE_OTHER_KEY,
+      label: "Otros fijos",
+      amount: otrosAmount,
+      percent: (otrosAmount / grandTotal) * 100,
+      color: EXPENSE_CHART_COLORS[slices.length % EXPENSE_CHART_COLORS.length],
+    });
+  }
+
+  return slices;
+}
+
+function matchesExpenseFilter(
+  expense: Expense,
+  filterKey: string | null,
+  purchaseSlices: SupplierSpendSlice[],
+  fixedSlices: SupplierSpendSlice[],
+): boolean {
+  if (!filterKey) return true;
+
+  if (filterKey === FIXED_EXPENSE_OTHER_KEY) {
+    const mainKeys = fixedSlices
+      .filter((slice) => slice.key !== FIXED_EXPENSE_OTHER_KEY)
+      .map((slice) => slice.key);
+    return isFixedExpense(expense) && !mainKeys.includes(fixedExpenseFilterKey(expense));
+  }
+
+  if (filterKey.startsWith("fixed:")) {
+    return isFixedExpense(expense) && fixedExpenseFilterKey(expense) === filterKey;
+  }
+
+  return (
+    !isFixedExpense(expense) &&
+    matchesSupplierFilter(expense, filterKey, purchaseSlices)
+  );
+}
+
+function expenseSourceLabel(expense: Expense): string {
+  if (expense.origin === "scan") return "Introducido con escaneo";
+  if (expense.origin === "import") return "Importado";
+  if (isFixedExpense(expense)) return "Gasto fijo";
+  return "Introducido manualmente";
+}
+
+function ExpenseSourceIcon({ expense }: { expense: Expense }) {
+  const label = expenseSourceLabel(expense);
+  const Icon =
+    expense.origin === "scan"
+      ? ScanLine
+      : expense.origin === "import"
+        ? Upload
+        : isFixedExpense(expense)
+          ? Repeat2
+          : Keyboard;
+
+  return (
+    <span
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+      aria-label={label}
+      title={label}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </span>
+  );
+}
 
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
@@ -62,19 +194,41 @@ export default function GastosPage() {
     [data.expenses, periodKind, year, month, quarter],
   );
 
-  const chartSlices = useMemo(
-    () => aggregateExpensesBySupplier(periodExpenses, vatExempt),
+  const purchaseExpenses = useMemo(
+    () => periodExpenses.filter((expense) => !isFixedExpense(expense)),
+    [periodExpenses],
+  );
+
+  const purchaseChartSlices = useMemo(
+    () => aggregateExpensesBySupplier(purchaseExpenses, vatExempt),
+    [purchaseExpenses, vatExempt],
+  );
+
+  const fixedChartSlices = useMemo(
+    () => aggregateFixedExpenses(periodExpenses, vatExempt),
     [periodExpenses, vatExempt],
   );
 
   const supplierOptions = useMemo(
-    () => uniqueSupplierOptions(periodExpenses),
-    [periodExpenses],
+    () => {
+      const supplierOptions = uniqueSupplierOptions(purchaseExpenses);
+      const fixedOptions = fixedChartSlices.map((slice) => ({
+        key: slice.key,
+        label: slice.label,
+      }));
+      return [...supplierOptions, ...fixedOptions];
+    },
+    [fixedChartSlices, purchaseExpenses],
   );
 
   const filteredExpenses = useMemo(() => {
     const matched = periodExpenses.filter((expense) =>
-      matchesSupplierFilter(expense, supplierFilter, chartSlices),
+      matchesExpenseFilter(
+        expense,
+        supplierFilter,
+        purchaseChartSlices,
+        fixedChartSlices,
+      ),
     );
     return [...matched].sort((a, b) => {
       const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -83,7 +237,7 @@ export default function GastosPage() {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
     });
-  }, [periodExpenses, supplierFilter, chartSlices]);
+  }, [fixedChartSlices, periodExpenses, purchaseChartSlices, supplierFilter]);
 
   const visibleExpenses = filteredExpenses.slice(0, visibleExpenseCount);
   const hiddenExpenseCount = Math.max(
@@ -113,7 +267,8 @@ export default function GastosPage() {
       quarter,
     );
     const supplierFilterLabel = supplierFilter
-      ? supplierLabelFromKey(supplierFilter, data.expenses)
+      ? supplierOptions.find((option) => option.key === supplierFilter)?.label ??
+        supplierLabelFromKey(supplierFilter, data.expenses)
       : undefined;
     const csv = buildExpensesExportCsv(filteredExpenses, data.suppliers, {
       profile: data.profile,
@@ -130,17 +285,26 @@ export default function GastosPage() {
       <PageHeader
         title="Gastos y compras"
         subtitle="Registra lo que gastas en tu negocio"
-        action={
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <ButtonLink href="/gastos/fijos">+ Gastos fijos</ButtonLink>
-            <ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>
-          </div>
-        }
       />
 
       <RecurringDueBanner data={data} />
 
-      <Card className="mb-6 space-y-4">
+      <Card className="mb-4 space-y-2 p-4">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+          Acciones
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>
+          <ButtonLink href="/gastos/fijos" variant="secondary">
+            + Gastos fijos
+          </ButtonLink>
+        </div>
+      </Card>
+
+      <Card className="mb-4 space-y-3 p-4">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+          Buscar y ordenar
+        </h2>
         <ExpenseFiltersBar
           expenses={data.expenses}
           periodKind={periodKind}
@@ -157,7 +321,7 @@ export default function GastosPage() {
         />
       </Card>
 
-      <Card className="mb-6 border-emerald-200 bg-emerald-50">
+      <Card className="mb-4 border-emerald-200 bg-emerald-50 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm text-emerald-700">Total gastado</p>
@@ -174,7 +338,7 @@ export default function GastosPage() {
         </div>
         {supplierFilter && (
           <p className="mt-1 text-xs text-emerald-800">
-            Filtrado por proveedor · {filteredExpenses.length} gasto
+            Filtrado por gasto · {filteredExpenses.length} gasto
             {filteredExpenses.length === 1 ? "" : "s"}
           </p>
         )}
@@ -185,17 +349,53 @@ export default function GastosPage() {
         )}
       </Card>
 
-      {chartSlices.length > 0 && (
-        <Card className="mb-6">
-          <h2 className="mb-1 font-bold text-slate-900">Gastos por proveedor</h2>
-          <p className="mb-4 text-sm text-slate-500">
-            Solo visual. Pulsa un segmento o la leyenda para filtrar el listado.
-          </p>
-          <ExpenseSupplierDonut
-            slices={chartSlices}
-            selectedKey={supplierFilter}
-            onSelect={setSupplierFilter}
-          />
+      {(purchaseChartSlices.length > 0 || fixedChartSlices.length > 0) && (
+        <Card className="mb-4 p-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-slate-900">Gastos por tipo</h2>
+              <p className="text-sm text-slate-500">
+                Pulsa un segmento o la leyenda para filtrar. Usa restablecer
+                para volver al listado completo.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSupplierFilter(null)}
+              disabled={!supplierFilter}
+              className="rounded-full border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Restablecer
+            </button>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {purchaseChartSlices.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+                  Compras
+                </h3>
+                <ExpenseSupplierDonut
+                  slices={purchaseChartSlices}
+                  selectedKey={supplierFilter}
+                  onSelect={setSupplierFilter}
+                  ariaLabel="Gastos de compras"
+                />
+              </section>
+            )}
+            {fixedChartSlices.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+                  Gastos fijos
+                </h3>
+                <ExpenseSupplierDonut
+                  slices={fixedChartSlices}
+                  selectedKey={supplierFilter}
+                  onSelect={setSupplierFilter}
+                  ariaLabel="Gastos fijos"
+                />
+              </section>
+            )}
+          </div>
         </Card>
       )}
 
@@ -234,11 +434,13 @@ export default function GastosPage() {
                     <p className="text-sm text-slate-600">
                       {expense.description}
                     </p>
-                    <p className="text-xs text-slate-400">
-                      {formatShortDate(expense.date)} · {expense.category} ·{" "}
-                      {expense.paymentMethod}
-                      {expense.recurringExpenseId && " · Gasto fijo"}
-                    </p>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+                      <ExpenseSourceIcon expense={expense} />
+                      <span className="min-w-0 truncate">
+                        {formatShortDate(expense.date)} · {expense.category} ·{" "}
+                        {expense.paymentMethod}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-red-700">

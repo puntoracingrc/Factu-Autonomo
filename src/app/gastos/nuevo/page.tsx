@@ -53,6 +53,8 @@ export default function NuevoGastoPage() {
     null,
   );
   const [scanHint, setScanHint] = useState<string | null>(null);
+  const [expenseOrigin, setExpenseOrigin] =
+    useState<"manual" | "scan">("manual");
   const [supplierHint, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -85,6 +87,7 @@ export default function NuevoGastoPage() {
     setCategory(editingExpense.category);
     setPaymentMethod(editingExpense.paymentMethod);
     setNotes(editingExpense.notes ?? "");
+    setExpenseOrigin(editingExpense.origin === "scan" ? "scan" : "manual");
     setSaveSupplier(Boolean(editingExpense.supplierId));
     setSupplierHint(
       editingExpense.supplierId
@@ -124,6 +127,7 @@ export default function NuevoGastoPage() {
       .join(" — ");
     if (extraNotes) setNotes(extraNotes);
     setSaveSupplier(true);
+    setExpenseOrigin("scan");
     setScanHint(
       "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
     );
@@ -189,6 +193,7 @@ export default function NuevoGastoPage() {
       category,
       paymentMethod,
       notes: notes || undefined,
+      origin: expenseOrigin,
     };
 
     if (editingExpense) {

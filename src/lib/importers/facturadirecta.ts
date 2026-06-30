@@ -677,6 +677,7 @@ function buildExpense(
   return {
     id: fdId("expense", number),
     date: isoDate(get(row, "Fecha registro")),
+    origin: "import",
     supplierId: supplier?.id,
     supplierName: supplier?.name || "",
     description: purchaseDescription(row, supplier),
