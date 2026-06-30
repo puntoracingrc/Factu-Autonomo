@@ -99,6 +99,10 @@ import {
   mergeCustomerRecords,
   type MergeCustomersOptions,
 } from "@/lib/document-integrity/customer-merge";
+import {
+  applyDocumentLinkUpdate,
+  type DocumentLinkUpdate,
+} from "@/lib/document-links";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -120,6 +124,7 @@ interface AppStoreValue {
     > & { rectification: RectificationInfo },
   ) => Document | null;
   updateDocument: (doc: Document) => Document;
+  updateDocumentLink: (update: DocumentLinkUpdate) => void;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
   markQuoteAsAccepted: (id: string) => void;
@@ -431,6 +436,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     });
     return saved;
   }, [data.documents, data.profile, setAppData]);
+
+  const updateDocumentLink = useCallback(
+    (update: DocumentLinkUpdate) => {
+      setAppData((prev) => ({
+        ...prev,
+        documents: applyDocumentLinkUpdate(prev.documents, update),
+      }));
+    },
+    [setAppData],
+  );
 
   const issueDocument = useCallback(
     (id: string): Document => {
@@ -1305,6 +1320,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,
       markQuoteAsAccepted,
@@ -1346,6 +1362,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,
       markQuoteAsAccepted,
