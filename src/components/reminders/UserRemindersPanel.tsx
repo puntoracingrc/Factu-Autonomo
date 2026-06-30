@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Plus, RotateCcw, Search, Send, Trash2, X } from "lucide-react";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
+import { ReminderRealtimeVoiceInput } from "@/components/reminders/ReminderRealtimeVoiceInput";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -264,8 +265,15 @@ export function UserRemindersPanel() {
               </p>
             </div>
 
-            <Field label="Qué quieres recordar" hint="Escribe la tarea con tus palabras">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="reminder-text"
+                className="text-sm font-semibold text-slate-700"
+              >
+                Qué quieres recordar
+              </label>
               <Textarea
+                id="reminder-text"
                 value={text}
                 onChange={(event) => {
                   setText(event.target.value);
@@ -274,7 +282,18 @@ export function UserRemindersPanel() {
                 placeholder="Ej.: Esta tarde hacer la factura a María"
                 required
               />
-            </Field>
+              <ReminderRealtimeVoiceInput
+                value={text}
+                onChange={(nextText) => {
+                  setText(nextText);
+                  setSentToOffice(false);
+                }}
+                onActivity={() => setFormError(null)}
+              />
+              <span className="text-xs text-slate-400">
+                Escribe la tarea con tus palabras
+              </span>
+            </div>
 
             <Field label="Destino">
               <Select
