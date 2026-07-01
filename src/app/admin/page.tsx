@@ -44,6 +44,8 @@ interface AdminErrorRow {
 interface AdminErrorsResponse {
   errors?: AdminErrorRow[];
   error?: string;
+  message?: string;
+  monitoringAvailable?: boolean;
 }
 
 const ADMIN_MENU: Array<{
@@ -460,10 +462,12 @@ function ErrorsPanel() {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const loadErrors = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNotice(null);
     const token = await getAccessToken();
     if (!token) {
       setError("Inicia sesión con una cuenta administradora.");
@@ -481,6 +485,7 @@ function ErrorsPanel() {
       return;
     }
     setErrors(body.errors ?? []);
+    setNotice(body.monitoringAvailable === false ? body.message ?? null : null);
     setLoading(false);
   }, []);
 
@@ -527,6 +532,11 @@ function ErrorsPanel() {
       {error && (
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           {error}
+        </Card>
+      )}
+      {!loading && !error && notice && (
+        <Card className="border-blue-100 bg-blue-50 text-blue-900">
+          {notice}
         </Card>
       )}
       {!loading && !error && errors.length === 0 && (
