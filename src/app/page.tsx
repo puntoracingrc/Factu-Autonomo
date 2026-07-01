@@ -35,7 +35,7 @@ const quickActions = [
     showBadge: true,
   },
   {
-    href: "/clientes",
+    href: "/clientes/nuevo?from=/",
     label: "Nuevo cliente",
     icon: Users,
     color: "bg-sky-600 text-white",

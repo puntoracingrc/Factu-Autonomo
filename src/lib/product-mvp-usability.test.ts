@@ -35,7 +35,7 @@ describe("MVP usability polish", () => {
       "Nuevo cliente",
     ]);
     expect(HOME_CREATE_ACTIONS.map((action) => action.href)).toEqual([
-      "/clientes",
+      "/clientes/nuevo?from=/",
     ]);
     expect(HOME_REVIEW_ACTIONS.map((action) => action.label)).toEqual(
       expect.arrayContaining([

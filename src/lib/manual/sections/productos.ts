@@ -26,7 +26,7 @@ export const productosSection: ManualSection = {
       title: "3. Editar y unificar",
       paragraphs: [
         "Pulsa **Editar** en una ficha para corregir nombre, familia o unidad. Si asignas una familia manualmente, Factu la recordará en futuros escaneos del mismo producto.",
-        "Si ves dos productos que en realidad son el mismo, usa **Unificar producto** dentro de la ficha que quieres conservar.",
+        "Si ves dos productos que en realidad son el mismo, usa **Unificar producto** dentro de la ficha que quieres conservar. Puedes buscar el duplicado por nombre, familia o proveedor antes de fusionarlo.",
       ],
     },
     {

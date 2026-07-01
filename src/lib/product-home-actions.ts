@@ -1,5 +1,5 @@
 export const HOME_CREATE_ACTIONS = [
-  { href: "/clientes", label: "Nuevo cliente" },
+  { href: "/clientes/nuevo?from=/", label: "Nuevo cliente" },
 ] as const;
 
 export const HOME_REVIEW_ACTIONS = [

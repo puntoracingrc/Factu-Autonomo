@@ -9,7 +9,7 @@ export const clientesSection: ManualSection = {
     {
       title: "1. Añadir un cliente",
       paragraphs: [
-        "En **Clientes** pulsa **Nuevo cliente** e introduce nombre, apellidos, NIF, email y teléfono.",
+        "En **Clientes** pulsa **Nuevo cliente**. Se abrirá una pantalla limpia para introducir nombre, apellidos, NIF, email y teléfono; al guardar o cancelar volverás al listado.",
         "Para la dirección, elige el **tipo de vía** (Calle, Avenida, etc.) y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni otros prefijos. Así el listado puede ordenarse bien por calle.",
         "El **NIF no puede repetirse** en otro cliente. Si ya existe, verás un aviso y podrás **unificar** registros duplicados.",
         "Email y teléfono son importantes: los usarás para enviar facturas y recordatorios de pago.",
@@ -40,7 +40,14 @@ export const clientesSection: ManualSection = {
       ],
     },
     {
-      title: "4. Usar un cliente en una factura",
+      title: "4. Unificar clientes repetidos",
+      paragraphs: [
+        "Si tienes clientes duplicados, usa **Unificar manualmente**. Primero busca por nombre, NIF, teléfono o email, marca los registros repetidos y elige cuál conservar.",
+        "Los documentos emitidos mantienen el cliente original por seguridad histórica. Si quieres, puedes actualizar también borradores.",
+      ],
+    },
+    {
+      title: "5. Usar un cliente en una factura",
       paragraphs: [
         "Al crear una factura o presupuesto, busca el cliente por nombre. Sus datos se rellenan solos.",
         "Si editas un cliente después, las facturas ya emitidas **no cambian** (conservan los datos del momento de emisión).",
