@@ -82,8 +82,6 @@ function cleanText(value: unknown): string {
 
 const NON_EXPENSE_DOCUMENT_PATTERNS = [
   /\bcomanda\s*\/\s*pedido\b/i,
-  /\bs\/ref\.?\s*:?\s*pressupost\b/i,
-  /\bpressupost\b/i,
   /\bvalid[oa]\s+durante\b/i,
   /\bvalid\s+durant\b/i,
   /\bpara\s+generar\s+el\s+pedido\b/i,
@@ -117,6 +115,25 @@ export function detectNonExpenseDocumentReason(text: string): string | null {
     return "Parece una oferta, presupuesto, pedido o proforma. No se guardará como gasto.";
   }
   return null;
+}
+
+function hasSupplierInvoiceEvidence(input: {
+  documentKind?: ExpenseScanDocumentKind;
+  purchaseDocument?: ExpensePurchaseDocument;
+  description: string;
+  notes?: string | null;
+}): boolean {
+  if (input.documentKind === "expense_invoice" || input.documentKind === "ticket") {
+    return true;
+  }
+
+  const invoiceNumber = input.purchaseDocument?.invoiceNumber?.trim() ?? "";
+  if (/^(fd|fra|fac|fact|fv|fr)[\s/.-]*\d+/i.test(invoiceNumber)) {
+    return true;
+  }
+
+  const text = [input.description, input.notes ?? ""].join("\n");
+  return /^\s*(factura|fra\.?|invoice)\b/im.test(text);
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -260,28 +277,38 @@ export function normalizeExpenseScanPayload(
     supplierNif:
       typeof supplier.nif === "string" ? supplier.nif.trim() : undefined,
   });
-  const nonExpenseReason =
-    explicitlyNotExpense
-      ? cleanText(documentRaw.reason) ||
+  const hasInvoiceEvidence = hasSupplierInvoiceEvidence({
+    documentKind,
+    purchaseDocument,
+    description,
+    notes: typeof expense.notes === "string" ? expense.notes : null,
+  });
+  const documentReason = cleanText(documentRaw.reason);
+  const inferredNonExpenseReason =
+    detectNonExpenseDocumentReason([description, documentReason].join("\n")) ??
+    null;
+  const aiNonExpenseReason =
+    documentKind === "quote_or_order" || documentKind === "proforma"
+      ? documentReason ||
         "Este documento no parece una factura o ticket de gasto."
-      : [
-          documentKind,
-          cleanText(documentRaw.reason),
-          description,
-          typeof expense.notes === "string" ? expense.notes : "",
-        ]
-          .map((value) => detectNonExpenseDocumentReason(value ?? ""))
-          .find(Boolean) ?? null;
+      : null;
+  const nonExpenseReason = hasInvoiceEvidence
+    ? null
+    : explicitlyNotExpense
+      ? documentReason || "Este documento no parece una factura o ticket de gasto."
+      : inferredNonExpenseReason ?? aiNonExpenseReason;
+  const normalizedDocumentKind: ExpenseScanDocumentKind = nonExpenseReason
+    ? documentKind === "proforma"
+      ? "proforma"
+      : "quote_or_order"
+    : documentKind === "ticket" ||
+        (!documentKind && businessKind === "quick_ticket")
+      ? "ticket"
+      : "expense_invoice";
 
   return {
     document: {
-      kind:
-        documentKind ??
-        (nonExpenseReason
-          ? "quote_or_order"
-          : businessKind === "quick_ticket"
-            ? "ticket"
-            : "expense_invoice"),
+      kind: normalizedDocumentKind,
       isExpenseDocument: !nonExpenseReason,
       reason: nonExpenseReason,
     },

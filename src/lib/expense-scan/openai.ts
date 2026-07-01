@@ -2,6 +2,9 @@ import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "./limits";
 import { buildExpenseScanPrompt } from "./prompt";
 import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
 
+const EXPENSE_SCAN_MODEL =
+  process.env.OPENAI_EXPENSE_SCAN_MODEL?.trim() || "gpt-4o";
+
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -86,9 +89,9 @@ export async function extractExpenseFromImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: EXPENSE_SCAN_MODEL,
       temperature: 0.1,
-      max_tokens: 900,
+      max_tokens: 1800,
       response_format: { type: "json_object" },
       messages: [
         {
