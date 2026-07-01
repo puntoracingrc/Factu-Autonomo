@@ -38,6 +38,13 @@ export interface AdminBanSnapshot {
   reason: string | null;
 }
 
+export interface AdminErrorSnapshot {
+  count: number;
+  latestAt: string | null;
+  latestArea: string | null;
+  latestMessage: string | null;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;
@@ -48,6 +55,7 @@ export interface AdminUserRow {
   subscription: AdminSubscriptionSnapshot;
   payments: AdminPaymentSnapshot;
   ban: AdminBanSnapshot;
+  errors: AdminErrorSnapshot;
 }
 
 export function normalizeAdminDate(value: unknown): string | null {
@@ -114,4 +122,3 @@ export function coerceNonNegativeInteger(value: unknown): number {
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.floor(numeric));
 }
-

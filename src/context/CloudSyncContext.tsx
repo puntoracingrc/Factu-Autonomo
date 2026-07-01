@@ -41,6 +41,7 @@ import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { EMPTY_DATA } from "@/lib/types";
+import { reportAppError } from "@/lib/monitoring/client";
 
 export type SyncStatus =
   | "disabled"
@@ -196,6 +197,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return true;
       } catch (error) {
         markSyncPending();
+        void reportAppError({
+          severity: "error",
+          area: "sync",
+          code: "push_failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Error al subir cambios a la nube",
+          metadata: {
+            pendingChanges: changes.length,
+          },
+        });
         setSyncStatus(isBrowserOnline() ? "error" : "offline");
         setSyncMessage(
           isBrowserOnline()
@@ -321,6 +334,20 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         finalizeSyncState(workingData);
       }
     } catch (error) {
+      void reportAppError({
+        severity: "error",
+        area: "sync",
+        code: "pull_failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Error al descargar de la nube",
+        metadata: {
+          hasPendingChanges:
+            hasPendingSyncChanges(dataRef.current) ||
+            hasUnsyncedChanges(dataRef.current),
+        },
+      });
       setSyncStatus("error");
       setSyncMessage(
         error instanceof Error ? error.message : "Error al descargar de la nube",
@@ -396,6 +423,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("synced");
       setSyncMessage("No hay datos guardados en la nube para esta cuenta");
     } catch (error) {
+      void reportAppError({
+        severity: "error",
+        area: "sync",
+        code: "force_download_failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Error al descargar todos los datos de la nube",
+      });
       setSyncStatus("error");
       setSyncMessage(
         error instanceof Error

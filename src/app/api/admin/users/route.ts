@@ -6,6 +6,7 @@ import {
   emptySubscription,
   providerLabel,
   type AdminBanSnapshot,
+  type AdminErrorSnapshot,
   type AdminPaymentSnapshot,
   type AdminSubscriptionSnapshot,
   type AdminUserRow,
@@ -74,6 +75,23 @@ function banFromRow(
   };
 }
 
+function errorsFromRows(rows: Array<Record<string, unknown>>): AdminErrorSnapshot {
+  return rows.reduce<AdminErrorSnapshot>(
+    (acc, row) => ({
+      count: acc.count + 1,
+      latestAt: acc.latestAt ?? ((row.created_at as string | null) ?? null),
+      latestArea: acc.latestArea ?? ((row.area as string | null) ?? null),
+      latestMessage: acc.latestMessage ?? ((row.message as string | null) ?? null),
+    }),
+    {
+      count: 0,
+      latestAt: null,
+      latestArea: null,
+      latestMessage: null,
+    },
+  );
+}
+
 export async function GET(request: Request) {
   const requester = await getUserFromBearer(request.headers.get("authorization"));
   if (!requester) {
@@ -107,7 +125,12 @@ export async function GET(request: Request) {
   const users = authData.users;
   const userIds = users.map((user) => user.id);
 
-  const [{ data: subscriptionRows }, { data: paymentRows }, { data: controlRows }] =
+  const [
+    { data: subscriptionRows },
+    { data: paymentRows },
+    { data: controlRows },
+    { data: errorRows },
+  ] =
     await Promise.all([
       userIds.length
         ? admin.from("user_subscriptions").select("*").in("user_id", userIds)
@@ -124,6 +147,13 @@ export async function GET(request: Request) {
             .from("admin_user_controls")
             .select("user_id,banned_at,ban_reason")
             .in("user_id", userIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length
+        ? admin
+            .from("app_error_events")
+            .select("user_id,area,message,created_at")
+            .in("user_id", userIds)
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -147,6 +177,14 @@ export async function GET(request: Request) {
       row as Record<string, unknown>,
     ]);
   }
+  const errorsByUser = new Map<string, Array<Record<string, unknown>>>();
+  for (const row of errorRows ?? []) {
+    const userId = String((row as Record<string, unknown>).user_id);
+    errorsByUser.set(userId, [
+      ...(errorsByUser.get(userId) ?? []),
+      row as Record<string, unknown>,
+    ]);
+  }
 
   const now = new Date();
   const rows: AdminUserRow[] = users.map((user) => ({
@@ -159,6 +197,7 @@ export async function GET(request: Request) {
     subscription: subscriptionFromRow(subscriptionsByUser.get(user.id), user.id),
     payments: paymentFromRows(paymentsByUser.get(user.id) ?? []),
     ban: banFromRow(user, controlsByUser.get(user.id)),
+    errors: errorsFromRows(errorsByUser.get(user.id) ?? []),
   }));
 
   return NextResponse.json({
