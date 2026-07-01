@@ -68,4 +68,91 @@ describe("expense scan schema", () => {
     });
     expect(result?.warnings.some((w) => w.includes("Confianza baja"))).toBe(true);
   });
+
+  it("normaliza líneas de compra detectadas", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Metalúrgica Arandes", nif: "B12345678" },
+      expense: {
+        date: "2026-06-30",
+        description: "Material persiana",
+        amount: 100,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        purchaseLines: [
+          {
+            description: " Lama persiana ",
+            quantity: "2",
+            unit: "ud",
+            unitPrice: "30,50",
+            discountPercent: 10,
+            ivaPercent: 21,
+          },
+          {
+            description: "Transporte",
+            quantity: 1,
+            total: 12,
+            ivaPercent: 0,
+          },
+          {
+            description: "",
+            quantity: 1,
+            unitPrice: 99,
+          },
+        ],
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.expense.purchaseLines).toHaveLength(2);
+    expect(result?.expense.purchaseLines?.[0]).toMatchObject({
+      description: "Lama persiana",
+      quantity: 2,
+      unitPrice: 30.5,
+      discountPercent: 10,
+      ivaPercent: 21,
+    });
+    expect(result?.expense.purchaseLines?.[1]).toMatchObject({
+      description: "Transporte",
+      unitPrice: 12,
+      total: 12,
+      ivaPercent: 0,
+    });
+  });
+
+  it("normaliza datos estructurados de factura de proveedor", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Proveedor SL", nif: "B87654321" },
+      expense: {
+        date: "30/06/2026",
+        description: "Compra material",
+        amount: 100,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+        purchaseDocument: {
+          invoiceNumber: " FD-224572 ",
+          dueDate: "15/07/2026",
+          supplierAddress: "Calle Mayor 1",
+          supplierPostalCode: "08001",
+          supplierCity: "Barcelona",
+          paymentTerms: "30 días",
+        },
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.expense.purchaseDocument).toMatchObject({
+      invoiceNumber: "FD-224572",
+      issueDate: "2026-06-30",
+      dueDate: "2026-07-15",
+      supplierNif: "B87654321",
+      supplierAddress: "Calle Mayor 1",
+      supplierPostalCode: "08001",
+      supplierCity: "Barcelona",
+      paymentTerms: "30 días",
+    });
+  });
 });

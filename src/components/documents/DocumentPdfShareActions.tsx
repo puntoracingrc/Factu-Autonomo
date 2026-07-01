@@ -4,6 +4,7 @@ import { Download, Eye, Printer } from "lucide-react";
 import { useState } from "react";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { IconActionButton } from "@/components/ui/IconAction";
+import { useBilling } from "@/context/BillingContext";
 import {
   downloadDocumentPdf,
   openDocumentPdfPreview,
@@ -24,13 +25,15 @@ export function DocumentPdfShareActions({
   markSentOnShare,
   showPreview = true,
 }: DocumentPdfShareActionsProps) {
+  const { billingEnabled, isPro } = useBilling();
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   async function handlePdfPreview() {
     setPreviewLoading(true);
     try {
-      await openDocumentPdfPreview(doc, profile);
+      await openDocumentPdfPreview(doc, profile, pdfOptions);
     } catch {
       alert(
         "No se pudo abrir el PDF. Permite ventanas emergentes o descárgalo.",
@@ -43,7 +46,7 @@ export function DocumentPdfShareActions({
   async function handlePrint() {
     setPrintLoading(true);
     try {
-      await printDocumentPdf(doc, profile);
+      await printDocumentPdf(doc, profile, pdfOptions);
     } catch {
       alert(
         "No se pudo preparar la impresión del PDF. Permite ventanas emergentes o descárgalo.",
@@ -69,7 +72,7 @@ export function DocumentPdfShareActions({
       <IconActionButton
         label="PDF"
         tooltip="Descargar PDF"
-        onClick={() => void downloadDocumentPdf(doc, profile)}
+        onClick={() => void downloadDocumentPdf(doc, profile, pdfOptions)}
         className="bg-blue-50 text-blue-700 hover:bg-blue-100"
       >
         <Download className="h-5 w-5" />
@@ -87,6 +90,7 @@ export function DocumentPdfShareActions({
         doc={doc}
         profile={profile}
         markSentOnShare={markSentOnShare}
+        pdfOptions={pdfOptions}
       />
     </>
   );

@@ -8,6 +8,7 @@ import { isValidCustomerEmail } from "./customers";
 import { isCollectedDocument } from "./income";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
+import type { DocumentPdfOptions } from "./pdf";
 
 function documentTypeLabel(doc: Document): string {
   if (isRectificativa(doc)) return "factura rectificativa";
@@ -87,8 +88,12 @@ export function buildMailtoUrl(
   return `mailto:${email.trim()}?${params.toString()}`;
 }
 
-async function pdfFile(doc: Document, profile: BusinessProfile): Promise<File> {
-  const blob = await buildDocumentPdfBlob(doc, profile);
+async function pdfFile(
+  doc: Document,
+  profile: BusinessProfile,
+  pdfOptions?: DocumentPdfOptions,
+): Promise<File> {
+  const blob = await buildDocumentPdfBlob(doc, profile, pdfOptions);
   return new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
 }
 
@@ -96,10 +101,11 @@ async function sharePdfNative(
   doc: Document,
   profile: BusinessProfile,
   text: string,
+  pdfOptions?: DocumentPdfOptions,
 ): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.share) return false;
 
-  const file = await pdfFile(doc, profile);
+  const file = await pdfFile(doc, profile, pdfOptions);
   const payload = { files: [file], title: doc.number, text };
 
   if (navigator.canShare && !navigator.canShare(payload)) return false;
@@ -116,6 +122,7 @@ async function sharePdfNative(
 export async function shareDocumentByEmail(
   doc: Document,
   profile: BusinessProfile,
+  pdfOptions?: DocumentPdfOptions,
 ): Promise<void> {
   const email = doc.client.email?.trim();
   if (!email) return;
@@ -123,17 +130,18 @@ export async function shareDocumentByEmail(
   const message = buildShareMessage(doc, profile);
   const subject = `${documentTypeLabel(doc).replace(/^./, (c) => c.toUpperCase())} ${doc.number}`;
 
-  const shared = await sharePdfNative(doc, profile, message);
+  const shared = await sharePdfNative(doc, profile, message, pdfOptions);
   if (shared) return;
 
   const mailto = buildMailtoUrl(email, subject, `${message}\n\n(Adjunta el PDF descargado.)`);
-  await downloadDocumentPdf(doc, profile);
+  await downloadDocumentPdf(doc, profile, pdfOptions);
   window.location.href = mailto;
 }
 
 export async function shareDocumentByWhatsApp(
   doc: Document,
   profile: BusinessProfile,
+  pdfOptions?: DocumentPdfOptions,
 ): Promise<void> {
   const phone = doc.client.phone?.trim();
   if (!phone) return;
@@ -142,8 +150,8 @@ export async function shareDocumentByWhatsApp(
   const url = buildWhatsAppUrl(phone, message);
   if (!url) return;
 
-  const shared = await sharePdfNative(doc, profile, message);
-  if (!shared) await downloadDocumentPdf(doc, profile);
+  const shared = await sharePdfNative(doc, profile, message, pdfOptions);
+  if (!shared) await downloadDocumentPdf(doc, profile, pdfOptions);
 
   window.open(url, "_blank", "noopener,noreferrer");
 }

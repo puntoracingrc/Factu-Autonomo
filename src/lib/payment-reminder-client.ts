@@ -2,6 +2,7 @@ import { showFactuToast } from "./factu/occasional";
 import { isPendingInvoicePayment } from "./income";
 import { paymentReminderSubject } from "./payment-reminder";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
+import type { DocumentPdfOptions } from "./pdf";
 import {
   buildMailtoUrl,
   buildWhatsAppUrl,
@@ -16,6 +17,7 @@ export interface SendPaymentReminderInput {
   doc: Document;
   profile: BusinessProfile;
   message: string;
+  pdfOptions?: DocumentPdfOptions;
 }
 
 export interface SendPaymentReminderResult {
@@ -52,10 +54,11 @@ async function shareReminderPdfNative(
   doc: Document,
   profile: BusinessProfile,
   text: string,
+  pdfOptions?: DocumentPdfOptions,
 ): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.share) return false;
 
-  const blob = await buildDocumentPdfBlob(doc, profile);
+  const blob = await buildDocumentPdfBlob(doc, profile, pdfOptions);
   const file = new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
   const payload = { files: [file], title: doc.number, text };
 
@@ -120,13 +123,14 @@ export async function sendPaymentReminderByEmail(
     input.doc,
     input.profile,
     message,
+    input.pdfOptions,
   );
   if (sharedNative) {
     return { ok: true, via: "native" };
   }
 
   try {
-    await downloadDocumentPdf(input.doc, input.profile);
+    await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
   } catch {
     return { ok: false, error: "No se pudo descargar el PDF. Inténtalo de nuevo." };
   }
@@ -162,11 +166,12 @@ export async function sendPaymentReminderByWhatsApp(
     input.doc,
     input.profile,
     message,
+    input.pdfOptions,
   );
 
   if (!sharedNative) {
     try {
-      await downloadDocumentPdf(input.doc, input.profile);
+      await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
     } catch {
       return { ok: false, error: "No se pudo descargar el PDF. Inténtalo de nuevo." };
     }

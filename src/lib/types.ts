@@ -217,6 +217,36 @@ export type ExpenseBusinessKind =
   | "quick_ticket"
   | "fixed";
 
+export interface ExpensePurchaseLine {
+  id: string;
+  description: string;
+  quantity: number;
+  /** Unidad leída o introducida: ud, m, h, kg... */
+  unit?: string;
+  /** Precio unitario sin IVA, antes de descuento si existe. */
+  unitPrice: number;
+  discountPercent?: number;
+  ivaPercent?: number;
+  /** Base de la línea sin IVA tras descuento, si viene del documento. */
+  total?: number;
+}
+
+export interface ExpensePurchaseDocument {
+  /** Número que aparece en la factura del proveedor. */
+  invoiceNumber?: string;
+  /** Fecha de emisión del documento del proveedor. */
+  issueDate?: string;
+  /** Fecha de vencimiento o pago si aparece. */
+  dueDate?: string;
+  /** NIF/CIF del proveedor leído del documento. */
+  supplierNif?: string;
+  supplierAddress?: string;
+  supplierPostalCode?: string;
+  supplierCity?: string;
+  /** Condiciones o forma de pago escrita por el proveedor. */
+  paymentTerms?: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -231,6 +261,12 @@ export interface Expense {
   category: string;
   paymentMethod: string;
   notes?: string;
+  /** Datos estructurados de la factura/ticket de proveedor. */
+  purchaseDocument?: ExpensePurchaseDocument;
+  /** Líneas de compra detectadas por IA o introducidas manualmente. */
+  purchaseLines?: ExpensePurchaseLine[];
+  /** Factura o presupuesto al que pertenece esta compra para calcular margen del trabajo. */
+  workDocumentId?: string;
   /** Gasto generado desde un gasto fijo */
   recurringExpenseId?: string;
   recurringOccurrenceKey?: string;

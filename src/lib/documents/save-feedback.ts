@@ -1,6 +1,7 @@
 import { showFactuToast } from "@/lib/factu/occasional";
 import { DRAFT_INVOICE_NUMBER } from "@/lib/documents";
 import { downloadDocumentPdf } from "@/lib/pdf";
+import type { DocumentPdfOptions } from "@/lib/pdf";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 import type { useRouter } from "next/navigation";
 
@@ -40,13 +41,21 @@ export async function finishDocumentSave(input: {
   type: DocumentType;
   number: string;
   router: AppRouter;
-  download?: { doc: Document; profile: BusinessProfile };
+  download?: {
+    doc: Document;
+    profile: BusinessProfile;
+    pdfOptions?: DocumentPdfOptions;
+  };
 }): Promise<void> {
   toastDocumentSaved(input.type, input.number);
 
   if (input.download) {
     try {
-      await downloadDocumentPdf(input.download.doc, input.download.profile);
+      await downloadDocumentPdf(
+        input.download.doc,
+        input.download.profile,
+        input.download.pdfOptions,
+      );
     } catch {
       showFactuToast(
         "No se pudo descargar el PDF. Puedes hacerlo desde el listado.",

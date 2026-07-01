@@ -20,6 +20,7 @@ import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymen
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
+import { useBilling } from "@/context/BillingContext";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
@@ -141,6 +142,7 @@ function SettingsSection({
 
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
+  const { billingEnabled, isPro } = useBilling();
   const [form, setForm] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
@@ -544,6 +546,13 @@ export default function ConfiguracionPage() {
                   Edita las plantillas visuales de facturas, presupuestos y
                   recibos en una pantalla dedicada.
                 </p>
+                {billingEnabled && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    En plan Gratis añadimos una firma discreta en gris al pie
+                    del PDF. En Pro no aparece.
+                    {isPro ? " Tu cuenta ya genera PDFs sin esa firma." : ""}
+                  </p>
+                )}
               </div>
             </div>
             <ButtonLink href="/configuracion/plantillas" variant="secondary">

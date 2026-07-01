@@ -3,7 +3,14 @@ import {
   inferScannedExpenseBusinessKind,
   normalizeExpenseBusinessKind,
 } from "../expense-classification";
-import type { ExpenseBusinessKind } from "../types";
+import { roundMoney } from "../calculations";
+import type {
+  ExpenseBusinessKind,
+  ExpensePurchaseDocument,
+  ExpensePurchaseLine,
+} from "../types";
+
+export type ExpenseScanPurchaseLine = Omit<ExpensePurchaseLine, "id">;
 
 export interface ExpenseScanPayload {
   supplier: {
@@ -20,6 +27,8 @@ export interface ExpenseScanPayload {
     category: string;
     paymentMethod: string;
     notes?: string | null;
+    purchaseDocument?: ExpensePurchaseDocument;
+    purchaseLines?: ExpenseScanPurchaseLine[];
   };
   confidence: number;
   warnings: string[];
@@ -48,6 +57,77 @@ function parseDate(value: unknown): string {
     return `${year}-${month}-${day}`;
   }
   return new Date().toISOString().slice(0, 10);
+}
+
+function parseDateOptional(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const normalized = parseDate(value);
+  return normalized || undefined;
+}
+
+function cleanText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parsePositiveNumber(value: unknown): number | undefined {
+  const number = Number(
+    typeof value === "string" ? value.replace(",", ".").trim() : value,
+  );
+  return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function parseNonNegativeNumber(value: unknown): number | undefined {
+  const number = Number(
+    typeof value === "string" ? value.replace(",", ".").trim() : value,
+  );
+  return Number.isFinite(number) && number >= 0 ? number : undefined;
+}
+
+function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
+  if (!raw || typeof raw !== "object") return null;
+  const line = raw as Record<string, unknown>;
+  const description = cleanText(line.description);
+  const quantity = parsePositiveNumber(line.quantity) ?? 1;
+  const unitPrice = parsePositiveNumber(line.unitPrice);
+  const total = parsePositiveNumber(line.total);
+
+  if (!description || (!unitPrice && !total)) return null;
+
+  const discountPercent = parseNonNegativeNumber(line.discountPercent);
+  const ivaPercent = parseNonNegativeNumber(line.ivaPercent);
+
+  return {
+    description,
+    quantity,
+    unit: cleanText(line.unit) || undefined,
+    unitPrice: roundMoney(unitPrice ?? (total ? total / quantity : 0)),
+    discountPercent:
+      discountPercent === undefined
+        ? undefined
+        : Math.min(Math.max(discountPercent, 0), 100),
+    ivaPercent,
+    total: total ? roundMoney(total) : undefined,
+  };
+}
+
+function normalizePurchaseDocument(
+  raw: unknown,
+  fallback: { date: string; supplierNif?: string | null },
+): ExpensePurchaseDocument | undefined {
+  const source = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const document: ExpensePurchaseDocument = {
+    invoiceNumber: cleanText(source.invoiceNumber) || undefined,
+    issueDate: parseDateOptional(source.issueDate) ?? fallback.date,
+    dueDate: parseDateOptional(source.dueDate),
+    supplierNif:
+      cleanText(source.supplierNif) || fallback.supplierNif?.trim() || undefined,
+    supplierAddress: cleanText(source.supplierAddress) || undefined,
+    supplierPostalCode: cleanText(source.supplierPostalCode) || undefined,
+    supplierCity: cleanText(source.supplierCity) || undefined,
+    paymentTerms: cleanText(source.paymentTerms) || undefined,
+  };
+
+  return Object.values(document).some(Boolean) ? document : undefined;
 }
 
 export function normalizeExpenseScanPayload(
@@ -90,9 +170,16 @@ export function normalizeExpenseScanPayload(
       category,
       notes: typeof expense.notes === "string" ? expense.notes : null,
     });
+  const normalizedDate = parseDate(expense.date);
 
   const warnings = Array.isArray(data.warnings)
     ? data.warnings.filter((w): w is string => typeof w === "string")
+    : [];
+  const purchaseLines = Array.isArray(expense.purchaseLines)
+    ? expense.purchaseLines
+        .map(normalizePurchaseLine)
+        .filter((line): line is ExpenseScanPurchaseLine => Boolean(line))
+        .slice(0, 50)
     : [];
 
   const confidence = Number(data.confidence);
@@ -111,7 +198,7 @@ export function normalizeExpenseScanPayload(
           : category,
     },
     expense: {
-      date: parseDate(expense.date),
+      date: normalizedDate,
       businessKind,
       description,
       amount: Math.round(amount * 100) / 100,
@@ -120,6 +207,12 @@ export function normalizeExpenseScanPayload(
       paymentMethod,
       notes:
         typeof expense.notes === "string" ? expense.notes.trim() || null : null,
+      purchaseDocument: normalizePurchaseDocument(expense.purchaseDocument, {
+        date: normalizedDate,
+        supplierNif:
+          typeof supplier.nif === "string" ? supplier.nif.trim() : undefined,
+      }),
+      purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
     },
     confidence: Number.isFinite(confidence) ? confidence : 0.5,
     warnings,
@@ -142,6 +235,27 @@ export const EXPENSE_SCAN_JSON_SCHEMA = {
     category: `una de: ${EXPENSE_CATEGORIES.join(", ")}`,
     paymentMethod: `una de: ${PAYMENT_METHODS.join(", ")}`,
     notes: "string opcional — nº factura u observaciones",
+    purchaseDocument: {
+      invoiceNumber: "string opcional — número de factura del proveedor",
+      issueDate: "YYYY-MM-DD opcional — fecha de emisión",
+      dueDate: "YYYY-MM-DD opcional — vencimiento si aparece",
+      supplierNif: "string opcional — NIF/CIF del proveedor si aparece",
+      supplierAddress: "string opcional — dirección del proveedor",
+      supplierPostalCode: "string opcional — código postal del proveedor",
+      supplierCity: "string opcional — ciudad del proveedor",
+      paymentTerms: "string opcional — condiciones o forma de pago",
+    },
+    purchaseLines: [
+      {
+        description: "string — producto, material o servicio si aparece",
+        quantity: "number — cantidad; 1 si no aparece",
+        unit: "string opcional — ud, m, h, kg...",
+        unitPrice: "number — precio unitario SIN IVA antes de descuento",
+        discountPercent: "number opcional — descuento de línea en %",
+        ivaPercent: "number opcional — IVA de la línea si aparece",
+        total: "number opcional — base de línea SIN IVA tras descuento",
+      },
+    ],
   },
   confidence: "number 0-1",
   warnings: "array de strings con dudas o campos ilegibles",

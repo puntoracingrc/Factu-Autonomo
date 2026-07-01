@@ -13,7 +13,7 @@ export const facturasSection: ManualSection = {
       title: "1. Crear una factura nueva",
       paragraphs: [
         "Ve a **Facturas** → **Nueva factura** (o usa el acceso rápido en Inicio).",
-        "Elige o crea un **cliente**, añade líneas con concepto, cantidad y precio, y revisa el IVA de cada línea.",
+        "Elige o crea un **cliente**, añade líneas con concepto, cantidad, unidad, precio con o sin IVA, y revisa el IVA de cada línea. En escritorio se muestran compactas; en móvil se apilan para poder rellenarlas sin pelearte con la pantalla.",
         "Si tienes plan **Pro**, puedes pegar datos de facturación en **Rellenar con IA** dentro de **Datos del cliente**. La app rellena la ficha y, si es un cliente nuevo, lo guarda automáticamente al guardar la factura.",
         "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar. La **Vista previa borrador** usa el mismo generador de PDF que la descarga, pero sin emitir la factura.",
       ],
@@ -42,6 +42,7 @@ export const facturasSection: ManualSection = {
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
+        "Si has vinculado compras a esa factura desde **Gastos**, el listado muestra **Costes vinculados** y **Margen estimado**. Es una ayuda rápida para saber si ese trabajo va bien; no modifica el PDF ni la factura emitida.",
       ],
     },
     {

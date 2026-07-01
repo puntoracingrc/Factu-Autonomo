@@ -44,6 +44,7 @@ export const presupuestosSection: ManualSection = {
       paragraphs: [
         "Presupuestos se ordena de más nuevo a más antiguo, muestra separadores por mes y carga 30 resultados cada vez.",
         "Usa filtros por periodo y estado para encontrar borradores, enviados, aceptados, caducados o convertidos.",
+        "Si has vinculado compras a un presupuesto desde **Gastos**, verás **Costes vinculados** y **Margen estimado** en el listado. Sirve para comparar rápido el coste real asociado al trabajo con lo presupuestado.",
       ],
     },
   ],

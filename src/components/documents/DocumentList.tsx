@@ -17,6 +17,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
@@ -28,6 +29,7 @@ import {
   sortDocumentsByNewest,
 } from "@/lib/documents";
 import { buildDocumentPdfBlob } from "@/lib/pdf";
+import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
@@ -130,7 +132,9 @@ export function DocumentList({
   basePath,
 }: DocumentListProps) {
   const { data, getDocumentsByType } = useAppStore();
+  const { billingEnabled, isPro } = useBilling();
   const vatExempt = isVatExempt(data.profile);
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
@@ -161,6 +165,10 @@ export function DocumentList({
     return filterDocumentsByQuery(sorted, search, { vatExempt });
   }, [allDocuments, data.documents, period, search, statusFilter, vatExempt]);
 
+  const workExpenseSummaries = useMemo(() => {
+    return summarizeWorkDocumentExpensesById(data.expenses);
+  }, [data.expenses]);
+
   const totalCount = allDocuments.length;
   const label = SEARCH_LABELS[type];
   const paginateList = PAGINATED_DOCUMENT_TYPES.includes(type);
@@ -176,7 +184,7 @@ export function DocumentList({
   async function handlePdfPreview(doc: Document) {
     setPreviewingDocumentId(doc.id);
     try {
-      const blob = await buildDocumentPdfBlob(doc, data.profile);
+      const blob = await buildDocumentPdfBlob(doc, data.profile, pdfOptions);
       const url = URL.createObjectURL(blob);
       setPdfPreview((current) => {
         if (current) URL.revokeObjectURL(current.url);
@@ -402,7 +410,16 @@ export function DocumentList({
               !previousDocument ||
               timelineMonthKey(previousDocument.date) !==
                 timelineMonthKey(doc.date);
-            const total = documentAmounts(doc, vatExempt).total;
+            const amounts = documentAmounts(doc, vatExempt);
+            const total = amounts.total;
+            const workExpenseSummary =
+              type === "factura" || type === "presupuesto"
+                ? workExpenseSummaries.get(doc.id)
+                : undefined;
+            const workMargin =
+              workExpenseSummary && workExpenseSummary.count > 0
+                ? amounts.subtotal - workExpenseSummary.cost
+                : undefined;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
@@ -462,6 +479,23 @@ export function DocumentList({
                       document={doc}
                       documents={data.documents}
                     />
+                    {workExpenseSummary && workMargin !== undefined && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+                          Costes vinculados:{" "}
+                          {formatMoney(workExpenseSummary.cost)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 ${
+                            workMargin >= 0
+                              ? "bg-emerald-50 text-emerald-800"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          Margen estimado: {formatMoney(workMargin)}
+                        </span>
+                      </div>
+                    )}
                     {statusHint && (
                       <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
                     )}
