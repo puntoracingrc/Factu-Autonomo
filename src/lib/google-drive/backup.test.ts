@@ -37,6 +37,7 @@ function dataWithDocument(updatedAt: string): AppData {
     userReminders: [],
     suppliers: [],
     customers: [],
+    products: [],
     counters: {
       factura: 1,
       factura_rectificativa: 0,

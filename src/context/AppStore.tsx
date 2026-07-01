@@ -15,6 +15,7 @@ import type {
   Document,
   DocumentType,
   Expense,
+  Product,
   RectificationInfo,
   Supplier,
   BusinessProfile,
@@ -103,6 +104,7 @@ import {
   applyDocumentLinkUpdate,
   type DocumentLinkUpdate,
 } from "@/lib/document-links";
+import { normalizeProductCatalogItem, purchaseProductKey } from "@/lib/purchase-products";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -136,6 +138,10 @@ interface AppStoreValue {
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Product;
+  updateProduct: (product: Product) => void;
+  deleteProduct: (id: string) => void;
+  mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (
     item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
   ) => RecurringExpense;
@@ -929,6 +935,89 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const addProduct = useCallback(
+    (product: Omit<Product, "id" | "createdAt" | "updatedAt">): Product => {
+      const now = new Date().toISOString();
+      const created = normalizeProductCatalogItem({
+        ...product,
+        id: newId(),
+        key: product.key || purchaseProductKey(product.name),
+        createdAt: now,
+        updatedAt: now,
+      });
+      setAppData((prev) => ({
+        ...prev,
+        products: [...prev.products, created],
+      }));
+      return created;
+    },
+    [setAppData],
+  );
+
+  const updateProduct = useCallback((product: Product) => {
+    const updated = normalizeProductCatalogItem({
+      ...product,
+      updatedAt: new Date().toISOString(),
+    });
+    setAppData((prev) => ({
+      ...prev,
+      products: prev.products.map((entry) =>
+        entry.id === product.id ? updated : entry,
+      ),
+    }));
+  }, [setAppData]);
+
+  const deleteProduct = useCallback((id: string) => {
+    setAppData((prev) => ({
+      ...prev,
+      products: prev.products.filter((product) => product.id !== id),
+    }));
+  }, [setAppData]);
+
+  const mergeProducts = useCallback((keepId: string, removeIds: string[]) => {
+    const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
+    if (uniqueRemoveIds.length === 0) return;
+
+    setAppData((prev) => {
+      const keep = prev.products.find((product) => product.id === keepId);
+      if (!keep) return prev;
+
+      const removed = prev.products.filter((product) =>
+        uniqueRemoveIds.includes(product.id),
+      );
+      if (removed.length === 0) return prev;
+
+      const aliases = [
+        ...(keep.aliases ?? []),
+        ...removed.flatMap((product) => [product.key, ...(product.aliases ?? [])]),
+      ];
+      const merged = normalizeProductCatalogItem({
+        ...keep,
+        aliases,
+        unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
+        supplierId:
+          keep.supplierId ?? removed.find((product) => product.supplierId)?.supplierId,
+        supplierName:
+          keep.supplierName ??
+          removed.find((product) => product.supplierName)?.supplierName,
+        pvp: keep.pvp ?? removed.find((product) => product.pvp !== undefined)?.pvp,
+        cost:
+          keep.cost ?? removed.find((product) => product.cost !== undefined)?.cost,
+        ivaPercent:
+          keep.ivaPercent ??
+          removed.find((product) => product.ivaPercent !== undefined)?.ivaPercent,
+        updatedAt: new Date().toISOString(),
+      });
+
+      return {
+        ...prev,
+        products: prev.products
+          .filter((product) => !uniqueRemoveIds.includes(product.id))
+          .map((product) => (product.id === keepId ? merged : product)),
+      };
+    });
+  }, [setAppData]);
+
   const addRecurringExpense = useCallback(
     (
       item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
@@ -1332,6 +1421,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      mergeProducts,
       addRecurringExpense,
       updateRecurringExpense,
       deleteRecurringExpense,
@@ -1374,6 +1467,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      mergeProducts,
       addRecurringExpense,
       updateRecurringExpense,
       deleteRecurringExpense,

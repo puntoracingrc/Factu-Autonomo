@@ -66,6 +66,7 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
     ),
     ...diffById("user_reminder", prev.userReminders, next.userReminders, timestamp),
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
+    ...diffById("product", prev.products, next.products, timestamp),
   ];
 
   if (stableJson(prev.profile) !== stableJson(next.profile)) {
@@ -150,6 +151,13 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: supplier,
       updatedAt: supplier.createdAt || timestamp,
     })),
+    ...data.products.map((product) => ({
+      entityType: "product" as const,
+      entityId: product.id,
+      deleted: false,
+      payload: product,
+      updatedAt: product.updatedAt || product.createdAt || timestamp,
+    })),
     {
       entityType: "profile",
       entityId: "profile",
@@ -215,6 +223,11 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
       return {
         ...data,
         suppliers: applyListChange(data.suppliers, change),
+      };
+    case "product":
+      return {
+        ...data,
+        products: applyListChange(data.products, change),
       };
     case "profile":
       if (change.deleted) return data;

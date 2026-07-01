@@ -273,6 +273,31 @@ export interface Expense {
   createdAt: string;
 }
 
+export type ProductSource = "manual" | "detected";
+
+/** Producto o material reutilizable; puede nacer manualmente o desde líneas escaneadas. */
+export interface Product {
+  id: string;
+  /** Clave normalizada usada para respetar futuras detecciones del mismo producto. */
+  key: string;
+  /** Otras claves detectadas que se han unido a este producto. */
+  aliases?: string[];
+  name: string;
+  family: string;
+  unit?: string;
+  supplierId?: string;
+  supplierName?: string;
+  /** Precio de tarifa/PVP proveedor antes de descuento, sin IVA. */
+  pvp?: number;
+  /** Coste habitual neto tras descuento, sin IVA. */
+  cost?: number;
+  ivaPercent?: number;
+  notes?: string;
+  source: ProductSource;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IvaSettings {
   rates: number[];
   defaultRate: number;
@@ -519,6 +544,7 @@ export type SyncEntityType =
   | "expense"
   | "recurring_expense"
   | "supplier"
+  | "product"
   | "user_reminder"
   | "profile"
   | "counters";
@@ -544,6 +570,7 @@ export interface AppData {
   recurringExpenses: RecurringExpense[];
   userReminders: UserReminder[];
   suppliers: Supplier[];
+  products: Product[];
   customers: Customer[];
   counters: {
     factura: number;
@@ -599,6 +626,7 @@ export const EMPTY_DATA: AppData = {
   recurringExpenses: [],
   userReminders: [],
   suppliers: [],
+  products: [],
   customers: [],
   counters: {
     factura: 0,

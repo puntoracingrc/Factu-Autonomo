@@ -12,6 +12,7 @@ import { normalizeDocumentUnits } from "./document-units";
 import { normalizeDocumentTemplate } from "./document-templates";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import { normalizeQuoteValidityDays } from "./quote-validity";
+import { normalizeProductCatalogItem } from "./purchase-products";
 import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -51,6 +52,9 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     recurringExpenses: parsed.recurringExpenses ?? [],
     userReminders: (parsed.userReminders ?? []).map((item) =>
       normalizeUserReminder(item as UserReminder),
+    ),
+    products: (parsed.products ?? []).map((product) =>
+      normalizeProductCatalogItem(product as AppData["products"][number]),
     ),
     documents,
     counters: {
@@ -97,6 +101,7 @@ function storedDataHasContent(parsed: Partial<AppData>): boolean {
     (parsed.customers?.length ?? 0) > 0 ||
     (parsed.expenses?.length ?? 0) > 0 ||
     (parsed.suppliers?.length ?? 0) > 0 ||
+    (parsed.products?.length ?? 0) > 0 ||
     Boolean(parsed.profile?.name?.trim())
   );
 }
@@ -107,6 +112,7 @@ function inMemoryDataIsEmpty(data: AppData): boolean {
     data.customers.length === 0 &&
     data.expenses.length === 0 &&
     data.suppliers.length === 0 &&
+    data.products.length === 0 &&
     !data.profile.name.trim()
   );
 }

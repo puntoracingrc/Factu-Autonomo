@@ -3,6 +3,7 @@
 import {
   Bell,
   FileText,
+  PackagePlus,
   Plus,
   Receipt,
   ShoppingCart,
@@ -62,6 +63,12 @@ const quickActions = [
     label: "Añadir gasto",
     icon: ShoppingCart,
     color: "bg-emerald-600 text-white",
+  },
+  {
+    href: "/productos/nuevo",
+    label: "Nuevo producto",
+    icon: PackagePlus,
+    color: "bg-cyan-700 text-white",
   },
   {
     href: "/configuracion",
