@@ -6,6 +6,7 @@ export const APP_ROUTES_WITH_MANUAL = [
   "/presupuestos",
   "/recibos",
   "/gastos",
+  "/productos",
   "/impuestos",
   "/proveedores",
   "/configuracion",
