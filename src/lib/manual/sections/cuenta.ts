@@ -42,6 +42,7 @@ export const cuentaSection: ManualSection = {
       paragraphs: [
         "En **Copia extra en Google Drive** puedes conectar Drive y guardar un JSON adicional en tu cuenta de Google.",
         "La frecuencia se elige en la propia tarjeta: manual, diaria o automática según los cambios importantes. Los automatismos solo funcionan mientras la app está abierta y Google mantiene el permiso activo.",
+        "Tras guardar una copia, **Abrir carpeta de copias en Drive** te lleva a la carpeta donde quedan los JSON, para que no tengas que abrir el archivo técnico directamente.",
         "Si ves **Drive pendiente de reconectar**, pulsa **Reconectar Drive** para renovar el permiso de Google.",
       ],
     },
