@@ -3,6 +3,15 @@ import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+function isMissingErrorEventsTable(error: { code?: string; message?: string }) {
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    /app_error_events/i.test(error.message ?? "") &&
+      /schema cache|does not exist|not find/i.test(error.message ?? "")
+  );
+}
+
 export async function GET(request: Request) {
   const requester = await getUserFromBearer(request.headers.get("authorization"));
   if (!requester) {
@@ -30,9 +39,16 @@ export async function GET(request: Request) {
     .limit(limit);
 
   if (error) {
+    if (isMissingErrorEventsTable(error)) {
+      return NextResponse.json({
+        errors: [],
+        monitoringAvailable: false,
+        message:
+          "El registro de errores todavía no está activado en la base de datos.",
+      });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ errors: data ?? [] });
+  return NextResponse.json({ errors: data ?? [], monitoringAvailable: true });
 }
-
