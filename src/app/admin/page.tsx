@@ -9,6 +9,7 @@ import {
   FileText,
   Import,
   RefreshCw,
+  Siren,
   ShieldCheck,
   UserCog,
 } from "lucide-react";
@@ -18,13 +19,30 @@ import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
-type AdminSection = "usuarios" | "pagos" | "ia" | "importaciones" | "verifactu" | "sistema";
+type AdminSection = "usuarios" | "errores" | "pagos" | "ia" | "importaciones" | "verifactu" | "sistema";
 
 interface AdminUsersResponse {
   users?: AdminUserRow[];
   page?: number;
   perPage?: number;
   total?: number;
+  error?: string;
+}
+
+interface AdminErrorRow {
+  id: string;
+  user_id: string | null;
+  severity: "info" | "warning" | "error";
+  area: string;
+  code: string | null;
+  message: string;
+  route: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+interface AdminErrorsResponse {
+  errors?: AdminErrorRow[];
   error?: string;
 }
 
@@ -41,6 +59,13 @@ const ADMIN_MENU: Array<{
     description: "Suscripciones manuales, antigüedad, pagos y baneo.",
     status: "activo",
     Icon: UserCog,
+  },
+  {
+    id: "errores",
+    label: "Errores y salud",
+    description: "Fallos recientes por usuario, sincronización y navegador.",
+    status: "activo",
+    Icon: Siren,
   },
   {
     id: "pagos",
@@ -93,6 +118,12 @@ function formatMoney(cents: number) {
     style: "currency",
     currency: "EUR",
   });
+}
+
+function severityClasses(severity: AdminErrorRow["severity"]) {
+  if (severity === "warning") return "bg-amber-100 text-amber-800";
+  if (severity === "info") return "bg-blue-100 text-blue-800";
+  return "bg-red-100 text-red-800";
 }
 
 async function getAccessToken() {
@@ -302,6 +333,18 @@ function UserAdminCard({
         </div>
       </div>
 
+      {user.errors.count > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-bold">
+            {user.errors.count} error(es) registrados
+          </p>
+          <p>
+            Último: {formatDate(user.errors.latestAt)} · {user.errors.latestArea}
+          </p>
+          <p className="mt-1">{user.errors.latestMessage}</p>
+        </div>
+      )}
+
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="space-y-1 text-sm font-bold text-slate-700">
           Plan
@@ -410,6 +453,118 @@ function UserAdminCard({
 
       {message && <p className="text-sm font-semibold text-slate-600">{message}</p>}
     </Card>
+  );
+}
+
+function ErrorsPanel() {
+  const [errors, setErrors] = useState<AdminErrorRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadErrors = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Inicia sesión con una cuenta administradora.");
+      setLoading(false);
+      return;
+    }
+
+    const response = await fetch("/api/admin/errors?limit=80", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = (await response.json()) as AdminErrorsResponse;
+    if (!response.ok) {
+      setError(body.error ?? "No se pudieron cargar errores.");
+      setLoading(false);
+      return;
+    }
+    setErrors(body.errors ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadErrors();
+  }, [loadErrors]);
+
+  const syncErrors = errors.filter((item) => item.area === "sync").length;
+  const browserErrors = errors.filter((item) => item.area === "browser").length;
+
+  return (
+    <section className="mt-6 space-y-4">
+      <Card className="space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Errores y salud</h2>
+            <p className="text-sm text-slate-600">
+              Registro técnico seguro para detectar cuentas con problemas sin ver
+              documentos ni secretos.
+            </p>
+          </div>
+          <Button type="button" variant="secondary" onClick={loadErrors} disabled={loading}>
+            <RefreshCw className="h-4 w-4" />
+            Actualizar
+          </Button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-500">Últimos eventos</p>
+            <p className="text-2xl font-bold text-slate-900">{errors.length}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-500">Sincronización</p>
+            <p className="text-2xl font-bold text-slate-900">{syncErrors}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-500">Navegador</p>
+            <p className="text-2xl font-bold text-slate-900">{browserErrors}</p>
+          </div>
+        </div>
+      </Card>
+
+      {loading && <Card>Cargando errores...</Card>}
+      {error && (
+        <Card className="border-amber-200 bg-amber-50 text-amber-900">
+          {error}
+        </Card>
+      )}
+      {!loading && !error && errors.length === 0 && (
+        <Card className="text-slate-600">Sin errores registrados.</Card>
+      )}
+      {!loading &&
+        !error &&
+        errors.map((item) => (
+          <Card key={item.id} className="space-y-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(item.severity)}`}
+                  >
+                    {item.severity}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                    {item.area}
+                  </span>
+                  {item.code && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                      {item.code}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 font-bold text-slate-900">{item.message}</p>
+                <p className="text-sm text-slate-600">
+                  Usuario: {item.user_id ?? "sin usuario"} · {formatDate(item.created_at)}
+                </p>
+                {item.route && (
+                  <p className="break-all text-sm text-slate-500">{item.route}</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+    </section>
   );
 }
 
@@ -535,8 +690,11 @@ export default function AdminPage() {
 
       <AdminMenu current={section} onSelect={setSection} />
 
-      {section === "usuarios" ? <UsersPanel /> : <FutureSection section={section} />}
+      {section === "usuarios" && <UsersPanel />}
+      {section === "errores" && <ErrorsPanel />}
+      {section !== "usuarios" && section !== "errores" && (
+        <FutureSection section={section} />
+      )}
     </div>
   );
 }
-
