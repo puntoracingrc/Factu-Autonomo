@@ -187,6 +187,37 @@ describe("expense scan schema", () => {
     ).toBeNull();
   });
 
+  it("no bloquea una factura de proveedor por referencias a oferta o pedido", () => {
+    const result = normalizeExpenseScanPayload({
+      document: {
+        kind: "quote_or_order",
+        isExpenseDocument: false,
+        reason: "Contiene Pedido nº 417906 y Oferta nº 152763.",
+      },
+      supplier: { name: "Metalúrgica Arandes SL" },
+      expense: {
+        date: "2026-05-07",
+        description: "Motor Persiana SUPER Gradhermetic cable ISG: 30/12",
+        amount: 207.07,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        notes: "Pedido nº 417906 de fecha 07/05/2026\nOferta nº 152763 de fecha 04/05/2026",
+        purchaseDocument: {
+          invoiceNumber: "FD/223537",
+        },
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.document).toMatchObject({
+      kind: "expense_invoice",
+      isExpenseDocument: true,
+      reason: null,
+    });
+  });
+
   it("marca ofertas, pedidos y presupuestos como documento no contabilizable", () => {
     const result = normalizeExpenseScanPayload({
       supplier: { name: "Metalúrgica Arandes SL" },
