@@ -44,7 +44,6 @@ import {
 import { DEFAULT_IRPF_PERCENT, normalizeIrpfPercent } from "@/lib/taxes";
 import {
   businessProfileNotices,
-  businessProfileQrNotice,
   isBusinessProfileReadyForIssuedInvoices,
   normalizeBusinessProfileForSave,
 } from "@/lib/business-profile";
@@ -347,16 +346,6 @@ export default function ConfiguracionPage() {
         onToggle={(open) => setSectionOpen("business", open)}
       >
         <Card className="space-y-4">
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-            <p className="font-semibold">Datos del negocio en documentos</p>
-            <p className="mt-2 leading-relaxed">
-              Datos que aparecerán en tus presupuestos y facturas. Revisa estos
-              datos antes de emitir una factura: al emitir, el encabezado queda
-              guardado en el documento y no cambia si editas la configuración
-              después. El NIF no se valida con AEAT desde la app.
-            </p>
-          </div>
-
           <div
             className={`rounded-xl border px-4 py-3 text-sm ${
               profileReady && profileWarnings.length === 0
@@ -366,10 +355,9 @@ export default function ConfiguracionPage() {
           >
             <p className="font-semibold">
               {profileReady
-                ? "Perfil emisor listo para documentos completos"
-                : "Faltan datos del emisor para documentos completos"}
+                ? "Datos listos para emitir documentos reales"
+                : "Rellena estos datos para emitir documentos reales"}
             </p>
-            <p className="mt-1">{businessProfileQrNotice(form)}</p>
             {missingProfileFields.length > 0 && (
               <p className="mt-2">
                 Completa:{" "}

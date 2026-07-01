@@ -77,7 +77,7 @@ describe("business profile document data", () => {
     expect(isBasicBusinessPhone("telefono")).toBe(false);
   });
 
-  it("mantiene copy prudente para QR y NIF", () => {
+  it("mantiene copy breve para datos de empresa", () => {
     const missing = businessProfileQrNotice(DEFAULT_PROFILE);
     const ready = businessProfileQrNotice({
       ...DEFAULT_PROFILE,
@@ -92,9 +92,11 @@ describe("business profile document data", () => {
       }).map((notice) => notice.message),
     ].join("\n");
 
-    expect(missing).toContain("NIF/CIF del emisor");
-    expect(ready).toContain("QR disponible");
+    expect(missing).toBe("Rellena estos datos para emitir documentos reales.");
+    expect(ready).toBe("Datos listos para emitir documentos reales.");
     expect(copy).toContain("no lo valida con AEAT");
+    expect(copy).not.toContain("QR existente");
+    expect(copy).not.toContain("QR disponible");
     expect(copy).not.toContain("NIF validado");
     expect(copy).not.toContain("QR oficial AEAT");
     expect(copy).not.toContain("VeriFactu productivo");
