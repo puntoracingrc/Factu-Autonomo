@@ -32,6 +32,7 @@ import {
   FileText,
   Home,
   Landmark,
+  PackageSearch,
   Receipt,
   Settings,
   ShoppingCart,
@@ -61,6 +62,12 @@ const navItems = [
     label: "Gastos",
     shortLabel: "Gastos",
     icon: ShoppingCart,
+  },
+  {
+    href: "/productos",
+    label: "Productos",
+    shortLabel: "Productos",
+    icon: PackageSearch,
   },
   {
     href: "/proveedores",

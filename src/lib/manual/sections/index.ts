@@ -12,6 +12,7 @@ import { gastosSection } from "./gastos";
 import { importacionSection } from "./importacion";
 import { impuestosSection } from "./impuestos";
 import { inicioSection } from "./inicio";
+import { productosSection } from "./productos";
 import { presupuestosSection, recibosSection } from "./presupuestos-recibos";
 import { primerosPasosSection } from "./primeros-pasos";
 
@@ -23,6 +24,7 @@ export const manualSections: ManualSection[] = [
   presupuestosSection,
   recibosSection,
   gastosSection,
+  productosSection,
   impuestosSection,
   proveedoresSection,
   cuentaSection,
