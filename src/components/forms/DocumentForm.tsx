@@ -207,13 +207,24 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     [data.profile.documentUnits],
   );
   const defaultUnit = unitsSettings.defaultUnitId;
+  const [documentIvaPercent, setDocumentIvaPercent] = useState(() => {
+    if (vatExempt) return 0;
+    const existingIva = existing?.items.find((item) =>
+      Number.isFinite(item.ivaPercent),
+    )?.ivaPercent;
+    return existingIva ?? defaultIva;
+  });
+  const effectiveDocumentIva = vatExempt ? 0 : documentIvaPercent;
 
   const [items, setItems] = useState<LineItem[]>(() => {
     const baseItems = existing?.items.length
       ? vatExempt
         ? zeroIvaItems(existing.items)
-        : existing.items
-      : [emptyLine(defaultIva, defaultUnit)];
+        : existing.items.map((item) => ({
+            ...item,
+            ivaPercent: effectiveDocumentIva,
+          }))
+      : [emptyLine(effectiveDocumentIva, defaultUnit)];
     return normalizeLineItemUnits(baseItems, unitsSettings);
   });
   const safeItems = useMemo(
@@ -245,7 +256,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     const draftItems = draft.lines.map((draftLine) => ({
       id: crypto.randomUUID(),
       ...draftLine.line,
-      ivaPercent: vatExempt ? 0 : draftLine.line.ivaPercent,
+      ivaPercent: effectiveDocumentIva,
     }));
     setItems(normalizeLineItemUnits(draftItems, unitsSettings));
     setLineProductPricing(
@@ -261,12 +272,22 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         ]),
       ),
     );
-  }, [existing, type, unitsSettings, vatExempt]);
+  }, [effectiveDocumentIva, existing, type, unitsSettings]);
 
   useEffect(() => {
     if (!vatExempt) return;
+    setDocumentIvaPercent(0);
     setItems((prev) => zeroIvaItems(prev));
   }, [vatExempt]);
+
+  useEffect(() => {
+    setItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        ivaPercent: effectiveDocumentIva,
+      })),
+    );
+  }, [effectiveDocumentIva]);
 
   useEffect(() => {
     setItems((prev) => normalizeLineItemUnits(prev, unitsSettings));
@@ -371,7 +392,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     product: (typeof productSummaries)[number],
   ) {
     const applied = applyDocumentProductToLine(product, item, {
-      defaultIva,
+      defaultIva: effectiveDocumentIva,
       vatExempt,
     });
     updateItem(item.id, applied.line);
@@ -678,18 +699,27 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       </Card>
 
       <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError(null);
-              setItems((prev) => [...prev, emptyLine(defaultIva, defaultUnit)]);
-            }}
-            className="flex items-center gap-1 text-sm font-semibold text-blue-600"
-          >
-            <Plus className="h-4 w-4" /> Añadir línea
-          </button>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Añade trabajos, materiales o servicios. El IVA se aplica a todo el
+              documento.
+            </p>
+          </div>
+          {!vatExempt && (
+            <div className="w-full sm:w-56">
+              <Field label="IVA del documento">
+                <IvaPercentSelect
+                  value={documentIvaPercent}
+                  onChange={(ivaPercent) => {
+                    setFormError(null);
+                    setDocumentIvaPercent(ivaPercent);
+                  }}
+                />
+              </Field>
+            </div>
+          )}
         </div>
         <div className="space-y-3">
           {items.map((item, index) => {
@@ -733,7 +763,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem_7rem] lg:items-start">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem] lg:items-start">
                 <div className="col-span-2 md:col-span-1">
                   <Field label="Descripción">
                     <Input
@@ -818,22 +848,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 </Field>
                 <LineItemPriceFields
                   unitPrice={item.unitPrice}
-                  ivaPercent={item.ivaPercent}
+                  ivaPercent={effectiveDocumentIva}
                   vatExempt={vatExempt}
                   onUnitPriceChange={(unitPrice) =>
                     handleLineUnitPriceChange(item.id, unitPrice)
                   }
                 />
-                {!vatExempt && (
-                  <Field label="IVA">
-                    <IvaPercentSelect
-                      value={item.ivaPercent}
-                      onChange={(ivaPercent) =>
-                        updateItem(item.id, { ivaPercent })
-                      }
-                    />
-                  </Field>
-                )}
               </div>
               {productPricing && (
                 <div
@@ -893,6 +913,19 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
             </div>
             );
           })}
+          <button
+            type="button"
+            onClick={() => {
+              setFormError(null);
+              setItems((prev) => [
+                ...prev,
+                emptyLine(effectiveDocumentIva, defaultUnit),
+              ]);
+            }}
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-3 text-base font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <Plus className="h-5 w-5" /> Añadir línea
+          </button>
         </div>
       </Card>
 
