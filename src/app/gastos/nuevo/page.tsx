@@ -11,7 +11,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
-import { formatMoney, todayISO } from "@/lib/calculations";
+import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import {
   filterDocumentsByQuery,
   sortDocumentsByNewest,
@@ -278,6 +278,12 @@ export default function NuevoGastoPage() {
     setPurchaseDocument((prev) => ({ ...prev, ...patch }));
   }
 
+  const currentAmount = expenseTotalsFromBase(
+    parseDecimalInput(amountText),
+    ivaPercent,
+    vatExempt,
+  ).base;
+
   const duplicateExpense = useMemo(() => {
     const invoiceNumber = purchaseDocument.invoiceNumber?.trim().toLowerCase();
     if (!invoiceNumber) return null;
@@ -295,6 +301,10 @@ export default function NuevoGastoPage() {
           expense.purchaseDocument?.supplierNif?.trim().toLowerCase();
         if (nif && expenseNif && nif === expenseNif) return true;
 
+        if (currentAmount > 0 && Math.abs(expense.amount - currentAmount) < 0.01) {
+          return true;
+        }
+
         return Boolean(
           supplier &&
             expense.supplierName.trim().toLowerCase() === supplier,
@@ -302,12 +312,22 @@ export default function NuevoGastoPage() {
       }) ?? null
     );
   }, [
+    currentAmount,
     data.expenses,
     editingExpense,
     purchaseDocument.invoiceNumber,
     purchaseDocument.supplierNif,
     supplierName,
   ]);
+  const duplicateExpenseNumber =
+    duplicateExpense?.purchaseDocument?.invoiceNumber?.trim() || "sin número";
+  const duplicateExpenseLines =
+    duplicateExpense?.purchaseLines
+      ?.map((line) => line.description.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(", ") || duplicateExpense?.description;
+  const showWorkDocumentSection = editingRequested || expenseOrigin !== "scan";
 
   const priceAlerts = useMemo(
     () =>
@@ -433,16 +453,25 @@ export default function NuevoGastoPage() {
           </p>
         )}
         {pendingScans.length > 0 && (
-          <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            Quedan {pendingScans.length} archivo(s) escaneados pendientes. Al
-            guardar este gasto se cargará el siguiente para revisar.
-          </p>
+          <div className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            <p className="font-bold">
+              Revisión en lote: quedan {pendingScans.length} archivo(s).
+            </p>
+            <p className="mt-1">
+              Al guardar este gasto cargaremos automáticamente el siguiente
+              escaneo arriba del todo.
+            </p>
+          </div>
         )}
         {duplicateExpense && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Esta factura de proveedor parece ya registrada:{" "}
-            <strong>{duplicateExpense.description}</strong>. Cambia el número si
-            no corresponde o evita guardarla de nuevo.
+            Esta factura de proveedor ya está guardada:{" "}
+            <strong>{duplicateExpense.description}</strong>. Coincide con la
+            factura {duplicateExpenseNumber}, guardada el{" "}
+            {formatDate(duplicateExpense.date)}, con importe{" "}
+            {formatMoney(duplicateExpense.amount)}
+            {duplicateExpenseLines ? ` y líneas como ${duplicateExpenseLines}` : ""}
+            . Está repetida y no se guardará de nuevo.
           </p>
         )}
         {priceAlerts.length > 0 && (
@@ -623,86 +652,88 @@ export default function NuevoGastoPage() {
             </div>
           </FormSection>
 
-          <FormSection
-            variant="search"
-            title="Trabajo relacionado"
-            hint="Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
-          >
-            {selectedWorkDocument ? (
-              <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
-                <span className="font-bold">
-                  {selectedWorkDocument.type === "factura"
-                    ? "Factura"
-                    : "Presupuesto"}{" "}
-                  {documentShortNumber(selectedWorkDocument)} ·{" "}
-                  {selectedWorkDocument.client.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setWorkDocumentId("")}
-                  className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
-                >
-                  Quitar vínculo
-                </button>
-              </div>
-            ) : null}
-            <Field label="Buscar factura o presupuesto">
-              <Input
-                value={workDocumentQuery}
-                onChange={(event) => setWorkDocumentQuery(event.target.value)}
-                placeholder="Número, cliente o importe..."
-              />
-            </Field>
-            <div className="space-y-2">
-              {workDocumentResults.length === 0 ? (
-                <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                  No hay documentos que coincidan.
-                </p>
-              ) : (
-                workDocumentResults.map((document) => (
+          {showWorkDocumentSection && (
+            <FormSection
+              variant="search"
+              title="Trabajo relacionado"
+              hint="Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
+            >
+              {selectedWorkDocument ? (
+                <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-bold">
+                    {selectedWorkDocument.type === "factura"
+                      ? "Factura"
+                      : "Presupuesto"}{" "}
+                    {documentShortNumber(selectedWorkDocument)} ·{" "}
+                    {selectedWorkDocument.client.name}
+                  </span>
                   <button
-                    key={document.id}
                     type="button"
-                    onClick={() => {
-                      setWorkDocumentId(document.id);
-                      setWorkDocumentQuery("");
-                    }}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                      document.id === workDocumentId
-                        ? "border-blue-300 bg-blue-50 text-blue-900"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
+                    onClick={() => setWorkDocumentId("")}
+                    className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
                   >
-                    <span>
-                      <span className="block font-bold">
-                        {document.type === "factura"
-                          ? "Factura"
-                          : "Presupuesto"}{" "}
-                        {documentShortNumber(document)}
-                      </span>
-                      <span className="block text-xs text-slate-500">
-                        {document.client.name} · {formatMoney(
-                          document.items.reduce(
-                            (sum, item) =>
-                              sum +
-                              item.quantity *
-                                item.unitPrice *
-                                (1 + item.ivaPercent / 100),
-                            0,
-                          ),
-                        )}
-                      </span>
-                    </span>
-                    {document.id === workDocumentId ? (
-                      <span className="text-xs font-bold text-blue-700">
-                        Vinculado
-                      </span>
-                    ) : null}
+                    Quitar vínculo
                   </button>
-                ))
-              )}
-            </div>
-          </FormSection>
+                </div>
+              ) : null}
+              <Field label="Buscar factura o presupuesto">
+                <Input
+                  value={workDocumentQuery}
+                  onChange={(event) => setWorkDocumentQuery(event.target.value)}
+                  placeholder="Número, cliente o importe..."
+                />
+              </Field>
+              <div className="space-y-2">
+                {workDocumentResults.length === 0 ? (
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    No hay documentos que coincidan.
+                  </p>
+                ) : (
+                  workDocumentResults.map((document) => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => {
+                        setWorkDocumentId(document.id);
+                        setWorkDocumentQuery("");
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        document.id === workDocumentId
+                          ? "border-blue-300 bg-blue-50 text-blue-900"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>
+                        <span className="block font-bold">
+                          {document.type === "factura"
+                            ? "Factura"
+                            : "Presupuesto"}{" "}
+                          {documentShortNumber(document)}
+                        </span>
+                        <span className="block text-xs text-slate-500">
+                          {document.client.name} · {formatMoney(
+                            document.items.reduce(
+                              (sum, item) =>
+                                sum +
+                                item.quantity *
+                                  item.unitPrice *
+                                  (1 + item.ivaPercent / 100),
+                              0,
+                            ),
+                          )}
+                        </span>
+                      </span>
+                      {document.id === workDocumentId ? (
+                        <span className="text-xs font-bold text-blue-700">
+                          Vinculado
+                        </span>
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
+            </FormSection>
+          )}
 
           <FormSection
             variant="fields"
@@ -909,8 +940,14 @@ export default function NuevoGastoPage() {
             </div>
           </FormSection>
         </Card>
-        <Button fullWidth onClick={handleSubmit}>
-          {editingExpense ? "Guardar cambios" : "Guardar gasto"}
+        <Button fullWidth onClick={handleSubmit} disabled={Boolean(duplicateExpense)}>
+          {duplicateExpense
+            ? "Factura ya guardada"
+            : editingExpense
+              ? "Guardar cambios"
+              : pendingScans.length > 0
+                ? "Guardar y revisar siguiente"
+                : "Guardar gasto"}
         </Button>
       </div>
     </div>
