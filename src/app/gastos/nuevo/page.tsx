@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -65,9 +66,12 @@ function emptyPurchaseLine(
 }
 
 interface PendingExpenseScan {
+  id: string;
   payload: ExpenseScanPayload;
   fileName?: string;
 }
+
+type ScanReviewStatus = "ready" | "review" | "blocked";
 
 export default function NuevoGastoPage() {
   const router = useRouter();
@@ -103,6 +107,9 @@ export default function NuevoGastoPage() {
   const [workDocumentId, setWorkDocumentId] = useState("");
   const [workDocumentQuery, setWorkDocumentQuery] = useState("");
   const [pendingScans, setPendingScans] = useState<PendingExpenseScan[]>([]);
+  const [activeScanReview, setActiveScanReview] =
+    useState<PendingExpenseScan | null>(null);
+  const [scanFormCollapsed, setScanFormCollapsed] = useState(false);
   const [, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -157,7 +164,8 @@ export default function NuevoGastoPage() {
     );
   }, [data.suppliers, editingExpense, loadedExpenseId, vatExempt]);
 
-  function fillFormFromScan(payload: ExpenseScanPayload, fileName?: string) {
+  function fillFormFromScan(review: PendingExpenseScan) {
+    const { payload, fileName } = review;
     const match = findBestSupplierMatch(data.suppliers, {
       name: payload.supplier.name,
       nif: payload.supplier.nif,
@@ -196,6 +204,8 @@ export default function NuevoGastoPage() {
     );
     setSaveSupplier(true);
     setExpenseOrigin("scan");
+    setActiveScanReview(review);
+    setScanFormCollapsed(true);
     setScanHint(
       fileName
         ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
@@ -207,15 +217,18 @@ export default function NuevoGastoPage() {
     payload: ExpenseScanPayload,
     options?: { fileName?: string; append?: boolean },
   ) {
+    const review: PendingExpenseScan = {
+      id: crypto.randomUUID(),
+      payload,
+      fileName: options?.fileName,
+    };
+
     if (options?.append) {
-      setPendingScans((prev) => [
-        ...prev,
-        { payload, fileName: options.fileName },
-      ]);
+      setPendingScans((prev) => [...prev, review]);
       return;
     }
 
-    fillFormFromScan(payload, options?.fileName);
+    fillFormFromScan(review);
   }
 
   function handleSupplierNameChange(value: string) {
@@ -284,11 +297,17 @@ export default function NuevoGastoPage() {
     vatExempt,
   ).base;
 
-  const duplicateExpense = useMemo(() => {
-    const invoiceNumber = purchaseDocument.invoiceNumber?.trim().toLowerCase();
+  function findDuplicateExpense(input: {
+    invoiceNumber?: string;
+    supplierNif?: string | null;
+    supplierName?: string;
+    amount?: number;
+  }) {
+    const invoiceNumber = input.invoiceNumber?.trim().toLowerCase();
     if (!invoiceNumber) return null;
-    const nif = purchaseDocument.supplierNif?.trim().toLowerCase();
-    const supplier = supplierName.trim().toLowerCase();
+    const nif = input.supplierNif?.trim().toLowerCase();
+    const supplier = input.supplierName?.trim().toLowerCase();
+    const amount = input.amount ?? 0;
 
     return (
       data.expenses.find((expense) => {
@@ -301,7 +320,7 @@ export default function NuevoGastoPage() {
           expense.purchaseDocument?.supplierNif?.trim().toLowerCase();
         if (nif && expenseNif && nif === expenseNif) return true;
 
-        if (currentAmount > 0 && Math.abs(expense.amount - currentAmount) < 0.01) {
+        if (amount > 0 && Math.abs(expense.amount - amount) < 0.01) {
           return true;
         }
 
@@ -311,14 +330,14 @@ export default function NuevoGastoPage() {
         );
       }) ?? null
     );
-  }, [
-    currentAmount,
-    data.expenses,
-    editingExpense,
-    purchaseDocument.invoiceNumber,
-    purchaseDocument.supplierNif,
+  }
+
+  const duplicateExpense = findDuplicateExpense({
+    invoiceNumber: purchaseDocument.invoiceNumber,
+    supplierNif: purchaseDocument.supplierNif,
     supplierName,
-  ]);
+    amount: currentAmount,
+  });
   const duplicateExpenseNumber =
     duplicateExpense?.purchaseDocument?.invoiceNumber?.trim() || "sin número";
   const duplicateExpenseLines =
@@ -328,6 +347,149 @@ export default function NuevoGastoPage() {
       .slice(0, 2)
       .join(", ") || duplicateExpense?.description;
   const showWorkDocumentSection = editingRequested || expenseOrigin !== "scan";
+  const showExpenseForm = !scanFormCollapsed;
+
+  function duplicateForScanPayload(payload: ExpenseScanPayload) {
+    return findDuplicateExpense({
+      invoiceNumber: payload.expense.purchaseDocument?.invoiceNumber,
+      supplierNif:
+        payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif,
+      supplierName: payload.supplier.name,
+      amount: payload.expense.amount,
+    });
+  }
+
+  function priceAlertsForScanPayload(payload: ExpenseScanPayload) {
+    const currentLines =
+      payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ??
+      [];
+    if (currentLines.length === 0) return [];
+
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: payload.supplier.name,
+      nif: payload.supplier.nif,
+    });
+
+    return findExpensePurchaseLinePriceAlerts({
+      currentLines,
+      expenses: data.expenses,
+      supplierId: match?.supplier.id,
+      supplierName: match?.supplier.name ?? payload.supplier.name,
+    });
+  }
+
+  function scanReviewWarning(review: PendingExpenseScan) {
+    const duplicate = duplicateForScanPayload(review.payload);
+    if (duplicate) {
+      const invoiceNumber =
+        duplicate.purchaseDocument?.invoiceNumber?.trim() || "sin número";
+      return `Ya existe como ${duplicate.description}, factura ${invoiceNumber}, guardada el ${formatDate(duplicate.date)} por ${formatMoney(duplicate.amount)}.`;
+    }
+
+    const priceAlert = priceAlertsForScanPayload(review.payload)[0];
+    if (priceAlert) {
+      const discountText =
+        Math.abs(priceAlert.discountChangePoints) >= 5
+          ? ` · descuento ${priceAlert.previousDiscountPercent}% → ${priceAlert.currentDiscountPercent}%`
+          : "";
+      return `Revisa ${priceAlert.description}: ahora ${formatMoney(priceAlert.currentUnitPrice)}, antes ${formatMoney(priceAlert.previousUnitPrice)}${discountText}.`;
+    }
+
+    if (review.payload.warnings.length > 0) return review.payload.warnings[0];
+    if (review.payload.confidence < 0.8) {
+      return "Lectura con poca confianza. Conviene revisar antes de guardar.";
+    }
+    return null;
+  }
+
+  function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
+    if (duplicateForScanPayload(review.payload)) return "blocked";
+    if (
+      priceAlertsForScanPayload(review.payload).length > 0 ||
+      review.payload.warnings.length > 0 ||
+      review.payload.confidence < 0.8
+    ) {
+      return "review";
+    }
+    return "ready";
+  }
+
+  function saveScanPayload(review: PendingExpenseScan) {
+    const { payload } = review;
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: payload.supplier.name,
+      nif: payload.supplier.nif,
+    });
+    const resolved = ensureSupplierForExpense(data.suppliers, {
+      name: match?.supplier.name ?? payload.supplier.name,
+      nif:
+        match?.supplier.nif ??
+        payload.expense.purchaseDocument?.supplierNif ??
+        payload.supplier.nif ??
+        undefined,
+      category: payload.expense.category,
+      saveSupplier: true,
+      selectedSupplierId: match?.supplier.id ?? null,
+    });
+    const supplierId = resolved.create
+      ? addSupplier(resolved.create).id
+      : resolved.supplierId;
+    const purchaseDocument = sanitizeExpensePurchaseDocument({
+      ...(payload.expense.purchaseDocument ?? {}),
+      issueDate: payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
+      supplierNif:
+        payload.expense.purchaseDocument?.supplierNif ??
+        payload.supplier.nif ??
+        undefined,
+    });
+    const purchaseLines = sanitizeExpensePurchaseLines(
+      payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ?? [],
+    );
+
+    addExpense({
+      date: payload.expense.date,
+      supplierId,
+      supplierName: resolved.supplierName,
+      description: payload.expense.description,
+      amount: payload.expense.amount,
+      ivaPercent: vatExempt ? 0 : payload.expense.ivaPercent,
+      category: payload.expense.category,
+      paymentMethod: payload.expense.paymentMethod,
+      notes: payload.expense.notes || undefined,
+      purchaseDocument,
+      purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
+      origin: "scan",
+      businessKind: payload.expense.businessKind ?? "purchase_invoice",
+    });
+  }
+
+  function handleSaveReadyScans() {
+    const reviews = [
+      ...(activeScanReview && scanFormCollapsed ? [activeScanReview] : []),
+      ...pendingScans,
+    ];
+    const ready = reviews.filter((review) => scanReviewStatus(review) === "ready");
+    if (ready.length === 0) return;
+    ready.forEach(saveScanPayload);
+    const remaining = reviews.filter((review) => scanReviewStatus(review) !== "ready");
+    setActiveScanReview(null);
+    setPendingScans(remaining);
+    setScanFormCollapsed(false);
+    if (remaining.length === 0) {
+      router.push("/gastos");
+      return;
+    }
+    const next = remaining.find(
+      (review) => scanReviewStatus(review) !== "blocked",
+    );
+    if (!next) {
+      setPendingScans(remaining);
+      return;
+    }
+    setPendingScans(remaining.filter((review) => review.id !== next.id));
+    fillFormFromScan(next);
+    setScanFormCollapsed(true);
+  }
 
   const priceAlerts = useMemo(
     () =>
@@ -418,10 +580,11 @@ export default function NuevoGastoPage() {
       addExpense(payload);
     }
 
+    setActiveScanReview(null);
     if (!editingExpense && pendingScans.length > 0) {
       const [next, ...rest] = pendingScans;
       setPendingScans(rest);
-      fillFormFromScan(next.payload, next.fileName);
+      fillFormFromScan(next);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -452,16 +615,119 @@ export default function NuevoGastoPage() {
             {scanHint}
           </p>
         )}
-        {pendingScans.length > 0 && (
-          <div className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            <p className="font-bold">
-              Revisión en lote: quedan {pendingScans.length} archivo(s).
-            </p>
-            <p className="mt-1">
-              Al guardar este gasto cargaremos automáticamente el siguiente
-              escaneo arriba del todo.
-            </p>
-          </div>
+        {(activeScanReview || pendingScans.length > 0) && (
+          <Card className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Documentos escaneados
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Revisa solo los que tengan aviso. Los verdes están listos.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={handleSaveReadyScans}
+                disabled={
+                  ![
+                    ...(activeScanReview && scanFormCollapsed
+                      ? [activeScanReview]
+                      : []),
+                    ...pendingScans,
+                  ].some((review) => scanReviewStatus(review) === "ready")
+                }
+              >
+                Guardar todo lo listo
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {[activeScanReview, ...pendingScans]
+                .filter((review): review is PendingExpenseScan => Boolean(review))
+                .map((review) => {
+                  const status = scanReviewStatus(review);
+                  const warningText = scanReviewWarning(review);
+                  const isActive = review.id === activeScanReview?.id;
+                  const icon =
+                    status === "ready" ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-700" />
+                    ) : status === "review" ? (
+                      <AlertTriangle className="h-5 w-5 text-amber-700" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-700" />
+                    );
+                  const statusText =
+                    status === "ready"
+                      ? "Listo"
+                      : status === "review"
+                        ? "Revisar"
+                        : "No válido";
+                  const statusClass =
+                    status === "ready"
+                      ? "bg-green-50 text-green-800"
+                      : status === "review"
+                        ? "bg-amber-50 text-amber-900"
+                        : "bg-red-50 text-red-800";
+
+                  return (
+                    <div
+                      key={review.id}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="mt-1">{icon}</div>
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-900">
+                              {review.payload.expense.description}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              {review.payload.supplier.name} ·{" "}
+                              {formatMoney(review.payload.expense.amount)}
+                              {review.fileName ? ` · ${review.fileName}` : ""}
+                            </p>
+                            {warningText ? (
+                              <p
+                                className={`mt-1 text-sm font-semibold ${
+                                  status === "blocked"
+                                    ? "text-red-700"
+                                    : "text-amber-800"
+                                }`}
+                              >
+                                {warningText}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+                          >
+                            {statusText}
+                          </span>
+                          {status !== "blocked" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPendingScans((prev) =>
+                                  prev.filter((item) => item.id !== review.id),
+                                );
+                                fillFormFromScan(review);
+                                setScanFormCollapsed(isActive ? !scanFormCollapsed : false);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700"
+                            >
+                              {isActive && !scanFormCollapsed ? "Contraer" : "Revisar"}
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </Card>
         )}
         {duplicateExpense && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -496,7 +762,7 @@ export default function NuevoGastoPage() {
             </ul>
           </div>
         )}
-        <Card className="space-y-5">
+        {showExpenseForm && <Card className="space-y-5">
           <FormSection
             variant="fields"
             title="Tipo de gasto"
@@ -939,16 +1205,18 @@ export default function NuevoGastoPage() {
               </div>
             </div>
           </FormSection>
-        </Card>
-        <Button fullWidth onClick={handleSubmit} disabled={Boolean(duplicateExpense)}>
-          {duplicateExpense
-            ? "Factura ya guardada"
-            : editingExpense
-              ? "Guardar cambios"
-              : pendingScans.length > 0
-                ? "Guardar y revisar siguiente"
-                : "Guardar gasto"}
-        </Button>
+        </Card>}
+        {showExpenseForm && (
+          <Button fullWidth onClick={handleSubmit} disabled={Boolean(duplicateExpense)}>
+            {duplicateExpense
+              ? "Factura ya guardada"
+              : editingExpense
+                ? "Guardar cambios"
+                : pendingScans.length > 0
+                  ? "Guardar y revisar siguiente"
+                  : "Guardar gasto"}
+          </Button>
+        )}
       </div>
     </div>
   );
