@@ -230,6 +230,13 @@ export default function ClientesPage() {
     }));
   }
 
+  function handleSortFieldChange(field: CustomerSortField) {
+    setSortField(field);
+    setSortDirection(
+      field === "reciente" || field === "facturacion" ? "desc" : "asc",
+    );
+  }
+
   function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
     setFormError(null);
     setForm((current) => ({ ...current, [field]: value }));
@@ -521,19 +528,19 @@ export default function ClientesPage() {
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Buscar y ordenar
               </h2>
-              <CustomerListSearch
-                customers={customers}
-                selectedCustomerId={listFilterId}
-                onSelectCustomer={(customer) =>
-                  setListFilterId(customer?.id ?? null)
-                }
-              />
-              <CustomerSortBar
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onSortFieldChange={setSortField}
-                onSortDirectionChange={setSortDirection}
-              />
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(14rem,0.8fr)]">
+                <CustomerListSearch
+                  customers={customers}
+                  selectedCustomerId={listFilterId}
+                  onSelectCustomer={(customer) =>
+                    setListFilterId(customer?.id ?? null)
+                  }
+                />
+                <CustomerSortBar
+                  sortField={sortField}
+                  onSortFieldChange={handleSortFieldChange}
+                />
+              </div>
             </Card>
           )}
           <p className="text-sm font-medium text-slate-500">

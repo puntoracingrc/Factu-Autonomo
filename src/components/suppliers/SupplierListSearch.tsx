@@ -88,7 +88,7 @@ export function SupplierListSearch({
   }
 
   return (
-    <div className="relative mb-4" ref={containerRef}>
+    <div className="relative" ref={containerRef}>
       <Field
         label="Buscar proveedor"
         hint="Escribe nombre o NIF y elige en la lista"
