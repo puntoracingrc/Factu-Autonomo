@@ -87,12 +87,7 @@ export function InstallAppCard() {
           <Download className="h-4 w-4" />
           Instalar app
         </Button>
-      ) : (
-        <p className="rounded-xl bg-white/70 px-3 py-2 text-sm text-slate-600">
-          Si tu navegador no muestra el botón, abre su menú y elige Instalar app
-          o Añadir a pantalla de inicio.
-        </p>
-      )}
+      ) : null}
     </Card>
   );
 }

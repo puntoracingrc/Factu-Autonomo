@@ -103,11 +103,11 @@ export default function HomePage() {
         ))}
       </div>
 
-      <InstallAppCard />
-
       <HomeBusinessSummary data={data} />
 
       <HomeFactuTip />
+
+      <InstallAppCard />
     </div>
   );
 }

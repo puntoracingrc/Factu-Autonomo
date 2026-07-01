@@ -8,20 +8,16 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronUp,
-  EyeOff,
+  Eye,
   FileText,
-  Lock,
   ShoppingCart,
 } from "lucide-react";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
-import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
-import {
-  type ProductBusinessSummary,
-} from "@/lib/product-business-summary";
+import { type ProductBusinessSummary } from "@/lib/product-business-summary";
 import {
   PRODUCT_MONTH_NAMES,
   PRODUCT_QUARTERS,
@@ -46,11 +42,17 @@ interface FlowMetric {
   hint: string;
   color: string;
   textColor: string;
+  segments?: FlowSegment[];
+}
+
+interface FlowSegment {
+  label: string;
+  amount: number;
+  color: string;
 }
 
 export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
-  const { billingEnabled, limits } = useBilling();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [period, setPeriod] = useState<ProductPeriodSelection>(() =>
     getDefaultProductPeriod(),
   );
@@ -63,70 +65,59 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
     [data, period],
   );
   const summary = periodSummary.business;
-  const locked = billingEnabled && !limits.quarterlySummary;
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
     setPeriod((current) => ({ ...current, ...patch }));
   }
 
   return (
-    <section className="mb-6 space-y-4" aria-labelledby="business-summary-title">
+    <section
+      className="mb-6 space-y-4"
+      aria-labelledby="business-summary-title"
+    >
       <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-              <EyeOff className="h-5 w-5" aria-hidden />
+              <Eye className="h-5 w-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h2 id="business-summary-title" className="text-lg font-bold text-slate-900">
+              <h2
+                id="business-summary-title"
+                className="text-lg font-bold text-slate-900"
+              >
                 Resumen del negocio
               </h2>
-              <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                Cifras ocultas por defecto. Están calculadas con la información
-                guardada en este navegador. No sustituyen una revisión contable
-                o fiscal.
-              </p>
-              <p className="mt-2 text-xs font-semibold text-slate-500">
-                Periodo: {periodSummary.label}
-              </p>
             </div>
           </div>
 
-          {locked ? (
-            <ButtonLink href="/precios" variant="secondary" className="shrink-0">
-              <Lock className="h-4 w-4" aria-hidden />
-              Ver Pro
-            </ButtonLink>
-          ) : (
-            <Button
-              type="button"
-              variant="secondary"
-              className="shrink-0"
-              aria-controls="business-summary-details"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((current) => !current)}
-            >
-              {expanded ? (
-                <ChevronUp className="h-4 w-4" aria-hidden />
-              ) : (
-                <ChevronDown className="h-4 w-4" aria-hidden />
-              )}
-              {expanded ? "Ocultar resumen" : "Mostrar resumen"}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="secondary"
+            className="shrink-0"
+            aria-controls="business-summary-details"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? (
+              <ChevronUp className="h-4 w-4" aria-hidden />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            )}
+            {expanded ? "Ocultar resumen" : "Mostrar resumen"}
+          </Button>
         </div>
-      </div>
-
-      {locked && <LockedFinanceSummary />}
-
-      {!locked && expanded && (
-        <div id="business-summary-details" className="space-y-3">
+        {expanded && (
           <PeriodSelector
             period={period}
             years={years}
             onChange={updatePeriod}
           />
+        )}
+      </div>
 
+      {expanded && (
+        <div id="business-summary-details" className="space-y-3">
           <BusinessFlowChart summary={summary} />
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-3">
@@ -137,28 +128,6 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
         </div>
       )}
     </section>
-  );
-}
-
-function LockedFinanceSummary() {
-  return (
-    <Card className="border-violet-200 bg-violet-50/50">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-          <Lock className="h-5 w-5" aria-hidden />
-        </div>
-        <div className="min-w-0">
-          <h3 className="font-bold text-slate-900">Finanzas incluidas en Pro</h3>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            El resumen financiero con importes, gráficos y periodos está
-            reservado para miembros Pro.
-          </p>
-          <ButtonLink href="/precios" className="mt-3" variant="secondary">
-            Ver planes Pro
-          </ButtonLink>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -190,33 +159,74 @@ function BusinessFlowChart({ summary }: { summary: ProductBusinessSummary }) {
               </p>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className={`h-full rounded-full ${metric.color}`}
-                style={{ width: `${barWidth(metric.amount, maxAmount)}%` }}
-              />
+              {metric.segments ? (
+                <div
+                  className="flex h-full overflow-hidden rounded-full"
+                  style={{ width: `${barWidth(metric.amount, maxAmount)}%` }}
+                >
+                  {metric.segments
+                    .filter((segment) => segment.amount > 0)
+                    .map((segment) => (
+                      <div
+                        key={segment.label}
+                        className={`h-full ${segment.color}`}
+                        title={`${segment.label}: ${formatMoney(segment.amount)}`}
+                        aria-label={`${segment.label}: ${formatMoney(segment.amount)}`}
+                        style={{
+                          width: `${Math.max(
+                            8,
+                            (segment.amount / Math.max(metric.amount, 1)) * 100,
+                          )}%`,
+                        }}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div
+                  className={`h-full rounded-full ${metric.color}`}
+                  style={{ width: `${barWidth(metric.amount, maxAmount)}%` }}
+                />
+              )}
             </div>
+            {metric.segments ? (
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                {metric.segments.map((segment) => (
+                  <span
+                    key={segment.label}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500"
+                  >
+                    <span className={`h-2 w-2 rounded-full ${segment.color}`} />
+                    {segment.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-          <p className="text-xs font-semibold text-slate-500">Balance estimado</p>
+          <p className="text-xs font-semibold text-slate-500">
+            Lo que queda después de gastos
+          </p>
           <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
             {formatMoney(summary.balanceEstimated)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Facturado emitido menos gastos registrados.
+            Facturas emitidas menos compras y gastos registrados.
           </p>
         </div>
         <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
-          <p className="text-xs font-semibold text-violet-700">IVA estimado</p>
+          <p className="text-xs font-semibold text-violet-700">
+            IVA para orientarte
+          </p>
           <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
             {formatMoney(summary.salesIvaEstimated)} /{" "}
             {formatMoney(summary.expenseIvaEstimated)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Repercutido estimado / soportado estimado.
+            Primero el IVA de ventas. Después el IVA de gastos.
           </p>
         </div>
       </div>
@@ -229,30 +239,52 @@ function businessFlowMetrics(summary: ProductBusinessSummary): FlowMetric[] {
     {
       label: "Facturado",
       amount: summary.totalBilledIssued,
-      hint: `${summary.issuedInvoicesCount} factura(s) emitida(s), sin presupuestos ni borradores.`,
+      hint: `${summary.issuedInvoicesCount} Número de facturas emitidas.`,
       color: "bg-blue-600",
       textColor: "text-blue-700",
     },
     {
       label: "Cobrado",
       amount: summary.totalCollectedLocal,
-      hint: `${summary.collectedInvoicesCount} factura(s) marcada(s) como cobrada(s) en local.`,
+      hint: `${summary.collectedInvoicesCount} Número de facturas marcadas como cobradas.`,
       color: "bg-emerald-600",
       textColor: "text-emerald-700",
     },
     {
       label: "Pendiente",
       amount: summary.totalPendingCollection,
-      hint: `${summary.pendingInvoicesCount} factura(s) emitida(s) pendiente(s) de cobro.`,
+      hint: `${summary.pendingInvoicesCount} Número de facturas pendientes de registrar cobro.`,
       color: "bg-amber-500",
       textColor: "text-amber-700",
     },
     {
       label: "Gastos",
       amount: summary.totalExpenses,
-      hint: "Compras y gastos registrados en el navegador.",
+      hint: "Compras y gastos registrados.",
       color: "bg-rose-500",
       textColor: "text-rose-700",
+      segments: [
+        {
+          label: "Gastos fijos",
+          amount: summary.totalFixedExpenses,
+          color: "bg-violet-500",
+        },
+        {
+          label: "Compras",
+          amount: summary.totalPurchaseExpenses,
+          color: "bg-rose-500",
+        },
+        {
+          label: "Tickets",
+          amount: summary.totalTicketExpenses,
+          color: "bg-orange-500",
+        },
+        {
+          label: "Sin ticket ni factura",
+          amount: summary.totalUnbackedExpenses,
+          color: "bg-slate-400",
+        },
+      ],
     },
   ];
 }
@@ -272,101 +304,103 @@ function PeriodSelector({
   onChange: (patch: Partial<ProductPeriodSelection>) => void;
 }) {
   return (
-    <Card className="min-w-0 p-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-900 lg:w-56 lg:pb-2">
-          <CalendarRange className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
-          <span className="truncate">Resumen por periodo</span>
-        </div>
-
-        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="min-w-0 space-y-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Periodo
-            </span>
-            <Select
-              value={period.kind}
-              onChange={(event) =>
-                onChange({ kind: event.target.value as ProductPeriodKind })
-              }
-              aria-label="Periodo del resumen"
-              className={compactPeriodSelectClass}
-            >
-              <option value="all">Todos</option>
-              <option value="month">Mes</option>
-              <option value="quarter">Trimestre</option>
-              <option value="year">Año</option>
-            </Select>
-          </label>
-
-          {period.kind !== "all" && (
-            <label className="min-w-0 space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Año
-              </span>
-              <Select
-                value={period.year}
-                onChange={(event) => onChange({ year: Number(event.target.value) })}
-                aria-label="Año del resumen"
-                className={compactPeriodSelectClass}
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-
-          {period.kind === "month" && (
-            <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Mes
-              </span>
-              <Select
-                value={period.month}
-                onChange={(event) =>
-                  onChange({ month: Number(event.target.value) })
-                }
-                aria-label="Mes del resumen"
-                className={compactPeriodSelectClass}
-              >
-                {PRODUCT_MONTH_NAMES.map((name, index) => (
-                  <option key={name} value={index + 1}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-
-          {period.kind === "quarter" && (
-            <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Trimestre
-              </span>
-              <Select
-                value={period.quarter}
-                onChange={(event) =>
-                  onChange({
-                    quarter: Number(event.target.value) as ProductPeriodSelection["quarter"],
-                  })
-                }
-                aria-label="Trimestre del resumen"
-                className={compactPeriodSelectClass}
-              >
-                {PRODUCT_QUARTERS.map((quarter) => (
-                  <option key={quarter} value={quarter}>
-                    {formatProductPeriodLabel({ ...period, kind: "quarter", quarter })}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-        </div>
+    <div className="mt-4 grid min-w-0 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-900 lg:pb-1">
+        <CalendarRange className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
+        <span className="truncate">{formatProductPeriodLabel(period)}</span>
       </div>
-    </Card>
+
+      <label className="min-w-0 space-y-1">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          Periodo
+        </span>
+        <Select
+          value={period.kind}
+          onChange={(event) =>
+            onChange({ kind: event.target.value as ProductPeriodKind })
+          }
+          aria-label="Periodo del resumen"
+          className={compactPeriodSelectClass}
+        >
+          <option value="all">Todos</option>
+          <option value="month">Mes</option>
+          <option value="quarter">Trimestre</option>
+          <option value="year">Año</option>
+        </Select>
+      </label>
+
+      {period.kind !== "all" && (
+        <label className="min-w-0 space-y-1">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Año
+          </span>
+          <Select
+            value={period.year}
+            onChange={(event) => onChange({ year: Number(event.target.value) })}
+            aria-label="Año del resumen"
+            className={compactPeriodSelectClass}
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+
+      {period.kind === "month" && (
+        <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Mes
+          </span>
+          <Select
+            value={period.month}
+            onChange={(event) =>
+              onChange({ month: Number(event.target.value) })
+            }
+            aria-label="Mes del resumen"
+            className={compactPeriodSelectClass}
+          >
+            {PRODUCT_MONTH_NAMES.map((name, index) => (
+              <option key={name} value={index + 1}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+
+      {period.kind === "quarter" && (
+        <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Trimestre
+          </span>
+          <Select
+            value={period.quarter}
+            onChange={(event) =>
+              onChange({
+                quarter: Number(
+                  event.target.value,
+                ) as ProductPeriodSelection["quarter"],
+              })
+            }
+            aria-label="Trimestre del resumen"
+            className={compactPeriodSelectClass}
+          >
+            {PRODUCT_QUARTERS.map((quarter) => (
+              <option key={quarter} value={quarter}>
+                {formatProductPeriodLabel({
+                  ...period,
+                  kind: "quarter",
+                  quarter,
+                })}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+    </div>
   );
 }
 
@@ -393,7 +427,9 @@ function RecentDocumentsCard({
             <DocumentRow
               key={document.id}
               document={document}
-              amount={safeDisplayAmount(documentAmounts(document, vatExempt).total)}
+              amount={safeDisplayAmount(
+                documentAmounts(document, vatExempt).total,
+              )}
             />
           ))
         )}
@@ -422,7 +458,9 @@ function RecentExpensesCard({
             <ExpenseRow
               key={expense.id}
               expense={expense}
-              amount={safeDisplayAmount(expenseTotals(expense, vatExempt).total)}
+              amount={safeDisplayAmount(
+                expenseTotals(expense, vatExempt).total,
+              )}
             />
           ))
         )}
@@ -451,7 +489,9 @@ function PendingInvoicesCard({
             <DocumentRow
               key={document.id}
               document={document}
-              amount={safeDisplayAmount(documentAmounts(document, vatExempt).total)}
+              amount={safeDisplayAmount(
+                documentAmounts(document, vatExempt).total,
+              )}
             />
           ))
         )}
@@ -506,13 +546,7 @@ function DocumentRow({
   );
 }
 
-function ExpenseRow({
-  expense,
-  amount,
-}: {
-  expense: Expense;
-  amount: number;
-}) {
+function ExpenseRow({ expense, amount }: { expense: Expense; amount: number }) {
   return (
     <Link
       href={`/gastos/nuevo?editar=${encodeURIComponent(expense.id)}`}
@@ -535,7 +569,11 @@ function ExpenseRow({
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">{text}</p>;
+  return (
+    <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">
+      {text}
+    </p>
+  );
 }
 
 function documentHref(document: Document): string {

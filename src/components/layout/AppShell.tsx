@@ -30,6 +30,7 @@ import {
 } from "@/lib/factu/occasional";
 import {
   FileText,
+  Home,
   Landmark,
   Receipt,
   Settings,
@@ -40,6 +41,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
+  { href: "/", label: "Inicio", shortLabel: "Inicio", icon: Home },
   { href: "/clientes", label: "Clientes", shortLabel: "Clientes", icon: Users },
   {
     href: "/presupuestos",
@@ -47,9 +49,19 @@ const navItems = [
     shortLabel: "Presup.",
     icon: Wallet,
   },
-  { href: "/facturas", label: "Facturas", shortLabel: "Factura", icon: FileText },
+  {
+    href: "/facturas",
+    label: "Facturas",
+    shortLabel: "Factura",
+    icon: FileText,
+  },
   { href: "/recibos", label: "Recibos", shortLabel: "Recibos", icon: Receipt },
-  { href: "/gastos", label: "Gastos", shortLabel: "Gastos", icon: ShoppingCart },
+  {
+    href: "/gastos",
+    label: "Gastos",
+    shortLabel: "Gastos",
+    icon: ShoppingCart,
+  },
   {
     href: "/proveedores",
     label: "Proveedores",
@@ -62,7 +74,12 @@ const navItems = [
     shortLabel: "Impuestos",
     icon: Landmark,
   },
-  { href: "/configuracion", label: "Ajustes", shortLabel: "Ajustes", icon: Settings },
+  {
+    href: "/configuracion",
+    label: "Ajustes",
+    shortLabel: "Ajustes",
+    icon: Settings,
+  },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -221,7 +238,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }`}
       >
         {!ready ? (
-          <p className="py-16 text-center text-slate-500">Cargando tus datos…</p>
+          <p className="py-16 text-center text-slate-500">
+            Cargando tus datos…
+          </p>
         ) : (
           children
         )}
@@ -234,9 +253,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
         <div className="relative mx-auto max-w-3xl">
           {navScrollState.canScrollLeft && (
-            <div
-              className="absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden"
-            >
+            <div className="absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden">
               <button
                 type="button"
                 onClick={() => scrollMobileNav("left")}
@@ -249,9 +266,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
           {navScrollState.canScrollRight && (
-            <div
-              className="absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden"
-            >
+            <div className="absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden">
               <button
                 type="button"
                 onClick={() => scrollMobileNav("right")}
@@ -273,9 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex w-max min-w-full items-stretch justify-start gap-1 sm:justify-center">
               {navItems.map(({ href, label, shortLabel, icon: Icon }) => {
                 const active =
-                  href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(href);
+                  href === "/" ? pathname === "/" : pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
