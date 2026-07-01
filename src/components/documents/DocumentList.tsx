@@ -266,11 +266,8 @@ export function DocumentList({
       )}
       {totalCount > 0 && (
         <Card className="space-y-4 p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
-            <Field
-              label={`Buscar ${label}`}
-              hint={SEARCH_HINTS[type]}
-            >
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <Field label={`Buscar ${label}`} hint={SEARCH_HINTS[type]}>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -283,83 +280,79 @@ export function DocumentList({
             </Field>
 
             <Field label="Periodo">
-              <Select
-                value={period.kind}
-                aria-label="Periodo del listado"
-                onChange={(event) =>
-                  updatePeriod({
-                    kind: event.target.value as ProductPeriodKind,
-                  })
-                }
-              >
-                <option value="all">Todos</option>
-                <option value="month">Este mes</option>
-                <option value="quarter">Este trimestre</option>
-                <option value="year">Este año</option>
-              </Select>
-            </Field>
-
-            {period.kind !== "all" && (
-              <Field label="Año">
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <Select
-                  value={period.year}
-                  aria-label="Año del listado"
-                  onChange={(event) =>
-                    updatePeriod({ year: Number(event.target.value) })
-                  }
-                >
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            )}
-
-            {period.kind === "month" && (
-              <Field label="Mes">
-                <Select
-                  value={period.month}
-                  aria-label="Mes del listado"
-                  onChange={(event) =>
-                    updatePeriod({ month: Number(event.target.value) })
-                  }
-                >
-                  {PRODUCT_MONTH_NAMES.map((name, index) => (
-                    <option key={name} value={index + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            )}
-
-            {period.kind === "quarter" && (
-              <Field label="Trimestre">
-                <Select
-                  value={period.quarter}
-                  aria-label="Trimestre del listado"
+                  value={period.kind}
+                  aria-label="Periodo del listado"
                   onChange={(event) =>
                     updatePeriod({
-                      quarter: Number(
-                        event.target.value,
-                      ) as ProductPeriodSelection["quarter"],
+                      kind: event.target.value as ProductPeriodKind,
                     })
                   }
                 >
-                  {PRODUCT_QUARTERS.map((quarter) => (
-                    <option key={quarter} value={quarter}>
-                      {formatProductPeriodLabel({
-                        ...period,
-                        kind: "quarter",
-                        quarter,
-                      })}
-                    </option>
-                  ))}
+                  <option value="all">Todos</option>
+                  <option value="month">Mes</option>
+                  <option value="quarter">Trimestre</option>
+                  <option value="year">Año</option>
                 </Select>
-              </Field>
-            )}
+
+                {period.kind !== "all" && (
+                  <Select
+                    value={period.year}
+                    aria-label="Año del listado"
+                    onChange={(event) =>
+                      updatePeriod({ year: Number(event.target.value) })
+                    }
+                  >
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+
+                {period.kind === "month" && (
+                  <Select
+                    value={period.month}
+                    aria-label="Mes del listado"
+                    onChange={(event) =>
+                      updatePeriod({ month: Number(event.target.value) })
+                    }
+                  >
+                    {PRODUCT_MONTH_NAMES.map((name, index) => (
+                      <option key={name} value={index + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+
+                {period.kind === "quarter" && (
+                  <Select
+                    value={period.quarter}
+                    aria-label="Trimestre del listado"
+                    onChange={(event) =>
+                      updatePeriod({
+                        quarter: Number(
+                          event.target.value,
+                        ) as ProductPeriodSelection["quarter"],
+                      })
+                    }
+                  >
+                    {PRODUCT_QUARTERS.map((quarter) => (
+                      <option key={quarter} value={quarter}>
+                        {formatProductPeriodLabel({
+                          ...period,
+                          kind: "quarter",
+                          quarter,
+                        })}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </div>
+            </Field>
 
             <Field label="Estado">
               <Select

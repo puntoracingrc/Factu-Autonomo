@@ -146,6 +146,11 @@ export default function ProveedoresPage() {
     }
   }
 
+  function handleSortFieldChange(field: SupplierSortField) {
+    setSortField(field);
+    setSortDirection(field === "compras" ? "desc" : "asc");
+  }
+
   function handleSave() {
     if (!form.name.trim()) {
       alert("Escribe el nombre del proveedor");
@@ -428,19 +433,19 @@ export default function ProveedoresPage() {
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Buscar y ordenar
               </h2>
-              <SupplierListSearch
-                suppliers={suppliers}
-                selectedSupplierId={listFilterId}
-                onSelectSupplier={(supplier) =>
-                  setListFilterId(supplier?.id ?? null)
-                }
-              />
-              <SupplierSortBar
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onSortFieldChange={setSortField}
-                onSortDirectionChange={setSortDirection}
-              />
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(14rem,0.8fr)]">
+                <SupplierListSearch
+                  suppliers={suppliers}
+                  selectedSupplierId={listFilterId}
+                  onSelectSupplier={(supplier) =>
+                    setListFilterId(supplier?.id ?? null)
+                  }
+                />
+                <SupplierSortBar
+                  sortField={sortField}
+                  onSortFieldChange={handleSortFieldChange}
+                />
+              </div>
             </Card>
           )}
           <p className="text-sm font-medium text-slate-500">
