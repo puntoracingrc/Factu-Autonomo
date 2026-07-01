@@ -377,6 +377,7 @@ function ProductCard({
   const [family, setFamily] = useState(product.family);
   const [unit, setUnit] = useState(product.unit ?? "");
   const [mergeKey, setMergeKey] = useState("");
+  const [mergeSearch, setMergeSearch] = useState("");
   const lastDiscount =
     product.lastPvp > 0
       ? ((product.lastPvp - product.lastUnitPrice) / product.lastPvp) * 100
@@ -384,6 +385,15 @@ function ProductCard({
   const mergeOptions = allProducts
     .filter((item) => item.key !== product.key)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const filteredMergeOptions = mergeOptions.filter((item) => {
+    const term = mergeSearch.trim().toLowerCase();
+    if (!term) return true;
+    return [item.name, item.family, item.usualSupplier?.supplierName]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(term);
+  });
 
   function saveEdits() {
     onSave({
@@ -399,6 +409,7 @@ function ProductCard({
     if (!mergeKey) return;
     onMerge(mergeKey);
     setMergeKey("");
+    setMergeSearch("");
   }
 
   function deleteCatalogProduct() {
@@ -603,14 +614,27 @@ function ProductCard({
             <GitMerge className="h-4 w-4 text-blue-600" />
             Unificar producto
           </p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <label className="relative">
+              <span className="sr-only">Buscar producto duplicado</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={mergeSearch}
+                onChange={(event) => {
+                  setMergeSearch(event.target.value);
+                  setMergeKey("");
+                }}
+                placeholder="Buscar duplicado..."
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 pl-10 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
             <select
               value={mergeKey}
               onChange={(event) => setMergeKey(event.target.value)}
               className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="">Elige producto duplicado...</option>
-              {mergeOptions.map((item) => (
+              {filteredMergeOptions.map((item) => (
                 <option key={item.key} value={item.key}>
                   {item.name}
                 </option>

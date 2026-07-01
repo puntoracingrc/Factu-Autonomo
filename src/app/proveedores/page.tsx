@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Pencil, Truck, Trash2, X } from "lucide-react";
+import { GitMerge, Pencil, Search, Truck, Trash2, X } from "lucide-react";
 import { SupplierListSearch } from "@/components/suppliers/SupplierListSearch";
 import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -15,12 +15,10 @@ import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
 import {
-  findBestSupplierMatch,
   findDuplicateSupplierGroups,
   migrateSupplier,
   pickCanonicalSupplier,
   sortSuppliers,
-  SUPPLIER_AUTO_LINK_SCORE,
   SUPPLIER_SORT_FIELD_LABELS,
   supplierPurchasedTotal,
   supplierSortDirectionLabel,
@@ -42,13 +40,13 @@ const EMPTY_FORM = {
 };
 
 export default function ProveedoresPage() {
-  const { data, addSupplier, updateSupplier, deleteSupplier, mergeSuppliers } =
-    useAppStore();
+  const { data, updateSupplier, deleteSupplier, mergeSuppliers } = useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
   const [listFilterId, setListFilterId] = useState<string | null>(null);
@@ -66,6 +64,25 @@ export default function ProveedoresPage() {
     const match = suppliers.find((supplier) => supplier.id === listFilterId);
     return match ? [match] : suppliers;
   }, [suppliers, listFilterId]);
+
+  const mergeVisibleSuppliers = useMemo(() => {
+    const term = mergeSearch.trim().toLowerCase();
+    if (!term) return suppliers;
+    return suppliers.filter((supplier) =>
+      [
+        supplier.name,
+        supplier.nif,
+        supplier.phone,
+        supplier.email,
+        supplier.website,
+        supplier.city,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [suppliers, mergeSearch]);
 
   const duplicateGroups = useMemo(
     () => findDuplicateSupplierGroups(data.suppliers),
@@ -98,13 +115,7 @@ export default function ProveedoresPage() {
     setMergeMode(false);
     setSelectedIds([]);
     setKeepId("");
-  }
-
-  function openNewForm() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setFormOpen(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setMergeSearch("");
   }
 
   function closeForm() {
@@ -157,19 +168,6 @@ export default function ProveedoresPage() {
       return;
     }
 
-    if (!editingId) {
-      const match = findBestSupplierMatch(data.suppliers, {
-        name: form.name.trim(),
-        nif: form.nif || undefined,
-      });
-      if (match && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
-        alert(
-          `Ya tienes un proveedor muy parecido: «${match.supplier.name}». Usa ese para no duplicar gastos.`,
-        );
-        return;
-      }
-    }
-
     const payload = {
       name: form.name.trim(),
       nif: form.nif.trim() || undefined,
@@ -182,13 +180,11 @@ export default function ProveedoresPage() {
       notes: form.notes.trim() || undefined,
     };
 
-    if (editingId) {
-      const existing = data.suppliers.find((supplier) => supplier.id === editingId);
-      if (existing) {
-        updateSupplier({ ...existing, ...payload });
-      }
-    } else {
-      addSupplier(payload);
+    const existing = editingId
+      ? data.suppliers.find((supplier) => supplier.id === editingId)
+      : null;
+    if (existing) {
+      updateSupplier({ ...existing, ...payload });
     }
 
     closeForm();
@@ -271,10 +267,10 @@ export default function ProveedoresPage() {
           </h2>
           {!mergeMode ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button onClick={openNewForm} fullWidth className="gap-2">
+              <ButtonLink href="/proveedores/nuevo?from=/proveedores" fullWidth className="gap-2">
                 <Truck className="h-5 w-5" />
                 Nuevo proveedor
-              </Button>
+              </ButtonLink>
               {data.suppliers.length >= 2 && (
                 <PageActionButton
                   icon={GitMerge}
@@ -420,15 +416,15 @@ export default function ProveedoresPage() {
         <FactuEmptyState
           variant="proveedor"
           action={
-            <Button onClick={openNewForm} className="gap-2">
+            <ButtonLink href="/proveedores/nuevo?from=/proveedores" className="gap-2">
               <Truck className="h-5 w-5" />
               Nuevo proveedor
-            </Button>
+            </ButtonLink>
           }
         />
       ) : data.suppliers.length > 0 ? (
         <div className="space-y-3">
-          {!mergeMode && (
+          {!mergeMode ? (
             <Card className="space-y-3 p-4">
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Buscar y ordenar
@@ -447,13 +443,34 @@ export default function ProveedoresPage() {
                 />
               </div>
             </Card>
+          ) : (
+            <Card className="space-y-3 p-4">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                Buscar proveedores para unificar
+              </h2>
+              <label className="block">
+                <span className="sr-only">Buscar proveedor para unificar</span>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={mergeSearch}
+                    onChange={(event) => setMergeSearch(event.target.value)}
+                    placeholder="Nombre, NIF, teléfono, web..."
+                    className="pl-10"
+                  />
+                </div>
+              </label>
+              <p className="text-sm font-medium text-slate-500">
+                Marca los duplicados y elige abajo cuál conservar.
+              </p>
+            </Card>
           )}
           <p className="text-sm font-medium text-slate-500">
             {listFilterId
               ? "1 proveedor seleccionado"
               : `${suppliers.length} proveedor(es) — ${SUPPLIER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${supplierSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
           </p>
-          {displayedSuppliers.map((supplier) => {
+          {(mergeMode ? mergeVisibleSuppliers : displayedSuppliers).map((supplier) => {
             const selected = selectedIds.includes(supplier.id);
             const purchased = supplierPurchasedTotal(data.expenses, supplier);
             const migrated = migrateSupplier(supplier);
@@ -541,11 +558,20 @@ export default function ProveedoresPage() {
       ) : null}
 
       {mergeMode && selectedIds.length >= 2 && keepId && (
-        <Card className="sticky bottom-20 z-10 mt-4 space-y-4 border-blue-300 bg-white shadow-lg sm:bottom-4">
-          <p className="font-semibold text-slate-900">
-            {selectedIds.length} proveedores seleccionados
-          </p>
-          <Field label="Conservar este proveedor (nombre y gastos)">
+        <Card className="sticky bottom-20 z-10 mt-4 max-h-[calc(100vh-8rem)] space-y-3 overflow-y-auto border-blue-300 bg-white shadow-lg sm:bottom-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-semibold text-slate-900">
+              {selectedIds.length} proveedores seleccionados
+            </p>
+            <Button
+              variant="ghost"
+              onClick={exitMergeMode}
+              className="min-h-10 px-3 text-sm sm:w-auto"
+            >
+              Cancelar
+            </Button>
+          </div>
+          <Field label="Conservar">
             <select
               value={keepId}
               onChange={(e) => setKeepId(e.target.value)}
@@ -562,9 +588,6 @@ export default function ProveedoresPage() {
             <Button fullWidth onClick={handleManualMerge}>
               <GitMerge className="h-5 w-5" />
               Unificar en uno
-            </Button>
-            <Button variant="ghost" fullWidth onClick={exitMergeMode}>
-              Cancelar
             </Button>
           </div>
         </Card>

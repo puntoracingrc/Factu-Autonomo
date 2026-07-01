@@ -6,6 +6,7 @@ import {
   Mail,
   MessageCircle,
   Pencil,
+  Search,
   Trash2,
   UserPlus,
   X,
@@ -17,14 +18,11 @@ import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentAc
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
-import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
 import {
   customerFullName,
@@ -60,17 +58,14 @@ const EMPTY_FORM = {
 const CUSTOMER_LIST_BATCH_SIZE = 30;
 
 export default function ClientesPage() {
-  const { data, addCustomer, updateCustomer, deleteCustomer, mergeCustomers } =
-    useAppStore();
-  const { checkCanAddCustomer } = useBilling();
+  const { data, updateCustomer, deleteCustomer, mergeCustomers } = useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
   const [updateDraftDocuments, setUpdateDraftDocuments] = useState(false);
@@ -121,6 +116,24 @@ export default function ClientesPage() {
     0,
   );
 
+  const mergeVisibleCustomers = useMemo(() => {
+    const term = mergeSearch.trim().toLowerCase();
+    if (!term) return customers;
+    return customers.filter((customer) =>
+      [
+        getCustomerDisplayName(customer),
+        customer.nif,
+        customer.email,
+        customer.phone,
+        customer.city,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [customers, mergeSearch]);
+
   const duplicateGroups = useMemo(
     () => findDuplicateCustomerGroups(data.customers),
     [data.customers],
@@ -145,14 +158,6 @@ export default function ClientesPage() {
   useEffect(() => {
     setVisibleCustomerCount(CUSTOMER_LIST_BATCH_SIZE);
   }, [data.customers.length, listFilterId, sortDirection, sortField]);
-
-  function openNewForm() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setFormError(null);
-    setFormOpen(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
 
   function closeForm() {
     setEditingId(null);
@@ -196,6 +201,7 @@ export default function ClientesPage() {
     setSelectedIds([]);
     setKeepId("");
     setUpdateDraftDocuments(false);
+    setMergeSearch("");
   }
 
   function handleManualMerge() {
@@ -268,19 +274,10 @@ export default function ClientesPage() {
       notes: form.notes.trim() || undefined,
     };
 
-    if (editingId) {
-      const existing = data.customers.find((c) => c.id === editingId);
-      if (existing) updateCustomer({ ...existing, ...payload });
-    } else {
-      const gate = checkCanAddCustomer(data.customers.length);
-      if (!gate.allowed) {
-        setUpgradeReason(gate.reason);
-        setUpgradeOpen(true);
-        return;
-      }
-      maybeCelebrateFirstCustomer(data.customers.length);
-      addCustomer(payload);
-    }
+    const existing = editingId
+      ? data.customers.find((c) => c.id === editingId)
+      : null;
+    if (existing) updateCustomer({ ...existing, ...payload });
 
     closeForm();
     setSaved(true);
@@ -355,10 +352,10 @@ export default function ClientesPage() {
           </h2>
           {!mergeMode ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button onClick={openNewForm} fullWidth className="gap-2">
+              <ButtonLink href="/clientes/nuevo?from=/clientes" fullWidth className="gap-2">
                 <UserPlus className="h-5 w-5" />
                 Nuevo cliente
-              </Button>
+              </ButtonLink>
               {customers.length >= 2 && (
                 <PageActionButton
                   icon={GitMerge}
@@ -515,15 +512,15 @@ export default function ClientesPage() {
         <FactuEmptyState
           variant="cliente"
           action={
-            <Button onClick={openNewForm} className="gap-2">
+            <ButtonLink href="/clientes/nuevo?from=/clientes" className="gap-2">
               <UserPlus className="h-5 w-5" />
               Nuevo cliente
-            </Button>
+            </ButtonLink>
           }
         />
       ) : customers.length > 0 ? (
         <div className="space-y-3">
-          {!mergeMode && (
+          {!mergeMode ? (
             <Card className="space-y-3 p-4">
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Buscar y ordenar
@@ -542,6 +539,27 @@ export default function ClientesPage() {
                 />
               </div>
             </Card>
+          ) : (
+            <Card className="space-y-3 p-4">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                Buscar clientes para unificar
+              </h2>
+              <label className="block">
+                <span className="sr-only">Buscar cliente para unificar</span>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={mergeSearch}
+                    onChange={(event) => setMergeSearch(event.target.value)}
+                    placeholder="Nombre, NIF, teléfono o email..."
+                    className="pl-10"
+                  />
+                </div>
+              </label>
+              <p className="text-sm font-medium text-slate-500">
+                Marca los duplicados y elige abajo cuál conservar.
+              </p>
+            </Card>
           )}
           <p className="text-sm font-medium text-slate-500">
             {listFilterId
@@ -551,7 +569,7 @@ export default function ClientesPage() {
               ? ` · mostrando ${visibleCustomers.length}`
               : ""}
           </p>
-          {visibleCustomers.map((customer) => {
+          {(mergeMode ? mergeVisibleCustomers : visibleCustomers).map((customer) => {
             const selected = selectedIds.includes(customer.id);
             const invoiced = customerInvoicedTotals.get(customer.id) ?? 0;
             const migrated = migrateCustomer(customer);
@@ -645,7 +663,7 @@ export default function ClientesPage() {
             </Card>
             );
           })}
-          {hiddenCustomerCount > 0 && (
+          {!mergeMode && hiddenCustomerCount > 0 && (
             <div className="pt-1">
               <button
                 type="button"
@@ -672,11 +690,20 @@ export default function ClientesPage() {
       ) : null}
 
       {mergeMode && selectedIds.length >= 2 && keepId && (
-        <Card className="sticky bottom-20 z-10 mt-4 space-y-4 border-blue-300 bg-white shadow-lg sm:bottom-4">
-          <p className="font-semibold text-slate-900">
-            {selectedIds.length} clientes seleccionados
-          </p>
-          <Field label="Conservar este cliente">
+        <Card className="sticky bottom-20 z-10 mt-4 max-h-[calc(100vh-8rem)] space-y-3 overflow-y-auto border-blue-300 bg-white shadow-lg sm:bottom-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-semibold text-slate-900">
+              {selectedIds.length} clientes seleccionados
+            </p>
+            <Button
+              variant="ghost"
+              onClick={exitMergeMode}
+              className="min-h-10 px-3 text-sm sm:w-auto"
+            >
+              Cancelar
+            </Button>
+          </div>
+          <Field label="Conservar">
             <select
               value={keepId}
               onChange={(e) => setKeepId(e.target.value)}
@@ -711,18 +738,9 @@ export default function ClientesPage() {
               <GitMerge className="h-5 w-5" />
               Unificar en uno
             </Button>
-            <Button variant="ghost" fullWidth onClick={exitMergeMode}>
-              Cancelar
-            </Button>
           </div>
         </Card>
       )}
-
-      <UpgradeModal
-        open={upgradeOpen}
-        onClose={() => setUpgradeOpen(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

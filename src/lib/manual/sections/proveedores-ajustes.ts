@@ -9,7 +9,7 @@ export const proveedoresSection: ManualSection = {
     {
       title: "1. Dar de alta un proveedor",
       paragraphs: [
-        "En **Proveedores** pulsa **Nuevo proveedor** y guarda nombre, NIF, teléfono, web y dirección.",
+        "En **Proveedores** pulsa **Nuevo proveedor**. Se abrirá una pantalla propia para guardar nombre, NIF, teléfono, web y dirección; al guardar o cancelar volverás al listado.",
         "Para la dirección, elige el **tipo de vía** y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni similares.",
         "Usa el **buscador** para localizar un proveedor y el **ordenador** por nombre, volumen de compras o dirección.",
         "Al registrar o escanear un gasto, si aparece un proveedor nuevo la app puede añadirlo a Proveedores y usar su NIF en las exportaciones CSV.",
@@ -22,7 +22,8 @@ export const proveedoresSection: ManualSection = {
     {
       title: "2. Unificar duplicados",
       paragraphs: [
-        "Si tienes el mismo proveedor repetido con nombres distintos, usa **Unificar manualmente** para fusionar registros.",
+        "Si tienes el mismo proveedor repetido con nombres distintos, usa **Unificar manualmente**.",
+        "Busca por nombre, NIF, teléfono o web, marca los proveedores repetidos y elige cuál conservar. Los gastos vinculados se moverán al proveedor conservado.",
       ],
       screenshot: {
         src: "/ayuda/capturas/proveedores-unificar.png",
