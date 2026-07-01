@@ -2,10 +2,7 @@ import { documentAmounts } from "./vat-regime";
 import { roundMoney } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { sortDocumentsByNewest } from "./documents";
-import {
-  isCollectedDocument,
-  isPendingInvoicePayment,
-} from "./income";
+import { isCollectedDocument, isPendingInvoicePayment } from "./income";
 import { expenseTotals } from "./expenses";
 import { isRectificativa } from "./rectificativas";
 import type { AppData, Document, Expense } from "./types";
@@ -22,6 +19,10 @@ export interface ProductBusinessSummary {
   totalCollectedLocal: number;
   totalPendingCollection: number;
   totalExpenses: number;
+  totalFixedExpenses: number;
+  totalPurchaseExpenses: number;
+  totalTicketExpenses: number;
+  totalUnbackedExpenses: number;
   salesIvaEstimated: number;
   expenseIvaEstimated: number;
   balanceEstimated: number;
@@ -68,6 +69,23 @@ function expenseIva(expense: Expense, vatExempt: boolean): number {
   return safeMoney(expenseTotals(expense, vatExempt).iva);
 }
 
+function isFixedExpense(expense: Expense): boolean {
+  return (
+    Boolean(expense.recurringExpenseId) || expense.businessKind === "fixed"
+  );
+}
+
+function isPurchaseExpense(expense: Expense): boolean {
+  return (
+    expense.businessKind === "purchase" ||
+    expense.businessKind === "purchase_invoice"
+  );
+}
+
+function isTicketExpense(expense: Expense): boolean {
+  return expense.businessKind === "quick_ticket";
+}
+
 function compareExpensesByNewest(left: Expense, right: Expense): number {
   const byDate = right.date.localeCompare(left.date);
   if (byDate !== 0) return byDate;
@@ -80,7 +98,9 @@ export function buildProductBusinessSummary(
 ): ProductBusinessSummary {
   const recentLimit = options.recentLimit ?? 4;
   const vatExempt = Boolean(data.profile.vatExempt);
-  const invoices = data.documents.filter((document) => document.type === "factura");
+  const invoices = data.documents.filter(
+    (document) => document.type === "factura",
+  );
   const issuedInvoices = invoices.filter(isIssuedBusinessInvoice);
   const draftInvoices = invoices.filter(
     (document) => deriveDocumentLifecycle(document) === "draft",
@@ -107,7 +127,33 @@ export function buildProductBusinessSummary(
     ),
   );
   const totalExpenses = safeMoney(
-    data.expenses.reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
+    data.expenses.reduce(
+      (sum, expense) => sum + expenseTotal(expense, vatExempt),
+      0,
+    ),
+  );
+  const totalFixedExpenses = safeMoney(
+    data.expenses
+      .filter(isFixedExpense)
+      .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
+  );
+  const totalPurchaseExpenses = safeMoney(
+    data.expenses
+      .filter(
+        (expense) => !isFixedExpense(expense) && isPurchaseExpense(expense),
+      )
+      .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
+  );
+  const totalTicketExpenses = safeMoney(
+    data.expenses
+      .filter((expense) => !isFixedExpense(expense) && isTicketExpense(expense))
+      .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
+  );
+  const totalUnbackedExpenses = safeMoney(
+    totalExpenses -
+      totalFixedExpenses -
+      totalPurchaseExpenses -
+      totalTicketExpenses,
   );
   const salesIvaEstimated = safeMoney(
     issuedInvoices.reduce(
@@ -116,13 +162,17 @@ export function buildProductBusinessSummary(
     ),
   );
   const expenseIvaEstimated = safeMoney(
-    data.expenses.reduce((sum, expense) => sum + expenseIva(expense, vatExempt), 0),
+    data.expenses.reduce(
+      (sum, expense) => sum + expenseIva(expense, vatExempt),
+      0,
+    ),
   );
 
   return {
     customersCount: data.customers.length,
-    quotesCount: data.documents.filter((document) => document.type === "presupuesto")
-      .length,
+    quotesCount: data.documents.filter(
+      (document) => document.type === "presupuesto",
+    ).length,
     invoicesCount: invoices.length,
     issuedInvoicesCount: issuedInvoices.length,
     draftInvoicesCount: draftInvoices.length,
@@ -132,14 +182,24 @@ export function buildProductBusinessSummary(
     totalCollectedLocal,
     totalPendingCollection,
     totalExpenses,
+    totalFixedExpenses,
+    totalPurchaseExpenses,
+    totalTicketExpenses,
+    totalUnbackedExpenses,
     salesIvaEstimated,
     expenseIvaEstimated,
     balanceEstimated: safeDifference(totalBilledIssued, totalExpenses),
     cashBalanceEstimated: safeDifference(totalCollectedLocal, totalExpenses),
-    recentDocuments: sortDocumentsByNewest(data.documents).slice(0, recentLimit),
+    recentDocuments: sortDocumentsByNewest(data.documents).slice(
+      0,
+      recentLimit,
+    ),
     recentExpenses: [...data.expenses]
       .sort(compareExpensesByNewest)
       .slice(0, recentLimit),
-    pendingInvoices: sortDocumentsByNewest(pendingInvoices).slice(0, recentLimit),
+    pendingInvoices: sortDocumentsByNewest(pendingInvoices).slice(
+      0,
+      recentLimit,
+    ),
   };
 }

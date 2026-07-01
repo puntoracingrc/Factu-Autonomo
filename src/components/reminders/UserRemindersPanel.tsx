@@ -16,10 +16,7 @@ import {
   resolveReminderHref,
 } from "@/lib/user-reminders";
 import { formatShortDate } from "@/lib/calculations";
-import {
-  filterDocumentsByQuery,
-  sortDocumentsByNewest,
-} from "@/lib/documents";
+import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
 import {
   OFFICE_REMINDER_TEMPLATES,
   guessReminderOrigin,
@@ -60,8 +57,6 @@ export function UserRemindersPanel() {
 
   const [showForm, setShowForm] = useState(false);
   const [text, setText] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [dueTime, setDueTime] = useState("");
   const [linkMode, setLinkMode] = useState<ReminderLinkMode>("none");
   const [generateType, setGenerateType] =
     useState<GenerateReminderDocumentType>("factura");
@@ -110,8 +105,6 @@ export function UserRemindersPanel() {
 
   function resetForm() {
     setText("");
-    setDueDate("");
-    setDueTime("");
     setLinkMode("none");
     setGenerateType("factura");
     setGenerateCustomerMode("none");
@@ -170,8 +163,6 @@ export function UserRemindersPanel() {
 
   function clearVoiceDraft() {
     setText("");
-    setDueDate("");
-    setDueTime("");
     setLinkMode("none");
     setGenerateType("factura");
     setGenerateCustomerMode("none");
@@ -289,8 +280,6 @@ export function UserRemindersPanel() {
 
     addUserReminder({
       text: trimmed,
-      dueDate: dueDate || undefined,
-      dueTime: dueTime || undefined,
       target,
       origin: guessReminderOrigin(),
       link,
@@ -315,23 +304,13 @@ export function UserRemindersPanel() {
           type="button"
           id="nuevo-recordatorio"
           onClick={() =>
-            showForm && target === "self" ? setShowForm(false) : openForm("self")
+            showForm && target === "self"
+              ? setShowForm(false)
+              : openForm("self")
           }
         >
           <Plus className="h-4 w-4" />
           Nuevo recordatorio
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() =>
-            showForm && target === "office"
-              ? setShowForm(false)
-              : openForm("office")
-          }
-        >
-          <Send className="h-4 w-4" />
-          Enviar a oficina
         </Button>
       </div>
 
@@ -347,7 +326,9 @@ export function UserRemindersPanel() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <p className="text-lg font-bold text-slate-900">
-                {target === "office" ? "Enviar a oficina" : "Nuevo recordatorio"}
+                {target === "office"
+                  ? "Enviar a oficina"
+                  : "Nuevo recordatorio"}
               </p>
               <p className="mt-1 text-sm text-slate-600">
                 {target === "office"
@@ -424,28 +405,12 @@ export function UserRemindersPanel() {
                 </div>
                 {!user ? (
                   <p className="mt-3 text-xs font-medium text-amber-800">
-                    Para verlo en otro dispositivo necesitas la cuenta en la nube.
+                    Para verlo en otro dispositivo necesitas la cuenta en la
+                    nube.
                   </p>
                 ) : null}
               </div>
             ) : null}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Fecha (opcional)">
-                <Input
-                  type="date"
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                />
-              </Field>
-              <Field label="Hora (opcional)">
-                <Input
-                  type="time"
-                  value={dueTime}
-                  onChange={(event) => setDueTime(event.target.value)}
-                />
-              </Field>
-            </div>
 
             <Field label="Enlace rápido (opcional)">
               <Select
@@ -579,8 +544,8 @@ export function UserRemindersPanel() {
         <Card className="mb-4 border-slate-200 bg-slate-50 text-center">
           <p className="font-semibold text-slate-800">Sin tareas pendientes</p>
           <p className="mt-1 text-sm text-slate-600">
-            Crea recordatorios para facturas, rectificaciones o cualquier gestión
-            que solo tú conoces.
+            Crea recordatorios para facturas, rectificaciones o cualquier
+            gestión que solo tú conoces.
           </p>
         </Card>
       ) : (
@@ -610,7 +575,10 @@ export function UserRemindersPanel() {
           {showCompleted ? (
             <ul className="space-y-3">
               {completed.slice(0, 30).map((item) => (
-                <Card key={item.id} className="border-slate-200 bg-slate-50 p-4 opacity-80">
+                <Card
+                  key={item.id}
+                  className="border-slate-200 bg-slate-50 p-4 opacity-80"
+                >
                   <div className="flex items-start gap-3">
                     <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                       <Check className="h-4 w-4" />
@@ -622,7 +590,9 @@ export function UserRemindersPanel() {
                       {item.completedAt ? (
                         <p className="mt-1 text-xs text-slate-500">
                           Hecho el{" "}
-                          {new Date(item.completedAt).toLocaleDateString("es-ES")}
+                          {new Date(item.completedAt).toLocaleDateString(
+                            "es-ES",
+                          )}
                         </p>
                       ) : null}
                     </div>
@@ -672,7 +642,8 @@ function DocumentPickerSearch({
   const selectedDocument = useMemo(
     () =>
       selectedDocumentId
-        ? documents.find((document) => document.id === selectedDocumentId) ?? null
+        ? (documents.find((document) => document.id === selectedDocumentId) ??
+          null)
         : null,
     [documents, selectedDocumentId],
   );

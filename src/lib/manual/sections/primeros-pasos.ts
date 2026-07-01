@@ -50,8 +50,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "4. Instala la app si quieres usarla como acceso directo",
       paragraphs: [
-        "En **Inicio** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
-        "Si no aparece el botón de instalación, usa el menú del navegador y busca **Instalar app** o **Añadir a pantalla de inicio**.",
+        "Al final de **Inicio** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
       ],
     },
     {

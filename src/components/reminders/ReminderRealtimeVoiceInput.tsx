@@ -94,7 +94,10 @@ export function ReminderRealtimeVoiceInput({
       return;
     }
 
-    const next = appendVoiceTranscript(currentValueRef.current, cleanTranscript);
+    const next = appendVoiceTranscript(
+      currentValueRef.current,
+      cleanTranscript,
+    );
     if (next === currentValueRef.current) return;
     currentValueRef.current = next;
     onChange(next);
@@ -137,12 +140,15 @@ export function ReminderRealtimeVoiceInput({
       method: "POST",
       headers,
     });
-    const payload = (await response.json().catch(() => ({}))) as
-      RealtimeSessionResponse;
+    const payload = (await response
+      .json()
+      .catch(() => ({}))) as RealtimeSessionResponse;
 
     if (response.status === 402) {
       setUpgradeOpen(true);
-      throw new Error(payload.error ?? "La voz IA para recordatorios requiere Pro.");
+      throw new Error(
+        payload.error ?? "La voz IA para recordatorios requiere Pro.",
+      );
     }
 
     if (!response.ok || !payload.clientSecret) {
@@ -348,13 +354,19 @@ export function ReminderRealtimeVoiceInput({
         }}
         compact
       />
+      <p className="text-xs leading-relaxed text-slate-500">
+        Intentará rellenar todos los campos con el dictado, pero puede fallar al
+        captar el cliente si tienes algunos muy parecidos.
+      </p>
 
       {liveTranscript ? (
         <p className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
           {liveTranscript}
         </p>
       ) : null}
-      {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm font-semibold text-red-600">{error}</p>
+      ) : null}
 
       <UpgradeModal
         open={upgradeOpen}

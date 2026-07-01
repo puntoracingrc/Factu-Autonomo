@@ -6,7 +6,7 @@ function source(path: string): string {
 }
 
 describe("product dashboard home", () => {
-  it("mantiene el resumen financiero colapsado y ligado a Pro", () => {
+  it("mantiene el resumen financiero visible, ocultable y abierto a todos", () => {
     const component = source("../components/dashboard/HomeBusinessSummary.tsx");
     const page = source("../app/page.tsx");
     const periodSelectorIndex = component.indexOf("<PeriodSelector");
@@ -14,30 +14,31 @@ describe("product dashboard home", () => {
 
     expect(page).toContain("HomeBusinessSummary");
     expect(component).toContain("Resumen del negocio");
-    expect(component).toContain("Cifras ocultas por defecto");
     expect(component).toContain("Mostrar resumen");
     expect(component).toContain("Ocultar resumen");
-    expect(component).toContain("limits.quarterlySummary");
-    expect(component).toContain("Finanzas incluidas en Pro");
+    expect(component).toContain("useState(true)");
+    expect(component).not.toContain("limits.quarterlySummary");
+    expect(component).not.toContain("Finanzas incluidas en Pro");
     expect(component).toContain("Flujo del periodo");
     expect(component).toContain("Facturado");
     expect(component).toContain("Cobrado");
     expect(component).toContain("Pendiente");
     expect(component).toContain("Gastos");
-    expect(component).toContain("Balance estimado");
-    expect(component).toContain("IVA estimado");
-    expect(component).toContain("Resumen por periodo");
+    expect(component).toContain("Lo que queda después de gastos");
+    expect(component).toContain("IVA para orientarte");
+    expect(component).not.toContain("Resumen por periodo");
     expect(periodSelectorIndex).toBeGreaterThan(-1);
     expect(flowChartIndex).toBeGreaterThan(-1);
     expect(periodSelectorIndex).toBeLessThan(flowChartIndex);
     expect(component).toContain("compactPeriodSelectClass");
-    expect(component).toContain("Periodo:");
-    expect(component).toContain("<option value=\"month\">Mes</option>");
-    expect(component).toContain("<option value=\"quarter\">Trimestre</option>");
-    expect(component).toContain("<option value=\"year\">Año</option>");
-    expect(component).not.toContain("<option value=\"month\">Este mes</option>");
-    expect(component).not.toContain("<option value=\"quarter\">Este trimestre</option>");
-    expect(component).not.toContain("<option value=\"year\">Este año</option>");
+    expect(component).toContain('<option value="month">Mes</option>');
+    expect(component).toContain('<option value="quarter">Trimestre</option>');
+    expect(component).toContain('<option value="year">Año</option>');
+    expect(component).not.toContain('<option value="month">Este mes</option>');
+    expect(component).not.toContain(
+      '<option value="quarter">Este trimestre</option>',
+    );
+    expect(component).not.toContain('<option value="year">Este año</option>');
   });
 
   it("coloca recordatorios antes de accesos rapidos sin encabezados redundantes", () => {
@@ -61,7 +62,9 @@ describe("product dashboard home", () => {
 
   it("mantiene acciones rapidas utiles desde inicio", () => {
     const page = source("../app/page.tsx");
-    const createReminderIndex = page.indexOf('href: "/avisos#nuevo-recordatorio"');
+    const createReminderIndex = page.indexOf(
+      'href: "/avisos#nuevo-recordatorio"',
+    );
     const alertsIndex = page.indexOf('href: "/avisos"');
 
     expect(createReminderIndex).toBeGreaterThan(-1);
@@ -77,6 +80,9 @@ describe("product dashboard home", () => {
 
   it("no enlaza recordatorios libres a nueva factura por defecto", () => {
     const panel = source("../components/reminders/UserRemindersPanel.tsx");
+    const voice = source(
+      "../components/reminders/ReminderRealtimeVoiceInput.tsx",
+    );
 
     expect(panel).toContain('useState<ReminderLinkMode>("none")');
     expect(panel).toContain('setLinkMode("none")');
@@ -86,6 +92,9 @@ describe("product dashboard home", () => {
     expect(panel).toContain("OFFICE_REMINDER_TEMPLATES");
     expect(panel).toContain("Plantillas rápidas");
     expect(panel).toContain("Enviar a oficina");
+    expect(voice).toContain("Intentará rellenar todos los");
+    expect(panel).not.toContain('type="date"');
+    expect(panel).not.toContain('type="time"');
     expect(panel).not.toContain("<SendToOfficeForm");
   });
 
@@ -103,8 +112,6 @@ describe("product dashboard home", () => {
     const page = source("../app/page.tsx");
     const copy = `${component}\n${page}`;
 
-    expect(copy).toContain("guardada en este navegador");
-    expect(copy).toMatch(/No\s+sustituyen una revisión contable\s+o fiscal/);
     expect(copy).not.toMatch(
       /IVA a pagar|Modelo 303|Resultado fiscal|Declaraci[oó]n|Hacienda|AEAT|Contabilidad oficial/i,
     );
