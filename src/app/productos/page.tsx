@@ -30,8 +30,8 @@ export default function ProductosPage() {
   const [supplier, setSupplier] = useState(ALL);
 
   const products = useMemo(
-    () => buildPurchaseProductSummaries(data.expenses, data.documents),
-    [data.expenses, data.documents],
+    () => buildPurchaseProductSummaries(data.expenses),
+    [data.expenses],
   );
 
   const families = useMemo(
@@ -223,10 +223,10 @@ function FilterSelect({
 }
 
 function ProductCard({ product }: { product: PurchaseProductSummary }) {
-  const margin =
-    product.pvpLast && product.lastUnitPrice > 0
-      ? ((product.pvpLast - product.lastUnitPrice) / product.pvpLast) * 100
-      : null;
+  const lastDiscount =
+    product.lastPvp > 0
+      ? ((product.lastPvp - product.lastUnitPrice) / product.lastPvp) * 100
+      : product.lastDiscountPercent;
 
   return (
     <Card className="space-y-4">
@@ -260,7 +260,7 @@ function ProductCard({ product }: { product: PurchaseProductSummary }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Precio medio" value={formatMoney(product.averageUnitPrice)} />
+        <Metric label="Coste medio" value={formatMoney(product.averageUnitPrice)} />
         <Metric
           label="Descuento habitual"
           value={`${product.averageDiscountPercent.toLocaleString("es-ES")}%`}
@@ -290,26 +290,25 @@ function ProductCard({ product }: { product: PurchaseProductSummary }) {
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3">
           <p className="flex items-center gap-2 text-sm font-black text-emerald-900">
             <TrendingUp className="h-4 w-4" />
-            PVP detectado
+            PVP proveedor
           </p>
-          {product.pvpLast ? (
+          {product.lastPvp > 0 ? (
             <>
               <p className="mt-2 text-lg font-black text-emerald-950">
-                {formatMoney(product.pvpLast)}
+                {formatMoney(product.lastPvp)}
               </p>
               <p className="text-sm font-semibold text-emerald-800">
-                {margin !== null
-                  ? `Margen orientativo: ${Math.round(margin)}%`
-                  : `${product.pvpCount} uso(s) en ventas`}
+                Tarifa antes de descuento. Último dto.:{" "}
+                {Math.round(lastDiscount).toLocaleString("es-ES")}%
               </p>
             </>
           ) : (
             <>
               <p className="mt-2 text-lg font-black text-slate-700">
-                Sin PVP detectado
+                Sin PVP claro
               </p>
               <p className="text-sm font-semibold text-slate-500">
-                Aparecerá cuando lo uses en un documento de venta.
+                Aparecerá cuando la línea de compra traiga precio de tarifa.
               </p>
             </>
           )}

@@ -17,8 +17,8 @@ export const productosSection: ManualSection = {
       title: "2. Qué puedes revisar",
       paragraphs: [
         "Puedes buscar por producto, familia o proveedor. También puedes filtrar por familia y por proveedor habitual.",
-        "Cada ficha muestra el último coste, precio medio, descuento habitual, volumen comprado y total comprado.",
-        "Si un producto aparece también en facturas, presupuestos o recibos, verás un PVP detectado y un margen orientativo. Si no aparece aún en ventas, se mostrará como pendiente.",
+        "Cada ficha muestra el último coste real, coste medio, descuento habitual, volumen comprado y total comprado.",
+        "El PVP proveedor es la tarifa antes del descuento del distribuidor. El coste es lo que realmente pagas después de aplicar ese descuento.",
       ],
     },
     {
