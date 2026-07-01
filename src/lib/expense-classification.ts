@@ -8,15 +8,15 @@ export const EXPENSE_BUSINESS_KIND_OPTIONS: Array<{
 }> = [
   {
     value: "purchase_invoice",
-    label: "Factura de compra",
+    label: "Factura recibida",
     shortLabel: "Factura",
-    hint: "Factura recibida de proveedor, normalmente con NIF/CIF e IVA deducible.",
+    hint: "Documento fiscal completo del proveedor: número, NIF/CIF e IVA.",
   },
   {
     value: "purchase",
-    label: "Compra a proveedor",
-    shortLabel: "Compra",
-    hint: "Material, recambios, herramientas o servicios para un trabajo.",
+    label: "Material / servicio para trabajo",
+    shortLabel: "Trabajo",
+    hint: "Compra que quieres asociar a un trabajo para controlar su margen.",
   },
   {
     value: "quick_ticket",
