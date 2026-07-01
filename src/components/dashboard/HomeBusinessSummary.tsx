@@ -235,25 +235,38 @@ function BusinessFlowChart({ summary }: { summary: ProductBusinessSummary }) {
 }
 
 function businessFlowMetrics(summary: ProductBusinessSummary): FlowMetric[] {
+  const issuedInvoicesLabel =
+    summary.issuedInvoicesCount === 1
+      ? "1 factura emitida."
+      : `${summary.issuedInvoicesCount} facturas emitidas.`;
+  const collectedInvoicesLabel =
+    summary.collectedInvoicesCount === 1
+      ? "1 factura marcada como cobrada."
+      : `${summary.collectedInvoicesCount} facturas marcadas como cobradas.`;
+  const pendingInvoicesLabel =
+    summary.pendingInvoicesCount === 1
+      ? "1 factura pendiente de registrar cobro."
+      : `${summary.pendingInvoicesCount} facturas pendientes de registrar cobro.`;
+
   return [
     {
       label: "Facturado",
       amount: summary.totalBilledIssued,
-      hint: `${summary.issuedInvoicesCount} Número de facturas emitidas.`,
+      hint: issuedInvoicesLabel,
       color: "bg-blue-600",
       textColor: "text-blue-700",
     },
     {
       label: "Cobrado",
       amount: summary.totalCollectedLocal,
-      hint: `${summary.collectedInvoicesCount} Número de facturas marcadas como cobradas.`,
+      hint: collectedInvoicesLabel,
       color: "bg-emerald-600",
       textColor: "text-emerald-700",
     },
     {
       label: "Pendiente",
       amount: summary.totalPendingCollection,
-      hint: `${summary.pendingInvoicesCount} Número de facturas pendientes de registrar cobro.`,
+      hint: pendingInvoicesLabel,
       color: "bg-amber-500",
       textColor: "text-amber-700",
     },
