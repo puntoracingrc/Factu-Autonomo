@@ -23,6 +23,7 @@ type CallbackStatus =
       message: string;
       fileName: string;
       webViewLink?: string;
+      folderWebViewLink?: string;
     }
   | { state: "error"; message: string };
 
@@ -141,6 +142,7 @@ export default function GoogleDriveCallbackPage() {
           message: "Copia guardada en Google Drive.",
           fileName: result.fileName,
           webViewLink: result.webViewLink,
+          folderWebViewLink: result.folderWebViewLink,
         });
       } catch (error) {
         clearPendingDriveBackupRequest();
@@ -195,14 +197,24 @@ export default function GoogleDriveCallbackPage() {
             <p className="mt-1">
               Se ha guardado en la carpeta “Factu - copias de seguridad”.
             </p>
+            {status.folderWebViewLink ? (
+              <a
+                href={status.folderWebViewLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex font-semibold text-emerald-800 underline"
+              >
+                Abrir carpeta en Drive
+              </a>
+            ) : null}
             {status.webViewLink ? (
               <a
                 href={status.webViewLink}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-flex font-semibold text-emerald-800 underline"
+                className="ml-4 mt-3 inline-flex font-semibold text-emerald-800 underline"
               >
-                Ver copia en Drive
+                Ver archivo JSON
               </a>
             ) : null}
           </div>

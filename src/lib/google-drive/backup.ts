@@ -22,6 +22,7 @@ export interface DriveBackupSettings {
   lastFileId?: string;
   lastFileName?: string;
   lastWebViewLink?: string;
+  lastFolderWebViewLink?: string;
   lastAutoSignature?: string;
 }
 
@@ -43,6 +44,7 @@ export type DriveBackupUploadResult =
       fileId: string;
       fileName: string;
       webViewLink?: string;
+      folderWebViewLink?: string;
       exportedAt: string;
     }
   | { ok: false; error: string };
@@ -117,6 +119,7 @@ export function normalizeDriveBackupSettings(
     lastFileId: safeString(raw.lastFileId),
     lastFileName: safeString(raw.lastFileName),
     lastWebViewLink: safeString(raw.lastWebViewLink),
+    lastFolderWebViewLink: safeString(raw.lastFolderWebViewLink),
     lastAutoSignature: safeString(raw.lastAutoSignature),
   };
 }
@@ -488,7 +491,9 @@ async function driveFetch<T>(
   return (await response.json()) as T;
 }
 
-async function findOrCreateBackupFolder(accessToken: string): Promise<string> {
+async function findOrCreateBackupFolder(
+  accessToken: string,
+): Promise<{ id: string; webViewLink?: string }> {
   const query = [
     "mimeType='application/vnd.google-apps.folder'",
     `name='${escapeDriveQueryValue(DRIVE_BACKUP_FOLDER_NAME)}'`,
@@ -496,17 +501,18 @@ async function findOrCreateBackupFolder(accessToken: string): Promise<string> {
   ].join(" and ");
   const searchUrl =
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}` +
-    "&spaces=drive&fields=files(id,name)&pageSize=1";
+    "&spaces=drive&fields=files(id,name,webViewLink)&pageSize=1";
 
-  const found = await driveFetch<{ files?: Array<{ id: string; name: string }> }>(
-    searchUrl,
-    accessToken,
-  );
-  const existing = found.files?.[0]?.id;
-  if (existing) return existing;
+  const found = await driveFetch<{
+    files?: Array<{ id: string; name: string; webViewLink?: string }>;
+  }>(searchUrl, accessToken);
+  const existing = found.files?.[0];
+  if (existing?.id) {
+    return { id: existing.id, webViewLink: existing.webViewLink };
+  }
 
-  const created = await driveFetch<{ id: string }>(
-    "https://www.googleapis.com/drive/v3/files?fields=id",
+  return await driveFetch<{ id: string; webViewLink?: string }>(
+    "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink",
     accessToken,
     {
       method: "POST",
@@ -517,8 +523,6 @@ async function findOrCreateBackupFolder(accessToken: string): Promise<string> {
       }),
     },
   );
-
-  return created.id;
 }
 
 async function uploadJsonBackup(
@@ -605,12 +609,12 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
     }
 
     const exportedAt = (options.now?.() ?? new Date()).toISOString();
-    const folderId = await findOrCreateBackupFolder(accessToken);
+    const folder = await findOrCreateBackupFolder(accessToken);
     const fileName = buildDriveBackupFileName(exportedAt);
     const payload = createBackupPayload(data, exportedAt);
     const uploaded = await uploadJsonBackup(
       accessToken,
-      folderId,
+      folder.id,
       fileName,
       JSON.stringify(payload, null, 2),
     );
@@ -620,6 +624,7 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
       fileId: uploaded.id,
       fileName: uploaded.name,
       webViewLink: uploaded.webViewLink,
+      folderWebViewLink: folder.webViewLink,
       exportedAt,
     };
   } catch (error) {

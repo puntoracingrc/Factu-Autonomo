@@ -122,6 +122,7 @@ export function GoogleDriveBackupCard() {
         lastFileId: result.fileId,
         lastFileName: result.fileName,
         lastWebViewLink: result.webViewLink,
+        lastFolderWebViewLink: result.folderWebViewLink,
         lastAutoSignature: signature,
       }));
 
@@ -325,14 +326,14 @@ export function GoogleDriveBackupCard() {
           </p>
         ) : null}
         <p className="mt-1">Última copia: {formatLastBackup(settings.lastBackupAt)}</p>
-        {settings.lastWebViewLink ? (
+        {settings.lastFolderWebViewLink || settings.lastWebViewLink ? (
           <a
-            href={settings.lastWebViewLink}
+            href={settings.lastFolderWebViewLink ?? settings.lastWebViewLink}
             target="_blank"
             rel="noreferrer"
             className="mt-2 inline-flex font-semibold text-blue-700 underline"
           >
-            Ver última copia en Drive
+            Abrir carpeta de copias en Drive
           </a>
         ) : null}
       </div>

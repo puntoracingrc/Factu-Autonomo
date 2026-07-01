@@ -167,10 +167,16 @@ describe("Google Drive backup", () => {
         }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: "folder-id" }), {
+        new Response(
+          JSON.stringify({
+            id: "folder-id",
+            webViewLink: "https://drive.google.com/drive/folders/folder-id",
+          }),
+          {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        }),
+          },
+        ),
       )
       .mockResolvedValueOnce(
         new Response(
@@ -195,6 +201,7 @@ describe("Google Drive backup", () => {
       fileId: "file-id",
       fileName: "factu-autonomo-drive-backup-2026-06-29-1200.json",
       webViewLink: "https://drive.google.com/file/d/file-id/view",
+      folderWebViewLink: "https://drive.google.com/drive/folders/folder-id",
       exportedAt: "2026-06-29T12:00:00.000Z",
     });
 
@@ -203,7 +210,7 @@ describe("Google Drive backup", () => {
       "https://www.googleapis.com/drive/v3/files",
     );
     expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
-      "https://www.googleapis.com/drive/v3/files?fields=id",
+      "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink",
     );
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
