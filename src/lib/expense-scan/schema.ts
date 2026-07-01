@@ -11,8 +11,19 @@ import type {
 } from "../types";
 
 export type ExpenseScanPurchaseLine = Omit<ExpensePurchaseLine, "id">;
+export type ExpenseScanDocumentKind =
+  | "expense_invoice"
+  | "ticket"
+  | "quote_or_order"
+  | "proforma"
+  | "other";
 
 export interface ExpenseScanPayload {
+  document?: {
+    kind: ExpenseScanDocumentKind;
+    isExpenseDocument: boolean;
+    reason?: string | null;
+  };
   supplier: {
     name: string;
     nif?: string | null;
@@ -67,6 +78,45 @@ function parseDateOptional(value: unknown): string | undefined {
 
 function cleanText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+const NON_EXPENSE_DOCUMENT_PATTERNS = [
+  /\bcomanda\s*\/\s*pedido\b/i,
+  /\bs\/ref\.?\s*:?\s*pressupost\b/i,
+  /\bpressupost\b/i,
+  /\bvalid[oa]\s+durante\b/i,
+  /\bvalid\s+durant\b/i,
+  /\bpara\s+generar\s+el\s+pedido\b/i,
+  /\bno\s+constituye\s+factura\b/i,
+];
+
+const NON_EXPENSE_DOCUMENT_TITLE_PATTERNS = [
+  /^\s*(oferta|presupuesto|pedido|comanda|proforma|cotizaci[oó]n)\b/i,
+  /^\s*(pressupost)\b/i,
+];
+
+export function detectNonExpenseDocumentReason(text: string): string | null {
+  const normalized = text.trim();
+  if (!normalized) return null;
+  const firstLines = normalized
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  const hasInvoiceHeader = firstLines
+    .slice(0, 5)
+    .some((line) => /^(factura|fra\.?|invoice)\b/i.test(line));
+  if (hasInvoiceHeader) return null;
+
+  if (
+    NON_EXPENSE_DOCUMENT_PATTERNS.some((pattern) => pattern.test(normalized)) ||
+    firstLines.some((line) =>
+      NON_EXPENSE_DOCUMENT_TITLE_PATTERNS.some((pattern) => pattern.test(line)),
+    )
+  ) {
+    return "Parece una oferta, presupuesto, pedido o proforma. No se guardará como gasto.";
+  }
+  return null;
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {
@@ -171,6 +221,25 @@ export function normalizeExpenseScanPayload(
       notes: typeof expense.notes === "string" ? expense.notes : null,
     });
   const normalizedDate = parseDate(expense.date);
+  const documentRaw =
+    data.document && typeof data.document === "object"
+      ? data.document as Record<string, unknown>
+      : {};
+  const documentKindRaw = cleanText(documentRaw.kind);
+  const documentKind = (
+    [
+      "expense_invoice",
+      "ticket",
+      "quote_or_order",
+      "proforma",
+      "other",
+    ] as const
+  ).includes(documentKindRaw as ExpenseScanDocumentKind)
+    ? (documentKindRaw as ExpenseScanDocumentKind)
+    : undefined;
+  const explicitlyNotExpense =
+    documentRaw.isExpenseDocument === false ||
+    cleanText(documentRaw.isExpenseDocument).toLowerCase() === "false";
 
   const warnings = Array.isArray(data.warnings)
     ? data.warnings.filter((w): w is string => typeof w === "string")
@@ -186,8 +255,36 @@ export function normalizeExpenseScanPayload(
   if (Number.isFinite(confidence) && confidence < 0.7) {
     warnings.push("Confianza baja: revisa todos los campos antes de guardar.");
   }
+  const purchaseDocument = normalizePurchaseDocument(expense.purchaseDocument, {
+    date: normalizedDate,
+    supplierNif:
+      typeof supplier.nif === "string" ? supplier.nif.trim() : undefined,
+  });
+  const nonExpenseReason =
+    explicitlyNotExpense
+      ? cleanText(documentRaw.reason) ||
+        "Este documento no parece una factura o ticket de gasto."
+      : [
+          documentKind,
+          cleanText(documentRaw.reason),
+          description,
+          typeof expense.notes === "string" ? expense.notes : "",
+        ]
+          .map((value) => detectNonExpenseDocumentReason(value ?? ""))
+          .find(Boolean) ?? null;
 
   return {
+    document: {
+      kind:
+        documentKind ??
+        (nonExpenseReason
+          ? "quote_or_order"
+          : businessKind === "quick_ticket"
+            ? "ticket"
+            : "expense_invoice"),
+      isExpenseDocument: !nonExpenseReason,
+      reason: nonExpenseReason,
+    },
     supplier: {
       name,
       nif:
@@ -207,11 +304,7 @@ export function normalizeExpenseScanPayload(
       paymentMethod,
       notes:
         typeof expense.notes === "string" ? expense.notes.trim() || null : null,
-      purchaseDocument: normalizePurchaseDocument(expense.purchaseDocument, {
-        date: normalizedDate,
-        supplierNif:
-          typeof supplier.nif === "string" ? supplier.nif.trim() : undefined,
-      }),
+      purchaseDocument,
       purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
     },
     confidence: Number.isFinite(confidence) ? confidence : 0.5,
@@ -220,6 +313,13 @@ export function normalizeExpenseScanPayload(
 }
 
 export const EXPENSE_SCAN_JSON_SCHEMA = {
+  document: {
+    kind: "expense_invoice | ticket | quote_or_order | proforma | other",
+    isExpenseDocument:
+      "boolean — true solo si es factura/ticket/gasto ya realizado; false si es oferta, presupuesto, pedido, proforma u otro documento no contabilizable como gasto",
+    reason:
+      "string opcional — motivo si isExpenseDocument es false o hay dudas",
+  },
   supplier: {
     name: "string — nombre comercial o razón social del emisor",
     nif: "string opcional — CIF/NIF del proveedor",

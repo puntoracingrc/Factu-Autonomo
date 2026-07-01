@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -20,7 +26,10 @@ import {
 import { documentShortNumber } from "@/lib/document-links";
 import { isVatExempt } from "@/lib/vat-regime";
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from "@/lib/types";
-import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
+import {
+  detectNonExpenseDocumentReason,
+  type ExpenseScanPayload,
+} from "@/lib/expense-scan/schema";
 import {
   buildSupplierMatchHint,
   ensureSupplierForExpense,
@@ -213,6 +222,29 @@ export default function NuevoGastoPage() {
     );
   }
 
+  function clearScanForm() {
+    setDate(todayISO());
+    setSupplierName("");
+    setDescription("");
+    setAmountText("");
+    setIvaPercent(defaultIva);
+    setCategory(EXPENSE_CATEGORIES[0]);
+    setPaymentMethod(PAYMENT_METHODS[0]);
+    setNotes("");
+    setSaveSupplier(true);
+    setSupplierNif(undefined);
+    setSelectedSupplierId(null);
+    setExpenseOrigin("manual");
+    setBusinessKind("purchase");
+    setPurchaseDocument({});
+    setPurchaseLines([]);
+    setWorkDocumentId("");
+    setWorkDocumentQuery("");
+    setActiveScanReview(null);
+    setScanFormCollapsed(false);
+    setScanHint(null);
+  }
+
   function applyScanResult(
     payload: ExpenseScanPayload,
     options?: { fileName?: string; append?: boolean },
@@ -359,6 +391,46 @@ export default function NuevoGastoPage() {
     });
   }
 
+  function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
+    const explicit =
+      review.payload.document?.isExpenseDocument === false
+        ? review.payload.document.reason?.trim() ||
+          "Este documento no parece una factura o ticket de gasto."
+        : null;
+    if (explicit) return explicit;
+
+    const filenameReason = review.fileName
+      ? detectNonExpenseDocumentReason(review.fileName)
+      : null;
+    if (filenameReason) return filenameReason;
+
+    return detectNonExpenseDocumentReason(
+      [
+        review.payload.document?.kind,
+        review.payload.document?.reason,
+        review.payload.expense.description,
+        review.payload.expense.notes,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+
+  function removeScanReview(review: PendingExpenseScan) {
+    setPendingScans((prev) => prev.filter((item) => item.id !== review.id));
+    if (activeScanReview?.id !== review.id) return;
+
+    const next = pendingScans.find((item) => item.id !== review.id);
+    if (next) {
+      setPendingScans((prev) => prev.filter((item) => item.id !== next.id));
+      fillFormFromScan(next);
+      setScanFormCollapsed(true);
+      return;
+    }
+
+    clearScanForm();
+  }
+
   function priceAlertsForScanPayload(payload: ExpenseScanPayload) {
     const currentLines =
       payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ??
@@ -379,6 +451,9 @@ export default function NuevoGastoPage() {
   }
 
   function scanReviewWarning(review: PendingExpenseScan) {
+    const nonExpenseReason = nonExpenseReasonForScanReview(review);
+    if (nonExpenseReason) return nonExpenseReason;
+
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -403,6 +478,7 @@ export default function NuevoGastoPage() {
   }
 
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
+    if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (duplicateForScanPayload(review.payload)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
@@ -721,6 +797,15 @@ export default function NuevoGastoPage() {
                               <ChevronDown className="h-4 w-4" />
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => removeScanReview(review)}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
+                            aria-label={`Quitar ${review.fileName ?? review.payload.expense.description}`}
+                            title="Quitar de esta revisión"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
