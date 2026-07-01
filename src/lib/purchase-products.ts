@@ -1,6 +1,6 @@
 import { roundMoney } from "./calculations";
 import { expensePurchaseLineBaseTotal, sanitizeExpensePurchaseLines } from "./expenses";
-import type { Document, Expense } from "./types";
+import type { Expense } from "./types";
 
 export interface PurchaseProductSupplierSummary {
   supplierId?: string;
@@ -22,15 +22,14 @@ export interface PurchaseProductSummary {
   lastUnitPrice: number;
   minUnitPrice: number;
   maxUnitPrice: number;
+  averagePvp: number;
+  lastPvp: number;
   averageDiscountPercent: number;
   lastDiscountPercent: number;
   ivaPercent?: number;
   lastPurchaseDate: string;
   usualSupplier?: PurchaseProductSupplierSummary;
   suppliers: PurchaseProductSupplierSummary[];
-  pvpAverage?: number;
-  pvpLast?: number;
-  pvpCount: number;
 }
 
 interface ProductAccumulator {
@@ -42,17 +41,16 @@ interface ProductAccumulator {
   totalQuantity: number;
   totalBase: number;
   unitPriceSum: number;
+  pvpSum: number;
   discountSum: number;
   lastUnitPrice: number;
   minUnitPrice: number;
   maxUnitPrice: number;
+  lastPvp: number;
   lastDiscountPercent: number;
   ivaPercent?: number;
   lastPurchaseDate: string;
   suppliers: Map<string, PurchaseProductSupplierSummary>;
-  pvpSum: number;
-  pvpLast?: number;
-  pvpCount: number;
 }
 
 export function purchaseProductKey(description: string): string {
@@ -86,31 +84,17 @@ function supplierKey(expense: Expense): string {
   return expense.supplierId || expense.supplierName.trim().toLowerCase() || "sin-proveedor";
 }
 
-function salesLinesByProduct(documents: Document[]): Map<string, { sum: number; last?: number; count: number }> {
-  const map = new Map<string, { sum: number; last?: number; count: number }>();
-  const sorted = [...documents].sort((a, b) => a.date.localeCompare(b.date));
-
-  for (const doc of sorted) {
-    for (const line of doc.items) {
-      const key = purchaseProductKey(line.description);
-      if (!key || line.unitPrice <= 0) continue;
-      const current = map.get(key) ?? { sum: 0, count: 0 };
-      map.set(key, {
-        sum: current.sum + line.unitPrice,
-        last: line.unitPrice,
-        count: current.count + 1,
-      });
-    }
+function purchaseLineNetUnitCost(line: NonNullable<Expense["purchaseLines"]>[number]): number {
+  const quantity = line.quantity || 1;
+  if (line.total !== undefined && Number.isFinite(line.total) && line.total > 0 && quantity > 0) {
+    return roundMoney(line.total / quantity);
   }
 
-  return map;
+  const discount = line.discountPercent ?? 0;
+  return roundMoney(line.unitPrice * (1 - discount / 100));
 }
 
-export function buildPurchaseProductSummaries(
-  expenses: Expense[],
-  documents: Document[] = [],
-): PurchaseProductSummary[] {
-  const sales = salesLinesByProduct(documents);
+export function buildPurchaseProductSummaries(expenses: Expense[]): PurchaseProductSummary[] {
   const accumulators = new Map<string, ProductAccumulator>();
 
   for (const expense of expenses) {
@@ -121,6 +105,7 @@ export function buildPurchaseProductSummaries(
 
       const base = expensePurchaseLineBaseTotal(line);
       const discount = line.discountPercent ?? 0;
+      const netUnitCost = purchaseLineNetUnitCost(line);
       const existing = accumulators.get(key);
       const accumulator: ProductAccumulator =
         existing ??
@@ -133,32 +118,34 @@ export function buildPurchaseProductSummaries(
           totalQuantity: 0,
           totalBase: 0,
           unitPriceSum: 0,
+          pvpSum: 0,
           discountSum: 0,
-          lastUnitPrice: line.unitPrice,
-          minUnitPrice: line.unitPrice,
-          maxUnitPrice: line.unitPrice,
+          lastUnitPrice: netUnitCost,
+          minUnitPrice: netUnitCost,
+          maxUnitPrice: netUnitCost,
+          lastPvp: line.unitPrice,
           lastDiscountPercent: discount,
           ivaPercent: line.ivaPercent,
           lastPurchaseDate: expense.date,
           suppliers: new Map(),
-          pvpSum: 0,
-          pvpCount: 0,
         };
 
       accumulator.purchaseCount += 1;
       accumulator.totalQuantity += line.quantity;
       accumulator.totalBase += base;
-      accumulator.unitPriceSum += line.unitPrice;
+      accumulator.unitPriceSum += netUnitCost;
+      accumulator.pvpSum += line.unitPrice;
       accumulator.discountSum += discount;
-      accumulator.minUnitPrice = Math.min(accumulator.minUnitPrice, line.unitPrice);
-      accumulator.maxUnitPrice = Math.max(accumulator.maxUnitPrice, line.unitPrice);
+      accumulator.minUnitPrice = Math.min(accumulator.minUnitPrice, netUnitCost);
+      accumulator.maxUnitPrice = Math.max(accumulator.maxUnitPrice, netUnitCost);
       accumulator.ivaPercent = line.ivaPercent ?? accumulator.ivaPercent;
 
       if (expense.date >= accumulator.lastPurchaseDate) {
         accumulator.name = line.description;
         accumulator.unit = line.unit ?? accumulator.unit;
         accumulator.lastPurchaseDate = expense.date;
-        accumulator.lastUnitPrice = line.unitPrice;
+        accumulator.lastUnitPrice = netUnitCost;
+        accumulator.lastPvp = line.unitPrice;
         accumulator.lastDiscountPercent = discount;
       }
 
@@ -185,7 +172,6 @@ export function buildPurchaseProductSummaries(
 
   return [...accumulators.values()]
     .map((item) => {
-      const sale = sales.get(item.key);
       const suppliers = [...item.suppliers.values()].sort(
         (a, b) => b.count - a.count || b.totalBase - a.totalBase,
       );
@@ -202,15 +188,14 @@ export function buildPurchaseProductSummaries(
         lastUnitPrice: roundMoney(item.lastUnitPrice),
         minUnitPrice: roundMoney(item.minUnitPrice),
         maxUnitPrice: roundMoney(item.maxUnitPrice),
+        averagePvp: roundMoney(item.pvpSum / item.purchaseCount),
+        lastPvp: roundMoney(item.lastPvp),
         averageDiscountPercent: roundMoney(item.discountSum / item.purchaseCount),
         lastDiscountPercent: roundMoney(item.lastDiscountPercent),
         ivaPercent: item.ivaPercent,
         lastPurchaseDate: item.lastPurchaseDate,
         usualSupplier: suppliers[0],
         suppliers,
-        pvpAverage: sale ? roundMoney(sale.sum / sale.count) : undefined,
-        pvpLast: sale?.last !== undefined ? roundMoney(sale.last) : undefined,
-        pvpCount: sale?.count ?? 0,
       };
     })
     .sort((a, b) => b.lastPurchaseDate.localeCompare(a.lastPurchaseDate));
