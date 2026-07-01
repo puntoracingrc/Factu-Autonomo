@@ -10,19 +10,27 @@ export const productosSection: ManualSection = {
       title: "1. Cómo se crea la lista",
       paragraphs: [
         "La sección **Productos** se genera automáticamente con las líneas de compra que la app detecta al escanear facturas de proveedor.",
-        "No tienes que dar de alta productos uno a uno. Cuando una compra trae líneas claras, la app agrupa conceptos parecidos y muestra precio, descuento, proveedor habitual y volumen comprado.",
+        "También puedes crear un producto manualmente desde **Nuevo producto** si quieres tener controlado un material o servicio antes de que aparezca en una compra.",
+        "Cuando una compra trae líneas claras, la app agrupa conceptos parecidos y muestra precio, descuento, proveedor habitual y volumen comprado.",
       ],
     },
     {
       title: "2. Qué puedes revisar",
       paragraphs: [
-        "Puedes buscar por producto, familia o proveedor. También puedes filtrar por familia y por proveedor habitual.",
+        "Puedes buscar por producto, familia o proveedor. También puedes filtrar por familia y por proveedor habitual, y ordenar por última compra, más comprados, menos comprados o importe comprado.",
         "Cada ficha muestra el último coste real, coste medio, descuento habitual, volumen comprado y total comprado.",
         "El PVP proveedor es la tarifa antes del descuento del distribuidor. El coste es lo que realmente pagas después de aplicar ese descuento.",
       ],
     },
     {
-      title: "3. Para qué sirve",
+      title: "3. Editar y unificar",
+      paragraphs: [
+        "Pulsa **Editar** en una ficha para corregir nombre, familia o unidad. Si asignas una familia manualmente, Factu la recordará en futuros escaneos del mismo producto.",
+        "Si ves dos productos que en realidad son el mismo, usa **Unificar producto** dentro de la ficha que quieres conservar.",
+      ],
+    },
+    {
+      title: "4. Para qué sirve",
       paragraphs: [
         "Esta base te ayuda a ver qué compras más, a qué proveedor se lo compras y si los precios o descuentos empiezan a moverse.",
         "Más adelante servirá para reutilizar productos directamente al crear presupuestos, facturas y recibos.",

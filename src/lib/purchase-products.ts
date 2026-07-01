@@ -1,6 +1,6 @@
 import { roundMoney } from "./calculations";
 import { expensePurchaseLineBaseTotal, sanitizeExpensePurchaseLines } from "./expenses";
-import type { Expense } from "./types";
+import type { Expense, Product } from "./types";
 
 export interface PurchaseProductSupplierSummary {
   supplierId?: string;
@@ -11,9 +11,12 @@ export interface PurchaseProductSupplierSummary {
 }
 
 export interface PurchaseProductSummary {
+  productId?: string;
   key: string;
+  aliases: string[];
   name: string;
   family: string;
+  source: Product["source"];
   unit?: string;
   purchaseCount: number;
   totalQuantity: number;
@@ -33,9 +36,12 @@ export interface PurchaseProductSummary {
 }
 
 interface ProductAccumulator {
+  productId?: string;
   key: string;
+  aliases: string[];
   name: string;
   family: string;
+  source: Product["source"];
   unit?: string;
   purchaseCount: number;
   totalQuantity: number;
@@ -51,6 +57,23 @@ interface ProductAccumulator {
   ivaPercent?: number;
   lastPurchaseDate: string;
   suppliers: Map<string, PurchaseProductSupplierSummary>;
+}
+
+export function normalizeProductCatalogItem(product: Product): Product {
+  const productName = (product.name ?? "").trim();
+  const productFamily = (product.family ?? "").trim();
+  const key = purchaseProductKey(product.key || productName);
+  const now = new Date().toISOString();
+  return {
+    ...product,
+    key: key || product.id,
+    aliases: [...new Set((product.aliases ?? []).map(purchaseProductKey).filter(Boolean))],
+    name: productName || product.key || "Producto",
+    family: productFamily || inferPurchaseProductFamily(productName),
+    source: product.source === "manual" ? "manual" : "detected",
+    createdAt: product.createdAt || now,
+    updatedAt: product.updatedAt || product.createdAt || now,
+  };
 }
 
 export function purchaseProductKey(description: string): string {
@@ -94,13 +117,77 @@ function purchaseLineNetUnitCost(line: NonNullable<Expense["purchaseLines"]>[num
   return roundMoney(line.unitPrice * (1 - discount / 100));
 }
 
-export function buildPurchaseProductSummaries(expenses: Expense[]): PurchaseProductSummary[] {
+function catalogLookup(products: Product[]): Map<string, Product> {
+  const lookup = new Map<string, Product>();
+  for (const product of products.map(normalizeProductCatalogItem)) {
+    lookup.set(product.key, product);
+    for (const alias of product.aliases ?? []) {
+      lookup.set(alias, product);
+    }
+  }
+  return lookup;
+}
+
+function emptyAccumulatorFromProduct(product: Product): ProductAccumulator {
+  const cost = product.cost ?? 0;
+  const pvp = product.pvp ?? 0;
+  return {
+    productId: product.id,
+    key: product.key,
+    aliases: product.aliases ?? [],
+    name: product.name,
+    family: product.family,
+    source: product.source,
+    unit: product.unit,
+    purchaseCount: 0,
+    totalQuantity: 0,
+    totalBase: 0,
+    unitPriceSum: 0,
+    pvpSum: 0,
+    discountSum: 0,
+    lastUnitPrice: cost,
+    minUnitPrice: cost,
+    maxUnitPrice: cost,
+    lastPvp: pvp,
+    lastDiscountPercent:
+      pvp > 0 && cost > 0 ? roundMoney(((pvp - cost) / pvp) * 100) : 0,
+    ivaPercent: product.ivaPercent,
+    lastPurchaseDate: product.updatedAt.slice(0, 10),
+    suppliers: product.supplierName
+      ? new Map([
+          [
+            product.supplierId || product.supplierName.toLowerCase(),
+            {
+              supplierId: product.supplierId,
+              supplierName: product.supplierName,
+              count: 0,
+              totalBase: 0,
+              lastPurchaseDate: product.updatedAt.slice(0, 10),
+            },
+          ],
+        ])
+      : new Map(),
+  };
+}
+
+export function buildPurchaseProductSummaries(
+  expenses: Expense[],
+  products: Product[] = [],
+): PurchaseProductSummary[] {
   const accumulators = new Map<string, ProductAccumulator>();
+  const catalog = products.map(normalizeProductCatalogItem);
+  const lookup = catalogLookup(catalog);
+
+  for (const product of catalog) {
+    accumulators.set(product.key, emptyAccumulatorFromProduct(product));
+  }
 
   for (const expense of expenses) {
     const lines = sanitizeExpensePurchaseLines(expense.purchaseLines);
     for (const line of lines) {
-      const key = purchaseProductKey(line.description);
+      const detectedKey = purchaseProductKey(line.description);
+      const catalogProduct = lookup.get(detectedKey);
+      const key = catalogProduct?.key ?? detectedKey;
       if (!key) continue;
 
       const base = expensePurchaseLineBaseTotal(line);
@@ -110,10 +197,14 @@ export function buildPurchaseProductSummaries(expenses: Expense[]): PurchaseProd
       const accumulator: ProductAccumulator =
         existing ??
         {
+          productId: catalogProduct?.id,
           key,
-          name: line.description,
-          family: inferPurchaseProductFamily(line.description),
-          unit: line.unit,
+          aliases: catalogProduct?.aliases ?? [],
+          name: catalogProduct?.name || line.description,
+          family:
+            catalogProduct?.family || inferPurchaseProductFamily(line.description),
+          source: catalogProduct?.source ?? "detected",
+          unit: catalogProduct?.unit ?? line.unit,
           purchaseCount: 0,
           totalQuantity: 0,
           totalBase: 0,
@@ -141,8 +232,8 @@ export function buildPurchaseProductSummaries(expenses: Expense[]): PurchaseProd
       accumulator.ivaPercent = line.ivaPercent ?? accumulator.ivaPercent;
 
       if (expense.date >= accumulator.lastPurchaseDate) {
-        accumulator.name = line.description;
-        accumulator.unit = line.unit ?? accumulator.unit;
+        accumulator.name = catalogProduct?.name || line.description;
+        accumulator.unit = catalogProduct?.unit ?? line.unit ?? accumulator.unit;
         accumulator.lastPurchaseDate = expense.date;
         accumulator.lastUnitPrice = netUnitCost;
         accumulator.lastPvp = line.unitPrice;
@@ -178,19 +269,31 @@ export function buildPurchaseProductSummaries(expenses: Expense[]): PurchaseProd
 
       return {
         key: item.key,
+        productId: item.productId,
+        aliases: item.aliases,
         name: item.name,
         family: item.family,
+        source: item.source,
         unit: item.unit,
         purchaseCount: item.purchaseCount,
         totalQuantity: roundMoney(item.totalQuantity),
         totalBase: roundMoney(item.totalBase),
-        averageUnitPrice: roundMoney(item.unitPriceSum / item.purchaseCount),
+        averageUnitPrice:
+          item.purchaseCount > 0
+            ? roundMoney(item.unitPriceSum / item.purchaseCount)
+            : roundMoney(item.lastUnitPrice),
         lastUnitPrice: roundMoney(item.lastUnitPrice),
         minUnitPrice: roundMoney(item.minUnitPrice),
         maxUnitPrice: roundMoney(item.maxUnitPrice),
-        averagePvp: roundMoney(item.pvpSum / item.purchaseCount),
+        averagePvp:
+          item.purchaseCount > 0
+            ? roundMoney(item.pvpSum / item.purchaseCount)
+            : roundMoney(item.lastPvp),
         lastPvp: roundMoney(item.lastPvp),
-        averageDiscountPercent: roundMoney(item.discountSum / item.purchaseCount),
+        averageDiscountPercent:
+          item.purchaseCount > 0
+            ? roundMoney(item.discountSum / item.purchaseCount)
+            : roundMoney(item.lastDiscountPercent),
         lastDiscountPercent: roundMoney(item.lastDiscountPercent),
         ivaPercent: item.ivaPercent,
         lastPurchaseDate: item.lastPurchaseDate,

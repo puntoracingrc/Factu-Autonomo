@@ -371,18 +371,36 @@ export function UserRemindersPanel() {
               </span>
             </div>
 
-            <Field label="Destino">
-              <Select
-                value={target}
-                onChange={(event) => {
-                  setTarget(event.target.value as "self" | "office");
-                  setSentToOffice(false);
-                }}
-              >
-                <option value="self">Para mí</option>
-                <option value="office">Para oficina / equipo</option>
-              </Select>
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Destino">
+                <Select
+                  value={target}
+                  onChange={(event) => {
+                    setTarget(event.target.value as "self" | "office");
+                    setSentToOffice(false);
+                  }}
+                >
+                  <option value="self">Para mí</option>
+                  <option value="office">Para oficina / equipo</option>
+                </Select>
+              </Field>
+
+              <Field label="Enlace rápido (opcional)">
+                <Select
+                  value={linkMode}
+                  onChange={(event) => {
+                    setLinkMode(event.target.value as ReminderLinkMode);
+                    setSelectedCustomerId(null);
+                    setSelectedDocumentId("");
+                    setFormError(null);
+                  }}
+                >
+                  <option value="none">Sin enlace</option>
+                  <option value="generate">Generar</option>
+                  <option value="rectify">Rectificar</option>
+                </Select>
+              </Field>
+            </div>
 
             {target === "office" ? (
               <div className="rounded-2xl border border-sky-200 bg-white/80 p-4">
@@ -411,22 +429,6 @@ export function UserRemindersPanel() {
                 ) : null}
               </div>
             ) : null}
-
-            <Field label="Enlace rápido (opcional)">
-              <Select
-                value={linkMode}
-                onChange={(event) => {
-                  setLinkMode(event.target.value as ReminderLinkMode);
-                  setSelectedCustomerId(null);
-                  setSelectedDocumentId("");
-                  setFormError(null);
-                }}
-              >
-                <option value="none">Sin enlace</option>
-                <option value="generate">Generar</option>
-                <option value="rectify">Rectificar</option>
-              </Select>
-            </Field>
 
             {linkMode === "generate" ? (
               <div className="grid gap-4 rounded-2xl border border-blue-100 bg-white/80 p-4 sm:grid-cols-2">

@@ -5,12 +5,17 @@ import Link from "next/link";
 import {
   Boxes,
   CalendarDays,
+  Edit3,
   Euro,
   Factory,
+  GitMerge,
   PackageSearch,
+  Plus,
+  Save,
   Search,
   ShoppingCart,
   Tag,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -20,18 +25,37 @@ import {
   buildPurchaseProductSummaries,
   type PurchaseProductSummary,
 } from "@/lib/purchase-products";
+import type { Product } from "@/lib/types";
 
 const ALL = "__all__";
+type ProductSort =
+  | "newest"
+  | "mostPurchases"
+  | "leastPurchases"
+  | "amountDesc"
+  | "amountAsc"
+  | "name";
+
+const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
+  { value: "newest", label: "Última compra" },
+  { value: "mostPurchases", label: "Más comprados" },
+  { value: "leastPurchases", label: "Menos comprados" },
+  { value: "amountDesc", label: "Mayor importe" },
+  { value: "amountAsc", label: "Menor importe" },
+  { value: "name", label: "Nombre" },
+];
 
 export default function ProductosPage() {
-  const { data } = useAppStore();
+  const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
+    useAppStore();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
   const [supplier, setSupplier] = useState(ALL);
+  const [sort, setSort] = useState<ProductSort>("newest");
 
   const products = useMemo(
-    () => buildPurchaseProductSummaries(data.expenses),
-    [data.expenses],
+    () => buildPurchaseProductSummaries(data.expenses, data.products),
+    [data.expenses, data.products],
   );
 
   const families = useMemo(
@@ -53,7 +77,7 @@ export default function ProductosPage() {
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return products.filter((product) => {
+    const filtered = products.filter((product) => {
       const matchesQuery =
         !normalizedQuery ||
         [
@@ -72,7 +96,25 @@ export default function ProductosPage() {
 
       return matchesQuery && matchesFamily && matchesSupplier;
     });
-  }, [family, products, query, supplier]);
+
+    return [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "mostPurchases":
+          return b.purchaseCount - a.purchaseCount || b.totalBase - a.totalBase;
+        case "leastPurchases":
+          return a.purchaseCount - b.purchaseCount || a.totalBase - b.totalBase;
+        case "amountDesc":
+          return b.totalBase - a.totalBase || b.purchaseCount - a.purchaseCount;
+        case "amountAsc":
+          return a.totalBase - b.totalBase || a.purchaseCount - b.purchaseCount;
+        case "name":
+          return a.name.localeCompare(b.name, "es");
+        case "newest":
+        default:
+          return b.lastPurchaseDate.localeCompare(a.lastPurchaseDate);
+      }
+    });
+  }, [family, products, query, sort, supplier]);
 
   const totals = useMemo(
     () => ({
@@ -84,11 +126,70 @@ export default function ProductosPage() {
     [families.length, products, suppliers.length],
   );
 
+  function productFromSummary(product: PurchaseProductSummary): Omit<
+    Product,
+    "id" | "createdAt" | "updatedAt"
+  > {
+    return {
+      key: product.key,
+      aliases: product.aliases,
+      name: product.name,
+      family: product.family,
+      unit: product.unit,
+      supplierId: product.usualSupplier?.supplierId,
+      supplierName: product.usualSupplier?.supplierName,
+      pvp: product.lastPvp || undefined,
+      cost: product.lastUnitPrice || undefined,
+      ivaPercent: product.ivaPercent,
+      source: product.source,
+    };
+  }
+
+  function saveProductPatch(
+    product: PurchaseProductSummary,
+    patch: Partial<Product>,
+  ): Product {
+    const existing = product.productId
+      ? data.products.find((entry) => entry.id === product.productId)
+      : data.products.find((entry) => entry.key === product.key);
+    if (existing) {
+      const updated = { ...existing, ...patch };
+      updateProduct(updated);
+      return updated;
+    }
+    return addProduct({ ...productFromSummary(product), ...patch });
+  }
+
+  function handleMergeProducts(
+    keep: PurchaseProductSummary,
+    removeKey: string,
+  ) {
+    const remove = products.find((product) => product.key === removeKey);
+    if (!remove) return;
+
+    const keepProduct = saveProductPatch(keep, {
+      aliases: [...new Set([...(keep.aliases ?? []), remove.key, ...remove.aliases])],
+      source: keep.source === "manual" ? "manual" : "detected",
+    });
+    if (remove.productId) {
+      mergeProducts(keepProduct.id, [remove.productId]);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Productos"
         subtitle="Materiales y servicios detectados en tus compras escaneadas."
+        action={
+          <Link
+            href="/productos/nuevo"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <Plus className="h-5 w-5" />
+            Nuevo producto
+          </Link>
+        }
       />
 
       {products.length === 0 ? (
@@ -106,13 +207,22 @@ export default function ProductosPage() {
               </p>
             </div>
           </div>
-          <Link
-            href="/gastos/nuevo"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-base font-bold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 sm:w-auto"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            Escanear compra
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/productos/nuevo"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-base font-bold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 sm:w-auto"
+            >
+              <Plus className="h-5 w-5" />
+              Nuevo producto
+            </Link>
+            <Link
+              href="/gastos/nuevo"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-base font-bold text-blue-700 transition-colors hover:bg-blue-50 sm:w-auto"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              Escanear compra
+            </Link>
+          </div>
         </Card>
       ) : (
         <>
@@ -123,7 +233,7 @@ export default function ProductosPage() {
               <SummaryTile label="Proveedores" value={totals.suppliers.toString()} icon={Factory} />
               <SummaryTile label="Comprado" value={formatMoney(totals.totalBase)} icon={Euro} />
             </div>
-            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
+            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
               <label className="space-y-1.5">
                 <span className="text-sm font-bold text-slate-700">Buscar</span>
                 <span className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
@@ -150,8 +260,28 @@ export default function ProductosPage() {
                 options={suppliers}
                 allLabel="Todos"
               />
+              <label className="space-y-1.5">
+                <span className="text-sm font-bold text-slate-700">Ordenar</span>
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as ProductSort)}
+                  className="h-[3.125rem] w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  {PRODUCT_SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </Card>
+
+          <datalist id="product-family-options">
+            {families.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
 
           <p className="text-sm font-semibold text-slate-500">
             {filteredProducts.length} de {products.length} producto(s)
@@ -159,7 +289,14 @@ export default function ProductosPage() {
 
           <div className="grid gap-4">
             {filteredProducts.map((product) => (
-              <ProductCard key={product.key} product={product} />
+              <ProductCard
+                key={product.key}
+                product={product}
+                allProducts={products}
+                onSave={(patch) => saveProductPatch(product, patch)}
+                onDelete={deleteProduct}
+                onMerge={(removeKey) => handleMergeProducts(product, removeKey)}
+              />
             ))}
           </div>
         </>
@@ -222,11 +359,58 @@ function FilterSelect({
   );
 }
 
-function ProductCard({ product }: { product: PurchaseProductSummary }) {
+function ProductCard({
+  product,
+  allProducts,
+  onSave,
+  onDelete,
+  onMerge,
+}: {
+  product: PurchaseProductSummary;
+  allProducts: PurchaseProductSummary[];
+  onSave: (patch: Partial<Product>) => void;
+  onDelete: (id: string) => void;
+  onMerge: (removeKey: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(product.name);
+  const [family, setFamily] = useState(product.family);
+  const [unit, setUnit] = useState(product.unit ?? "");
+  const [mergeKey, setMergeKey] = useState("");
   const lastDiscount =
     product.lastPvp > 0
       ? ((product.lastPvp - product.lastUnitPrice) / product.lastPvp) * 100
       : product.lastDiscountPercent;
+  const mergeOptions = allProducts
+    .filter((item) => item.key !== product.key)
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+  function saveEdits() {
+    onSave({
+      name: name.trim() || product.name,
+      family: family.trim() || "Sin familia",
+      unit: unit.trim() || undefined,
+      source: product.source,
+    });
+    setIsEditing(false);
+  }
+
+  function mergeSelectedProduct() {
+    if (!mergeKey) return;
+    onMerge(mergeKey);
+    setMergeKey("");
+  }
+
+  function deleteCatalogProduct() {
+    if (!product.productId) return;
+    const message =
+      product.purchaseCount > 0
+        ? "¿Quitar los ajustes guardados de este producto? Las compras seguirán estando guardadas."
+        : "¿Eliminar este producto?";
+    if (confirm(message)) {
+      onDelete(product.productId);
+    }
+  }
 
   return (
     <Card className="space-y-4">
@@ -248,16 +432,101 @@ function ProductCard({ product }: { product: PurchaseProductSummary }) {
             Última compra: {formatShortDate(product.lastPurchaseDate)}
           </p>
         </div>
-        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Último coste
-          </p>
-          <p className="text-2xl font-black text-slate-950">
-            {formatMoney(product.lastUnitPrice)}
-          </p>
-          <p className="text-xs font-semibold text-slate-500">sin IVA</p>
+        <div className="flex shrink-0 items-start gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setName(product.name);
+              setFamily(product.family);
+              setUnit(product.unit ?? "");
+              setIsEditing((value) => !value);
+            }}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <Edit3 className="h-4 w-4" />
+            Editar
+          </button>
+          {product.productId ? (
+            <button
+              type="button"
+              onClick={deleteCatalogProduct}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+              aria-label={
+                product.purchaseCount > 0
+                  ? "Quitar ajustes guardados"
+                  : "Eliminar producto"
+              }
+              title={
+                product.purchaseCount > 0
+                  ? "Quitar ajustes guardados"
+                  : "Eliminar producto"
+              }
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : null}
+          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Último coste
+            </p>
+            <p className="text-2xl font-black text-slate-950">
+              {formatMoney(product.lastUnitPrice)}
+            </p>
+            <p className="text-xs font-semibold text-slate-500">sin IVA</p>
+          </div>
         </div>
       </div>
+
+      {isEditing ? (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
+          <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_0.45fr_auto]">
+            <label className="space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Producto
+              </span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Familia
+              </span>
+              <input
+                list="product-family-options"
+                value={family}
+                onChange={(event) => setFamily(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Ud.
+              </span>
+              <input
+                value={unit}
+                onChange={(event) => setUnit(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <div className="flex items-end gap-2">
+              <button
+                type="button"
+                onClick={saveEdits}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 lg:w-auto"
+              >
+                <Save className="h-4 w-4" />
+                Guardar
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-sm font-semibold text-blue-900">
+            Estos datos se recordarán para futuros escaneos del mismo producto.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Coste medio" value={formatMoney(product.averageUnitPrice)} />
@@ -325,6 +594,38 @@ function ProductCard({ product }: { product: PurchaseProductSummary }) {
               {supplier.supplierName}: {formatMoney(supplier.totalBase)}
             </span>
           ))}
+        </div>
+      ) : null}
+
+      {mergeOptions.length > 0 ? (
+        <div className="rounded-2xl border border-slate-100 bg-white p-3">
+          <p className="flex items-center gap-2 text-sm font-black text-slate-800">
+            <GitMerge className="h-4 w-4 text-blue-600" />
+            Unificar producto
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+            <select
+              value={mergeKey}
+              onChange={(event) => setMergeKey(event.target.value)}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">Elige producto duplicado...</option>
+              {mergeOptions.map((item) => (
+                <option key={item.key} value={item.key}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={mergeSelectedProduct}
+              disabled={!mergeKey}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <GitMerge className="h-4 w-4" />
+              Unificar
+            </button>
+          </div>
         </div>
       ) : null}
     </Card>

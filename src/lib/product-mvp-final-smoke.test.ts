@@ -117,6 +117,7 @@ function appData(invoice: Document): AppData {
     ],
     recurringExpenses: [],
     userReminders: [],
+    products: [],
     counters: {
       factura: 1,
       factura_rectificativa: 0,
