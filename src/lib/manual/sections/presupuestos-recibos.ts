@@ -10,6 +10,7 @@ export const presupuestosSection: ManualSection = {
       title: "1. Crear y enviar un presupuesto",
       paragraphs: [
         "Funciona como una factura orientada a propuesta: creas líneas, generas PDF y lo envías por email o WhatsApp.",
+        "En las líneas puedes buscar productos detectados en compras. Si hay PVP, se inserta como precio de venta; si la app solo conoce el coste, aparece un aviso para que ajustes el precio antes de enviar.",
         "La fecha de validez se calcula con los días configurados en **Ajustes → Documentos**. En el formulario verás **Válido hasta**.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón de descarga guarda el PDF.",
         "En **Datos del cliente** también puedes usar **Rellenar con IA** (plan Pro) para pegar datos recibidos por WhatsApp, email o web. Si el cliente no existe, se crea su ficha al guardar el presupuesto.",
@@ -71,6 +72,7 @@ export const recibosSection: ManualSection = {
       title: "2. Crear un recibo manual",
       paragraphs: [
         "También puedes ir a **Recibos** → **Nuevo recibo** si necesitas un justificante independiente.",
+        "Si escribes un producto o servicio usado antes, la app puede sugerirlo en la línea. Revisa el aviso si no existe PVP y solo se ha rellenado el coste conocido.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón **PDF** lo descarga.",
         "Como en facturas y presupuestos, el bloque **Rellenar con IA** puede ayudarte a completar los datos del cliente antes de guardar.",
         "El listado de recibos también está ordenado de más nuevo a más antiguo, con separadores por mes y botón **Cargar más** si hay muchos.",

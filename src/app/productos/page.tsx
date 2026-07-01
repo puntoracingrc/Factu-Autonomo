@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Boxes,
   CalendarDays,
+  Check,
   Edit3,
   Euro,
   Factory,
+  FileText,
   GitMerge,
   PackageSearch,
   Plus,
@@ -25,6 +28,10 @@ import {
   buildPurchaseProductSummaries,
   type PurchaseProductSummary,
 } from "@/lib/purchase-products";
+import {
+  productSummaryToDocumentDraftLine,
+  saveProductDocumentDraft,
+} from "@/lib/product-document-draft";
 import type { Product } from "@/lib/types";
 
 const ALL = "__all__";
@@ -46,12 +53,15 @@ const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
 ];
 
 export default function ProductosPage() {
+  const router = useRouter();
   const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
     useAppStore();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
   const [supplier, setSupplier] = useState(ALL);
   const [sort, setSort] = useState<ProductSort>("newest");
+  const [visibleCount, setVisibleCount] = useState(30);
+  const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -125,6 +135,44 @@ export default function ProductosPage() {
     }),
     [families.length, products, suppliers.length],
   );
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const selectedProducts = useMemo(
+    () =>
+      selectedProductKeys
+        .map((key) => products.find((product) => product.key === key))
+        .filter((product): product is PurchaseProductSummary => Boolean(product)),
+    [products, selectedProductKeys],
+  );
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [family, query, sort, supplier]);
+
+  function toggleProductForDraft(product: PurchaseProductSummary) {
+    setSelectedProductKeys((current) =>
+      current.includes(product.key)
+        ? current.filter((key) => key !== product.key)
+        : [...current, product.key],
+    );
+  }
+
+  function openDocumentFromSelected(documentType: "factura" | "presupuesto" | "recibo") {
+    if (selectedProducts.length === 0) return;
+    const lines = selectedProducts.map((product) =>
+      productSummaryToDocumentDraftLine(product, data.profile.iva?.defaultRate ?? 21),
+    );
+    if (!saveProductDocumentDraft(documentType, lines)) {
+      alert("No se pudo preparar el documento. Inténtalo de nuevo.");
+      return;
+    }
+    const route =
+      documentType === "factura"
+        ? "/facturas/nuevo"
+        : documentType === "presupuesto"
+          ? "/presupuestos/nuevo"
+          : "/recibos/nuevo";
+    router.push(`${route}?desde=productos`);
+  }
 
   function productFromSummary(product: PurchaseProductSummary): Omit<
     Product,
@@ -287,18 +335,78 @@ export default function ProductosPage() {
             {filteredProducts.length} de {products.length} producto(s)
           </p>
 
+          {selectedProducts.length > 0 ? (
+            <Card className="sticky bottom-24 z-20 border-blue-100 bg-white/95 shadow-lg backdrop-blur">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-950">
+                    {selectedProducts.length} producto(s) preparados
+                  </p>
+                  <p className="text-sm font-semibold text-slate-500">
+                    Se insertarán como líneas editables. Si falta PVP, verás aviso
+                    en el documento.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <button
+                    type="button"
+                    onClick={() => openDocumentFromSelected("factura")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Factura
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openDocumentFromSelected("presupuesto")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Presupuesto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openDocumentFromSelected("recibo")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Recibo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductKeys([])}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Vaciar
+                  </button>
+                </div>
+              </div>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4">
-            {filteredProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <ProductCard
                 key={product.key}
                 product={product}
                 allProducts={products}
+                selected={selectedProductKeys.includes(product.key)}
+                onToggleSelected={() => toggleProductForDraft(product)}
                 onSave={(patch) => saveProductPatch(product, patch)}
                 onDelete={deleteProduct}
                 onMerge={(removeKey) => handleMergeProducts(product, removeKey)}
               />
             ))}
           </div>
+          {visibleProducts.length < filteredProducts.length ? (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((current) => current + 30)}
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Cargar 30 más
+              </button>
+            </div>
+          ) : null}
         </>
       )}
     </div>
@@ -362,12 +470,16 @@ function FilterSelect({
 function ProductCard({
   product,
   allProducts,
+  selected,
+  onToggleSelected,
   onSave,
   onDelete,
   onMerge,
 }: {
   product: PurchaseProductSummary;
   allProducts: PurchaseProductSummary[];
+  selected: boolean;
+  onToggleSelected: () => void;
   onSave: (patch: Partial<Product>) => void;
   onDelete: (id: string) => void;
   onMerge: (removeKey: string) => void;
@@ -443,7 +555,19 @@ function ProductCard({
             Última compra: {formatShortDate(product.lastPurchaseDate)}
           </p>
         </div>
-        <div className="flex shrink-0 items-start gap-2">
+        <div className="flex flex-wrap items-start gap-2 sm:justify-end">
+          <button
+            type="button"
+            onClick={onToggleSelected}
+            className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+              selected
+                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+                : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+            }`}
+          >
+            {selected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {selected ? "Añadido" : "Añadir"}
+          </button>
           <button
             type="button"
             onClick={() => {
