@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Plus, Trash2 } from "lucide-react";
+import { Eye, PackageCheck, Plus, Trash2 } from "lucide-react";
 import {
   ClientPicker,
   clientToFormValues,
@@ -53,6 +53,17 @@ import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
+import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
+import {
+  applyDocumentProductToLine,
+  buildDocumentProductSuggestionIndex,
+  DOCUMENT_PRODUCT_MARKUPS,
+  documentProductSaleUnitPriceInfo,
+  priceWithDocumentProductMarkup,
+  searchDocumentProductSuggestions,
+  type DocumentProductSalePriceSource,
+} from "@/lib/document-product-suggestions";
+import { consumeProductDocumentDraft } from "@/lib/product-document-draft";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
 function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
@@ -90,6 +101,22 @@ const EMPTY_CLIENT: ClientFormValues = {
   postalCode: "",
   notes: "",
 };
+
+interface LineProductPricingState {
+  basePrice: number;
+  markupPercent: number;
+  priceSource: DocumentProductSalePriceSource;
+  productName: string;
+}
+
+function removeLineProductPricing(
+  state: Record<string, LineProductPricingState>,
+  id: string,
+): Record<string, LineProductPricingState> {
+  const next = { ...state };
+  delete next[id];
+  return next;
+}
 
 interface DocumentFormProps {
   type: DocumentType;
@@ -193,6 +220,48 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     () => sanitizeDocumentFormItems(items, vatExempt),
     [items, vatExempt],
   );
+  const productSummaries = useMemo(
+    () => buildPurchaseProductSummaries(data.expenses, data.products),
+    [data.expenses, data.products],
+  );
+  const productSuggestionIndex = useMemo(
+    () => buildDocumentProductSuggestionIndex(productSummaries),
+    [productSummaries],
+  );
+  const [focusedProductLineId, setFocusedProductLineId] = useState<string | null>(
+    null,
+  );
+  const [lineProductPricing, setLineProductPricing] = useState<
+    Record<string, LineProductPricingState>
+  >({});
+  const productDocumentDraftApplied = useRef(false);
+
+  useEffect(() => {
+    if (existing || productDocumentDraftApplied.current) return;
+    const draft = consumeProductDocumentDraft();
+    productDocumentDraftApplied.current = true;
+    if (!draft || draft.documentType !== type) return;
+
+    const draftItems = draft.lines.map((draftLine) => ({
+      id: crypto.randomUUID(),
+      ...draftLine.line,
+      ivaPercent: vatExempt ? 0 : draftLine.line.ivaPercent,
+    }));
+    setItems(normalizeLineItemUnits(draftItems, unitsSettings));
+    setLineProductPricing(
+      Object.fromEntries(
+        draftItems.map((item, index) => [
+          item.id,
+          {
+            basePrice: draft.lines[index].basePrice,
+            markupPercent: 0,
+            priceSource: draft.lines[index].priceSource,
+            productName: draft.lines[index].productName,
+          },
+        ]),
+      ),
+    );
+  }, [existing, type, unitsSettings, vatExempt]);
 
   useEffect(() => {
     if (!vatExempt) return;
@@ -285,6 +354,67 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+  }
+
+  function handleLineDescriptionChange(id: string, description: string) {
+    updateItem(id, { description });
+    setFocusedProductLineId(id);
+    setLineProductPricing((prev) => {
+      const current = prev[id];
+      if (!current || description.trim() === current.productName) return prev;
+      return removeLineProductPricing(prev, id);
+    });
+  }
+
+  function handleSelectProductForLine(
+    item: LineItem,
+    product: (typeof productSummaries)[number],
+  ) {
+    const applied = applyDocumentProductToLine(product, item, {
+      defaultIva,
+      vatExempt,
+    });
+    updateItem(item.id, applied.line);
+    setLineProductPricing((prev) => ({
+      ...prev,
+      [item.id]: {
+        basePrice: applied.basePrice,
+        markupPercent: 0,
+        priceSource: applied.priceSource,
+        productName: product.name,
+      },
+    }));
+    setFocusedProductLineId(null);
+  }
+
+  function handleLineUnitPriceChange(id: string, unitPrice: number) {
+    updateItem(id, { unitPrice });
+    setLineProductPricing((prev) => {
+      const current = prev[id];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...current,
+          markupPercent: -1,
+        },
+      };
+    });
+  }
+
+  function handleLineMarkupChange(id: string, markupPercent: number) {
+    const current = lineProductPricing[id];
+    if (!current || markupPercent < 0) return;
+    setLineProductPricing((prev) => ({
+      ...prev,
+      [id]: {
+        ...current,
+        markupPercent,
+      },
+    }));
+    updateItem(id, {
+      unitPrice: priceWithDocumentProductMarkup(current.basePrice, markupPercent),
+    });
   }
 
   function handleSelectCustomer(customer: Customer) {
@@ -562,11 +692,21 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           </button>
         </div>
         <div className="space-y-3">
-          {items.map((item, index) => (
-            <div
-              key={item.id}
-              className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4"
-            >
+          {items.map((item, index) => {
+            const suggestions =
+              focusedProductLineId === item.id
+                ? searchDocumentProductSuggestions(
+                    productSuggestionIndex,
+                    item.description,
+                  )
+                : [];
+            const productPricing = lineProductPricing[item.id];
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4"
+              >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -582,6 +722,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                     onClick={() => {
                       setFormError(null);
                       setItems((prev) => prev.filter((i) => i.id !== item.id));
+                      setLineProductPricing((prev) =>
+                        removeLineProductPricing(prev, item.id),
+                      );
                     }}
                     aria-label={`Eliminar línea ${index + 1}`}
                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
@@ -596,11 +739,69 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                     <Input
                       value={item.description}
                       onChange={(e) =>
-                        updateItem(item.id, { description: e.target.value })
+                        handleLineDescriptionChange(item.id, e.target.value)
                       }
+                      onFocus={() => setFocusedProductLineId(item.id)}
+                      onBlur={() => {
+                        window.setTimeout(() => {
+                          setFocusedProductLineId((current) =>
+                            current === item.id ? null : current,
+                          );
+                        }, 120);
+                      }}
                       placeholder="Ej: Reparación fontanería"
                     />
                   </Field>
+                  {suggestions.length > 0 && (
+                    <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+                      <div className="border-b border-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-blue-700">
+                        Productos detectados
+                      </div>
+                      <div className="max-h-72 overflow-y-auto">
+                        {suggestions.map((product) => {
+                          const price = documentProductSaleUnitPriceInfo(product);
+                          return (
+                            <button
+                              key={product.key}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => handleSelectProductForLine(item, product)}
+                              className="flex w-full flex-col gap-1 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500"
+                            >
+                              <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                                <PackageCheck className="h-4 w-4 text-blue-600" />
+                                {product.name}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500">
+                                {product.family}
+                                {product.usualSupplier
+                                  ? ` · ${product.usualSupplier.supplierName}`
+                                  : ""}
+                              </span>
+                              <span
+                                className={`text-xs font-bold ${
+                                  price.source === "pvp"
+                                    ? "text-emerald-700"
+                                    : "text-amber-800"
+                                }`}
+                              >
+                                {price.unitPrice > 0
+                                  ? `${formatMoney(price.unitPrice)} ${
+                                      price.source === "pvp" ? "PVP" : "coste, no PVP"
+                                    }`
+                                  : "Sin precio"}
+                              </span>
+                              {price.source !== "pvp" && (
+                                <span className="rounded-xl bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
+                                  Aviso: no hay PVP detectado. Revisa el precio de venta.
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <Field label="Cant.">
                   <NumericFieldInput
@@ -620,7 +821,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   ivaPercent={item.ivaPercent}
                   vatExempt={vatExempt}
                   onUnitPriceChange={(unitPrice) =>
-                    updateItem(item.id, { unitPrice })
+                    handleLineUnitPriceChange(item.id, unitPrice)
                   }
                 />
                 {!vatExempt && (
@@ -634,13 +835,64 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   </Field>
                 )}
               </div>
+              {productPricing && (
+                <div
+                  className={`mt-3 rounded-2xl border p-3 ${
+                    productPricing.priceSource === "pvp"
+                      ? "border-emerald-100 bg-emerald-50"
+                      : "border-amber-200 bg-amber-50"
+                  }`}
+                >
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-slate-900">
+                        {productPricing.productName}
+                      </p>
+                      <p className="text-xs font-semibold text-slate-600">
+                        Base: {formatMoney(productPricing.basePrice)}{" "}
+                        {productPricing.priceSource === "pvp"
+                          ? "PVP sin IVA"
+                          : "coste sin IVA, no PVP"}
+                      </p>
+                      {productPricing.priceSource !== "pvp" && (
+                        <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
+                          Aviso: este producto no tiene PVP detectado. La app ha
+                          rellenado el coste conocido solo como referencia; cambia
+                          el precio antes de emitir si vas a venderlo con margen.
+                        </p>
+                      )}
+                      {productPricing.markupPercent === -1 && (
+                        <p className="text-xs font-semibold text-blue-700">
+                          Precio ajustado manualmente.
+                        </p>
+                      )}
+                    </div>
+                    <Field label="Incremento">
+                      <Select
+                        value={String(productPricing.markupPercent)}
+                        onChange={(event) =>
+                          handleLineMarkupChange(item.id, Number(event.target.value))
+                        }
+                      >
+                        <option value="-1">Manual</option>
+                        {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
+                          <option key={markup} value={markup}>
+                            +{markup}%
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                </div>
+              )}
               <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
                 <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
                   Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

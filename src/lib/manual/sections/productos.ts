@@ -33,7 +33,8 @@ export const productosSection: ManualSection = {
       title: "4. Para qué sirve",
       paragraphs: [
         "Esta base te ayuda a ver qué compras más, a qué proveedor se lo compras y si los precios o descuentos empiezan a moverse.",
-        "Más adelante servirá para reutilizar productos directamente al crear presupuestos, facturas y recibos.",
+        "Al crear presupuestos, facturas y recibos, escribe el producto en una línea y elige una sugerencia para insertarlo. La app prioriza el PVP proveedor; si no existe, avisa de que solo está usando el coste como referencia.",
+        "También puedes seleccionar varios productos desde **Productos** y abrir una factura, presupuesto o recibo con esas líneas ya preparadas. Todo queda editable: cantidad, unidad, precio, IVA e incremento.",
       ],
       tip: "Si un producto aparece raro, revisa la línea original en el gasto: esta pantalla se alimenta de esos textos.",
     },
