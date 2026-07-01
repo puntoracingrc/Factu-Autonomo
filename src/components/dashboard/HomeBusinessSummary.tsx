@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertCircle,
   BarChart3,
-  CalendarRange,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -17,7 +16,10 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
-import { type ProductBusinessSummary } from "@/lib/product-business-summary";
+import {
+  buildProductBusinessSummary,
+  type ProductBusinessSummary,
+} from "@/lib/product-business-summary";
 import {
   PRODUCT_MONTH_NAMES,
   PRODUCT_QUARTERS,
@@ -65,6 +67,7 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
     [data, period],
   );
   const summary = periodSummary.business;
+  const recentSummary = useMemo(() => buildProductBusinessSummary(data), [data]);
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
     setPeriod((current) => ({ ...current, ...patch }));
@@ -121,9 +124,9 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
           <BusinessFlowChart summary={summary} />
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-            <RecentDocumentsCard data={data} summary={summary} />
-            <RecentExpensesCard data={data} summary={summary} />
-            <PendingInvoicesCard data={data} summary={summary} />
+            <RecentDocumentsCard data={data} summary={recentSummary} />
+            <RecentExpensesCard data={data} summary={recentSummary} />
+            <PendingInvoicesCard data={data} summary={recentSummary} />
           </div>
         </div>
       )}
@@ -317,12 +320,7 @@ function PeriodSelector({
   onChange: (patch: Partial<ProductPeriodSelection>) => void;
 }) {
   return (
-    <div className="mt-4 grid min-w-0 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-900 lg:pb-1">
-        <CalendarRange className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
-        <span className="truncate">{formatProductPeriodLabel(period)}</span>
-      </div>
-
+    <div className="mt-4 grid min-w-0 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
       <label className="min-w-0 space-y-1">
         <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
           Periodo
@@ -363,7 +361,7 @@ function PeriodSelector({
       )}
 
       {period.kind === "month" && (
-        <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+        <label className="min-w-0 space-y-1">
           <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
             Mes
           </span>
@@ -385,7 +383,7 @@ function PeriodSelector({
       )}
 
       {period.kind === "quarter" && (
-        <label className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-2">
+        <label className="min-w-0 space-y-1">
           <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
             Trimestre
           </span>
