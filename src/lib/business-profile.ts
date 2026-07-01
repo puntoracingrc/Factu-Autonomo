@@ -135,10 +135,10 @@ export function isBusinessProfileReadyForIssuedInvoices(
 
 export function businessProfileQrNotice(profile: BusinessProfile): string {
   if (text(profile.nif)) {
-    return "QR disponible cuando la factura emitida cumple los datos requeridos por la app.";
+    return "Datos listos para emitir documentos reales.";
   }
 
-  return "Para que el QR existente pueda generarse en facturas emitidas, completa el NIF/CIF del emisor.";
+  return "Rellena estos datos para emitir documentos reales.";
 }
 
 export function livePdfIssuerWarning(
