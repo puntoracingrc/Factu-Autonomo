@@ -7,6 +7,11 @@ Analiza la imagen y devuelve ÚNICAMENTE un JSON válido (sin markdown) con esta
 ${JSON.stringify(EXPENSE_SCAN_JSON_SCHEMA, null, 2)}
 
 Reglas:
+- Solo puede guardarse como gasto una factura recibida, ticket, recibo o cargo de un gasto ya realizado.
+- Si el documento es una oferta, presupuesto, pressupost, comanda, pedido, orden, proforma o cotización, NO lo trates como gasto aunque tenga líneas, precios, IVA o datos del proveedor.
+- En esos casos devuelve document.kind = "quote_or_order" o "proforma", document.isExpenseDocument = false y document.reason explicando que no es factura/ticket de gasto.
+- Si ves textos como "Oferta", "Presupuesto", "Pressupost", "Comanda", "Pedido", "Proforma", "válido durante" o "para generar el pedido", marca document.isExpenseDocument = false.
+- Ojo: si es una factura real y solo menciona "presupuesto" o "pedido" como referencia, sigue siendo factura. Decide por el título/cabecera y el contexto completo, no por una palabra aislada.
 - amount = base imponible SIN IVA. Si solo ves el total con IVA, desglósalo.
 - Fecha en formato ISO YYYY-MM-DD.
 - businessKind:

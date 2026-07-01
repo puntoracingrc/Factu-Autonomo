@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeExpenseScanPayload } from "./schema";
+import {
+  detectNonExpenseDocumentReason,
+  normalizeExpenseScanPayload,
+} from "./schema";
 
 describe("expense scan schema", () => {
   it("normaliza un payload válido", () => {
@@ -153,6 +156,86 @@ describe("expense scan schema", () => {
       supplierPostalCode: "08001",
       supplierCity: "Barcelona",
       paymentTerms: "30 días",
+    });
+  });
+
+  it("detecta documentos comerciales que no deben guardarse como gasto", () => {
+    expect(detectNonExpenseDocumentReason("Oferta 152184")).toContain(
+      "No se guardará como gasto",
+    );
+    expect(detectNonExpenseDocumentReason("Pedido 415039.0")).toContain(
+      "No se guardará como gasto",
+    );
+    expect(detectNonExpenseDocumentReason("COMANDA / PEDIDO")).toContain(
+      "No se guardará como gasto",
+    );
+    expect(detectNonExpenseDocumentReason("Presupuesto 150985.0")).toContain(
+      "No se guardará como gasto",
+    );
+    expect(
+      detectNonExpenseDocumentReason(
+        'PRESSUPOST Nº 152.184 "VALID DURANT 7 DIES"',
+      ),
+    ).toContain("No se guardará como gasto");
+  });
+
+  it("no bloquea una factura real por mencionar presupuesto o pedido como referencia", () => {
+    expect(
+      detectNonExpenseDocumentReason(
+        "Factura FD-123\nReferencia al presupuesto 150985\nPedido interno 42",
+      ),
+    ).toBeNull();
+  });
+
+  it("marca ofertas, pedidos y presupuestos como documento no contabilizable", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Metalúrgica Arandes SL" },
+      expense: {
+        date: "2026-04-10",
+        description: "Presupuesto para persianas y guías de aluminio",
+        amount: 2088.02,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+        purchaseDocument: {
+          invoiceNumber: "152184",
+        },
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.document).toMatchObject({
+      kind: "quote_or_order",
+      isExpenseDocument: false,
+    });
+    expect(result?.document?.reason).toContain("No se guardará como gasto");
+  });
+
+  it("respeta la señal explícita de la IA cuando no es factura ni ticket", () => {
+    const result = normalizeExpenseScanPayload({
+      document: {
+        kind: "quote_or_order",
+        isExpenseDocument: false,
+        reason: "Es un pedido pendiente, no una factura recibida.",
+      },
+      supplier: { name: "Proveedor Demo" },
+      expense: {
+        date: "2026-04-10",
+        description: "Pedido de material",
+        amount: 99,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.document).toMatchObject({
+      kind: "quote_or_order",
+      isExpenseDocument: false,
+      reason: "Es un pedido pendiente, no una factura recibida.",
     });
   });
 });
