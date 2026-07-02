@@ -9,6 +9,7 @@ import {
   CreditCard,
   FileCog,
   FileText,
+  MapPin,
   Star,
   Trash2,
   type LucideIcon,
@@ -19,6 +20,8 @@ import { Field, Input } from "@/components/ui/Field";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
+import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { useBilling } from "@/context/BillingContext";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
@@ -42,6 +45,11 @@ import {
   setManualLastSequence,
 } from "@/lib/numbering";
 import { DEFAULT_IRPF_PERCENT, normalizeIrpfPercent } from "@/lib/taxes";
+import {
+  GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST,
+  normalizeGooglePlacesSettings,
+  type GooglePlaceAddressSuggestion,
+} from "@/lib/google-places";
 import {
   businessProfileNotices,
   isBusinessProfileReadyForIssuedInvoices,
@@ -149,6 +157,7 @@ export default function ConfiguracionPage() {
   const [saved, setSaved] = useState(false);
   const [ivaError, setIvaError] = useState<string | null>(null);
   const [newIva, setNewIva] = useState("");
+  const [placesUpgradeOpen, setPlacesUpgradeOpen] = useState(false);
   const [openSections, setOpenSections] = useState<
     Record<SettingsSectionKey, boolean>
   >({
@@ -191,6 +200,7 @@ export default function ConfiguracionPage() {
         next.documentPaymentMethods,
       ),
       documentUnits: normalizeDocumentUnits(next.documentUnits),
+      googlePlaces: normalizeGooglePlacesSettings(next.googlePlaces),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -255,6 +265,27 @@ export default function ConfiguracionPage() {
 
   function update(field: keyof BusinessProfile, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function updateGooglePlacesEnabled(enabled: boolean) {
+    if (enabled && billingEnabled && !isPro) {
+      setPlacesUpgradeOpen(true);
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      googlePlaces: normalizeGooglePlacesSettings({ enabled }),
+    }));
+  }
+
+  function applyGoogleAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    setForm((prev) => ({
+      ...prev,
+      address: suggestion.address || prev.address,
+      postalCode: suggestion.postalCode || prev.postalCode,
+      city: suggestion.city || prev.city,
+    }));
   }
 
   function updateIva(next: IvaSettings) {
@@ -375,6 +406,43 @@ export default function ConfiguracionPage() {
             )}
           </div>
 
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900">
+                    Autorrellenar direcciones con Google
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Propondrá dirección, código postal y ciudad. Escribir a mano
+                    siempre seguirá disponible. Cada dirección aceptada consume{" "}
+                    {GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST} crédito.
+                  </p>
+                </div>
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.googlePlaces?.enabled)}
+                  onChange={(event) =>
+                    updateGooglePlacesEnabled(event.target.checked)
+                  }
+                  className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Activar
+              </label>
+            </div>
+            {billingEnabled && !isPro && (
+              <p className="mt-3 text-sm text-violet-700">
+                Función Pro. En Gratis puedes seguir escribiendo direcciones sin
+                límite.
+              </p>
+            )}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="Nombre fiscal o razón social *"
@@ -422,9 +490,11 @@ export default function ConfiguracionPage() {
               label="Dirección fiscal *"
               hint="Recomendada para presupuestos y necesaria antes de emitir facturas."
             >
-              <Input
+              <GoogleAddressAutocomplete
                 value={form.address}
-                onChange={(e) => update("address", e.target.value)}
+                onChange={(value) => update("address", value)}
+                onAddressSelected={applyGoogleAddressSuggestion}
+                enabled={Boolean(form.googlePlaces?.enabled)}
                 placeholder="Calle Mayor 1"
               />
             </Field>
@@ -488,6 +558,12 @@ export default function ConfiguracionPage() {
           </Field>
         </Card>
       </SettingsSection>
+
+      <UpgradeModal
+        open={placesUpgradeOpen}
+        onClose={() => setPlacesUpgradeOpen(false)}
+        reason="El autorrelleno de direcciones con Google Places está reservado para cuentas Pro."
+      />
 
       <SettingsSection
         id="ajustes-documentos"

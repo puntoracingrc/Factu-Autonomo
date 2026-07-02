@@ -451,6 +451,18 @@ export async function consumeCustomerAiAutofill(userId: string) {
   );
 }
 
+export async function consumeAddressAutofill(userId: string) {
+  return consumeAiUnits(
+    userId,
+    CUSTOMER_AI_AUTOFILL_UNITS,
+    {
+      customerAiAutofillsCreated: 1,
+    },
+    "No hemos podido descontar el autorrelleno de dirección. Puedes escribirla a mano.",
+    aiUsageBlockedMessage,
+  );
+}
+
 export async function consumeImportAiReview(userId: string) {
   return consumeAiUnits(
     userId,

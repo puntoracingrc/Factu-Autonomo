@@ -328,6 +328,10 @@ export interface NumberingSettings {
   formats: NumberingFormats;
 }
 
+export interface GooglePlacesSettings {
+  enabled: boolean;
+}
+
 export interface TaxRateSummarySnapshot {
   ivaPercent: number;
   taxableBase: number;
@@ -490,6 +494,8 @@ export interface BusinessProfile {
   documentUnits?: DocumentUnitsSettings;
   /** Diseño visual de facturas, presupuestos y recibos */
   documentTemplate?: DocumentTemplateSettings;
+  /** Autorrelleno opcional de direcciones con Google Places para cuentas Pro */
+  googlePlaces?: GooglePlacesSettings;
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;
@@ -597,6 +603,9 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   },
   irpfPercent: 20,
   quoteValidityDays: 30,
+  googlePlaces: {
+    enabled: false,
+  },
   vatExempt: false,
   verifactu: {
     enabled: true,

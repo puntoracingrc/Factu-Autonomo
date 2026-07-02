@@ -6,6 +6,7 @@ import { SupplierListSearch } from "@/components/suppliers/SupplierListSearch";
 import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
+import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
+import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import {
   findDuplicateSupplierGroups,
   migrateSupplier,
@@ -160,6 +162,15 @@ export default function ProveedoresPage() {
   function handleSortFieldChange(field: SupplierSortField) {
     setSortField(field);
     setSortDirection(field === "compras" ? "desc" : "asc");
+  }
+
+  function applyAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    setForm((current) => ({
+      ...current,
+      address: suggestion.address || current.address,
+      city: suggestion.city || current.city,
+      postalCode: suggestion.postalCode || current.postalCode,
+    }));
   }
 
   function handleSave() {
@@ -370,11 +381,13 @@ export default function ProveedoresPage() {
                 label="Nombre de vía y número"
                 hint="Sin C/, Avda. ni otros prefijos"
               >
-                <Input
+                <GoogleAddressAutocomplete
                   value={form.address}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, address: e.target.value }))
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, address: value }))
                   }
+                  onAddressSelected={applyAddressSuggestion}
+                  enabled={Boolean(data.profile.googlePlaces?.enabled)}
                   placeholder="Ej: Valencia 546 7/1"
                 />
               </Field>

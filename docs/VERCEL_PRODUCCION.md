@@ -51,6 +51,7 @@ Copia desde tu `.env.local` (Production + Preview):
 | `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos, autorrelleno IA, revisión IA y Voz IA en recordatorios, servidor) |
 | `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | opcional, por defecto `gpt-realtime-whisper` para Voz IA en recordatorios |
 | `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | opcional: Google Places en navegador para sugerir direcciones. Debe estar restringida por dominio y APIs de Google Maps/Places |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
 | `EMAIL_FROM` | `Factu - Facturación Autónomos <info@facturacion-autonomos.app>` |
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |

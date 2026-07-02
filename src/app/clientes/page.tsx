@@ -18,6 +18,7 @@ import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentAc
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
+import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -40,6 +41,7 @@ import {
   type CustomerSortField,
 } from "@/lib/customers";
 import { formatStreetLine } from "@/lib/customer-address";
+import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import type { Customer } from "@/lib/types";
 
 const EMPTY_FORM = {
@@ -233,6 +235,16 @@ export default function ClientesPage() {
       city: values.city || current.city,
       postalCode: values.postalCode || current.postalCode,
       notes: values.notes || current.notes,
+    }));
+  }
+
+  function applyAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    setFormError(null);
+    setForm((current) => ({
+      ...current,
+      address: suggestion.address || current.address,
+      city: suggestion.city || current.city,
+      postalCode: suggestion.postalCode || current.postalCode,
     }));
   }
 
@@ -456,9 +468,11 @@ export default function ClientesPage() {
             label="Nombre de vía y número"
             hint="Sin C/, Avda. ni otros prefijos"
           >
-            <Input
+            <GoogleAddressAutocomplete
               value={form.address}
-              onChange={(e) => updateFormField("address", e.target.value)}
+              onChange={(value) => updateFormField("address", value)}
+              onAddressSelected={applyAddressSuggestion}
+              enabled={Boolean(data.profile.googlePlaces?.enabled)}
               placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
