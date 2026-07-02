@@ -235,9 +235,12 @@ describe("MVP usability polish", () => {
     expect(cloudContextSource).toContain('provider: "google"');
     expect(googleAuthBrowserSource).toContain("accounts.google.com/gsi/client");
     expect(googleAuthBrowserSource).toContain("openid email profile");
+    expect(googleAuthBrowserSource).toContain("include_granted_scopes: false");
     expect(googleAuthBrowserSource).toContain("initCodeClient");
     expect(googleAuthBrowserSource).toContain("/api/google-auth/token");
     expect(cloudContextSource).toContain("token: idToken");
+    expect(googleAuthConfigSource).not.toContain("GOOGLE_DRIVE_CLIENT_ID");
+    expect(googleAuthConfigSource).not.toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
     expect(cloudContextSource).not.toContain("drive.file");
     expect(cloudContextSource).not.toContain("drive.metadata");
     expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");

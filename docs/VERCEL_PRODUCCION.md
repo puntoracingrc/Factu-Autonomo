@@ -90,7 +90,7 @@ Ver `supabase/README.md`. Resumen:
 
 - **Site URL:** `https://facturacion-autonomos.app`
 - **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`, `http://localhost:3001/auth/callback`
-- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. El botón usa Google Identity Services y luego crea la sesión en Supabase, para que Google muestre la app pública en vez del dominio técnico del proyecto. Si no defines `NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID`, se usa `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` como respaldo. Si no defines `GOOGLE_AUTH_CLIENT_SECRET`, se usa `GOOGLE_DRIVE_CLIENT_SECRET` como respaldo.
+- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. El botón usa Google Identity Services y luego crea la sesión en Supabase, para que Google muestre la app pública en vez del dominio técnico del proyecto. Usa variables propias (`NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID` y `GOOGLE_AUTH_CLIENT_SECRET`); Drive queda separado para copias de seguridad.
 - **Google Cloud:** añade `https://facturacion-autonomos.app`, `http://localhost:3000` y `http://localhost:3001` como orígenes JavaScript autorizados. Si la app OAuth está en pruebas, añade los emails de prueba o publícala/verifícala antes de abrirla a usuarios reales.
 - **Google Drive:** configurar el OAuth client con origen autorizado `https://facturacion-autonomos.app` y, para probar en local, `http://localhost:3000` y `http://localhost:3001`. La copia extra en Drive usa `drive.file` y se activa aparte desde Cuenta.
 
