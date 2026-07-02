@@ -29,6 +29,50 @@ describe("splitLegacyStreetAddress", () => {
       streetType: "avenida",
       streetLine: "Diagonal, 100",
     });
+    expect(splitLegacyStreetAddress("Rúa do Hórreo 12")).toEqual({
+      streetType: "calle",
+      streetLine: "Hórreo 12",
+    });
+    expect(splitLegacyStreetAddress("Ercilla Kalea 14")).toEqual({
+      streetType: "calle",
+      streetLine: "Ercilla 14",
+    });
+    expect(splitLegacyStreetAddress("Nafarroa Etorbidea 2")).toEqual({
+      streetType: "avenida",
+      streetLine: "Nafarroa 2",
+    });
+    expect(splitLegacyStreetAddress("Camiño da Igrexa 3")).toEqual({
+      streetType: "camino",
+      streetLine: "Igrexa 3",
+    });
+    expect(splitLegacyStreetAddress("Passeig de Gràcia, 22")).toEqual({
+      streetType: "paseo",
+      streetLine: "Gràcia, 22",
+    });
+    expect(splitLegacyStreetAddress("Praza de Galicia 1")).toEqual({
+      streetType: "plaza",
+      streetLine: "Galicia 1",
+    });
+    expect(splitLegacyStreetAddress("Platja de la Barceloneta 1")).toEqual({
+      streetType: "playa",
+      streetLine: "Barceloneta 1",
+    });
+    expect(splitLegacyStreetAddress("Karrika Nagusia 3")).toEqual({
+      streetType: "calle",
+      streetLine: "Nagusia 3",
+    });
+    expect(splitLegacyStreetAddress("Gernikako Arbola Hiribidea 8")).toEqual({
+      streetType: "avenida",
+      streetLine: "Gernikako Arbola 8",
+    });
+    expect(splitLegacyStreetAddress("GI-2132 Errepidea 4")).toEqual({
+      streetType: "carretera",
+      streetLine: "GI-2132 4",
+    });
+    expect(splitLegacyStreetAddress("Enparantza Zaharra 1")).toEqual({
+      streetType: "plaza",
+      streetLine: "Zaharra 1",
+    });
   });
 
   it("deja sin tipo si no reconoce prefijo", () => {

@@ -474,6 +474,7 @@ export default function ClientesPage() {
               onChange={(value) => updateFormField("address", value)}
               onAddressSelected={applyAddressSuggestion}
               enabled={Boolean(data.profile.googlePlaces?.enabled)}
+              displayStreetLineOnly
               placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
