@@ -5,7 +5,7 @@ export default function EncargoTratamientoPage() {
     <div>
       <PageHeader
         title="Encargo de tratamiento"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Tratamiento de datos profesionales dentro de la app"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
@@ -39,12 +39,12 @@ export default function EncargoTratamientoPage() {
           <li>Aplicar medidas razonables de seguridad y control de acceso.</li>
           <li>Permitir exportar datos y borrar la cuenta cuando proceda.</li>
           <li>No vender los datos del usuario ni usarlos para fines ajenos.</li>
-          <li>Informar de subencargados relevantes antes de producción.</li>
+          <li>Informar de subencargados relevantes del servicio.</li>
         </ul>
         <h2>Subencargados previstos</h2>
         <p>
-          Supabase, Stripe, proveedor de IA y proveedor de alojamiento. La lista
-          final debe confirmarse antes de comercializar el servicio.
+          Supabase, Stripe, proveedor de IA, Google Drive cuando el usuario
+          activa la copia extra opcional, y proveedor de alojamiento.
         </p>
         <h2>Fin del servicio</h2>
         <p>
@@ -53,7 +53,7 @@ export default function EncargoTratamientoPage() {
           descargar una copia antes de cerrar su cuenta.
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );

@@ -5,7 +5,7 @@ export default function TerminosPage() {
     <div>
       <PageHeader
         title="Términos de uso"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Condiciones básicas de uso de Factura Autónomo"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
@@ -15,8 +15,12 @@ export default function TerminosPage() {
         </p>
         <h2>Titular del servicio</h2>
         <p>
-          [nombre o razón social pendiente] — [NIF/CIF pendiente] — [domicilio
-          pendiente] — [email de contacto pendiente].
+          Alberto Ibáñez de Opacua Muñoz — NIF 46402457A — C/ Valencia 542,
+          Barcelona —{" "}
+          <a href="mailto:puntoracingrc@gmail.com">
+            puntoracingrc@gmail.com
+          </a>
+          .
         </p>
         <h2>Uso de la app</h2>
         <p>
@@ -70,7 +74,7 @@ export default function TerminosPage() {
           estimaciones o por incumplimiento de normativa (Verifactu, etc.).
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );

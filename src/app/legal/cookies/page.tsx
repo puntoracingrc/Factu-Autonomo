@@ -5,7 +5,7 @@ export default function CookiesPage() {
     <div>
       <PageHeader
         title="Política de cookies y almacenamiento"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Uso técnico del navegador para que la app funcione"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
@@ -26,9 +26,9 @@ export default function CookiesPage() {
         </p>
         <h2>Analítica y publicidad</h2>
         <p>
-          En este borrador no se declara analítica publicitaria ni seguimiento
-          comercial de terceros. Si en producción se añade analítica no técnica,
-          deberá mostrarse un panel de consentimiento antes de activarla.
+          No usamos cookies publicitarias ni seguimiento comercial de terceros.
+          Si en el futuro se añade analítica no técnica, se mostrará un panel de
+          consentimiento antes de activarla.
         </p>
         <h2>Cómo borrar datos locales</h2>
         <p>
@@ -37,7 +37,7 @@ export default function CookiesPage() {
           no estaba sincronizado o exportado.
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );
