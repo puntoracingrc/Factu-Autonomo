@@ -34,6 +34,32 @@ export interface ScanQuota {
   monthKey?: string;
 }
 
+export type AiUsageMeterMode =
+  | "unlimited"
+  | "included"
+  | "extra"
+  | "empty"
+  | "trial";
+
+export interface AiUsageMeter {
+  plan: PlanId;
+  mode: AiUsageMeterMode;
+  percentRemaining: number;
+  includedUnits: number | null;
+  includedRemainingUnits: number | null;
+  extraUnits: number;
+  totalRemainingUnits: number | null;
+  scanEquivalentRemaining: number | null;
+  smallUseEquivalentRemaining: number | null;
+  unitScale: number;
+  monthKey?: string;
+}
+
+function usagePercent(remaining: number, total: number): number {
+  if (remaining <= 0) return 0;
+  return Math.max(1, Math.min(100, Math.round((remaining / total) * 100)));
+}
+
 export function monthlyScanLimit(plan: PlanId): number {
   if (!isBillingEnforced()) return Number.MAX_SAFE_INTEGER;
   return isProPlan(plan) ? PRO_EXPENSE_SCANS_PER_MONTH : 0;
@@ -105,6 +131,98 @@ export function buildScanQuota(
     bonusCreditUnits: 0,
     unitScale: AI_UNITS_PER_SCAN,
     period: "lifetime",
+  };
+}
+
+export function buildAiUsageMeter(quota: ScanQuota): AiUsageMeter {
+  if (
+    quota.limit === Number.MAX_SAFE_INTEGER ||
+    quota.remainingUnits === Number.MAX_SAFE_INTEGER
+  ) {
+    return {
+      plan: quota.plan,
+      mode: "unlimited",
+      percentRemaining: 100,
+      includedUnits: null,
+      includedRemainingUnits: null,
+      extraUnits: 0,
+      totalRemainingUnits: null,
+      scanEquivalentRemaining: null,
+      smallUseEquivalentRemaining: null,
+      unitScale: quota.unitScale,
+      monthKey: quota.monthKey,
+    };
+  }
+
+  const includedUnits = Math.max(0, quota.limit * quota.unitScale);
+  const includedRemainingUnits = Math.max(
+    0,
+    includedUnits - Math.max(0, quota.usedUnits),
+  );
+  const extraUnits = Math.max(0, quota.bonusCreditUnits);
+  const totalRemainingUnits = Math.max(0, quota.remainingUnits);
+
+  if (!isProPlan(quota.plan)) {
+    return {
+      plan: quota.plan,
+      mode: "trial",
+      percentRemaining: usagePercent(totalRemainingUnits, Math.max(1, includedUnits)),
+      includedUnits,
+      includedRemainingUnits: totalRemainingUnits,
+      extraUnits: 0,
+      totalRemainingUnits,
+      scanEquivalentRemaining: Math.floor(totalRemainingUnits / quota.unitScale),
+      smallUseEquivalentRemaining: totalRemainingUnits,
+      unitScale: quota.unitScale,
+      monthKey: quota.monthKey,
+    };
+  }
+
+  if (includedRemainingUnits > 0) {
+    return {
+      plan: quota.plan,
+      mode: "included",
+      percentRemaining: usagePercent(includedRemainingUnits, Math.max(1, includedUnits)),
+      includedUnits,
+      includedRemainingUnits,
+      extraUnits,
+      totalRemainingUnits,
+      scanEquivalentRemaining: Math.floor(totalRemainingUnits / quota.unitScale),
+      smallUseEquivalentRemaining: totalRemainingUnits,
+      unitScale: quota.unitScale,
+      monthKey: quota.monthKey,
+    };
+  }
+
+  if (extraUnits > 0) {
+    const packUnits = SCAN_PACK_SIZE * quota.unitScale;
+    return {
+      plan: quota.plan,
+      mode: "extra",
+      percentRemaining: usagePercent(extraUnits, Math.max(1, packUnits)),
+      includedUnits,
+      includedRemainingUnits: 0,
+      extraUnits,
+      totalRemainingUnits,
+      scanEquivalentRemaining: Math.floor(totalRemainingUnits / quota.unitScale),
+      smallUseEquivalentRemaining: totalRemainingUnits,
+      unitScale: quota.unitScale,
+      monthKey: quota.monthKey,
+    };
+  }
+
+  return {
+    plan: quota.plan,
+    mode: "empty",
+    percentRemaining: 0,
+    includedUnits,
+    includedRemainingUnits: 0,
+    extraUnits: 0,
+    totalRemainingUnits: 0,
+    scanEquivalentRemaining: 0,
+    smallUseEquivalentRemaining: 0,
+    unitScale: quota.unitScale,
+    monthKey: quota.monthKey,
   };
 }
 

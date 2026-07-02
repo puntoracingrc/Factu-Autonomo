@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AI_UNITS_PER_SCAN,
+  buildAiUsageMeter,
   buildScanQuota,
   CUSTOMER_AI_AUTOFILL_UNITS,
   FREE_EXPENSE_SCAN_TRIAL,
@@ -42,6 +43,36 @@ describe("scan limits", () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     const q = buildScanQuota("pro", 27, 2, "2026-06", 5);
     expect(q.remaining).toBe(8);
+  });
+
+  it("muestra el saldo Pro como porcentaje de IA incluida", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", 15, 2, "2026-06");
+    const meter = buildAiUsageMeter(q);
+
+    expect(meter.mode).toBe("included");
+    expect(meter.percentRemaining).toBe(50);
+    expect(meter.scanEquivalentRemaining).toBe(15);
+  });
+
+  it("muestra una recarga extra cuando la IA incluida se agota", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", PRO_EXPENSE_SCANS_PER_MONTH, 2, "2026-06", 10);
+    const meter = buildAiUsageMeter(q);
+
+    expect(meter.mode).toBe("extra");
+    expect(meter.percentRemaining).toBe(100);
+    expect(meter.scanEquivalentRemaining).toBe(10);
+  });
+
+  it("marca el saldo IA como agotado sin incluida ni recarga", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro", PRO_EXPENSE_SCANS_PER_MONTH, 2, "2026-06");
+    const meter = buildAiUsageMeter(q);
+
+    expect(meter.mode).toBe("empty");
+    expect(meter.percentRemaining).toBe(0);
+    expect(meter.smallUseEquivalentRemaining).toBe(0);
   });
 
   it("usa escaneos de prueba en gratis", () => {
