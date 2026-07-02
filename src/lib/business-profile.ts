@@ -1,4 +1,5 @@
 import type { BusinessProfile } from "./types";
+import { normalizeGooglePlacesSettings } from "./google-places";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 
 export interface BusinessProfileFields {
@@ -70,6 +71,7 @@ export function normalizeBusinessProfileForSave(
     phone: text(profile.phone),
     email: text(profile.email).toLowerCase(),
     iban: text(profile.iban) || undefined,
+    googlePlaces: normalizeGooglePlacesSettings(profile.googlePlaces),
     quoteValidityDays: normalizeQuoteValidityDays(profile.quoteValidityDays),
   };
 }

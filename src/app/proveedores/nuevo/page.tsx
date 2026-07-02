@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Truck, X } from "lucide-react";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
+import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -13,6 +14,7 @@ import {
   findBestSupplierMatch,
   SUPPLIER_AUTO_LINK_SCORE,
 } from "@/lib/suppliers";
+import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 
 const EMPTY_FORM = {
   name: "",
@@ -47,6 +49,16 @@ export default function NuevoProveedorPage() {
   function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
     setFormError(null);
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function applyAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    setFormError(null);
+    setForm((current) => ({
+      ...current,
+      address: suggestion.address || current.address,
+      city: suggestion.city || current.city,
+      postalCode: suggestion.postalCode || current.postalCode,
+    }));
   }
 
   function handleSave() {
@@ -165,11 +177,11 @@ export default function NuevoProveedorPage() {
               label="Nombre de vía y número"
               hint="Sin C/, Avda. ni otros prefijos"
             >
-              <Input
+              <GoogleAddressAutocomplete
                 value={form.address}
-                onChange={(event) =>
-                  updateFormField("address", event.target.value)
-                }
+                onChange={(value) => updateFormField("address", value)}
+                onAddressSelected={applyAddressSuggestion}
+                enabled={Boolean(data.profile.googlePlaces?.enabled)}
                 placeholder="Ej: Valencia 546 7/1"
               />
             </Field>

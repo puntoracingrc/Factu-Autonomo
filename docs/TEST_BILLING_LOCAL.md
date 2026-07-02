@@ -19,6 +19,7 @@ STRIPE_PRICE_SCAN_PACK=price_...
 
 OPENAI_API_KEY=sk-...   # escaneo de facturas de gasto y autorrelleno IA
 GOOGLE_MAPS_API_KEY=... # opcional: completar código postal desde dirección + ciudad
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=... # opcional: sugerir direcciones con Google Places
 ```
 
 ## 2. Supabase local

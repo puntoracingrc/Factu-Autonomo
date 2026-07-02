@@ -1,0 +1,59 @@
+import { NextResponse } from "next/server";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { isBillingEnforced } from "@/lib/billing/config";
+import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
+import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
+import { consumeAddressAutofill } from "@/lib/billing/scan-usage-server";
+import { resolveEffectivePlan } from "@/lib/billing/subscription";
+
+async function canUseAddressAutofill(userId: string): Promise<{
+  allowed: boolean;
+  reason?: string;
+}> {
+  if (!isBillingEnforced()) return { allowed: true };
+
+  const subscription = await fetchUserSubscriptionServer(userId);
+  const plan: PlanId = resolveEffectivePlan(subscription);
+  if (!getPlanLimits(plan).aiTextAutofill) {
+    return {
+      allowed: false,
+      reason:
+        "El autorrelleno de direcciones con Google requiere plan Pro. Puedes escribir la dirección a mano.",
+    };
+  }
+
+  return { allowed: true };
+}
+
+export async function POST(request: Request) {
+  const user = await getUserFromBearer(request.headers.get("authorization"));
+
+  if (isBillingEnforced() && !user) {
+    return NextResponse.json(
+      {
+        error:
+          "Inicia sesión para usar el autorrelleno de direcciones con Google.",
+      },
+      { status: 401 },
+    );
+  }
+
+  const gate = user ? await canUseAddressAutofill(user.id) : { allowed: true };
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 });
+  }
+
+  if (!user) {
+    return NextResponse.json({ quota: null });
+  }
+
+  const usage = await consumeAddressAutofill(user.id);
+  if (!usage.allowed) {
+    return NextResponse.json(
+      { error: usage.reason, quota: usage.quota },
+      { status: usage.blockedByQuota ? 402 : 503 },
+    );
+  }
+
+  return NextResponse.json({ quota: usage.quota });
+}

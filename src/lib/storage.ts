@@ -10,6 +10,7 @@ import { normalizeDocumentPhrases } from "./document-phrases";
 import { normalizeDocumentPaymentMethods } from "./document-payment-methods";
 import { normalizeDocumentUnits } from "./document-units";
 import { normalizeDocumentTemplate } from "./document-templates";
+import { normalizeGooglePlacesSettings } from "./google-places";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
@@ -32,6 +33,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     ),
     documentUnits: normalizeDocumentUnits(profile?.documentUnits),
     documentTemplate: normalizeDocumentTemplate(profile?.documentTemplate),
+    googlePlaces: normalizeGooglePlacesSettings(profile?.googlePlaces),
   };
 }
 
