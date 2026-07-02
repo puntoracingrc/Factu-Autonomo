@@ -43,6 +43,34 @@ const STATUS_LABELS = {
 
 type AuthMode = "signin" | "signup";
 
+function GoogleLogoIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      focusable="false"
+    >
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.46-1.13 2.7-2.41 3.54v2.93h3.78c2.21-2.04 3.65-5.04 3.65-8.71Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.78-2.93c-1.05.7-2.39 1.12-4.17 1.12-3.12 0-5.76-2.1-6.7-4.93H1.39v3.02A11.99 11.99 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.3 14.35A7.21 7.21 0 0 1 4.91 12c0-.82.14-1.61.39-2.35V6.63H1.39A11.95 11.95 0 0 0 0 12c0 1.93.46 3.76 1.39 5.37l3.91-3.02Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.72c1.76 0 3.34.61 4.59 1.8l3.44-3.44C17.95 1.14 15.23 0 12 0A11.99 11.99 0 0 0 1.39 6.63L5.3 9.65C6.24 6.82 8.88 4.72 12 4.72Z"
+      />
+    </svg>
+  );
+}
+
 export function CloudAccountCard() {
   const {
     cloudEnabled,
@@ -350,11 +378,8 @@ export function CloudAccountCard() {
                   onClick={() => void runGoogleAuth()}
                   disabled={busy}
                 >
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900"
-                    aria-hidden
-                  >
-                    G
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm">
+                    <GoogleLogoIcon />
                   </span>
                   {busy
                     ? "Abriendo Google…"
