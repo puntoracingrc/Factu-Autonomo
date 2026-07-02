@@ -1,5 +1,1 @@
-import { redirect } from "next/navigation";
-
-export default function TermsRedirectPage() {
-  redirect("/legal/terminos");
-}
+export { default } from "../legal/terminos/page";

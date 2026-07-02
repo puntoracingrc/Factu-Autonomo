@@ -1,5 +1,1 @@
-import { redirect } from "next/navigation";
-
-export default function PrivacidadRedirectPage() {
-  redirect("/legal/privacidad");
-}
+export { default } from "../legal/privacidad/page";
