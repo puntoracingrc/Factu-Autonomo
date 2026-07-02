@@ -3,6 +3,7 @@ import { isAdminUser } from "@/lib/admin/access";
 import type { User } from "@supabase/supabase-js";
 import {
   ageDaysFromIso,
+  buildAdminAiUsageSnapshot,
   emptySubscription,
   providerLabel,
   type AdminBanSnapshot,
@@ -14,6 +15,7 @@ import {
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import type { PlanId } from "@/lib/billing/plans";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
+import { currentMonthKey } from "@/lib/billing/usage";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 function subscriptionFromRow(
@@ -92,6 +94,52 @@ function errorsFromRows(rows: Array<Record<string, unknown>>): AdminErrorSnapsho
   );
 }
 
+interface DatabaseErrorLike {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}
+
+function errorText(error: DatabaseErrorLike): string {
+  return [error.code, error.message, error.details, error.hint]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function errorMentionsColumn(error: DatabaseErrorLike, column: string): boolean {
+  return errorText(error).includes(column.toLowerCase());
+}
+
+async function fetchMonthlyUsageRows(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  userIds: string[],
+  monthKey: string,
+): Promise<Array<Record<string, unknown>>> {
+  if (userIds.length === 0) return [];
+
+  const { data, error } = await admin
+    .from("user_usage")
+    .select(
+      "user_id,month_key,expense_scans_created,customer_ai_autofills_created",
+    )
+    .eq("month_key", monthKey)
+    .in("user_id", userIds);
+
+  if (!error) return (data ?? []) as Array<Record<string, unknown>>;
+  if (!errorMentionsColumn(error, "customer_ai_autofills_created")) return [];
+
+  const retry = await admin
+    .from("user_usage")
+    .select("user_id,month_key,expense_scans_created")
+    .eq("month_key", monthKey)
+    .in("user_id", userIds);
+
+  if (retry.error) return [];
+  return (retry.data ?? []) as Array<Record<string, unknown>>;
+}
+
 export async function GET(request: Request) {
   const requester = await getUserFromBearer(request.headers.get("authorization"));
   if (!requester) {
@@ -124,12 +172,14 @@ export async function GET(request: Request) {
 
   const users = authData.users;
   const userIds = users.map((user) => user.id);
+  const monthKey = currentMonthKey();
 
   const [
     { data: subscriptionRows },
     { data: paymentRows },
     { data: controlRows },
     { data: errorRows },
+    usageRows,
   ] =
     await Promise.all([
       userIds.length
@@ -155,6 +205,7 @@ export async function GET(request: Request) {
             .in("user_id", userIds)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] }),
+      fetchMonthlyUsageRows(admin, userIds, monthKey),
     ]);
 
   const subscriptionsByUser = new Map(
@@ -185,20 +236,38 @@ export async function GET(request: Request) {
       row as Record<string, unknown>,
     ]);
   }
+  const usageByUser = new Map(
+    (usageRows ?? []).map((row) => [
+      String((row as Record<string, unknown>).user_id),
+      row as Record<string, unknown>,
+    ]),
+  );
 
   const now = new Date();
-  const rows: AdminUserRow[] = users.map((user) => ({
-    id: user.id,
-    email: user.email ?? "Sin email",
-    provider: providerLabel(user),
-    createdAt: user.created_at ?? null,
-    lastSignInAt: user.last_sign_in_at ?? null,
-    ageDays: ageDaysFromIso(user.created_at ?? null, now),
-    subscription: subscriptionFromRow(subscriptionsByUser.get(user.id), user.id),
-    payments: paymentFromRows(paymentsByUser.get(user.id) ?? []),
-    ban: banFromRow(user, controlsByUser.get(user.id)),
-    errors: errorsFromRows(errorsByUser.get(user.id) ?? []),
-  }));
+  const rows: AdminUserRow[] = users.map((user) => {
+    const subscription = subscriptionFromRow(
+      subscriptionsByUser.get(user.id),
+      user.id,
+    );
+
+    return {
+      id: user.id,
+      email: user.email ?? "Sin email",
+      provider: providerLabel(user),
+      createdAt: user.created_at ?? null,
+      lastSignInAt: user.last_sign_in_at ?? null,
+      ageDays: ageDaysFromIso(user.created_at ?? null, now),
+      subscription,
+      aiUsage: buildAdminAiUsageSnapshot(
+        usageByUser.get(user.id),
+        subscription,
+        monthKey,
+      ),
+      payments: paymentFromRows(paymentsByUser.get(user.id) ?? []),
+      ban: banFromRow(user, controlsByUser.get(user.id)),
+      errors: errorsFromRows(errorsByUser.get(user.id) ?? []),
+    };
+  });
 
   return NextResponse.json({
     users: rows,
