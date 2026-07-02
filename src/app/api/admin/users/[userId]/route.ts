@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin/access";
 import {
+  aiUnitsToScanCredits,
   coerceAdminPlan,
   coerceAdminStatus,
   coerceNonNegativeInteger,
+  normalizeAdminAiCreditUnits,
   normalizeAdminDate,
 } from "@/lib/admin/users";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { currentMonthKey } from "@/lib/billing/usage";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type RouteParams = {
@@ -14,7 +17,7 @@ type RouteParams = {
 };
 
 interface AdminUserPatchBody {
-  action?: "subscription" | "ban";
+  action?: "subscription" | "ban" | "reset_ai_usage";
   plan?: unknown;
   status?: unknown;
   trialEndsAt?: unknown;
@@ -24,6 +27,111 @@ interface AdminUserPatchBody {
   aiCreditUnits?: unknown;
   banned?: unknown;
   banReason?: unknown;
+}
+
+type AdminClient = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
+interface DatabaseErrorLike {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}
+
+type AdminSubscriptionPayload = Record<string, string | number | null>;
+
+const OPTIONAL_SUBSCRIPTION_COLUMNS = [
+  "scan_trial_remaining",
+  "scan_credits",
+  "ai_credit_units",
+] as const;
+
+function errorText(error: DatabaseErrorLike): string {
+  return [
+    error.code,
+    error.message,
+    error.details,
+    error.hint,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function errorMentionsColumn(error: DatabaseErrorLike, column: string): boolean {
+  return errorText(error).includes(column.toLowerCase());
+}
+
+async function upsertSubscription(
+  admin: AdminClient,
+  payload: AdminSubscriptionPayload,
+): Promise<DatabaseErrorLike | null> {
+  const { error } = await admin
+    .from("user_subscriptions")
+    .upsert(payload, { onConflict: "user_id" });
+
+  if (!error) return null;
+
+  const retryPayload = { ...payload };
+  let shouldRetry = false;
+
+  for (const column of OPTIONAL_SUBSCRIPTION_COLUMNS) {
+    if (errorMentionsColumn(error, column)) {
+      delete retryPayload[column];
+      shouldRetry = true;
+    }
+  }
+
+  if (!shouldRetry) return error;
+
+  const retry = await admin
+    .from("user_subscriptions")
+    .upsert(retryPayload, { onConflict: "user_id" });
+
+  return retry.error ?? null;
+}
+
+async function touchAdminControls(
+  admin: AdminClient,
+  userId: string,
+  requesterId: string,
+  patch: Record<string, string | boolean | null> = {},
+) {
+  await admin.from("admin_user_controls").upsert(
+    {
+      user_id: userId,
+      ...patch,
+      updated_by: requesterId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+}
+
+async function resetMonthlyAiUsage(admin: AdminClient, userId: string) {
+  const monthKey = currentMonthKey();
+  const { error } = await admin
+    .from("user_usage")
+    .update({
+      expense_scans_created: 0,
+      customer_ai_autofills_created: 0,
+    })
+    .eq("user_id", userId)
+    .eq("month_key", monthKey);
+
+  if (!error) return { monthKey, error: null };
+
+  if (!errorMentionsColumn(error, "customer_ai_autofills_created")) {
+    return { monthKey, error };
+  }
+
+  const retry = await admin
+    .from("user_usage")
+    .update({ expense_scans_created: 0 })
+    .eq("user_id", userId)
+    .eq("month_key", monthKey);
+
+  return { monthKey, error: retry.error ?? null };
 }
 
 export async function PATCH(request: Request, { params }: RouteParams) {
@@ -47,35 +155,40 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const body = (await request.json()) as AdminUserPatchBody;
 
   if (body.action === "subscription") {
-    const { error } = await admin.from("user_subscriptions").upsert(
-      {
-        user_id: userId,
-        plan: coerceAdminPlan(body.plan),
-        status: coerceAdminStatus(body.status),
-        trial_ends_at: normalizeAdminDate(body.trialEndsAt),
-        current_period_end: normalizeAdminDate(body.currentPeriodEnd),
-        scan_trial_remaining: coerceNonNegativeInteger(body.scanTrialRemaining),
-        scan_credits: coerceNonNegativeInteger(body.scanCredits),
-        ai_credit_units: coerceNonNegativeInteger(body.aiCreditUnits),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
+    const normalizedAiCreditUnits = normalizeAdminAiCreditUnits(
+      body.aiCreditUnits,
+      body.scanCredits,
     );
+    const error = await upsertSubscription(admin, {
+      user_id: userId,
+      plan: coerceAdminPlan(body.plan),
+      status: coerceAdminStatus(body.status),
+      trial_ends_at: normalizeAdminDate(body.trialEndsAt),
+      current_period_end: normalizeAdminDate(body.currentPeriodEnd),
+      scan_trial_remaining: coerceNonNegativeInteger(body.scanTrialRemaining),
+      scan_credits: aiUnitsToScanCredits(normalizedAiCreditUnits),
+      ai_credit_units: normalizedAiCreditUnits,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    await admin.from("admin_user_controls").upsert(
-      {
-        user_id: userId,
-        updated_by: requester.id,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+    await touchAdminControls(admin, userId, requester.id);
 
     return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "reset_ai_usage") {
+    const { monthKey, error } = await resetMonthlyAiUsage(admin, userId);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    await touchAdminControls(admin, userId, requester.id);
+
+    return NextResponse.json({ ok: true, monthKey });
   }
 
   if (body.action === "ban") {
@@ -100,16 +213,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
-    await admin.from("admin_user_controls").upsert(
-      {
-        user_id: userId,
-        banned_at: banned ? new Date().toISOString() : null,
-        ban_reason: banned ? reason : null,
-        updated_by: requester.id,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+    await touchAdminControls(admin, userId, requester.id, {
+      banned_at: banned ? new Date().toISOString() : null,
+      ban_reason: banned ? reason : null,
+    });
 
     return NextResponse.json({ ok: true });
   }

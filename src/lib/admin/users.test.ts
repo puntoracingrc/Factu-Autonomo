@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ageDaysFromIso,
+  aiUnitsToScanCredits,
   coerceAdminPlan,
   coerceAdminStatus,
   coerceNonNegativeInteger,
   dateOnlyFromIso,
   normalizeAdminDate,
+  normalizeAdminAiCreditUnits,
+  scanCreditsToAiUnits,
 } from "./users";
 
 describe("admin users helpers", () => {
@@ -32,5 +35,12 @@ describe("admin users helpers", () => {
       ),
     ).toBe(30);
   });
-});
 
+  it("convierte creditos antiguos de escaneo a unidades IA", () => {
+    expect(scanCreditsToAiUnits("3")).toBe(30);
+    expect(aiUnitsToScanCredits(29)).toBe(2);
+    expect(normalizeAdminAiCreditUnits("", 4)).toBe(40);
+    expect(normalizeAdminAiCreditUnits(12, 4)).toBe(12);
+    expect(normalizeAdminAiCreditUnits(0, 0)).toBe(0);
+  });
+});
