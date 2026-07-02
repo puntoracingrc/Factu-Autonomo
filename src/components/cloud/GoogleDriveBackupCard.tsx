@@ -18,6 +18,7 @@ import { Field, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
+  DRIVE_BACKUP_RETENTION_LIMIT,
   buildDriveBackupSignature,
   clearDriveAccessToken,
   hasUsableDriveToken,
@@ -164,10 +165,12 @@ export function GoogleDriveBackupCard() {
       }));
 
       setFeedback({
-        tone: "success",
-        message: options.automatic
-          ? `Copia automática guardada en Drive: ${result.fileName}`
-          : `Copia guardada en la carpeta de Drive: ${result.fileName}`,
+        tone: result.cleanupWarning ? "info" : "success",
+        message: result.cleanupWarning
+          ? `Copia guardada en Drive, pero no se pudieron retirar copias antiguas: ${result.cleanupWarning}`
+          : options.automatic
+            ? `Copia automática guardada en Drive: ${result.fileName}`
+            : `Copia guardada en la carpeta de Drive: ${result.fileName}`,
       });
     },
     [
@@ -316,6 +319,10 @@ export function GoogleDriveBackupCard() {
         <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
           Google pedirá el permiso limitado a los archivos que use esta app. No
           pedimos leer todo tu Drive ni gestionar carpetas ajenas.
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Guardamos las {DRIVE_BACKUP_RETENTION_LIMIT} últimas copias. Al subir
+          una nueva, las más antiguas se retiran de la carpeta de Drive.
         </div>
 
         {!driveConfigured ? (
