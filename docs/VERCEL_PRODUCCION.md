@@ -44,6 +44,8 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (o legacy `anon` JWT) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` (o legacy `service_role` JWT) |
 | `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` solo cuando Google OAuth esté configurado en Supabase |
+| `NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID` | client id público de Google para iniciar sesión sin mostrar el dominio técnico de Supabase |
+| `GOOGLE_AUTH_CLIENT_SECRET` | secreto del cliente OAuth de Google para completar el login con Google en servidor |
 | `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` | client id público de Google OAuth para guardar copias extra en Drive |
 | `GOOGLE_DRIVE_CLIENT_SECRET` | secreto del cliente OAuth de Google, solo servidor, para completar el retorno de Drive |
 | `OPENAI_API_KEY` | clave de OpenAI (escaneo de gastos, autorrelleno IA, revisión IA y Voz IA en recordatorios, servidor) |
@@ -82,13 +84,14 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 
 El `whsec_` del webhook local **no sirve** para Vercel: usa el secret del endpoint creado para esta URL.
 
-## Supabase (auth)
+## Supabase y Google Login
 
 Ver `supabase/README.md`. Resumen:
 
 - **Site URL:** `https://facturacion-autonomos.app`
 - **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`, `http://localhost:3001/auth/callback`
-- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. Este login no pide permiso de Drive.
+- **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. El botón usa Google Identity Services y luego crea la sesión en Supabase, para que Google muestre la app pública en vez del dominio técnico del proyecto. Si no defines `NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID`, se usa `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` como respaldo. Si no defines `GOOGLE_AUTH_CLIENT_SECRET`, se usa `GOOGLE_DRIVE_CLIENT_SECRET` como respaldo.
+- **Google Cloud:** añade `https://facturacion-autonomos.app`, `http://localhost:3000` y `http://localhost:3001` como orígenes JavaScript autorizados. Si la app OAuth está en pruebas, añade los emails de prueba o publícala/verifícala antes de abrirla a usuarios reales.
 - **Google Drive:** configurar el OAuth client con origen autorizado `https://facturacion-autonomos.app` y, para probar en local, `http://localhost:3000` y `http://localhost:3001`. La copia extra en Drive usa `drive.file` y se activa aparte desde Cuenta.
 
 ## Estado actual
