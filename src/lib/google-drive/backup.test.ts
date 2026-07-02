@@ -70,7 +70,24 @@ describe("Google Drive backup", () => {
       lastAutoSignature: undefined,
       lastFileId: undefined,
       lastFileName: undefined,
+      lastFolderWebViewLink: undefined,
       lastWebViewLink: undefined,
+    });
+  });
+
+  it("conserva el enlace a la carpeta de Drive si existe", () => {
+    expect(
+      normalizeDriveBackupSettings({
+        enabled: true,
+        frequency: "daily",
+        lastFolderWebViewLink:
+          "https://drive.google.com/drive/folders/folder-id",
+      }),
+    ).toMatchObject({
+      enabled: true,
+      frequency: "daily",
+      lastFolderWebViewLink:
+        "https://drive.google.com/drive/folders/folder-id",
     });
   });
 

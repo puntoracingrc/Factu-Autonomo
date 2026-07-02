@@ -133,6 +133,7 @@ export default function GoogleDriveCallbackPage() {
           lastFileId: result.fileId,
           lastFileName: result.fileName,
           lastWebViewLink: result.webViewLink,
+          lastFolderWebViewLink: result.folderWebViewLink,
           lastAutoSignature: signature,
         });
         clearPendingDriveBackupRequest();
