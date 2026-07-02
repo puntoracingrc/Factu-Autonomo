@@ -68,6 +68,7 @@ interface GoogleAddressAutocompleteProps {
   id?: string;
   name?: string;
   className?: string;
+  displayStreetLineOnly?: boolean;
   "aria-invalid"?: boolean;
 }
 
@@ -120,11 +121,13 @@ export function GoogleAddressAutocomplete({
   id,
   name,
   className,
+  displayStreetLineOnly = false,
   "aria-invalid": ariaInvalid,
 }: GoogleAddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const onChangeRef = useRef(onChange);
   const onAddressSelectedRef = useRef(onAddressSelected);
+  const pendingRawGoogleAddressRef = useRef<string | null>(null);
+  const pendingCleanGoogleAddressRef = useRef<string | null>(null);
   const { billingEnabled, isPro } = useBilling();
   const { user } = useCloudSync();
   const [status, setStatus] = useState<string | null>(null);
@@ -146,9 +149,8 @@ export function GoogleAddressAutocomplete({
   );
 
   useEffect(() => {
-    onChangeRef.current = onChange;
     onAddressSelectedRef.current = onAddressSelected;
-  }, [onAddressSelected, onChange]);
+  }, [onAddressSelected]);
 
   useEffect(() => {
     if (!canUsePlaces || !inputRef.current) return;
@@ -217,9 +219,11 @@ export function GoogleAddressAutocomplete({
       try {
         const usage = await registerAddressFill();
         if (!usage.allowed) {
-          setUpgradeMode(isPro || usage.quota?.plan === "pro" || usage.quota?.plan === "trial"
-            ? "scanPack"
-            : "upgrade");
+          const isCreditTopUp =
+            isPro ||
+            usage.quota?.plan === "pro" ||
+            usage.quota?.plan === "trial";
+          setUpgradeMode(isCreditTopUp ? "scanPack" : "upgrade");
           setUpgradeReason(usage.reason);
           if (usage.quota?.plan === "pro" || usage.quota?.plan === "trial") {
             setUpgradeOpen(true);
@@ -232,7 +236,14 @@ export function GoogleAddressAutocomplete({
           return;
         }
 
-        onChangeRef.current(suggestion.address);
+        const cleanAddress = displayStreetLineOnly
+          ? suggestion.streetLine || suggestion.address
+          : suggestion.address;
+        pendingRawGoogleAddressRef.current = suggestion.address;
+        pendingCleanGoogleAddressRef.current = cleanAddress;
+        if (inputRef.current) {
+          inputRef.current.value = cleanAddress;
+        }
         onAddressSelectedRef.current(suggestion);
         setStatusTone("success");
         setStatus(
@@ -281,7 +292,15 @@ export function GoogleAddressAutocomplete({
       cancelled = true;
       listener?.remove();
     };
-  }, [apiKey, billingEnabled, canUsePlaces, isPro, lockedByPlan, user]);
+  }, [
+    apiKey,
+    billingEnabled,
+    canUsePlaces,
+    displayStreetLineOnly,
+    isPro,
+    lockedByPlan,
+    user,
+  ]);
 
   return (
     <div className="space-y-2">
@@ -292,6 +311,16 @@ export function GoogleAddressAutocomplete({
           name={name}
           value={value}
           onChange={(event) => {
+            const pendingRaw = pendingRawGoogleAddressRef.current;
+            const pendingClean = pendingCleanGoogleAddressRef.current;
+            if (pendingRaw && pendingClean && event.target.value === pendingRaw) {
+              event.currentTarget.value = pendingClean;
+              pendingRawGoogleAddressRef.current = null;
+              pendingCleanGoogleAddressRef.current = null;
+              return;
+            }
+            pendingRawGoogleAddressRef.current = null;
+            pendingCleanGoogleAddressRef.current = null;
             setStatus(null);
             setStatusTone("success");
             onChange(event.target.value);

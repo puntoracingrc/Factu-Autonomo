@@ -93,6 +93,80 @@ describe("parseGooglePlaceAddress", () => {
     expect(result.streetType).toBe("avenida");
     expect(result.streetLine).toBe("Diagonal, 100");
   });
+
+  it("prepara Carrer de Mallorca para el selector separado", () => {
+    const result = parseGooglePlaceAddress(
+      [
+        {
+          long_name: "Carrer de Mallorca",
+          short_name: "C/ Mallorca",
+          types: ["route"],
+        },
+        {
+          long_name: "548",
+          short_name: "548",
+          types: ["street_number"],
+        },
+        {
+          long_name: "08013",
+          short_name: "08013",
+          types: ["postal_code"],
+        },
+        {
+          long_name: "Barcelona",
+          short_name: "Barcelona",
+          types: ["locality"],
+        },
+      ],
+      "Carrer de Mallorca, 548, Barcelona",
+    );
+
+    expect(result.address).toBe("Carrer de Mallorca, 548");
+    expect(result.streetType).toBe("calle");
+    expect(result.streetLine).toBe("Mallorca, 548");
+  });
+
+  it("normaliza variantes gallegas y vascas de tipo de via", () => {
+    const rua = parseGooglePlaceAddress(
+      [
+        {
+          long_name: "Rúa do Hórreo",
+          short_name: "Rúa do Hórreo",
+          types: ["route"],
+        },
+        {
+          long_name: "12",
+          short_name: "12",
+          types: ["street_number"],
+        },
+      ],
+      "Rúa do Hórreo, 12, Santiago de Compostela",
+    );
+
+    expect(rua.address).toBe("Rúa do Hórreo, 12");
+    expect(rua.streetType).toBe("calle");
+    expect(rua.streetLine).toBe("Hórreo, 12");
+
+    const kalea = parseGooglePlaceAddress(
+      [
+        {
+          long_name: "Ercilla Kalea",
+          short_name: "Ercilla Kalea",
+          types: ["route"],
+        },
+        {
+          long_name: "14",
+          short_name: "14",
+          types: ["street_number"],
+        },
+      ],
+      "Ercilla Kalea, 14, Bilbao",
+    );
+
+    expect(kalea.address).toBe("Ercilla Kalea, 14");
+    expect(kalea.streetType).toBe("calle");
+    expect(kalea.streetLine).toBe("Ercilla, 14");
+  });
 });
 
 describe("normalizeGooglePlacesSettings", () => {
