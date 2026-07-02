@@ -82,6 +82,8 @@ interface GoogleAccountsOauth2 {
     client_id: string;
     scope: string;
     ux_mode?: "popup" | "redirect";
+    redirect_uri?: string;
+    state?: string;
     include_granted_scopes?: boolean;
     callback: (response: GoogleCodeResponse) => void;
     error_callback?: (error: unknown) => void;

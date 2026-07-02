@@ -6,11 +6,8 @@ type GoogleTokenResponse = {
   error_description?: string;
 };
 
-type GoogleAuthTokenPayload =
-  | { idToken: string; accessToken?: string }
-  | { error: string };
-
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
+const GOOGLE_AUTH_STATE_KEY = "factura-autonomo-google-auth-state";
 
 let googleScriptPromise: Promise<void> | null = null;
 
@@ -51,9 +48,26 @@ function loadGoogleIdentityScript(): Promise<void> {
   return googleScriptPromise;
 }
 
-export async function requestGoogleLoginTokens(
-  clientId: string,
-): Promise<{ idToken: string; accessToken?: string }> {
+function makeGoogleAuthCallbackUrl(): string {
+  return `${window.location.origin}/google-auth/callback`;
+}
+
+function makeState(): string {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+export function getPendingGoogleLoginState(): string {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem(GOOGLE_AUTH_STATE_KEY) || "";
+}
+
+export function clearPendingGoogleLoginState(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(GOOGLE_AUTH_STATE_KEY);
+}
+
+export async function startGoogleLoginRedirect(clientId: string): Promise<void> {
   await loadGoogleIdentityScript();
 
   const initCodeClient = window.google?.accounts?.oauth2?.initCodeClient;
@@ -62,13 +76,19 @@ export async function requestGoogleLoginTokens(
   }
 
   return new Promise((resolve, reject) => {
+    const state = makeState();
+    window.sessionStorage.setItem(GOOGLE_AUTH_STATE_KEY, state);
+
     const codeClient = initCodeClient({
       client_id: clientId,
       scope: "openid email profile",
-      ux_mode: "popup",
+      ux_mode: "redirect",
+      redirect_uri: makeGoogleAuthCallbackUrl(),
+      state,
       include_granted_scopes: false,
-      callback: async (response: GoogleTokenResponse) => {
+      callback: (response: GoogleTokenResponse) => {
         if (response.error) {
+          clearPendingGoogleLoginState();
           reject(
             new Error(
               response.error_description || response.error || "Google canceló el acceso.",
@@ -77,34 +97,16 @@ export async function requestGoogleLoginTokens(
           return;
         }
         if (!response.code) {
+          clearPendingGoogleLoginState();
           reject(new Error("Google no devolvió un código de acceso."));
           return;
         }
-        try {
-          const tokenResponse = await fetch("/api/google-auth/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: response.code }),
-          });
-          const payload = (await tokenResponse.json()) as GoogleAuthTokenPayload;
-          if (!tokenResponse.ok || "error" in payload) {
-            reject(
-              new Error(
-                "error" in payload
-                  ? payload.error
-                  : "No se pudo completar el acceso con Google.",
-              ),
-            );
-            return;
-          }
-          resolve(payload);
-        } catch (error) {
-          reject(error);
-        }
+        resolve();
       },
       error_callback: (error: unknown) => {
         const record =
           error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+        clearPendingGoogleLoginState();
         reject(
           new Error(
             (typeof record.message === "string" && record.message) ||
@@ -116,6 +118,7 @@ export async function requestGoogleLoginTokens(
     });
 
     codeClient.requestCode();
+    resolve();
   });
 }
 

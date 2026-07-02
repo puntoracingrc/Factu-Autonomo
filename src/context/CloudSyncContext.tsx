@@ -39,7 +39,7 @@ import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
 import {
   friendlyGoogleLoginError,
-  requestGoogleLoginTokens,
+  startGoogleLoginRedirect,
 } from "@/lib/google-auth/browser";
 import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -650,25 +650,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     setSyncMessage("Abriendo Google para iniciar sesión…");
     try {
-      const { idToken, accessToken } =
-        await requestGoogleLoginTokens(googleClientId);
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: "google",
-        token: idToken,
-        access_token: accessToken,
-      });
-      if (error) return error.message;
-
-      pulledForUser.current = null;
-      setSyncMessage("Sesión iniciada — sincronizando…");
-      if (ready) {
-        void pullFromCloud();
-      }
+      await startGoogleLoginRedirect(googleClientId);
       return null;
     } catch (error) {
       return friendlyGoogleLoginError(error);
     }
-  }, [pullFromCloud, ready]);
+  }, []);
 
   const resendConfirmationEmail = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();

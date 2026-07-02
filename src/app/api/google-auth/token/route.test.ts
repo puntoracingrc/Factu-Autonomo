@@ -54,6 +54,34 @@ describe("Google Auth token route", () => {
     expect(params.get("grant_type")).toBe("authorization_code");
   });
 
+  it("acepta la url de retorno propia de la app para el login con redireccion", async () => {
+    const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      void args;
+      return new Response(
+        JSON.stringify({
+          id_token: "id-token",
+          access_token: "access-token",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      makeRequest({
+        code: "oauth-code",
+        redirectUri: "http://localhost:3000/google-auth/callback",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const init = fetchMock.mock.calls[0]?.[1];
+    const params = init?.body as URLSearchParams;
+    expect(params.get("redirect_uri")).toBe(
+      "http://localhost:3000/google-auth/callback",
+    );
+  });
+
   it("rechaza respuestas sin token de identidad", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

@@ -221,6 +221,10 @@ describe("MVP usability polish", () => {
       new URL("../lib/google-auth/browser.ts", import.meta.url),
       "utf8",
     );
+    const googleAuthCallbackSource = readFileSync(
+      new URL("../app/google-auth/callback/page.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(supabaseConfigSource).toContain("NEXT_PUBLIC_GOOGLE_AUTH_ENABLED");
     expect(googleAuthConfigSource).toContain("NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID");
@@ -230,15 +234,17 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).toContain(
       "Google solo se usa para iniciar sesión",
     );
-    expect(cloudContextSource).toContain("signInWithIdToken");
-    expect(cloudContextSource).toContain("requestGoogleLoginTokens");
-    expect(cloudContextSource).toContain('provider: "google"');
+    expect(cloudContextSource).toContain("startGoogleLoginRedirect");
     expect(googleAuthBrowserSource).toContain("accounts.google.com/gsi/client");
     expect(googleAuthBrowserSource).toContain("openid email profile");
     expect(googleAuthBrowserSource).toContain("include_granted_scopes: false");
+    expect(googleAuthBrowserSource).toContain('ux_mode: "redirect"');
+    expect(googleAuthBrowserSource).toContain("/google-auth/callback");
     expect(googleAuthBrowserSource).toContain("initCodeClient");
-    expect(googleAuthBrowserSource).toContain("/api/google-auth/token");
-    expect(cloudContextSource).toContain("token: idToken");
+    expect(googleAuthCallbackSource).toContain("/api/google-auth/token");
+    expect(googleAuthCallbackSource).toContain("signInWithIdToken");
+    expect(googleAuthCallbackSource).toContain('provider: "google"');
+    expect(googleAuthCallbackSource).toContain("token: payload.idToken");
     expect(googleAuthConfigSource).not.toContain("GOOGLE_DRIVE_CLIENT_ID");
     expect(googleAuthConfigSource).not.toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
     expect(cloudContextSource).not.toContain("drive.file");
