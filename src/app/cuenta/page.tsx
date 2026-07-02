@@ -11,6 +11,7 @@ import {
   Upload,
   type LucideIcon,
 } from "lucide-react";
+import { AiUsageMeterCard } from "@/components/billing/AiUsageMeterCard";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
@@ -81,6 +82,7 @@ export default function CuentaPage() {
 
       <section id="plan-cuenta" className="scroll-mt-24">
         <PlanStatusCard />
+        <AiUsageMeterCard />
         <SubscriptionBillingCard />
         <Suspense fallback={null}>
           <ReferralCard />
