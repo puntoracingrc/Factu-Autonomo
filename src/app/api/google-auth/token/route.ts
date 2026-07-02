@@ -25,6 +25,30 @@ function getGoogleAuthClientSecret(): string {
   return process.env.GOOGLE_AUTH_CLIENT_SECRET?.trim() || "";
 }
 
+function getRedirectUri(request: Request, body: unknown): string {
+  const redirectUri =
+    body && typeof body === "object" && "redirectUri" in body
+      ? safeString(body.redirectUri)
+      : "";
+
+  if (!redirectUri) return "postmessage";
+
+  try {
+    const requestUrl = new URL(request.url);
+    const parsed = new URL(redirectUri);
+    if (
+      parsed.origin === requestUrl.origin &&
+      parsed.pathname === "/google-auth/callback"
+    ) {
+      return redirectUri;
+    }
+  } catch {
+    return "postmessage";
+  }
+
+  return "postmessage";
+}
+
 function googleErrorMessage(payload: GoogleTokenPayload): string {
   const description = safeString(payload.error_description);
   if (description) return description;
@@ -69,6 +93,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  const redirectUri = getRedirectUri(request, body);
 
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -77,7 +102,7 @@ export async function POST(request: Request) {
       code,
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: "postmessage",
+      redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
   });
