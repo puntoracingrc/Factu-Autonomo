@@ -44,6 +44,8 @@ describe("parseGooglePlaceAddress", () => {
 
     expect(result).toEqual({
       address: "Carrer de Valencia, 542",
+      streetType: "calle",
+      streetLine: "Valencia, 542",
       postalCode: "08013",
       city: "Barcelona",
       province: "Barcelona",
@@ -65,7 +67,31 @@ describe("parseGooglePlaceAddress", () => {
     );
 
     expect(result.address).toBe("Carrer de Valencia, 542");
+    expect(result.streetType).toBe("calle");
+    expect(result.streetLine).toBe("Valencia, 542");
     expect(result.postalCode).toBe("08013");
+  });
+
+  it("normaliza variantes catalanas de tipo de via", () => {
+    const result = parseGooglePlaceAddress(
+      [
+        {
+          long_name: "Avinguda de la Diagonal",
+          short_name: "Av. Diagonal",
+          types: ["route"],
+        },
+        {
+          long_name: "100",
+          short_name: "100",
+          types: ["street_number"],
+        },
+      ],
+      "Avinguda de la Diagonal, 100, Barcelona",
+    );
+
+    expect(result.address).toBe("Avinguda de la Diagonal, 100");
+    expect(result.streetType).toBe("avenida");
+    expect(result.streetLine).toBe("Diagonal, 100");
   });
 });
 

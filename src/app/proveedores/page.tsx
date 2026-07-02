@@ -167,7 +167,8 @@ export default function ProveedoresPage() {
   function applyAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
     setForm((current) => ({
       ...current,
-      address: suggestion.address || current.address,
+      streetType: suggestion.streetType || current.streetType,
+      address: suggestion.streetLine || suggestion.address || current.address,
       city: suggestion.city || current.city,
       postalCode: suggestion.postalCode || current.postalCode,
     }));

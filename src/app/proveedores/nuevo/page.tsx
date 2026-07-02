@@ -55,7 +55,8 @@ export default function NuevoProveedorPage() {
     setFormError(null);
     setForm((current) => ({
       ...current,
-      address: suggestion.address || current.address,
+      streetType: suggestion.streetType || current.streetType,
+      address: suggestion.streetLine || suggestion.address || current.address,
       city: suggestion.city || current.city,
       postalCode: suggestion.postalCode || current.postalCode,
     }));

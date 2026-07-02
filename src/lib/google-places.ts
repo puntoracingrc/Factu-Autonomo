@@ -1,4 +1,5 @@
 import type { GooglePlacesSettings } from "./types";
+import { splitLegacyStreetAddress, type StreetTypeId } from "./customer-address";
 
 export const GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST = 1;
 
@@ -10,6 +11,8 @@ export interface GooglePlaceAddressComponent {
 
 export interface GooglePlaceAddressSuggestion {
   address: string;
+  streetType?: StreetTypeId;
+  streetLine?: string;
   postalCode: string;
   city: string;
   province?: string;
@@ -47,6 +50,17 @@ function fallbackAddress(formattedAddress: string): string {
     .trim();
 }
 
+function splitGoogleStreetAddress(address: string): {
+  streetType?: StreetTypeId;
+  streetLine: string;
+} {
+  const { streetType, streetLine } = splitLegacyStreetAddress(address);
+  return {
+    streetType,
+    streetLine: streetLine || address.trim(),
+  };
+}
+
 export function parseGooglePlaceAddress(
   components: GooglePlaceAddressComponent[] = [],
   formattedAddress = "",
@@ -64,9 +78,13 @@ export function parseGooglePlaceAddress(
     componentLongName(components, "administrative_area_level_1");
   const country = componentLongName(components, "country");
   const address = [route, streetNumber].filter(Boolean).join(", ");
+  const resolvedAddress = address || fallbackAddress(formattedAddress);
+  const street = splitGoogleStreetAddress(resolvedAddress);
 
   return {
-    address: address || fallbackAddress(formattedAddress),
+    address: resolvedAddress,
+    streetType: street.streetType,
+    streetLine: street.streetLine,
     postalCode,
     city,
     province: province || undefined,

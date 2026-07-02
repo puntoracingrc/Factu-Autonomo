@@ -21,6 +21,14 @@ describe("splitLegacyStreetAddress", () => {
       streetType: "avenida",
       streetLine: "Diagonal 100",
     });
+    expect(splitLegacyStreetAddress("Carrer de València, 546")).toEqual({
+      streetType: "calle",
+      streetLine: "València, 546",
+    });
+    expect(splitLegacyStreetAddress("Avinguda de la Diagonal, 100")).toEqual({
+      streetType: "avenida",
+      streetLine: "Diagonal, 100",
+    });
   });
 
   it("deja sin tipo si no reconoce prefijo", () => {
