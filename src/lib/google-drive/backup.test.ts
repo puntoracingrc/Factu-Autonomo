@@ -10,12 +10,30 @@ import {
   DRIVE_BACKUP_SCOPE,
   hasUsableDriveToken,
   normalizeDriveBackupSettings,
+  restoreDriveAccessToken,
   shouldRunAutomaticDriveBackup,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
 import { DEFAULT_PROFILE, type AppData } from "@/lib/types";
 
 const NOW = new Date("2026-06-29T12:00:00.000Z");
+
+function createMemoryStorage(): Storage {
+  const values = new Map<string, string>();
+
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    }),
+  };
+}
 
 function dataWithDocument(updatedAt: string): AppData {
   return {
@@ -53,8 +71,8 @@ function dataWithDocument(updatedAt: string): AppData {
 
 describe("Google Drive backup", () => {
   afterEach(() => {
-    clearDriveAccessToken();
     vi.unstubAllGlobals();
+    clearDriveAccessToken();
   });
 
   it("normaliza ajustes locales sin aceptar valores raros", () => {
@@ -117,6 +135,58 @@ describe("Google Drive backup", () => {
     expect(url.searchParams.get("scope")).toBe(DRIVE_BACKUP_SCOPE);
     expect(url.searchParams.get("state")).toBe("state-123");
     expect(url.searchParams.get("prompt")).toBe("consent");
+  });
+
+  it("recupera el permiso de Drive sin pedir consentimiento si Google lo mantiene activo", async () => {
+    const requestAccessToken = vi.fn();
+    const initTokenClient = vi.fn(
+      (config: {
+        callback: (response: {
+          access_token?: string;
+          expires_in?: number;
+        }) => void;
+      }) => ({
+        requestAccessToken: (options?: { prompt?: string }) => {
+          requestAccessToken(options);
+          config.callback({
+            access_token: "restored-access-token",
+            expires_in: 3600,
+          });
+        },
+      }),
+    );
+
+    vi.stubGlobal("document", {});
+    vi.stubGlobal("sessionStorage", createMemoryStorage());
+    vi.stubGlobal("window", {
+      google: {
+        accounts: {
+          oauth2: {
+            initTokenClient,
+          },
+        },
+      },
+    });
+
+    const result = await restoreDriveAccessToken("google-client-id");
+
+    expect(result).toEqual({ ok: true });
+    expect(initTokenClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "google-client-id",
+        scope: DRIVE_BACKUP_SCOPE,
+        include_granted_scopes: true,
+      }),
+    );
+    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "" });
+    expect(hasUsableDriveToken()).toBe(true);
+  });
+
+  it("no intenta reactivar Drive si falta la configuracion de Google", async () => {
+    await expect(restoreDriveAccessToken(" ")).resolves.toEqual({
+      ok: false,
+      error: "Google Drive no está configurado.",
+    });
   });
 
   it("evita repetir la copia diaria en el mismo día", () => {

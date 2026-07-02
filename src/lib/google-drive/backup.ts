@@ -57,6 +57,10 @@ export type DriveBackupUploadResult =
     }
   | { ok: false; error: string };
 
+export type DriveBackupTokenRestoreResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 interface GoogleTokenResponse {
   access_token?: string;
   expires_in?: number;
@@ -400,6 +404,30 @@ function getCachedToken(): string | null {
 
 export function hasUsableDriveToken(): boolean {
   return Boolean(getCachedToken());
+}
+
+export async function restoreDriveAccessToken(
+  clientId: string,
+): Promise<DriveBackupTokenRestoreResult> {
+  if (hasUsableDriveToken()) return { ok: true };
+
+  const cleanClientId = clientId.trim();
+  if (!cleanClientId) {
+    return { ok: false, error: "Google Drive no está configurado." };
+  }
+
+  try {
+    await requestDriveAccessToken(cleanClientId, "");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Google necesita renovar el permiso de Drive.",
+    };
+  }
 }
 
 function loadGoogleIdentityServices(): Promise<void> {

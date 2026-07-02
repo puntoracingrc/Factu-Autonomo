@@ -23,6 +23,7 @@ import {
   clearDriveAccessToken,
   hasUsableDriveToken,
   loadDriveBackupSettings,
+  restoreDriveAccessToken,
   saveDriveBackupSettings,
   shouldRunAutomaticDriveBackup,
   startGoogleDriveBackupRedirect,
@@ -93,6 +94,7 @@ export function GoogleDriveBackupCard() {
     message: string;
   } | null>(null);
   const autoNoticeSignatureRef = useRef<string | null>(null);
+  const restoreAttemptedRef = useRef(false);
 
   useEffect(() => {
     setSettings(loadDriveBackupSettings());
@@ -225,6 +227,46 @@ export function GoogleDriveBackupCard() {
 
   useEffect(() => {
     if (!hydrated || !driveConfigured || busy) return;
+    if (!settings.enabled || tokenReady || restoreAttemptedRef.current) return;
+
+    restoreAttemptedRef.current = true;
+    let cancelled = false;
+
+    void restoreDriveAccessToken(clientId).then((result) => {
+      if (cancelled) return;
+
+      if (result.ok) {
+        setTokenReady(true);
+        setFeedback({
+          tone: "success",
+          message:
+            "Drive reconectado. Las próximas copias volverán a guardarse en Google Drive.",
+        });
+        return;
+      }
+
+      setTokenReady(false);
+      setFeedback({
+        tone: "info",
+        message:
+          "Las copias en Drive están pausadas hasta que pulses Reconectar Drive. Tu sesión y la nube de Factu siguen funcionando.",
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    busy,
+    clientId,
+    driveConfigured,
+    hydrated,
+    settings.enabled,
+    tokenReady,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !driveConfigured || busy) return;
 
     const decision = shouldRunAutomaticDriveBackup(settings, data);
     if (!decision.due) return;
@@ -236,7 +278,7 @@ export function GoogleDriveBackupCard() {
         setFeedback({
           tone: "info",
           message:
-            "Drive está activado, pero Google necesita renovar el permiso. Pulsa Guardar en Drive ahora cuando quieras.",
+            "Las copias en Drive están pausadas hasta reconectar. Pulsa Reconectar Drive para reactivarlas.",
         });
       }
       return;
@@ -409,8 +451,10 @@ export function GoogleDriveBackupCard() {
 
         {settings.enabled && !tokenReady ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Google puede pedirte permiso de nuevo antes de guardar la próxima
-            copia.
+            Las copias extra en Drive están pausadas porque Google no ha dado
+            un permiso activo en esta sesión. Reconecta Drive para volver a
+            guardar copias. No afecta a tu inicio de sesión ni a la nube de
+            Factu.
           </p>
         ) : null}
 
