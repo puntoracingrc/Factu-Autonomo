@@ -17,18 +17,12 @@ function getGoogleAuthClientId(): string {
   return (
     process.env.GOOGLE_AUTH_CLIENT_ID?.trim() ||
     process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID?.trim() ||
-    process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID?.trim() ||
     ""
   );
 }
 
 function getGoogleAuthClientSecret(): string {
-  return (
-    process.env.GOOGLE_AUTH_CLIENT_SECRET?.trim() ||
-    process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() ||
-    ""
-  );
+  return process.env.GOOGLE_AUTH_CLIENT_SECRET?.trim() || "";
 }
 
 function googleErrorMessage(payload: GoogleTokenPayload): string {
@@ -101,4 +95,3 @@ export async function POST(request: Request) {
     accessToken: payload.access_token,
   });
 }
-

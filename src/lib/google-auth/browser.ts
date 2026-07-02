@@ -66,7 +66,7 @@ export async function requestGoogleLoginTokens(
       client_id: clientId,
       scope: "openid email profile",
       ux_mode: "popup",
-      include_granted_scopes: true,
+      include_granted_scopes: false,
       callback: async (response: GoogleTokenResponse) => {
         if (response.error) {
           reject(
