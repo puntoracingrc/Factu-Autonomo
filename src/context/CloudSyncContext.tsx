@@ -37,6 +37,11 @@ import {
 } from "@/lib/cloud/sync-queue";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
+import {
+  friendlyGoogleLoginError,
+  requestGoogleLoginTokens,
+} from "@/lib/google-auth/browser";
+import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { pickNewerAppData } from "@/lib/cloud/sync";
@@ -638,20 +643,32 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (!isGoogleAuthEnabled()) {
       return "El acceso con Google aún no está activado.";
     }
+    const googleClientId = getGoogleAuthClientId();
+    if (!googleClientId) {
+      return "Falta configurar el identificador público de Google.";
+    }
 
     setSyncMessage("Abriendo Google para iniciar sesión…");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: getAuthCallbackUrl(),
-        queryParams: {
-          prompt: "select_account",
-        },
-      },
-    });
-    if (error) return error.message;
-    return null;
-  }, []);
+    try {
+      const { idToken, accessToken } =
+        await requestGoogleLoginTokens(googleClientId);
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+        access_token: accessToken,
+      });
+      if (error) return error.message;
+
+      pulledForUser.current = null;
+      setSyncMessage("Sesión iniciada — sincronizando…");
+      if (ready) {
+        void pullFromCloud();
+      }
+      return null;
+    } catch (error) {
+      return friendlyGoogleLoginError(error);
+    }
+  }, [pullFromCloud, ready]);
 
   const resendConfirmationEmail = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();

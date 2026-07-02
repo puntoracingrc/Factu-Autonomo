@@ -60,6 +60,16 @@ interface GoogleTokenClient {
   requestAccessToken: (options?: { prompt?: string }) => void;
 }
 
+interface GoogleCodeResponse {
+  code?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface GoogleCodeClient {
+  requestCode: () => void;
+}
+
 interface GoogleAccountsOauth2 {
   initTokenClient: (config: {
     client_id: string;
@@ -68,6 +78,14 @@ interface GoogleAccountsOauth2 {
     callback: (response: GoogleTokenResponse) => void;
     error_callback?: (error: unknown) => void;
   }) => GoogleTokenClient;
+  initCodeClient?: (config: {
+    client_id: string;
+    scope: string;
+    ux_mode?: "popup" | "redirect";
+    include_granted_scopes?: boolean;
+    callback: (response: GoogleCodeResponse) => void;
+    error_callback?: (error: unknown) => void;
+  }) => GoogleCodeClient;
 }
 
 declare global {
