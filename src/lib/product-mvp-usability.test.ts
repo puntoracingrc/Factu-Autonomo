@@ -251,8 +251,9 @@ describe("MVP usability polish", () => {
     expect(cloudContextSource).not.toContain("drive.metadata");
     expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
     expect(driveBackupSource).toContain("Copia extra en Google Drive");
-    expect(driveBackupSource).toContain("Google solo da permiso");
-    expect(driveBackupSource).toContain("Drive pendiente de reconectar");
+    expect(driveBackupSource).toContain("Drive no sirve para iniciar sesión");
+    expect(driveBackupSource).toContain("Google pedirá el permiso limitado");
+    expect(driveBackupSource).toContain("Drive necesita reconectar");
     expect(driveBackupSource).toContain("Reconectar Drive");
     expect(driveBackupSource).toContain("clearDriveAccessToken");
     expect(driveBackupLibSource).toContain(
