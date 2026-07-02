@@ -110,14 +110,15 @@ async function touchAdminControls(
 
 async function resetMonthlyAiUsage(admin: AdminClient, userId: string) {
   const monthKey = currentMonthKey();
+  const payload = {
+    user_id: userId,
+    month_key: monthKey,
+    expense_scans_created: 0,
+    customer_ai_autofills_created: 0,
+  };
   const { error } = await admin
     .from("user_usage")
-    .update({
-      expense_scans_created: 0,
-      customer_ai_autofills_created: 0,
-    })
-    .eq("user_id", userId)
-    .eq("month_key", monthKey);
+    .upsert(payload, { onConflict: "user_id,month_key" });
 
   if (!error) return { monthKey, error: null };
 
@@ -127,9 +128,14 @@ async function resetMonthlyAiUsage(admin: AdminClient, userId: string) {
 
   const retry = await admin
     .from("user_usage")
-    .update({ expense_scans_created: 0 })
-    .eq("user_id", userId)
-    .eq("month_key", monthKey);
+    .upsert(
+      {
+        user_id: userId,
+        month_key: monthKey,
+        expense_scans_created: 0,
+      },
+      { onConflict: "user_id,month_key" },
+    );
 
   return { monthKey, error: retry.error ?? null };
 }

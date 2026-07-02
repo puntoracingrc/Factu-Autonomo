@@ -1,6 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import type { PlanId } from "@/lib/billing/plans";
-import { AI_UNITS_PER_SCAN } from "@/lib/billing/scan-limits";
+import {
+  AI_UNITS_PER_SCAN,
+  PRO_EXPENSE_SCANS_PER_MONTH,
+} from "@/lib/billing/scan-limits";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 
 export const ADMIN_PLAN_OPTIONS: PlanId[] = ["free", "trial", "pro"];
@@ -46,6 +49,16 @@ export interface AdminErrorSnapshot {
   latestMessage: string | null;
 }
 
+export interface AdminAiUsageSnapshot {
+  monthKey: string;
+  monthlyIncludedUnits: number;
+  monthlyUsedUnits: number;
+  monthlyRemainingUnits: number;
+  extraUnits: number;
+  totalRemainingUnits: number;
+  percentRemaining: number;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;
@@ -54,6 +67,7 @@ export interface AdminUserRow {
   lastSignInAt: string | null;
   ageDays: number | null;
   subscription: AdminSubscriptionSnapshot;
+  aiUsage: AdminAiUsageSnapshot;
   payments: AdminPaymentSnapshot;
   ban: AdminBanSnapshot;
   errors: AdminErrorSnapshot;
@@ -139,4 +153,39 @@ export function normalizeAdminAiCreditUnits(
   const units = coerceNonNegativeInteger(aiCreditUnits);
   if (units > 0 || legacyScanCredits === undefined) return units;
   return scanCreditsToAiUnits(legacyScanCredits);
+}
+
+export function buildAdminAiUsageSnapshot(
+  usageRow: Record<string, unknown> | undefined,
+  subscription: Pick<AdminSubscriptionSnapshot, "aiCreditUnits">,
+  monthKey: string,
+): AdminAiUsageSnapshot {
+  const monthlyIncludedUnits = PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN;
+  const expenseScansCreated = coerceNonNegativeInteger(
+    usageRow?.expense_scans_created,
+  );
+  const customerAiAutofillsCreated = coerceNonNegativeInteger(
+    usageRow?.customer_ai_autofills_created,
+  );
+  const monthlyUsedUnits =
+    expenseScansCreated * AI_UNITS_PER_SCAN + customerAiAutofillsCreated;
+  const monthlyRemainingUnits = Math.max(
+    0,
+    monthlyIncludedUnits - monthlyUsedUnits,
+  );
+  const extraUnits = coerceNonNegativeInteger(subscription.aiCreditUnits);
+  const percentRemaining =
+    monthlyIncludedUnits > 0
+      ? Math.round((monthlyRemainingUnits / monthlyIncludedUnits) * 100)
+      : 0;
+
+  return {
+    monthKey,
+    monthlyIncludedUnits,
+    monthlyUsedUnits,
+    monthlyRemainingUnits,
+    extraUnits,
+    totalRemainingUnits: monthlyRemainingUnits + extraUnits,
+    percentRemaining: Math.max(0, Math.min(100, percentRemaining)),
+  };
 }

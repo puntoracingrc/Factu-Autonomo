@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ageDaysFromIso,
   aiUnitsToScanCredits,
+  buildAdminAiUsageSnapshot,
   coerceAdminPlan,
   coerceAdminStatus,
   coerceNonNegativeInteger,
@@ -42,5 +43,35 @@ describe("admin users helpers", () => {
     expect(normalizeAdminAiCreditUnits("", 4)).toBe(40);
     expect(normalizeAdminAiCreditUnits(12, 4)).toBe(12);
     expect(normalizeAdminAiCreditUnits(0, 0)).toBe(0);
+  });
+
+  it("calcula el uso mensual de IA visible en admin", () => {
+    const snapshot = buildAdminAiUsageSnapshot(
+      {
+        expense_scans_created: 2,
+        customer_ai_autofills_created: 15,
+      },
+      { aiCreditUnits: 25 },
+      "2026-07",
+    );
+
+    expect(snapshot.monthlyIncludedUnits).toBe(300);
+    expect(snapshot.monthlyUsedUnits).toBe(35);
+    expect(snapshot.monthlyRemainingUnits).toBe(265);
+    expect(snapshot.extraUnits).toBe(25);
+    expect(snapshot.totalRemainingUnits).toBe(290);
+    expect(snapshot.percentRemaining).toBe(88);
+  });
+
+  it("muestra IA mensual completa si el usuario aun no tiene uso del mes", () => {
+    const snapshot = buildAdminAiUsageSnapshot(
+      undefined,
+      { aiCreditUnits: 0 },
+      "2026-07",
+    );
+
+    expect(snapshot.monthlyRemainingUnits).toBe(300);
+    expect(snapshot.monthlyUsedUnits).toBe(0);
+    expect(snapshot.percentRemaining).toBe(100);
   });
 });
