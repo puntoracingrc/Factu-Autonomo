@@ -71,6 +71,35 @@ export function formatAddressBlock(entity: StreetAddressFields): string {
     .join(", ");
 }
 
+const STREET_TYPE_ALIASES: Partial<Record<StreetTypeId, string[]>> = {
+  calle: ["calle", "c/", "c.", "carrer"],
+  avenida: ["avenida", "avda.", "av.", "avinguda"],
+  pasaje: ["pasaje", "pje.", "passatge"],
+  paseo: ["paseo", "pº", "pg.", "passeig"],
+  plaza: ["plaza", "pl.", "plaça"],
+  carretera: ["carretera", "ctra."],
+  camino: ["camino", "cam.", "camí"],
+  travesia: ["travesía", "travesia", "tr.", "travessera"],
+  ronda: ["ronda"],
+  glorieta: ["glorieta"],
+  urbanizacion: ["urbanización", "urbanizacion", "urb."],
+  poligono: ["polígono industrial", "poligono industrial", "pol. ind."],
+  alameda: ["alameda"],
+  rambla: ["rambla"],
+  gran_via: ["gran vía", "gran via"],
+  bulevar: ["bulevar", "boulevard"],
+};
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripStreetConnector(value: string): string {
+  return value
+    .replace(/^(de la|de las|de los|del|dels|de les|de l'|de)\s+/i, "")
+    .trim();
+}
+
 /** Separa prefijos legacy («Calle Mayor 1») en tipo + nombre de vía. */
 export function splitLegacyStreetAddress(address?: string | null): {
   streetType?: StreetTypeId;
@@ -80,20 +109,19 @@ export function splitLegacyStreetAddress(address?: string | null): {
   if (!trimmed) return { streetLine: "" };
 
   for (const type of STREET_TYPES) {
-    const labelPattern = new RegExp(`^${type.label}\\s+`, "i");
-    if (labelPattern.test(trimmed)) {
-      return {
-        streetType: type.id,
-        streetLine: trimmed.replace(labelPattern, "").trim(),
-      };
-    }
+    const aliases = [
+      type.label,
+      type.abbreviation,
+      ...(STREET_TYPE_ALIASES[type.id] ?? []),
+    ].sort((a, b) => b.length - a.length);
 
-    const abbr = type.abbreviation.replace(/\./g, "\\.");
-    const abbrPattern = new RegExp(`^${abbr}\\s*`, "i");
-    if (abbrPattern.test(trimmed)) {
+    for (const alias of aliases) {
+      const pattern = new RegExp(`^${escapeRegExp(alias)}\\s*`, "i");
+      if (!pattern.test(trimmed)) continue;
+
       return {
         streetType: type.id,
-        streetLine: trimmed.replace(abbrPattern, "").trim(),
+        streetLine: stripStreetConnector(trimmed.replace(pattern, "").trim()),
       };
     }
   }
