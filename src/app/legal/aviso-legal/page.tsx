@@ -5,7 +5,7 @@ export default function AvisoLegalPage() {
     <div>
       <PageHeader
         title="Aviso legal"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Información legal del titular de Factura Autónomo"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
@@ -15,13 +15,16 @@ export default function AvisoLegalPage() {
         </p>
         <h2>Titular</h2>
         <p>
-          <strong>Nombre o razón social:</strong> [pendiente]
+          <strong>Nombre o razón social:</strong> Alberto Ibáñez de Opacua Muñoz
           <br />
-          <strong>NIF/CIF:</strong> [pendiente]
+          <strong>NIF/CIF:</strong> 46402457A
           <br />
-          <strong>Domicilio:</strong> [pendiente]
+          <strong>Domicilio:</strong> C/ Valencia 542, Barcelona
           <br />
-          <strong>Email de contacto:</strong> [pendiente]
+          <strong>Email de contacto:</strong>{" "}
+          <a href="mailto:puntoracingrc@gmail.com">
+            puntoracingrc@gmail.com
+          </a>
           <br />
           <strong>Dominio:</strong> facturacion-autonomos.app
         </p>
@@ -45,7 +48,7 @@ export default function AvisoLegalPage() {
           fiscales, contables y mercantiles.
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );

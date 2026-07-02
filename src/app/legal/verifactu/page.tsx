@@ -5,7 +5,7 @@ export default function LegalVerifactuPage() {
     <div>
       <PageHeader
         title="Información VeriFactu"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Información sobre el enfoque fiscal de la app"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
@@ -49,7 +49,7 @@ export default function LegalVerifactuPage() {
           emitir documentos básicos.
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );

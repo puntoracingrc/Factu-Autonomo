@@ -5,18 +5,21 @@ export default function PrivacidadPage() {
     <div>
       <PageHeader
         title="Política de privacidad"
-        subtitle="Borrador operativo — revisar antes de producción"
+        subtitle="Cómo tratamos tus datos al usar Factura Autónomo"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
           Esta política explica cómo se tratan los datos personales al usar
-          Factura Autónomo. Debe revisarse por un profesional antes de
-          comercializar el servicio.
+          Factura Autónomo, tanto en modo local como con cuenta en la nube.
         </p>
         <p>
-          <strong>Responsable del servicio:</strong> [nombre o razón social
-          pendiente] — [NIF/CIF pendiente] — [domicilio pendiente] — [email de
-          contacto pendiente].
+          <strong>Responsable del servicio:</strong> Alberto Ibáñez de Opacua
+          Muñoz, NIF 46402457A, C/ Valencia 542, Barcelona. Para consultas
+          sobre privacidad puedes escribir a{" "}
+          <a href="mailto:puntoracingrc@gmail.com">
+            puntoracingrc@gmail.com
+          </a>
+          .
         </p>
         <h2>Datos que tratamos</h2>
         <ul>
@@ -70,6 +73,13 @@ export default function PrivacidadPage() {
           <li>Supabase: autenticación, base de datos y sincronización.</li>
           <li>Stripe: pagos, suscripciones y portal de facturación.</li>
           <li>
+            Google Drive: copia extra opcional cuando el usuario la activa. La
+            app solicita el permiso limitado{" "}
+            <code>https://www.googleapis.com/auth/drive.file</code> para crear
+            y actualizar únicamente archivos de Drive usados con Factura
+            Autónomo.
+          </li>
+          <li>
             Proveedor de IA: análisis de imágenes, PDF o textos que el usuario
             envía voluntariamente desde funciones IA.
           </li>
@@ -82,6 +92,13 @@ export default function PrivacidadPage() {
           guardada la aceptación en este dispositivo. No subas información que
           no sea necesaria para la tarea.
         </p>
+        <h2>Google Drive</h2>
+        <p>
+          La copia extra en Google Drive es opcional y se activa desde Cuenta.
+          Si la conectas, Factura Autónomo guarda un archivo de copia de
+          seguridad en tu Drive. No solicitamos acceso completo a tu unidad ni a
+          archivos ajenos a los usados con esta app.
+        </p>
         <h2>Conservación</h2>
         <p>
           Los datos se conservan mientras mantengas la cuenta o los datos en el
@@ -92,17 +109,21 @@ export default function PrivacidadPage() {
         <h2>Derechos</h2>
         <p>
           Puedes solicitar acceso, rectificación, supresión, oposición,
-          limitación y portabilidad escribiendo a [email pendiente]. También
-          puedes reclamar ante la Agencia Española de Protección de Datos.
+          limitación y portabilidad escribiendo a{" "}
+          <a href="mailto:puntoracingrc@gmail.com">
+            puntoracingrc@gmail.com
+          </a>
+          . También puedes reclamar ante la Agencia Española de Protección de
+          Datos.
         </p>
         <h2>Transferencias internacionales</h2>
         <p>
           Algunos proveedores tecnológicos pueden operar fuera del Espacio
-          Económico Europeo. Antes de producción debe confirmarse la lista final
-          de proveedores y las garantías aplicables.
+          Económico Europeo. Cuando sea necesario, se aplican las garantías
+          previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>24 de junio de 2026.</p>
+        <p>2 de julio de 2026.</p>
       </Card>
     </div>
   );
