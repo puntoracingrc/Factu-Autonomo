@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import type { PlanId } from "@/lib/billing/plans";
+import { AI_UNITS_PER_SCAN } from "@/lib/billing/scan-limits";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 
 export const ADMIN_PLAN_OPTIONS: PlanId[] = ["free", "trial", "pro"];
@@ -121,4 +122,21 @@ export function coerceNonNegativeInteger(value: unknown): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.floor(numeric));
+}
+
+export function scanCreditsToAiUnits(value: unknown): number {
+  return coerceNonNegativeInteger(value) * AI_UNITS_PER_SCAN;
+}
+
+export function aiUnitsToScanCredits(value: unknown): number {
+  return Math.floor(coerceNonNegativeInteger(value) / AI_UNITS_PER_SCAN);
+}
+
+export function normalizeAdminAiCreditUnits(
+  aiCreditUnits: unknown,
+  legacyScanCredits?: unknown,
+): number {
+  const units = coerceNonNegativeInteger(aiCreditUnits);
+  if (units > 0 || legacyScanCredits === undefined) return units;
+  return scanCreditsToAiUnits(legacyScanCredits);
 }

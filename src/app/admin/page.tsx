@@ -14,7 +14,18 @@ import {
   UserCog,
 } from "lucide-react";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import { ADMIN_PLAN_OPTIONS, ADMIN_STATUS_OPTIONS, dateOnlyFromIso, type AdminUserRow } from "@/lib/admin/users";
+import {
+  ADMIN_PLAN_OPTIONS,
+  ADMIN_STATUS_OPTIONS,
+  aiUnitsToScanCredits,
+  coerceNonNegativeInteger,
+  dateOnlyFromIso,
+  type AdminUserRow,
+} from "@/lib/admin/users";
+import {
+  AI_UNITS_PER_SCAN,
+  PRO_EXPENSE_SCANS_PER_MONTH,
+} from "@/lib/billing/scan-limits";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -135,6 +146,14 @@ async function getAccessToken() {
   return data.session?.access_token ?? null;
 }
 
+async function readAdminPatchResponse(response: Response) {
+  try {
+    return (await response.json()) as { error?: string; monthKey?: string };
+  } catch {
+    return {};
+  }
+}
+
 function menuStatusLabel(status: "activo" | "fase") {
   return status === "activo" ? "Disponible" : "Siguiente fase";
 }
@@ -226,7 +245,6 @@ function UserAdminCard({
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState(
     dateOnlyFromIso(user.subscription.currentPeriodEnd),
   );
-  const [scanCredits, setScanCredits] = useState(user.subscription.scanCredits);
   const [aiCreditUnits, setAiCreditUnits] = useState(user.subscription.aiCreditUnits);
   const [scanTrialRemaining, setScanTrialRemaining] = useState(
     user.subscription.scanTrialRemaining,
@@ -234,6 +252,9 @@ function UserAdminCard({
   const [banReason, setBanReason] = useState(user.ban.reason ?? "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const normalizedAiCreditUnits = coerceNonNegativeInteger(aiCreditUnits);
+  const aiScanEquivalent = aiUnitsToScanCredits(normalizedAiCreditUnits);
+  const monthlyIncludedUnits = PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN;
 
   const saveSubscription = async () => {
     setBusy(true);
@@ -257,16 +278,44 @@ function UserAdminCard({
         status,
         trialEndsAt,
         currentPeriodEnd,
-        scanCredits,
-        aiCreditUnits,
-        scanTrialRemaining,
+        scanCredits: aiScanEquivalent,
+        aiCreditUnits: normalizedAiCreditUnits,
+        scanTrialRemaining: coerceNonNegativeInteger(scanTrialRemaining),
       }),
     });
-    const body = (await response.json()) as { error?: string };
+    const body = await readAdminPatchResponse(response);
     if (!response.ok) {
       setMessage(body.error ?? "No se pudo guardar.");
     } else {
       setMessage("Suscripción actualizada.");
+      await onChanged();
+    }
+    setBusy(false);
+  };
+
+  const resetAiUsage = async () => {
+    setBusy(true);
+    setMessage(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setMessage("Sesión no disponible.");
+      setBusy(false);
+      return;
+    }
+
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action: "reset_ai_usage" }),
+    });
+    const body = await readAdminPatchResponse(response);
+    if (!response.ok) {
+      setMessage(body.error ?? "No se pudo rellenar el uso IA.");
+    } else {
+      setMessage("Uso IA del mes rellenado al 100%.");
       await onChanged();
     }
     setBusy(false);
@@ -295,7 +344,7 @@ function UserAdminCard({
         banReason,
       }),
     });
-    const body = (await response.json()) as { error?: string };
+    const body = await readAdminPatchResponse(response);
     if (!response.ok) {
       setMessage(body.error ?? "No se pudo actualizar el acceso.");
     } else {
@@ -403,33 +452,39 @@ function UserAdminCard({
             type="number"
             min="0"
             value={scanTrialRemaining}
-            onChange={(event) => setScanTrialRemaining(Number(event.target.value))}
+            onChange={(event) =>
+              setScanTrialRemaining(coerceNonNegativeInteger(event.target.value))
+            }
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
           />
         </label>
         <label className="space-y-1 text-sm font-bold text-slate-700">
-          Packs de escaneo
-          <input
-            type="number"
-            min="0"
-            value={scanCredits}
-            onChange={(event) => setScanCredits(Number(event.target.value))}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
-          />
-        </label>
-        <label className="space-y-1 text-sm font-bold text-slate-700">
-          Unidades IA
+          Créditos IA extra
           <input
             type="number"
             min="0"
             value={aiCreditUnits}
-            onChange={(event) => setAiCreditUnits(Number(event.target.value))}
+            onChange={(event) =>
+              setAiCreditUnits(coerceNonNegativeInteger(event.target.value))
+            }
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
           />
+          <span className="block text-xs font-semibold text-slate-500">
+            {AI_UNITS_PER_SCAN} unidades = 1 escaneo extra.
+          </span>
         </label>
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <p className="font-bold text-slate-500">Equivalencia</p>
+          <p className="text-lg font-bold text-slate-900">
+            {aiScanEquivalent} escaneo(s) extra
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Pro incluye {monthlyIncludedUnits} unidades IA al mes.
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto] lg:items-end">
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <label className="space-y-1 text-sm font-bold text-slate-700">
           Motivo de baneo
           <input
@@ -441,6 +496,10 @@ function UserAdminCard({
         </label>
         <Button type="button" onClick={saveSubscription} disabled={busy}>
           Guardar suscripción
+        </Button>
+        <Button type="button" variant="secondary" onClick={resetAiUsage} disabled={busy}>
+          <RefreshCw className="h-4 w-4" />
+          Rellenar IA 100%
         </Button>
         <Button
           type="button"
