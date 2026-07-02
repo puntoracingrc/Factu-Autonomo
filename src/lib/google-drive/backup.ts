@@ -8,6 +8,8 @@ export const DRIVE_BACKUP_CALLBACK_PATH = "/drive/callback";
 export const DRIVE_BACKUP_PENDING_KEY =
   "factura-autonomo-drive-backup-pending";
 export const DRIVE_BACKUP_TOKEN_KEY = "factura-autonomo-drive-access-token";
+export const DRIVE_BACKUP_FILE_PREFIX = "factu-autonomo-drive-backup-";
+export const DRIVE_BACKUP_RETENTION_LIMIT = 10;
 
 export type DriveBackupFrequency =
   | "manual"
@@ -46,6 +48,12 @@ export type DriveBackupUploadResult =
       webViewLink?: string;
       folderWebViewLink?: string;
       exportedAt: string;
+      retention: {
+        limit: number;
+        kept: number;
+        removed: number;
+      };
+      cleanupWarning?: string;
     }
   | { ok: false; error: string };
 
@@ -68,6 +76,13 @@ interface GoogleCodeResponse {
 
 interface GoogleCodeClient {
   requestCode: () => void;
+}
+
+interface DriveBackupFile {
+  id: string;
+  name: string;
+  createdTime?: string;
+  modifiedTime?: string;
 }
 
 interface GoogleAccountsOauth2 {
@@ -272,7 +287,7 @@ export function buildDriveBackupFileName(
   exportedAt = new Date().toISOString(),
 ): string {
   const stamp = exportedAt.slice(0, 16).replace("T", "-").replace(":", "");
-  return `factu-autonomo-drive-backup-${stamp}.json`;
+  return `${DRIVE_BACKUP_FILE_PREFIX}${stamp}.json`;
 }
 
 function newestTimestamp(items: Array<{ createdAt?: string; updatedAt?: string }>): string {
@@ -585,6 +600,79 @@ async function uploadJsonBackup(
   );
 }
 
+function backupFileSortValue(file: DriveBackupFile): string {
+  return file.createdTime ?? file.modifiedTime ?? file.name;
+}
+
+async function listDriveBackupFiles(
+  accessToken: string,
+  folderId: string,
+): Promise<DriveBackupFile[]> {
+  const query = [
+    `'${escapeDriveQueryValue(folderId)}' in parents`,
+    `name contains '${escapeDriveQueryValue(DRIVE_BACKUP_FILE_PREFIX)}'`,
+    "mimeType='application/json'",
+    "trashed=false",
+  ].join(" and ");
+
+  const files: DriveBackupFile[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const searchUrl = new URL("https://www.googleapis.com/drive/v3/files");
+    searchUrl.searchParams.set("q", query);
+    searchUrl.searchParams.set("spaces", "drive");
+    searchUrl.searchParams.set(
+      "fields",
+      "nextPageToken,files(id,name,createdTime,modifiedTime)",
+    );
+    searchUrl.searchParams.set("pageSize", "1000");
+    if (pageToken) searchUrl.searchParams.set("pageToken", pageToken);
+
+    const page = await driveFetch<{
+      nextPageToken?: string;
+      files?: DriveBackupFile[];
+    }>(searchUrl.toString(), accessToken);
+
+    files.push(...(page.files ?? []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+
+  return files
+    .filter((file) => file.id && file.name.startsWith(DRIVE_BACKUP_FILE_PREFIX))
+    .sort((a, b) => backupFileSortValue(b).localeCompare(backupFileSortValue(a)));
+}
+
+async function trashDriveFile(accessToken: string, fileId: string): Promise<void> {
+  await driveFetch<{ id: string; trashed?: boolean }>(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
+      fileId,
+    )}?fields=id,trashed`,
+    accessToken,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ trashed: true }),
+    },
+  );
+}
+
+async function pruneOldDriveBackups(
+  accessToken: string,
+  folderId: string,
+): Promise<{ limit: number; kept: number; removed: number }> {
+  const files = await listDriveBackupFiles(accessToken, folderId);
+  const oldFiles = files.slice(DRIVE_BACKUP_RETENTION_LIMIT);
+
+  await Promise.all(oldFiles.map((file) => trashDriveFile(accessToken, file.id)));
+
+  return {
+    limit: DRIVE_BACKUP_RETENTION_LIMIT,
+    kept: Math.min(files.length, DRIVE_BACKUP_RETENTION_LIMIT),
+    removed: oldFiles.length,
+  };
+}
+
 export async function uploadAppBackupToGoogleDrive(
   data: AppData,
   options: {
@@ -638,6 +726,21 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
       fileName,
       JSON.stringify(payload, null, 2),
     );
+    let cleanupWarning: string | undefined;
+    let retention = {
+      limit: DRIVE_BACKUP_RETENTION_LIMIT,
+      kept: 1,
+      removed: 0,
+    };
+
+    try {
+      retention = await pruneOldDriveBackups(accessToken, folder.id);
+    } catch (error) {
+      cleanupWarning =
+        error instanceof Error
+          ? error.message
+          : "No se pudieron retirar las copias antiguas de Drive.";
+    }
 
     return {
       ok: true,
@@ -646,6 +749,8 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
       webViewLink: uploaded.webViewLink,
       folderWebViewLink: folder.webViewLink,
       exportedAt,
+      retention,
+      cleanupWarning,
     };
   } catch (error) {
     return {

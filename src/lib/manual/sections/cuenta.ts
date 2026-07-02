@@ -44,6 +44,7 @@ export const cuentaSection: ManualSection = {
         "Drive no se usa para iniciar sesión: se conecta aparte, solo desde esta tarjeta, y con permiso limitado a los archivos creados o usados por la app.",
         "La frecuencia se elige en la propia tarjeta: manual, diaria o automática según los cambios importantes. Los automatismos solo funcionan mientras la app está abierta y Google mantiene el permiso activo.",
         "Tras guardar una copia, **Abrir carpeta de copias en Drive** te lleva a la carpeta donde quedan los JSON, para que no tengas que abrir el archivo técnico directamente.",
+        "Para no llenar Drive, Factu conserva las 10 copias más recientes y retira las anteriores de la carpeta de copias.",
         "Si ves **Drive necesita reconectar**, pulsa **Reconectar Drive** para renovar el permiso de Google. **Desconectar Drive** deja de guardar copias desde ese navegador, pero no borra lo que ya tengas guardado en Google Drive.",
       ],
     },
