@@ -131,6 +131,50 @@ describe("purchase products", () => {
     expect(summary.purchaseCount).toBe(1);
   });
 
+  it("respeta facetas de venta y compra guardadas en el catálogo", () => {
+    const [summary] = buildPurchaseProductSummaries([], [
+      product("Persiana mini aluminio", {
+        sku: "MB490",
+        unit: "m2",
+        pvp: 65,
+        cost: 39,
+        sales: {
+          enabled: true,
+          description: "Persiana mini aluminio instalada",
+          unit: "m2",
+          unitPrice: 95,
+          ivaPercent: 21,
+        },
+        purchase: {
+          enabled: true,
+          description: "MB490 MINIAL proveedor",
+          unit: "M2",
+          listPrice: 65,
+          discountPercent: 40,
+          netUnitCost: 39,
+          supplierReference: "MB490",
+        },
+        calculation: { kind: "area", unit: "m2", roundingDecimals: 2 },
+      }),
+    ]);
+
+    expect(summary).toMatchObject({
+      sku: "MB490",
+      saleDescription: "Persiana mini aluminio instalada",
+      saleUnit: "m2",
+      saleUnitPrice: 95,
+      purchaseDescription: "MB490 MINIAL proveedor",
+      purchaseUnit: "M2",
+      purchaseListPrice: 65,
+      purchaseDiscountPercent: 40,
+      purchaseNetUnitCost: 39,
+      purchaseSupplierReference: "MB490",
+      calculation: { kind: "area", unit: "m2", roundingDecimals: 2 },
+      lastPvp: 65,
+      lastUnitPrice: 39,
+    });
+  });
+
   it("unifica variantes mediante aliases guardados", () => {
     const expenses = [
       expense("1", "2026-07-01", "Arandes", [

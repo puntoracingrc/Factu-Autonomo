@@ -229,6 +229,20 @@ describe("FacturaDirecta importer", () => {
       amount: 78.4,
       ivaPercent: 21,
     });
+    expect(result.data.products).toHaveLength(1);
+    expect(result.data.products[0]).toMatchObject({
+      id: "facturadirecta:product:MAT-PERS-001",
+      sku: "MAT-PERS-001",
+      name: "Kit persiana demo",
+      sales: {
+        description: "Kit de persiana demo",
+        unitPrice: 120,
+        ivaPercent: 21,
+      },
+      purchase: {
+        supplierReference: "MAT-PERS-001",
+      },
+    });
     expect(result.data.expenses[0].notes).toContain("2026-07-15");
     expect(result.unsupported.map((item) => item.label)).toContain(
       "Notas internas de ventas",
@@ -253,6 +267,7 @@ describe("FacturaDirecta importer", () => {
     expect(second.data.customers.filter((customer) => customer.id.startsWith("facturadirecta:customer:"))).toHaveLength(1);
     expect(second.data.customers.some((customer) => customer.id === "manual-customer")).toBe(true);
     expect(second.data.documents.filter((doc) => doc.id.startsWith("facturadirecta:factura:"))).toHaveLength(1);
+    expect(second.data.products.filter((product) => product.id.startsWith("facturadirecta:product:"))).toHaveLength(1);
   });
 });
 

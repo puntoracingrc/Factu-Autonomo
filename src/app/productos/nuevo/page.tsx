@@ -10,13 +10,21 @@ import { useAppStore } from "@/context/AppStore";
 import { purchaseProductKey } from "@/lib/purchase-products";
 
 const EMPTY_FORM = {
+  sku: "",
   name: "",
   family: "",
-  unit: "ud",
+  saleDescription: "",
+  saleUnit: "ud",
+  salePrice: "",
+  saleIvaPercent: "21",
   supplierName: "",
-  pvp: "",
-  cost: "",
-  ivaPercent: "21",
+  supplierReference: "",
+  purchaseDescription: "",
+  purchaseUnit: "ud",
+  purchaseListPrice: "",
+  purchaseDiscountPercent: "",
+  purchaseNetUnitCost: "",
+  calculationKind: "none",
   notes: "",
 };
 
@@ -72,18 +80,60 @@ export default function NuevoProductoPage() {
     const supplier = data.suppliers.find(
       (entry) => entry.name.toLowerCase() === supplierName.toLowerCase(),
     );
+    const salePrice = parseAmount(form.salePrice);
+    const saleIvaPercent = parseAmount(form.saleIvaPercent);
+    const purchaseListPrice = parseAmount(form.purchaseListPrice);
+    const purchaseDiscountPercent = parseAmount(form.purchaseDiscountPercent);
+    const purchaseNetUnitCost =
+      parseAmount(form.purchaseNetUnitCost) ??
+      (purchaseListPrice !== undefined && purchaseDiscountPercent !== undefined
+        ? purchaseListPrice * (1 - purchaseDiscountPercent / 100)
+        : undefined);
+    const saleUnit = form.saleUnit.trim() || "ud";
+    const purchaseUnit = form.purchaseUnit.trim() || saleUnit;
 
     addProduct({
       key,
       aliases: [],
+      sku: form.sku.trim() || undefined,
       name,
       family: form.family.trim() || "Sin familia",
-      unit: form.unit.trim() || undefined,
+      unit: saleUnit,
       supplierId: supplier?.id,
       supplierName: supplier?.name ?? (supplierName || undefined),
-      pvp: parseAmount(form.pvp),
-      cost: parseAmount(form.cost),
-      ivaPercent: parseAmount(form.ivaPercent),
+      pvp: purchaseListPrice,
+      cost: purchaseNetUnitCost,
+      ivaPercent: saleIvaPercent,
+      sales: {
+        enabled: true,
+        description: form.saleDescription.trim() || undefined,
+        unit: saleUnit,
+        unitPrice: salePrice,
+        ivaPercent: saleIvaPercent,
+      },
+      purchase: {
+        enabled: Boolean(
+          supplierName ||
+            form.purchaseDescription.trim() ||
+            form.supplierReference.trim() ||
+            purchaseListPrice ||
+            purchaseDiscountPercent ||
+            purchaseNetUnitCost,
+        ),
+        description: form.purchaseDescription.trim() || undefined,
+        unit: purchaseUnit,
+        listPrice: purchaseListPrice,
+        discountPercent: purchaseDiscountPercent,
+        netUnitCost: purchaseNetUnitCost,
+        ivaPercent: saleIvaPercent,
+        supplierId: supplier?.id,
+        supplierName: supplier?.name ?? (supplierName || undefined),
+        supplierReference: form.supplierReference.trim() || undefined,
+      },
+      calculation:
+        form.calculationKind === "area"
+          ? { kind: "area", unit: saleUnit, roundingDecimals: 2 }
+          : undefined,
       notes: form.notes.trim() || undefined,
       source: "manual",
     });
@@ -110,7 +160,14 @@ export default function NuevoProductoPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_0.45fr]">
+        <div className="grid gap-4 lg:grid-cols-[0.55fr_1.4fr_1fr]">
+          <Field label="Código / SKU">
+            <Input
+              value={form.sku}
+              onChange={(event) => updateField("sku", event.target.value)}
+              placeholder="Ej: MB490"
+            />
+          </Field>
           <Field label="Producto o servicio">
             <Input
               value={form.name}
@@ -126,53 +183,135 @@ export default function NuevoProductoPage() {
               placeholder="Ej: Persianas y accesorios"
             />
           </Field>
-          <Field label="Unidad">
-            <Input
-              value={form.unit}
-              onChange={(event) => updateField("unit", event.target.value)}
-              placeholder="ud"
-            />
-          </Field>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Field label="Proveedor habitual">
-            <Input
-              list="new-product-supplier-options"
-              value={form.supplierName}
-              onChange={(event) =>
-                updateField("supplierName", event.target.value)
-              }
-              placeholder="Proveedor"
-            />
-          </Field>
-          <Field label="PVP proveedor" hint="Tarifa antes de descuento.">
-            <Input
-              inputMode="decimal"
-              value={form.pvp}
-              onChange={(event) => updateField("pvp", event.target.value)}
-              placeholder="0,00"
-            />
-          </Field>
-          <Field label="Coste real" hint="Precio después de descuento.">
-            <Input
-              inputMode="decimal"
-              value={form.cost}
-              onChange={(event) => updateField("cost", event.target.value)}
-              placeholder="0,00"
-            />
-          </Field>
-          <Field label="IVA %">
-            <Input
-              inputMode="decimal"
-              value={form.ivaPercent}
-              onChange={(event) =>
-                updateField("ivaPercent", event.target.value)
-              }
-              placeholder="21"
-            />
-          </Field>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <h2 className="text-base font-black text-slate-950">Venta</h2>
+          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-[1.3fr_0.45fr_0.65fr_0.45fr]">
+            <Field label="Descripción para documentos">
+              <Input
+                value={form.saleDescription}
+                onChange={(event) =>
+                  updateField("saleDescription", event.target.value)
+                }
+                placeholder="Si se deja vacío, se usa el nombre"
+              />
+            </Field>
+            <Field label="Unidad venta">
+              <Input
+                value={form.saleUnit}
+                onChange={(event) => updateField("saleUnit", event.target.value)}
+                placeholder="ud"
+              />
+            </Field>
+            <Field label="Precio venta" hint="Sin IVA.">
+              <Input
+                inputMode="decimal"
+                value={form.salePrice}
+                onChange={(event) => updateField("salePrice", event.target.value)}
+                placeholder="0,00"
+              />
+            </Field>
+            <Field label="IVA %">
+              <Input
+                inputMode="decimal"
+                value={form.saleIvaPercent}
+                onChange={(event) =>
+                  updateField("saleIvaPercent", event.target.value)
+                }
+                placeholder="21"
+              />
+            </Field>
+          </div>
         </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <h2 className="text-base font-black text-slate-950">Compra</h2>
+          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Field label="Proveedor habitual">
+              <Input
+                list="new-product-supplier-options"
+                value={form.supplierName}
+                onChange={(event) =>
+                  updateField("supplierName", event.target.value)
+                }
+                placeholder="Proveedor"
+              />
+            </Field>
+            <Field label="Referencia proveedor">
+              <Input
+                value={form.supplierReference}
+                onChange={(event) =>
+                  updateField("supplierReference", event.target.value)
+                }
+                placeholder="Código del proveedor"
+              />
+            </Field>
+            <Field label="Unidad compra">
+              <Input
+                value={form.purchaseUnit}
+                onChange={(event) =>
+                  updateField("purchaseUnit", event.target.value)
+                }
+                placeholder="ud"
+              />
+            </Field>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Field label="Descripción de compra">
+              <Input
+                value={form.purchaseDescription}
+                onChange={(event) =>
+                  updateField("purchaseDescription", event.target.value)
+                }
+                placeholder="Texto habitual de la factura del proveedor"
+              />
+            </Field>
+            <Field label="Tarifa proveedor" hint="Antes de descuento, sin IVA.">
+              <Input
+                inputMode="decimal"
+                value={form.purchaseListPrice}
+                onChange={(event) =>
+                  updateField("purchaseListPrice", event.target.value)
+                }
+                placeholder="0,00"
+              />
+            </Field>
+            <Field label="Descuento %">
+              <Input
+                inputMode="decimal"
+                value={form.purchaseDiscountPercent}
+                onChange={(event) =>
+                  updateField("purchaseDiscountPercent", event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field label="Coste real" hint="Después de descuento, sin IVA.">
+              <Input
+                inputMode="decimal"
+                value={form.purchaseNetUnitCost}
+                onChange={(event) =>
+                  updateField("purchaseNetUnitCost", event.target.value)
+                }
+                placeholder="0,00"
+              />
+            </Field>
+          </div>
+        </div>
+
+        <Field label="Cálculo de cantidad">
+          <select
+            value={form.calculationKind}
+            onChange={(event) =>
+              updateField("calculationKind", event.target.value)
+            }
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="none">Cantidad directa</option>
+            <option value="area">Área: alto x ancho = m²</option>
+          </select>
+        </Field>
 
         <Field label="Notas">
           <Textarea

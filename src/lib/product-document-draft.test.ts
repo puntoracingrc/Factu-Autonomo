@@ -4,9 +4,13 @@ import { purchaseProductKey } from "./purchase-products";
 import type { PurchaseProductSummary } from "./purchase-products";
 
 describe("product document draft", () => {
-  it("prepara una línea de venta usando PVP antes que coste", () => {
+  it("prepara una línea usando la faceta de venta antes que proveedor o coste", () => {
     const line = productSummaryToDocumentDraftLine(
       summary("Panel blanco", {
+        saleDescription: "Panel blanco vendido",
+        saleUnit: "m2",
+        saleUnitPrice: 45,
+        saleIvaPercent: 10,
         lastPvp: 30,
         averagePvp: 28,
         lastUnitPrice: 18,
@@ -17,13 +21,14 @@ describe("product document draft", () => {
 
     expect(line).toMatchObject({
       productName: "Panel blanco",
-      basePrice: 30,
-      priceSource: "pvp",
+      basePrice: 45,
+      priceSource: "sale",
       line: {
-        description: "Panel blanco",
+        description: "Panel blanco vendido",
         quantity: 1,
-        unitPrice: 30,
-        ivaPercent: 21,
+        unit: "m2",
+        unitPrice: 45,
+        ivaPercent: 10,
       },
     });
   });

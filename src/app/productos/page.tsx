@@ -52,6 +52,17 @@ const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
   { value: "name", label: "Nombre" },
 ];
 
+function parseOptionalNumber(value: string): number | undefined {
+  const normalized = value.replace(",", ".").trim();
+  if (!normalized) return undefined;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function numberToInput(value: number | undefined): string {
+  return value === undefined || !Number.isFinite(value) ? "" : String(value);
+}
+
 export default function ProductosPage() {
   const router = useRouter();
   const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
@@ -181,14 +192,40 @@ export default function ProductosPage() {
     return {
       key: product.key,
       aliases: product.aliases,
+      sku: product.sku,
+      externalId: product.externalId,
       name: product.name,
       family: product.family,
-      unit: product.unit,
+      unit: product.saleUnit ?? product.unit,
       supplierId: product.usualSupplier?.supplierId,
       supplierName: product.usualSupplier?.supplierName,
-      pvp: product.lastPvp || undefined,
-      cost: product.lastUnitPrice || undefined,
-      ivaPercent: product.ivaPercent,
+      pvp: (product.purchaseListPrice ?? product.lastPvp) || undefined,
+      cost: (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
+      ivaPercent: product.saleIvaPercent ?? product.ivaPercent,
+      sales: {
+        enabled: true,
+        description: product.saleDescription,
+        unit: product.saleUnit ?? product.unit,
+        unitPrice: product.saleUnitPrice,
+        ivaPercent: product.saleIvaPercent ?? product.ivaPercent,
+      },
+      purchase: {
+        enabled: true,
+        description: product.purchaseDescription,
+        unit: product.purchaseUnit ?? product.unit,
+        listPrice: (product.purchaseListPrice ?? product.lastPvp) || undefined,
+        discountPercent:
+          (product.purchaseDiscountPercent ?? product.lastDiscountPercent) ||
+          undefined,
+        netUnitCost:
+          (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
+        ivaPercent: product.ivaPercent,
+        supplierId: product.usualSupplier?.supplierId,
+        supplierName: product.usualSupplier?.supplierName,
+        supplierReference: product.purchaseSupplierReference,
+        purchaseToSaleFactor: product.purchaseToSaleFactor,
+      },
+      calculation: product.calculation,
       source: product.source,
     };
   }
@@ -485,9 +522,45 @@ function ProductCard({
   onMerge: (removeKey: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [sku, setSku] = useState(product.sku ?? "");
   const [name, setName] = useState(product.name);
   const [family, setFamily] = useState(product.family);
-  const [unit, setUnit] = useState(product.unit ?? "");
+  const [saleDescription, setSaleDescription] = useState(
+    product.saleDescription ?? "",
+  );
+  const [saleUnit, setSaleUnit] = useState(product.saleUnit ?? product.unit ?? "");
+  const [salePrice, setSalePrice] = useState(
+    numberToInput(product.saleUnitPrice),
+  );
+  const [saleIvaPercent, setSaleIvaPercent] = useState(
+    numberToInput(product.saleIvaPercent ?? product.ivaPercent),
+  );
+  const [purchaseDescription, setPurchaseDescription] = useState(
+    product.purchaseDescription ?? "",
+  );
+  const [purchaseUnit, setPurchaseUnit] = useState(
+    product.purchaseUnit ?? product.unit ?? "",
+  );
+  const [purchaseListPrice, setPurchaseListPrice] = useState(
+    numberToInput((product.purchaseListPrice ?? product.lastPvp) || undefined),
+  );
+  const [purchaseDiscountPercent, setPurchaseDiscountPercent] = useState(
+    numberToInput(
+      (product.purchaseDiscountPercent ?? product.lastDiscountPercent) ||
+        undefined,
+    ),
+  );
+  const [purchaseNetUnitCost, setPurchaseNetUnitCost] = useState(
+    numberToInput(
+      (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
+    ),
+  );
+  const [supplierReference, setSupplierReference] = useState(
+    product.purchaseSupplierReference ?? "",
+  );
+  const [calculationKind, setCalculationKind] = useState(
+    product.calculation?.kind ?? "none",
+  );
   const [mergeKey, setMergeKey] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
   const lastDiscount =
@@ -508,10 +581,52 @@ function ProductCard({
   });
 
   function saveEdits() {
+    const parsedSalePrice = parseOptionalNumber(salePrice);
+    const parsedSaleIva = parseOptionalNumber(saleIvaPercent);
+    const parsedPurchaseListPrice = parseOptionalNumber(purchaseListPrice);
+    const parsedPurchaseDiscount = parseOptionalNumber(purchaseDiscountPercent);
+    const parsedPurchaseCost =
+      parseOptionalNumber(purchaseNetUnitCost) ??
+      (parsedPurchaseListPrice !== undefined && parsedPurchaseDiscount !== undefined
+        ? parsedPurchaseListPrice * (1 - parsedPurchaseDiscount / 100)
+        : undefined);
+    const normalizedSaleUnit = saleUnit.trim() || product.unit || "ud";
+    const normalizedPurchaseUnit = purchaseUnit.trim() || normalizedSaleUnit;
     onSave({
+      sku: sku.trim() || undefined,
       name: name.trim() || product.name,
       family: family.trim() || "Sin familia",
-      unit: unit.trim() || undefined,
+      unit: normalizedSaleUnit,
+      pvp: parsedPurchaseListPrice,
+      cost: parsedPurchaseCost,
+      ivaPercent: parsedSaleIva ?? product.ivaPercent,
+      sales: {
+        enabled: true,
+        description: saleDescription.trim() || undefined,
+        unit: normalizedSaleUnit,
+        unitPrice: parsedSalePrice,
+        ivaPercent: parsedSaleIva,
+      },
+      purchase: {
+        enabled: true,
+        description: purchaseDescription.trim() || undefined,
+        unit: normalizedPurchaseUnit,
+        listPrice: parsedPurchaseListPrice,
+        discountPercent: parsedPurchaseDiscount,
+        netUnitCost: parsedPurchaseCost,
+        ivaPercent: product.ivaPercent,
+        supplierId: product.usualSupplier?.supplierId,
+        supplierName: product.usualSupplier?.supplierName,
+        supplierReference: supplierReference.trim() || undefined,
+      },
+      calculation:
+        calculationKind === "area"
+          ? {
+              kind: "area",
+              unit: normalizedSaleUnit,
+              roundingDecimals: product.calculation?.roundingDecimals ?? 2,
+            }
+          : undefined,
       source: product.source,
     });
     setIsEditing(false);
@@ -543,9 +658,19 @@ function ProductCard({
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
               {product.family}
             </span>
+            {product.sku ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {product.sku}
+              </span>
+            ) : null}
             {product.unit ? (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                 {product.unit}
+              </span>
+            ) : null}
+            {product.calculation?.kind === "area" ? (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                alto x ancho
               </span>
             ) : null}
           </div>
@@ -571,9 +696,37 @@ function ProductCard({
           <button
             type="button"
             onClick={() => {
+              setSku(product.sku ?? "");
               setName(product.name);
               setFamily(product.family);
-              setUnit(product.unit ?? "");
+              setSaleDescription(product.saleDescription ?? "");
+              setSaleUnit(product.saleUnit ?? product.unit ?? "");
+              setSalePrice(numberToInput(product.saleUnitPrice));
+              setSaleIvaPercent(
+                numberToInput(product.saleIvaPercent ?? product.ivaPercent),
+              );
+              setPurchaseDescription(product.purchaseDescription ?? "");
+              setPurchaseUnit(product.purchaseUnit ?? product.unit ?? "");
+              setPurchaseListPrice(
+                numberToInput(
+                  (product.purchaseListPrice ?? product.lastPvp) || undefined,
+                ),
+              );
+              setPurchaseDiscountPercent(
+                numberToInput(
+                  (product.purchaseDiscountPercent ??
+                    product.lastDiscountPercent) ||
+                    undefined,
+                ),
+              );
+              setPurchaseNetUnitCost(
+                numberToInput(
+                  (product.purchaseNetUnitCost ?? product.lastUnitPrice) ||
+                    undefined,
+                ),
+              );
+              setSupplierReference(product.purchaseSupplierReference ?? "");
+              setCalculationKind(product.calculation?.kind ?? "none");
               setIsEditing((value) => !value);
             }}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -613,8 +766,18 @@ function ProductCard({
       </div>
 
       {isEditing ? (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
-          <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_0.45fr_auto]">
+        <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
+          <div className="grid gap-3 lg:grid-cols-[0.5fr_1.4fr_1fr_0.7fr]">
+            <label className="space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Código
+              </span>
+              <input
+                value={sku}
+                onChange={(event) => setSku(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
             <label className="space-y-1.5">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">
                 Producto
@@ -638,25 +801,84 @@ function ProductCard({
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Ud.
+                Cálculo
               </span>
-              <input
-                value={unit}
-                onChange={(event) => setUnit(event.target.value)}
+              <select
+                value={calculationKind}
+                onChange={(event) =>
+                  setCalculationKind(event.target.value as "none" | "area")
+                }
                 className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={saveEdits}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 lg:w-auto"
               >
-                <Save className="h-4 w-4" />
-                Guardar
-              </button>
-            </div>
+                <option value="none">Cantidad directa</option>
+                <option value="area">Alto x ancho</option>
+              </select>
+            </label>
           </div>
+          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.45fr_0.6fr_0.45fr]">
+            <EditInput
+              label="Venta: descripción"
+              value={saleDescription}
+              onChange={setSaleDescription}
+              placeholder={product.name}
+            />
+            <EditInput label="Unidad venta" value={saleUnit} onChange={setSaleUnit} />
+            <EditInput
+              label="Precio venta"
+              value={salePrice}
+              onChange={setSalePrice}
+              inputMode="decimal"
+            />
+            <EditInput
+              label="IVA %"
+              value={saleIvaPercent}
+              onChange={setSaleIvaPercent}
+              inputMode="decimal"
+            />
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.45fr_0.6fr_0.45fr_0.6fr]">
+            <EditInput
+              label="Compra: descripción"
+              value={purchaseDescription}
+              onChange={setPurchaseDescription}
+            />
+            <EditInput
+              label="Ref. proveedor"
+              value={supplierReference}
+              onChange={setSupplierReference}
+            />
+            <EditInput
+              label="Unidad compra"
+              value={purchaseUnit}
+              onChange={setPurchaseUnit}
+            />
+            <EditInput
+              label="Tarifa proveedor"
+              value={purchaseListPrice}
+              onChange={setPurchaseListPrice}
+              inputMode="decimal"
+            />
+            <EditInput
+              label="Dto. %"
+              value={purchaseDiscountPercent}
+              onChange={setPurchaseDiscountPercent}
+              inputMode="decimal"
+            />
+            <EditInput
+              label="Coste real"
+              value={purchaseNetUnitCost}
+              onChange={setPurchaseNetUnitCost}
+              inputMode="decimal"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveEdits}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
+          >
+            <Save className="h-4 w-4" />
+            Guardar
+          </button>
           <p className="mt-2 text-sm font-semibold text-blue-900">
             Estos datos se recordarán para futuros escaneos del mismo producto.
           </p>
@@ -664,6 +886,14 @@ function ProductCard({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Metric
+          label="Precio venta"
+          value={
+            product.saleUnitPrice
+              ? formatMoney(product.saleUnitPrice)
+              : "Sin precio"
+          }
+        />
         <Metric label="Coste medio" value={formatMoney(product.averageUnitPrice)} />
         <Metric
           label="Descuento habitual"
@@ -675,7 +905,6 @@ function ProductCard({
             product.unit ?? ""
           }`.trim()}
         />
-        <Metric label="Total comprado" value={formatMoney(product.totalBase)} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -777,6 +1006,35 @@ function ProductCard({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+function EditInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  inputMode,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  inputMode?: "decimal";
+}) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+        {label}
+      </span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      />
+    </label>
   );
 }
 
