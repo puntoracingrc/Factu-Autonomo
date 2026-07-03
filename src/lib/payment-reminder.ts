@@ -1,5 +1,5 @@
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
-import { resolveIssuerForDocument } from "./issuer-snapshot";
+import { issuerDisplayName, resolveIssuerForDocument } from "./issuer-snapshot";
 import type { BusinessProfile, Document } from "./types";
 
 function clientFirstName(doc: Document): string {
@@ -14,7 +14,7 @@ export function buildDefaultPaymentReminderMessage(
 ): string {
   const issuer = resolveIssuerForDocument(doc, profile);
   const { total } = documentTotals(doc);
-  const business = issuer.name || "Tu negocio";
+  const business = issuerDisplayName(issuer);
   const greeting = clientFirstName(doc);
   const lines = [
     `Hola${greeting ? ` ${greeting}` : ""},`,

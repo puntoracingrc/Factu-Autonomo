@@ -6,6 +6,7 @@ import {
 } from "./document-integrity/pdf-source";
 import { isValidCustomerEmail } from "./customers";
 import { isCollectedDocument } from "./income";
+import { issuerDisplayName } from "./issuer-snapshot";
 import { isRectificativa } from "./rectificativas";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 import type { DocumentPdfOptions } from "./pdf";
@@ -28,7 +29,7 @@ export function buildShareMessage(doc: Document, profile: BusinessProfile): stri
     ? documentPdfViewAmounts(viewModel)
     : documentTotals(renderDoc);
   const typeLabel = documentTypeLabel(renderDoc);
-  const business = issuer.name || "Tu negocio";
+  const business = issuerDisplayName(issuer);
   const lines = [
     `Hola${renderDoc.client.name ? ` ${renderDoc.client.name.split(" ")[0]}` : ""},`,
     "",

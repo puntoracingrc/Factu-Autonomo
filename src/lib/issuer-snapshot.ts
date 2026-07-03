@@ -4,6 +4,7 @@ export type { IssuerSnapshot };
 
 export type IssuerProfile = Pick<
   IssuerSnapshot,
+  | "commercialName"
   | "name"
   | "nif"
   | "address"
@@ -15,6 +16,29 @@ export type IssuerProfile = Pick<
   | "logoUrl"
 >;
 
+type IssuerIdentity = {
+  commercialName?: string | null;
+  name?: string | null;
+};
+
+function text(value: string | null | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function comparableName(value: string | null | undefined): string {
+  return text(value).replace(/\s+/g, " ").toLowerCase();
+}
+
+export function issuerDisplayName(issuer: IssuerIdentity): string {
+  return text(issuer.commercialName) || text(issuer.name) || "Tu negocio";
+}
+
+export function hasDistinctFiscalName(issuer: IssuerIdentity): boolean {
+  const commercialName = comparableName(issuer.commercialName);
+  const fiscalName = comparableName(issuer.name);
+  return Boolean(commercialName && fiscalName && commercialName !== fiscalName);
+}
+
 export function isEmittedDocument(doc: Document): boolean {
   return doc.status !== "borrador";
 }
@@ -24,6 +48,7 @@ export function captureIssuerSnapshot(
   capturedAt = new Date().toISOString(),
 ): IssuerSnapshot {
   return {
+    commercialName: profile.commercialName?.trim() || undefined,
     name: profile.name.trim(),
     nif: profile.nif.trim(),
     address: profile.address.trim(),

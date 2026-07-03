@@ -445,8 +445,18 @@ export default function ConfiguracionPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
+              label="Nombre comercial"
+              hint="Opcional. Será el nombre principal del documento; el nombre fiscal seguirá apareciendo debajo."
+            >
+              <Input
+                value={form.commercialName ?? ""}
+                onChange={(e) => update("commercialName", e.target.value)}
+                placeholder="Ej: Taller La Latina"
+              />
+            </Field>
+            <Field
               label="Nombre fiscal o razón social *"
-              hint="Aparece como emisor en PDF de presupuestos, facturas y recibos."
+              hint="Debe coincidir con tus datos fiscales y seguirá apareciendo en el documento."
             >
               <Input
                 value={form.name}

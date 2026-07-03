@@ -4,6 +4,8 @@ import type { Document } from "./types";
 import {
   attachIssuerSnapshot,
   captureIssuerSnapshot,
+  hasDistinctFiscalName,
+  issuerDisplayName,
   resolveIssuerForDocument,
   resolveIssuerNif,
 } from "./issuer-snapshot";
@@ -24,15 +26,33 @@ describe("issuer snapshot", () => {
   it("captures profile fields at emission", () => {
     const snapshot = captureIssuerSnapshot({
       ...DEFAULT_PROFILE,
+      commercialName: "Taller Visible",
       name: "Juan Pérez",
       nif: "12345678Z",
       address: "Calle Mayor 1",
       city: "Madrid",
       postalCode: "28001",
     });
+    expect(snapshot.commercialName).toBe("Taller Visible");
     expect(snapshot.name).toBe("Juan Pérez");
     expect(snapshot.nif).toBe("12345678Z");
     expect(snapshot.capturedAt).toBeTruthy();
+  });
+
+  it("uses commercial name as display name without replacing fiscal identity", () => {
+    const issuer = {
+      commercialName: "Taller Visible",
+      name: "Juan Pérez",
+    };
+
+    expect(issuerDisplayName(issuer)).toBe("Taller Visible");
+    expect(hasDistinctFiscalName(issuer)).toBe(true);
+    expect(
+      hasDistinctFiscalName({
+        commercialName: " Juan   Pérez ",
+        name: "juan pérez",
+      }),
+    ).toBe(false);
   });
 
   it("freezes issuer on first emission", () => {
@@ -61,6 +81,7 @@ describe("issuer snapshot", () => {
   it("resolves issuer from snapshot for PDF and Veri*Factu", () => {
     const doc = attachIssuerSnapshot(baseDoc, {
       ...DEFAULT_PROFILE,
+      commercialName: "Marca original",
       name: "Emisor",
       nif: "12345678Z",
     });
@@ -68,6 +89,9 @@ describe("issuer snapshot", () => {
       "12345678Z",
     );
     expect(resolveIssuerForDocument(doc, DEFAULT_PROFILE).name).toBe("Emisor");
+    expect(resolveIssuerForDocument(doc, DEFAULT_PROFILE).commercialName).toBe(
+      "Marca original",
+    );
   });
 
   it("reutiliza el logo actual del perfil si el snapshot no lo guardó", () => {

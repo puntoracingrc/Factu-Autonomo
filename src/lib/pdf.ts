@@ -23,6 +23,7 @@ import {
   normalizeDocumentTemplate,
 } from "./document-templates";
 import { livePdfIssuerWarning } from "./business-profile";
+import { hasDistinctFiscalName, issuerDisplayName } from "./issuer-snapshot";
 import { isDraftInvoiceNumber } from "./documents";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 
@@ -208,7 +209,6 @@ export function buildDocumentPdfFromViewModel(
   const isRect = isRectificativa(doc);
   const issuerWarning =
     viewModel.source === "live" ? livePdfIssuerWarning(issuer) : null;
-  const issuerBoxHeight = issuerWarning ? 45 : 39;
   const accent: [number, number, number] = isRect
     ? [180, 83, 9]
     : documentTemplateAccentRgb(template.accent);
@@ -256,26 +256,69 @@ export function buildDocumentPdfFromViewModel(
   pdf.setFont(pdfFont, "normal");
   pdf.setFontSize(bodyFontSize);
   pdf.setTextColor(60, 60, 60);
+  const issuerBoxY = contentStartY + 4;
+  const issuerTextX = 14;
+  const issuerMaxWidth = 70;
+  pdf.setFont(pdfFont, "bold");
+  pdf.setFontSize(issuerFontSize);
+  const issuerTitleLines = pdf.splitTextToSize(
+    issuerDisplayName(issuer),
+    issuerMaxWidth,
+  );
+  pdf.setFont(pdfFont, "normal");
+  pdf.setFontSize(bodyFontSize);
+  const issuerDetailLines = [
+    ...(hasDistinctFiscalName(issuer)
+      ? [`Titular fiscal: ${issuer.name.trim()}`]
+      : []),
+    ...(issuer.nif ? [`NIF: ${issuer.nif}`] : []),
+    ...(issuer.address ? [issuer.address] : []),
+    ...(issuer.city ? [`${issuer.postalCode} ${issuer.city}`.trim()] : []),
+    ...(issuer.phone ? [`Tel: ${issuer.phone}`] : []),
+    ...(issuer.email ? [issuer.email] : []),
+  ].flatMap((line) => pdf.splitTextToSize(line, issuerMaxWidth));
+  const issuerWarningLines = issuerWarning
+    ? pdf.splitTextToSize(issuerWarning, issuerMaxWidth)
+    : [];
+  const issuerTitleLineHeight = Math.max(6, issuerFontSize * 0.42);
+  const issuerDetailLineHeight = Math.max(5.5, bodyFontSize * 0.5);
+  const issuerWarningLineHeight = Math.max(4.5, (bodyFontSize - 1) * 0.5);
+  const issuerBoxHeight = Math.max(
+    39,
+    10 +
+      issuerTitleLines.length * issuerTitleLineHeight +
+      issuerDetailLines.length * issuerDetailLineHeight +
+      (issuerWarningLines.length
+        ? 2 + issuerWarningLines.length * issuerWarningLineHeight
+        : 0),
+  );
+
   if (template.showIssuerBox) {
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(12, contentStartY + 4, 76, issuerBoxHeight, 2, 2, "F");
+    pdf.roundedRect(12, issuerBoxY, 76, issuerBoxHeight, 2, 2, "F");
   }
   pdf.setFont(pdfFont, "bold");
   pdf.setFontSize(issuerFontSize);
-  pdf.text(issuer.name || "Tu negocio", 14, contentStartY + 10);
+  let issuerCursorY = issuerBoxY + 6;
+  for (const line of issuerTitleLines) {
+    pdf.text(line, issuerTextX, issuerCursorY);
+    issuerCursorY += issuerTitleLineHeight;
+  }
   pdf.setFont(pdfFont, "normal");
   pdf.setFontSize(bodyFontSize);
-  const baseY = contentStartY + 10;
-  if (issuer.nif) pdf.text(`NIF: ${issuer.nif}`, 14, baseY + 6);
-  if (issuer.address) pdf.text(issuer.address, 14, baseY + 12);
-  if (issuer.city)
-    pdf.text(`${issuer.postalCode} ${issuer.city}`, 14, baseY + 18);
-  if (issuer.phone) pdf.text(`Tel: ${issuer.phone}`, 14, baseY + 24);
-  if (issuer.email) pdf.text(issuer.email, 14, baseY + 30);
-  if (issuerWarning) {
+  pdf.setTextColor(60, 60, 60);
+  for (const line of issuerDetailLines) {
+    pdf.text(line, issuerTextX, issuerCursorY);
+    issuerCursorY += issuerDetailLineHeight;
+  }
+  if (issuerWarningLines.length > 0) {
+    issuerCursorY += 2;
     pdf.setFontSize(Math.max(7, bodyFontSize - 1));
     pdf.setTextColor(180, 83, 9);
-    pdf.text(pdf.splitTextToSize(issuerWarning, 70), 14, baseY + 36);
+    for (const line of issuerWarningLines) {
+      pdf.text(line, issuerTextX, issuerCursorY);
+      issuerCursorY += issuerWarningLineHeight;
+    }
     pdf.setTextColor(60, 60, 60);
     pdf.setFontSize(bodyFontSize);
   }
@@ -298,7 +341,7 @@ export function buildDocumentPdfFromViewModel(
     pdf.text(`Válido hasta: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
   }
 
-  let clientBoxY = baseY + (issuerWarning ? 46 : 38);
+  let clientBoxY = issuerBoxY + issuerBoxHeight + 5;
   if (isRect && doc.rectification) {
     pdf.setFontSize(Math.max(8, bodyFontSize - 0.2));
     pdf.setTextColor(120, 53, 15);

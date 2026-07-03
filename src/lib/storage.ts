@@ -21,6 +21,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
   return {
     ...DEFAULT_PROFILE,
     ...profile,
+    commercialName: profile?.commercialName?.trim() ?? "",
     iva: normalizeIvaSettings(profile?.iva),
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
     vatExempt: normalizeVatExempt(profile?.vatExempt),

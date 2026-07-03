@@ -3,6 +3,7 @@ import { normalizeGooglePlacesSettings } from "./google-places";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 
 export interface BusinessProfileFields {
+  commercialName?: string;
   name: string;
   nif: string;
   address: string;
@@ -63,6 +64,7 @@ export function normalizeBusinessProfileForSave(
 ): BusinessProfile {
   return {
     ...profile,
+    commercialName: text(profile.commercialName),
     name: text(profile.name),
     nif: text(profile.nif).toUpperCase(),
     address: text(profile.address),

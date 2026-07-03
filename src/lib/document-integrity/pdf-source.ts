@@ -88,6 +88,7 @@ function docFromSnapshot(base: Document, snapshot: DocumentSnapshot): Document {
 
 function issuerFromSnapshot(snapshot: DocumentSnapshot): IssuerProfile {
   return {
+    commercialName: snapshot.issuer.commercialName,
     name: snapshot.issuer.name,
     nif: snapshot.issuer.nif,
     address: snapshot.issuer.address,
