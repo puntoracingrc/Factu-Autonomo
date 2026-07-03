@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type DragEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Camera, FileText, Loader2, ScanLine, ShoppingBag } from "lucide-react";
@@ -13,6 +20,7 @@ import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
+  buildAiUsageMeter,
   PRO_EXPENSE_SCANS_PER_MONTH,
   type ScanQuota,
 } from "@/lib/billing/scan-limits";
@@ -28,7 +36,7 @@ interface ExpenseScanCardProps {
   ) => void;
 }
 
-const MAX_SCAN_FILES = 5;
+const MAX_SCAN_FILES = 10;
 
 export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const searchParams = useSearchParams();
@@ -38,11 +46,23 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [loadingQuota, setLoadingQuota] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [buyingPack, setBuyingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const aiConsent = useAiProcessingConsent();
   const checkoutStatus = searchParams.get("checkout");
+  const needsAccount = billingEnabled && !user;
+  const noScansLeft =
+    quota !== null &&
+    quota.remaining <= 0 &&
+    quota.remaining !== Number.MAX_SAFE_INTEGER;
+  const scanControlsDisabled = scanning || noScansLeft || !aiConsent.accepted;
+  const dropDisabled = scanning || noScansLeft;
+  const usageLabel = useMemo(() => {
+    if (!quota || quota.remainingUnits === Number.MAX_SAFE_INTEGER) return null;
+    return `${buildAiUsageMeter(quota).percentRemaining}% restante`;
+  }, [quota]);
 
   const loadQuota = useCallback(async () => {
     if (billingEnabled && !user) {
@@ -138,8 +158,16 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     setError(null);
     setWarnings([]);
 
+    if (scanning) return;
+
     if (!aiConsent.accepted) {
       setError("Acepta primero el aviso de tratamiento con IA.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
+    if (noScansLeft) {
+      setError("No te quedan escaneos disponibles.");
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
@@ -189,11 +217,26 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     }
   }
 
-  const needsAccount = billingEnabled && !user;
-  const noScansLeft =
-    quota !== null &&
-    quota.remaining <= 0 &&
-    quota.remaining !== Number.MAX_SAFE_INTEGER;
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = dropDisabled ? "none" : "copy";
+    if (!dropDisabled) setDragActive(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    const related = event.relatedTarget;
+    if (related instanceof Node && event.currentTarget.contains(related)) {
+      return;
+    }
+    setDragActive(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    if (dropDisabled) return;
+    void handleFiles(event.dataTransfer.files);
+  }
 
   return (
     <Card className="space-y-4 border-sky-200 bg-sky-50/60">
@@ -242,20 +285,11 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             }}
           />
 
-          {quota && quota.remaining !== Number.MAX_SAFE_INTEGER && (
+          {(usageLabel || loadingQuota) && (
             <p className="text-sm text-slate-600">
-              Escaneos restantes:{" "}
-              <strong>
-                {quota.remaining}
-                {quota.period === "month" ? " este mes" : " de prueba"}
-              </strong>
-              {quota.bonusCredits > 0 ? (
-                <span className="text-slate-500">
-                  {" "}
-                  ({quota.bonusCredits} extra comprados)
-                </span>
-              ) : null}
-              {loadingQuota ? " (actualizando…)" : null}
+              Consumo IA restante:{" "}
+              <strong>{usageLabel ?? "calculando…"}</strong>
+              {loadingQuota && usageLabel ? " (actualizando…)" : null}
             </p>
           )}
 
@@ -268,53 +302,65 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             onChange={(e) => void handleFiles(e.target.files)}
           />
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="secondary"
-              fullWidth
-              disabled={scanning || noScansLeft || !aiConsent.accepted}
-              onClick={() => {
-                if (inputRef.current) {
-                  inputRef.current.accept =
-                    "image/jpeg,image/png,image/webp,image/*";
-                  inputRef.current.setAttribute("capture", "environment");
-                  inputRef.current.click();
-                }
-              }}
-            >
-              {scanning ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Analizando…
-                </>
-              ) : (
-                <>
-                  <Camera className="h-4 w-4" />
-                  {noScansLeft ? "Sin escaneos" : "Hacer foto"}
-                </>
-              )}
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              disabled={scanning || noScansLeft || !aiConsent.accepted}
-              onClick={() => {
-                if (inputRef.current) {
-                  inputRef.current.accept =
-                    "image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf";
-                  inputRef.current.removeAttribute("capture");
-                  inputRef.current.click();
-                }
-              }}
-            >
-              <FileText className="h-4 w-4" />
-              {noScansLeft ? "Sin escaneos" : "Imagen o PDF"}
-            </Button>
+          <div
+            className={`rounded-2xl border-2 border-dashed p-3 transition-colors ${
+              dragActive
+                ? "border-blue-500 bg-white"
+                : "border-sky-200 bg-white/60"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={scanControlsDisabled}
+                onClick={() => {
+                  if (inputRef.current) {
+                    inputRef.current.accept =
+                      "image/jpeg,image/png,image/webp,image/*";
+                    inputRef.current.setAttribute("capture", "environment");
+                    inputRef.current.click();
+                  }
+                }}
+              >
+                {scanning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analizando…
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-4 w-4" />
+                    {noScansLeft ? "Sin escaneos" : "Hacer foto"}
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={scanControlsDisabled}
+                onClick={() => {
+                  if (inputRef.current) {
+                    inputRef.current.accept =
+                      "image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf";
+                    inputRef.current.removeAttribute("capture");
+                    inputRef.current.click();
+                  }
+                }}
+              >
+                <FileText className="h-4 w-4" />
+                {noScansLeft ? "Sin escaneos" : "Imagen o PDF"}
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              {dragActive
+                ? "Suelta los archivos para escanearlos."
+                : `Arrastra archivos aquí o selecciona hasta ${MAX_SCAN_FILES}.`}
+            </p>
           </div>
-          <p className="text-xs text-slate-500">
-            Puedes seleccionar hasta {MAX_SCAN_FILES} archivos. Se revisan uno a
-            uno antes de guardar.
-          </p>
 
           {noScansLeft && (
             <div className="space-y-3">

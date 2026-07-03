@@ -428,6 +428,10 @@ export function findCustomerByIdentity(
   lastName: string,
   excludeId?: string,
 ): Customer | undefined {
+  if (!normalizeNamePart(firstName) || !normalizeNamePart(lastName)) {
+    return undefined;
+  }
+
   const key = customerIdentityKey(firstName, lastName);
   return customers.find(
     (c) =>
@@ -484,13 +488,10 @@ export function validateCustomerNames(
   if (!fn) {
     return { ok: false, error: "Añade al menos un nombre para guardar el cliente" };
   }
-  if (!ln) {
-    return { ok: false, error: "Añade los apellidos para guardar el cliente" };
-  }
   if (fn.length < 2) {
     return { ok: false, error: "El nombre debe tener al menos 2 letras" };
   }
-  if (ln.length < 2) {
+  if (ln && ln.length < 2) {
     return { ok: false, error: "Los apellidos deben tener al menos 2 letras" };
   }
 
@@ -518,17 +519,19 @@ export function validateUniqueCustomer(
     }
   }
 
-  const duplicate = findCustomerByIdentity(
-    customers,
-    base.firstName!,
-    base.lastName!,
-    excludeId,
-  );
-  if (duplicate) {
-    return {
-      ok: false,
-      error: `Ya existe un cliente llamado ${getCustomerDisplayName(duplicate)}. Los nombres y apellidos no se pueden repetir.`,
-    };
+  if (base.lastName) {
+    const duplicate = findCustomerByIdentity(
+      customers,
+      base.firstName!,
+      base.lastName,
+      excludeId,
+    );
+    if (duplicate) {
+      return {
+        ok: false,
+        error: `Ya existe un cliente llamado ${getCustomerDisplayName(duplicate)}. Los nombres y apellidos no se pueden repetir.`,
+      };
+    }
   }
 
   return base;
@@ -690,12 +693,14 @@ export function ensureCustomerForDocument(
     };
   }
 
-  const duplicate = findCustomerByIdentity(customers, firstName, lastName);
-  if (duplicate) {
-    return {
-      ok: false,
-      error: `Ya existe el cliente ${getCustomerDisplayName(duplicate)}. Selecciónalo de la lista en lugar de crearlo otra vez.`,
-    };
+  if (lastName) {
+    const duplicate = findCustomerByIdentity(customers, firstName, lastName);
+    if (duplicate) {
+      return {
+        ok: false,
+        error: `Ya existe el cliente ${getCustomerDisplayName(duplicate)}. Selecciónalo de la lista en lugar de crearlo otra vez.`,
+      };
+    }
   }
 
   const customer: Customer = {

@@ -9,7 +9,9 @@ ${JSON.stringify(CUSTOMER_TEXT_EXTRACT_JSON_SCHEMA, null, 2)}
 Reglas:
 - No inventes datos que no estén en el texto. Si falta algo, déjalo vacío y añade un warning.
 - Para empresas, separa la forma jurídica al final: "FERRER NEUROCIENCIAS, S.L." => firstName "FERRER NEUROCIENCIAS", lastName "S.L.".
-- Para personas, firstName debe ser el nombre y lastName los apellidos.
+- Para personas, firstName debe ser el nombre y lastName los apellidos solo si aparecen claramente.
+- Si aparece un nombre propio en una línea y después una vía con número, por ejemplo "Teresa / Mandri, 26 2º-2º", trata "Mandri, 26 2º-2º" como dirección, no como apellido.
+- Si faltan apellidos o razón social completa, deja lastName vacío y añade un warning; no inventes apellidos.
 - streetType debe usar el id de la lista, por ejemplo "calle" o "avenida".
 - address no debe incluir "Calle", "C/", "Avenida", "Avda." ni otros prefijos de tipo de vía.
 - NIF/CIF español en mayúsculas y sin espacios ni guiones.

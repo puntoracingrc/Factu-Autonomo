@@ -40,7 +40,7 @@ export function hasDistinctFiscalName(issuer: IssuerIdentity): boolean {
 }
 
 export function isEmittedDocument(doc: Document): boolean {
-  return doc.status !== "borrador";
+  return doc.type !== "presupuesto" && doc.status !== "borrador";
 }
 
 export function captureIssuerSnapshot(

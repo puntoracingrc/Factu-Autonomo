@@ -59,7 +59,11 @@ export function lineItemFormTotal(item: LineItem, vatExempt = false): number {
   return roundMoney(vatExempt ? lineSubtotal(safeItem) : lineTotal(safeItem));
 }
 
-export function firstDocumentFormLineIssue(items: LineItem[]): string | null {
+export function firstDocumentFormLineIssue(
+  items: LineItem[],
+  options: { requireConcept?: boolean } = {},
+): string | null {
+  const requireConcept = options.requireConcept ?? true;
   let hasValidLine = false;
 
   for (const [index, item] of items.entries()) {
@@ -90,7 +94,7 @@ export function firstDocumentFormLineIssue(items: LineItem[]): string | null {
     if (description) hasValidLine = true;
   }
 
-  return hasValidLine ? null : "Añade al menos un concepto.";
+  return hasValidLine || !requireConcept ? null : "Añade al menos un concepto.";
 }
 
 export function documentFormItemsForSave(

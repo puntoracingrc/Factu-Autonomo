@@ -156,6 +156,8 @@ function snapshotViewModel(
 }
 
 export function isHistoricalPdfRenderRequired(doc: Document): boolean {
+  if (doc.type === "presupuesto") return false;
+
   return (
     Boolean(doc.documentSnapshot) ||
     Boolean(doc.pdfSnapshot) ||

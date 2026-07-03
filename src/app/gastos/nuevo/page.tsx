@@ -1283,8 +1283,11 @@ export default function NuevoGastoPage() {
                       }
                       className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
                     >
-                      Usar como importe
+                      Copiar al importe
                     </button>
+                    <p className="text-xs text-slate-500">
+                      Copia esa suma al importe del gasto.
+                    </p>
                   </>
                 )}
               </div>

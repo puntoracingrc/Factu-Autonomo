@@ -523,12 +523,11 @@ describe("isDocumentEditable", () => {
     expect(isDocumentEditable(invoiceFromQuote)).toBe(true);
   });
 
-  it("bloquea documentos enviados o rectificados", () => {
+  it("permite editar presupuestos enviados y bloquea recibos emitidos", () => {
     const sent = { ...doc("3", "presupuesto", "P-2", "Ana"), status: "enviado" as const };
     const receipt = { ...doc("4", "recibo", "R-2", "Ana"), status: "pagado" as const };
-    expect(isDocumentEditable(sent)).toBe(false);
+    expect(isDocumentEditable(sent)).toBe(true);
     expect(isDocumentEditable(receipt)).toBe(false);
-    expect(getDocumentReadOnlyMessage(sent)).toContain("presupuesto");
     expect(getDocumentReadOnlyMessage(receipt)).toContain("recibo");
   });
 });

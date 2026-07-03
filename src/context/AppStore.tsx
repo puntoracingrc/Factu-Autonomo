@@ -91,8 +91,6 @@ import {
   issueDocument as issueDocumentWithIntegrity,
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
-  acceptQuote as acceptQuoteWithIntegrity,
-  rejectQuote as rejectQuoteWithIntegrity,
 } from "@/lib/document-integrity";
 import { todayISO } from "@/lib/calculations";
 import {
@@ -231,12 +229,50 @@ function assignFinalInvoiceIdentityIfNeeded(
   };
 }
 
+function editableQuoteWithLocalStatus(
+  next: Document,
+  updatedAt: string,
+): Document {
+  const accepted = next.status === "aceptado" || next.status === "pagado";
+  const rejected = next.status === "rechazado";
+  const deliveryStatus =
+    next.status === "borrador" ? "not_sent" : (next.deliveryStatus ?? "not_sent");
+
+  return {
+    ...next,
+    issuer: undefined,
+    verifactu: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    deliveryStatus,
+    paymentStatus: "not_applicable",
+    acceptanceStatus: accepted
+      ? "accepted"
+      : rejected
+        ? "rejected"
+        : next.status === "borrador"
+          ? undefined
+          : "pending",
+    issuedAt: undefined,
+    sentAt: deliveryStatus === "sent" ? (next.sentAt ?? updatedAt) : undefined,
+    paidAt: undefined,
+    acceptedAt: accepted ? (next.acceptedAt ?? updatedAt) : undefined,
+    updatedAt,
+  };
+}
+
 function saveEditableDocument(
   current: Document,
   next: Document,
   profile: BusinessProfile,
   updatedAt: string,
 ): Document {
+  if (current.type === "presupuesto" || next.type === "presupuesto") {
+    return editableQuoteWithLocalStatus(next, updatedAt);
+  }
+
   if (deriveDocumentLifecycle(current) !== "draft" || next.status === "borrador") {
     return applyGenericDocumentUpdate(current, next, updatedAt);
   }
@@ -259,14 +295,6 @@ function saveEditableDocument(
     (issued.type === "factura" || issued.type === "recibo")
   ) {
     return markDocumentPaidWithIntegrity(issued, updatedAt);
-  }
-
-  if (requestedStatus === "aceptado" && issued.type === "presupuesto") {
-    return acceptQuoteWithIntegrity(issued, updatedAt);
-  }
-
-  if (requestedStatus === "rechazado" && issued.type === "presupuesto") {
-    return rejectQuoteWithIntegrity(issued, updatedAt);
   }
 
   if (requestedStatus === "vencido" && issued.type === "factura") {
@@ -501,7 +529,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const current = prev.documents.find((doc) => doc.id === id);
         if (!current) return prev;
 
-        sent = markDocumentSentWithIntegrity(current);
+        const now = new Date().toISOString();
+        sent =
+          current.type === "presupuesto"
+            ? editableQuoteWithLocalStatus(
+                {
+                  ...current,
+                  status: "enviado",
+                  deliveryStatus: "sent",
+                  sentAt: current.sentAt ?? now,
+                },
+                now,
+              )
+            : markDocumentSentWithIntegrity(current);
 
         return {
           ...prev,
@@ -679,7 +719,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         }
 
         const now = new Date().toISOString();
-        const accepted = acceptQuoteWithIntegrity(doc, now);
+        const accepted = editableQuoteWithLocalStatus(
+          {
+            ...doc,
+            status: "aceptado",
+            acceptanceStatus: "accepted",
+            acceptedAt: doc.acceptedAt ?? now,
+          },
+          now,
+        );
         return {
           ...prev,
           documents: prev.documents.map((d) =>
@@ -698,18 +746,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         if (!doc || !isAcceptedQuote(doc)) return prev;
 
         const now = new Date().toISOString();
+        const next = editableQuoteWithLocalStatus(
+          {
+            ...doc,
+            status: statusAfterUnmarkingQuoteAcceptance(),
+            acceptanceStatus: "pending",
+            acceptedAt: undefined,
+          },
+          now,
+        );
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === id
-              ? {
-                  ...d,
-                  status: statusAfterUnmarkingQuoteAcceptance(),
-                  acceptanceStatus: "pending",
-                  acceptedAt: undefined,
-                  updatedAt: now,
-                }
-              : d,
+            d.id === id ? next : d,
           ),
         };
       });
@@ -726,7 +775,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         }
 
         const now = new Date().toISOString();
-        const rejected = rejectQuoteWithIntegrity(doc, now);
+        const rejected = editableQuoteWithLocalStatus(
+          {
+            ...doc,
+            status: "rechazado",
+            acceptanceStatus: "rejected",
+            acceptedAt: undefined,
+          },
+          now,
+        );
         return {
           ...prev,
           documents: prev.documents.map((d) =>
@@ -745,17 +802,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         if (!doc || !isRejectedQuote(doc)) return prev;
 
         const now = new Date().toISOString();
+        const next = editableQuoteWithLocalStatus(
+          {
+            ...doc,
+            status: statusAfterUnmarkingQuoteRejection(),
+            acceptanceStatus: "pending",
+          },
+          now,
+        );
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === id
-              ? {
-                  ...d,
-                  status: statusAfterUnmarkingQuoteRejection(),
-                  acceptanceStatus: "pending",
-                  updatedAt: now,
-                }
-              : d,
+            d.id === id ? next : d,
           ),
         };
       });

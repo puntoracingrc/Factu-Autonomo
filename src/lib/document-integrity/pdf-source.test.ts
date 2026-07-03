@@ -310,7 +310,7 @@ describe("document PDF source", () => {
     expect(legacy.pdfSnapshot).toBeUndefined();
   });
 
-  it("presupuestos y recibos emitidos usan la fuente snapshot", () => {
+  it("presupuestos usan fuente viva y recibos emitidos usan snapshot", () => {
     const quote = issueDocument(
       invoice({
         type: "presupuesto",
@@ -330,9 +330,17 @@ describe("document PDF source", () => {
       NOW,
     );
 
-    expect(buildPdfViewModelForDocument(mutatedIssuedDocument(quote), changedProfile()).source)
-      .toBe("snapshot");
-    expect(buildPdfViewModelForDocument(mutatedIssuedDocument(receipt), changedProfile()).source)
-      .toBe("snapshot");
+    const quoteView = buildPdfViewModelForDocument(
+      mutatedIssuedDocument(quote),
+      changedProfile(),
+    );
+    const receiptView = buildPdfViewModelForDocument(
+      mutatedIssuedDocument(receipt),
+      changedProfile(),
+    );
+
+    expect(quoteView.source).toBe("live");
+    expect(quoteView.doc.client.name).toBe("Cliente vivo cambiado");
+    expect(receiptView.source).toBe("snapshot");
   });
 });

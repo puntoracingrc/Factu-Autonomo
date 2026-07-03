@@ -259,7 +259,7 @@ export function ClientPicker({
       <FormSection
         variant="fields"
         title="Ficha del cliente"
-        hint="Si es un cliente nuevo, se guardará al crear el documento. Nombre y apellidos deben ser únicos."
+        hint="Si es un cliente nuevo, se guardará al crear el documento. Los apellidos son opcionales."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre *">
@@ -269,7 +269,7 @@ export function ClientPicker({
               placeholder="Ej: María"
             />
           </Field>
-          <Field label="Apellidos *">
+          <Field label="Apellidos" hint="Opcional">
             <Input
               value={values.lastName}
               onChange={(e) => handleFieldChange("lastName", e.target.value)}

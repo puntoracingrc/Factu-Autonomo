@@ -24,12 +24,12 @@ function presupuesto(status: Document["status"]): Document {
 }
 
 describe("quotes", () => {
-  it("permite marcar presupuestos emitidos como aceptados", () => {
+  it("permite marcar presupuestos enviados como aceptados", () => {
     expect(canMarkQuoteAsAccepted(presupuesto("enviado"))).toBe(true);
     expect(canMarkQuoteAsAccepted(presupuesto("borrador"))).toBe(false);
   });
 
-  it("permite marcar presupuestos emitidos como rechazados", () => {
+  it("permite marcar presupuestos enviados como rechazados", () => {
     expect(canMarkQuoteAsRejected(presupuesto("enviado"))).toBe(true);
     expect(canMarkQuoteAsRejected(presupuesto("borrador"))).toBe(false);
   });
