@@ -92,6 +92,19 @@ export default function PrivacidadPage() {
           guardada la aceptación en este dispositivo. No subas información que
           no sea necesaria para la tarea.
         </p>
+        <h2>Aprendizaje de lecturas IA</h2>
+        <p>
+          Algunas cuentas autorizadas pueden corregir lecturas para mejorar el
+          sistema. En ese caso se guardan únicamente patrones estructurales:
+          campos presentes, tipos de cambio, unidades, número aproximado de
+          líneas, IVA y señales de calidad. No se guardan el PDF o imagen
+          original, nombres de clientes o proveedores, NIF, direcciones, números
+          de factura ni importes exactos como datos de aprendizaje.
+        </p>
+        <p>
+          Puedes solicitar que se deje de usar una cuenta para aprendizaje o que
+          se eliminen los eventos asociados escribiendo al email de contacto.
+        </p>
         <h2>Google Drive</h2>
         <p>
           La copia extra en Google Drive es opcional y se activa desde Cuenta.
@@ -123,7 +136,7 @@ export default function PrivacidadPage() {
           previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>2 de julio de 2026.</p>
+        <p>3 de julio de 2026.</p>
       </Card>
     </div>
   );

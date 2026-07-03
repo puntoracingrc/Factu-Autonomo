@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatQuantityWithUnit,
+  normalizeDocumentUnitId,
   normalizeDocumentUnits,
   normalizeLineItemUnits,
   toggleDocumentUnit,
@@ -24,6 +25,13 @@ describe("document-units", () => {
     expect(formatQuantityWithUnit(3, "und")).toBe("3 und");
     expect(formatQuantityWithUnit(250, "ml")).toBe("250 ml");
     expect(formatQuantityWithUnit(12, "km")).toBe("12 km");
+  });
+
+  it("normaliza unidades habituales de negocio real", () => {
+    expect(normalizeDocumentUnitId("M2")).toBe("m2");
+    expect(normalizeDocumentUnitId("m²")).toBe("m2");
+    expect(normalizeDocumentUnitId("metro lineal")).toBe("ml");
+    expect(normalizeDocumentUnitId("m.l.")).toBe("ml");
   });
 
   it("normaliza líneas antiguas sin unidad", () => {

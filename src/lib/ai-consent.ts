@@ -1,4 +1,4 @@
-export const AI_PROCESSING_CONSENT_VERSION = "2026-06-24";
+export const AI_PROCESSING_CONSENT_VERSION = "2026-07-03";
 export const AI_PROCESSING_CONSENT_KEY = "factura-autonomo-ai-consent";
 
 interface AiConsentRecord {

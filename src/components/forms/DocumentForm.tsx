@@ -34,6 +34,10 @@ import {
   lineItemFormTotal,
   sanitizeDocumentFormItems,
 } from "@/lib/document-form-flow";
+import {
+  areaQuantityFromDimensions,
+  isAreaDocumentUnit,
+} from "@/lib/area-calculation";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
@@ -111,6 +115,11 @@ interface LineProductPricingState {
   markupPercent: number;
   priceSource: DocumentProductSalePriceSource;
   productName: string;
+}
+
+interface LineAreaDraft {
+  width: number;
+  height: number;
 }
 
 function removeLineProductPricing(
@@ -274,6 +283,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   );
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
+  >({});
+  const [lineAreaDrafts, setLineAreaDrafts] = useState<
+    Record<string, LineAreaDraft>
   >({});
   const productDocumentDraftApplied = useRef(false);
 
@@ -479,6 +491,18 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     updateItem(id, {
       unitPrice: priceWithDocumentProductMarkup(current.basePrice, markupPercent),
     });
+  }
+
+  function handleLineAreaDraftChange(id: string, patch: Partial<LineAreaDraft>) {
+    const current = lineAreaDrafts[id] ?? { width: 0, height: 0 };
+    const nextDraft = { ...current, ...patch };
+    const quantity = areaQuantityFromDimensions({
+      width: nextDraft.width,
+      height: nextDraft.height,
+      roundingDecimals: 2,
+    });
+    setLineAreaDrafts((prev) => ({ ...prev, [id]: nextDraft }));
+    if (quantity > 0) updateItem(id, { quantity, unit: "m2" });
   }
 
   function handleSelectCustomer(customer: Customer) {
@@ -912,6 +936,39 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                   }
                 />
               </div>
+              {isAreaDocumentUnit(item.unit) && (
+                <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-end">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">
+                        Calcular m²
+                      </p>
+                      <p className="text-xs font-semibold text-slate-600">
+                        Alto × ancho en metros. La cantidad de la línea se
+                        actualiza sola.
+                      </p>
+                    </div>
+                    <Field label="Alto">
+                      <NumericFieldInput
+                        value={lineAreaDrafts[item.id]?.height ?? 0}
+                        onChange={(height) =>
+                          handleLineAreaDraftChange(item.id, { height })
+                        }
+                        placeholder="0,00"
+                      />
+                    </Field>
+                    <Field label="Ancho">
+                      <NumericFieldInput
+                        value={lineAreaDrafts[item.id]?.width ?? 0}
+                        onChange={(width) =>
+                          handleLineAreaDraftChange(item.id, { width })
+                        }
+                        placeholder="0,00"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              )}
               {productPricing && (
                 <div
                   className={`mt-3 rounded-2xl border p-3 ${

@@ -310,6 +310,13 @@ export interface ProductCalculationTemplate {
   roundingDecimals?: number;
 }
 
+export interface ProductAttribute {
+  key: string;
+  label: string;
+  value: string;
+  unit?: string;
+}
+
 /** Producto o material reutilizable; puede nacer manualmente o desde líneas escaneadas. */
 export interface Product {
   id: string;
@@ -332,6 +339,8 @@ export interface Product {
   sales?: ProductSaleFacet;
   purchase?: ProductPurchaseFacet;
   calculation?: ProductCalculationTemplate;
+  /** Campos libres para sectores distintos: talla, color, material, tejido, acabado... */
+  attributes?: ProductAttribute[];
   notes?: string;
   source: ProductSource;
   createdAt: string;

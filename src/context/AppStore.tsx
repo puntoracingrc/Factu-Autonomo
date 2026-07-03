@@ -1073,6 +1073,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         calculation:
           keep.calculation ??
           removed.find((product) => product.calculation)?.calculation,
+        attributes:
+          keep.attributes ??
+          removed.find((product) => product.attributes?.length)?.attributes,
         updatedAt: new Date().toISOString(),
       });
 

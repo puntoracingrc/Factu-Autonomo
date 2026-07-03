@@ -7,6 +7,12 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { normalizeDocumentUnitId } from "@/lib/document-units";
+import {
+  PRODUCT_ATTRIBUTE_SUGGESTIONS,
+  addProductAttributeLine,
+  productAttributesFromText,
+} from "@/lib/product-attributes";
 import { purchaseProductKey } from "@/lib/purchase-products";
 
 const EMPTY_FORM = {
@@ -25,6 +31,7 @@ const EMPTY_FORM = {
   purchaseDiscountPercent: "",
   purchaseNetUnitCost: "",
   calculationKind: "none",
+  attributesText: "",
   notes: "",
 };
 
@@ -59,7 +66,11 @@ export default function NuevoProductoPage() {
   );
 
   function updateField(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "calculationKind" && value === "area" ? { saleUnit: "m2" } : {}),
+    }));
     setError(null);
   }
 
@@ -89,8 +100,14 @@ export default function NuevoProductoPage() {
       (purchaseListPrice !== undefined && purchaseDiscountPercent !== undefined
         ? purchaseListPrice * (1 - purchaseDiscountPercent / 100)
         : undefined);
-    const saleUnit = form.saleUnit.trim() || "ud";
-    const purchaseUnit = form.purchaseUnit.trim() || saleUnit;
+    const calculationKind = form.calculationKind === "area" ? "area" : "none";
+    const saleUnit =
+      calculationKind === "area"
+        ? "m2"
+        : (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) || "ud";
+    const purchaseUnit =
+      (normalizeDocumentUnitId(form.purchaseUnit) ?? form.purchaseUnit.trim()) ||
+      saleUnit;
 
     addProduct({
       key,
@@ -131,9 +148,10 @@ export default function NuevoProductoPage() {
         supplierReference: form.supplierReference.trim() || undefined,
       },
       calculation:
-        form.calculationKind === "area"
+        calculationKind === "area"
           ? { kind: "area", unit: saleUnit, roundingDecimals: 2 }
           : undefined,
+      attributes: productAttributesFromText(form.attributesText),
       notes: form.notes.trim() || undefined,
       source: "manual",
     });
@@ -311,13 +329,47 @@ export default function NuevoProductoPage() {
             <option value="none">Cantidad directa</option>
             <option value="area">Área: alto x ancho = m²</option>
           </select>
+          {form.calculationKind === "area" ? (
+            <p className="mt-2 text-sm font-semibold text-blue-800">
+              Se venderá en m². En facturas y presupuestos podrás calcular la
+              cantidad introduciendo alto y ancho.
+            </p>
+          ) : null}
         </Field>
 
-        <Field label="Notas">
+        <Field
+          label="Atributos"
+          hint="Uno por línea. Ej: Talla: L, Color: Blanco, Material: aluminio."
+        >
+          <Textarea
+            value={form.attributesText}
+            onChange={(event) => updateField("attributesText", event.target.value)}
+            placeholder={"Talla: L\nColor: Blanco\nMetro lineal: barras de 6 m"}
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() =>
+                  updateField(
+                    "attributesText",
+                    addProductAttributeLine(form.attributesText, label),
+                  )
+                }
+                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-200"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Regla interna / notas">
           <Textarea
             value={form.notes}
             onChange={(event) => updateField("notes", event.target.value)}
-            placeholder="Referencia interna, medidas habituales, proveedor alternativo..."
+            placeholder="Ej: Persianas: alto x ancho en metros. Revisar color y lama antes de enviar."
           />
         </Field>
 

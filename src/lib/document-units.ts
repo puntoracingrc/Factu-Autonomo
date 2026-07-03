@@ -22,12 +22,54 @@ export const DOCUMENT_UNIT_CATALOG: DocumentUnitDefinition[] = [
   { id: "kg", label: "Kilogramo", shortLabel: "kg" },
   { id: "t", label: "Tonelada", shortLabel: "t" },
   { id: "l", label: "Litro", shortLabel: "l" },
-  { id: "ml", label: "Mililitro", shortLabel: "ml" },
+  { id: "ml", label: "Metro lineal", shortLabel: "ml" },
   { id: "paq", label: "Paquete", shortLabel: "paq" },
 ];
 
 const CATALOG_IDS = new Set(DOCUMENT_UNIT_CATALOG.map((unit) => unit.id));
 const DEFAULT_UNIT_ID = "ud";
+
+export function normalizeDocumentUnitId(unitId?: string | null): string | undefined {
+  const normalized = (unitId ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+
+  if (!normalized) return undefined;
+  if (["u", "uds", "unidad", "unidades"].includes(normalized)) return "ud";
+  if (
+    [
+      "m2",
+      "m²",
+      "m^2",
+      "metro2",
+      "metros2",
+      "metrocuadrado",
+      "metroscuadrados",
+    ].includes(normalized)
+  ) {
+    return "m2";
+  }
+  if (
+    [
+      "ml",
+      "m.l.",
+      "m.l",
+      "metrolineal",
+      "metroslineales",
+      "metrolineales",
+    ].includes(normalized)
+  ) {
+    return "ml";
+  }
+  if (["cm2", "cm²", "cm^2"].includes(normalized)) return "cm2";
+  if (["hora", "horas"].includes(normalized)) return "h";
+  if (["dia", "dias", "día", "días"].includes(normalized)) return "dia";
+  if (CATALOG_IDS.has(normalized)) return normalized;
+  return undefined;
+}
 
 export const EMPTY_DOCUMENT_UNITS: DocumentUnitsSettings = {
   enabledUnitIds: [DEFAULT_UNIT_ID],
@@ -107,8 +149,9 @@ export function resolveLineItemUnit(
   item: LineItem,
   settings: DocumentUnitsSettings,
 ): string {
-  if (item.unit && settings.enabledUnitIds.includes(item.unit)) {
-    return item.unit;
+  const normalized = normalizeDocumentUnitId(item.unit) ?? item.unit;
+  if (normalized && (settings.enabledUnitIds.includes(normalized) || CATALOG_IDS.has(normalized))) {
+    return normalized;
   }
   return settings.defaultUnitId;
 }

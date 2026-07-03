@@ -24,6 +24,13 @@ import {
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { normalizeDocumentUnitId } from "@/lib/document-units";
+import {
+  PRODUCT_ATTRIBUTE_SUGGESTIONS,
+  addProductAttributeLine,
+  productAttributesFromText,
+  productAttributesToText,
+} from "@/lib/product-attributes";
 import {
   buildPurchaseProductSummaries,
   type PurchaseProductSummary,
@@ -226,6 +233,8 @@ export default function ProductosPage() {
         purchaseToSaleFactor: product.purchaseToSaleFactor,
       },
       calculation: product.calculation,
+      attributes: product.attributes,
+      notes: product.notes,
       source: product.source,
     };
   }
@@ -561,6 +570,10 @@ function ProductCard({
   const [calculationKind, setCalculationKind] = useState(
     product.calculation?.kind ?? "none",
   );
+  const [attributesText, setAttributesText] = useState(
+    productAttributesToText(product.attributes),
+  );
+  const [notes, setNotes] = useState(product.notes ?? "");
   const [mergeKey, setMergeKey] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
   const lastDiscount =
@@ -590,8 +603,14 @@ function ProductCard({
       (parsedPurchaseListPrice !== undefined && parsedPurchaseDiscount !== undefined
         ? parsedPurchaseListPrice * (1 - parsedPurchaseDiscount / 100)
         : undefined);
-    const normalizedSaleUnit = saleUnit.trim() || product.unit || "ud";
-    const normalizedPurchaseUnit = purchaseUnit.trim() || normalizedSaleUnit;
+    const manualSaleUnit = normalizeDocumentUnitId(saleUnit) ?? saleUnit.trim();
+    const normalizedSaleUnit =
+      calculationKind === "area"
+        ? "m2"
+        : manualSaleUnit || product.unit || "ud";
+    const manualPurchaseUnit =
+      normalizeDocumentUnitId(purchaseUnit) ?? purchaseUnit.trim();
+    const normalizedPurchaseUnit = manualPurchaseUnit || normalizedSaleUnit;
     onSave({
       sku: sku.trim() || undefined,
       name: name.trim() || product.name,
@@ -627,6 +646,8 @@ function ProductCard({
               roundingDecimals: product.calculation?.roundingDecimals ?? 2,
             }
           : undefined,
+      attributes: productAttributesFromText(attributesText),
+      notes: notes.trim() || undefined,
       source: product.source,
     });
     setIsEditing(false);
@@ -726,6 +747,8 @@ function ProductCard({
                 ),
               );
               setSupplierReference(product.purchaseSupplierReference ?? "");
+              setAttributesText(productAttributesToText(product.attributes));
+              setNotes(product.notes ?? "");
               setCalculationKind(product.calculation?.kind ?? "none");
               setIsEditing((value) => !value);
             }}
@@ -806,13 +829,22 @@ function ProductCard({
               <select
                 value={calculationKind}
                 onChange={(event) =>
-                  setCalculationKind(event.target.value as "none" | "area")
+                  setCalculationKind(() => {
+                    const value = event.target.value as "none" | "area";
+                    if (value === "area") setSaleUnit("m2");
+                    return value;
+                  })
                 }
                 className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="none">Cantidad directa</option>
                 <option value="area">Alto x ancho</option>
               </select>
+              {calculationKind === "area" ? (
+                <span className="mt-1 block text-xs font-semibold text-blue-800">
+                  Venta en m² con calculadora alto x ancho en documentos.
+                </span>
+              ) : null}
             </label>
           </div>
           <div className="grid gap-3 lg:grid-cols-[1.2fr_0.45fr_0.6fr_0.45fr]">
@@ -871,6 +903,44 @@ function ProductCard({
               inputMode="decimal"
             />
           </div>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+              Atributos
+            </span>
+            <textarea
+              value={attributesText}
+              onChange={(event) => setAttributesText(event.target.value)}
+              placeholder={"Talla: L\nColor: Blanco\nMaterial: aluminio\nMetro lineal: barras de 6 m"}
+              className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+            <span className="mt-2 flex flex-wrap gap-2">
+              {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() =>
+                    setAttributesText((current) =>
+                      addProductAttributeLine(current, label),
+                    )
+                  }
+                  className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+              Regla interna / notas
+            </span>
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Ej: Medir alto x ancho en metros. Revisar color, lama y cajón antes de enviar."
+              className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
           <button
             type="button"
             onClick={saveEdits}
@@ -882,6 +952,20 @@ function ProductCard({
           <p className="mt-2 text-sm font-semibold text-blue-900">
             Estos datos se recordarán para futuros escaneos del mismo producto.
           </p>
+        </div>
+      ) : null}
+
+      {product.attributes && product.attributes.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {product.attributes.map((attribute) => (
+            <span
+              key={attribute.key}
+              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"
+            >
+              {attribute.label}: {attribute.value}
+              {attribute.unit ? ` ${attribute.unit}` : ""}
+            </span>
+          ))}
         </div>
       ) : null}
 

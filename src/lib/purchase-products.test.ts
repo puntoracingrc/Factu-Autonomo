@@ -127,7 +127,7 @@ describe("purchase products", () => {
 
     expect(summary.name).toBe("Panel PC43 editado");
     expect(summary.family).toBe("Persianas personalizadas");
-    expect(summary.unit).toBe("M2");
+    expect(summary.unit).toBe("m2");
     expect(summary.purchaseCount).toBe(1);
   });
 
@@ -164,7 +164,7 @@ describe("purchase products", () => {
       saleUnit: "m2",
       saleUnitPrice: 95,
       purchaseDescription: "MB490 MINIAL proveedor",
-      purchaseUnit: "M2",
+      purchaseUnit: "m2",
       purchaseListPrice: 65,
       purchaseDiscountPercent: 40,
       purchaseNetUnitCost: 39,
@@ -173,6 +173,22 @@ describe("purchase products", () => {
       lastPvp: 65,
       lastUnitPrice: 39,
     });
+  });
+
+  it("conserva atributos flexibles del catalogo", () => {
+    const [summary] = buildPurchaseProductSummaries([], [
+      product("Camiseta tecnica", {
+        attributes: [
+          { key: "talla", label: "Talla", value: "L" },
+          { key: "color", label: "Color", value: "Azul" },
+        ],
+      }),
+    ]);
+
+    expect(summary.attributes).toEqual([
+      { key: "talla", label: "Talla", value: "L", unit: undefined },
+      { key: "color", label: "Color", value: "Azul", unit: undefined },
+    ]);
   });
 
   it("unifica variantes mediante aliases guardados", () => {

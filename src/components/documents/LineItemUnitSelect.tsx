@@ -2,7 +2,9 @@
 
 import { Select } from "@/components/ui/Field";
 import {
+  DOCUMENT_UNIT_CATALOG,
   enabledDocumentUnits,
+  normalizeDocumentUnitId,
   normalizeDocumentUnits,
 } from "@/lib/document-units";
 import type { DocumentUnitsSettings } from "@/lib/types";
@@ -19,7 +21,13 @@ export function LineItemUnitSelect({
   onChange,
 }: LineItemUnitSelectProps) {
   const normalized = normalizeDocumentUnits(settings);
-  const units = enabledDocumentUnits(normalized);
+  const currentUnitId = normalizeDocumentUnitId(value) ?? value;
+  const enabledUnits = enabledDocumentUnits(normalized);
+  const currentUnit = DOCUMENT_UNIT_CATALOG.find((unit) => unit.id === currentUnitId);
+  const units =
+    currentUnit && !enabledUnits.some((unit) => unit.id === currentUnit.id)
+      ? [currentUnit, ...enabledUnits]
+      : enabledUnits;
 
   if (units.length <= 1) {
     return (
@@ -30,7 +38,10 @@ export function LineItemUnitSelect({
   }
 
   return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)}>
+    <Select
+      value={currentUnitId}
+      onChange={(e) => onChange(normalizeDocumentUnitId(e.target.value) ?? e.target.value)}
+    >
       {units.map((unit) => (
         <option key={unit.id} value={unit.id}>
           {unit.shortLabel} — {unit.label}
