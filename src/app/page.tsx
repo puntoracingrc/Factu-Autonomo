@@ -35,7 +35,7 @@ const quickActions = [
     showBadge: true,
   },
   {
-    href: "/clientes/nuevo?from=/",
+    href: "/clientes?new=1",
     label: "Nuevo cliente",
     icon: Users,
     color: "bg-sky-600 text-white",
@@ -92,7 +92,7 @@ export default function HomePage() {
 
       <HomeUserReminders />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-9">
         {quickActions.map(({ href, label, icon: Icon, color, showBadge }) => (
           <Link
             key={`${href}-${label}`}

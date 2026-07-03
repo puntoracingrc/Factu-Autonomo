@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   GitMerge,
   Mail,
@@ -11,6 +12,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { CustomerAiAutofill } from "@/components/clients/CustomerAiAutofill";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
@@ -19,12 +21,15 @@ import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
+import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
+import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
   customerFullName,
   buildCustomerInvoicedTotals,
@@ -60,12 +65,18 @@ const EMPTY_FORM = {
 const CUSTOMER_LIST_BATCH_SIZE = 30;
 
 export default function ClientesPage() {
-  const { data, updateCustomer, deleteCustomer, mergeCustomers } = useAppStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data, addCustomer, updateCustomer, deleteCustomer, mergeCustomers } =
+    useAppStore();
+  const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -142,7 +153,8 @@ export default function ClientesPage() {
   );
 
   const selectedCustomers = useMemo(
-    () => data.customers.filter((customer) => selectedIds.includes(customer.id)),
+    () =>
+      data.customers.filter((customer) => selectedIds.includes(customer.id)),
     [data.customers, selectedIds],
   );
 
@@ -161,11 +173,27 @@ export default function ClientesPage() {
     setVisibleCustomerCount(CUSTOMER_LIST_BATCH_SIZE);
   }, [data.customers.length, listFilterId, sortDirection, sortField]);
 
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+    setFormOpen(true);
+    router.replace("/clientes", { scroll: false });
+  }, [router, searchParams]);
+
   function closeForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormError(null);
     setFormOpen(false);
+  }
+
+  function openCreateForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+    setFormOpen(true);
   }
 
   function startEdit(customer: Customer) {
@@ -185,7 +213,6 @@ export default function ClientesPage() {
       postalCode: migrated.postalCode ?? "",
       notes: migrated.notes ?? "",
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function cancelEdit() {
@@ -290,7 +317,18 @@ export default function ClientesPage() {
     const existing = editingId
       ? data.customers.find((c) => c.id === editingId)
       : null;
-    if (existing) updateCustomer({ ...existing, ...payload });
+    if (existing) {
+      updateCustomer({ ...existing, ...payload });
+    } else {
+      const gate = checkCanAddCustomer(data.customers.length);
+      if (!gate.allowed) {
+        setUpgradeReason(gate.reason);
+        setUpgradeOpen(true);
+        return;
+      }
+      maybeCelebrateFirstCustomer(data.customers.length);
+      addCustomer(payload);
+    }
 
     closeForm();
     setSaved(true);
@@ -318,7 +356,9 @@ export default function ClientesPage() {
         <div className="mb-6 space-y-3">
           {duplicateGroups.map((group) => {
             const canonical = pickCanonicalCustomer(group, data.documents);
-            const others = group.filter((customer) => customer.id !== canonical.id);
+            const others = group.filter(
+              (customer) => customer.id !== canonical.id,
+            );
             return (
               <Card
                 key={canonical.id}
@@ -329,7 +369,9 @@ export default function ClientesPage() {
                     Mismo NIF en varios clientes
                   </p>
                   <p className="mt-1 text-sm text-amber-900">
-                    {group.map((customer) => getCustomerDisplayName(customer)).join(" · ")}
+                    {group
+                      .map((customer) => getCustomerDisplayName(customer))
+                      .join(" · ")}
                   </p>
                   <p className="mt-2 text-sm text-amber-800">
                     Unifícalos para evitar duplicados al facturar.
@@ -365,10 +407,15 @@ export default function ClientesPage() {
           </h2>
           {!mergeMode ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <ButtonLink href="/clientes/nuevo?from=/clientes" fullWidth className="gap-2">
+              <Button
+                type="button"
+                onClick={openCreateForm}
+                fullWidth
+                className="gap-2"
+              >
                 <UserPlus className="h-5 w-5" />
                 Nuevo cliente
-              </ButtonLink>
+              </Button>
               {customers.length >= 2 && (
                 <PageActionButton
                   icon={GitMerge}
@@ -379,7 +426,12 @@ export default function ClientesPage() {
               )}
             </div>
           ) : (
-            <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={exitMergeMode}
+              fullWidth
+              className="gap-2"
+            >
               <X className="h-5 w-5" />
               Cancelar unificación
             </Button>
@@ -394,148 +446,148 @@ export default function ClientesPage() {
       )}
 
       {formOpen && (
-      <Card className="mb-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-bold text-slate-900">
-            <UserPlus className="h-5 w-5 text-blue-600" />
-            {editingId ? "Editar cliente" : "Nuevo cliente"}
-          </h2>
-          <button
-            type="button"
-            onClick={cancelEdit}
-            className="flex items-center gap-1 text-sm text-slate-500"
-          >
-            <X className="h-4 w-4" /> Cancelar
-          </button>
-        </div>
+        <ResponsiveEntityPanel
+          open={formOpen}
+          title={editingId ? "Editar cliente" : "Nuevo cliente"}
+          subtitle="Guarda solo los datos necesarios para facturar o enviar documentos."
+          icon={UserPlus}
+          onClose={cancelEdit}
+        >
+          <div className="space-y-4">
+            <CustomerAiAutofill onApply={applyAiCustomer} />
 
-        <CustomerAiAutofill onApply={applyAiCustomer} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Nombre *">
+                <Input
+                  value={form.firstName}
+                  onChange={(e) => updateFormField("firstName", e.target.value)}
+                  placeholder="Ej: María"
+                  aria-invalid={Boolean(formError && !form.firstName.trim())}
+                />
+              </Field>
+              <Field
+                label="Apellidos"
+                hint="Opcional. Útil para distinguir clientes con el mismo nombre."
+              >
+                <Input
+                  value={form.lastName}
+                  onChange={(e) => updateFormField("lastName", e.target.value)}
+                  placeholder="Ej: López García"
+                  aria-invalid={Boolean(
+                    formError &&
+                    form.lastName.trim() &&
+                    form.lastName.trim().length < 2,
+                  )}
+                />
+              </Field>
+              <Field
+                label="NIF / CIF"
+                hint="Opcional. No se valida oficialmente; solo se evita duplicarlo en tu lista."
+              >
+                <Input
+                  value={form.nif}
+                  onChange={(e) => updateFormField("nif", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Teléfono"
+                hint="El teléfono se usará para WhatsApp si está informado."
+              >
+                <Input
+                  value={form.phone}
+                  onChange={(e) => updateFormField("phone", e.target.value)}
+                  placeholder="600 000 000"
+                />
+              </Field>
+              <Field
+                label="Email"
+                hint="Se usará para activar el envío por email en documentos guardados."
+              >
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => updateFormField("email", e.target.value)}
+                  placeholder="cliente@email.com"
+                  aria-invalid={formError === "Revisa el formato del email"}
+                />
+              </Field>
+              <Field label="Tipo de vía">
+                <StreetTypeSelect
+                  value={form.streetType}
+                  onChange={(streetType) =>
+                    updateFormField("streetType", streetType)
+                  }
+                />
+              </Field>
+              <Field
+                label="Nombre de vía y número"
+                hint="Sin C/, Avda. ni otros prefijos"
+              >
+                <GoogleAddressAutocomplete
+                  value={form.address}
+                  onChange={(value) => updateFormField("address", value)}
+                  onAddressSelected={applyAddressSuggestion}
+                  enabled={Boolean(data.profile.googlePlaces?.enabled)}
+                  displayStreetLineOnly
+                  placeholder="Ej: Valencia 546 7/1"
+                />
+              </Field>
+              <Field label="Código postal">
+                <Input
+                  value={form.postalCode}
+                  onChange={(e) =>
+                    updateFormField("postalCode", e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Ciudad">
+                <Input
+                  value={form.city}
+                  onChange={(e) => updateFormField("city", e.target.value)}
+                />
+              </Field>
+              <Field label="Notas">
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => updateFormField("notes", e.target.value)}
+                  placeholder="Observaciones sobre este cliente..."
+                />
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre *">
-            <Input
-              value={form.firstName}
-              onChange={(e) => updateFormField("firstName", e.target.value)}
-              placeholder="Ej: María"
-              aria-invalid={Boolean(formError && !form.firstName.trim())}
-            />
-          </Field>
-          <Field label="Apellidos" hint="Opcional. Útil para distinguir clientes con el mismo nombre.">
-            <Input
-              value={form.lastName}
-              onChange={(e) => updateFormField("lastName", e.target.value)}
-              placeholder="Ej: López García"
-              aria-invalid={Boolean(
-                formError &&
-                  form.lastName.trim() &&
-                  form.lastName.trim().length < 2,
-              )}
-            />
-          </Field>
-          <Field
-            label="NIF / CIF"
-            hint="Opcional. No se valida oficialmente; solo se evita duplicarlo en tu lista."
-          >
-            <Input
-              value={form.nif}
-              onChange={(e) => updateFormField("nif", e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Teléfono"
-            hint="El teléfono se usará para WhatsApp si está informado."
-          >
-            <Input
-              value={form.phone}
-              onChange={(e) => updateFormField("phone", e.target.value)}
-              placeholder="600 000 000"
-            />
-          </Field>
-          <Field
-            label="Email"
-            hint="Se usará para activar el envío por email en documentos guardados."
-          >
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => updateFormField("email", e.target.value)}
-              placeholder="cliente@email.com"
-              aria-invalid={formError === "Revisa el formato del email"}
-            />
-          </Field>
-          <Field label="Tipo de vía">
-            <StreetTypeSelect
-              value={form.streetType}
-              onChange={(streetType) => updateFormField("streetType", streetType)}
-            />
-          </Field>
-          <Field
-            label="Nombre de vía y número"
-            hint="Sin C/, Avda. ni otros prefijos"
-          >
-            <GoogleAddressAutocomplete
-              value={form.address}
-              onChange={(value) => updateFormField("address", value)}
-              onAddressSelected={applyAddressSuggestion}
-              enabled={Boolean(data.profile.googlePlaces?.enabled)}
-              displayStreetLineOnly
-              placeholder="Ej: Valencia 546 7/1"
-            />
-          </Field>
-          <Field label="Código postal">
-            <Input
-              value={form.postalCode}
-              onChange={(e) => updateFormField("postalCode", e.target.value)}
-            />
-          </Field>
-          <Field label="Ciudad">
-            <Input
-              value={form.city}
-              onChange={(e) => updateFormField("city", e.target.value)}
-            />
-          </Field>
-          <Field label="Notas">
-            <Textarea
-              value={form.notes}
-              onChange={(e) => updateFormField("notes", e.target.value)}
-              placeholder="Observaciones sobre este cliente..."
-            />
-          </Field>
-        </div>
+            {formError && (
+              <p
+                role="alert"
+                className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+              >
+                {formError}
+              </p>
+            )}
 
-        {formError && (
-          <p
-            role="alert"
-            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
-          >
-            {formError}
-          </p>
-        )}
+            {form.firstName && (
+              <p className="text-sm text-slate-500">
+                Se guardará como:{" "}
+                <strong>
+                  {customerFullName(form.firstName, form.lastName)}
+                </strong>
+              </p>
+            )}
 
-        {form.firstName && (
-          <p className="text-sm text-slate-500">
-            Se guardará como:{" "}
-            <strong>
-              {customerFullName(form.firstName, form.lastName)}
-            </strong>
-          </p>
-        )}
-
-        <Button onClick={handleSave} fullWidth>
-          {editingId ? "Guardar cambios" : "Guardar cliente"}
-        </Button>
-
-      </Card>
+            <Button onClick={handleSave} fullWidth>
+              {editingId ? "Guardar cambios" : "Guardar cliente"}
+            </Button>
+          </div>
+        </ResponsiveEntityPanel>
       )}
 
       {customers.length === 0 && !formOpen ? (
         <FactuEmptyState
           variant="cliente"
           action={
-            <ButtonLink href="/clientes/nuevo?from=/clientes" className="gap-2">
+            <Button type="button" onClick={openCreateForm} className="gap-2">
               <UserPlus className="h-5 w-5" />
               Nuevo cliente
-            </ButtonLink>
+            </Button>
           }
         />
       ) : customers.length > 0 ? (
@@ -589,100 +641,111 @@ export default function ClientesPage() {
               ? ` · mostrando ${visibleCustomers.length}`
               : ""}
           </p>
-          {(mergeMode ? mergeVisibleCustomers : visibleCustomers).map((customer) => {
-            const selected = selectedIds.includes(customer.id);
-            const invoiced = customerInvoicedTotals.get(customer.id) ?? 0;
-            const migrated = migrateCustomer(customer);
-            return (
-            <Card
-              key={customer.id}
-              className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${
-                mergeMode && selected
-                  ? "border-blue-400 ring-2 ring-blue-200"
-                  : ""
-              }`}
-            >
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                {mergeMode && (
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => toggleCustomerSelection(customer.id)}
-                    className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600"
-                    aria-label={`Seleccionar ${getCustomerDisplayName(customer)}`}
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="break-words font-bold text-slate-900">
-                    {getCustomerDisplayName(customer)}
-                  </p>
-                  {customer.nif && (
-                    <p className="text-sm text-slate-500">NIF: {customer.nif}</p>
-                  )}
-                  <div className="mt-2 flex min-w-0 flex-wrap gap-2">
-                    {migrated.phone && (
-                      <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                        <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{migrated.phone}</span>
-                      </span>
+          {(mergeMode ? mergeVisibleCustomers : visibleCustomers).map(
+            (customer) => {
+              const selected = selectedIds.includes(customer.id);
+              const invoiced = customerInvoicedTotals.get(customer.id) ?? 0;
+              const migrated = migrateCustomer(customer);
+              return (
+                <Card
+                  key={customer.id}
+                  className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${
+                    mergeMode && selected
+                      ? "border-blue-400 ring-2 ring-blue-200"
+                      : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {mergeMode && (
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleCustomerSelection(customer.id)}
+                        className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600"
+                        aria-label={`Seleccionar ${getCustomerDisplayName(customer)}`}
+                      />
                     )}
-                    {migrated.email && (
-                      <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                        <Mail className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{migrated.email}</span>
-                      </span>
-                    )}
-                    {!migrated.phone && !migrated.email && (
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                        Sin contacto de envío
-                      </span>
-                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words font-bold text-slate-900">
+                        {getCustomerDisplayName(customer)}
+                      </p>
+                      {customer.nif && (
+                        <p className="text-sm text-slate-500">
+                          NIF: {customer.nif}
+                        </p>
+                      )}
+                      <div className="mt-2 flex min-w-0 flex-wrap gap-2">
+                        {migrated.phone && (
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                            <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{migrated.phone}</span>
+                          </span>
+                        )}
+                        {migrated.email && (
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{migrated.email}</span>
+                          </span>
+                        )}
+                        {!migrated.phone && !migrated.email && (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                            Sin contacto de envío
+                          </span>
+                        )}
+                      </div>
+                      {(migrated.address || customer.city) && (
+                        <p className="break-words text-sm text-slate-400">
+                          {[
+                            formatStreetLine(
+                              migrated.streetType,
+                              migrated.address,
+                            ),
+                            customer.postalCode,
+                            customer.city,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {(migrated.address || customer.city) && (
-                    <p className="break-words text-sm text-slate-400">
-                      {[
-                        formatStreetLine(migrated.streetType, migrated.address),
-                        customer.postalCode,
-                        customer.city,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
+                  {!mergeMode && (
+                    <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <CustomerDocumentActions customerId={customer.id} />
+                        <button
+                          onClick={() => startEdit(customer)}
+                          className="rounded-xl bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                          title="Editar"
+                          aria-label={`Editar ${getCustomerDisplayName(customer)}`}
+                        >
+                          <Pencil className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `¿Borrar a ${getCustomerDisplayName(customer)}?`,
+                              )
+                            )
+                              deleteCustomer(customer.id);
+                          }}
+                          className="rounded-xl bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                          title="Borrar"
+                          aria-label={`Borrar ${getCustomerDisplayName(customer)}`}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <p className="text-right text-sm font-medium text-emerald-700">
+                        Facturado: {formatMoney(invoiced)}
+                      </p>
+                    </div>
                   )}
-                </div>
-              </div>
-              {!mergeMode && (
-                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <CustomerDocumentActions customerId={customer.id} />
-                    <button
-                      onClick={() => startEdit(customer)}
-                      className="rounded-xl bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                      title="Editar"
-                      aria-label={`Editar ${getCustomerDisplayName(customer)}`}
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Borrar a ${getCustomerDisplayName(customer)}?`))
-                          deleteCustomer(customer.id);
-                      }}
-                      className="rounded-xl bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                      title="Borrar"
-                      aria-label={`Borrar ${getCustomerDisplayName(customer)}`}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <p className="text-right text-sm font-medium text-emerald-700">
-                    Facturado: {formatMoney(invoiced)}
-                  </p>
-                </div>
-              )}
-            </Card>
-            );
-          })}
+                </Card>
+              );
+            },
+          )}
           {!mergeMode && hiddenCustomerCount > 0 && (
             <div className="pt-1">
               <button
@@ -746,7 +809,9 @@ export default function ClientesPage() {
               className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600"
             />
             <span>
-              <span className="font-semibold">Actualizar también borradores</span>
+              <span className="font-semibold">
+                Actualizar también borradores
+              </span>
               <span className="block text-blue-800">
                 Los documentos emitidos conservarán el cliente original y sus
                 snapshots históricos.
@@ -761,6 +826,12 @@ export default function ClientesPage() {
           </div>
         </Card>
       )}
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }
