@@ -16,8 +16,14 @@ import type {
   DocumentStatus,
   Expense,
   LineItem,
+  Product,
   Supplier,
 } from "../types";
+import {
+  inferPurchaseProductFamily,
+  normalizeProductCatalogItem,
+  purchaseProductKey,
+} from "../purchase-products";
 
 export const FACTURADIRECTA_ID_PREFIX = "facturadirecta";
 export const FACTURADIRECTA_SOURCE_NAME = "FacturaDirecta";
@@ -107,6 +113,10 @@ interface ParsedProduct {
   name: string;
   saleDescription?: string;
   purchaseDescription?: string;
+  salePrice?: number;
+  purchasePrice?: number;
+  saleDiscountPercent?: number;
+  purchaseDiscountPercent?: number;
   saleIvaPercent?: number;
   purchaseIvaPercent?: number;
   isSystemProduct: boolean;
@@ -187,6 +197,19 @@ function parseAmount(value: unknown): number {
       : clean.replace(",", ".");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseOptionalAmount(value: unknown): number | undefined {
+  const parsed = parseAmount(value);
+  return parsed > 0 ? parsed : undefined;
+}
+
+function parseDiscountPercent(value: unknown): number | undefined {
+  const raw = text(value);
+  if (!raw) return undefined;
+  const parsed = parseAmount(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed <= 1 ? roundMoney(parsed * 100) : roundMoney(parsed);
 }
 
 function isoDate(value: unknown): string {
@@ -396,10 +419,64 @@ function parseProduct(row: Row): ParsedProduct | null {
     name,
     saleDescription: getMemo(row, "Descripción de venta") || undefined,
     purchaseDescription: getMemo(row, "Descripción de compra") || undefined,
+    salePrice: parseOptionalAmount(get(row, "Precio de venta")),
+    purchasePrice: parseOptionalAmount(get(row, "Precio de compra")),
+    saleDiscountPercent: parseDiscountPercent(get(row, "Dto. venta")),
+    purchaseDiscountPercent: parseDiscountPercent(get(row, "Dto. compra")),
     saleIvaPercent: parseIvaPercent(get(row, "Impuestos de venta")),
     purchaseIvaPercent: parseIvaPercent(get(row, "Impuestos de compra")),
     isSystemProduct,
   };
+}
+
+function productFromParsedProduct(product: ParsedProduct): Product {
+  const now = new Date().toISOString();
+  const purchaseNetUnitCost =
+    product.purchasePrice !== undefined && product.purchaseDiscountPercent !== undefined
+      ? roundMoney(product.purchasePrice * (1 - product.purchaseDiscountPercent / 100))
+      : product.purchasePrice;
+
+  return normalizeProductCatalogItem({
+    id: fdId("product", product.code || product.name),
+    key: purchaseProductKey(product.name),
+    aliases: product.code ? [purchaseProductKey(product.code)] : [],
+    sku: product.code || undefined,
+    externalId: product.code || undefined,
+    name: product.name,
+    family: inferPurchaseProductFamily(product.name),
+    unit: undefined,
+    pvp: product.purchasePrice,
+    cost: purchaseNetUnitCost,
+    ivaPercent: product.saleIvaPercent ?? product.purchaseIvaPercent,
+    sales: {
+      enabled: Boolean(
+        product.saleDescription ||
+          product.salePrice ||
+          product.saleIvaPercent !== undefined,
+      ),
+      description: product.saleDescription,
+      unitPrice: product.salePrice,
+      ivaPercent: product.saleIvaPercent,
+    },
+    purchase: {
+      enabled: Boolean(
+        product.purchaseDescription ||
+          product.code ||
+          product.purchasePrice ||
+          product.purchaseDiscountPercent ||
+          product.purchaseIvaPercent !== undefined,
+      ),
+      description: product.purchaseDescription,
+      listPrice: product.purchasePrice,
+      discountPercent: product.purchaseDiscountPercent,
+      netUnitCost: purchaseNetUnitCost,
+      ivaPercent: product.purchaseIvaPercent,
+      supplierReference: product.code || undefined,
+    },
+    source: "manual",
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 function clientFromCustomer(customer: Customer): Client {
@@ -967,6 +1044,11 @@ export function buildFacturaDirectaImport(
   const productsByCode = new Map(
     parsedProducts.filter((product) => product.code).map((product) => [product.code, product]),
   );
+  const importedProducts = uniqueById(
+    parsedProducts
+      .filter((product) => !product.isSystemProduct)
+      .map(productFromParsedProduct),
+  );
   const invoiceLines = groupRowsByDocumentNumber(
     uniqueRowsByKey(
       tables.invoiceLines ?? [],
@@ -1023,12 +1105,16 @@ export function buildFacturaDirectaImport(
   const keptExpenses = current.expenses.filter(
     (expense) => !expense.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:expense:`),
   );
+  const keptProducts = current.products.filter(
+    (product) => !product.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:product:`),
+  );
   const nextDocuments = [...keptDocuments, ...importedDocuments];
   const data = normalizeLoadedData({
     ...current,
     customers: [...keptCustomers, ...importedCustomers],
     suppliers: [...keptSuppliers, ...importedSuppliers],
     expenses: [...keptExpenses, ...importedExpenses],
+    products: [...keptProducts, ...importedProducts],
     documents: nextDocuments,
     counters: countersFromDocuments(
       nextDocuments,
@@ -1095,6 +1181,11 @@ export function buildFacturaDirectaImport(
       `${preview.systemProductsSkipped} producto(s) parecen categorías predefinidas de FacturaDirecta y no se importarán como catálogo propio.`,
     );
   }
+  if (importedProducts.length > 0) {
+    warnings.push(
+      `${importedProducts.length} producto(s) de FacturaDirecta se importarán como catálogo reutilizable.`,
+    );
+  }
   if (preview.ignoredFiles > 0) {
     warnings.push(
       `${preview.ignoredFiles} archivo(s) se han reconocido como referencia o no se han podido interpretar como tabla importable.`,
@@ -1102,12 +1193,6 @@ export function buildFacturaDirectaImport(
   }
 
   const unsupported: FacturaDirectaUnsupportedItem[] = [
-    {
-      label: "Catálogo de productos",
-      reason:
-        "La app todavía no tiene catálogo de productos independiente. Se leen para reconstruir líneas, pero no se guardan como productos reutilizables.",
-      count: Math.max(0, preview.productsRead - preview.productsUsedForLines),
-    },
     {
       label: "Facturae, DIR3 y centros administrativos",
       reason:

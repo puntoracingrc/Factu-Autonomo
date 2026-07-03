@@ -276,6 +276,40 @@ export interface Expense {
 
 export type ProductSource = "manual" | "detected";
 
+export interface ProductSaleFacet {
+  enabled?: boolean;
+  description?: string;
+  unit?: string;
+  /** Precio de venta recomendado al cliente, sin IVA. */
+  unitPrice?: number;
+  ivaPercent?: number;
+}
+
+export interface ProductPurchaseFacet {
+  enabled?: boolean;
+  description?: string;
+  unit?: string;
+  /** Tarifa del proveedor antes de descuento, sin IVA. */
+  listPrice?: number;
+  discountPercent?: number;
+  /** Coste real tras descuento, sin IVA. */
+  netUnitCost?: number;
+  ivaPercent?: number;
+  supplierId?: string;
+  supplierName?: string;
+  supplierReference?: string;
+  /** Cuántas unidades de venta equivale a una unidad de compra. */
+  purchaseToSaleFactor?: number;
+}
+
+export type ProductCalculationKind = "none" | "area";
+
+export interface ProductCalculationTemplate {
+  kind: ProductCalculationKind;
+  unit?: string;
+  roundingDecimals?: number;
+}
+
 /** Producto o material reutilizable; puede nacer manualmente o desde líneas escaneadas. */
 export interface Product {
   id: string;
@@ -285,6 +319,8 @@ export interface Product {
   aliases?: string[];
   name: string;
   family: string;
+  sku?: string;
+  externalId?: string;
   unit?: string;
   supplierId?: string;
   supplierName?: string;
@@ -293,6 +329,9 @@ export interface Product {
   /** Coste habitual neto tras descuento, sin IVA. */
   cost?: number;
   ivaPercent?: number;
+  sales?: ProductSaleFacet;
+  purchase?: ProductPurchaseFacet;
+  calculation?: ProductCalculationTemplate;
   notes?: string;
   source: ProductSource;
   createdAt: string;

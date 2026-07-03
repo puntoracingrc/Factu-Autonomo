@@ -45,7 +45,20 @@ describe("document product suggestions", () => {
 
     expect(documentProductSaleUnitPriceInfo(product)).toEqual({
       unitPrice: 30,
-      source: "pvp",
+      source: "providerTariff",
+    });
+  });
+
+  it("prioriza el precio de venta del catálogo sobre la tarifa del proveedor", () => {
+    const product = summary("Motor G50 Radio", {
+      saleUnitPrice: 45,
+      lastPvp: 30,
+      lastUnitPrice: 18,
+    });
+
+    expect(documentProductSaleUnitPriceInfo(product)).toEqual({
+      unitPrice: 45,
+      source: "sale",
     });
   });
 
@@ -66,7 +79,11 @@ describe("document product suggestions", () => {
   it("rellena una línea editable con precio base y permite aplicar incremento", () => {
     const product = summary("Cinta 14 mm", {
       unit: "RL",
+      saleUnit: "m2",
+      saleDescription: "Cinta blanca instalada",
       ivaPercent: 21,
+      saleIvaPercent: 10,
+      saleUnitPrice: 12,
       lastPvp: 10,
     });
     const currentLine: LineItem = {
@@ -84,17 +101,17 @@ describe("document product suggestions", () => {
     });
 
     expect(applied).toMatchObject({
-      basePrice: 10,
-      priceSource: "pvp",
+      basePrice: 12,
+      priceSource: "sale",
       line: {
-        description: "Cinta 14 mm",
+        description: "Cinta blanca instalada",
         quantity: 2,
-        unit: "RL",
-        unitPrice: 10,
-        ivaPercent: 21,
+        unit: "m2",
+        unitPrice: 12,
+        ivaPercent: 10,
       },
     });
-    expect(priceWithDocumentProductMarkup(applied.basePrice, 20)).toBe(12);
+    expect(priceWithDocumentProductMarkup(applied.basePrice, 20)).toBe(14.4);
   });
 });
 

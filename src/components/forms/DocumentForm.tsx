@@ -122,6 +122,29 @@ function removeLineProductPricing(
   return next;
 }
 
+function productPriceSourceLabel(source: DocumentProductSalePriceSource): string {
+  if (source === "sale") return "precio venta";
+  if (source === "providerTariff") return "tarifa proveedor";
+  if (source === "cost") return "coste, no venta";
+  return "sin precio";
+}
+
+function productPriceSourceTone(source: DocumentProductSalePriceSource): string {
+  return source === "sale" ? "text-emerald-700" : "text-amber-800";
+}
+
+function productPriceSourceWarning(
+  source: DocumentProductSalePriceSource,
+): string | null {
+  if (source === "providerTariff") {
+    return "Usa tarifa de proveedor como referencia. Revisa margen y precio final.";
+  }
+  if (source === "cost") {
+    return "No hay precio de venta. La app usa el coste conocido como referencia.";
+  }
+  return null;
+}
+
 interface DocumentFormProps {
   type: DocumentType;
   existing?: Document;
@@ -825,6 +848,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                       <div className="max-h-72 overflow-y-auto">
                         {suggestions.map((product) => {
                           const price = documentProductSaleUnitPriceInfo(product);
+                          const warning = productPriceSourceWarning(price.source);
                           return (
                             <button
                               key={product.key}
@@ -844,21 +868,19 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                                   : ""}
                               </span>
                               <span
-                                className={`text-xs font-bold ${
-                                  price.source === "pvp"
-                                    ? "text-emerald-700"
-                                    : "text-amber-800"
-                                }`}
+                                className={`text-xs font-bold ${productPriceSourceTone(
+                                  price.source,
+                                )}`}
                               >
                                 {price.unitPrice > 0
                                   ? `${formatMoney(price.unitPrice)} ${
-                                      price.source === "pvp" ? "PVP" : "coste, no PVP"
+                                      productPriceSourceLabel(price.source)
                                     }`
                                   : "Sin precio"}
                               </span>
-                              {price.source !== "pvp" && (
+                              {warning && (
                                 <span className="rounded-xl bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
-                                  Aviso: no hay PVP detectado. Revisa el precio de venta.
+                                  {warning}
                                 </span>
                               )}
                             </button>
@@ -893,7 +915,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
               {productPricing && (
                 <div
                   className={`mt-3 rounded-2xl border p-3 ${
-                    productPricing.priceSource === "pvp"
+                    productPricing.priceSource === "sale"
                       ? "border-emerald-100 bg-emerald-50"
                       : "border-amber-200 bg-amber-50"
                   }`}
@@ -905,15 +927,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                       </p>
                       <p className="text-xs font-semibold text-slate-600">
                         Base: {formatMoney(productPricing.basePrice)}{" "}
-                        {productPricing.priceSource === "pvp"
-                          ? "PVP sin IVA"
-                          : "coste sin IVA, no PVP"}
+                        {productPriceSourceLabel(productPricing.priceSource)} sin IVA
                       </p>
-                      {productPricing.priceSource !== "pvp" && (
+                      {productPriceSourceWarning(productPricing.priceSource) && (
                         <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
-                          Aviso: este producto no tiene PVP detectado. La app ha
-                          rellenado el coste conocido solo como referencia; cambia
-                          el precio antes de emitir si vas a venderlo con margen.
+                          {productPriceSourceWarning(productPricing.priceSource)}
                         </p>
                       )}
                       {productPricing.markupPercent === -1 && (

@@ -33,11 +33,11 @@ export function productSummaryToDocumentDraftLine(
     basePrice: price.unitPrice,
     priceSource: price.source,
     line: {
-      description: product.name,
+      description: product.saleDescription || product.name,
       quantity: 1,
-      unit: product.unit || "ud",
+      unit: product.saleUnit || product.unit || "ud",
       unitPrice: price.unitPrice,
-      ivaPercent: product.ivaPercent ?? defaultIva,
+      ivaPercent: product.saleIvaPercent ?? product.ivaPercent ?? defaultIva,
     },
   };
 }

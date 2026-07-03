@@ -1052,6 +1052,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const merged = normalizeProductCatalogItem({
         ...keep,
         aliases,
+        sku: keep.sku ?? removed.find((product) => product.sku)?.sku,
+        externalId:
+          keep.externalId ?? removed.find((product) => product.externalId)?.externalId,
         unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
         supplierId:
           keep.supplierId ?? removed.find((product) => product.supplierId)?.supplierId,
@@ -1064,6 +1067,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ivaPercent:
           keep.ivaPercent ??
           removed.find((product) => product.ivaPercent !== undefined)?.ivaPercent,
+        sales: keep.sales ?? removed.find((product) => product.sales)?.sales,
+        purchase:
+          keep.purchase ?? removed.find((product) => product.purchase)?.purchase,
+        calculation:
+          keep.calculation ??
+          removed.find((product) => product.calculation)?.calculation,
         updatedAt: new Date().toISOString(),
       });
 

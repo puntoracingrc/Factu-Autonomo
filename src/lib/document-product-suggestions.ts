@@ -19,7 +19,11 @@ export interface AppliedDocumentProductLine {
 
 export const DOCUMENT_PRODUCT_MARKUPS = [0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
 
-export type DocumentProductSalePriceSource = "pvp" | "cost" | "none";
+export type DocumentProductSalePriceSource =
+  | "sale"
+  | "providerTariff"
+  | "cost"
+  | "none";
 
 export interface DocumentProductSalePriceInfo {
   unitPrice: number;
@@ -29,10 +33,14 @@ export interface DocumentProductSalePriceInfo {
 export function documentProductSaleUnitPriceInfo(
   product: PurchaseProductSummary,
 ): DocumentProductSalePriceInfo {
+  if (Number.isFinite(product.saleUnitPrice) && (product.saleUnitPrice ?? 0) > 0) {
+    return { unitPrice: roundMoney(product.saleUnitPrice ?? 0), source: "sale" };
+  }
+
   const pvp = [product.lastPvp, product.averagePvp].find(
     (value) => Number.isFinite(value) && (value ?? 0) > 0,
   );
-  if (pvp) return { unitPrice: roundMoney(pvp), source: "pvp" };
+  if (pvp) return { unitPrice: roundMoney(pvp), source: "providerTariff" };
 
   const cost = [product.lastUnitPrice, product.averageUnitPrice].find(
     (value) => Number.isFinite(value) && (value ?? 0) > 0,
@@ -117,11 +125,16 @@ export function applyDocumentProductToLine(
     basePrice: price.unitPrice,
     priceSource: price.source,
     line: {
-      description: product.name,
+      description: product.saleDescription || product.name,
       quantity: line.quantity > 0 ? line.quantity : 1,
-      unit: product.unit || line.unit,
+      unit: product.saleUnit || product.unit || line.unit,
       unitPrice: price.unitPrice,
-      ivaPercent: options.vatExempt ? 0 : (product.ivaPercent ?? line.ivaPercent ?? options.defaultIva),
+      ivaPercent: options.vatExempt
+        ? 0
+        : (product.saleIvaPercent ??
+          product.ivaPercent ??
+          line.ivaPercent ??
+          options.defaultIva),
     },
   };
 }
