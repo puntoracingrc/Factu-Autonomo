@@ -66,7 +66,11 @@ export function normalizeCustomerTextExtractPayload(
   const firstName = cleanString(customer.firstName);
   const lastName = cleanString(customer.lastName);
 
-  if (firstName.length < 2 || lastName.length < 2) {
+  if (firstName.length < 2) {
+    return null;
+  }
+
+  if (lastName && lastName.length < 2) {
     return null;
   }
 
@@ -74,6 +78,10 @@ export function normalizeCustomerTextExtractPayload(
   const warnings = Array.isArray(data.warnings)
     ? data.warnings.filter((warning): warning is string => typeof warning === "string")
     : [];
+
+  if (!lastName) {
+    warnings.push("No se han detectado apellidos o razón social completa.");
+  }
 
   if (Number.isFinite(confidence) && confidence < 0.7) {
     warnings.push("Confianza baja: revisa todos los campos antes de guardar.");
@@ -104,7 +112,7 @@ export const CUSTOMER_TEXT_EXTRACT_JSON_SCHEMA = {
     firstName:
       "string — nombre del cliente. Si es empresa, razón social sin forma jurídica final",
     lastName:
-      "string — apellidos. Si es empresa, forma jurídica final: S.L., S.A., Autónomo, etc.",
+      "string opcional — apellidos. Si es empresa, forma jurídica final: S.L., S.A., Autónomo, etc.",
     nif: "string opcional — NIF/CIF español",
     email: "string opcional",
     phone: "string opcional",

@@ -36,16 +36,16 @@ export function validateDocumentEmission(
     return { ok: true };
   }
 
+  if (type !== "factura") {
+    return { ok: true };
+  }
+
   if (!doc.client.name?.trim()) {
     return { ok: false, message: "Indica el nombre del cliente." };
   }
 
   if (doc.items.every((item) => !item.description.trim())) {
     return { ok: false, message: "Añade al menos un concepto." };
-  }
-
-  if (type !== "factura") {
-    return { ok: true };
   }
 
   const missing = businessProfileMissingDocumentLabels(profile);

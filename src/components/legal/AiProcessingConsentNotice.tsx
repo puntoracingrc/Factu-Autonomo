@@ -41,7 +41,7 @@ export function AiProcessingConsentNotice({
   if (accepted) {
     return (
       <p className="text-xs text-slate-500">
-        Usa IA externa y consume créditos.{" "}
+        Usa IA externa.{" "}
         <Link href="/legal/privacidad" className="font-semibold underline">
           Privacidad
         </Link>

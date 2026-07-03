@@ -15,6 +15,51 @@ const item = {
 };
 
 describe("invoice compliance", () => {
+  it("permite emitir presupuestos sin cliente ni conceptos", () => {
+    const doc: Document = {
+      id: "quote-1",
+      type: "presupuesto",
+      number: "P-1",
+      date: "2026-07-03",
+      client: { name: "" },
+      items: [],
+      status: "enviado",
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    expect(validateDocumentEmission(doc, DEFAULT_PROFILE, "presupuesto")).toEqual({
+      ok: true,
+    });
+  });
+
+  it("mantiene cliente y conceptos obligatorios al emitir facturas", () => {
+    const doc: Document = {
+      id: "invoice-blank-client",
+      type: "factura",
+      number: "F-1",
+      date: "2026-07-03",
+      client: { name: "" },
+      items: [item],
+      status: "enviado",
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    expect(validateDocumentEmission(doc, DEFAULT_PROFILE, "factura")).toEqual({
+      ok: false,
+      message: "Indica el nombre del cliente.",
+    });
+
+    expect(
+      validateDocumentEmission(
+        { ...doc, client: { name: "Teresa" }, items: [] },
+        DEFAULT_PROFILE,
+        "factura",
+      ),
+    ).toEqual({ ok: false, message: "Añade al menos un concepto." });
+  });
+
   it("requires issuer data to emit facturas", () => {
     const doc: Document = {
       id: "1",

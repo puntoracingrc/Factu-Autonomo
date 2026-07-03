@@ -86,6 +86,14 @@ describe("document form totals flow", () => {
     );
   });
 
+  it("permite presupuestos sin conceptos", () => {
+    expect(
+      firstDocumentFormLineIssue([item({ description: "", unitPrice: 0 })], {
+        requireConcept: false,
+      }),
+    ).toBeNull();
+  });
+
   it("prepara guardado sin líneas vacías y sanea valores negativos accidentales", () => {
     const saved = documentFormItemsForSave([
       item({ id: "line-1", description: "  Servicio  ", quantity: 2 }),

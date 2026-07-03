@@ -9,6 +9,7 @@ import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuote
 import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
@@ -515,6 +516,9 @@ export function DocumentList({
                     {type === "presupuesto" && (
                       <ConvertQuoteToInvoiceButton doc={doc} />
                     )}
+                    {type === "presupuesto" && (
+                      <DuplicateDocumentButton doc={doc} basePath={basePath} />
+                    )}
                     {(type === "factura" || type === "recibo") && (
                       <MarkAsPaidButton doc={doc} />
                     )}
@@ -597,7 +601,11 @@ function matchesDocumentStatusFilter(
   allDocuments: Document[],
 ): boolean {
   if (filter === "all") return true;
-  if (filter === "draft") return deriveDocumentLifecycle(document) === "draft";
+  if (filter === "draft") {
+    return document.type === "presupuesto"
+      ? document.status === "borrador"
+      : deriveDocumentLifecycle(document) === "draft";
+  }
   if (filter === "accepted") return isAcceptedQuote(document);
   if (filter === "expired") return isQuoteExpired(document) || document.status === "vencido";
   if (filter === "converted") {
@@ -615,9 +623,8 @@ function matchesDocumentStatusFilter(
   if (filter === "sent") {
     return (
       document.type === "presupuesto" &&
-      deriveDocumentLifecycle(document) === "issued" &&
+      document.status === "enviado" &&
       !isAcceptedQuote(document) &&
-      document.status !== "rechazado" &&
       !isQuoteExpired(document) &&
       !findInvoiceCreatedFromQuote(allDocuments, document.id)
     );

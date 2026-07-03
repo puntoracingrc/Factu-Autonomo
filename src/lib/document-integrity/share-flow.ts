@@ -18,6 +18,8 @@ export interface ShareDocumentFlowResult {
 }
 
 function needsIssueBeforeShare(doc: Document): boolean {
+  if (doc.type === "presupuesto") return false;
+
   return (
     deriveDocumentLifecycle(doc) === "draft" &&
     !isDocumentIntegrityLocked(doc)

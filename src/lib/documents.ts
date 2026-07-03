@@ -377,6 +377,7 @@ export function getFacturasIncludingRectificativas(
 
 export function isDocumentEditable(doc: Document): boolean {
   if (isRectificativa(doc) || doc.rectifiedById) return false;
+  if (doc.type === "presupuesto") return doc.status !== "anulada";
   return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
 }
 
@@ -391,8 +392,8 @@ export function getDocumentReadOnlyMessage(doc: Document): string {
   if (doc.type === "factura" && doc.status !== "borrador") {
     return "Las facturas emitidas no se editan ni se borran. Compártelas por email o WhatsApp, o rectifícalas (anulación o corrección) desde el listado.";
   }
-  if (doc.type === "presupuesto" && doc.status !== "borrador") {
-    return "Este presupuesto ya no está en borrador. Compártelo por email o WhatsApp, o descárgalo en PDF.";
+  if (doc.type === "presupuesto" && doc.status === "anulada") {
+    return "Este presupuesto está anulado. Duplícalo si necesitas preparar una nueva versión.";
   }
   if (doc.type === "recibo" && doc.status !== "borrador") {
     return "Este recibo ya fue emitido. Compártelo por email o WhatsApp, o descárgalo en PDF.";

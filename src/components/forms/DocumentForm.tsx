@@ -9,7 +9,11 @@ import {
 } from "@/components/clients/ClientPicker";
 import type { ClientFormValues } from "@/components/clients/ClientPicker";
 import { formatAddressBlock } from "@/lib/customer-address";
-import { customerToFormValues, findCustomerByClient } from "@/lib/customers";
+import {
+  clientInputToSnapshot,
+  customerToFormValues,
+  findCustomerByClient,
+} from "@/lib/customers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -200,6 +204,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
   );
+  const activeCustomerId =
+    selectedCustomerId ??
+    (clientForm.firstName.trim() ? existing?.customerId : undefined);
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
   const unitsSettings = useMemo(
@@ -321,7 +328,7 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     number: existing?.number ?? "BORRADOR",
     date,
     dueDate: effectiveDueDate || undefined,
-    customerId: selectedCustomerId ?? existing?.customerId,
+    customerId: activeCustomerId,
     client: {
       firstName: clientForm.firstName,
       lastName: clientForm.lastName,
@@ -355,11 +362,22 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const downloadStatusOverride: Document["status"] | undefined =
     type === "factura" && !existing ? "enviado" : undefined;
   const downloadButtonLabel =
-    type === "factura" && (!existing || !isDraftStatus)
-      ? "Emitir y descargar PDF"
+    type === "presupuesto" && !existing
+      ? "Guardar presupuesto y descargar PDF"
+      : type === "factura" && (!existing || !isDraftStatus)
+        ? "Emitir y descargar PDF"
+        : isDraftStatus
+          ? "Guardar borrador y descargar PDF"
+          : "Guardar y descargar PDF";
+  const showNewQuoteSaveActions = type === "presupuesto" && !existing;
+  const saveButtonLabel =
+    type === "factura"
+      ? isDraftStatus
+        ? "Guardar borrador"
+        : "Emitir factura"
       : isDraftStatus
-        ? "Guardar borrador y descargar PDF"
-        : "Guardar y descargar PDF";
+        ? `Guardar ${label}`
+        : `Guardar ${label}`;
 
   const shareDoc: Document | null = existing
     ? {
@@ -369,6 +387,8 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
         createdAt: existing.createdAt,
       }
     : null;
+
+  const requiresConcept = type !== "presupuesto";
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setFormError(null);
@@ -455,7 +475,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   async function handlePreview() {
     if (saving || previewLoading) return;
 
-    const lineIssue = firstDocumentFormLineIssue(items);
+    const lineIssue = firstDocumentFormLineIssue(items, {
+      requireConcept: requiresConcept,
+    });
     if (lineIssue) {
       setFormError(`${lineIssue} Revisa las líneas antes de abrir el PDF.`);
       return;
@@ -482,7 +504,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   ) {
     if (saving) return;
 
-    const lineIssue = firstDocumentFormLineIssue(items);
+    const lineIssue = firstDocumentFormLineIssue(items, {
+      requireConcept: requiresConcept,
+    });
     if (lineIssue) {
       setFormError(lineIssue);
       return;
@@ -500,26 +524,37 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       }
     }
 
-    const customerResult = upsertCustomerForDocument(
-      {
-        firstName: clientForm.firstName,
-        lastName: clientForm.lastName,
-        nif: clientForm.nif,
-        email: clientForm.email,
-        phone: clientForm.phone,
-        streetType: clientForm.streetType,
-        address: clientForm.address,
-        city: clientForm.city,
-        postalCode: clientForm.postalCode,
-        notes: clientForm.notes,
-      },
-      selectedCustomerId,
+    const shouldUpsertCustomer = Boolean(
+      selectedCustomerId || clientForm.firstName.trim(),
     );
+    let customerId = activeCustomerId;
+    let client = clientInputToSnapshot(clientForm);
 
-    if (!customerResult.ok) {
-      setFormError(customerResult.error);
-      setSaveAction("idle");
-      return;
+    if (shouldUpsertCustomer) {
+      const customerResult = upsertCustomerForDocument(
+        {
+          firstName: clientForm.firstName,
+          lastName: clientForm.lastName,
+          nif: clientForm.nif,
+          email: clientForm.email,
+          phone: clientForm.phone,
+          streetType: clientForm.streetType,
+          address: clientForm.address,
+          city: clientForm.city,
+          postalCode: clientForm.postalCode,
+          notes: clientForm.notes,
+        },
+        selectedCustomerId,
+      );
+
+      if (!customerResult.ok) {
+        setFormError(customerResult.error);
+        setSaveAction("idle");
+        return;
+      }
+
+      customerId = customerResult.customerId;
+      client = customerResult.client;
     }
 
     const requestedStatus = statusOverride ?? status;
@@ -532,8 +567,8 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       type,
       date,
       dueDate: effectiveDueDate || undefined,
-      customerId: customerResult.customerId,
-      client: customerResult.client,
+      customerId,
+      client,
       items: normalizeLineItemUnits(
         documentFormItemsForSave(items, vatExempt),
         unitsSettings,
@@ -998,20 +1033,46 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           <Eye className="h-5 w-5" />
           {previewLoading ? "Generando vista previa…" : previewButtonLabel}
         </Button>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button fullWidth onClick={() => void handleSave(false)} disabled={saving || previewLoading}>
+        <div
+          className={`grid gap-3 ${
+            showNewQuoteSaveActions ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          }`}
+        >
+          {showNewQuoteSaveActions && (
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => void handleSave(false, "borrador")}
+              disabled={saving || previewLoading}
+            >
+              {saveAction === "save" ? "Guardando…" : "Guardar borrador"}
+            </Button>
+          )}
+          <Button
+            fullWidth
+            onClick={() =>
+              void handleSave(
+                false,
+                showNewQuoteSaveActions ? "enviado" : undefined,
+              )
+            }
+            disabled={saving || previewLoading}
+          >
             {saveAction === "save"
               ? "Guardando…"
-              : isDraftStatus
-                ? "Guardar borrador"
-                : type === "factura"
-                  ? "Emitir factura"
-                  : `Guardar ${label}`}
+              : showNewQuoteSaveActions
+                ? "Guardar presupuesto"
+                : saveButtonLabel}
           </Button>
           <Button
             variant="secondary"
             fullWidth
-            onClick={() => void handleSave(true, downloadStatusOverride)}
+            onClick={() =>
+              void handleSave(
+                true,
+                showNewQuoteSaveActions ? "enviado" : downloadStatusOverride,
+              )
+            }
             disabled={saving || previewLoading}
           >
             {saveAction === "save-pdf"

@@ -420,12 +420,16 @@ export default function ClientesPage() {
               aria-invalid={Boolean(formError && !form.firstName.trim())}
             />
           </Field>
-          <Field label="Apellidos *" hint="No se pueden repetir con el mismo nombre">
+          <Field label="Apellidos" hint="Opcional. Útil para distinguir clientes con el mismo nombre.">
             <Input
               value={form.lastName}
               onChange={(e) => updateFormField("lastName", e.target.value)}
               placeholder="Ej: López García"
-              aria-invalid={Boolean(formError && !form.lastName.trim())}
+              aria-invalid={Boolean(
+                formError &&
+                  form.lastName.trim() &&
+                  form.lastName.trim().length < 2,
+              )}
             />
           </Field>
           <Field
@@ -508,7 +512,7 @@ export default function ClientesPage() {
           </p>
         )}
 
-        {form.firstName && form.lastName && (
+        {form.firstName && (
           <p className="text-sm text-slate-500">
             Se guardará como:{" "}
             <strong>

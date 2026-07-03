@@ -34,4 +34,29 @@ describe("customer text extract schema", () => {
       }),
     ).toBeNull();
   });
+
+  it("acepta datos parciales sin apellidos y conserva direccion", () => {
+    const result = normalizeCustomerTextExtractPayload({
+      customer: {
+        firstName: "Teresa",
+        lastName: "",
+        address: "Mandri, 26 2º-2º",
+        city: "Barcelona",
+        postalCode: "08022",
+      },
+      confidence: 0.82,
+      warnings: [],
+    });
+
+    expect(result?.customer).toMatchObject({
+      firstName: "Teresa",
+      lastName: "",
+      address: "Mandri, 26 2º-2º",
+      city: "Barcelona",
+      postalCode: "08022",
+    });
+    expect(result?.warnings).toContain(
+      "No se han detectado apellidos o razón social completa.",
+    );
+  });
 });

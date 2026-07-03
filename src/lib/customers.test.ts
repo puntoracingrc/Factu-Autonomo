@@ -228,9 +228,10 @@ describe("validateUniqueCustomer", () => {
     expect(result.error).toBe("Añade al menos un nombre para guardar el cliente");
   });
 
-  it("rechaza nombre sin apellidos", () => {
+  it("acepta nombre sin apellidos", () => {
     const result = validateUniqueCustomer(sample, "Pedro", "");
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    expect(result.lastName).toBe("");
   });
 
   it("rechaza duplicado", () => {
@@ -275,6 +276,30 @@ describe("validateCustomerInput", () => {
     expect(result.phone).toBe("612 345 678");
   });
 
+  it("acepta cliente con nombre sin apellidos", () => {
+    const result = validateCustomerInput(sample, {
+      firstName: "Teresa",
+      lastName: "",
+      address: "Mandri, 26 2º-2º",
+      city: "Barcelona",
+      postalCode: "08022",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.firstName).toBe("Teresa");
+    expect(result.lastName).toBe("");
+  });
+
+  it("rechaza apellidos demasiado cortos solo si se informan", () => {
+    const result = validateCustomerInput(sample, {
+      firstName: "Teresa",
+      lastName: "M",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("Los apellidos deben tener al menos 2 letras");
+  });
+
   it("rechaza email informado con formato invalido", () => {
     const result = validateCustomerInput(sample, {
       firstName: "Lucía",
@@ -311,6 +336,23 @@ describe("validateCustomerInput", () => {
       name: "Lucía Mesa",
       email: "lucia@example.com",
       phone: "612 345 678",
+    });
+  });
+
+  it("prepara payload de cliente sin apellidos", () => {
+    const payload = customerPayloadFromInput({
+      firstName: " Teresa ",
+      lastName: "",
+      address: " Mandri, 26 2º-2º ",
+      city: " Barcelona ",
+      postalCode: " 08022 ",
+    });
+
+    expect(payload).toMatchObject({
+      firstName: "Teresa",
+      lastName: "",
+      name: "Teresa",
+      address: "Mandri, 26 2º-2º",
     });
   });
 });
@@ -362,6 +404,27 @@ describe("ensureCustomerForDocument", () => {
       expect(result.client.phone).toBe("612 345 678");
       expect(result.customer.email).toBe("lucia@example.com");
       expect(result.customer.phone).toBe("612 345 678");
+    }
+  });
+
+  it("crea cliente desde documento aunque falten apellidos", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        firstName: "Teresa",
+        lastName: "",
+        address: "Mandri, 26 2º-2º",
+        postalCode: "08022",
+        city: "Barcelona",
+      },
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.client.name).toBe("Teresa");
+      expect(result.customer.lastName).toBe("");
+      expect(result.customer.city).toBe("Barcelona");
     }
   });
 
