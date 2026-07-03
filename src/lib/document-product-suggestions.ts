@@ -1,4 +1,5 @@
 import { roundMoney } from "./calculations";
+import { normalizeDocumentUnitId } from "./document-units";
 import {
   purchaseProductKey,
   type PurchaseProductSummary,
@@ -127,7 +128,13 @@ export function applyDocumentProductToLine(
     line: {
       description: product.saleDescription || product.name,
       quantity: line.quantity > 0 ? line.quantity : 1,
-      unit: product.saleUnit || product.unit || line.unit,
+      unit:
+        normalizeDocumentUnitId(product.saleUnit) ??
+        normalizeDocumentUnitId(product.unit) ??
+        normalizeDocumentUnitId(line.unit) ??
+        product.saleUnit ??
+        product.unit ??
+        line.unit,
       unitPrice: price.unitPrice,
       ivaPercent: options.vatExempt
         ? 0

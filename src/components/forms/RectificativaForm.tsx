@@ -38,6 +38,10 @@ import {
   normalizeDocumentUnits,
   normalizeLineItemUnits,
 } from "@/lib/document-units";
+import {
+  areaQuantityFromDimensions,
+  isAreaDocumentUnit,
+} from "@/lib/area-calculation";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
@@ -51,6 +55,11 @@ import { RECTIFICATION_REASONS } from "@/lib/types";
 
 interface RectificativaFormProps {
   original: Document;
+}
+
+interface LineAreaDraft {
+  width: number;
+  height: number;
 }
 
 export function RectificativaForm({ original }: RectificativaFormProps) {
@@ -80,6 +89,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const [items, setItems] = useState<LineItem[]>(() =>
     normalizeLineItemUnits(itemsForAnulacion(original.items), unitsSettings),
   );
+  const [lineAreaDrafts, setLineAreaDrafts] = useState<
+    Record<string, LineAreaDraft>
+  >({});
 
   useEffect(() => {
     const method = defaultPaymentMethodForType(
@@ -105,6 +117,18 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+  }
+
+  function handleLineAreaDraftChange(id: string, patch: Partial<LineAreaDraft>) {
+    const nextDraft = {
+      ...(lineAreaDrafts[id] ?? { width: 0, height: 0 }),
+      ...patch,
+    };
+    const quantity = areaQuantityFromDimensions(nextDraft);
+    setLineAreaDrafts((current) => {
+      return { ...current, [id]: nextDraft };
+    });
+    if (quantity > 0) updateItem(id, { quantity, unit: "m2" });
   }
 
   const previewTotals = documentAmounts({ items }, vatExempt);
@@ -421,6 +445,34 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   </Field>
                 )}
               </div>
+              {isAreaDocumentUnit(item.unit) ? (
+                <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-3">
+                  <p className="text-sm font-black text-blue-950">Calcular m²</p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <Field label="Alto (m)">
+                      <NumericFieldInput
+                        value={lineAreaDrafts[item.id]?.height ?? 0}
+                        onChange={(height) =>
+                          handleLineAreaDraftChange(item.id, { height })
+                        }
+                        disabled={rectType === "anulacion"}
+                      />
+                    </Field>
+                    <Field label="Ancho (m)">
+                      <NumericFieldInput
+                        value={lineAreaDrafts[item.id]?.width ?? 0}
+                        onChange={(width) =>
+                          handleLineAreaDraftChange(item.id, { width })
+                        }
+                        disabled={rectType === "anulacion"}
+                      />
+                    </Field>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-blue-800">
+                    Alto x ancho en metros. La cantidad de la línea se actualiza sola.
+                  </p>
+                </div>
+              ) : null}
               <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
                 <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
                   Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}

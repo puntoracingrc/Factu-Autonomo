@@ -24,6 +24,7 @@ import {
   PRO_EXPENSE_SCANS_PER_MONTH,
   type ScanQuota,
 } from "@/lib/billing/scan-limits";
+import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -63,6 +64,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     if (!quota || quota.remainingUnits === Number.MAX_SAFE_INTEGER) return null;
     return `${buildAiUsageMeter(quota).percentRemaining}% restante`;
   }, [quota]);
+  const learningAccess = aiLearningAccountForEmail(user?.email);
 
   const loadQuota = useCallback(async () => {
     if (billingEnabled && !user) {
@@ -292,6 +294,14 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
               {loadingQuota && usageLabel ? " (actualizando…)" : null}
             </p>
           )}
+          {learningAccess.allowed ? (
+            <Link
+              href="/admin?seccion=aprendizaje"
+              className="inline-flex text-sm font-bold text-sky-700 underline"
+            >
+              Corregir lecturas IA en Admin
+            </Link>
+          ) : null}
 
           <input
             ref={inputRef}

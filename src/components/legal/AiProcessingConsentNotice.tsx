@@ -64,6 +64,10 @@ export function AiProcessingConsentNotice({
             proveedor de IA. Sube solo la información necesaria y revisa siempre
             el resultado antes de guardarlo.
           </p>
+          <p className="text-sm leading-relaxed">
+            En cuentas autorizadas de aprendizaje, las correcciones pueden
+            guardar solo patrones técnicos limpios para mejorar lecturas futuras.
+          </p>
           <p className="text-xs">
             Más detalle en{" "}
             <Link href="/legal/privacidad" className="font-semibold underline">

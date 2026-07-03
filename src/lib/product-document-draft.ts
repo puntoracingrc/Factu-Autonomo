@@ -1,4 +1,5 @@
 import type { DocumentType, LineItem } from "./types";
+import { normalizeDocumentUnitId } from "./document-units";
 import type { PurchaseProductSummary } from "./purchase-products";
 import {
   documentProductSaleUnitPriceInfo,
@@ -35,7 +36,12 @@ export function productSummaryToDocumentDraftLine(
     line: {
       description: product.saleDescription || product.name,
       quantity: 1,
-      unit: product.saleUnit || product.unit || "ud",
+      unit:
+        normalizeDocumentUnitId(product.saleUnit) ??
+        normalizeDocumentUnitId(product.unit) ??
+        product.saleUnit ??
+        product.unit ??
+        "ud",
       unitPrice: price.unitPrice,
       ivaPercent: product.saleIvaPercent ?? product.ivaPercent ?? defaultIva,
     },

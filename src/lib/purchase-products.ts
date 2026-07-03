@@ -1,6 +1,7 @@
 import { roundMoney } from "./calculations";
+import { normalizeDocumentUnitId } from "./document-units";
 import { expensePurchaseLineBaseTotal, sanitizeExpensePurchaseLines } from "./expenses";
-import type { Expense, Product } from "./types";
+import type { Expense, Product, ProductAttribute } from "./types";
 
 export interface PurchaseProductSupplierSummary {
   supplierId?: string;
@@ -32,6 +33,8 @@ export interface PurchaseProductSummary {
   purchaseSupplierReference?: string;
   purchaseToSaleFactor?: number;
   calculation?: Product["calculation"];
+  attributes?: ProductAttribute[];
+  notes?: string;
   purchaseCount: number;
   totalQuantity: number;
   totalBase: number;
@@ -71,6 +74,8 @@ interface ProductAccumulator {
   purchaseSupplierReference?: string;
   purchaseToSaleFactor?: number;
   calculation?: Product["calculation"];
+  attributes?: ProductAttribute[];
+  notes?: string;
   purchaseCount: number;
   totalQuantity: number;
   totalBase: number;
@@ -89,6 +94,47 @@ interface ProductAccumulator {
 
 function cleanOptionalText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function cleanOptionalUnit(value: unknown): string | undefined {
+  const text = cleanOptionalText(value);
+  return normalizeDocumentUnitId(text) ?? text;
+}
+
+function normalizeAttributeKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
+function normalizeProductAttributes(value: unknown): ProductAttribute[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const attributes: ProductAttribute[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const source = raw as Partial<ProductAttribute>;
+    const label = cleanOptionalText(source.label) ?? cleanOptionalText(source.key);
+    const attributeValue = cleanOptionalText(source.value);
+    if (!label || !attributeValue) continue;
+    const key = cleanOptionalText(source.key) ?? normalizeAttributeKey(label);
+    attributes.push({
+      key: normalizeAttributeKey(key) || normalizeAttributeKey(label),
+      label,
+      value: attributeValue,
+      unit: cleanOptionalUnit(source.unit),
+    });
+  }
+
+  const seen = new Set<string>();
+  return attributes.filter((item) => {
+    if (seen.has(item.key)) return false;
+    seen.add(item.key);
+    return true;
+  });
 }
 
 function normalizeOptionalAmount(value: unknown): number | undefined {
@@ -115,7 +161,7 @@ export function normalizeProductCatalogItem(product: Product): Product {
   const productFamily = (product.family ?? "").trim();
   const key = purchaseProductKey(product.key || productName);
   const now = new Date().toISOString();
-  const legacyUnit = cleanOptionalText(product.unit);
+  const legacyUnit = cleanOptionalUnit(product.unit);
   const legacyPvp = normalizeOptionalAmount(product.pvp);
   const legacyCost = normalizeOptionalAmount(product.cost);
   const legacyIva = normalizeOptionalPercent(product.ivaPercent);
@@ -123,12 +169,12 @@ export function normalizeProductCatalogItem(product: Product): Product {
     legacyPvp && legacyCost && legacyPvp > 0
       ? roundMoney(((legacyPvp - legacyCost) / legacyPvp) * 100)
       : undefined;
-  const salesUnit = cleanOptionalText(product.sales?.unit) ?? legacyUnit;
+  const salesUnit = cleanOptionalUnit(product.sales?.unit) ?? legacyUnit;
   const saleUnitPrice = normalizeOptionalAmount(product.sales?.unitPrice);
   const saleDescription = cleanOptionalText(product.sales?.description);
   const saleIvaPercent =
     normalizeOptionalPercent(product.sales?.ivaPercent) ?? legacyIva;
-  const purchaseUnit = cleanOptionalText(product.purchase?.unit) ?? legacyUnit;
+  const purchaseUnit = cleanOptionalUnit(product.purchase?.unit) ?? legacyUnit;
   const purchaseListPrice =
     normalizeOptionalAmount(product.purchase?.listPrice) ?? legacyPvp;
   const purchaseDiscountPercent =
@@ -163,7 +209,7 @@ export function normalizeProductCatalogItem(product: Product): Product {
     calculationKind === "area"
       ? {
           kind: "area" as const,
-          unit: cleanOptionalText(product.calculation?.unit) ?? "m2",
+          unit: cleanOptionalUnit(product.calculation?.unit) ?? "m2",
           roundingDecimals:
             typeof product.calculation?.roundingDecimals === "number" &&
             Number.isFinite(product.calculation.roundingDecimals)
@@ -213,6 +259,7 @@ export function normalizeProductCatalogItem(product: Product): Product {
         }
       : undefined,
     calculation,
+    attributes: normalizeProductAttributes(product.attributes),
     notes: cleanOptionalText(product.notes),
     source: product.source === "manual" ? "manual" : "detected",
     createdAt: product.createdAt || now,
@@ -329,6 +376,8 @@ function emptyAccumulatorFromProduct(product: Product): ProductAccumulator {
     purchaseSupplierReference: product.purchase?.supplierReference,
     purchaseToSaleFactor: product.purchase?.purchaseToSaleFactor,
     calculation: product.calculation,
+    attributes: product.attributes,
+    notes: product.notes,
     purchaseCount: 0,
     totalQuantity: 0,
     totalBase: 0,
@@ -414,6 +463,8 @@ export function buildPurchaseProductSummaries(
           purchaseSupplierReference: catalogProduct?.purchase?.supplierReference,
           purchaseToSaleFactor: catalogProduct?.purchase?.purchaseToSaleFactor,
           calculation: catalogProduct?.calculation,
+          attributes: catalogProduct?.attributes,
+          notes: catalogProduct?.notes,
           purchaseCount: 0,
           totalQuantity: 0,
           totalBase: 0,
@@ -504,6 +555,8 @@ export function buildPurchaseProductSummaries(
         purchaseSupplierReference: item.purchaseSupplierReference,
         purchaseToSaleFactor: item.purchaseToSaleFactor,
         calculation: item.calculation,
+        attributes: item.attributes,
+        notes: item.notes,
         purchaseCount: item.purchaseCount,
         totalQuantity: roundMoney(item.totalQuantity),
         totalBase: roundMoney(item.totalBase),

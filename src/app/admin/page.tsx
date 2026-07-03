@@ -13,7 +13,10 @@ import {
   ShieldCheck,
   UserCog,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 import {
   ADMIN_PLAN_OPTIONS,
   ADMIN_STATUS_OPTIONS,
@@ -29,7 +32,22 @@ import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
-type AdminSection = "usuarios" | "errores" | "pagos" | "ia" | "importaciones" | "verifactu" | "sistema";
+type AdminSection =
+  | "usuarios"
+  | "errores"
+  | "pagos"
+  | "ia"
+  | "aprendizaje"
+  | "importaciones"
+  | "verifactu"
+  | "sistema";
+
+interface AdminCapabilitiesResponse {
+  fullAdmin?: boolean;
+  aiLearning?: boolean;
+  learningLabel?: string;
+  error?: string;
+}
 
 interface AdminUsersResponse {
   users?: AdminUserRow[];
@@ -91,6 +109,13 @@ const ADMIN_MENU: Array<{
     label: "IA y escaneos",
     description: "Consumos, créditos y errores de extracción.",
     status: "fase",
+    Icon: Brain,
+  },
+  {
+    id: "aprendizaje",
+    label: "Aprendizaje IA",
+    description: "Corregir lecturas y guardar aprendizaje limpio.",
+    status: "activo",
     Icon: Brain,
   },
   {
@@ -160,13 +185,17 @@ function menuStatusLabel(status: "activo" | "fase") {
 function AdminMenu({
   current,
   onSelect,
+  sections,
 }: {
   current: AdminSection;
   onSelect: (section: AdminSection) => void;
+  sections: AdminSection[];
 }) {
+  const visibleMenu = ADMIN_MENU.filter((entry) => sections.includes(entry.id));
+
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {ADMIN_MENU.map(({ id, label, description, status, Icon }) => {
+      {visibleMenu.map(({ id, label, description, status, Icon }) => {
         const selected = current === id;
         return (
           <button
@@ -787,9 +816,247 @@ function UsersPanel() {
   );
 }
 
+function scanSummary(payload: ExpenseScanPayload | null) {
+  if (!payload) return [];
+  return [
+    ["Proveedor", payload.supplier.name],
+    ["Tipo", payload.expense.businessKind ?? "Compra"],
+    ["Descripción", payload.expense.description],
+    ["Base", payload.expense.amount.toLocaleString("es-ES")],
+    ["IVA", `${payload.expense.ivaPercent}%`],
+    ["Líneas", String(payload.expense.purchaseLines?.length ?? 0)],
+  ];
+}
+
+function ScanPayloadSummary({
+  title,
+  payload,
+}: {
+  title: string;
+  payload: ExpenseScanPayload | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4">
+      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">
+        {title}
+      </h3>
+      {payload ? (
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          {scanSummary(payload).map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
+              <dt className="text-xs font-bold text-slate-500">{label}</dt>
+              <dd className="break-words font-semibold text-slate-900">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="mt-3 text-sm font-semibold text-slate-500">
+          Todavía no hay lectura.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AiLearningPanel() {
+  const [original, setOriginal] = useState<ExpenseScanPayload | null>(null);
+  const [corrected, setCorrected] = useState<ExpenseScanPayload | null>(null);
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState<"idle" | "correct" | "save">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleScanned = useCallback((payload: ExpenseScanPayload) => {
+    setOriginal(payload);
+    setCorrected(payload);
+    setInstruction("");
+    setMessage("Lectura cargada. Escribe qué está mal para corregirla.");
+    setError(null);
+  }, []);
+
+  const correctWithAi = async () => {
+    if (!original || !instruction.trim()) return;
+    setBusy("correct");
+    setMessage(null);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy("idle");
+      return;
+    }
+
+    const response = await fetch("/api/admin/ai-learning/correct", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ original, instruction }),
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      data?: ExpenseScanPayload;
+      error?: string;
+    };
+    if (!response.ok || !body.data) {
+      setError(body.error ?? "No se pudo corregir la lectura.");
+    } else {
+      setCorrected(body.data);
+      setMessage("Corrección aplicada. Revisa el resumen y guarda aprendizaje.");
+    }
+    setBusy("idle");
+  };
+
+  const saveLearning = async () => {
+    if (!original || !corrected) return;
+    setBusy("save");
+    setMessage(null);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy("idle");
+      return;
+    }
+
+    const response = await fetch("/api/admin/ai-learning/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ original, corrected }),
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      saved?: boolean;
+      error?: string;
+    };
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo guardar el aprendizaje.");
+    } else if (!body.saved) {
+      setMessage(
+        "Corrección preparada, pero la tabla de aprendizaje aún no está activa.",
+      );
+    } else {
+      setMessage("Aprendizaje limpio guardado.");
+    }
+    setBusy("idle");
+  };
+
+  return (
+    <section className="mt-6 space-y-4">
+      <Card className="space-y-3">
+        <h2 className="text-xl font-bold text-slate-900">Aprendizaje IA</h2>
+        <p className="text-sm text-slate-600">
+          Escanea una factura de prueba, explica la corrección y guarda solo el
+          patrón estructural. No se almacenan PDF, nombres, NIF, direcciones ni
+          importes exactos en la tabla de aprendizaje.
+        </p>
+      </Card>
+
+      <ExpenseScanCard onScanned={handleScanned} />
+
+      <Card className="space-y-4">
+        <label className="block space-y-1.5">
+          <span className="text-sm font-bold text-slate-700">
+            Qué está mal
+          </span>
+          <textarea
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+            placeholder="Ej: La unidad de las líneas es m2, no ud. El total de m2 está en la columna TOTAL M2."
+            className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={correctWithAi}
+            disabled={!original || !instruction.trim() || busy !== "idle"}
+          >
+            {busy === "correct" ? "Corrigiendo..." : "Corregir con IA"}
+          </Button>
+          <Button
+            type="button"
+            onClick={saveLearning}
+            disabled={!original || !corrected || busy !== "idle"}
+          >
+            {busy === "save" ? "Guardando..." : "Guardar aprendizaje limpio"}
+          </Button>
+        </div>
+        {message && <p className="text-sm font-semibold text-green-700">{message}</p>}
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ScanPayloadSummary title="Lectura original" payload={original} />
+        <ScanPayloadSummary title="Lectura corregida" payload={corrected} />
+      </div>
+    </section>
+  );
+}
+
 export default function AdminPage() {
   const { user, cloudEnabled } = useCloudSync();
+  const searchParams = useSearchParams();
   const [section, setSection] = useState<AdminSection>("usuarios");
+  const [capabilities, setCapabilities] =
+    useState<AdminCapabilitiesResponse | null>(null);
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
+
+  const availableSections = useMemo<AdminSection[]>(() => {
+    if (!capabilities) return [];
+    if (capabilities.fullAdmin) return ADMIN_MENU.map((entry) => entry.id);
+    if (capabilities.aiLearning) return ["aprendizaje"];
+    return [];
+  }, [capabilities]);
+
+  useEffect(() => {
+    if (!user) {
+      setCapabilities(null);
+      return;
+    }
+    let cancelled = false;
+    const loadCapabilities = async () => {
+      setCapabilitiesLoading(true);
+      const token = await getAccessToken();
+      if (!token) {
+        if (!cancelled) {
+          setCapabilities(null);
+          setCapabilitiesLoading(false);
+        }
+        return;
+      }
+      const response = await fetch("/api/admin/capabilities", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await response.json().catch(() => ({}))) as
+        AdminCapabilitiesResponse;
+      if (!cancelled) {
+        setCapabilities(response.ok ? body : { fullAdmin: false, aiLearning: false });
+        setCapabilitiesLoading(false);
+      }
+    };
+    void loadCapabilities();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (availableSections.length === 0) return;
+    const requested = searchParams.get("seccion") as AdminSection | null;
+    if (requested && availableSections.includes(requested)) {
+      setSection(requested);
+      return;
+    }
+    if (!availableSections.includes(section)) {
+      setSection(availableSections[0]);
+    }
+  }, [availableSections, searchParams, section]);
 
   return (
     <div>
@@ -822,11 +1089,33 @@ export default function AdminPage() {
         </Card>
       )}
 
-      <AdminMenu current={section} onSelect={setSection} />
+      {user && capabilitiesLoading && (
+        <Card className="mb-5 text-slate-600">Comprobando acceso...</Card>
+      )}
 
-      {section === "usuarios" && <UsersPanel />}
-      {section === "errores" && <ErrorsPanel />}
-      {section !== "usuarios" && section !== "errores" && (
+      {user && !capabilitiesLoading && availableSections.length === 0 && (
+        <Card className="mb-5 border-amber-200 bg-amber-50 text-amber-900">
+          Esta cuenta no tiene acceso al panel interno.
+        </Card>
+      )}
+
+      {availableSections.length > 0 && (
+        <AdminMenu
+          current={section}
+          onSelect={setSection}
+          sections={availableSections}
+        />
+      )}
+
+      {capabilities?.fullAdmin && section === "usuarios" && <UsersPanel />}
+      {capabilities?.fullAdmin && section === "errores" && <ErrorsPanel />}
+      {capabilities?.aiLearning && section === "aprendizaje" && (
+        <AiLearningPanel />
+      )}
+      {capabilities?.fullAdmin &&
+        section !== "usuarios" &&
+        section !== "errores" &&
+        section !== "aprendizaje" && (
         <FutureSection section={section} />
       )}
     </div>
