@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
@@ -158,7 +159,9 @@ export default function ProductosPage() {
     () =>
       selectedProductKeys
         .map((key) => products.find((product) => product.key === key))
-        .filter((product): product is PurchaseProductSummary => Boolean(product)),
+        .filter((product): product is PurchaseProductSummary =>
+          Boolean(product),
+        ),
     [products, selectedProductKeys],
   );
 
@@ -174,10 +177,15 @@ export default function ProductosPage() {
     );
   }
 
-  function openDocumentFromSelected(documentType: "factura" | "presupuesto" | "recibo") {
+  function openDocumentFromSelected(
+    documentType: "factura" | "presupuesto" | "recibo",
+  ) {
     if (selectedProducts.length === 0) return;
     const lines = selectedProducts.map((product) =>
-      productSummaryToDocumentDraftLine(product, data.profile.iva?.defaultRate ?? 21),
+      productSummaryToDocumentDraftLine(
+        product,
+        data.profile.iva?.defaultRate ?? 21,
+      ),
     );
     if (!saveProductDocumentDraft(documentType, lines)) {
       alert("No se pudo preparar el documento. Inténtalo de nuevo.");
@@ -192,10 +200,9 @@ export default function ProductosPage() {
     router.push(`${route}?desde=productos`);
   }
 
-  function productFromSummary(product: PurchaseProductSummary): Omit<
-    Product,
-    "id" | "createdAt" | "updatedAt"
-  > {
+  function productFromSummary(
+    product: PurchaseProductSummary,
+  ): Omit<Product, "id" | "createdAt" | "updatedAt"> {
     return {
       key: product.key,
       aliases: product.aliases,
@@ -262,7 +269,9 @@ export default function ProductosPage() {
     if (!remove) return;
 
     const keepProduct = saveProductPatch(keep, {
-      aliases: [...new Set([...(keep.aliases ?? []), remove.key, ...remove.aliases])],
+      aliases: [
+        ...new Set([...(keep.aliases ?? []), remove.key, ...remove.aliases]),
+      ],
       source: keep.source === "manual" ? "manual" : "detected",
     });
     if (remove.productId) {
@@ -297,7 +306,8 @@ export default function ProductosPage() {
                 Aún no hay productos detectados
               </h2>
               <p className="mt-1 text-slate-500">
-                Escanea facturas de proveedor con líneas de compra y aparecerán aquí.
+                Escanea facturas de proveedor con líneas de compra y aparecerán
+                aquí.
               </p>
             </div>
           </div>
@@ -322,10 +332,26 @@ export default function ProductosPage() {
         <>
           <Card className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-4">
-              <SummaryTile label="Productos" value={totals.products.toString()} icon={Boxes} />
-              <SummaryTile label="Familias" value={totals.families.toString()} icon={Tag} />
-              <SummaryTile label="Proveedores" value={totals.suppliers.toString()} icon={Factory} />
-              <SummaryTile label="Comprado" value={formatMoney(totals.totalBase)} icon={Euro} />
+              <SummaryTile
+                label="Productos"
+                value={totals.products.toString()}
+                icon={Boxes}
+              />
+              <SummaryTile
+                label="Familias"
+                value={totals.families.toString()}
+                icon={Tag}
+              />
+              <SummaryTile
+                label="Proveedores"
+                value={totals.suppliers.toString()}
+                icon={Factory}
+              />
+              <SummaryTile
+                label="Comprado"
+                value={formatMoney(totals.totalBase)}
+                icon={Euro}
+              />
             </div>
             <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
               <label className="space-y-1.5">
@@ -355,10 +381,14 @@ export default function ProductosPage() {
                 allLabel="Todos"
               />
               <label className="space-y-1.5">
-                <span className="text-sm font-bold text-slate-700">Ordenar</span>
+                <span className="text-sm font-bold text-slate-700">
+                  Ordenar
+                </span>
                 <select
                   value={sort}
-                  onChange={(event) => setSort(event.target.value as ProductSort)}
+                  onChange={(event) =>
+                    setSort(event.target.value as ProductSort)
+                  }
                   className="h-[3.125rem] w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   {PRODUCT_SORT_OPTIONS.map((option) => (
@@ -389,8 +419,8 @@ export default function ProductosPage() {
                     {selectedProducts.length} producto(s) preparados
                   </p>
                   <p className="text-sm font-semibold text-slate-500">
-                    Se insertarán como líneas editables. Si falta PVP, verás aviso
-                    en el documento.
+                    Se insertarán como líneas editables. Si falta PVP, verás
+                    aviso en el documento.
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-4">
@@ -530,14 +560,16 @@ function ProductCard({
   onDelete: (id: string) => void;
   onMerge: (removeKey: string) => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [sku, setSku] = useState(product.sku ?? "");
   const [name, setName] = useState(product.name);
   const [family, setFamily] = useState(product.family);
   const [saleDescription, setSaleDescription] = useState(
     product.saleDescription ?? "",
   );
-  const [saleUnit, setSaleUnit] = useState(product.saleUnit ?? product.unit ?? "");
+  const [saleUnit, setSaleUnit] = useState(
+    product.saleUnit ?? product.unit ?? "",
+  );
   const [salePrice, setSalePrice] = useState(
     numberToInput(product.saleUnitPrice),
   );
@@ -593,6 +625,56 @@ function ProductCard({
       .includes(term);
   });
 
+  const displayUnit = product.saleUnit ?? product.unit ?? "";
+  const salePriceLabel = product.saleUnitPrice
+    ? formatMoney(product.saleUnitPrice)
+    : "Sin PVP";
+  const supplierLabel = product.usualSupplier?.supplierName ?? "Sin proveedor";
+  const volumeLabel = `${product.totalQuantity.toLocaleString("es-ES")} ${
+    product.unit ?? ""
+  }`.trim();
+
+  function resetPanelForm() {
+    setSku(product.sku ?? "");
+    setName(product.name);
+    setFamily(product.family);
+    setSaleDescription(product.saleDescription ?? "");
+    setSaleUnit(product.saleUnit ?? product.unit ?? "");
+    setSalePrice(numberToInput(product.saleUnitPrice));
+    setSaleIvaPercent(
+      numberToInput(product.saleIvaPercent ?? product.ivaPercent),
+    );
+    setPurchaseDescription(product.purchaseDescription ?? "");
+    setPurchaseUnit(product.purchaseUnit ?? product.unit ?? "");
+    setPurchaseListPrice(
+      numberToInput(
+        (product.purchaseListPrice ?? product.lastPvp) || undefined,
+      ),
+    );
+    setPurchaseDiscountPercent(
+      numberToInput(
+        (product.purchaseDiscountPercent ?? product.lastDiscountPercent) ||
+          undefined,
+      ),
+    );
+    setPurchaseNetUnitCost(
+      numberToInput(
+        (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
+      ),
+    );
+    setSupplierReference(product.purchaseSupplierReference ?? "");
+    setAttributesText(productAttributesToText(product.attributes));
+    setNotes(product.notes ?? "");
+    setCalculationKind(product.calculation?.kind ?? "none");
+    setMergeKey("");
+    setMergeSearch("");
+  }
+
+  function openPanel() {
+    resetPanelForm();
+    setPanelOpen(true);
+  }
+
   function saveEdits() {
     const parsedSalePrice = parseOptionalNumber(salePrice);
     const parsedSaleIva = parseOptionalNumber(saleIvaPercent);
@@ -600,7 +682,8 @@ function ProductCard({
     const parsedPurchaseDiscount = parseOptionalNumber(purchaseDiscountPercent);
     const parsedPurchaseCost =
       parseOptionalNumber(purchaseNetUnitCost) ??
-      (parsedPurchaseListPrice !== undefined && parsedPurchaseDiscount !== undefined
+      (parsedPurchaseListPrice !== undefined &&
+      parsedPurchaseDiscount !== undefined
         ? parsedPurchaseListPrice * (1 - parsedPurchaseDiscount / 100)
         : undefined);
     const manualSaleUnit = normalizeDocumentUnitId(saleUnit) ?? saleUnit.trim();
@@ -650,7 +733,7 @@ function ProductCard({
       notes: notes.trim() || undefined,
       source: product.source,
     });
-    setIsEditing(false);
+    setPanelOpen(false);
   }
 
   function mergeSelectedProduct() {
@@ -672,10 +755,123 @@ function ProductCard({
   }
 
   return (
-    <Card className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
+    <>
+      <Card
+        className={`p-0 transition-colors ${
+          selected ? "border-emerald-200 bg-emerald-50/35" : ""
+        }`}
+      >
+        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(16rem,2fr)_minmax(9rem,0.8fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-center">
+          <button
+            type="button"
+            onClick={openPanel}
+            className="min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+                <span className="max-w-full truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-blue-700 lg:max-w-44">
+                  {product.family}
+                </span>
+                {product.sku ? (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                    {product.sku}
+                  </span>
+                ) : null}
+                {displayUnit ? (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600">
+                    {displayUnit}
+                  </span>
+                ) : null}
+                {product.calculation?.kind === "area" ? (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                    alto x ancho
+                  </span>
+                ) : null}
+                <span className="min-w-0 flex-1 truncate text-base font-black text-slate-950 lg:text-lg">
+                  {product.name}
+                </span>
+              </div>
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {formatShortDate(product.lastPurchaseDate)}
+              </p>
+            </div>
+          </button>
+
+          <div className="min-w-0 text-sm">
+            <p className="truncate font-black text-slate-900">
+              {supplierLabel}
+            </p>
+            <p className="truncate font-semibold text-slate-500">
+              {product.purchaseCount} compra(s)
+            </p>
+          </div>
+
+          <CompactValue
+            label="Último coste"
+            value={formatMoney(product.lastUnitPrice)}
+          />
+          <CompactValue label="Precio venta" value={salePriceLabel} />
+          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+            <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
+              {volumeLabel}
+            </span>
+            <button
+              type="button"
+              onClick={onToggleSelected}
+              className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                selected
+                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                  : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+              }`}
+            >
+              {selected ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {selected ? "Añadido" : "Añadir"}
+            </button>
+            <button
+              type="button"
+              onClick={openPanel}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Edit3 className="h-4 w-4" />
+              Editar
+            </button>
+            {product.productId ? (
+              <button
+                type="button"
+                onClick={deleteCatalogProduct}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+                aria-label={
+                  product.purchaseCount > 0
+                    ? "Quitar ajustes guardados"
+                    : "Eliminar producto"
+                }
+                title={
+                  product.purchaseCount > 0
+                    ? "Quitar ajustes guardados"
+                    : "Eliminar producto"
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </Card>
+
+      <ResponsiveEntityPanel
+        open={panelOpen}
+        title={product.name}
+        subtitle="Detalle, reglas de cálculo y aprendizaje de este producto."
+        icon={PackageSearch}
+        onClose={() => setPanelOpen(false)}
+      >
+        <div className="space-y-5">
+          <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
               {product.family}
             </span>
@@ -684,9 +880,9 @@ function ProductCard({
                 {product.sku}
               </span>
             ) : null}
-            {product.unit ? (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {product.unit}
+            {displayUnit ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-600">
+                {displayUnit}
               </span>
             ) : null}
             {product.calculation?.kind === "area" ? (
@@ -695,401 +891,289 @@ function ProductCard({
               </span>
             ) : null}
           </div>
-          <h2 className="text-xl font-black text-slate-950">{product.name}</h2>
-          <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
-            <CalendarDays className="h-4 w-4" />
-            Última compra: {formatShortDate(product.lastPurchaseDate)}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-2 sm:justify-end">
-          <button
-            type="button"
-            onClick={onToggleSelected}
-            className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-              selected
-                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
-                : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-            }`}
-          >
-            {selected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {selected ? "Añadido" : "Añadir"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSku(product.sku ?? "");
-              setName(product.name);
-              setFamily(product.family);
-              setSaleDescription(product.saleDescription ?? "");
-              setSaleUnit(product.saleUnit ?? product.unit ?? "");
-              setSalePrice(numberToInput(product.saleUnitPrice));
-              setSaleIvaPercent(
-                numberToInput(product.saleIvaPercent ?? product.ivaPercent),
-              );
-              setPurchaseDescription(product.purchaseDescription ?? "");
-              setPurchaseUnit(product.purchaseUnit ?? product.unit ?? "");
-              setPurchaseListPrice(
-                numberToInput(
-                  (product.purchaseListPrice ?? product.lastPvp) || undefined,
-                ),
-              );
-              setPurchaseDiscountPercent(
-                numberToInput(
-                  (product.purchaseDiscountPercent ??
-                    product.lastDiscountPercent) ||
-                    undefined,
-                ),
-              );
-              setPurchaseNetUnitCost(
-                numberToInput(
-                  (product.purchaseNetUnitCost ?? product.lastUnitPrice) ||
-                    undefined,
-                ),
-              );
-              setSupplierReference(product.purchaseSupplierReference ?? "");
-              setAttributesText(productAttributesToText(product.attributes));
-              setNotes(product.notes ?? "");
-              setCalculationKind(product.calculation?.kind ?? "none");
-              setIsEditing((value) => !value);
-            }}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            <Edit3 className="h-4 w-4" />
-            Editar
-          </button>
-          {product.productId ? (
+
+          <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
+            <div className="grid gap-3 lg:grid-cols-[0.5fr_1.4fr_1fr_0.7fr]">
+              <EditInput label="Código" value={sku} onChange={setSku} />
+              <EditInput label="Producto" value={name} onChange={setName} />
+              <EditInput
+                label="Familia"
+                value={family}
+                onChange={setFamily}
+                list="product-family-options"
+              />
+              <label className="space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                  Cálculo
+                </span>
+                <select
+                  value={calculationKind}
+                  onChange={(event) =>
+                    setCalculationKind(() => {
+                      const value = event.target.value as "none" | "area";
+                      if (value === "area") setSaleUnit("m2");
+                      return value;
+                    })
+                  }
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="none">Cantidad directa</option>
+                  <option value="area">Alto x ancho</option>
+                </select>
+                {calculationKind === "area" ? (
+                  <span className="mt-1 block text-xs font-semibold text-blue-800">
+                    Venta en m² con calculadora alto x ancho en documentos.
+                  </span>
+                ) : null}
+              </label>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.45fr_0.6fr_0.45fr]">
+              <EditInput
+                label="Venta: descripción"
+                value={saleDescription}
+                onChange={setSaleDescription}
+                placeholder={product.name}
+              />
+              <EditInput
+                label="Unidad venta"
+                value={saleUnit}
+                onChange={setSaleUnit}
+              />
+              <EditInput
+                label="Precio venta"
+                value={salePrice}
+                onChange={setSalePrice}
+                inputMode="decimal"
+              />
+              <EditInput
+                label="IVA %"
+                value={saleIvaPercent}
+                onChange={setSaleIvaPercent}
+                inputMode="decimal"
+              />
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.45fr_0.6fr_0.45fr_0.6fr]">
+              <EditInput
+                label="Compra: descripción"
+                value={purchaseDescription}
+                onChange={setPurchaseDescription}
+              />
+              <EditInput
+                label="Ref. proveedor"
+                value={supplierReference}
+                onChange={setSupplierReference}
+              />
+              <EditInput
+                label="Unidad compra"
+                value={purchaseUnit}
+                onChange={setPurchaseUnit}
+              />
+              <EditInput
+                label="Tarifa proveedor"
+                value={purchaseListPrice}
+                onChange={setPurchaseListPrice}
+                inputMode="decimal"
+              />
+              <EditInput
+                label="Dto. %"
+                value={purchaseDiscountPercent}
+                onChange={setPurchaseDiscountPercent}
+                inputMode="decimal"
+              />
+              <EditInput
+                label="Coste real"
+                value={purchaseNetUnitCost}
+                onChange={setPurchaseNetUnitCost}
+                inputMode="decimal"
+              />
+            </div>
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Atributos
+              </span>
+              <textarea
+                value={attributesText}
+                onChange={(event) => setAttributesText(event.target.value)}
+                placeholder={
+                  "Talla: L\nColor: Blanco\nMaterial: aluminio\nMetro lineal: barras de 6 m"
+                }
+                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <span className="mt-2 flex flex-wrap gap-2">
+                {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() =>
+                      setAttributesText((current) =>
+                        addProductAttributeLine(current, label),
+                      )
+                    }
+                    className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Regla interna / notas
+              </span>
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Ej: Medir alto x ancho en metros. Revisar color, lama y cajón antes de enviar."
+                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+
             <button
               type="button"
-              onClick={deleteCatalogProduct}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-              aria-label={
-                product.purchaseCount > 0
-                  ? "Quitar ajustes guardados"
-                  : "Eliminar producto"
-              }
-              title={
-                product.purchaseCount > 0
-                  ? "Quitar ajustes guardados"
-                  : "Eliminar producto"
-              }
+              onClick={saveEdits}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
             >
-              <Trash2 className="h-4 w-4" />
+              <Save className="h-4 w-4" />
+              Guardar y cerrar
             </button>
-          ) : null}
-          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Último coste
+            <p className="text-sm font-semibold text-blue-900">
+              Estos datos se recordarán para futuros escaneos del mismo
+              producto.
             </p>
-            <p className="text-2xl font-black text-slate-950">
-              {formatMoney(product.lastUnitPrice)}
-            </p>
-            <p className="text-xs font-semibold text-slate-500">sin IVA</p>
           </div>
-        </div>
-      </div>
 
-      {isEditing ? (
-        <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
-          <div className="grid gap-3 lg:grid-cols-[0.5fr_1.4fr_1fr_0.7fr]">
-            <label className="space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Código
-              </span>
-              <input
-                value={sku}
-                onChange={(event) => setSku(event.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Producto
-              </span>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Familia
-              </span>
-              <input
-                list="product-family-options"
-                value={family}
-                onChange={(event) => setFamily(event.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Cálculo
-              </span>
-              <select
-                value={calculationKind}
-                onChange={(event) =>
-                  setCalculationKind(() => {
-                    const value = event.target.value as "none" | "area";
-                    if (value === "area") setSaleUnit("m2");
-                    return value;
-                  })
-                }
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="none">Cantidad directa</option>
-                <option value="area">Alto x ancho</option>
-              </select>
-              {calculationKind === "area" ? (
-                <span className="mt-1 block text-xs font-semibold text-blue-800">
-                  Venta en m² con calculadora alto x ancho en documentos.
-                </span>
-              ) : null}
-            </label>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.45fr_0.6fr_0.45fr]">
-            <EditInput
-              label="Venta: descripción"
-              value={saleDescription}
-              onChange={setSaleDescription}
-              placeholder={product.name}
-            />
-            <EditInput label="Unidad venta" value={saleUnit} onChange={setSaleUnit} />
-            <EditInput
-              label="Precio venta"
-              value={salePrice}
-              onChange={setSalePrice}
-              inputMode="decimal"
-            />
-            <EditInput
-              label="IVA %"
-              value={saleIvaPercent}
-              onChange={setSaleIvaPercent}
-              inputMode="decimal"
-            />
-          </div>
-          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.45fr_0.6fr_0.45fr_0.6fr]">
-            <EditInput
-              label="Compra: descripción"
-              value={purchaseDescription}
-              onChange={setPurchaseDescription}
-            />
-            <EditInput
-              label="Ref. proveedor"
-              value={supplierReference}
-              onChange={setSupplierReference}
-            />
-            <EditInput
-              label="Unidad compra"
-              value={purchaseUnit}
-              onChange={setPurchaseUnit}
-            />
-            <EditInput
-              label="Tarifa proveedor"
-              value={purchaseListPrice}
-              onChange={setPurchaseListPrice}
-              inputMode="decimal"
-            />
-            <EditInput
-              label="Dto. %"
-              value={purchaseDiscountPercent}
-              onChange={setPurchaseDiscountPercent}
-              inputMode="decimal"
-            />
-            <EditInput
-              label="Coste real"
-              value={purchaseNetUnitCost}
-              onChange={setPurchaseNetUnitCost}
-              inputMode="decimal"
-            />
-          </div>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-              Atributos
-            </span>
-            <textarea
-              value={attributesText}
-              onChange={(event) => setAttributesText(event.target.value)}
-              placeholder={"Talla: L\nColor: Blanco\nMaterial: aluminio\nMetro lineal: barras de 6 m"}
-              className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-            <span className="mt-2 flex flex-wrap gap-2">
-              {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() =>
-                    setAttributesText((current) =>
-                      addProductAttributeLine(current, label),
-                    )
-                  }
-                  className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+          {product.attributes && product.attributes.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {product.attributes.map((attribute) => (
+                <span
+                  key={attribute.key}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"
                 >
-                  {label}
-                </button>
+                  {attribute.label}: {attribute.value}
+                  {attribute.unit ? ` ${attribute.unit}` : ""}
+                </span>
               ))}
-            </span>
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-              Regla interna / notas
-            </span>
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Ej: Medir alto x ancho en metros. Revisar color, lama y cajón antes de enviar."
-              className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            </div>
+          ) : null}
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric label="Precio venta" value={salePriceLabel} />
+            <Metric
+              label="Coste medio"
+              value={formatMoney(product.averageUnitPrice)}
             />
-          </label>
-          <button
-            type="button"
-            onClick={saveEdits}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
-          >
-            <Save className="h-4 w-4" />
-            Guardar
-          </button>
-          <p className="mt-2 text-sm font-semibold text-blue-900">
-            Estos datos se recordarán para futuros escaneos del mismo producto.
-          </p>
-        </div>
-      ) : null}
+            <Metric
+              label="Descuento habitual"
+              value={`${product.averageDiscountPercent.toLocaleString("es-ES")}%`}
+            />
+            <Metric label="Volumen" value={volumeLabel} />
+          </div>
 
-      {product.attributes && product.attributes.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {product.attributes.map((attribute) => (
-            <span
-              key={attribute.key}
-              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"
-            >
-              {attribute.label}: {attribute.value}
-              {attribute.unit ? ` ${attribute.unit}` : ""}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric
-          label="Precio venta"
-          value={
-            product.saleUnitPrice
-              ? formatMoney(product.saleUnitPrice)
-              : "Sin precio"
-          }
-        />
-        <Metric label="Coste medio" value={formatMoney(product.averageUnitPrice)} />
-        <Metric
-          label="Descuento habitual"
-          value={`${product.averageDiscountPercent.toLocaleString("es-ES")}%`}
-        />
-        <Metric
-          label="Volumen"
-          value={`${product.totalQuantity.toLocaleString("es-ES")} ${
-            product.unit ?? ""
-          }`.trim()}
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-100 bg-white p-3">
-          <p className="flex items-center gap-2 text-sm font-black text-slate-800">
-            <Factory className="h-4 w-4 text-blue-600" />
-            Proveedor habitual
-          </p>
-          <p className="mt-2 text-lg font-black text-slate-950">
-            {product.usualSupplier?.supplierName ?? "Sin proveedor"}
-          </p>
-          <p className="text-sm font-semibold text-slate-500">
-            {product.purchaseCount} compra(s) registradas
-          </p>
-        </div>
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3">
-          <p className="flex items-center gap-2 text-sm font-black text-emerald-900">
-            <TrendingUp className="h-4 w-4" />
-            PVP proveedor
-          </p>
-          {product.lastPvp > 0 ? (
-            <>
-              <p className="mt-2 text-lg font-black text-emerald-950">
-                {formatMoney(product.lastPvp)}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-100 bg-white p-3">
+              <p className="flex items-center gap-2 text-sm font-black text-slate-800">
+                <Factory className="h-4 w-4 text-blue-600" />
+                Proveedor habitual
               </p>
-              <p className="text-sm font-semibold text-emerald-800">
-                Tarifa antes de descuento. Último dto.:{" "}
-                {Math.round(lastDiscount).toLocaleString("es-ES")}%
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="mt-2 text-lg font-black text-slate-700">
-                Sin PVP claro
+              <p className="mt-2 text-lg font-black text-slate-950">
+                {supplierLabel}
               </p>
               <p className="text-sm font-semibold text-slate-500">
-                Aparecerá cuando la línea de compra traiga precio de tarifa.
+                {product.purchaseCount} compra(s) registradas
               </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {product.suppliers.length > 1 ? (
-        <div className="flex flex-wrap gap-2">
-          {product.suppliers.slice(0, 4).map((supplier) => (
-            <span
-              key={`${product.key}-${supplier.supplierName}`}
-              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
-            >
-              {supplier.supplierName}: {formatMoney(supplier.totalBase)}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {mergeOptions.length > 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-3">
-          <p className="flex items-center gap-2 text-sm font-black text-slate-800">
-            <GitMerge className="h-4 w-4 text-blue-600" />
-            Unificar producto
-          </p>
-          <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <label className="relative">
-              <span className="sr-only">Buscar producto duplicado</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input
-                value={mergeSearch}
-                onChange={(event) => {
-                  setMergeSearch(event.target.value);
-                  setMergeKey("");
-                }}
-                placeholder="Buscar duplicado..."
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 pl-10 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <select
-              value={mergeKey}
-              onChange={(event) => setMergeKey(event.target.value)}
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="">Elige producto duplicado...</option>
-              {filteredMergeOptions.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={mergeSelectedProduct}
-              disabled={!mergeKey}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <GitMerge className="h-4 w-4" />
-              Unificar
-            </button>
+            </div>
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3">
+              <p className="flex items-center gap-2 text-sm font-black text-emerald-900">
+                <TrendingUp className="h-4 w-4" />
+                PVP proveedor
+              </p>
+              {product.lastPvp > 0 ? (
+                <>
+                  <p className="mt-2 text-lg font-black text-emerald-950">
+                    {formatMoney(product.lastPvp)}
+                  </p>
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Tarifa antes de descuento. Último dto.:{" "}
+                    {Math.round(lastDiscount).toLocaleString("es-ES")}%
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-lg font-black text-slate-700">
+                    Sin PVP claro
+                  </p>
+                  <p className="text-sm font-semibold text-slate-500">
+                    Aparecerá cuando la línea de compra traiga precio de tarifa.
+                  </p>
+                </>
+              )}
+            </div>
           </div>
+
+          {product.suppliers.length > 1 ? (
+            <div className="flex flex-wrap gap-2">
+              {product.suppliers.slice(0, 4).map((supplier) => (
+                <span
+                  key={`${product.key}-${supplier.supplierName}`}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
+                >
+                  {supplier.supplierName}: {formatMoney(supplier.totalBase)}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {mergeOptions.length > 0 ? (
+            <div className="rounded-2xl border border-slate-100 bg-white p-3">
+              <p className="flex items-center gap-2 text-sm font-black text-slate-800">
+                <GitMerge className="h-4 w-4 text-blue-600" />
+                Unificar producto
+              </p>
+              <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <label className="relative">
+                  <span className="sr-only">Buscar producto duplicado</span>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={mergeSearch}
+                    onChange={(event) => {
+                      setMergeSearch(event.target.value);
+                      setMergeKey("");
+                    }}
+                    placeholder="Buscar duplicado..."
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 pl-10 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <select
+                  value={mergeKey}
+                  onChange={(event) => setMergeKey(event.target.value)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Elige producto duplicado...</option>
+                  {filteredMergeOptions.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={mergeSelectedProduct}
+                  disabled={!mergeKey}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <GitMerge className="h-4 w-4" />
+                  Unificar
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </Card>
+      </ResponsiveEntityPanel>
+    </>
   );
 }
 
@@ -1099,12 +1183,14 @@ function EditInput({
   onChange,
   placeholder,
   inputMode,
+  list,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   inputMode?: "decimal";
+  list?: string;
 }) {
   return (
     <label className="space-y-1.5">
@@ -1116,9 +1202,21 @@ function EditInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
+        list={list}
         className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
     </label>
+  );
+}
+
+function CompactValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2">
+      <p className="truncate text-[0.68rem] font-black uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="truncate text-sm font-black text-slate-950">{value}</p>
+    </div>
   );
 }
 
