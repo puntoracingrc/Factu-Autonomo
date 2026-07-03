@@ -107,14 +107,46 @@ function supplierKey(expense: Expense): string {
   return expense.supplierId || expense.supplierName.trim().toLowerCase() || "sin-proveedor";
 }
 
+function normalizedDiscountPercent(
+  line: NonNullable<Expense["purchaseLines"]>[number],
+): number {
+  const discount = line.discountPercent ?? 0;
+  return Number.isFinite(discount) ? Math.min(Math.max(discount, 0), 100) : 0;
+}
+
 function purchaseLineNetUnitCost(line: NonNullable<Expense["purchaseLines"]>[number]): number {
+  const discount = normalizedDiscountPercent(line);
+  if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
+    return roundMoney(line.unitPrice * (1 - discount / 100));
+  }
+
   const quantity = line.quantity || 1;
   if (line.total !== undefined && Number.isFinite(line.total) && line.total > 0 && quantity > 0) {
     return roundMoney(line.total / quantity);
   }
 
-  const discount = line.discountPercent ?? 0;
-  return roundMoney(line.unitPrice * (1 - discount / 100));
+  return 0;
+}
+
+function isAreaUnit(unit: string | undefined): boolean {
+  const normalized = (unit ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+  return ["m2", "m²", "m^2", "mq"].includes(normalized);
+}
+
+function purchaseLineSummaryQuantity(
+  line: NonNullable<Expense["purchaseLines"]>[number],
+  base: number,
+  netUnitCost: number,
+): number {
+  const quantity = line.quantity || 0;
+  if (!isAreaUnit(line.unit) || base <= 0 || netUnitCost <= 0) return quantity;
+
+  const inferredQuantity = roundMoney(base / netUnitCost);
+  return inferredQuantity > 0 ? inferredQuantity : quantity;
 }
 
 function catalogLookup(products: Product[]): Map<string, Product> {
@@ -191,8 +223,13 @@ export function buildPurchaseProductSummaries(
       if (!key) continue;
 
       const base = expensePurchaseLineBaseTotal(line);
-      const discount = line.discountPercent ?? 0;
+      const discount = normalizedDiscountPercent(line);
       const netUnitCost = purchaseLineNetUnitCost(line);
+      const summaryQuantity = purchaseLineSummaryQuantity(
+        line,
+        base,
+        netUnitCost,
+      );
       const existing = accumulators.get(key);
       const accumulator: ProductAccumulator =
         existing ??
@@ -222,7 +259,7 @@ export function buildPurchaseProductSummaries(
         };
 
       accumulator.purchaseCount += 1;
-      accumulator.totalQuantity += line.quantity;
+      accumulator.totalQuantity += summaryQuantity;
       accumulator.totalBase += base;
       accumulator.unitPriceSum += netUnitCost;
       accumulator.pvpSum += line.unitPrice;

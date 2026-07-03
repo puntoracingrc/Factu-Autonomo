@@ -150,11 +150,40 @@ function parseNonNegativeNumber(value: unknown): number | undefined {
   return Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
+function isAreaUnit(unit: string): boolean {
+  const normalized = unit
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+  return ["m2", "m²", "m^2", "mq"].includes(normalized);
+}
+
+function inferAreaQuantity(input: {
+  quantity: number;
+  unit: string;
+  unitPrice?: number;
+  discountPercent?: number;
+  total?: number;
+}): number {
+  if (!isAreaUnit(input.unit) || !input.unitPrice || !input.total) {
+    return input.quantity;
+  }
+
+  const discount = Math.min(Math.max(input.discountPercent ?? 0, 0), 100);
+  const netUnitPrice = input.unitPrice * (1 - discount / 100);
+  if (netUnitPrice <= 0) return input.quantity;
+
+  const inferred = roundMoney(input.total / netUnitPrice);
+  return inferred > 0 ? inferred : input.quantity;
+}
+
 function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
   if (!raw || typeof raw !== "object") return null;
   const line = raw as Record<string, unknown>;
   const description = cleanText(line.description);
   const quantity = parsePositiveNumber(line.quantity) ?? 1;
+  const unit = cleanText(line.unit) || undefined;
   const unitPrice = parsePositiveNumber(line.unitPrice);
   const total = parsePositiveNumber(line.total);
 
@@ -165,8 +194,14 @@ function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
 
   return {
     description,
-    quantity,
-    unit: cleanText(line.unit) || undefined,
+    quantity: inferAreaQuantity({
+      quantity,
+      unit: unit ?? "",
+      unitPrice,
+      discountPercent,
+      total,
+    }),
+    unit,
     unitPrice: roundMoney(unitPrice ?? (total ? total / quantity : 0)),
     discountPercent:
       discountPercent === undefined

@@ -51,6 +51,49 @@ describe("purchase products", () => {
     expect(product.totalBase).toBe(88.2);
   });
 
+  it("calcula coste y volumen por M2 cuando el documento trae piezas y total de metros", () => {
+    const expenses = [
+      expense("1", "2026-07-03", "METALURGICA ARANDES", [
+        {
+          id: "l1",
+          description:
+            "MB490 MINIAL: MINI Aluminio Basica (4P.90º) completa Blanco",
+          quantity: 2,
+          unit: "M2",
+          unitPrice: 65,
+          discountPercent: 40,
+          ivaPercent: 21,
+          total: 163.21,
+        },
+        {
+          id: "l2",
+          description:
+            "MB490 MINIAL: MINI Aluminio Basica (4P.90º) completa Blanco",
+          quantity: 2,
+          unit: "M2",
+          unitPrice: 65,
+          discountPercent: 40,
+          ivaPercent: 21,
+          total: 157.17,
+        },
+      ]),
+    ];
+
+    const [product] = buildPurchaseProductSummaries(expenses);
+
+    expect(product).toMatchObject({
+      purchaseCount: 2,
+      totalQuantity: 8.21,
+      totalBase: 320.38,
+      averageUnitPrice: 39,
+      lastUnitPrice: 39,
+      averagePvp: 65,
+      lastPvp: 65,
+      averageDiscountPercent: 40,
+      lastDiscountPercent: 40,
+    });
+  });
+
   it("clasifica familias habituales sin bloquear productos desconocidos", () => {
     expect(inferPurchaseProductFamily("Cinta 14 mm x 6 m")).toBe(
       "Persianas y accesorios",
