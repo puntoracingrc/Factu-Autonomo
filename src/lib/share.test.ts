@@ -90,6 +90,16 @@ describe("buildShareMessage", () => {
     expect(message).toContain("IBAN:");
   });
 
+  it("usa el nombre comercial como firma cuando existe", () => {
+    const message = buildShareMessage(
+      { ...sampleDoc, status: "enviado" },
+      { ...profile, commercialName: "Marca Visible" },
+    );
+
+    expect(message).toContain("Marca Visible");
+    expect(message).not.toContain("\nMi Negocio");
+  });
+
   it("no incluye IBAN si la factura ya está cobrada", () => {
     const message = buildShareMessage(
       { ...sampleDoc, status: "pagado" },
@@ -117,7 +127,11 @@ describe("buildShareMessage", () => {
   });
 
   it("usa snapshot para documentos emitidos aunque cambien datos vivos", () => {
-    const issued = issueDocument(sampleDoc, profile, "2026-06-24T10:00:00.000Z");
+    const issued = issueDocument(
+      sampleDoc,
+      { ...profile, commercialName: "Marca Original" },
+      "2026-06-24T10:00:00.000Z",
+    );
     const message = buildShareMessage(
       {
         ...issued,
@@ -136,6 +150,7 @@ describe("buildShareMessage", () => {
       },
       {
         ...profile,
+        commercialName: "Marca cambiada",
         name: "Negocio cambiado",
         iban: "ES99 9999 9999 9999 9999 9999",
       },
@@ -144,10 +159,11 @@ describe("buildShareMessage", () => {
     expect(message).toContain("Juan");
     expect(message).toContain("F-2025-001");
     expect(message).toContain("121,00");
-    expect(message).toContain("Mi Negocio");
+    expect(message).toContain("Marca Original");
     expect(message).not.toContain("Cliente cambiado");
     expect(message).not.toContain("F-2099-999");
     expect(message).not.toContain("Negocio cambiado");
+    expect(message).not.toContain("Marca cambiada");
   });
 });
 

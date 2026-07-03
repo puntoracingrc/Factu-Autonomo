@@ -15,6 +15,7 @@ describe("business profile document data", () => {
   it("normaliza datos del emisor al guardar", () => {
     const normalized = normalizeBusinessProfileForSave({
       ...DEFAULT_PROFILE,
+      commercialName: "  Marca visible  ",
       name: "  Mi Negocio  ",
       nif: " b12345678 ",
       address: "  Calle Mayor 1 ",
@@ -27,6 +28,7 @@ describe("business profile document data", () => {
     });
 
     expect(normalized).toMatchObject({
+      commercialName: "Marca visible",
       name: "Mi Negocio",
       nif: "B12345678",
       address: "Calle Mayor 1",
@@ -41,6 +43,10 @@ describe("business profile document data", () => {
 
   it("avisa de datos necesarios para documentos completos", () => {
     const labels = businessProfileMissingDocumentLabels(DEFAULT_PROFILE);
+    const labelsWithCommercialName = businessProfileMissingDocumentLabels({
+      ...DEFAULT_PROFILE,
+      commercialName: "Marca visible",
+    });
 
     expect(labels).toEqual([
       "nombre fiscal o razón social",
@@ -49,6 +55,9 @@ describe("business profile document data", () => {
       "código postal",
       "ciudad",
     ]);
+    expect(labelsWithCommercialName).toContain(
+      "nombre fiscal o razón social",
+    );
     expect(isBusinessProfileReadyForIssuedInvoices(DEFAULT_PROFILE)).toBe(false);
     expect(livePdfIssuerWarning(DEFAULT_PROFILE)).toContain("Completa los datos");
   });

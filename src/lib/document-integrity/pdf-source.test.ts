@@ -20,6 +20,7 @@ import type {
 const NOW = "2026-06-24T10:00:00.000Z";
 
 const issuer: IssuerSnapshot = {
+  commercialName: "RC Workshop",
   name: "Punto Racing RC",
   nif: "12345678Z",
   address: "Calle Mayor 1",
@@ -44,6 +45,7 @@ const template: DocumentTemplateSettings = {
 };
 
 const profile: BusinessProfile = {
+  commercialName: issuer.commercialName,
   name: issuer.name,
   nif: issuer.nif,
   address: issuer.address,
@@ -112,6 +114,7 @@ function invoice(overrides: Partial<Document> = {}): Document {
 function changedProfile(): BusinessProfile {
   return {
     ...profile,
+    commercialName: "Marca cambiada",
     name: "Negocio cambiado",
     nif: "99999999R",
     address: "Otra calle 99",
@@ -180,6 +183,7 @@ describe("document PDF source", () => {
     expect(view.doc.date).toBe("2026-06-24");
     expect(view.doc.dueDate).toBe("2026-07-24");
     expect(view.doc.client.name).toBe("Ana Garcia");
+    expect(view.issuer.commercialName).toBe("RC Workshop");
     expect(view.issuer.name).toBe("Punto Racing RC");
     expect(view.issuer.nif).toBe("12345678Z");
     expect(view.items).toHaveLength(1);
@@ -236,6 +240,7 @@ describe("document PDF source", () => {
     expect(isHistoricalPdfRenderRequired(changedDraft)).toBe(false);
     expect(view.source).toBe("live");
     expect(view.doc.client.name).toBe("Cliente borrador cambiado");
+    expect(view.issuer.commercialName).toBe("Marca cambiada");
     expect(view.issuer.name).toBe("Negocio cambiado");
     expect(view.template).toEqual(changedProfile().documentTemplate);
     expect(documentPdfViewAmounts(view)).toEqual({
@@ -263,6 +268,7 @@ describe("document PDF source", () => {
     expect(quoteView.source).toBe("live");
     expect(invoiceView.source).toBe("live");
     expect(quoteView.issuer).toMatchObject({
+      commercialName: "Marca cambiada",
       name: "Negocio cambiado",
       nif: "99999999R",
       address: "Otra calle 99",

@@ -45,6 +45,7 @@ describe("payment reminder", () => {
   it("genera un mensaje amable editable por defecto", () => {
     const message = buildDefaultPaymentReminderMessage(pendingInvoice, {
       ...DEFAULT_PROFILE,
+      commercialName: "Marca Cobros",
       name: "Mi Estudio",
       iban: "ES1234567890123456789012",
     });
@@ -55,6 +56,8 @@ describe("payment reminder", () => {
     expect(message).toContain("121,00");
     expect(message).toContain("ES1234567890123456789012");
     expect(message).toContain("Si ya lo has tramitado");
+    expect(message).toContain("Marca Cobros");
+    expect(message).not.toContain("\nMi Estudio");
     expect(paymentReminderSubject(pendingInvoice)).toBe(
       "Recordatorio amable — Factura F-2026-0003",
     );

@@ -1,6 +1,6 @@
 import { buildDocumentPdfBlob } from "../pdf";
 import { buildPaymentReminderEmail } from "./templates/payment-reminder";
-import { resolveIssuerForDocument } from "../issuer-snapshot";
+import { issuerDisplayName, resolveIssuerForDocument } from "../issuer-snapshot";
 import { isPendingInvoicePayment } from "../income";
 import { hasClientEmail } from "../share";
 import type { BusinessProfile, Document } from "../types";
@@ -65,7 +65,7 @@ export async function sendPaymentReminderEmail(
   const content = buildPaymentReminderEmail({
     doc: input.doc,
     message: input.message.trim(),
-    senderName: issuer.name || "Factu Autónomo",
+    senderName: issuerDisplayName(issuer),
   });
 
   let pdfContent: string;

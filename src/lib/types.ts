@@ -104,6 +104,7 @@ export interface Customer {
 }
 
 export interface IssuerSnapshot {
+  commercialName?: string;
   name: string;
   nif: string;
   address: string;
@@ -477,6 +478,7 @@ export interface DocumentPdfSnapshot {
 }
 
 export interface BusinessProfile {
+  commercialName?: string;
   name: string;
   nif: string;
   address: string;
@@ -590,6 +592,7 @@ export interface AppData {
 }
 
 export const DEFAULT_PROFILE: BusinessProfile = {
+  commercialName: "",
   name: "",
   nif: "",
   address: "",
