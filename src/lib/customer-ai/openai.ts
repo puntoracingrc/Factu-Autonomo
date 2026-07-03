@@ -4,6 +4,9 @@ import {
   type CustomerTextExtractPayload,
 } from "./schema";
 
+const CUSTOMER_AI_MODEL =
+  process.env.OPENAI_CUSTOMER_AI_MODEL?.trim() || "gpt-4o";
+
 export async function extractCustomerFromText(
   text: string,
 ): Promise<{ data?: CustomerTextExtractPayload; error?: string }> {
@@ -22,7 +25,7 @@ export async function extractCustomerFromText(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: CUSTOMER_AI_MODEL,
       temperature: 0.1,
       max_tokens: 700,
       response_format: { type: "json_object" },
