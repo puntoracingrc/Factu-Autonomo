@@ -7,20 +7,23 @@ import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
+import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import {
+  findBestSupplierMatch,
   findDuplicateSupplierGroups,
   migrateSupplier,
   pickCanonicalSupplier,
   sortSuppliers,
+  SUPPLIER_AUTO_LINK_SCORE,
   SUPPLIER_SORT_FIELD_LABELS,
   supplierPurchasedTotal,
   supplierSortDirectionLabel,
@@ -42,11 +45,13 @@ const EMPTY_FORM = {
 };
 
 export default function ProveedoresPage() {
-  const { data, updateSupplier, deleteSupplier, mergeSuppliers } = useAppStore();
+  const { data, addSupplier, updateSupplier, deleteSupplier, mergeSuppliers } =
+    useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -57,7 +62,8 @@ export default function ProveedoresPage() {
     useState<SupplierSortDirection>("asc");
 
   const suppliers = useMemo(
-    () => sortSuppliers(data.suppliers, data.expenses, sortField, sortDirection),
+    () =>
+      sortSuppliers(data.suppliers, data.expenses, sortField, sortDirection),
     [data.suppliers, data.expenses, sortField, sortDirection],
   );
 
@@ -92,7 +98,8 @@ export default function ProveedoresPage() {
   );
 
   const selectedSuppliers = useMemo(
-    () => data.suppliers.filter((supplier) => selectedIds.includes(supplier.id)),
+    () =>
+      data.suppliers.filter((supplier) => selectedIds.includes(supplier.id)),
     [data.suppliers, selectedIds],
   );
 
@@ -123,13 +130,22 @@ export default function ProveedoresPage() {
   function closeForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setFormError(null);
     setFormOpen(false);
+  }
+
+  function openCreateForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+    setFormOpen(true);
   }
 
   function startEdit(supplier: Supplier) {
     const migrated = migrateSupplier(supplier);
     setEditingId(supplier.id);
     setFormOpen(true);
+    setFormError(null);
     setForm({
       name: migrated.name,
       nif: migrated.nif ?? "",
@@ -141,7 +157,6 @@ export default function ProveedoresPage() {
       postalCode: migrated.postalCode ?? "",
       notes: migrated.notes ?? "",
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleManualMerge() {
@@ -164,7 +179,13 @@ export default function ProveedoresPage() {
     setSortDirection(field === "compras" ? "desc" : "asc");
   }
 
+  function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
+    setFormError(null);
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
   function applyAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    setFormError(null);
     setForm((current) => ({
       ...current,
       streetType: suggestion.streetType || current.streetType,
@@ -176,7 +197,7 @@ export default function ProveedoresPage() {
 
   function handleSave() {
     if (!form.name.trim()) {
-      alert("Escribe el nombre del proveedor");
+      setFormError("Escribe el nombre del proveedor");
       return;
     }
 
@@ -197,6 +218,15 @@ export default function ProveedoresPage() {
       : null;
     if (existing) {
       updateSupplier({ ...existing, ...payload });
+    } else {
+      const match = findBestSupplierMatch(data.suppliers, payload);
+      if (match?.score && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
+        setFormError(
+          `Ya existe un proveedor muy parecido: ${match.supplier.name}. Revísalo antes de crear otro.`,
+        );
+        return;
+      }
+      addSupplier(payload);
     }
 
     closeForm();
@@ -231,7 +261,9 @@ export default function ProveedoresPage() {
         <div className="mb-6 space-y-3">
           {duplicateGroups.map((group) => {
             const canonical = pickCanonicalSupplier(group, data.expenses);
-            const others = group.filter((supplier) => supplier.id !== canonical.id);
+            const others = group.filter(
+              (supplier) => supplier.id !== canonical.id,
+            );
             return (
               <Card
                 key={canonical.id}
@@ -279,10 +311,15 @@ export default function ProveedoresPage() {
           </h2>
           {!mergeMode ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <ButtonLink href="/proveedores/nuevo?from=/proveedores" fullWidth className="gap-2">
+              <Button
+                type="button"
+                onClick={openCreateForm}
+                fullWidth
+                className="gap-2"
+              >
                 <Truck className="h-5 w-5" />
                 Nuevo proveedor
-              </ButtonLink>
+              </Button>
               {data.suppliers.length >= 2 && (
                 <PageActionButton
                   icon={GitMerge}
@@ -293,7 +330,12 @@ export default function ProveedoresPage() {
               )}
             </div>
           ) : (
-            <Button variant="ghost" onClick={exitMergeMode} fullWidth className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={exitMergeMode}
+              fullWidth
+              className="gap-2"
+            >
               <X className="h-5 w-5" />
               Cancelar unificación
             </Button>
@@ -308,133 +350,122 @@ export default function ProveedoresPage() {
       )}
 
       {formOpen && (
-        <Card className="mb-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-bold text-slate-900">
-              <Truck className="h-5 w-5 text-blue-600" />
-              {editingId ? "Editar proveedor" : "Nuevo proveedor"}
-            </h2>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="flex items-center gap-1 text-sm text-slate-500"
+        <ResponsiveEntityPanel
+          open={formOpen}
+          title={editingId ? "Editar proveedor" : "Nuevo proveedor"}
+          subtitle="Guarda quién te vende material, servicios o gastos habituales."
+          icon={Truck}
+          onClose={closeForm}
+        >
+          <div className="space-y-5">
+            <FormSection
+              variant="search"
+              title="Identidad del proveedor"
+              hint="Nombre comercial y datos de contacto."
             >
-              <X className="h-4 w-4" /> Cancelar
-            </button>
-          </div>
-          <FormSection
-            variant="search"
-            title="Identidad del proveedor"
-            hint="Nombre comercial y datos de contacto."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre *">
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder="Nombre de la empresa"
-                />
-              </Field>
-              <Field label="NIF">
-                <Input
-                  value={form.nif}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, nif: e.target.value }))
-                  }
-                />
-              </Field>
-              <Field label="Teléfono">
-                <Input
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, phone: e.target.value }))
-                  }
-                />
-              </Field>
-              <Field label="Web" hint="Opcional. Ej: www.tienda.com">
-                <Input
-                  value={form.website}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, website: e.target.value }))
-                  }
-                  placeholder="https://www.ejemplo.com"
-                />
-              </Field>
-            </div>
-          </FormSection>
-          <FormSection
-            variant="fields"
-            title="Dirección y notas"
-            hint="Opcional. Ayuda a ordenar y localizar proveedores."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Tipo de vía">
-                <StreetTypeSelect
-                  value={form.streetType}
-                  onChange={(streetType) =>
-                    setForm((prev) => ({ ...prev, streetType }))
-                  }
-                />
-              </Field>
-              <Field
-                label="Nombre de vía y número"
-                hint="Sin C/, Avda. ni otros prefijos"
-              >
-                <GoogleAddressAutocomplete
-                  value={form.address}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, address: value }))
-                  }
-                  onAddressSelected={applyAddressSuggestion}
-                  enabled={Boolean(data.profile.googlePlaces?.enabled)}
-                  displayStreetLineOnly
-                  placeholder="Ej: Valencia 546 7/1"
-                />
-              </Field>
-              <Field label="Código postal">
-                <Input
-                  value={form.postalCode}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, postalCode: e.target.value }))
-                  }
-                />
-              </Field>
-              <Field label="Ciudad">
-                <Input
-                  value={form.city}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, city: e.target.value }))
-                  }
-                />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field label="Notas">
-                  <Textarea
-                    value={form.notes}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, notes: e.target.value }))
-                    }
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Nombre *">
+                  <Input
+                    value={form.name}
+                    onChange={(e) => updateFormField("name", e.target.value)}
+                    placeholder="Nombre de la empresa"
+                  />
+                </Field>
+                <Field label="NIF">
+                  <Input
+                    value={form.nif}
+                    onChange={(e) => updateFormField("nif", e.target.value)}
+                  />
+                </Field>
+                <Field label="Teléfono">
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => updateFormField("phone", e.target.value)}
+                  />
+                </Field>
+                <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+                  <Input
+                    value={form.website}
+                    onChange={(e) => updateFormField("website", e.target.value)}
+                    placeholder="https://www.ejemplo.com"
                   />
                 </Field>
               </div>
-            </div>
-          </FormSection>
-          <Button onClick={handleSave} fullWidth>
-            {editingId ? "Guardar cambios" : "Guardar proveedor"}
-          </Button>
-        </Card>
+            </FormSection>
+            <FormSection
+              variant="fields"
+              title="Dirección y notas"
+              hint="Opcional. Ayuda a ordenar y localizar proveedores."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Tipo de vía">
+                  <StreetTypeSelect
+                    value={form.streetType}
+                    onChange={(streetType) =>
+                      updateFormField("streetType", streetType)
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Nombre de vía y número"
+                  hint="Sin C/, Avda. ni otros prefijos"
+                >
+                  <GoogleAddressAutocomplete
+                    value={form.address}
+                    onChange={(value) => updateFormField("address", value)}
+                    onAddressSelected={applyAddressSuggestion}
+                    enabled={Boolean(data.profile.googlePlaces?.enabled)}
+                    displayStreetLineOnly
+                    placeholder="Ej: Valencia 546 7/1"
+                  />
+                </Field>
+                <Field label="Código postal">
+                  <Input
+                    value={form.postalCode}
+                    onChange={(e) =>
+                      updateFormField("postalCode", e.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="Ciudad">
+                  <Input
+                    value={form.city}
+                    onChange={(e) => updateFormField("city", e.target.value)}
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Notas">
+                    <Textarea
+                      value={form.notes}
+                      onChange={(e) => updateFormField("notes", e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
+            </FormSection>
+            {formError ? (
+              <p
+                role="alert"
+                className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+              >
+                {formError}
+              </p>
+            ) : null}
+            <Button onClick={handleSave} fullWidth>
+              {editingId ? "Guardar cambios" : "Guardar proveedor"}
+            </Button>
+          </div>
+        </ResponsiveEntityPanel>
       )}
 
       {data.suppliers.length === 0 && !formOpen ? (
         <FactuEmptyState
           variant="proveedor"
           action={
-            <ButtonLink href="/proveedores/nuevo?from=/proveedores" className="gap-2">
+            <Button type="button" onClick={openCreateForm} className="gap-2">
               <Truck className="h-5 w-5" />
               Nuevo proveedor
-            </ButtonLink>
+            </Button>
           }
         />
       ) : data.suppliers.length > 0 ? (
@@ -485,90 +516,101 @@ export default function ProveedoresPage() {
               ? "1 proveedor seleccionado"
               : `${suppliers.length} proveedor(es) — ${SUPPLIER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${supplierSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
           </p>
-          {(mergeMode ? mergeVisibleSuppliers : displayedSuppliers).map((supplier) => {
-            const selected = selectedIds.includes(supplier.id);
-            const purchased = supplierPurchasedTotal(data.expenses, supplier);
-            const migrated = migrateSupplier(supplier);
-            return (
-              <Card
-                key={supplier.id}
-                className={`flex items-start justify-between gap-3 ${
-                  mergeMode && selected
-                    ? "border-blue-400 ring-2 ring-blue-200"
-                    : ""
-                }`}
-              >
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  {mergeMode && (
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSupplierSelection(supplier.id)}
-                      className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600"
-                      aria-label={`Seleccionar ${supplier.name}`}
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900">{supplier.name}</p>
-                    {supplier.nif && (
-                      <p className="text-sm text-slate-500">NIF: {supplier.nif}</p>
+          {(mergeMode ? mergeVisibleSuppliers : displayedSuppliers).map(
+            (supplier) => {
+              const selected = selectedIds.includes(supplier.id);
+              const purchased = supplierPurchasedTotal(data.expenses, supplier);
+              const migrated = migrateSupplier(supplier);
+              return (
+                <Card
+                  key={supplier.id}
+                  className={`flex items-start justify-between gap-3 ${
+                    mergeMode && selected
+                      ? "border-blue-400 ring-2 ring-blue-200"
+                      : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {mergeMode && (
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSupplierSelection(supplier.id)}
+                        className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600"
+                        aria-label={`Seleccionar ${supplier.name}`}
+                      />
                     )}
-                    <p className="text-sm text-slate-500">
-                      {[supplier.phone, supplier.email].filter(Boolean).join(" · ")}
-                    </p>
-                    {(migrated.address || supplier.city) && (
-                      <p className="text-sm text-slate-400">
-                        {[
-                          formatStreetLine(migrated.streetType, migrated.address),
-                          supplier.postalCode,
-                          supplier.city,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")}
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900">
+                        {supplier.name}
                       </p>
-                    )}
-                    {supplier.website && (
-                      <a
-                        href={supplierWebsiteHref(supplier.website)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-0.5 block truncate text-sm text-blue-600 underline"
+                      {supplier.nif && (
+                        <p className="text-sm text-slate-500">
+                          NIF: {supplier.nif}
+                        </p>
+                      )}
+                      <p className="text-sm text-slate-500">
+                        {[supplier.phone, supplier.email]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      {(migrated.address || supplier.city) && (
+                        <p className="text-sm text-slate-400">
+                          {[
+                            formatStreetLine(
+                              migrated.streetType,
+                              migrated.address,
+                            ),
+                            supplier.postalCode,
+                            supplier.city,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      )}
+                      {supplier.website && (
+                        <a
+                          href={supplierWebsiteHref(supplier.website)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-0.5 block truncate text-sm text-blue-600 underline"
+                        >
+                          {supplier.website}
+                        </a>
+                      )}
+                      <p className="mt-1 text-sm font-medium text-emerald-700">
+                        Compras: {formatMoney(purchased)}
+                      </p>
+                    </div>
+                  </div>
+                  {!mergeMode && (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => startEdit(supplier)}
+                        className="rounded-xl bg-slate-100 p-2 text-slate-700"
+                        title="Editar"
+                        aria-label={`Editar ${supplier.name}`}
                       >
-                        {supplier.website}
-                      </a>
-                    )}
-                    <p className="mt-1 text-sm font-medium text-emerald-700">
-                      Compras: {formatMoney(purchased)}
-                    </p>
-                  </div>
-                </div>
-                {!mergeMode && (
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => startEdit(supplier)}
-                      className="rounded-xl bg-slate-100 p-2 text-slate-700"
-                      title="Editar"
-                      aria-label={`Editar ${supplier.name}`}
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Borrar a ${supplier.name}?`)) {
-                          deleteSupplier(supplier.id);
-                        }
-                      }}
-                      className="rounded-xl bg-red-50 p-2 text-red-600"
-                      title="Borrar"
-                      aria-label={`Borrar ${supplier.name}`}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Borrar a ${supplier.name}?`)) {
+                            deleteSupplier(supplier.id);
+                          }
+                        }}
+                        className="rounded-xl bg-red-50 p-2 text-red-600"
+                        title="Borrar"
+                        aria-label={`Borrar ${supplier.name}`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
+                </Card>
+              );
+            },
+          )}
         </div>
       ) : null}
 

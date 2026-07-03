@@ -158,13 +158,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, updateNavScrollState]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100">
+    <div className="min-h-screen bg-slate-100 lg:flex">
       <Suspense fallback={null}>
         <ReferralCapture />
       </Suspense>
       <ReferralRedeemOnLogin />
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+
+      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
+        <div className="border-b border-slate-200 px-5 py-4">
           <Link
             href="/"
             aria-label="Ir al inicio"
@@ -187,23 +188,174 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </Link>
-          <div className="flex shrink-0 items-center gap-2">
+        </div>
+
+        <div className="border-b border-slate-100 px-4 py-3">
+          {user ? (
+            <Link
+              href="/cuenta"
+              className="flex min-w-0 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
+              title={accountLabel}
+            >
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">{accountLabel}</span>
+            </Link>
+          ) : (
+            <Link
+              href="/cuenta#inicio-sesion"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              <LogIn className="h-4 w-4" />
+              Iniciar sesión
+            </Link>
+          )}
+        </div>
+
+        <nav
+          className="flex-1 overflow-y-auto px-3 py-4"
+          aria-label="Navegación principal"
+        >
+          <div className="space-y-1">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active =
+                href === "/" ? pathname === "/" : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+                  <span className="truncate">{label}</span>
+                  {href === "/configuracion" && <CloudSyncNavBadge />}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="space-y-3 border-t border-slate-200 px-4 py-4">
+          <div className="flex items-center justify-between gap-2">
             <FactuHelpButton />
+            <CloudSyncHeaderIndicator />
+          </div>
+          {billingEnabled ? (
+            <Link
+              href="/precios"
+              className={`flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold ${
+                isPro
+                  ? plan === "trial"
+                    ? "bg-violet-100 text-violet-800"
+                    : "bg-amber-100 text-amber-800"
+                  : "bg-violet-100 text-violet-800"
+              }`}
+            >
+              <Crown className="h-4 w-4" />
+              {isPro
+                ? plan === "trial"
+                  ? "Prueba Pro"
+                  : "Miembro Pro"
+                : "Hazte Pro"}
+            </Link>
+          ) : null}
+        </div>
+      </aside>
+
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm lg:hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <Link
+              href="/"
+              aria-label="Ir al inicio"
+              className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
+            >
+              <Image
+                src="/brand/app-icon.png"
+                alt=""
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 object-contain drop-shadow-sm"
+                priority
+              />
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold text-slate-900">
+                  Factura Autónomo
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  Tu negocio, simple y claro
+                </p>
+              </div>
+            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <FactuHelpButton />
+              {user ? (
+                <Link
+                  href="/cuenta"
+                  className="flex max-w-[9rem] items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 sm:max-w-[13rem]"
+                  title={accountLabel}
+                >
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{accountLabel}</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/cuenta#inicio-sesion"
+                  className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                >
+                  <LogIn className="h-3.5 w-3.5" />
+                  Iniciar sesión
+                </Link>
+              )}
+              {billingEnabled && isPro && (
+                <Link
+                  href="/precios"
+                  className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold ${
+                    plan === "trial"
+                      ? "bg-violet-100 text-violet-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  <Crown className="h-3.5 w-3.5" />
+                  {plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
+                </Link>
+              )}
+              {billingEnabled && !isPro && (
+                <Link
+                  href="/precios"
+                  className="flex items-center gap-1 rounded-xl bg-violet-100 px-2.5 py-1.5 text-xs font-bold text-violet-800"
+                >
+                  <Crown className="h-3.5 w-3.5" />
+                  Hazte Pro
+                </Link>
+              )}
+              <CloudSyncHeaderIndicator />
+            </div>
+          </div>
+          <CloudSyncPendingBanner />
+        </header>
+
+        <header className="sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
+          <div className="flex min-h-16 items-center justify-end gap-3 px-6 py-3 xl:px-8 2xl:px-10">
             {user ? (
               <Link
                 href="/cuenta"
-                className="flex max-w-[9rem] items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 sm:max-w-[13rem]"
+                className="flex max-w-xs items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
                 title={accountLabel}
               >
-                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                <Building2 className="h-4 w-4 shrink-0" />
                 <span className="truncate">{accountLabel}</span>
               </Link>
             ) : (
               <Link
                 href="/cuenta#inicio-sesion"
-                className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
               >
-                <LogIn className="h-3.5 w-3.5" />
+                <LogIn className="h-4 w-4" />
                 Iniciar sesión
               </Link>
             )}
@@ -231,33 +383,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <CloudSyncHeaderIndicator />
           </div>
-        </div>
-        <CloudSyncPendingBanner />
-      </header>
+          <CloudSyncPendingBanner />
+        </header>
 
-      <FactuOccasionalHost />
+        <FactuOccasionalHost />
 
-      <main
-        className={`mx-auto w-full max-w-3xl flex-1 scroll-pb-32 px-4 py-5 ${
-          showFactu
-            ? "pb-[calc(11rem+env(safe-area-inset-bottom))]"
-            : "pb-[calc(8rem+env(safe-area-inset-bottom))]"
-        }`}
-      >
-        {!ready ? (
-          <p className="py-16 text-center text-slate-500">
-            Cargando tus datos…
-          </p>
-        ) : (
-          children
-        )}
-      </main>
+        <main
+          className={`w-full flex-1 scroll-pb-32 px-4 py-5 sm:px-6 lg:scroll-pb-8 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${
+            showFactu
+              ? "pb-[calc(11rem+env(safe-area-inset-bottom))] lg:pb-8"
+              : "pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8"
+          }`}
+        >
+          {!ready ? (
+            <p className="py-16 text-center text-slate-500">
+              Cargando tus datos…
+            </p>
+          ) : (
+            children
+          )}
+        </main>
 
-      {showFactu ? (
-        <FactuWidget onDismiss={() => setFactuDismissed(true)} />
-      ) : null}
+        {showFactu ? (
+          <FactuWidget onDismiss={() => setFactuDismissed(true)} />
+        ) : null}
+      </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom lg:hidden">
         <div className="relative mx-auto max-w-3xl">
           {navScrollState.canScrollLeft && (
             <div className="absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden">
