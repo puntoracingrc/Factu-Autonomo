@@ -124,6 +124,42 @@ describe("expense scan schema", () => {
     });
   });
 
+  it("usa los metros cuadrados totales como cantidad cuando hay piezas y total M2", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Metalúrgica Arandes", nif: "B60470374" },
+      expense: {
+        date: "2026-07-03",
+        description: "Factura persianas",
+        amount: 320.38,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        purchaseLines: [
+          {
+            description:
+              "MB490 MINIAL: MINI Aluminio Basica (4P.90º) completa Blanco",
+            quantity: 2,
+            unit: "M2",
+            unitPrice: 65,
+            discountPercent: 40,
+            ivaPercent: 21,
+            total: 163.21,
+          },
+        ],
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.expense.purchaseLines?.[0]).toMatchObject({
+      quantity: 4.18,
+      unit: "M2",
+      unitPrice: 65,
+      discountPercent: 40,
+      total: 163.21,
+    });
+  });
+
   it("normaliza datos estructurados de factura de proveedor", () => {
     const result = normalizeExpenseScanPayload({
       supplier: { name: "Proveedor SL", nif: "B87654321" },

@@ -32,6 +32,7 @@ Reglas:
 - Si parece gasto fijo recurrente, añade un warning sugiriendo revisar si conviene configurarlo como gasto fijo.
 - Si aparecen líneas de producto, material o servicio, rellena purchaseLines.
 - En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece.
+- Si una línea tiene una columna de unidades/piezas y otra de TOTAL en m2/m², usa como quantity el TOTAL m2/m² y unit "M2"; no uses el número de piezas como quantity.
 - Si el documento solo tiene resumen total y no muestra líneas claras, deja purchaseLines vacío u omitido.
 - Rellena purchaseDocument con número de factura del proveedor, vencimiento, NIF, dirección y condiciones de pago si aparecen.
 - No metas datos estructurados repetidos en notes si ya caben en purchaseDocument.
