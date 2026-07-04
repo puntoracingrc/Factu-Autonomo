@@ -14,17 +14,21 @@ import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { clientAddressToFormFields } from "@/lib/customer-address";
 import {
+  CUSTOMER_TYPE_LABELS,
   customerToClient,
   filterCustomers,
   getCustomerDisplayName,
+  normalizeCustomerType,
   sortCustomers,
 } from "@/lib/customers";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
-import type { Client, Customer } from "@/lib/types";
+import type { Client, Customer, CustomerType } from "@/lib/types";
 
 export interface ClientFormValues {
+  customerType: CustomerType;
   firstName: string;
   lastName: string;
+  contactName: string;
   nif: string;
   email: string;
   phone: string;
@@ -40,7 +44,10 @@ interface ClientPickerProps {
   selectedCustomerId: string | null;
   onSelectCustomer: (customer: Customer) => void;
   onClearSelection: () => void;
-  onChange: (field: keyof ClientFormValues, value: string) => void;
+  onChange: <K extends keyof ClientFormValues>(
+    field: K,
+    value: ClientFormValues[K],
+  ) => void;
   requireInvoiceFields?: boolean;
 }
 
@@ -123,7 +130,10 @@ export function ClientPicker({
     if (customer) applyCustomer(customer);
   }
 
-  function handleFieldChange(field: keyof ClientFormValues, value: string) {
+  function handleFieldChange<K extends keyof ClientFormValues>(
+    field: K,
+    value: ClientFormValues[K],
+  ) {
     if (selectedCustomerId) onClearSelection();
     onChange(field, value);
   }
@@ -131,8 +141,10 @@ export function ClientPicker({
   function handleAiApply(values: Partial<CustomerAiAutofillValues>) {
     if (selectedCustomerId) onClearSelection();
     const fields: Array<keyof ClientFormValues> = [
+      "customerType",
       "firstName",
       "lastName",
+      "contactName",
       "nif",
       "email",
       "phone",
@@ -145,7 +157,7 @@ export function ClientPicker({
 
     for (const field of fields) {
       const value = values[field];
-      if (value) onChange(field, value);
+      if (value) onChange(field, value as ClientFormValues[typeof field]);
     }
   }
 
@@ -163,7 +175,12 @@ export function ClientPicker({
   const selectedCustomer = selectedCustomerId
     ? data.customers.find((c) => c.id === selectedCustomerId)
     : null;
+  const customerType = normalizeCustomerType(values.customerType);
+  const isCompany = customerType === "company";
   const requiredMark = requireInvoiceFields ? " *" : "";
+  const nameLabel = isCompany ? "Razón social" : "Nombre";
+  const namePlaceholder = isCompany ? "Ej: Persianas Almar S.L." : "Ej: María";
+  const nifLabel = isCompany ? "CIF" : "NIF / CIF";
 
   return (
     <div className="space-y-5">
@@ -271,26 +288,47 @@ export function ClientPicker({
         className="p-3 sm:p-4"
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="xl:col-span-2">
+            <Field label="Tipo">
+              <Select
+                value={customerType}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "customerType",
+                    e.target.value as CustomerType,
+                  )
+                }
+              >
+                <option value="person">{CUSTOMER_TYPE_LABELS.person}</option>
+                <option value="company">{CUSTOMER_TYPE_LABELS.company}</option>
+              </Select>
+            </Field>
+          </div>
           <div className="xl:col-span-3">
-            <Field label={`Nombre${requiredMark}`}>
+            <Field label={`${nameLabel}${requiredMark}`}>
               <Input
                 value={values.firstName}
                 onChange={(e) => handleFieldChange("firstName", e.target.value)}
-                placeholder="Ej: María"
+                placeholder={namePlaceholder}
               />
             </Field>
           </div>
           <div className="xl:col-span-3">
-            <Field label="Apellidos">
+            <Field label={isCompany ? "Persona de contacto" : "Apellidos"}>
               <Input
-                value={values.lastName}
-                onChange={(e) => handleFieldChange("lastName", e.target.value)}
-                placeholder="Ej: López García"
+                value={isCompany ? values.contactName : values.lastName}
+                onChange={(e) =>
+                  handleFieldChange(
+                    isCompany ? "contactName" : "lastName",
+                    e.target.value,
+                  )
+                }
+                placeholder={isCompany ? "Ej: Laura Gómez" : "Ej: López García"}
               />
             </Field>
           </div>
           <div className="xl:col-span-2">
-            <Field label={`NIF / CIF${requiredMark}`}>
+            <Field label={`${nifLabel}${requiredMark}`}>
               <Input
                 value={values.nif}
                 onChange={(e) => handleFieldChange("nif", e.target.value)}
@@ -377,11 +415,19 @@ export function ClientPicker({
 
 export function clientToFormValues(client: Client): ClientFormValues {
   const { streetType, streetLine } = clientAddressToFormFields(client);
+  const customerType = normalizeCustomerType(client.customerType);
+  const name = client.name ?? "";
+  const nameParts = name.split(" ");
 
   return {
-    firstName: client.firstName ?? client.name?.split(" ")[0] ?? "",
+    customerType,
+    firstName:
+      client.firstName ?? (customerType === "company" ? name : nameParts[0]) ?? "",
     lastName:
-      client.lastName ?? client.name?.split(" ").slice(1).join(" ") ?? "",
+      customerType === "company"
+        ? ""
+        : (client.lastName ?? nameParts.slice(1).join(" ") ?? ""),
+    contactName: client.contactName ?? "",
     nif: client.nif ?? "",
     email: client.email ?? "",
     phone: client.phone ?? "",

@@ -62,10 +62,14 @@ export interface DocumentUnitsSettings {
   defaultUnitId: string;
 }
 
+export type CustomerType = "person" | "company";
+
 export interface Client {
+  customerType?: CustomerType;
   firstName?: string;
   lastName?: string;
   name: string;
+  contactName?: string;
   nif?: string;
   email?: string;
   phone?: string;
@@ -76,9 +80,11 @@ export interface Client {
 
 export interface Customer {
   id: string;
+  customerType?: CustomerType;
   firstName: string;
   lastName: string;
   name: string;
+  contactName?: string;
   /** IDs de fichas absorbidas en una fusión segura. */
   mergedCustomerIds?: string[];
   nif?: string;

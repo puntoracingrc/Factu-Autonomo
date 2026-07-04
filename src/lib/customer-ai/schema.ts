@@ -1,10 +1,13 @@
 import { normalizeCustomerNif } from "../customers";
 import { STREET_TYPES } from "../customer-address";
+import type { CustomerType } from "../types";
 
 export interface CustomerTextExtractPayload {
   customer: {
+    customerType: CustomerType;
     firstName: string;
     lastName: string;
+    contactName?: string | null;
     nif?: string | null;
     email?: string | null;
     phone?: string | null;
@@ -54,6 +57,10 @@ function normalizeStreetType(value: unknown): string | null {
   return match?.id ?? null;
 }
 
+function normalizeCustomerType(value: unknown): CustomerType {
+  return value === "company" ? "company" : "person";
+}
+
 export function normalizeCustomerTextExtractPayload(
   raw: unknown,
 ): CustomerTextExtractPayload | null {
@@ -63,14 +70,16 @@ export function normalizeCustomerTextExtractPayload(
   if (!customerRaw || typeof customerRaw !== "object") return null;
 
   const customer = customerRaw as Record<string, unknown>;
+  const customerType = normalizeCustomerType(customer.customerType);
   const firstName = cleanString(customer.firstName);
-  const lastName = cleanString(customer.lastName);
+  const lastName =
+    customerType === "company" ? "" : cleanString(customer.lastName);
 
   if (firstName.length < 2) {
     return null;
   }
 
-  if (lastName && lastName.length < 2) {
+  if (customerType === "person" && lastName && lastName.length < 2) {
     return null;
   }
 
@@ -79,8 +88,8 @@ export function normalizeCustomerTextExtractPayload(
     ? data.warnings.filter((warning): warning is string => typeof warning === "string")
     : [];
 
-  if (!lastName) {
-    warnings.push("No se han detectado apellidos o razón social completa.");
+  if (customerType === "person" && !lastName) {
+    warnings.push("No se han detectado apellidos.");
   }
 
   if (Number.isFinite(confidence) && confidence < 0.7) {
@@ -91,8 +100,11 @@ export function normalizeCustomerTextExtractPayload(
 
   return {
     customer: {
+      customerType,
       firstName,
       lastName,
+      contactName:
+        customerType === "company" ? optionalString(customer.contactName) : null,
       nif: nif ? normalizeCustomerNif(nif) : null,
       email: optionalString(customer.email),
       phone: normalizePhone(customer.phone),
@@ -109,10 +121,14 @@ export function normalizeCustomerTextExtractPayload(
 
 export const CUSTOMER_TEXT_EXTRACT_JSON_SCHEMA = {
   customer: {
+    customerType:
+      'string — "person" para particular o autónomo persona física; "company" para empresa/sociedad',
     firstName:
-      "string — nombre del cliente. Si es empresa, razón social sin forma jurídica final",
+      "string — nombre del cliente. Si es empresa, razón social completa",
     lastName:
-      "string opcional — apellidos. Si es empresa, forma jurídica final: S.L., S.A., Autónomo, etc.",
+      "string opcional — apellidos solo para particulares. Si es empresa, déjalo vacío",
+    contactName:
+      "string opcional — persona de contacto dentro de la empresa, si aparece claramente",
     nif: "string opcional — NIF/CIF español",
     email: "string opcional",
     phone: "string opcional",

@@ -355,6 +355,50 @@ describe("validateCustomerInput", () => {
       address: "Mandri, 26 2º-2º",
     });
   });
+
+  it("prepara payload de empresa con persona de contacto opcional", () => {
+    const payload = customerPayloadFromInput({
+      customerType: "company",
+      firstName: " Persianas Almar S.L. ",
+      lastName: " Ignorado ",
+      contactName: " Laura Gómez ",
+      nif: " b12345678 ",
+    });
+
+    expect(payload).toMatchObject({
+      customerType: "company",
+      firstName: "Persianas Almar S.L.",
+      lastName: "",
+      name: "Persianas Almar S.L.",
+      contactName: "Laura Gómez",
+      nif: "B12345678",
+    });
+  });
+
+  it("rechaza duplicado de empresa por razón social", () => {
+    const result = validateCustomerInput(
+      [
+        ...sample,
+        {
+          id: "company-1",
+          customerType: "company",
+          firstName: "Metalúrgica Arandes S.L.",
+          lastName: "",
+          name: "Metalúrgica Arandes S.L.",
+          createdAt: "",
+          updatedAt: "",
+        },
+      ],
+      {
+        customerType: "company",
+        firstName: "Metalúrgica Arandes S.L.",
+        lastName: "",
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("Ya existe una empresa");
+  });
 });
 
 describe("ensureCustomerForDocument", () => {
@@ -428,6 +472,53 @@ describe("ensureCustomerForDocument", () => {
     }
   });
 
+  it("crea empresa desde documento con contacto opcional", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        customerType: "company",
+        firstName: "Persianas Almar S.L.",
+        lastName: "",
+        contactName: "Laura Gómez",
+        nif: "b12345678",
+        streetType: "calle",
+        address: "Mayor 1",
+        postalCode: "08001",
+        city: "Barcelona",
+      },
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.customer.customerType).toBe("company");
+      expect(result.customer.name).toBe("Persianas Almar S.L.");
+      expect(result.customer.lastName).toBe("");
+      expect(result.customer.contactName).toBe("Laura Gómez");
+      expect(result.client.customerType).toBe("company");
+      expect(result.client.name).toBe("Persianas Almar S.L.");
+      expect(result.client.contactName).toBe("Laura Gómez");
+      expect(result.client.nif).toBe("B12345678");
+    }
+  });
+
+  it("encuentra empresa existente al volver desde un documento", () => {
+    const company: Customer = {
+      id: "company-1",
+      customerType: "company",
+      firstName: "Persianas Almar S.L.",
+      lastName: "",
+      name: "Persianas Almar S.L.",
+      contactName: "Laura Gómez",
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    const client = customerToClient(company);
+    expect(findCustomerByClient([company], client)?.id).toBe("company-1");
+    expect(clientMatchesCustomer(client, company)).toBe(true);
+  });
+
   it("rechaza email invalido al crear cliente desde documento", () => {
     const result = ensureCustomerForDocument(
       sample,
@@ -498,6 +589,23 @@ describe("customerToClient", () => {
     expect(client.streetType).toBe("calle");
     expect(client.firstName).toBe("Beatriz");
     expect(client.lastName).toBe("López");
+  });
+
+  it("mantiene tipo empresa y contacto en el snapshot", () => {
+    const client = customerToClient({
+      id: "company-1",
+      customerType: "company",
+      firstName: "Persianas Almar S.L.",
+      lastName: "",
+      name: "Persianas Almar S.L.",
+      contactName: "Laura Gómez",
+      createdAt: "",
+      updatedAt: "",
+    });
+
+    expect(client.customerType).toBe("company");
+    expect(client.name).toBe("Persianas Almar S.L.");
+    expect(client.contactName).toBe("Laura Gómez");
   });
 });
 

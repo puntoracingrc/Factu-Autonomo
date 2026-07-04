@@ -87,13 +87,14 @@ describe("POST /api/customers/parse", () => {
     });
     vi.mocked(extractCustomerFromText).mockResolvedValue({
       data: {
-        customer: { firstName: "Cliente", lastName: "Pro" },
+        customer: { customerType: "person", firstName: "Cliente", lastName: "Pro" },
         confidence: 0.95,
         warnings: [],
       },
     });
     vi.mocked(enrichCustomerPostalCode).mockResolvedValue({
       customer: {
+        customerType: "person",
         firstName: "Cliente",
         lastName: "Pro",
         postalCode: "08017",
@@ -165,13 +166,21 @@ describe("POST /api/customers/parse", () => {
     });
     vi.mocked(extractCustomerFromText).mockResolvedValue({
       data: {
-        customer: { firstName: "Cliente", lastName: "Token" },
+        customer: {
+          customerType: "person",
+          firstName: "Cliente",
+          lastName: "Token",
+        },
         confidence: 0.95,
         warnings: [],
       },
     });
     vi.mocked(enrichCustomerPostalCode).mockResolvedValue({
-      customer: { firstName: "Cliente", lastName: "Token" },
+      customer: {
+        customerType: "person",
+        firstName: "Cliente",
+        lastName: "Token",
+      },
       confidence: 0.95,
       warnings: [],
     });
@@ -226,13 +235,13 @@ describe("POST /api/customers/parse", () => {
     });
     vi.mocked(extractCustomerFromText).mockResolvedValue({
       data: {
-        customer: { firstName: "Cliente", lastName: "Pro" },
+        customer: { customerType: "person", firstName: "Cliente", lastName: "Pro" },
         confidence: 0.9,
         warnings: [],
       },
     });
     vi.mocked(enrichCustomerPostalCode).mockResolvedValue({
-      customer: { firstName: "Cliente", lastName: "Pro" },
+      customer: { customerType: "person", firstName: "Cliente", lastName: "Pro" },
       confidence: 0.9,
       warnings: [],
     });

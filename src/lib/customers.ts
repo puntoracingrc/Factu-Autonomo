@@ -6,10 +6,21 @@ import {
   normalizeCustomerStreetFields,
 } from "./customer-address";
 import { isTaxableSaleDocument } from "./taxes";
-import type { Client, Customer, Document } from "./types";
+import type { Client, Customer, CustomerType, Document } from "./types";
+
+export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
+  person: "Particular",
+  company: "Empresa",
+};
 
 export function normalizeNamePart(value: string): string {
   return value.trim().replace(/\s+/g, " ");
+}
+
+export function normalizeCustomerType(
+  value?: CustomerType | string | null,
+): CustomerType {
+  return value === "company" ? "company" : "person";
 }
 
 export function customerFullName(firstName: string, lastName: string): string {
@@ -20,7 +31,33 @@ export function customerIdentityKey(firstName: string, lastName: string): string
   return `${normalizeNamePart(firstName).toLowerCase()}|${normalizeNamePart(lastName).toLowerCase()}`;
 }
 
+function customerNameForType(
+  customerType: CustomerType,
+  firstName: string,
+  lastName: string,
+): string {
+  const first = normalizeNamePart(firstName);
+  const last = customerType === "company" ? "" : normalizeNamePart(lastName);
+  return customerType === "company" ? first : customerFullName(first, last);
+}
+
+function customerIdentityKeyForType(
+  customerType: CustomerType,
+  firstName: string,
+  lastName: string,
+): string {
+  const type = normalizeCustomerType(customerType);
+  if (type === "company") {
+    return `company|${normalizeNamePart(firstName).toLowerCase()}`;
+  }
+  return `person|${customerIdentityKey(firstName, lastName)}`;
+}
+
 export function getCustomerDisplayName(customer: Customer): string {
+  const migratedType = normalizeCustomerType(customer.customerType);
+  if (migratedType === "company") {
+    return normalizeNamePart(customer.name || customer.firstName);
+  }
   if (customer.firstName && customer.lastName) {
     return customerFullName(customer.firstName, customer.lastName);
   }
@@ -42,12 +79,32 @@ function finalizeCustomerMigration(customer: Customer): Customer {
 }
 
 export function migrateCustomer(raw: Customer): Customer {
-  if (raw.firstName && raw.lastName) {
+  const customerType = normalizeCustomerType(raw.customerType);
+
+  if (customerType === "company") {
+    const name = normalizeNamePart(
+      raw.name || raw.firstName || customerFullName(raw.firstName ?? "", raw.lastName ?? ""),
+    );
     return finalizeCustomerMigration({
       ...raw,
-      firstName: normalizeNamePart(raw.firstName),
-      lastName: normalizeNamePart(raw.lastName),
-      name: customerFullName(raw.firstName, raw.lastName),
+      customerType,
+      firstName: name,
+      lastName: "",
+      name,
+      contactName: normalizeNamePart(raw.contactName ?? "") || undefined,
+    });
+  }
+
+  if (raw.firstName) {
+    const firstName = normalizeNamePart(raw.firstName);
+    const lastName = normalizeNamePart(raw.lastName ?? "");
+    return finalizeCustomerMigration({
+      ...raw,
+      customerType,
+      firstName,
+      lastName,
+      name: customerFullName(firstName, lastName),
+      contactName: undefined,
     });
   }
 
@@ -60,9 +117,11 @@ export function migrateCustomer(raw: Customer): Customer {
 
   return finalizeCustomerMigration({
     ...raw,
+    customerType,
     firstName,
     lastName,
     name: legacyName,
+    contactName: undefined,
   });
 }
 
@@ -242,6 +301,14 @@ export function clientMatchesCustomer(client: Client, customer: Customer): boole
     return true;
   }
 
+  const clientType = normalizeCustomerType(client.customerType);
+  const customerType = normalizeCustomerType(migrated.customerType);
+  if (clientType === "company" || customerType === "company") {
+    const clientName = (client.name ?? client.firstName ?? "").trim().toLowerCase();
+    const customerName = getCustomerDisplayName(migrated).toLowerCase();
+    return Boolean(clientName && clientName === customerName);
+  }
+
   if (client.firstName && client.lastName) {
     return (
       customerIdentityKey(client.firstName, client.lastName) ===
@@ -386,9 +453,11 @@ export function customerToClient(customer: Customer): Client {
   const migrated = migrateCustomer(customer);
 
   return {
+    customerType: normalizeCustomerType(migrated.customerType),
     firstName: migrated.firstName,
     lastName: migrated.lastName,
     name: getCustomerDisplayName(migrated),
+    contactName: migrated.contactName,
     nif: migrated.nif,
     email: migrated.email,
     phone: migrated.phone,
@@ -404,8 +473,10 @@ export function filterCustomers(customers: Customer[], query: string): Customer[
   return sortCustomersByName(customers).filter((c) => {
     const migrated = migrateCustomer(c);
     const haystack = [
+      CUSTOMER_TYPE_LABELS[normalizeCustomerType(migrated.customerType)],
       migrated.firstName,
       migrated.lastName,
+      migrated.contactName,
       getCustomerDisplayName(migrated),
       migrated.nif,
       migrated.email,
@@ -427,19 +498,29 @@ export function findCustomerByIdentity(
   firstName: string,
   lastName: string,
   excludeId?: string,
+  customerType: CustomerType = "person",
 ): Customer | undefined {
-  if (!normalizeNamePart(firstName) || !normalizeNamePart(lastName)) {
+  const type = normalizeCustomerType(customerType);
+  if (!normalizeNamePart(firstName)) {
+    return undefined;
+  }
+  if (type === "person" && !normalizeNamePart(lastName)) {
     return undefined;
   }
 
-  const key = customerIdentityKey(firstName, lastName);
+  const key = customerIdentityKeyForType(type, firstName, lastName);
   return customers.find(
-    (c) =>
-      c.id !== excludeId &&
-      customerIdentityKey(
-        migrateCustomer(c).firstName,
-        migrateCustomer(c).lastName,
-      ) === key,
+    (c) => {
+      const migrated = migrateCustomer(c);
+      return (
+        c.id !== excludeId &&
+        customerIdentityKeyForType(
+          normalizeCustomerType(migrated.customerType),
+          migrated.firstName,
+          migrated.lastName,
+        ) === key
+      );
+    },
   );
 }
 
@@ -447,11 +528,25 @@ export function findCustomerByClient(
   customers: Customer[],
   client: Client,
 ): Customer | undefined {
+  const clientType = normalizeCustomerType(client.customerType);
+  if (clientType === "company" && (client.name || client.firstName)) {
+    const byCompanyName = findCustomerByIdentity(
+      customers,
+      client.name || client.firstName || "",
+      "",
+      undefined,
+      "company",
+    );
+    if (byCompanyName) return byCompanyName;
+  }
+
   if (client.firstName && client.lastName) {
     const byIdentity = findCustomerByIdentity(
       customers,
       client.firstName,
       client.lastName,
+      undefined,
+      clientType,
     );
     if (byIdentity) return byIdentity;
   }
@@ -481,17 +576,31 @@ export interface CustomerNameValidation {
 export function validateCustomerNames(
   firstName: string,
   lastName: string,
+  customerType: CustomerType = "person",
 ): CustomerNameValidation {
+  const type = normalizeCustomerType(customerType);
   const fn = normalizeNamePart(firstName);
-  const ln = normalizeNamePart(lastName);
+  const ln = type === "company" ? "" : normalizeNamePart(lastName);
 
   if (!fn) {
-    return { ok: false, error: "Añade al menos un nombre para guardar el cliente" };
+    return {
+      ok: false,
+      error:
+        type === "company"
+          ? "Añade la razón social para guardar la empresa"
+          : "Añade al menos un nombre para guardar el cliente",
+    };
   }
   if (fn.length < 2) {
-    return { ok: false, error: "El nombre debe tener al menos 2 letras" };
+    return {
+      ok: false,
+      error:
+        type === "company"
+          ? "La razón social debe tener al menos 2 letras"
+          : "El nombre debe tener al menos 2 letras",
+    };
   }
-  if (ln && ln.length < 2) {
+  if (type === "person" && ln && ln.length < 2) {
     return { ok: false, error: "Los apellidos deben tener al menos 2 letras" };
   }
 
@@ -504,8 +613,10 @@ export function validateUniqueCustomer(
   lastName: string,
   excludeId?: string,
   nif?: string,
+  customerType: CustomerType = "person",
 ): CustomerNameValidation {
-  const base = validateCustomerNames(firstName, lastName);
+  const type = normalizeCustomerType(customerType);
+  const base = validateCustomerNames(firstName, lastName, type);
   if (!base.ok) return base;
 
   const trimmedNif = nif?.trim();
@@ -519,17 +630,21 @@ export function validateUniqueCustomer(
     }
   }
 
-  if (base.lastName) {
+  if (type === "company" || base.lastName) {
     const duplicate = findCustomerByIdentity(
       customers,
       base.firstName!,
-      base.lastName,
+      base.lastName ?? "",
       excludeId,
+      type,
     );
     if (duplicate) {
       return {
         ok: false,
-        error: `Ya existe un cliente llamado ${getCustomerDisplayName(duplicate)}. Los nombres y apellidos no se pueden repetir.`,
+        error:
+          type === "company"
+            ? `Ya existe una empresa llamada ${getCustomerDisplayName(duplicate)}.`
+            : `Ya existe un cliente llamado ${getCustomerDisplayName(duplicate)}. Los nombres y apellidos no se pueden repetir.`,
       };
     }
   }
@@ -541,8 +656,10 @@ export type CustomerInputValidation = CustomerNameValidation &
   CustomerContactValidation;
 
 export interface ClientInput {
+  customerType?: CustomerType;
   firstName: string;
   lastName: string;
+  contactName?: string;
   nif?: string;
   email?: string;
   phone?: string;
@@ -558,12 +675,14 @@ export function validateCustomerInput(
   input: ClientInput,
   excludeId?: string,
 ): CustomerInputValidation {
+  const customerType = normalizeCustomerType(input.customerType);
   const identity = validateUniqueCustomer(
     customers,
     input.firstName,
     input.lastName,
     excludeId,
     input.nif,
+    customerType,
   );
   if (!identity.ok) return identity;
 
@@ -591,8 +710,10 @@ export function formatCustomerAddressBlock(
 export function customerToFormValues(customer: Customer) {
   const migrated = migrateCustomer(customer);
   return {
+    customerType: normalizeCustomerType(migrated.customerType),
     firstName: migrated.firstName,
     lastName: migrated.lastName,
+    contactName: migrated.contactName ?? "",
     nif: migrated.nif ?? "",
     email: migrated.email ?? "",
     phone: migrated.phone ?? "",
@@ -605,9 +726,22 @@ export function customerToFormValues(customer: Customer) {
 }
 
 export function clientInputToSnapshot(input: ClientInput): Client {
-  const validation = validateCustomerNames(input.firstName, input.lastName);
+  const customerType = normalizeCustomerType(input.customerType);
+  const validation = validateCustomerNames(
+    input.firstName,
+    input.lastName,
+    customerType,
+  );
   const firstName = validation.firstName ?? normalizeNamePart(input.firstName);
-  const lastName = validation.lastName ?? normalizeNamePart(input.lastName);
+  const lastName =
+    customerType === "company"
+      ? ""
+      : (validation.lastName ?? normalizeNamePart(input.lastName));
+  const name = customerNameForType(customerType, firstName, lastName);
+  const contactName =
+    customerType === "company"
+      ? normalizeNamePart(input.contactName ?? "") || undefined
+      : undefined;
   const addressBlock = formatCustomerAddressBlock({
     streetType: input.streetType?.trim(),
     address: input.address?.trim(),
@@ -616,9 +750,11 @@ export function clientInputToSnapshot(input: ClientInput): Client {
   });
 
   return {
+    customerType,
     firstName,
     lastName,
-    name: customerFullName(firstName, lastName),
+    name,
+    contactName,
     nif: input.nif?.trim()
       ? normalizeCustomerNif(input.nif)
       : undefined,
@@ -653,9 +789,11 @@ export function ensureCustomerForDocument(
   }
 
   const firstName = validation.firstName!;
-  const lastName = validation.lastName!;
+  const customerType = normalizeCustomerType(input.customerType);
+  const lastName = customerType === "company" ? "" : validation.lastName!;
   const client = clientInputToSnapshot({
     ...input,
+    customerType,
     firstName,
     lastName,
     email: validation.email,
@@ -671,9 +809,11 @@ export function ensureCustomerForDocument(
 
     const customer: Customer = {
       ...migrateCustomer(existing),
+      customerType,
       firstName,
       lastName,
-      name: customerFullName(firstName, lastName),
+      name: customerNameForType(customerType, firstName, lastName),
+      contactName: client.contactName,
       nif: client.nif,
       email: client.email,
       phone: client.phone,
@@ -693,8 +833,14 @@ export function ensureCustomerForDocument(
     };
   }
 
-  if (lastName) {
-    const duplicate = findCustomerByIdentity(customers, firstName, lastName);
+  if (customerType === "company" || lastName) {
+    const duplicate = findCustomerByIdentity(
+      customers,
+      firstName,
+      lastName,
+      undefined,
+      customerType,
+    );
     if (duplicate) {
       return {
         ok: false,
@@ -705,9 +851,11 @@ export function ensureCustomerForDocument(
 
   const customer: Customer = {
     id: "pending",
+    customerType,
     firstName,
     lastName,
-    name: customerFullName(firstName, lastName),
+    name: customerNameForType(customerType, firstName, lastName),
+    contactName: client.contactName,
     nif: client.nif,
     email: client.email,
     phone: client.phone,
@@ -726,9 +874,11 @@ export function ensureCustomerForDocument(
 export function customerPayloadFromInput(input: ClientInput) {
   const client = clientInputToSnapshot(input);
   return {
+    customerType: client.customerType,
     firstName: client.firstName!,
     lastName: client.lastName!,
     name: client.name,
+    contactName: client.contactName,
     nif: client.nif,
     email: client.email,
     phone: client.phone,

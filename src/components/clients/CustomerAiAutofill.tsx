@@ -14,8 +14,10 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import type { AiUsageMeter, ScanQuota } from "@/lib/billing/scan-limits";
 
 export interface CustomerAiAutofillValues {
+  customerType: "person" | "company";
   firstName: string;
   lastName: string;
+  contactName: string;
   nif: string;
   email: string;
   phone: string;
