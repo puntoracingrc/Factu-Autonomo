@@ -23,11 +23,15 @@ const issuer: IssuerSnapshot = {
   commercialName: "RC Workshop",
   name: "Punto Racing RC",
   nif: "12345678Z",
+  vatId: "ES12345678Z",
   address: "Calle Mayor 1",
   city: "Barcelona",
   postalCode: "08001",
+  province: "Barcelona",
+  country: "España",
   phone: "600000000",
   email: "hola@example.com",
+  website: "https://rc-workshop.example",
   iban: "ES0000000000000000000000",
   logoUrl: "data:image/png;base64,logo-historico",
   capturedAt: "2026-06-01T10:00:00.000Z",
@@ -48,11 +52,15 @@ const profile: BusinessProfile = {
   commercialName: issuer.commercialName,
   name: issuer.name,
   nif: issuer.nif,
+  vatId: issuer.vatId,
   address: issuer.address,
   city: issuer.city,
   postalCode: issuer.postalCode,
+  province: issuer.province,
+  country: issuer.country,
   phone: issuer.phone ?? "",
   email: issuer.email ?? "",
+  website: issuer.website,
   iban: issuer.iban,
   logoUrl: issuer.logoUrl,
   iva: { rates: [0, 4, 10, 21], defaultRate: 21 },
@@ -117,11 +125,15 @@ function changedProfile(): BusinessProfile {
     commercialName: "Marca cambiada",
     name: "Negocio cambiado",
     nif: "99999999R",
+    vatId: "ES99999999R",
     address: "Otra calle 99",
     city: "Madrid",
     postalCode: "28001",
+    province: "Madrid",
+    country: "España",
     phone: "699999999",
     email: "nuevo@example.com",
+    website: "https://nuevo.example",
     iban: "ES9999999999999999999999",
     logoUrl: "data:image/png;base64,logo-nuevo",
     vatExempt: true,
@@ -271,9 +283,13 @@ describe("document PDF source", () => {
       commercialName: "Marca cambiada",
       name: "Negocio cambiado",
       nif: "99999999R",
+      vatId: "ES99999999R",
       address: "Otra calle 99",
       city: "Madrid",
       postalCode: "28001",
+      province: "Madrid",
+      country: "España",
+      website: "https://nuevo.example",
     });
     expect(invoiceView.issuer).toMatchObject(quoteView.issuer);
   });
@@ -294,10 +310,12 @@ describe("document PDF source", () => {
     expect(partialLegacy.pdfSnapshot).toBeUndefined();
   });
 
-  it("aplica nombre comercial actual a snapshots historicos que no lo tenian", () => {
+  it("aplica marca y web actuales a snapshots historicos que no los tenian", () => {
     const profileWithoutCommercialName = {
       ...profile,
       commercialName: "",
+      website: "",
+      vatId: "",
     };
     const issued = issueDocument(
       invoice({ issuer: undefined }),
@@ -308,9 +326,12 @@ describe("document PDF source", () => {
 
     expect(view.source).toBe("snapshot");
     expect(view.issuer.commercialName).toBe("Marca cambiada");
+    expect(view.issuer.website).toBe("https://nuevo.example");
+    expect(view.issuer.vatId).toBeUndefined();
     expect(view.issuer.name).toBe("Punto Racing RC");
     expect(view.issuer.nif).toBe("12345678Z");
     expect(view.doc.issuer?.commercialName).toBe("Marca cambiada");
+    expect(view.doc.issuer?.website).toBe("https://nuevo.example");
   });
 
   it("documento legacy bloqueado sin snapshot usa fallback conservador y no persiste snapshot", () => {

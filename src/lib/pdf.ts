@@ -40,6 +40,20 @@ export interface DocumentPdfOptions {
   freePlanBranding?: boolean;
 }
 
+function formatIssuerLocationLines(
+  issuer: DocumentPdfViewModel["issuer"],
+): string[] {
+  const cityLine = [
+    [issuer.postalCode, issuer.city].filter(Boolean).join(" "),
+    issuer.province,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return [cityLine, issuer.country].filter(
+    (line): line is string => Boolean(line),
+  );
+}
+
 const FREE_PLAN_BRANDING_TEXT =
   "Factura realizada con facturacion-autonomos.app";
 
@@ -297,10 +311,14 @@ export function buildDocumentPdfFromViewModel(
       ? [`Titular fiscal: ${issuer.name.trim()}`]
       : []),
     ...(issuer.nif ? [`NIF: ${issuer.nif}`] : []),
+    ...(issuer.vatId && issuer.vatId !== issuer.nif
+      ? [`VAT/VIES: ${issuer.vatId}`]
+      : []),
     ...(issuer.address ? [issuer.address] : []),
-    ...(issuer.city ? [`${issuer.postalCode} ${issuer.city}`.trim()] : []),
+    ...formatIssuerLocationLines(issuer),
     ...(issuer.phone ? [`Tel: ${issuer.phone}`] : []),
     ...(issuer.email ? [issuer.email] : []),
+    ...(issuer.website ? [issuer.website] : []),
   ].flatMap((line) => pdf.splitTextToSize(line, issuerMaxWidth));
   const issuerWarningLines = issuerWarning
     ? pdf.splitTextToSize(issuerWarning, issuerMaxWidth)

@@ -7,11 +7,15 @@ export interface BusinessProfileFields {
   commercialName?: string;
   name: string;
   nif: string;
+  vatId?: string;
   address: string;
   postalCode: string;
   city: string;
+  province?: string;
+  country?: string;
   email?: string;
   phone?: string;
+  website?: string;
 }
 
 export type BusinessProfileNoticeLevel = "missing" | "warning";
@@ -68,11 +72,15 @@ export function normalizeBusinessProfileForSave(
     commercialName: text(profile.commercialName),
     name: text(profile.name),
     nif: text(profile.nif).toUpperCase(),
+    vatId: text(profile.vatId).toUpperCase(),
     address: text(profile.address),
     city: text(profile.city),
     postalCode: text(profile.postalCode),
+    province: text(profile.province),
+    country: text(profile.country),
     phone: text(profile.phone),
     email: text(profile.email).toLowerCase(),
+    website: normalizeWebsite(profile.website),
     iban: text(profile.iban) || undefined,
     googlePlaces: normalizeGooglePlacesSettings(profile.googlePlaces),
     productFamilyMarkups: normalizeProductFamilyMarkupSettings(
@@ -80,6 +88,13 @@ export function normalizeBusinessProfileForSave(
     ),
     quoteValidityDays: normalizeQuoteValidityDays(profile.quoteValidityDays),
   };
+}
+
+function normalizeWebsite(value: string | undefined): string {
+  const website = text(value);
+  if (!website) return "";
+  if (/^https?:\/\//i.test(website)) return website;
+  return `https://${website}`;
 }
 
 export function businessProfileNotices(

@@ -4,11 +4,15 @@ import type { BusinessProfile, Document, IssuerSnapshot } from "./types";
 type AutofillField =
   | "name"
   | "nif"
+  | "vatId"
   | "address"
   | "city"
   | "postalCode"
+  | "province"
+  | "country"
   | "phone"
   | "email"
+  | "website"
   | "iban";
 
 export type BusinessProfileAutofillCandidate = Partial<
@@ -18,22 +22,30 @@ export type BusinessProfileAutofillCandidate = Partial<
 const AUTOFILL_FIELDS: AutofillField[] = [
   "name",
   "nif",
+  "vatId",
   "address",
   "city",
   "postalCode",
+  "province",
+  "country",
   "phone",
   "email",
+  "website",
   "iban",
 ];
 
 const AUTOFILL_FIELD_LABELS: Record<AutofillField, string> = {
   name: "Nombre fiscal",
   nif: "NIF/CIF",
+  vatId: "VAT/VIES",
   address: "Dirección",
   city: "Ciudad",
   postalCode: "Código postal",
+  province: "Provincia",
+  country: "País",
   phone: "Teléfono",
   email: "Email",
+  website: "Web",
   iban: "IBAN",
 };
 
@@ -73,7 +85,8 @@ export function fillMissingBusinessProfileFields(
     const current = clean(next[field]);
     const incoming = clean(candidate[field]);
     if (!current && incoming) {
-      next[field] = field === "nif" ? incoming.toUpperCase() : incoming;
+      next[field] =
+        field === "nif" || field === "vatId" ? incoming.toUpperCase() : incoming;
     }
   }
 
@@ -146,9 +159,13 @@ export function buildBusinessProfileAutofillSuggestion(
     if (!detectedValue) return [];
 
     const normalizedCurrent =
-      field === "nif" ? currentValue.toUpperCase() : currentValue;
+      field === "nif" || field === "vatId"
+        ? currentValue.toUpperCase()
+        : currentValue;
     const normalizedDetected =
-      field === "nif" ? detectedValue.toUpperCase() : detectedValue;
+      field === "nif" || field === "vatId"
+        ? detectedValue.toUpperCase()
+        : detectedValue;
 
     if (normalizedCurrent === normalizedDetected) return [];
 

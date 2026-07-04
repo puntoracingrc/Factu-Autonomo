@@ -29,13 +29,21 @@ describe("issuer snapshot", () => {
       commercialName: "Taller Visible",
       name: "Juan Pérez",
       nif: "12345678Z",
+      vatId: "es12345678z",
       address: "Calle Mayor 1",
       city: "Madrid",
       postalCode: "28001",
+      province: "Madrid",
+      country: "España",
+      website: "https://taller.example",
     });
     expect(snapshot.commercialName).toBe("Taller Visible");
     expect(snapshot.name).toBe("Juan Pérez");
     expect(snapshot.nif).toBe("12345678Z");
+    expect(snapshot.vatId).toBe("ES12345678Z");
+    expect(snapshot.province).toBe("Madrid");
+    expect(snapshot.country).toBe("España");
+    expect(snapshot.website).toBe("https://taller.example");
     expect(snapshot.capturedAt).toBeTruthy();
   });
 
@@ -112,6 +120,27 @@ describe("issuer snapshot", () => {
         logoUrl: "data:image/png;base64,logo",
       }).logoUrl,
     ).toBe("data:image/png;base64,logo");
+  });
+
+  it("reutiliza la web actual del perfil si el snapshot no la guardó", () => {
+    const doc: Document = {
+      ...baseDoc,
+      issuer: {
+        name: "Emisor",
+        nif: "12345678Z",
+        address: "",
+        city: "",
+        postalCode: "",
+        capturedAt: "2026-01-01",
+      },
+    };
+
+    expect(
+      resolveIssuerForDocument(doc, {
+        ...DEFAULT_PROFILE,
+        website: "https://negocio.example",
+      }).website,
+    ).toBe("https://negocio.example");
   });
 
   it("aplica el nombre comercial actual a snapshots antiguos que no lo tenían", () => {

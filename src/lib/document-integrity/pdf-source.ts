@@ -82,7 +82,11 @@ function docFromSnapshot(
     items: snapshot.items.map(lineFromSnapshot),
     notes: snapshot.notes,
     paymentTerms: snapshot.paymentTerms,
-    issuer: { ...snapshot.issuer, commercialName: issuer.commercialName },
+    issuer: {
+      ...snapshot.issuer,
+      commercialName: issuer.commercialName,
+      website: issuer.website,
+    },
     rectification: snapshot.rectification
       ? { ...snapshot.rectification }
       : undefined,
@@ -101,11 +105,18 @@ function issuerFromSnapshot(
       undefined,
     name: snapshot.issuer.name,
     nif: snapshot.issuer.nif,
+    vatId: snapshot.issuer.vatId,
     address: snapshot.issuer.address,
     city: snapshot.issuer.city,
     postalCode: snapshot.issuer.postalCode,
+    province: snapshot.issuer.province,
+    country: snapshot.issuer.country,
     phone: snapshot.issuer.phone,
     email: snapshot.issuer.email,
+    website:
+      snapshot.issuer.website?.trim() ||
+      profile.website?.trim() ||
+      undefined,
     iban: snapshot.issuer.iban,
     logoUrl: snapshot.issuer.logoUrl,
   };
