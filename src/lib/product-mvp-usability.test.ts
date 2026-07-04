@@ -405,6 +405,45 @@ describe("MVP usability polish", () => {
     expect(storageSource).toContain("isDemoWorkspaceMode()");
   });
 
+  it("guia el primer uso real tras crear cuenta", () => {
+    const homePageSource = readFileSync(
+      new URL("../app/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const onboardingSource = readFileSync(
+      new URL(
+        "../components/onboarding/FirstUseOnboardingPanel.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const onboardingLogicSource = readFileSync(
+      new URL("../lib/first-use-onboarding.ts", import.meta.url),
+      "utf8",
+    );
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const signupSuccessSource = readFileSync(
+      new URL("../components/cloud/SignupSuccessPanel.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(homePageSource).toContain("FirstUseOnboardingPanel");
+    expect(onboardingSource).toContain("Primeros pasos");
+    expect(onboardingSource).toContain("Prepara tu primera factura real");
+    expect(onboardingSource).toContain("Importar datos");
+    expect(onboardingSource).toContain("Registrar gasto");
+    expect(onboardingLogicSource).toContain("No hace falta crear cliente antes");
+    expect(onboardingLogicSource).toContain("/configuracion#ajustes-negocio");
+    expect(onboardingLogicSource).toContain("/facturas/nuevo");
+    expect(cloudAccountSource).toContain("Abrir primeros pasos");
+    expect(cloudAccountSource).toContain("entrar verás los primeros pasos");
+    expect(cloudAccountSource).toContain("en el Panel");
+    expect(signupSuccessSource).toContain("Panel de primeros pasos");
+  });
+
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
