@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Mail, MessageCircle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
+import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import {
   hasClientEmail,
   hasClientPhone,
@@ -27,11 +28,15 @@ export function DocumentShareActions({
   markSentOnShare = true,
   pdfOptions,
 }: DocumentShareActionsProps) {
-  const { issueDocument, markDocumentSent } = useAppStore();
+  const { data, issueDocument, markDocumentSent } = useAppStore();
   const [busy, setBusy] = useState<"email" | "whatsapp" | null>(null);
+  const contactDoc = useMemo(
+    () => documentWithCurrentCustomerContact(doc, data.customers),
+    [data.customers, doc],
+  );
 
-  const canEmail = hasClientEmail(doc);
-  const canWhatsApp = hasClientPhone(doc);
+  const canEmail = hasClientEmail(contactDoc);
+  const canWhatsApp = hasClientPhone(contactDoc);
 
   async function handleEmail() {
     if (!canEmail || busy) return;
@@ -42,7 +47,12 @@ export function DocumentShareActions({
         issueDocument,
         markDocumentSent,
         markSentOnShare,
-        share: (current) => shareDocumentByEmail(current, profile, pdfOptions),
+        share: (current) =>
+          shareDocumentByEmail(
+            documentWithCurrentCustomerContact(current, data.customers),
+            profile,
+            pdfOptions,
+          ),
       });
     } finally {
       setBusy(null);
@@ -59,7 +69,11 @@ export function DocumentShareActions({
         markDocumentSent,
         markSentOnShare,
         share: (current) =>
-          shareDocumentByWhatsApp(current, profile, pdfOptions),
+          shareDocumentByWhatsApp(
+            documentWithCurrentCustomerContact(current, data.customers),
+            profile,
+            pdfOptions,
+          ),
       });
     } finally {
       setBusy(null);
@@ -67,10 +81,10 @@ export function DocumentShareActions({
   }
 
   const emailTooltip = canEmail
-    ? `Enviar por email a ${doc.client.email}`
+    ? `Enviar por email a ${contactDoc.client.email}`
     : "Añade el email del cliente para enviar";
   const whatsappTooltip = canWhatsApp
-    ? `Enviar por WhatsApp a ${doc.client.phone}`
+    ? `Enviar por WhatsApp a ${contactDoc.client.phone}`
     : "Añade el teléfono del cliente para enviar";
 
   return (

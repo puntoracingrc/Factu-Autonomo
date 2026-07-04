@@ -21,7 +21,42 @@ function documentTypeLabel(doc: Document): string {
   return labels[doc.type];
 }
 
-export function buildShareMessage(doc: Document, profile: BusinessProfile): string {
+export function greetingForDate(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour >= 6 && hour < 14) return "Buenos días";
+  if (hour >= 14 && hour < 21) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+function firstClientName(name?: string): string {
+  return name?.trim().split(/\s+/)[0] ?? "";
+}
+
+function issuerSignatureLines(
+  issuer: ReturnType<typeof buildPdfViewModelForDocument>["issuer"],
+): string[] {
+  const displayName = issuerDisplayName(issuer);
+  const fiscalName =
+    issuer.name && issuer.name.trim() !== displayName ? issuer.name.trim() : "";
+  const location = [issuer.postalCode, issuer.city].filter(Boolean).join(" ");
+  const address = [issuer.address, location].filter(Boolean).join(", ");
+
+  return [
+    displayName,
+    fiscalName,
+    issuer.nif ? `NIF: ${issuer.nif}` : "",
+    address,
+    issuer.phone ? `Tel.: ${issuer.phone}` : "",
+    issuer.email ?? "",
+    issuer.website ?? "",
+  ].filter(Boolean);
+}
+
+export function buildShareMessage(
+  doc: Document,
+  profile: BusinessProfile,
+  date = new Date(),
+): string {
   const viewModel = buildPdfViewModelForDocument(doc, profile);
   const renderDoc = viewModel.doc;
   const issuer = viewModel.issuer;
@@ -29,11 +64,12 @@ export function buildShareMessage(doc: Document, profile: BusinessProfile): stri
     ? documentPdfViewAmounts(viewModel)
     : documentTotals(renderDoc);
   const typeLabel = documentTypeLabel(renderDoc);
-  const business = issuerDisplayName(issuer);
+  const clientName = firstClientName(renderDoc.client.name);
+  const article = typeLabel === "factura" ? "la" : "el";
   const lines = [
-    `Hola${renderDoc.client.name ? ` ${renderDoc.client.name.split(" ")[0]}` : ""},`,
+    `${greetingForDate(date)}${clientName ? `, ${clientName}` : ""}:`,
     "",
-    `Te envío ${typeLabel === "factura" ? "la" : "el"} ${typeLabel} ${renderDoc.number} por importe de ${formatMoney(total)}.`,
+    `Le adjuntamos ${article} ${typeLabel} ${renderDoc.number} por importe de ${formatMoney(total)}.`,
     `Fecha: ${formatShortDate(renderDoc.date)}`,
   ];
 
@@ -52,10 +88,13 @@ export function buildShareMessage(doc: Document, profile: BusinessProfile): stri
     doc.status !== "anulada";
 
   if (pendingPayment && issuer.iban) {
+    lines.push(
+      "En ella encontrará los datos para realizar el pago si no lo ha hecho ya.",
+    );
     lines.push(`IBAN: ${issuer.iban}`);
   }
 
-  lines.push("", "Un saludo,", business);
+  lines.push("", "Un saludo,", ...issuerSignatureLines(issuer));
   return lines.join("\n");
 }
 
