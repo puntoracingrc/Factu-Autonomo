@@ -11,7 +11,7 @@ export default function NuevoReciboPage() {
 
   return (
     <div>
-      <PageHeader title="Nuevo recibo" subtitle="Justificante de cobro" />
+      <PageHeader title="Nuevo recibo" />
       <DocumentForm type="recibo" initialCustomerId={initialCustomerId} />
     </div>
   );

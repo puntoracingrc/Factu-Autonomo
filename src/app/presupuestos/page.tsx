@@ -8,10 +8,7 @@ import { DocumentList } from "@/components/documents/DocumentList";
 export default function PresupuestosPage() {
   return (
     <div>
-      <PageHeader
-        title="Presupuestos"
-        subtitle="Crea presupuestos y prepara su envío por email o WhatsApp"
-      />
+      <PageHeader title="Presupuestos" />
       <PageCreateButton
         href="/presupuestos/nuevo"
         icon={ClipboardPlus}

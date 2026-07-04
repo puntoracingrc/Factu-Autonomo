@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -9,6 +9,7 @@ import {
   Edit3,
   Eye,
   GripVertical,
+  History,
   PackageCheck,
   PackagePlus,
   PackageSearch,
@@ -97,10 +98,19 @@ import {
   consumeDocumentProductPickedLine,
   consumeDocumentProductReturnDraft,
   consumeProductDocumentDraft,
+  type ProductDocumentDraftLine,
   saveDocumentProductPickRequest,
   saveDocumentProductReturnDraft,
 } from "@/lib/product-document-draft";
+import {
+  clearDocumentSessionDraft,
+  getDocumentSessionDraft,
+  saveDocumentSessionDraft,
+  type DocumentSessionDraft,
+} from "@/lib/document-session-draft";
+import { productFamilyMarkupPercent } from "@/lib/product-family-markups";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
+import type { PurchaseProductSummary } from "@/lib/purchase-products";
 
 function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
   return {
@@ -168,6 +178,17 @@ interface LineAreaDraft {
   height: number;
 }
 
+interface LineMarginEstimate {
+  saleBase: number;
+  costBase: number;
+  costIva: number;
+  grossMargin: number;
+  irpfEstimate: number;
+  netMargin: number;
+  missingCost: boolean;
+  kind: "product" | "free";
+}
+
 function clientFormToDraft(values: ClientFormValues): Record<string, string> {
   return {
     firstName: values.firstName,
@@ -207,8 +228,58 @@ function productPriceSourceTone(
   return source === "sale" ? "text-emerald-700" : "text-amber-800";
 }
 
-function lineProductCostSummary(
+function resolveLineCostUnitPrice(
   pricing: LineProductPricingState,
+): number | undefined {
+  if (
+    Number.isFinite(pricing.costUnitPrice) &&
+    (pricing.costUnitPrice ?? 0) > 0
+  ) {
+    return pricing.costUnitPrice;
+  }
+  if (pricing.priceSource === "cost" && pricing.basePrice > 0) {
+    return pricing.basePrice;
+  }
+  return undefined;
+}
+
+function estimateLineMargin(
+  item: LineItem,
+  pricing: LineProductPricingState | undefined,
+  irpfPercent: number,
+  vatExempt: boolean,
+): LineMarginEstimate {
+  const quantity =
+    Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+  const saleBase = roundMoney(item.unitPrice * quantity);
+  const costUnitPrice = pricing ? resolveLineCostUnitPrice(pricing) : 0;
+  const missingCost = Boolean(pricing && costUnitPrice === undefined);
+  const costBase = missingCost ? 0 : roundMoney((costUnitPrice ?? 0) * quantity);
+  const costIva =
+    vatExempt || missingCost || !pricing
+      ? 0
+      : roundMoney(
+          costBase * ((pricing.costIvaPercent ?? item.ivaPercent ?? 0) / 100),
+        );
+  const grossMargin = roundMoney(saleBase - costBase);
+  const irpfEstimate =
+    grossMargin > 0 ? roundMoney(grossMargin * (irpfPercent / 100)) : 0;
+  const netMargin = roundMoney(grossMargin - irpfEstimate);
+
+  return {
+    saleBase,
+    costBase,
+    costIva,
+    grossMargin,
+    irpfEstimate,
+    netMargin,
+    missingCost,
+    kind: pricing ? "product" : "free",
+  };
+}
+
+function lineMarginSummary(
+  pricing: LineProductPricingState | undefined,
   item: LineItem,
   irpfPercent: number,
   vatExempt: boolean,
@@ -217,16 +288,28 @@ function lineProductCostSummary(
   tone: string;
   tooltip: string;
 } {
-  const quantity =
-    Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
-  const costUnitPrice =
-    Number.isFinite(pricing.costUnitPrice) && (pricing.costUnitPrice ?? 0) > 0
-      ? (pricing.costUnitPrice ?? 0)
-      : pricing.priceSource === "cost"
-        ? pricing.basePrice
-        : undefined;
+  if (!pricing) {
+    const estimate = estimateLineMargin(item, undefined, irpfPercent, vatExempt);
+    if (estimate.saleBase <= 0) {
+      return {
+        text: "Línea libre: sin coste de material vinculado",
+        tone: "text-slate-500",
+        tooltip:
+          "Si no eliges producto, la app trata esta línea como servicio o concepto libre: coste de material 0. El IVA repercutido no se cuenta como beneficio.",
+      };
+    }
+    return {
+      text: `Servicio/línea libre · Margen: ${formatMoney(
+        estimate.grossMargin,
+      )} · Tras IRPF ${irpfPercent}%: ${formatMoney(estimate.netMargin)}`,
+      tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
+      tooltip:
+        "Al no haber producto vinculado, se calcula como servicio o concepto libre: venta sin IVA menos 0 € de coste de material. El IVA repercutido no es beneficio; la cifra tras IRPF aplica el porcentaje configurado sobre ese margen.",
+    };
+  }
 
-  if (!costUnitPrice) {
+  const estimate = estimateLineMargin(item, pricing, irpfPercent, vatExempt);
+  if (estimate.missingCost) {
     return {
       text: `Referencia: ${formatMoney(pricing.basePrice)} ${productPriceSourceLabel(
         pricing.priceSource,
@@ -237,26 +320,17 @@ function lineProductCostSummary(
     };
   }
 
-  const saleBase = roundMoney(item.unitPrice * quantity);
-  const costBase = roundMoney(costUnitPrice * quantity);
-  const costIva = vatExempt
-    ? 0
-    : roundMoney(
-        costBase * ((pricing.costIvaPercent ?? item.ivaPercent ?? 0) / 100),
-      );
-  const grossMargin = roundMoney(saleBase - costBase);
-  const irpfEstimate =
-    grossMargin > 0 ? roundMoney(grossMargin * (irpfPercent / 100)) : 0;
-  const netMargin = roundMoney(grossMargin - irpfEstimate);
   const manualText = pricing.markupPercent === -1 ? " · precio manual" : "";
 
   return {
-    text: `Coste: ${formatMoney(costBase)} + IVA deducible: ${formatMoney(
-      costIva,
-    )} · Margen: ${formatMoney(grossMargin)} · Tras IRPF ${irpfPercent}%: ${formatMoney(
-      netMargin,
+    text: `Coste: ${formatMoney(estimate.costBase)} + IVA deducible: ${formatMoney(
+      estimate.costIva,
+    )} · Margen: ${formatMoney(
+      estimate.grossMargin,
+    )} · Tras IRPF ${irpfPercent}%: ${formatMoney(
+      estimate.netMargin,
     )}${manualText}`,
-    tone: grossMargin < 0 ? "text-red-700" : "text-emerald-700",
+    tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
     tooltip:
       "Margen estimado: precio de venta sin IVA menos coste del material sin IVA. El IVA se muestra aparte porque normalmente el IVA soportado se deduce del IVA repercutido; si estás en régimen sin IVA, no se deduce. La cifra tras IRPF aplica el porcentaje configurado en la app sobre ese margen, como orientación para decidir si el precio compensa.",
   };
@@ -416,6 +490,7 @@ export function DocumentForm({
     () => buildDocumentProductSuggestionIndex(productSummaries),
     [productSummaries],
   );
+  const estimatedIrpfPercent = data.profile.irpfPercent ?? 20;
   const [focusedProductLineId, setFocusedProductLineId] = useState<
     string | null
   >(null);
@@ -429,11 +504,44 @@ export function DocumentForm({
   const [lineAreaDrafts, setLineAreaDrafts] = useState<
     Record<string, LineAreaDraft>
   >({});
+  const [pendingSessionDraft, setPendingSessionDraft] =
+    useState<DocumentSessionDraft | null>(null);
+  const [sessionDraftChecked, setSessionDraftChecked] = useState(
+    Boolean(existing),
+  );
   const productDocumentDraftApplied = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  const findProductSummaryForDraftLine = useCallback(
+    (
+      draftLine: Pick<ProductDocumentDraftLine, "productKey" | "productId">,
+    ): PurchaseProductSummary | undefined =>
+      productSummaries.find(
+        (product) =>
+          (draftLine.productId && product.productId === draftLine.productId) ||
+          product.key === draftLine.productKey,
+      ),
+    [productSummaries],
+  );
+
+  const defaultMarkupForProductLine = useCallback(
+    (
+      product: PurchaseProductSummary | undefined,
+      priceSource: DocumentProductSalePriceSource,
+    ): number => {
+      if (!product || priceSource === "sale" || priceSource === "none") {
+        return 0;
+      }
+      return productFamilyMarkupPercent(
+        product.family,
+        data.profile.productFamilyMarkups,
+      );
+    },
+    [data.profile.productFamilyMarkups],
+  );
 
   useEffect(() => {
     const returnDraft = consumeDocumentProductReturnDraft(type);
@@ -441,6 +549,8 @@ export function DocumentForm({
     if (!returnDraft && !pickedLine) return;
 
     productDocumentDraftApplied.current = true;
+    setSessionDraftChecked(true);
+    setPendingSessionDraft(null);
 
     if (!returnDraft) return;
     const draftItems = returnDraft.form.items.length
@@ -454,9 +564,20 @@ export function DocumentForm({
       const currentTarget = restoredItems.find(
         (item) => item.id === targetLineId,
       );
+      const pickedProduct = findProductSummaryForDraftLine(
+        pickedLine.draftLine,
+      );
+      const markupPercent = defaultMarkupForProductLine(
+        pickedProduct,
+        pickedLine.draftLine.priceSource,
+      );
       const nextLine: LineItem = {
         id: currentTarget?.id ?? targetLineId,
         ...pickedLine.draftLine.line,
+        unitPrice: priceWithDocumentProductMarkup(
+          pickedLine.draftLine.basePrice,
+          markupPercent,
+        ),
         quantity:
           currentTarget && currentTarget.quantity > 0
             ? currentTarget.quantity
@@ -475,7 +596,7 @@ export function DocumentForm({
         ...restoredPricing,
         [nextLine.id]: {
           basePrice: pickedLine.draftLine.basePrice,
-          markupPercent: 0,
+          markupPercent,
           priceSource: pickedLine.draftLine.priceSource,
           productKey: pickedLine.draftLine.productKey,
           productId: pickedLine.draftLine.productId,
@@ -506,19 +627,50 @@ export function DocumentForm({
     setLineProductPricing(restoredPricing);
     setLineAreaDrafts(returnDraft.form.lineAreaDrafts ?? {});
     setFocusedProductLineId(null);
-  }, [defaultUnit, effectiveDocumentIva, type, unitsSettings, vatExempt]);
+  }, [
+    defaultUnit,
+    defaultMarkupForProductLine,
+    effectiveDocumentIva,
+    findProductSummaryForDraftLine,
+    type,
+    unitsSettings,
+    vatExempt,
+  ]);
 
   useEffect(() => {
     if (existing || productDocumentDraftApplied.current) return;
     const draft = consumeProductDocumentDraft();
     productDocumentDraftApplied.current = true;
-    if (!draft || draft.documentType !== type) return;
+    if (!draft || draft.documentType !== type) {
+      setPendingSessionDraft(getDocumentSessionDraft(type));
+      setSessionDraftChecked(true);
+      return;
+    }
 
-    const draftItems = draft.lines.map((draftLine) => ({
-      id: crypto.randomUUID(),
-      ...draftLine.line,
-      ivaPercent: effectiveDocumentIva,
-    }));
+    setPendingSessionDraft(null);
+    setSessionDraftChecked(true);
+
+    const restoredDraftLines = draft.lines.map((draftLine) => {
+      const product = findProductSummaryForDraftLine(draftLine);
+      const markupPercent = defaultMarkupForProductLine(
+        product,
+        draftLine.priceSource,
+      );
+      return {
+        draftLine,
+        markupPercent,
+        item: {
+          id: crypto.randomUUID(),
+          ...draftLine.line,
+          unitPrice: priceWithDocumentProductMarkup(
+            draftLine.basePrice,
+            markupPercent,
+          ),
+          ivaPercent: effectiveDocumentIva,
+        },
+      };
+    });
+    const draftItems = restoredDraftLines.map((line) => line.item);
     const normalizedDraftItems = normalizeLineItemUnits(
       draftItems,
       unitsSettings,
@@ -527,22 +679,105 @@ export function DocumentForm({
     setItems(normalizedDraftItems);
     setLineProductPricing(
       Object.fromEntries(
-        draftItems.map((item, index) => [
+        restoredDraftLines.map(({ item, draftLine, markupPercent }) => [
           item.id,
           {
-            basePrice: draft.lines[index].basePrice,
-            markupPercent: 0,
-            priceSource: draft.lines[index].priceSource,
-            productKey: draft.lines[index].productKey,
-            productId: draft.lines[index].productId,
-            productName: draft.lines[index].productName,
-            costUnitPrice: draft.lines[index].costUnitPrice,
-            costIvaPercent: draft.lines[index].costIvaPercent,
+            basePrice: draftLine.basePrice,
+            markupPercent,
+            priceSource: draftLine.priceSource,
+            productKey: draftLine.productKey,
+            productId: draftLine.productId,
+            productName: draftLine.productName,
+            costUnitPrice: draftLine.costUnitPrice,
+            costIvaPercent: draftLine.costIvaPercent,
           },
         ]),
       ),
     );
-  }, [effectiveDocumentIva, existing, type, unitsSettings]);
+  }, [
+    defaultMarkupForProductLine,
+    effectiveDocumentIva,
+    existing,
+    findProductSummaryForDraftLine,
+    type,
+    unitsSettings,
+  ]);
+
+  function applySessionDraft(draft: DocumentSessionDraft) {
+    const form = draft.form;
+    const restoredItems = form.items.length
+      ? form.items
+      : [emptyLine(effectiveDocumentIva, defaultUnit)];
+    const normalizedRestoredItems = normalizeLineItemUnits(
+      vatExempt ? zeroIvaItems(restoredItems) : restoredItems,
+      unitsSettings,
+    );
+
+    defaultNotesApplied.current = true;
+    defaultPaymentApplied.current = true;
+    itemsRef.current = normalizedRestoredItems;
+    setClientForm({ ...EMPTY_CLIENT, ...form.clientForm } as ClientFormValues);
+    setSelectedCustomerId(form.selectedCustomerId);
+    setDate(form.date || todayISO());
+    setDueDate(form.dueDate);
+    setNotes(form.notes);
+    setPaymentTerms(form.paymentTerms);
+    setStatus(form.status);
+    setDocumentIvaPercent(vatExempt ? 0 : form.documentIvaPercent);
+    setItems(normalizedRestoredItems);
+    setLineProductPricing(form.lineProductPricing ?? {});
+    setLineAreaDrafts(form.lineAreaDrafts ?? {});
+    setFocusedProductLineId(null);
+    setPendingSessionDraft(null);
+    setFormError(null);
+  }
+
+  function handleRestoreSessionDraft() {
+    if (!pendingSessionDraft) return;
+    applySessionDraft(pendingSessionDraft);
+  }
+
+  function handleDiscardSessionDraft() {
+    clearDocumentSessionDraft(type);
+    setPendingSessionDraft(null);
+    setSessionDraftChecked(true);
+  }
+
+  useEffect(() => {
+    if (existing || !sessionDraftChecked || pendingSessionDraft) return;
+    const timer = window.setTimeout(() => {
+      saveDocumentSessionDraft(type, {
+        clientForm: clientFormToDraft(clientForm),
+        selectedCustomerId,
+        date,
+        dueDate,
+        notes,
+        paymentTerms,
+        status,
+        documentIvaPercent: effectiveDocumentIva,
+        items: itemsRef.current,
+        lineProductPricing,
+        lineAreaDrafts,
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [
+    existing,
+    sessionDraftChecked,
+    pendingSessionDraft,
+    type,
+    clientForm,
+    selectedCustomerId,
+    date,
+    dueDate,
+    notes,
+    paymentTerms,
+    status,
+    effectiveDocumentIva,
+    items,
+    lineProductPricing,
+    lineAreaDrafts,
+  ]);
 
   useEffect(() => {
     if (!vatExempt) return;
@@ -629,6 +864,49 @@ export function DocumentForm({
   };
 
   const totals = documentFormAmounts(items, vatExempt);
+  const documentMargin = useMemo(() => {
+    return items.reduce(
+      (summary, item) => {
+        const hasContent =
+          item.description.trim().length > 0 ||
+          (Number.isFinite(item.unitPrice) && item.unitPrice > 0);
+        if (!hasContent) return summary;
+
+        const estimate = estimateLineMargin(
+          item,
+          lineProductPricing[item.id],
+          estimatedIrpfPercent,
+          vatExempt,
+        );
+
+        return {
+          hasLines: true,
+          saleBase: roundMoney(summary.saleBase + estimate.saleBase),
+          costBase: roundMoney(summary.costBase + estimate.costBase),
+          costIva: roundMoney(summary.costIva + estimate.costIva),
+          grossMargin: roundMoney(
+            summary.grossMargin + estimate.grossMargin,
+          ),
+          irpfEstimate: roundMoney(
+            summary.irpfEstimate + estimate.irpfEstimate,
+          ),
+          netMargin: roundMoney(summary.netMargin + estimate.netMargin),
+          missingCostLines:
+            summary.missingCostLines + (estimate.missingCost ? 1 : 0),
+        };
+      },
+      {
+        hasLines: false,
+        saleBase: 0,
+        costBase: 0,
+        costIva: 0,
+        grossMargin: 0,
+        irpfEstimate: 0,
+        netMargin: 0,
+        missingCostLines: 0,
+      },
+    );
+  }, [estimatedIrpfPercent, items, lineProductPricing, vatExempt]);
   const isDraftStatus = status === "borrador";
   const canSaveDraft = !existing || isDraftStatus;
   const finalStatusOverride: Document["status"] = isDraftStatus
@@ -724,6 +1002,10 @@ export function DocumentForm({
       defaultIva: effectiveDocumentIva,
       vatExempt,
     });
+    const markupPercent = defaultMarkupForProductLine(
+      product,
+      applied.priceSource,
+    );
     const selectedDescription =
       applied.line.description ?? product.saleDescription ?? product.name;
     updateItem(item.id, {
@@ -732,12 +1014,16 @@ export function DocumentForm({
         item.description,
         selectedDescription,
       ),
+      unitPrice: priceWithDocumentProductMarkup(
+        applied.basePrice,
+        markupPercent,
+      ),
     });
     setLineProductPricing((prev) => ({
       ...prev,
       [item.id]: {
         basePrice: applied.basePrice,
-        markupPercent: 0,
+        markupPercent,
         priceSource: applied.priceSource,
         productKey: product.key,
         productId: product.productId,
@@ -1050,6 +1336,7 @@ export function DocumentForm({
     }
 
     maybeCelebrateFirstInvoice(data.documents, saved);
+    if (!existing) clearDocumentSessionDraft(type);
     setFormError(null);
     setSaveAction("idle");
     await finishDocumentSave({
@@ -1064,6 +1351,37 @@ export function DocumentForm({
 
   return (
     <div className="space-y-5">
+      {pendingSessionDraft && (
+        <Card className="border-blue-200 bg-blue-50/70">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
+                <History className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  {label[0].toUpperCase() + label.slice(1)} sin terminar
+                </h2>
+                <p className="mt-1 text-sm font-medium text-slate-600">
+                  Recupera lo que estabas escribiendo en esta sesión.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleDiscardSessionDraft}
+              >
+                Descartar
+              </Button>
+              <Button type="button" onClick={handleRestoreSessionDraft}>
+                Recuperar
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
       <Card>
         <h2 className="mb-4 text-lg font-bold text-slate-900">
           Datos del cliente
@@ -1206,14 +1524,15 @@ export function DocumentForm({
                     )
                   : [];
               const productPricing = lineProductPricing[item.id];
-              const productCostSummary = productPricing
-                ? lineProductCostSummary(
-                    productPricing,
-                    item,
-                    data.profile.irpfPercent ?? 20,
-                    vatExempt,
-                  )
-                : null;
+              const productCostSummary =
+                productPricing || item.unitPrice > 0
+                  ? lineMarginSummary(
+                      productPricing,
+                      item,
+                      estimatedIrpfPercent,
+                      vatExempt,
+                    )
+                  : null;
               const hasLinkedProduct = Boolean(
                 productPricing?.productKey || productPricing?.productId,
               );
@@ -1617,6 +1936,35 @@ export function DocumentForm({
             <p className="text-xs text-slate-500">
               Sin IVA (exento de repercusión)
             </p>
+          )}
+          {documentMargin.hasLines && (
+            <div className="ml-auto mt-3 max-w-xl rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+              <p>
+                Coste materiales: {formatMoney(documentMargin.costBase)}
+                {!vatExempt
+                  ? ` + IVA deducible: ${formatMoney(documentMargin.costIva)}`
+                  : ""}
+              </p>
+              <p
+                className={
+                  documentMargin.grossMargin < 0
+                    ? "text-red-700"
+                    : "text-emerald-700"
+                }
+              >
+                Margen real: {formatMoney(documentMargin.grossMargin)}
+              </p>
+              <p className="text-slate-600">
+                Tras IRPF {estimatedIrpfPercent}%:{" "}
+                {formatMoney(documentMargin.netMargin)}
+              </p>
+              {documentMargin.missingCostLines > 0 && (
+                <p className="text-xs text-amber-700">
+                  {documentMargin.missingCostLines} línea(s) con coste de
+                  producto pendiente.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </Card>

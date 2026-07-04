@@ -11,7 +11,7 @@ export default function NuevoPresupuestoPage() {
 
   return (
     <div>
-      <PageHeader title="Nuevo presupuesto" subtitle="Oferta para tu cliente" />
+      <PageHeader title="Nuevo presupuesto" />
       <DocumentForm type="presupuesto" initialCustomerId={initialCustomerId} />
     </div>
   );

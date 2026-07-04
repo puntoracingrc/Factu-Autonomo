@@ -8,10 +8,7 @@ import { DocumentList } from "@/components/documents/DocumentList";
 export default function FacturasPage() {
   return (
     <div>
-      <PageHeader
-        title="Facturas"
-        subtitle="Crea, envía y descarga facturas en PDF"
-      />
+      <PageHeader title="Facturas" />
       <PageCreateButton
         href="/facturas/nuevo"
         icon={FilePlus}
