@@ -8,6 +8,7 @@ interface NumericFieldInputProps {
   onChange: (value: number) => void;
   disabled?: boolean;
   placeholder?: string;
+  className?: string;
 }
 
 /** Text input for decimals — avoids the stuck leading zero of type="number". */
@@ -16,6 +17,7 @@ export function NumericFieldInput({
   onChange,
   disabled,
   placeholder = "0",
+  className,
 }: NumericFieldInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -28,6 +30,7 @@ export function NumericFieldInput({
       placeholder={placeholder}
       value={display}
       disabled={disabled}
+      className={className}
       onChange={(e) => {
         const raw = e.target.value.replace(",", ".");
         if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;

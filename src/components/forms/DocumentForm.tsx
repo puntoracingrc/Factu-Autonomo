@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowDown,
+  ArrowUp,
   Eye,
+  GripVertical,
   PackageCheck,
   PackagePlus,
   PackageSearch,
@@ -29,7 +32,13 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
-import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
+import {
+  formatMoney,
+  formatShortDate,
+  todayISO,
+  unitPriceFromGross,
+  unitPriceGross,
+} from "@/lib/calculations";
 import { isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
 import {
   documentFormAmounts,
@@ -56,7 +65,6 @@ import {
   normalizeDocumentUnits,
   normalizeLineItemUnits,
 } from "@/lib/document-units";
-import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
@@ -344,6 +352,7 @@ export function DocumentForm({
   const [focusedProductLineId, setFocusedProductLineId] = useState<
     string | null
   >(null);
+  const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
   >({});
@@ -577,6 +586,10 @@ export function DocumentForm({
     : null;
 
   const requiresConcept = type !== "presupuesto";
+  const lineGridClass = vatExempt
+    ? "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6.5rem_7.5rem]"
+    : "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6rem_6.5rem_7.5rem]";
+  const compactInputClass = "!h-10 !min-h-10 !rounded-lg !px-3 !text-sm";
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setFormError(null);
@@ -585,6 +598,45 @@ export function DocumentForm({
     );
     itemsRef.current = next;
     setItems(next);
+  }
+
+  function removeLine(id: string) {
+    setFormError(null);
+    setItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      itemsRef.current = next;
+      return next;
+    });
+    setLineProductPricing((prev) => removeLineProductPricing(prev, id));
+    setLineAreaDrafts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setFocusedProductLineId((current) => (current === id ? null : current));
+  }
+
+  function reorderLine(fromId: string, toId: string) {
+    if (!fromId || fromId === toId) return;
+    setFormError(null);
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((item) => item.id === fromId);
+      const toIndex = prev.findIndex((item) => item.id === toId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      itemsRef.current = next;
+      return next;
+    });
+  }
+
+  function moveLine(id: string, direction: -1 | 1) {
+    const currentItems = itemsRef.current;
+    const currentIndex = currentItems.findIndex((item) => item.id === id);
+    const target = currentItems[currentIndex + direction];
+    if (!target) return;
+    reorderLine(id, target.id);
   }
 
   function handleLineDescriptionChange(id: string, description: string) {
@@ -1004,10 +1056,6 @@ export function DocumentForm({
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Añade trabajos, materiales o servicios. El IVA se aplica a todo el
-              documento.
-            </p>
           </div>
           {!vatExempt && (
             <div className="w-full sm:w-56">
@@ -1024,89 +1072,122 @@ export function DocumentForm({
           )}
         </div>
         <div className="space-y-3">
-          {items.map((item, index) => {
-            const suggestions =
-              focusedProductLineId === item.id
-                ? searchDocumentProductSuggestions(
-                    productSuggestionIndex,
-                    item.description,
-                  )
-                : [];
-            const productPricing = lineProductPricing[item.id];
+          <div className="space-y-3 lg:space-y-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
+            <div
+              className={`hidden ${lineGridClass} rounded-t-2xl bg-slate-100 px-2 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:grid lg:items-center lg:gap-2`}
+            >
+              <span aria-hidden="true" />
+              <span>Concepto</span>
+              <span className="text-right">Cant.</span>
+              <span>Unidad</span>
+              <span className="text-right">
+                {vatExempt ? "Precio" : "Sin IVA"}
+              </span>
+              {!vatExempt && <span className="text-right">Con IVA</span>}
+              <span className="text-right">Total</span>
+              <span aria-hidden="true" />
+            </div>
+            {items.map((item, index) => {
+              const suggestions =
+                focusedProductLineId === item.id
+                  ? searchDocumentProductSuggestions(
+                      productSuggestionIndex,
+                      item.description,
+                    )
+                  : [];
+              const productPricing = lineProductPricing[item.id];
+              const grossPrice = unitPriceGross(
+                item.unitPrice,
+                effectiveDocumentIva,
+              );
+              const lineTotal = lineItemFormTotal(item, vatExempt);
 
-            return (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4"
-              >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              return (
+                <div
+                  key={item.id}
+                  onDragOver={(event) => {
+                    if (!draggingLineId || draggingLineId === item.id) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const draggedId =
+                      event.dataTransfer.getData("text/plain") ||
+                      draggingLineId;
+                    if (draggedId) reorderLine(draggedId, item.id);
+                    setDraggingLineId(null);
+                  }}
+                  className={`grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 transition sm:grid-cols-2 lg:rounded-none lg:border-0 lg:border-t lg:border-slate-100 lg:bg-white lg:p-2 lg:gap-2 ${lineGridClass} ${
+                    draggingLineId === item.id ? "lg:opacity-60" : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-2 sm:col-span-2 lg:col-span-1 lg:justify-center">
+                    <button
+                      type="button"
+                      draggable={items.length > 1}
+                      onDragStart={(event) => {
+                        if (items.length <= 1) return;
+                        setDraggingLineId(item.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", item.id);
+                      }}
+                      onDragEnd={() => setDraggingLineId(null)}
+                      aria-label={`Reordenar línea ${index + 1}`}
+                      title="Arrastrar para reordenar"
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        items.length > 1
+                          ? "cursor-grab hover:bg-slate-50 active:cursor-grabbing"
+                          : "cursor-default opacity-40"
+                      }`}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </button>
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 lg:hidden">
                       Línea {index + 1}
                     </span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openProductFlowForLine(item, "/productos")}
-                      aria-label={`Buscar producto para línea ${index + 1}`}
-                      title="Buscar en productos"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                    >
-                      <PackageSearch className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openProductFlowForLine(item, "/productos/nuevo")
-                      }
-                      aria-label={`Crear producto desde línea ${index + 1}`}
-                      title="Crear producto"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                    >
-                      <PackagePlus className="h-4 w-4" />
-                    </button>
-                    {items.length > 1 && (
+                    <div className="ml-auto flex gap-1 lg:hidden">
                       <button
                         type="button"
-                        onClick={() => {
-                          setFormError(null);
-                          setItems((prev) => {
-                            const next = prev.filter((i) => i.id !== item.id);
-                            itemsRef.current = next;
-                            return next;
-                          });
-                          setLineProductPricing((prev) =>
-                            removeLineProductPricing(prev, item.id),
-                          );
-                        }}
-                        aria-label={`Eliminar línea ${index + 1}`}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                        onClick={() => moveLine(item.id, -1)}
+                        disabled={index === 0}
+                        aria-label={`Subir línea ${index + 1}`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-35"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <ArrowUp className="h-4 w-4" />
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => moveLine(item.id, 1)}
+                        disabled={index === items.length - 1}
+                        aria-label={`Bajar línea ${index + 1}`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-35"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem] lg:items-start">
-                  <div className="col-span-2 md:col-span-1">
-                    <Field label="Descripción">
-                      <Input
-                        value={item.description}
-                        onChange={(e) =>
-                          handleLineDescriptionChange(item.id, e.target.value)
-                        }
-                        onFocus={() => setFocusedProductLineId(item.id)}
-                        onBlur={() => {
-                          window.setTimeout(() => {
-                            setFocusedProductLineId((current) =>
-                              current === item.id ? null : current,
-                            );
-                          }, 120);
-                        }}
-                        placeholder="Ej: Reparación fontanería"
-                      />
-                    </Field>
+
+                  <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      Concepto
+                    </span>
+                    <Input
+                      value={item.description}
+                      onChange={(e) =>
+                        handleLineDescriptionChange(item.id, e.target.value)
+                      }
+                      onFocus={() => setFocusedProductLineId(item.id)}
+                      onBlur={() => {
+                        window.setTimeout(() => {
+                          setFocusedProductLineId((current) =>
+                            current === item.id ? null : current,
+                          );
+                        }, 120);
+                      }}
+                      placeholder="Producto, servicio o concepto"
+                      className={compactInputClass}
+                    />
                     {suggestions.length > 0 && (
                       <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                         <div className="border-b border-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-blue-700">
@@ -1162,124 +1243,196 @@ export function DocumentForm({
                       </div>
                     )}
                   </div>
-                  <Field label="Cant.">
+
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      Cant.
+                    </span>
                     <NumericFieldInput
                       value={item.quantity}
                       onChange={(quantity) => updateItem(item.id, { quantity })}
+                      className={compactInputClass}
                     />
-                  </Field>
-                  <Field label="Unidad">
+                  </div>
+
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      Unidad
+                    </span>
                     <LineItemUnitSelect
                       settings={data.profile.documentUnits}
                       value={item.unit ?? defaultUnit}
                       onChange={(unit) => updateItem(item.id, { unit })}
+                      compact
+                      className={compactInputClass}
                     />
-                  </Field>
-                  <LineItemPriceFields
-                    unitPrice={item.unitPrice}
-                    ivaPercent={effectiveDocumentIva}
-                    vatExempt={vatExempt}
-                    onUnitPriceChange={(unitPrice) =>
-                      handleLineUnitPriceChange(item.id, unitPrice)
-                    }
-                  />
-                </div>
-                {isAreaDocumentUnit(item.unit) && (
-                  <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-end">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">
-                          Calcular m²
-                        </p>
-                        <p className="text-xs font-semibold text-slate-600">
-                          Alto × ancho en metros. La cantidad de la línea se
-                          actualiza sola.
-                        </p>
-                      </div>
-                      <Field label="Alto">
-                        <NumericFieldInput
-                          value={lineAreaDrafts[item.id]?.height ?? 0}
-                          onChange={(height) =>
-                            handleLineAreaDraftChange(item.id, { height })
-                          }
-                          placeholder="0,00"
-                        />
-                      </Field>
-                      <Field label="Ancho">
-                        <NumericFieldInput
-                          value={lineAreaDrafts[item.id]?.width ?? 0}
-                          onChange={(width) =>
-                            handleLineAreaDraftChange(item.id, { width })
-                          }
-                          placeholder="0,00"
-                        />
-                      </Field>
-                    </div>
                   </div>
-                )}
-                {productPricing && (
-                  <div
-                    className={`mt-3 rounded-2xl border p-3 ${
-                      productPricing.priceSource === "sale"
-                        ? "border-emerald-100 bg-emerald-50"
-                        : "border-amber-200 bg-amber-50"
-                    }`}
-                  >
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
-                      <div className="space-y-1">
-                        <p className="text-sm font-bold text-slate-900">
-                          {productPricing.productName}
-                        </p>
-                        <p className="text-xs font-semibold text-slate-600">
-                          Base: {formatMoney(productPricing.basePrice)}{" "}
-                          {productPriceSourceLabel(productPricing.priceSource)}{" "}
-                          sin IVA
-                        </p>
-                        {productPriceSourceWarning(
-                          productPricing.priceSource,
-                        ) && (
-                          <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
-                            {productPriceSourceWarning(
+
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      {vatExempt ? "Precio" : "Sin IVA"}
+                    </span>
+                    <NumericFieldInput
+                      value={item.unitPrice}
+                      onChange={(unitPrice) =>
+                        handleLineUnitPriceChange(item.id, unitPrice)
+                      }
+                      className={compactInputClass}
+                    />
+                  </div>
+
+                  {!vatExempt && (
+                    <div className="min-w-0">
+                      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                        Con IVA
+                      </span>
+                      <NumericFieldInput
+                        value={grossPrice}
+                        onChange={(gross) =>
+                          handleLineUnitPriceChange(
+                            item.id,
+                            unitPriceFromGross(gross, effectiveDocumentIva),
+                          )
+                        }
+                        className={compactInputClass}
+                      />
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      Total
+                    </span>
+                    <p className="flex h-10 items-center justify-end rounded-lg bg-white px-3 text-sm font-bold text-slate-900 ring-1 ring-slate-100 lg:bg-slate-50">
+                      {formatMoney(lineTotal)}
+                    </p>
+                  </div>
+
+                  <div className="flex min-w-0 justify-end gap-1 sm:col-span-2 lg:col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => openProductFlowForLine(item, "/productos")}
+                      aria-label={`Buscar producto para línea ${index + 1}`}
+                      title="Buscar en productos"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      <PackageSearch className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openProductFlowForLine(item, "/productos/nuevo")
+                      }
+                      aria-label={`Crear producto desde línea ${index + 1}`}
+                      title="Crear producto"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      <PackagePlus className="h-4 w-4" />
+                    </button>
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLine(item.id)}
+                        aria-label={`Eliminar línea ${index + 1}`}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {isAreaDocumentUnit(item.unit) && (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3 sm:col-span-2 lg:col-span-full">
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-end">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">
+                            Calcular m²
+                          </p>
+                          <p className="text-xs font-semibold text-slate-600">
+                            Alto x ancho en metros.
+                          </p>
+                        </div>
+                        <Field label="Alto">
+                          <NumericFieldInput
+                            value={lineAreaDrafts[item.id]?.height ?? 0}
+                            onChange={(height) =>
+                              handleLineAreaDraftChange(item.id, { height })
+                            }
+                            placeholder="0,00"
+                          />
+                        </Field>
+                        <Field label="Ancho">
+                          <NumericFieldInput
+                            value={lineAreaDrafts[item.id]?.width ?? 0}
+                            onChange={(width) =>
+                              handleLineAreaDraftChange(item.id, { width })
+                            }
+                            placeholder="0,00"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  )}
+                  {productPricing && (
+                    <div
+                      className={`rounded-2xl border p-3 sm:col-span-2 lg:col-span-full ${
+                        productPricing.priceSource === "sale"
+                          ? "border-emerald-100 bg-emerald-50"
+                          : "border-amber-200 bg-amber-50"
+                      }`}
+                    >
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-slate-900">
+                            {productPricing.productName}
+                          </p>
+                          <p className="text-xs font-semibold text-slate-600">
+                            Base: {formatMoney(productPricing.basePrice)}{" "}
+                            {productPriceSourceLabel(
                               productPricing.priceSource,
-                            )}
+                            )}{" "}
+                            sin IVA
                           </p>
-                        )}
-                        {productPricing.markupPercent === -1 && (
-                          <p className="text-xs font-semibold text-blue-700">
-                            Precio ajustado manualmente.
-                          </p>
-                        )}
+                          {productPriceSourceWarning(
+                            productPricing.priceSource,
+                          ) && (
+                            <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
+                              {productPriceSourceWarning(
+                                productPricing.priceSource,
+                              )}
+                            </p>
+                          )}
+                          {productPricing.markupPercent === -1 && (
+                            <p className="text-xs font-semibold text-blue-700">
+                              Precio ajustado manualmente.
+                            </p>
+                          )}
+                        </div>
+                        <Field label="Incremento">
+                          <Select
+                            value={String(productPricing.markupPercent)}
+                            onChange={(event) =>
+                              handleLineMarkupChange(
+                                item.id,
+                                Number(event.target.value),
+                              )
+                            }
+                          >
+                            <option value="-1">Manual</option>
+                            {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
+                              <option key={markup} value={markup}>
+                                +{markup}%
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
                       </div>
-                      <Field label="Incremento">
-                        <Select
-                          value={String(productPricing.markupPercent)}
-                          onChange={(event) =>
-                            handleLineMarkupChange(
-                              item.id,
-                              Number(event.target.value),
-                            )
-                          }
-                        >
-                          <option value="-1">Manual</option>
-                          {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
-                            <option key={markup} value={markup}>
-                              +{markup}%
-                            </option>
-                          ))}
-                        </Select>
-                      </Field>
                     </div>
-                  </div>
-                )}
-                <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
-                  <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
-                    Total línea:{" "}
-                    {formatMoney(lineItemFormTotal(item, vatExempt))}
-                  </p>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={() => {

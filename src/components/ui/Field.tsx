@@ -38,17 +38,17 @@ export const Input = forwardRef<
   );
 });
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={inputClass} {...props} />;
+export function Select({
+  className = "",
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`${inputClass} ${className}`.trim()} {...props} />;
 }
 
 export function Textarea(
   props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
 ) {
   return (
-    <textarea
-      className={`${inputClass} min-h-24 resize-y py-3`}
-      {...props}
-    />
+    <textarea className={`${inputClass} min-h-24 resize-y py-3`} {...props} />
   );
 }
