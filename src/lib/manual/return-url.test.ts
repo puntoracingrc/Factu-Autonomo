@@ -23,6 +23,6 @@ describe("manual return url", () => {
 
   it("etiqueta legible para volver", () => {
     expect(returnPathLabel("/facturas/nuevo")).toBe("Facturas");
-    expect(returnPathLabel("/")).toBe("Inicio");
+    expect(returnPathLabel("/")).toBe("Panel");
   });
 });

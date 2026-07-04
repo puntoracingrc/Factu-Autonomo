@@ -1099,7 +1099,7 @@ export default function ConfiguracionPage() {
             <h2 className="text-lg font-bold text-slate-900">IRPF estimado</h2>
             <p className="mt-1 text-sm text-slate-600">
               Porcentaje orientativo para calcular el impuesto sobre el beneficio
-              en el resumen de Inicio (modelo 130 u otros pagos fraccionados).
+              en el resumen del Panel (modelo 130 u otros pagos fraccionados).
             </p>
           </div>
           <Field

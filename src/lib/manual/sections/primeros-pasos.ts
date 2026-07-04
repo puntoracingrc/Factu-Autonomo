@@ -21,7 +21,7 @@ export const primerosPasosSection: ManualSection = {
         alt: "Formulario de datos del negocio en Ajustes",
         caption: "Tus datos de emisor en Ajustes.",
       },
-      tip: "Hasta que no tengas nombre y NIF, verás un aviso en **Avisos** (el botón de Inicio muestra el contador).",
+      tip: "Hasta que no tengas nombre y NIF, verás un aviso en **Avisos** (el botón de Panel muestra el contador).",
     },
     {
       title: "2. Revisa el IVA y el IRPF estimado",
@@ -37,7 +37,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "3. Aprende la barra de navegación",
       paragraphs: [
-        "Abajo tienes acceso rápido a **Inicio**, **Clientes**, **Facturas**, **Presupuestos**, **Recibos**, **Gastos**, **Impuestos**, **Proveedores** y **Ajustes**.",
+        "Abajo tienes acceso rápido a **Panel**, **Clientes**, **Facturas**, **Presupuestos**, **Recibos**, **Gastos**, **Impuestos**, **Proveedores** y **Ajustes**.",
         "En móvil puedes deslizar la barra si no ves todos los iconos. Las flechas laterales aparecen solo cuando queda contenido por mover.",
         "Arriba verás el icono de ayuda **?**. Abre la sección del manual correspondiente a la pantalla en la que estés.",
       ],
@@ -50,7 +50,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "4. Instala la app si quieres usarla como acceso directo",
       paragraphs: [
-        "Al final de **Inicio** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
+        "Al final de **Panel** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
       ],
     },
     {
