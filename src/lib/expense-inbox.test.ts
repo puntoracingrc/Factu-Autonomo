@@ -4,6 +4,7 @@ import {
   extractExpenseInboxAliasToken,
   isSupportedExpenseInboxAttachment,
   normalizeExpenseInboxInboundPayload,
+  normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
 } from "./expense-inbox";
 
@@ -67,6 +68,49 @@ describe("expense inbox", () => {
           filename: "factura.pdf",
           contentType: "application/pdf",
           content: "ZmFrZQ==",
+        },
+      ],
+    });
+  });
+
+  it("normaliza eventos reales de Resend email.received", () => {
+    const payload = normalizeResendReceivedEmailMetadata({
+      type: "email.received",
+      created_at: "2026-02-22T23:41:12.126Z",
+      data: {
+        email_id: "email_123",
+        from: "Proveedor <facturas@proveedor.test>",
+        to: ["gastos+abc123def456@mail.facturacion-autonomos.app"],
+        received_for: ["reenviado@proveedor.test"],
+        subject: "Factura 123",
+        attachments: [
+          {
+            id: "att_123",
+            filename: "factura.pdf",
+            content_type: "application/pdf",
+            content_disposition: null,
+            size: 13264,
+          },
+        ],
+      },
+    });
+
+    expect(payload).toMatchObject({
+      emailId: "email_123",
+      email: {
+        to: [
+          "gastos+abc123def456@mail.facturacion-autonomos.app",
+          "reenviado@proveedor.test",
+        ],
+        fromEmail: "facturas@proveedor.test",
+        subject: "Factura 123",
+      },
+      attachments: [
+        {
+          id: "att_123",
+          filename: "factura.pdf",
+          contentType: "application/pdf",
+          size: 13264,
         },
       ],
     });

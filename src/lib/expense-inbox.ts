@@ -1,6 +1,6 @@
 import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./expense-scan/schema";
 
-export const DEFAULT_EXPENSE_INBOX_DOMAIN = "facturacion-autonomos.app";
+export const DEFAULT_EXPENSE_INBOX_DOMAIN = "mail.facturacion-autonomos.app";
 export const EXPENSE_INBOX_LOCAL_PART = "gastos";
 
 export type ExpenseInboxItemStatus =
@@ -30,6 +30,19 @@ export interface ExpenseInboxInboundEmail {
   text?: string;
   html?: string;
   attachments: ExpenseInboxAttachmentInput[];
+}
+
+export interface ResendReceivedAttachmentMetadata
+  extends Pick<ExpenseInboxAttachmentInput, "filename" | "contentType" | "size"> {
+  id: string;
+  contentDisposition?: string;
+  contentId?: string;
+}
+
+export interface ResendReceivedEmailMetadata {
+  emailId: string;
+  email: ExpenseInboxInboundEmail;
+  attachments: ResendReceivedAttachmentMetadata[];
 }
 
 export interface ExpenseInboxItem {
@@ -64,6 +77,10 @@ const SUPPORTED_ATTACHMENT_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
 
 function cleanEmailValue(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -117,6 +134,7 @@ function normalizeAttachment(raw: unknown): ExpenseInboxAttachmentInput | null {
     source.fileName;
   const contentType =
     source.contentType ??
+    source.content_type ??
     source.ContentType ??
     source.mimeType ??
     source.MimeType ??
@@ -140,6 +158,10 @@ function normalizeAttachment(raw: unknown): ExpenseInboxAttachmentInput | null {
     url: typeof source.url === "string" ? source.url : undefined,
     size: typeof size === "number" ? size : undefined,
   };
+}
+
+function uniqueEmails(values: string[]): string[] {
+  return Array.from(new Set(values.map((email) => email.toLowerCase())));
 }
 
 function fromEmailObject(value: unknown): { email: string; name?: string } {
@@ -247,6 +269,66 @@ export function normalizeExpenseInboxInboundPayload(
         : typeof source.HtmlBody === "string"
           ? source.HtmlBody
           : undefined,
+    attachments,
+  };
+}
+
+export function normalizeResendReceivedEmailMetadata(
+  raw: unknown,
+): ResendReceivedEmailMetadata | null {
+  if (!isRecord(raw) || raw.type !== "email.received" || !isRecord(raw.data)) {
+    return null;
+  }
+
+  const data = raw.data;
+  const emailId = typeof data.email_id === "string" ? data.email_id : "";
+  const from = fromEmailObject(data.from);
+  const to = uniqueEmails([
+    ...normalizeEmailList(data.to),
+    ...normalizeEmailList(data.received_for),
+  ]);
+  if (!emailId || !from.email || to.length === 0) return null;
+
+  const attachments = (Array.isArray(data.attachments) ? data.attachments : [])
+    .map((attachment): ResendReceivedAttachmentMetadata | null => {
+      if (!isRecord(attachment)) return null;
+      const id = typeof attachment.id === "string" ? attachment.id : "";
+      if (!id) return null;
+      return {
+        id,
+        filename:
+          typeof attachment.filename === "string"
+            ? attachment.filename
+            : undefined,
+        contentType:
+          typeof attachment.content_type === "string"
+            ? attachment.content_type
+            : undefined,
+        size: typeof attachment.size === "number" ? attachment.size : undefined,
+        contentDisposition:
+          typeof attachment.content_disposition === "string"
+            ? attachment.content_disposition
+            : undefined,
+        contentId:
+          typeof attachment.content_id === "string"
+            ? attachment.content_id
+            : undefined,
+      };
+    })
+    .filter(
+      (attachment): attachment is ResendReceivedAttachmentMetadata =>
+        Boolean(attachment),
+    );
+
+  return {
+    emailId,
+    email: {
+      to,
+      fromEmail: from.email,
+      fromName: from.name,
+      subject: typeof data.subject === "string" ? data.subject : undefined,
+      attachments: [],
+    },
     attachments,
   };
 }

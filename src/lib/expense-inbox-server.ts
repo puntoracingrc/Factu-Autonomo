@@ -12,11 +12,13 @@ import {
   extractExpenseInboxAliasToken,
   mapExpenseInboxScanPayload,
   normalizeExpenseInboxInboundPayload,
+  normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
   type ExpenseInboxAttachmentInput,
   type ExpenseInboxInboundEmail,
   type ExpenseInboxItem,
   type ExpenseInboxItemStatus,
+  type ResendReceivedAttachmentMetadata,
 } from "./expense-inbox";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -60,6 +62,7 @@ export interface ExpenseInboxIngestResult {
 }
 
 const MAX_INBOX_ATTACHMENTS_PER_EMAIL = 10;
+const RESEND_API_BASE_URL = "https://api.resend.com";
 const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
 const ITEM_ENTITY_TYPE = "expense_inbox_item";
 const PRIMARY_ALIAS_ENTITY_ID = "primary";
@@ -67,9 +70,17 @@ const PRIMARY_ALIAS_ENTITY_ID = "primary";
 function getExpenseInboxDomain(): string {
   return (
     process.env.EXPENSE_INBOX_DOMAIN?.trim() ||
-    process.env.NEXT_PUBLIC_APP_DOMAIN?.trim() ||
-    "facturacion-autonomos.app"
+    process.env.RESEND_INBOUND_DOMAIN?.trim() ||
+    "mail.facturacion-autonomos.app"
   ).replace(/^https?:\/\//i, "");
+}
+
+function getResendApiKey(): string {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY no está configurada para leer adjuntos.");
+  }
+  return apiKey;
 }
 
 function createAliasToken(): string {
@@ -780,21 +791,9 @@ async function processAttachment(input: {
   return scan.data ? "pending" : "error";
 }
 
-export async function ingestExpenseInboxEmail(
-  rawPayload: unknown,
+async function ingestNormalizedExpenseInboxEmail(
+  email: ExpenseInboxInboundEmail,
 ): Promise<ExpenseInboxIngestResult> {
-  const email = normalizeExpenseInboxInboundPayload(rawPayload);
-  if (!email) {
-    return {
-      accepted: 0,
-      pending: 0,
-      duplicates: 0,
-      ignored: 0,
-      errors: 1,
-      message: "Email de entrada no reconocido.",
-    };
-  }
-
   const alias = await resolveUserFromRecipients(email);
   if (!alias) {
     return {
@@ -842,4 +841,131 @@ export async function ingestExpenseInboxEmail(
   }
 
   return result;
+}
+
+export async function ingestExpenseInboxEmail(
+  rawPayload: unknown,
+): Promise<ExpenseInboxIngestResult> {
+  const email = normalizeExpenseInboxInboundPayload(rawPayload);
+  if (!email) {
+    return {
+      accepted: 0,
+      pending: 0,
+      duplicates: 0,
+      ignored: 0,
+      errors: 1,
+      message: "Email de entrada no reconocido.",
+    };
+  }
+
+  return ingestNormalizedExpenseInboxEmail(email);
+}
+
+async function fetchResendAttachment(input: {
+  emailId: string;
+  attachment: ResendReceivedAttachmentMetadata;
+}): Promise<ExpenseInboxAttachmentInput> {
+  const apiKey = getResendApiKey();
+  const metadataResponse = await fetch(
+    `${RESEND_API_BASE_URL}/emails/receiving/${encodeURIComponent(
+      input.emailId,
+    )}/attachments/${encodeURIComponent(input.attachment.id)}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: "no-store",
+    },
+  );
+
+  if (!metadataResponse.ok) {
+    const body = await metadataResponse.text();
+    throw new Error(
+      body || `Resend no devolvió el adjunto ${input.attachment.filename ?? ""}.`,
+    );
+  }
+
+  const metadata = (await metadataResponse.json()) as Record<string, unknown>;
+  const downloadUrl =
+    typeof metadata.download_url === "string" ? metadata.download_url : "";
+  if (!downloadUrl) {
+    throw new Error("Resend no devolvió URL de descarga para el adjunto.");
+  }
+
+  const fileResponse = await fetch(downloadUrl, { cache: "no-store" });
+  if (!fileResponse.ok) {
+    throw new Error("No se pudo descargar el adjunto recibido por Resend.");
+  }
+
+  const buffer = Buffer.from(await fileResponse.arrayBuffer());
+  return {
+    filename:
+      typeof metadata.filename === "string"
+        ? metadata.filename
+        : input.attachment.filename,
+    contentType:
+      typeof metadata.content_type === "string"
+        ? metadata.content_type
+        : input.attachment.contentType,
+    contentBase64: buffer.toString("base64"),
+    size:
+      typeof metadata.size === "number"
+        ? metadata.size
+        : buffer.byteLength || input.attachment.size,
+  };
+}
+
+export async function ingestResendExpenseInboxEmail(
+  rawPayload: unknown,
+): Promise<ExpenseInboxIngestResult> {
+  const received = normalizeResendReceivedEmailMetadata(rawPayload);
+  if (!received) {
+    return {
+      accepted: 0,
+      pending: 0,
+      duplicates: 0,
+      ignored: 0,
+      errors: 1,
+      message: "Evento de Resend no reconocido.",
+    };
+  }
+
+  const attachments: ExpenseInboxAttachmentInput[] = [];
+  for (const attachment of received.attachments.slice(
+    0,
+    MAX_INBOX_ATTACHMENTS_PER_EMAIL,
+  )) {
+    const baseAttachment: ExpenseInboxAttachmentInput = {
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      size: attachment.size,
+    };
+    const mimeType = resolveExpenseInboxAttachmentMimeType(baseAttachment);
+    const isInlineImage =
+      attachment.contentDisposition === "inline" && mimeType !== "application/pdf";
+
+    if (!mimeType || isInlineImage) {
+      attachments.push(baseAttachment);
+      continue;
+    }
+
+    attachments.push(
+      await fetchResendAttachment({
+        emailId: received.emailId,
+        attachment,
+      }),
+    );
+  }
+
+  return ingestNormalizedExpenseInboxEmail({
+    ...received.email,
+    attachments: [
+      ...attachments,
+      ...received.attachments
+        .slice(MAX_INBOX_ATTACHMENTS_PER_EMAIL)
+        .map((attachment) => ({
+          filename: attachment.filename,
+          contentType: attachment.contentType,
+          size: attachment.size,
+        })),
+    ],
+  });
 }
