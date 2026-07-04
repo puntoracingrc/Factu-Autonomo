@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, PackageCheck, Plus, Trash2 } from "lucide-react";
+import {
+  Eye,
+  PackageCheck,
+  PackagePlus,
+  PackageSearch,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   ClientPicker,
   clientToFormValues,
@@ -23,16 +30,12 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
-import {
-  isVatExempt,
-  zeroIvaItems,
-} from "@/lib/vat-regime";
+import { isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
 import {
   documentFormAmounts,
   documentFormItemsForSave,
   firstDocumentFormLineIssue,
   lineItemFormTotal,
-  sanitizeDocumentFormItems,
 } from "@/lib/document-form-flow";
 import {
   areaQuantityFromDimensions,
@@ -41,7 +44,10 @@ import {
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
-import { defaultPhraseForType, normalizeDocumentPhrases } from "@/lib/document-phrases";
+import {
+  defaultPhraseForType,
+  normalizeDocumentPhrases,
+} from "@/lib/document-phrases";
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
@@ -71,7 +77,13 @@ import {
   searchDocumentProductSuggestions,
   type DocumentProductSalePriceSource,
 } from "@/lib/document-product-suggestions";
-import { consumeProductDocumentDraft } from "@/lib/product-document-draft";
+import {
+  consumeDocumentProductPickedLine,
+  consumeDocumentProductReturnDraft,
+  consumeProductDocumentDraft,
+  saveDocumentProductPickRequest,
+  saveDocumentProductReturnDraft,
+} from "@/lib/product-document-draft";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 
 function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
@@ -96,6 +108,20 @@ const TYPE_ARTICLES: Record<DocumentType, string> = {
   presupuesto: "este",
   recibo: "este",
 };
+
+const TYPE_ROUTES: Record<DocumentType, string> = {
+  factura: "facturas",
+  presupuesto: "presupuestos",
+  recibo: "recibos",
+};
+
+function documentFormReturnPath(
+  type: DocumentType,
+  existing?: Document,
+): string {
+  const route = TYPE_ROUTES[type];
+  return existing ? `/${route}/${existing.id}` : `/${route}/nuevo`;
+}
 
 const EMPTY_CLIENT: ClientFormValues = {
   firstName: "",
@@ -122,6 +148,21 @@ interface LineAreaDraft {
   height: number;
 }
 
+function clientFormToDraft(values: ClientFormValues): Record<string, string> {
+  return {
+    firstName: values.firstName,
+    lastName: values.lastName,
+    nif: values.nif,
+    email: values.email,
+    phone: values.phone,
+    streetType: values.streetType,
+    address: values.address,
+    city: values.city,
+    postalCode: values.postalCode,
+    notes: values.notes,
+  };
+}
+
 function removeLineProductPricing(
   state: Record<string, LineProductPricingState>,
   id: string,
@@ -131,14 +172,18 @@ function removeLineProductPricing(
   return next;
 }
 
-function productPriceSourceLabel(source: DocumentProductSalePriceSource): string {
+function productPriceSourceLabel(
+  source: DocumentProductSalePriceSource,
+): string {
   if (source === "sale") return "precio venta";
   if (source === "providerTariff") return "tarifa proveedor";
   if (source === "cost") return "coste, no venta";
   return "sin precio";
 }
 
-function productPriceSourceTone(source: DocumentProductSalePriceSource): string {
+function productPriceSourceTone(
+  source: DocumentProductSalePriceSource,
+): string {
   return source === "sale" ? "text-emerald-700" : "text-amber-800";
 }
 
@@ -160,7 +205,11 @@ interface DocumentFormProps {
   initialCustomerId?: string | null;
 }
 
-export function DocumentForm({ type, existing, initialCustomerId }: DocumentFormProps) {
+export function DocumentForm({
+  type,
+  existing,
+  initialCustomerId,
+}: DocumentFormProps) {
   const router = useRouter();
   const {
     data,
@@ -187,7 +236,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
-  const missingIssuerLabels = businessProfileMissingDocumentLabels(data.profile);
+  const missingIssuerLabels = businessProfileMissingDocumentLabels(
+    data.profile,
+  );
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     existing ? clientToFormValues(existing.client) : EMPTY_CLIENT,
@@ -200,7 +251,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   useEffect(() => {
     if (!existing || !ready) return;
     if (existing.customerId) {
-      const byId = data.customers.find((customer) => customer.id === existing.customerId);
+      const byId = data.customers.find(
+        (customer) => customer.id === existing.customerId,
+      );
       if (byId) {
         setSelectedCustomerId(byId.id);
         return;
@@ -211,10 +264,17 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   }, [existing, ready, data.customers]);
 
   useEffect(() => {
-    if (existing || !ready || !initialCustomerId || initialCustomerApplied.current) {
+    if (
+      existing ||
+      !ready ||
+      !initialCustomerId ||
+      initialCustomerApplied.current
+    ) {
       return;
     }
-    const customer = data.customers.find((item) => item.id === initialCustomerId);
+    const customer = data.customers.find(
+      (item) => item.id === initialCustomerId,
+    );
     if (!customer) return;
     setSelectedCustomerId(customer.id);
     setClientForm(customerToFormValues(customer));
@@ -231,7 +291,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     type === "presupuesto" && !existing ? automaticQuoteDueDate : dueDate;
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const defaultNotesApplied = useRef(Boolean(existing?.notes));
-  const [paymentTerms, setPaymentTerms] = useState(existing?.paymentTerms ?? "");
+  const [paymentTerms, setPaymentTerms] = useState(
+    existing?.paymentTerms ?? "",
+  );
   const defaultPaymentApplied = useRef(Boolean(existing?.paymentTerms));
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
@@ -266,8 +328,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       : [emptyLine(effectiveDocumentIva, defaultUnit)];
     return normalizeLineItemUnits(baseItems, unitsSettings);
   });
+  const itemsRef = useRef(items);
   const safeItems = useMemo(
-    () => sanitizeDocumentFormItems(items, vatExempt),
+    () => documentFormItemsForSave(items, vatExempt),
     [items, vatExempt],
   );
   const productSummaries = useMemo(
@@ -278,9 +341,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     () => buildDocumentProductSuggestionIndex(productSummaries),
     [productSummaries],
   );
-  const [focusedProductLineId, setFocusedProductLineId] = useState<string | null>(
-    null,
-  );
+  const [focusedProductLineId, setFocusedProductLineId] = useState<
+    string | null
+  >(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
   >({});
@@ -288,6 +351,79 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     Record<string, LineAreaDraft>
   >({});
   const productDocumentDraftApplied = useRef(false);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    const returnDraft = consumeDocumentProductReturnDraft(type);
+    const pickedLine = consumeDocumentProductPickedLine(type);
+    if (!returnDraft && !pickedLine) return;
+
+    productDocumentDraftApplied.current = true;
+
+    if (!returnDraft) return;
+    const draftItems = returnDraft.form.items.length
+      ? returnDraft.form.items
+      : [emptyLine(effectiveDocumentIva, defaultUnit)];
+    let restoredItems = draftItems;
+    let restoredPricing = returnDraft.form.lineProductPricing ?? {};
+
+    if (pickedLine) {
+      const targetLineId = pickedLine.targetLineId || returnDraft.targetLineId;
+      const currentTarget = restoredItems.find(
+        (item) => item.id === targetLineId,
+      );
+      const nextLine: LineItem = {
+        id: currentTarget?.id ?? targetLineId,
+        ...pickedLine.draftLine.line,
+        quantity:
+          currentTarget && currentTarget.quantity > 0
+            ? currentTarget.quantity
+            : pickedLine.draftLine.line.quantity,
+        ivaPercent: vatExempt
+          ? 0
+          : (pickedLine.draftLine.line.ivaPercent ?? effectiveDocumentIva),
+      };
+
+      restoredItems = currentTarget
+        ? restoredItems.map((item) =>
+            item.id === currentTarget.id ? nextLine : item,
+          )
+        : [...restoredItems, nextLine];
+      restoredPricing = {
+        ...restoredPricing,
+        [nextLine.id]: {
+          basePrice: pickedLine.draftLine.basePrice,
+          markupPercent: 0,
+          priceSource: pickedLine.draftLine.priceSource,
+          productName: pickedLine.draftLine.productName,
+        },
+      };
+    }
+
+    setClientForm({
+      ...EMPTY_CLIENT,
+      ...returnDraft.form.clientForm,
+    } as ClientFormValues);
+    setSelectedCustomerId(returnDraft.form.selectedCustomerId);
+    setDate(returnDraft.form.date);
+    setDueDate(returnDraft.form.dueDate);
+    setNotes(returnDraft.form.notes);
+    setPaymentTerms(returnDraft.form.paymentTerms);
+    setStatus(returnDraft.form.status);
+    setDocumentIvaPercent(vatExempt ? 0 : returnDraft.form.documentIvaPercent);
+    const normalizedRestoredItems = normalizeLineItemUnits(
+      restoredItems,
+      unitsSettings,
+    );
+    itemsRef.current = normalizedRestoredItems;
+    setItems(normalizedRestoredItems);
+    setLineProductPricing(restoredPricing);
+    setLineAreaDrafts(returnDraft.form.lineAreaDrafts ?? {});
+    setFocusedProductLineId(null);
+  }, [defaultUnit, effectiveDocumentIva, type, unitsSettings, vatExempt]);
 
   useEffect(() => {
     if (existing || productDocumentDraftApplied.current) return;
@@ -300,7 +436,12 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       ...draftLine.line,
       ivaPercent: effectiveDocumentIva,
     }));
-    setItems(normalizeLineItemUnits(draftItems, unitsSettings));
+    const normalizedDraftItems = normalizeLineItemUnits(
+      draftItems,
+      unitsSettings,
+    );
+    itemsRef.current = normalizedDraftItems;
+    setItems(normalizedDraftItems);
     setLineProductPricing(
       Object.fromEntries(
         draftItems.map((item, index) => [
@@ -319,20 +460,30 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   useEffect(() => {
     if (!vatExempt) return;
     setDocumentIvaPercent(0);
-    setItems((prev) => zeroIvaItems(prev));
+    setItems((prev) => {
+      const next = zeroIvaItems(prev);
+      itemsRef.current = next;
+      return next;
+    });
   }, [vatExempt]);
 
   useEffect(() => {
-    setItems((prev) =>
-      prev.map((item) => ({
+    setItems((prev) => {
+      const next = prev.map((item) => ({
         ...item,
         ivaPercent: effectiveDocumentIva,
-      })),
-    );
+      }));
+      itemsRef.current = next;
+      return next;
+    });
   }, [effectiveDocumentIva]);
 
   useEffect(() => {
-    setItems((prev) => normalizeLineItemUnits(prev, unitsSettings));
+    setItems((prev) => {
+      const next = normalizeLineItemUnits(prev, unitsSettings);
+      itemsRef.current = next;
+      return next;
+    });
   }, [unitsSettings]);
 
   useEffect(() => {
@@ -393,7 +544,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
   const totals = documentFormAmounts(items, vatExempt);
   const isDraftStatus = status === "borrador";
   const previewButtonLabel =
-    type === "factura" && isDraftStatus ? "Vista previa borrador" : "Vista previa PDF";
+    type === "factura" && isDraftStatus
+      ? "Vista previa borrador"
+      : "Vista previa PDF";
   const downloadStatusOverride: Document["status"] | undefined =
     type === "factura" && !existing ? "enviado" : undefined;
   const downloadButtonLabel =
@@ -427,9 +580,11 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setFormError(null);
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    const next = itemsRef.current.map((item) =>
+      item.id === id ? { ...item, ...patch } : item,
     );
+    itemsRef.current = next;
+    setItems(next);
   }
 
   function handleLineDescriptionChange(id: string, description: string) {
@@ -463,6 +618,59 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
     setFocusedProductLineId(null);
   }
 
+  function openProductFlowForLine(
+    item: LineItem,
+    destination: "/productos" | "/productos/nuevo",
+  ) {
+    const currentItems = itemsRef.current;
+    const currentItem =
+      currentItems.find((entry) => entry.id === item.id) ?? item;
+    const returnPath = documentFormReturnPath(type, existing);
+    const createdAt = new Date().toISOString();
+    const description = currentItem.description.trim();
+    const savedReturnDraft = saveDocumentProductReturnDraft({
+      source: "document",
+      documentType: type,
+      returnPath,
+      targetLineId: item.id,
+      createdAt,
+      form: {
+        clientForm: clientFormToDraft(clientForm),
+        selectedCustomerId,
+        date,
+        dueDate,
+        notes,
+        paymentTerms,
+        status,
+        documentIvaPercent: effectiveDocumentIva,
+        items: currentItems,
+        lineProductPricing,
+        lineAreaDrafts,
+      },
+    });
+    const savedPickRequest = saveDocumentProductPickRequest({
+      source: "document",
+      documentType: type,
+      returnPath,
+      targetLineId: item.id,
+      createdAt,
+      prefill: {
+        name: description || undefined,
+        description: description || undefined,
+        unit: currentItem.unit,
+        unitPrice:
+          currentItem.unitPrice > 0 ? currentItem.unitPrice : undefined,
+        ivaPercent: currentItem.ivaPercent,
+      },
+    });
+
+    if (!savedReturnDraft || !savedPickRequest) {
+      setFormError("No se pudo preparar la vuelta al documento.");
+      return;
+    }
+    router.push(`${destination}?desde=documento`);
+  }
+
   function handleLineUnitPriceChange(id: string, unitPrice: number) {
     updateItem(id, { unitPrice });
     setLineProductPricing((prev) => {
@@ -489,11 +697,17 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
       },
     }));
     updateItem(id, {
-      unitPrice: priceWithDocumentProductMarkup(current.basePrice, markupPercent),
+      unitPrice: priceWithDocumentProductMarkup(
+        current.basePrice,
+        markupPercent,
+      ),
     });
   }
 
-  function handleLineAreaDraftChange(id: string, patch: Partial<LineAreaDraft>) {
+  function handleLineAreaDraftChange(
+    id: string,
+    patch: Partial<LineAreaDraft>,
+  ) {
     const current = lineAreaDrafts[id] ?? { width: 0, height: 0 };
     const nextDraft = { ...current, ...patch };
     const quantity = areaQuantityFromDimensions({
@@ -727,14 +941,20 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           )}
           {type === "presupuesto" && effectiveDueDate && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <span className="font-semibold text-slate-900">Válido hasta: </span>
+              <span className="font-semibold text-slate-900">
+                Válido hasta:{" "}
+              </span>
               {formatShortDate(effectiveDueDate)}
             </div>
           )}
           {existing && (
             <Field label="Estado">
               <Select
-                value={type === "presupuesto" && status === "pagado" ? "aceptado" : status}
+                value={
+                  type === "presupuesto" && status === "pagado"
+                    ? "aceptado"
+                    : status
+                }
                 onChange={(e) =>
                   setStatus(e.target.value as Document["status"])
                 }
@@ -819,218 +1039,259 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
                 key={item.id}
                 className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4"
               >
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                    Línea {index + 1}
-                  </span>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">
-                    Trabajo, material o concepto facturado
-                  </p>
-                </div>
-                {items.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormError(null);
-                      setItems((prev) => prev.filter((i) => i.id !== item.id));
-                      setLineProductPricing((prev) =>
-                        removeLineProductPricing(prev, item.id),
-                      );
-                    }}
-                    aria-label={`Eliminar línea ${index + 1}`}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem] lg:items-start">
-                <div className="col-span-2 md:col-span-1">
-                  <Field label="Descripción">
-                    <Input
-                      value={item.description}
-                      onChange={(e) =>
-                        handleLineDescriptionChange(item.id, e.target.value)
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Línea {index + 1}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openProductFlowForLine(item, "/productos")}
+                      aria-label={`Buscar producto para línea ${index + 1}`}
+                      title="Buscar en productos"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      <PackageSearch className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openProductFlowForLine(item, "/productos/nuevo")
                       }
-                      onFocus={() => setFocusedProductLineId(item.id)}
-                      onBlur={() => {
-                        window.setTimeout(() => {
-                          setFocusedProductLineId((current) =>
-                            current === item.id ? null : current,
+                      aria-label={`Crear producto desde línea ${index + 1}`}
+                      title="Crear producto"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      <PackagePlus className="h-4 w-4" />
+                    </button>
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormError(null);
+                          setItems((prev) => {
+                            const next = prev.filter((i) => i.id !== item.id);
+                            itemsRef.current = next;
+                            return next;
+                          });
+                          setLineProductPricing((prev) =>
+                            removeLineProductPricing(prev, item.id),
                           );
-                        }, 120);
-                      }}
-                      placeholder="Ej: Reparación fontanería"
+                        }}
+                        aria-label={`Eliminar línea ${index + 1}`}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem] lg:items-start">
+                  <div className="col-span-2 md:col-span-1">
+                    <Field label="Descripción">
+                      <Input
+                        value={item.description}
+                        onChange={(e) =>
+                          handleLineDescriptionChange(item.id, e.target.value)
+                        }
+                        onFocus={() => setFocusedProductLineId(item.id)}
+                        onBlur={() => {
+                          window.setTimeout(() => {
+                            setFocusedProductLineId((current) =>
+                              current === item.id ? null : current,
+                            );
+                          }, 120);
+                        }}
+                        placeholder="Ej: Reparación fontanería"
+                      />
+                    </Field>
+                    {suggestions.length > 0 && (
+                      <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+                        <div className="border-b border-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-blue-700">
+                          Productos detectados
+                        </div>
+                        <div className="max-h-72 overflow-y-auto">
+                          {suggestions.map((product) => {
+                            const price =
+                              documentProductSaleUnitPriceInfo(product);
+                            const warning = productPriceSourceWarning(
+                              price.source,
+                            );
+                            return (
+                              <button
+                                key={product.key}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() =>
+                                  handleSelectProductForLine(item, product)
+                                }
+                                className="flex w-full flex-col gap-1 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500"
+                              >
+                                <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                                  <PackageCheck className="h-4 w-4 text-blue-600" />
+                                  {product.name}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-500">
+                                  {product.family}
+                                  {product.usualSupplier
+                                    ? ` · ${product.usualSupplier.supplierName}`
+                                    : ""}
+                                </span>
+                                <span
+                                  className={`text-xs font-bold ${productPriceSourceTone(
+                                    price.source,
+                                  )}`}
+                                >
+                                  {price.unitPrice > 0
+                                    ? `${formatMoney(price.unitPrice)} ${productPriceSourceLabel(
+                                        price.source,
+                                      )}`
+                                    : "Sin precio"}
+                                </span>
+                                {warning && (
+                                  <span className="rounded-xl bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
+                                    {warning}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Field label="Cant.">
+                    <NumericFieldInput
+                      value={item.quantity}
+                      onChange={(quantity) => updateItem(item.id, { quantity })}
                     />
                   </Field>
-                  {suggestions.length > 0 && (
-                    <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
-                      <div className="border-b border-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-blue-700">
-                        Productos detectados
-                      </div>
-                      <div className="max-h-72 overflow-y-auto">
-                        {suggestions.map((product) => {
-                          const price = documentProductSaleUnitPriceInfo(product);
-                          const warning = productPriceSourceWarning(price.source);
-                          return (
-                            <button
-                              key={product.key}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => handleSelectProductForLine(item, product)}
-                              className="flex w-full flex-col gap-1 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500"
-                            >
-                              <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                                <PackageCheck className="h-4 w-4 text-blue-600" />
-                                {product.name}
-                              </span>
-                              <span className="text-xs font-semibold text-slate-500">
-                                {product.family}
-                                {product.usualSupplier
-                                  ? ` · ${product.usualSupplier.supplierName}`
-                                  : ""}
-                              </span>
-                              <span
-                                className={`text-xs font-bold ${productPriceSourceTone(
-                                  price.source,
-                                )}`}
-                              >
-                                {price.unitPrice > 0
-                                  ? `${formatMoney(price.unitPrice)} ${
-                                      productPriceSourceLabel(price.source)
-                                    }`
-                                  : "Sin precio"}
-                              </span>
-                              {warning && (
-                                <span className="rounded-xl bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">
-                                  {warning}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <Field label="Cant.">
-                  <NumericFieldInput
-                    value={item.quantity}
-                    onChange={(quantity) => updateItem(item.id, { quantity })}
+                  <Field label="Unidad">
+                    <LineItemUnitSelect
+                      settings={data.profile.documentUnits}
+                      value={item.unit ?? defaultUnit}
+                      onChange={(unit) => updateItem(item.id, { unit })}
+                    />
+                  </Field>
+                  <LineItemPriceFields
+                    unitPrice={item.unitPrice}
+                    ivaPercent={effectiveDocumentIva}
+                    vatExempt={vatExempt}
+                    onUnitPriceChange={(unitPrice) =>
+                      handleLineUnitPriceChange(item.id, unitPrice)
+                    }
                   />
-                </Field>
-                <Field label="Unidad">
-                  <LineItemUnitSelect
-                    settings={data.profile.documentUnits}
-                    value={item.unit ?? defaultUnit}
-                    onChange={(unit) => updateItem(item.id, { unit })}
-                  />
-                </Field>
-                <LineItemPriceFields
-                  unitPrice={item.unitPrice}
-                  ivaPercent={effectiveDocumentIva}
-                  vatExempt={vatExempt}
-                  onUnitPriceChange={(unitPrice) =>
-                    handleLineUnitPriceChange(item.id, unitPrice)
-                  }
-                />
-              </div>
-              {isAreaDocumentUnit(item.unit) && (
-                <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-end">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        Calcular m²
-                      </p>
-                      <p className="text-xs font-semibold text-slate-600">
-                        Alto × ancho en metros. La cantidad de la línea se
-                        actualiza sola.
-                      </p>
-                    </div>
-                    <Field label="Alto">
-                      <NumericFieldInput
-                        value={lineAreaDrafts[item.id]?.height ?? 0}
-                        onChange={(height) =>
-                          handleLineAreaDraftChange(item.id, { height })
-                        }
-                        placeholder="0,00"
-                      />
-                    </Field>
-                    <Field label="Ancho">
-                      <NumericFieldInput
-                        value={lineAreaDrafts[item.id]?.width ?? 0}
-                        onChange={(width) =>
-                          handleLineAreaDraftChange(item.id, { width })
-                        }
-                        placeholder="0,00"
-                      />
-                    </Field>
-                  </div>
                 </div>
-              )}
-              {productPricing && (
-                <div
-                  className={`mt-3 rounded-2xl border p-3 ${
-                    productPricing.priceSource === "sale"
-                      ? "border-emerald-100 bg-emerald-50"
-                      : "border-amber-200 bg-amber-50"
-                  }`}
-                >
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-slate-900">
-                        {productPricing.productName}
-                      </p>
-                      <p className="text-xs font-semibold text-slate-600">
-                        Base: {formatMoney(productPricing.basePrice)}{" "}
-                        {productPriceSourceLabel(productPricing.priceSource)} sin IVA
-                      </p>
-                      {productPriceSourceWarning(productPricing.priceSource) && (
-                        <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
-                          {productPriceSourceWarning(productPricing.priceSource)}
+                {isAreaDocumentUnit(item.unit) && (
+                  <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-end">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          Calcular m²
                         </p>
-                      )}
-                      {productPricing.markupPercent === -1 && (
-                        <p className="text-xs font-semibold text-blue-700">
-                          Precio ajustado manualmente.
+                        <p className="text-xs font-semibold text-slate-600">
+                          Alto × ancho en metros. La cantidad de la línea se
+                          actualiza sola.
                         </p>
-                      )}
+                      </div>
+                      <Field label="Alto">
+                        <NumericFieldInput
+                          value={lineAreaDrafts[item.id]?.height ?? 0}
+                          onChange={(height) =>
+                            handleLineAreaDraftChange(item.id, { height })
+                          }
+                          placeholder="0,00"
+                        />
+                      </Field>
+                      <Field label="Ancho">
+                        <NumericFieldInput
+                          value={lineAreaDrafts[item.id]?.width ?? 0}
+                          onChange={(width) =>
+                            handleLineAreaDraftChange(item.id, { width })
+                          }
+                          placeholder="0,00"
+                        />
+                      </Field>
                     </div>
-                    <Field label="Incremento">
-                      <Select
-                        value={String(productPricing.markupPercent)}
-                        onChange={(event) =>
-                          handleLineMarkupChange(item.id, Number(event.target.value))
-                        }
-                      >
-                        <option value="-1">Manual</option>
-                        {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
-                          <option key={markup} value={markup}>
-                            +{markup}%
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
                   </div>
+                )}
+                {productPricing && (
+                  <div
+                    className={`mt-3 rounded-2xl border p-3 ${
+                      productPricing.priceSource === "sale"
+                        ? "border-emerald-100 bg-emerald-50"
+                        : "border-amber-200 bg-amber-50"
+                    }`}
+                  >
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-900">
+                          {productPricing.productName}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-600">
+                          Base: {formatMoney(productPricing.basePrice)}{" "}
+                          {productPriceSourceLabel(productPricing.priceSource)}{" "}
+                          sin IVA
+                        </p>
+                        {productPriceSourceWarning(
+                          productPricing.priceSource,
+                        ) && (
+                          <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
+                            {productPriceSourceWarning(
+                              productPricing.priceSource,
+                            )}
+                          </p>
+                        )}
+                        {productPricing.markupPercent === -1 && (
+                          <p className="text-xs font-semibold text-blue-700">
+                            Precio ajustado manualmente.
+                          </p>
+                        )}
+                      </div>
+                      <Field label="Incremento">
+                        <Select
+                          value={String(productPricing.markupPercent)}
+                          onChange={(event) =>
+                            handleLineMarkupChange(
+                              item.id,
+                              Number(event.target.value),
+                            )
+                          }
+                        >
+                          <option value="-1">Manual</option>
+                          {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
+                            <option key={markup} value={markup}>
+                              +{markup}%
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </div>
+                  </div>
+                )}
+                <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
+                  <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
+                    Total línea:{" "}
+                    {formatMoney(lineItemFormTotal(item, vatExempt))}
+                  </p>
                 </div>
-              )}
-              <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
-                <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
-                  Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
-                </p>
               </div>
-            </div>
             );
           })}
           <button
             type="button"
             onClick={() => {
               setFormError(null);
-              setItems((prev) => [
-                ...prev,
-                emptyLine(effectiveDocumentIva, defaultUnit),
-              ]);
+              setItems((prev) => {
+                const next = [
+                  ...prev,
+                  emptyLine(effectiveDocumentIva, defaultUnit),
+                ];
+                itemsRef.current = next;
+                return next;
+              });
             }}
             className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-3 text-base font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
@@ -1065,7 +1326,9 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
             Total: {formatMoney(totals.total)}
           </p>
           {vatExempt && (
-            <p className="text-xs text-slate-500">Sin IVA (exento de repercusión)</p>
+            <p className="text-xs text-slate-500">
+              Sin IVA (exento de repercusión)
+            </p>
           )}
         </div>
       </Card>
@@ -1075,8 +1338,8 @@ export function DocumentForm({ type, existing, initialCustomerId }: DocumentForm
           <div>
             <p className="font-semibold text-slate-900">Enviar al cliente</p>
             <p className="mt-1 text-sm text-slate-500">
-              Comparte {article} {label} por email o WhatsApp. Guarda antes si has
-              hecho cambios.
+              Comparte {article} {label} por email o WhatsApp. Guarda antes si
+              has hecho cambios.
             </p>
           </div>
           <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
