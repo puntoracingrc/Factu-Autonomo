@@ -1,4 +1,4 @@
-import type { Client, Customer } from "./types";
+import type { AddressResidenceType, Client, Customer } from "./types";
 
 export const STREET_TYPES = [
   { id: "calle", label: "Calle", abbreviation: "C/" },
@@ -119,6 +119,21 @@ export const STREET_TYPES = [
 
 export type StreetTypeId = (typeof STREET_TYPES)[number]["id"];
 
+export const RESIDENCE_TYPE_LABELS: Record<AddressResidenceType, string> = {
+  flat: "Piso",
+  house: "Casa",
+};
+
+export function normalizeResidenceType(
+  value?: AddressResidenceType | string | null,
+): AddressResidenceType {
+  return value === "house" ? "house" : "flat";
+}
+
+export function normalizeAddressExtra(value?: string | null): string {
+  return value?.trim().replace(/\s+/g, " ") ?? "";
+}
+
 export function getStreetType(id?: string | null) {
   if (!id) return undefined;
   return STREET_TYPES.find((type) => type.id === id);
@@ -144,27 +159,45 @@ export function formatClientAddressLine(client: Client): string {
 export type StreetAddressFields = {
   streetType?: string;
   address?: string;
+  addressExtra?: string;
+  residenceType?: AddressResidenceType | string;
   postalCode?: string;
   city?: string;
 };
 
 export function streetAddressSortKey(
-  entity: Pick<StreetAddressFields, "address" | "postalCode" | "city">,
+  entity: Pick<StreetAddressFields, "address" | "addressExtra" | "postalCode" | "city">,
 ): string {
-  return [entity.address, entity.postalCode, entity.city]
+  return [entity.address, entity.addressExtra, entity.postalCode, entity.city]
     .filter(Boolean)
     .join(", ");
 }
 
 export function customerStreetSortKey(
-  customer: Pick<Customer, "address" | "postalCode" | "city">,
+  customer: Pick<Customer, "address" | "addressExtra" | "postalCode" | "city">,
 ): string {
   return streetAddressSortKey(customer);
 }
 
+export function formatAddressExtra(
+  residenceType?: AddressResidenceType | string | null,
+  addressExtra?: string | null,
+): string {
+  if (normalizeResidenceType(residenceType) === "house") return "";
+  return normalizeAddressExtra(addressExtra);
+}
+
 export function formatAddressBlock(entity: StreetAddressFields): string {
   const streetLine = formatStreetLine(entity.streetType, entity.address);
-  return [streetLine, [entity.postalCode, entity.city].filter(Boolean).join(" ")]
+  const addressExtra = formatAddressExtra(
+    entity.residenceType,
+    entity.addressExtra,
+  );
+  return [
+    streetLine,
+    addressExtra,
+    [entity.postalCode, entity.city].filter(Boolean).join(" "),
+  ]
     .filter(Boolean)
     .join(", ");
 }
@@ -424,10 +457,28 @@ export function normalizeCustomerStreetFields(customer: Customer): Customer {
 }
 
 export function clientAddressToFormFields(
-  client: Pick<Client, "streetType" | "address">,
-): { streetType: string; streetLine: string } {
-  const firstSegment =
-    client.address?.split(",")[0]?.trim() ?? client.address?.trim() ?? "";
+  client: Pick<Client, "streetType" | "address" | "addressExtra" | "residenceType">,
+): {
+  streetType: string;
+  streetLine: string;
+  addressExtra: string;
+  residenceType: AddressResidenceType;
+} {
+  const segments = (client.address ?? "")
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const firstSegment = segments[0] ?? client.address?.trim() ?? "";
+  const explicitAddressExtra = formatAddressExtra(
+    client.residenceType,
+    client.addressExtra,
+  );
+  const inferredAddressExtra =
+    explicitAddressExtra ||
+    (segments[1] && !/^\d{5}\b/.test(segments[1]) ? segments[1] : "");
+  const residenceType = normalizeResidenceType(
+    client.residenceType ?? (inferredAddressExtra ? "flat" : undefined),
+  );
 
   if (client.streetType) {
     const type = getStreetType(client.streetType);
@@ -437,11 +488,23 @@ export function clientAddressToFormFields(
       return {
         streetType: client.streetType,
         streetLine: firstSegment.replace(prefixPattern, "").trim() || firstSegment,
+        addressExtra: inferredAddressExtra,
+        residenceType,
       };
     }
-    return { streetType: client.streetType, streetLine: firstSegment };
+    return {
+      streetType: client.streetType,
+      streetLine: firstSegment,
+      addressExtra: inferredAddressExtra,
+      residenceType,
+    };
   }
 
   const { streetType, streetLine } = splitLegacyStreetAddress(firstSegment);
-  return { streetType: streetType ?? "", streetLine };
+  return {
+    streetType: streetType ?? "",
+    streetLine,
+    addressExtra: inferredAddressExtra,
+    residenceType,
+  };
 }

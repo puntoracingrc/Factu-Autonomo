@@ -1400,14 +1400,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       if (result.created) {
         const created = addCustomer({
+          customerType: result.customer.customerType,
           firstName: result.customer.firstName,
           lastName: result.customer.lastName,
           name: result.customer.name,
+          contactName: result.customer.contactName,
           nif: result.customer.nif,
           email: result.customer.email,
           phone: result.customer.phone,
           streetType: result.customer.streetType,
+          residenceType: result.customer.residenceType,
           address: result.customer.address,
+          addressExtra: result.customer.addressExtra,
           city: result.customer.city,
           postalCode: result.customer.postalCode,
           notes: result.customer.notes,

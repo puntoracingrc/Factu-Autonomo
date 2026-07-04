@@ -1,6 +1,6 @@
 import { normalizeCustomerNif } from "../customers";
 import { STREET_TYPES } from "../customer-address";
-import type { CustomerType } from "../types";
+import type { AddressResidenceType, CustomerType } from "../types";
 
 export interface CustomerTextExtractPayload {
   customer: {
@@ -12,7 +12,9 @@ export interface CustomerTextExtractPayload {
     email?: string | null;
     phone?: string | null;
     streetType?: string | null;
+    residenceType?: AddressResidenceType;
     address?: string | null;
+    addressExtra?: string | null;
     city?: string | null;
     postalCode?: string | null;
     notes?: string | null;
@@ -61,6 +63,10 @@ function normalizeCustomerType(value: unknown): CustomerType {
   return value === "company" ? "company" : "person";
 }
 
+function normalizeResidenceType(value: unknown): AddressResidenceType {
+  return value === "house" ? "house" : "flat";
+}
+
 export function normalizeCustomerTextExtractPayload(
   raw: unknown,
 ): CustomerTextExtractPayload | null {
@@ -97,6 +103,10 @@ export function normalizeCustomerTextExtractPayload(
   }
 
   const nif = optionalString(customer.nif);
+  const addressExtra = optionalString(customer.addressExtra);
+  const residenceType = addressExtra
+    ? "flat"
+    : normalizeResidenceType(customer.residenceType);
 
   return {
     customer: {
@@ -109,7 +119,9 @@ export function normalizeCustomerTextExtractPayload(
       email: optionalString(customer.email),
       phone: normalizePhone(customer.phone),
       streetType: normalizeStreetType(customer.streetType),
+      residenceType,
       address: optionalString(customer.address),
+      addressExtra,
       city: optionalString(customer.city),
       postalCode: normalizePostalCode(customer.postalCode),
       notes: optionalString(customer.notes),
@@ -133,7 +145,11 @@ export const CUSTOMER_TEXT_EXTRACT_JSON_SCHEMA = {
     email: "string opcional",
     phone: "string opcional",
     streetType: `opcional, uno de: ${STREET_TYPES.map((type) => type.id).join(", ")}`,
+    residenceType:
+      'string — "flat" si es piso/apartamento/local con piso/puerta/escalera; "house" si es casa/chalet y no hay piso/puerta',
     address: "string opcional — calle y número sin prefijo de tipo de vía",
+    addressExtra:
+      "string opcional — piso, puerta, escalera, bajos, local o cualquier detalle separado de la calle y número",
     city: "string opcional",
     postalCode: "string opcional — código postal español de 5 dígitos",
     notes: "string opcional — dudas o datos relevantes que no encajan en otros campos",

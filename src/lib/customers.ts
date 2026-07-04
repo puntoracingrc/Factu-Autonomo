@@ -1,12 +1,21 @@
 import { documentTotals } from "./calculations";
 import {
   customerStreetSortKey,
+  formatAddressBlock,
+  formatAddressExtra,
   formatStreetLine,
   getStreetType,
   normalizeCustomerStreetFields,
+  normalizeResidenceType,
 } from "./customer-address";
 import { isTaxableSaleDocument } from "./taxes";
-import type { Client, Customer, CustomerType, Document } from "./types";
+import type {
+  AddressResidenceType,
+  Client,
+  Customer,
+  CustomerType,
+  Document,
+} from "./types";
 
 export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
   person: "Particular",
@@ -66,6 +75,11 @@ export function getCustomerDisplayName(customer: Customer): string {
 
 function finalizeCustomerMigration(customer: Customer): Customer {
   const normalized = normalizeCustomerStreetFields(customer);
+  const residenceType = normalizeResidenceType(normalized.residenceType);
+  const addressExtra = formatAddressExtra(
+    residenceType,
+    normalized.addressExtra,
+  );
   const mergedCustomerIds = normalized.mergedCustomerIds
     ? [...new Set(normalized.mergedCustomerIds)].filter(
         (id) => id && id !== normalized.id,
@@ -74,6 +88,8 @@ function finalizeCustomerMigration(customer: Customer): Customer {
 
   return {
     ...normalized,
+    residenceType,
+    addressExtra: addressExtra || undefined,
     ...(mergedCustomerIds ? { mergedCustomerIds } : {}),
   };
 }
@@ -350,6 +366,7 @@ export function pickCanonicalCustomer(
         migrated.email,
         migrated.phone,
         migrated.address,
+        migrated.addressExtra,
         migrated.city,
         migrated.postalCode,
       ].filter(Boolean).length;
@@ -462,6 +479,8 @@ export function customerToClient(customer: Customer): Client {
     email: migrated.email,
     phone: migrated.phone,
     streetType: migrated.streetType,
+    residenceType: migrated.residenceType,
+    addressExtra: migrated.addressExtra,
     address: formatCustomerAddressBlock(migrated) || migrated.address,
   };
 }
@@ -484,6 +503,7 @@ export function filterCustomers(customers: Customer[], query: string): Customer[
       getStreetType(migrated.streetType)?.label,
       formatStreetLine(migrated.streetType, migrated.address),
       migrated.address,
+      migrated.addressExtra,
       migrated.city,
     ]
       .filter(Boolean)
@@ -664,7 +684,9 @@ export interface ClientInput {
   email?: string;
   phone?: string;
   streetType?: string;
+  residenceType?: AddressResidenceType;
   address?: string;
+  addressExtra?: string;
   city?: string;
   postalCode?: string;
   notes?: string;
@@ -699,12 +721,12 @@ export function validateCustomerInput(
 }
 
 export function formatCustomerAddressBlock(
-  customer: Pick<Customer, "streetType" | "address" | "postalCode" | "city">,
+  customer: Pick<
+    Customer,
+    "streetType" | "address" | "addressExtra" | "residenceType" | "postalCode" | "city"
+  >,
 ): string {
-  const streetLine = formatStreetLine(customer.streetType, customer.address);
-  return [streetLine, [customer.postalCode, customer.city].filter(Boolean).join(" ")]
-    .filter(Boolean)
-    .join(", ");
+  return formatAddressBlock(customer);
 }
 
 export function customerToFormValues(customer: Customer) {
@@ -718,7 +740,9 @@ export function customerToFormValues(customer: Customer) {
     email: migrated.email ?? "",
     phone: migrated.phone ?? "",
     streetType: migrated.streetType ?? "",
+    residenceType: normalizeResidenceType(migrated.residenceType),
     address: migrated.address ?? "",
+    addressExtra: migrated.addressExtra ?? "",
     city: migrated.city ?? "",
     postalCode: migrated.postalCode ?? "",
     notes: migrated.notes ?? "",
@@ -742,9 +766,13 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     customerType === "company"
       ? normalizeNamePart(input.contactName ?? "") || undefined
       : undefined;
+  const residenceType = normalizeResidenceType(input.residenceType);
+  const addressExtra = formatAddressExtra(residenceType, input.addressExtra);
   const addressBlock = formatCustomerAddressBlock({
     streetType: input.streetType?.trim(),
     address: input.address?.trim(),
+    residenceType,
+    addressExtra,
     postalCode: input.postalCode?.trim(),
     city: input.city?.trim(),
   });
@@ -761,6 +789,8 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     email: normalizeCustomerEmail(input.email) || undefined,
     phone: normalizeCustomerPhone(input.phone) || undefined,
     streetType: input.streetType?.trim() || undefined,
+    residenceType,
+    addressExtra: addressExtra || undefined,
     address: addressBlock || input.address?.trim() || undefined,
   };
 }
@@ -791,6 +821,8 @@ export function ensureCustomerForDocument(
   const firstName = validation.firstName!;
   const customerType = normalizeCustomerType(input.customerType);
   const lastName = customerType === "company" ? "" : validation.lastName!;
+  const residenceType = normalizeResidenceType(input.residenceType);
+  const addressExtra = formatAddressExtra(residenceType, input.addressExtra);
   const client = clientInputToSnapshot({
     ...input,
     customerType,
@@ -818,6 +850,8 @@ export function ensureCustomerForDocument(
       email: client.email,
       phone: client.phone,
       streetType: input.streetType?.trim() || existing.streetType,
+      residenceType,
+      addressExtra: addressExtra || undefined,
       address: input.address?.trim() || existing.address,
       city: input.city?.trim() || existing.city,
       postalCode: input.postalCode?.trim() || existing.postalCode,
@@ -860,6 +894,8 @@ export function ensureCustomerForDocument(
     email: client.email,
     phone: client.phone,
     streetType: input.streetType?.trim() || undefined,
+    residenceType,
+    addressExtra: addressExtra || undefined,
     address: input.address?.trim() || undefined,
     city: input.city?.trim() || undefined,
     postalCode: input.postalCode?.trim() || undefined,
@@ -883,6 +919,9 @@ export function customerPayloadFromInput(input: ClientInput) {
     email: client.email,
     phone: client.phone,
     streetType: input.streetType?.trim() || undefined,
+    residenceType: normalizeResidenceType(input.residenceType),
+    addressExtra:
+      formatAddressExtra(input.residenceType, input.addressExtra) || undefined,
     address: input.address?.trim() || undefined,
   };
 }

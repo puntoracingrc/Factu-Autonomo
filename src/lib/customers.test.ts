@@ -356,6 +356,28 @@ describe("validateCustomerInput", () => {
     });
   });
 
+  it("prepara payload de cliente con piso separado", () => {
+    const payload = customerPayloadFromInput({
+      firstName: " Jordi ",
+      lastName: " Vinardell ",
+      streetType: "calle",
+      address: " Nena Casas 52 ",
+      residenceType: "flat",
+      addressExtra: " 2º 2ª ",
+      city: " Barcelona ",
+      postalCode: " 08017 ",
+    });
+
+    expect(payload).toMatchObject({
+      firstName: "Jordi",
+      lastName: "Vinardell",
+      streetType: "calle",
+      residenceType: "flat",
+      address: "Nena Casas 52",
+      addressExtra: "2º 2ª",
+    });
+  });
+
   it("prepara payload de empresa con persona de contacto opcional", () => {
     const payload = customerPayloadFromInput({
       customerType: "company",
@@ -412,6 +434,8 @@ describe("ensureCustomerForDocument", () => {
         phone: "611222333",
         streetType: "calle",
         address: "Doctor Carulla 19",
+        residenceType: "flat",
+        addressExtra: "Bajos 1ª",
         postalCode: "08017",
         city: "Barcelona",
         notes: "Alta desde factura",
@@ -425,8 +449,11 @@ describe("ensureCustomerForDocument", () => {
       expect(result.client.nif).toBe("99999999Z");
       expect(result.customer.postalCode).toBe("08017");
       expect(result.customer.city).toBe("Barcelona");
+      expect(result.customer.residenceType).toBe("flat");
+      expect(result.customer.addressExtra).toBe("Bajos 1ª");
       expect(result.customer.notes).toBe("Alta desde factura");
-      expect(result.client.address).toBe("C/ Doctor Carulla 19, 08017 Barcelona");
+      expect(result.client.address).toBe("C/ Doctor Carulla 19, Bajos 1ª, 08017 Barcelona");
+      expect(result.client.addressExtra).toBe("Bajos 1ª");
     }
   });
 
@@ -589,6 +616,21 @@ describe("customerToClient", () => {
     expect(client.streetType).toBe("calle");
     expect(client.firstName).toBe("Beatriz");
     expect(client.lastName).toBe("López");
+  });
+
+  it("incluye piso y puerta en el snapshot", () => {
+    const client = customerToClient({
+      ...sample[2],
+      streetType: "calle",
+      address: "Nena Casas 52",
+      addressExtra: "2º 2ª",
+      residenceType: "flat",
+      city: "Barcelona",
+      postalCode: "08017",
+    });
+
+    expect(client.address).toBe("C/ Nena Casas 52, 2º 2ª, 08017 Barcelona");
+    expect(client.addressExtra).toBe("2º 2ª");
   });
 
   it("mantiene tipo empresa y contacto en el snapshot", () => {

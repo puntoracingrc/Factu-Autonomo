@@ -12,7 +12,10 @@ import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAuto
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
-import { clientAddressToFormFields } from "@/lib/customer-address";
+import {
+  clientAddressToFormFields,
+  RESIDENCE_TYPE_LABELS,
+} from "@/lib/customer-address";
 import {
   CUSTOMER_TYPE_LABELS,
   customerToClient,
@@ -22,7 +25,12 @@ import {
   sortCustomers,
 } from "@/lib/customers";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
-import type { Client, Customer, CustomerType } from "@/lib/types";
+import type {
+  AddressResidenceType,
+  Client,
+  Customer,
+  CustomerType,
+} from "@/lib/types";
 
 export interface ClientFormValues {
   customerType: CustomerType;
@@ -33,7 +41,9 @@ export interface ClientFormValues {
   email: string;
   phone: string;
   streetType: string;
+  residenceType: AddressResidenceType;
   address: string;
+  addressExtra: string;
   city: string;
   postalCode: string;
   notes: string;
@@ -149,7 +159,9 @@ export function ClientPicker({
       "email",
       "phone",
       "streetType",
+      "residenceType",
       "address",
+      "addressExtra",
       "city",
       "postalCode",
       "notes",
@@ -181,6 +193,7 @@ export function ClientPicker({
   const nameLabel = isCompany ? "Razón social" : "Nombre";
   const namePlaceholder = isCompany ? "Ej: Persianas Almar S.L." : "Ej: María";
   const nifLabel = isCompany ? "CIF" : "NIF / CIF";
+  const isFlat = values.residenceType !== "house";
 
   return (
     <div className="space-y-5">
@@ -378,6 +391,35 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="xl:col-span-2">
+            <Field label="Vivienda">
+              <Select
+                value={values.residenceType}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "residenceType",
+                    e.target.value as AddressResidenceType,
+                  )
+                }
+              >
+                <option value="flat">{RESIDENCE_TYPE_LABELS.flat}</option>
+                <option value="house">{RESIDENCE_TYPE_LABELS.house}</option>
+              </Select>
+            </Field>
+          </div>
+          {isFlat && (
+            <div className="xl:col-span-2">
+              <Field label="Piso / puerta">
+                <Input
+                  value={values.addressExtra}
+                  onChange={(e) =>
+                    handleFieldChange("addressExtra", e.target.value)
+                  }
+                  placeholder="Ej: 2º 2ª"
+                />
+              </Field>
+            </div>
+          )}
+          <div className="xl:col-span-2">
             <Field label={`Código postal${requiredMark}`}>
               <Input
                 value={values.postalCode}
@@ -414,7 +456,8 @@ export function ClientPicker({
 }
 
 export function clientToFormValues(client: Client): ClientFormValues {
-  const { streetType, streetLine } = clientAddressToFormFields(client);
+  const { streetType, streetLine, addressExtra, residenceType } =
+    clientAddressToFormFields(client);
   const customerType = normalizeCustomerType(client.customerType);
   const name = client.name ?? "";
   const nameParts = name.split(" ");
@@ -432,7 +475,9 @@ export function clientToFormValues(client: Client): ClientFormValues {
     email: client.email ?? "",
     phone: client.phone ?? "",
     streetType,
+    residenceType,
     address: streetLine,
+    addressExtra,
     city: "",
     postalCode: "",
     notes: "",

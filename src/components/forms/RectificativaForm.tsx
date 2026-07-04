@@ -185,10 +185,17 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         email: clientForm.email || undefined,
         phone: clientForm.phone || undefined,
         streetType: clientForm.streetType || undefined,
+        residenceType: clientForm.residenceType,
+        addressExtra:
+          clientForm.residenceType === "house"
+            ? undefined
+            : clientForm.addressExtra || undefined,
         address:
           formatAddressBlock({
             streetType: clientForm.streetType,
             address: clientForm.address,
+            residenceType: clientForm.residenceType,
+            addressExtra: clientForm.addressExtra,
             postalCode: clientForm.postalCode,
             city: clientForm.city,
           }) ||

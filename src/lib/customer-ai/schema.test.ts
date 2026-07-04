@@ -11,7 +11,8 @@ describe("customer text extract schema", () => {
         contactName: " Ana Ferrer ",
         nif: "B 60896362",
         streetType: "Calle",
-        address: "Doctor Carulla número 19 Bajos Primera",
+        address: "Doctor Carulla número 19",
+        addressExtra: "Bajos Primera",
         postalCode: "08017 - Barcelona",
         city: "Barcelona",
       },
@@ -26,6 +27,8 @@ describe("customer text extract schema", () => {
       contactName: "Ana Ferrer",
       nif: "B60896362",
       streetType: "calle",
+      residenceType: "flat",
+      addressExtra: "Bajos Primera",
       postalCode: "08017",
       city: "Barcelona",
     });
