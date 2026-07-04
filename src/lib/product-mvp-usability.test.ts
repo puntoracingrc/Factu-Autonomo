@@ -391,6 +391,9 @@ describe("MVP usability polish", () => {
 
     expect(homePageSource).toContain("DemoSandboxPanel");
     expect(landingSource).toContain("Demo sin registro");
+    expect(landingSource).toContain("Empezar gratis");
+    expect(landingSource).toContain("Sin tarjeta para empezar");
+    expect(landingSource).not.toContain("Probar gratis");
     expect(demoBannerSource).toContain("Sandbox separado");
     expect(demoBannerSource).toContain("Reiniciar demo");
     expect(demoPanelSource).toContain("Sandbox de prueba");

@@ -187,7 +187,7 @@ export function PublicLanding() {
               href="/cuenta?modo=crear#inicio-sesion"
               className="inline-flex min-h-10 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
             >
-              Probar gratis
+              Empezar gratis
             </Link>
           </div>
         </div>
@@ -215,7 +215,7 @@ export function PublicLanding() {
                   href="/cuenta?modo=crear#inicio-sesion"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-bold text-white shadow-sm hover:bg-blue-700"
                 >
-                  Probar gratis
+                  Empezar gratis
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <Link
@@ -372,7 +372,7 @@ export function PublicLanding() {
               lista
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Sin tarjeta para probar. Si necesitas documentos ilimitados, nube,
+              Sin tarjeta para empezar. Si necesitas documentos ilimitados, nube,
               importación avanzada o IA, puedes pasar a Pro cuando tenga
               sentido.
             </p>
