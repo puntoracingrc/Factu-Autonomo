@@ -247,6 +247,46 @@ async function ensureExpenseInboxAliasInSyncEntities(
   };
 }
 
+async function rotateExpenseInboxAliasInSyncEntities(
+  userId: string,
+): Promise<ExpenseInboxAlias> {
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const aliasToken = createAliasToken();
+    const { error } = await admin.from("sync_entities").upsert(
+      {
+        user_id: userId,
+        entity_type: ALIAS_ENTITY_TYPE,
+        entity_id: PRIMARY_ALIAS_ENTITY_ID,
+        payload: {
+          userId,
+          aliasToken,
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+          rotatedAt: now,
+        },
+        deleted: false,
+        updated_at: now,
+      },
+      { onConflict: "user_id,entity_type,entity_id" },
+    );
+
+    if (!error) {
+      return {
+        userId,
+        aliasToken,
+        address: buildExpenseInboxAddress(aliasToken, getExpenseInboxDomain()),
+      };
+    }
+    if (error.code !== "23505") throw error;
+  }
+
+  throw new Error("No se pudo renovar el buzón de gastos.");
+}
+
 async function resolveAliasInSyncEntities(
   tokens: string[],
 ): Promise<ExpenseInboxAliasRow | null> {
@@ -483,6 +523,45 @@ export async function ensureExpenseInboxAlias(
   }
 
   throw new Error("No se pudo crear el buzón de gastos.");
+}
+
+export async function rotateExpenseInboxAlias(
+  userId: string,
+): Promise<ExpenseInboxAlias> {
+  const admin = ensureAdmin();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const aliasToken = createAliasToken();
+    const { data, error } = await admin
+      .from("expense_inbox_aliases")
+      .upsert(
+        {
+          user_id: userId,
+          alias_token: aliasToken,
+          active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      )
+      .select("user_id, alias_token, active")
+      .single();
+
+    if (!error && data) {
+      const row = data as ExpenseInboxAliasRow;
+      return {
+        userId,
+        aliasToken: row.alias_token,
+        address: buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain()),
+      };
+    }
+
+    if (error && isMissingInboxTableError(error)) {
+      return rotateExpenseInboxAliasInSyncEntities(userId);
+    }
+    if (error?.code !== "23505") throw error;
+  }
+
+  throw new Error("No se pudo renovar el buzón de gastos.");
 }
 
 export async function canUseExpenseInbox(userId: string): Promise<{

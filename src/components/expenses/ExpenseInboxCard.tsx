@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import type { AiUsageMeter } from "@/lib/billing/scan-limits";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 
 interface ExpenseInboxResponse {
@@ -24,6 +25,10 @@ interface ExpenseInboxResponse {
   items?: ExpenseInboxItem[];
   pendingCount?: number;
   error?: string;
+}
+
+interface AiUsageResponse {
+  meter?: AiUsageMeter;
 }
 
 async function currentAuthHeaders(): Promise<HeadersInit> {
@@ -47,7 +52,10 @@ export function ExpenseInboxCard() {
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [usageLabel, setUsageLabel] = useState<string | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [rotatingAddress, setRotatingAddress] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,15 +64,31 @@ export function ExpenseInboxCard() {
       setAddress("");
       setItems([]);
       setPendingCount(0);
+      setUsageLabel(null);
       return;
     }
 
     setLoading(true);
+    setUsageLoading(true);
     setError(null);
     try {
       const headers = await currentAuthHeaders();
-      const response = await fetch("/api/expense-inbox", { headers });
+      const [response, usageResponse] = await Promise.all([
+        fetch("/api/expense-inbox", { headers }),
+        fetch("/api/billing/ai-usage", { headers }).catch(() => null),
+      ]);
       const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      const usageBody =
+        usageResponse && usageResponse.ok
+          ? ((await usageResponse.json().catch(() => ({}))) as AiUsageResponse)
+          : null;
+      const percentRemaining = usageBody?.meter?.percentRemaining;
+      setUsageLabel(
+        typeof percentRemaining === "number"
+          ? `IA ${percentRemaining}% restante`
+          : null,
+      );
+
       if (!response.ok) {
         setError(body.error ?? "No se pudo cargar el buzón.");
         return;
@@ -77,6 +101,7 @@ export function ExpenseInboxCard() {
       setError("No se pudo cargar el buzón.");
     } finally {
       setLoading(false);
+      setUsageLoading(false);
     }
   }, [user]);
 
@@ -89,6 +114,36 @@ export function ExpenseInboxCard() {
     await navigator.clipboard.writeText(address);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function rotateAddress() {
+    if (!address) return;
+    const confirmed = window.confirm(
+      "Se generará un correo nuevo y el actual dejará de recibir facturas nuevas. Las facturas pendientes no se borran.",
+    );
+    if (!confirmed) return;
+
+    setRotatingAddress(true);
+    setError(null);
+    try {
+      const headers = await currentAuthHeaders();
+      const response = await fetch("/api/expense-inbox", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rotate-alias" }),
+      });
+      const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      if (!response.ok || !body.alias?.address) {
+        setError(body.error ?? "No se pudo generar un correo nuevo.");
+        return;
+      }
+      setAddress(body.alias.address);
+      setCopied(false);
+    } catch {
+      setError("No se pudo generar un correo nuevo.");
+    } finally {
+      setRotatingAddress(false);
+    }
   }
 
   if (!user) {
@@ -126,6 +181,11 @@ export function ExpenseInboxCard() {
               {pendingCount > 0 ? (
                 <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
                   {pendingCount} pendiente(s)
+                </span>
+              ) : null}
+              {usageLabel || usageLoading ? (
+                <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-bold text-emerald-800">
+                  {usageLabel ?? "IA calculando..."}
                 </span>
               ) : null}
             </div>
@@ -169,7 +229,24 @@ export function ExpenseInboxCard() {
               {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
               {copied ? "Copiado" : "Copiar"}
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => void rotateAddress()}
+              disabled={rotatingAddress}
+            >
+              {rotatingAddress ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Generar nuevo
+            </Button>
           </div>
+          <p className="mt-2 flex gap-2 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            Usa este correo solo para facturas o tickets de proveedores. Si lo
+            publicas o empieza a entrar basura, genera uno nuevo.
+          </p>
         </div>
       ) : null}
 
