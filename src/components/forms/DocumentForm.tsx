@@ -21,7 +21,6 @@ import {
   clientToFormValues,
 } from "@/components/clients/ClientPicker";
 import type { ClientFormValues } from "@/components/clients/ClientPicker";
-import { formatAddressBlock } from "@/lib/customer-address";
 import {
   clientInputToSnapshot,
   customerToFormValues,
@@ -150,8 +149,10 @@ function documentFormReturnPath(
 }
 
 const EMPTY_CLIENT: ClientFormValues = {
+  customerType: "person",
   firstName: "",
   lastName: "",
+  contactName: "",
   nif: "",
   email: "",
   phone: "",
@@ -191,8 +192,10 @@ interface LineMarginEstimate {
 
 function clientFormToDraft(values: ClientFormValues): Record<string, string> {
   return {
+    customerType: values.customerType,
     firstName: values.firstName,
     lastName: values.lastName,
+    contactName: values.contactName,
     nif: values.nif,
     email: values.email,
     phone: values.phone,
@@ -837,24 +840,7 @@ export function DocumentForm({
     date,
     dueDate: effectiveDueDate || undefined,
     customerId: activeCustomerId,
-    client: {
-      firstName: clientForm.firstName,
-      lastName: clientForm.lastName,
-      name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
-      nif: clientForm.nif || undefined,
-      email: clientForm.email || undefined,
-      phone: clientForm.phone || undefined,
-      streetType: clientForm.streetType || undefined,
-      address:
-        formatAddressBlock({
-          streetType: clientForm.streetType,
-          address: clientForm.address,
-          postalCode: clientForm.postalCode,
-          city: clientForm.city,
-        }) ||
-        clientForm.address ||
-        undefined,
-    },
+    client: clientInputToSnapshot(clientForm),
     items: safeItems,
     notes,
     paymentTerms: paymentTerms || undefined,
@@ -1151,9 +1137,9 @@ export function DocumentForm({
     setClientForm(customerToFormValues(customer));
   }
 
-  function handleClientFieldChange(
-    field: keyof ClientFormValues,
-    value: string,
+  function handleClientFieldChange<K extends keyof ClientFormValues>(
+    field: K,
+    value: ClientFormValues[K],
   ) {
     setFormError(null);
     setClientForm((prev) => ({ ...prev, [field]: value }));
@@ -1207,7 +1193,7 @@ export function DocumentForm({
     const clientLegalLabels =
       type === "factura" && resolvedStatus !== "borrador"
         ? invoiceClientMissingDocumentLabels({
-            name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+            name: clientInputToSnapshot(clientForm).name,
             nif: clientForm.nif,
             address: clientForm.address,
             postalCode: clientForm.postalCode,
@@ -1245,6 +1231,8 @@ export function DocumentForm({
         {
           firstName: clientForm.firstName,
           lastName: clientForm.lastName,
+          customerType: clientForm.customerType,
+          contactName: clientForm.contactName,
           nif: clientForm.nif,
           email: clientForm.email,
           phone: clientForm.phone,

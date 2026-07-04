@@ -5,8 +5,10 @@ describe("customer text extract schema", () => {
   it("normaliza una empresa extraida desde texto libre", () => {
     const result = normalizeCustomerTextExtractPayload({
       customer: {
-        firstName: " FERRER NEUROCIENCIAS ",
+        customerType: "company",
+        firstName: " FERRER NEUROCIENCIAS S.L. ",
         lastName: " S.L. ",
+        contactName: " Ana Ferrer ",
         nif: "B 60896362",
         streetType: "Calle",
         address: "Doctor Carulla número 19 Bajos Primera",
@@ -18,8 +20,10 @@ describe("customer text extract schema", () => {
     });
 
     expect(result?.customer).toMatchObject({
-      firstName: "FERRER NEUROCIENCIAS",
-      lastName: "S.L.",
+      customerType: "company",
+      firstName: "FERRER NEUROCIENCIAS S.L.",
+      lastName: "",
+      contactName: "Ana Ferrer",
       nif: "B60896362",
       streetType: "calle",
       postalCode: "08017",
@@ -56,7 +60,7 @@ describe("customer text extract schema", () => {
       postalCode: "08022",
     });
     expect(result?.warnings).toContain(
-      "No se han detectado apellidos o razón social completa.",
+      "No se han detectado apellidos.",
     );
   });
 });

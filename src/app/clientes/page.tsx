@@ -24,13 +24,14 @@ import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAuto
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
-import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
+  CUSTOMER_TYPE_LABELS,
   customerFullName,
   buildCustomerInvoicedTotals,
   customerPayloadFromInput,
@@ -39,6 +40,7 @@ import {
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
   migrateCustomer,
+  normalizeCustomerType,
   pickCanonicalCustomer,
   sortCustomers,
   validateCustomerInput,
@@ -47,11 +49,13 @@ import {
 } from "@/lib/customers";
 import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
-import type { Customer } from "@/lib/types";
+import type { Customer, CustomerType } from "@/lib/types";
 
 const EMPTY_FORM = {
+  customerType: "person" as CustomerType,
   firstName: "",
   lastName: "",
+  contactName: "",
   nif: "",
   email: "",
   phone: "",
@@ -220,8 +224,10 @@ export default function ClientesPage() {
     setFormOpen(true);
     setFormError(null);
     setForm({
+      customerType: normalizeCustomerType(migrated.customerType),
       firstName: migrated.firstName,
       lastName: migrated.lastName,
+      contactName: migrated.contactName ?? "",
       nif: migrated.nif ?? "",
       email: migrated.email ?? "",
       phone: migrated.phone ?? "",
@@ -270,8 +276,11 @@ export default function ClientesPage() {
     setFormError(null);
     setForm((current) => ({
       ...current,
+      customerType:
+        (values.customerType as CustomerType | undefined) || current.customerType,
       firstName: values.firstName || current.firstName,
       lastName: values.lastName || current.lastName,
+      contactName: values.contactName || current.contactName,
       nif: values.nif || current.nif,
       email: values.email || current.email,
       phone: values.phone || current.phone,
@@ -301,7 +310,10 @@ export default function ClientesPage() {
     );
   }
 
-  function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
+  function updateFormField<K extends keyof typeof EMPTY_FORM>(
+    field: K,
+    value: (typeof EMPTY_FORM)[K],
+  ) {
     setFormError(null);
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -321,6 +333,8 @@ export default function ClientesPage() {
       ...customerPayloadFromInput({
         firstName: validation.firstName ?? form.firstName,
         lastName: validation.lastName ?? form.lastName,
+        customerType: form.customerType,
+        contactName: form.contactName,
         nif: form.nif,
         email: validation.email,
         phone: validation.phone,
@@ -352,6 +366,14 @@ export default function ClientesPage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
+
+  const formCustomerType = normalizeCustomerType(form.customerType);
+  const formIsCompany = formCustomerType === "company";
+  const formNameLabel = formIsCompany ? "Razón social *" : "Nombre *";
+  const formNamePlaceholder = formIsCompany
+    ? "Ej: Persianas Almar S.L."
+    : "Ej: María";
+  const formNifLabel = formIsCompany ? "CIF" : "NIF / CIF";
 
   return (
     <div>
@@ -475,31 +497,57 @@ export default function ClientesPage() {
             <CustomerAiAutofill onApply={applyAiCustomer} />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre *">
+              <Field label="Tipo">
+                <Select
+                  value={formCustomerType}
+                  onChange={(e) =>
+                    updateFormField(
+                      "customerType",
+                      e.target.value as CustomerType,
+                    )
+                  }
+                >
+                  <option value="person">{CUSTOMER_TYPE_LABELS.person}</option>
+                  <option value="company">{CUSTOMER_TYPE_LABELS.company}</option>
+                </Select>
+              </Field>
+              <Field label={formNameLabel}>
                 <Input
                   value={form.firstName}
                   onChange={(e) => updateFormField("firstName", e.target.value)}
-                  placeholder="Ej: María"
+                  placeholder={formNamePlaceholder}
                   aria-invalid={Boolean(formError && !form.firstName.trim())}
                 />
               </Field>
               <Field
-                label="Apellidos"
-                hint="Opcional. Útil para distinguir clientes con el mismo nombre."
+                label={formIsCompany ? "Persona de contacto" : "Apellidos"}
+                hint={
+                  formIsCompany
+                    ? "Opcional. Para saber con quién hablar dentro de la empresa."
+                    : "Opcional. Útil para distinguir clientes con el mismo nombre."
+                }
               >
                 <Input
-                  value={form.lastName}
-                  onChange={(e) => updateFormField("lastName", e.target.value)}
-                  placeholder="Ej: López García"
+                  value={formIsCompany ? form.contactName : form.lastName}
+                  onChange={(e) =>
+                    updateFormField(
+                      formIsCompany ? "contactName" : "lastName",
+                      e.target.value,
+                    )
+                  }
+                  placeholder={
+                    formIsCompany ? "Ej: Laura Gómez" : "Ej: López García"
+                  }
                   aria-invalid={Boolean(
                     formError &&
-                    form.lastName.trim() &&
-                    form.lastName.trim().length < 2,
+                      !formIsCompany &&
+                      form.lastName.trim() &&
+                      form.lastName.trim().length < 2,
                   )}
                 />
               </Field>
               <Field
-                label="NIF / CIF"
+                label={formNifLabel}
                 hint="Opcional. No se valida oficialmente; solo se evita duplicarlo en tu lista."
               >
                 <Input
@@ -586,7 +634,9 @@ export default function ClientesPage() {
               <p className="text-sm text-slate-500">
                 Se guardará como:{" "}
                 <strong>
-                  {customerFullName(form.firstName, form.lastName)}
+                  {formIsCompany
+                    ? form.firstName.trim()
+                    : customerFullName(form.firstName, form.lastName)}
                 </strong>
               </p>
             )}
@@ -687,6 +737,18 @@ export default function ClientesPage() {
                       <p className="break-words font-bold text-slate-900">
                         {getCustomerDisplayName(customer)}
                       </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5">
+                          {
+                            CUSTOMER_TYPE_LABELS[
+                              normalizeCustomerType(migrated.customerType)
+                            ]
+                          }
+                        </span>
+                        {migrated.contactName && (
+                          <span>Contacto: {migrated.contactName}</span>
+                        )}
+                      </div>
                       {customer.nif && (
                         <p className="text-sm text-slate-500">
                           NIF: {customer.nif}

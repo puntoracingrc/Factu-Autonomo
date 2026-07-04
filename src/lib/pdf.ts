@@ -401,8 +401,22 @@ export function buildDocumentPdfFromViewModel(
     clientBoxY += 14;
   }
 
-  const clientBoxHeight =
-    28 + (doc.client.email ? 6 : 0) + (doc.client.phone ? 6 : 0);
+  const clientLeftLines = [
+    doc.client.name,
+    doc.client.nif ? `NIF: ${doc.client.nif}` : "",
+    doc.client.customerType === "company" && doc.client.contactName
+      ? `Contacto: ${doc.client.contactName}`
+      : "",
+  ].filter(Boolean);
+  const clientRightLines = [
+    doc.client.address ?? "",
+    doc.client.email ?? "",
+    doc.client.phone ? `Tel: ${doc.client.phone}` : "",
+  ].filter(Boolean);
+  const clientBoxHeight = Math.max(
+    28,
+    14 + Math.max(clientLeftLines.length, clientRightLines.length) * 6,
+  );
 
   pdf.setFillColor(
     template.style === "clasico" ? 243 : softAccent[0],
@@ -418,11 +432,18 @@ export function buildDocumentPdfFromViewModel(
   pdf.setTextColor(0, 0, 0);
   pdf.text("Cliente:", 18, clientBoxY + 8);
   pdf.setFontSize(bodyFontSize + 1);
-  pdf.text(doc.client.name, 18, clientBoxY + 16);
-  if (doc.client.nif) pdf.text(`NIF: ${doc.client.nif}`, 18, clientBoxY + 22);
-  if (doc.client.address) pdf.text(doc.client.address, 100, clientBoxY + 16);
-  if (doc.client.email) pdf.text(doc.client.email, 100, clientBoxY + 22);
-  if (doc.client.phone) pdf.text(`Tel: ${doc.client.phone}`, 100, clientBoxY + 28);
+  let clientLeftY = clientBoxY + 16;
+  clientLeftLines.forEach((line, index) => {
+    pdf.text(line, 18, clientLeftY);
+    if (index === 0) pdf.setFontSize(bodyFontSize);
+    clientLeftY += 6;
+  });
+  pdf.setFontSize(bodyFontSize);
+  let clientRightY = clientBoxY + 16;
+  clientRightLines.forEach((line) => {
+    pdf.text(line, 100, clientRightY);
+    clientRightY += 6;
+  });
 
   autoTable(pdf, {
     startY: clientBoxY + 34,

@@ -72,8 +72,9 @@ describe("customer geocoding", () => {
     try {
       const payload = await enrichCustomerPostalCode({
         customer: {
+          customerType: "company",
           firstName: "FERRER NEUROCIENCIAS",
-          lastName: "S.L.",
+          lastName: "",
           address: "Doctor Carulla 19",
           city: "Barcelona",
           streetType: "calle",
