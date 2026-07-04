@@ -31,6 +31,7 @@ import {
   isFactuWidgetDismissed,
   shouldShowFactuWidget,
 } from "@/lib/factu/occasional";
+import { APP_BRAND_NAME, APP_BRAND_TAGLINE } from "@/lib/brand";
 import {
   FileText,
   Home,
@@ -186,10 +187,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
             <div className="min-w-0">
               <p className="truncate text-base font-bold text-slate-900">
-                Factura Autónomo
+                {APP_BRAND_NAME}
               </p>
               <p className="truncate text-xs text-slate-500">
-                Tu negocio, simple y claro
+                {APP_BRAND_TAGLINE}
               </p>
             </div>
           </Link>
@@ -298,10 +299,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
               <div className="min-w-0">
                 <p className="truncate text-base font-bold text-slate-900">
-                  Factura Autónomo
+                  {APP_BRAND_NAME}
                 </p>
                 <p className="truncate text-xs text-slate-500">
-                  Tu negocio, simple y claro
+                  {APP_BRAND_TAGLINE}
                 </p>
               </div>
             </Link>

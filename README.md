@@ -1,4 +1,4 @@
-# Factura Autónomo
+# Facturación Autónomos
 
 Programa de facturación **sencillo** para autónomos. Funciona en **PC, iPhone y Android** desde el navegador (no hace falta instalar nada complicado).
 

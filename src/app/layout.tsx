@@ -6,6 +6,7 @@ import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const geist = Geist({
@@ -14,26 +15,26 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  applicationName: "Factura Autónomo",
+  applicationName: APP_BRAND_NAME,
   title: {
-    default: "Factura Autónomo | Facturación sencilla para autónomos",
-    template: "%s | Factura Autónomo",
+    default: `${APP_BRAND_NAME} | Facturación sencilla para autónomos`,
+    template: `%s | ${APP_BRAND_NAME}`,
   },
   description:
     "Programa sencillo de facturación para autónomos: facturas, presupuestos, recibos, gastos e impuestos orientativos en un solo sitio.",
   manifest: "/manifest.json",
   openGraph: {
-    title: "Factura Autónomo",
+    title: APP_BRAND_NAME,
     description:
       "Facturación sencilla para autónomos: documentos, gastos e impuestos orientativos sin hojas de cálculo.",
     url: "https://facturacion-autonomos.app",
-    siteName: "Factura Autónomo",
+    siteName: APP_BRAND_NAME,
     locale: "es_ES",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Factura Autónomo",
+    title: APP_BRAND_NAME,
     description:
       "Facturas, gastos e impuestos orientativos para autónomos y pequeños negocios.",
   },
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Factura Autónomo",
+    title: APP_BRAND_NAME,
   },
 };
 

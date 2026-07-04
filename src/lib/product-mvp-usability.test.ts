@@ -447,6 +447,42 @@ describe("MVP usability polish", () => {
     expect(signupSuccessSource).toContain("Panel de primeros pasos");
   });
 
+  it("usa la marca publica coherente con el dominio", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const landingSource = readFileSync(
+      new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
+      "utf8",
+    );
+    const layoutSource = readFileSync(
+      new URL("../app/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const brandSource = readFileSync(
+      new URL("../lib/brand.ts", import.meta.url),
+      "utf8",
+    );
+    const manifest = JSON.parse(
+      readFileSync(
+        new URL("../../public/manifest.json", import.meta.url),
+        "utf8",
+      ),
+    );
+
+    expect(brandSource).toContain("Facturación Autónomos");
+    expect(brandSource).toContain("La .APP para tu Negocio: Simple y Claro");
+    expect(appShellSource).toContain("APP_BRAND_NAME");
+    expect(appShellSource).toContain("APP_BRAND_TAGLINE");
+    expect(landingSource).toContain("APP_BRAND_NAME");
+    expect(layoutSource).toContain("APP_BRAND_NAME");
+    expect(manifest.name).toBe("Facturación Autónomos");
+    expect(manifest.description).toBe(
+      "La .APP para tu Negocio: Simple y Claro",
+    );
+  });
+
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),

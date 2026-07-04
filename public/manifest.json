@@ -1,7 +1,7 @@
 {
-  "name": "Factura Autónomo",
-  "short_name": "Factura",
-  "description": "Facturación sencilla para autónomos",
+  "name": "Facturación Autónomos",
+  "short_name": "Facturación",
+  "description": "La .APP para tu Negocio: Simple y Claro",
   "id": "/",
   "start_url": "/",
   "scope": "/",
