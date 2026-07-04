@@ -296,6 +296,8 @@ export default function ConfiguracionPage() {
       address: suggestion.address || prev.address,
       postalCode: suggestion.postalCode || prev.postalCode,
       city: suggestion.city || prev.city,
+      province: suggestion.province || prev.province,
+      country: suggestion.country || prev.country,
     }));
   }
 
@@ -569,6 +571,16 @@ export default function ConfiguracionPage() {
               />
             </Field>
             <Field
+              label="VAT / VIES"
+              hint="Opcional. Útil si facturas a empresas de la UE."
+            >
+              <Input
+                value={form.vatId ?? ""}
+                onChange={(e) => update("vatId", e.target.value)}
+                placeholder="ES12345678A"
+              />
+            </Field>
+            <Field
               label="Teléfono"
               hint="Opcional. Aparece en el PDF si lo informas."
             >
@@ -588,6 +600,17 @@ export default function ConfiguracionPage() {
                 value={form.email}
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="hola@tunegocio.es"
+              />
+            </Field>
+            <Field
+              label="Página web"
+              hint="Opcional. Aparece en el PDF si la informas."
+            >
+              <Input
+                inputMode="url"
+                value={form.website ?? ""}
+                onChange={(e) => update("website", e.target.value)}
+                placeholder="www.tunegocio.es"
               />
             </Field>
             <Field
@@ -615,6 +638,20 @@ export default function ConfiguracionPage() {
                 value={form.city}
                 onChange={(e) => update("city", e.target.value)}
                 placeholder="Madrid"
+              />
+            </Field>
+            <Field label="Provincia">
+              <Input
+                value={form.province ?? ""}
+                onChange={(e) => update("province", e.target.value)}
+                placeholder="Madrid"
+              />
+            </Field>
+            <Field label="País">
+              <Input
+                value={form.country ?? ""}
+                onChange={(e) => update("country", e.target.value)}
+                placeholder="España"
               />
             </Field>
             <Field

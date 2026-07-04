@@ -98,11 +98,15 @@ export interface IssuerSnapshot {
   commercialName?: string;
   name: string;
   nif: string;
+  vatId?: string;
   address: string;
   city: string;
   postalCode: string;
+  province?: string;
+  country?: string;
   phone?: string;
   email?: string;
+  website?: string;
   iban?: string;
   logoUrl?: string;
   capturedAt: string;
@@ -522,11 +526,15 @@ export interface BusinessProfile {
   commercialName?: string;
   name: string;
   nif: string;
+  vatId?: string;
   address: string;
   city: string;
   postalCode: string;
+  province?: string;
+  country?: string;
   phone: string;
   email: string;
+  website?: string;
   iban?: string;
   logoUrl?: string;
   /** Frases reutilizables en notas de facturas, presupuestos y recibos */
@@ -638,11 +646,15 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   commercialName: "",
   name: "",
   nif: "",
+  vatId: "",
   address: "",
   city: "",
   postalCode: "",
+  province: "",
+  country: "España",
   phone: "",
   email: "",
+  website: "",
   iva: {
     rates: [0, 4, 10, 21],
     defaultRate: 21,

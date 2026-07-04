@@ -7,11 +7,15 @@ export type IssuerProfile = Pick<
   | "commercialName"
   | "name"
   | "nif"
+  | "vatId"
   | "address"
   | "city"
   | "postalCode"
+  | "province"
+  | "country"
   | "phone"
   | "email"
+  | "website"
   | "iban"
   | "logoUrl"
 >;
@@ -51,11 +55,15 @@ export function captureIssuerSnapshot(
     commercialName: profile.commercialName?.trim() || undefined,
     name: profile.name.trim(),
     nif: profile.nif.trim(),
+    vatId: profile.vatId?.trim().toUpperCase() || undefined,
     address: profile.address.trim(),
     city: profile.city.trim(),
     postalCode: profile.postalCode.trim(),
+    province: profile.province?.trim() || undefined,
+    country: profile.country?.trim() || undefined,
     phone: profile.phone?.trim() || undefined,
     email: profile.email?.trim() || undefined,
+    website: profile.website?.trim() || undefined,
     iban: profile.iban?.trim() || undefined,
     logoUrl: profile.logoUrl,
     capturedAt,
@@ -80,6 +88,7 @@ export function resolveIssuerForDocument(
     ...base,
     commercialName:
       text(base.commercialName) || text(profile.commercialName) || undefined,
+    website: text(base.website) || text(profile.website) || undefined,
     logoUrl: base.logoUrl ?? profile.logoUrl,
   };
 }
