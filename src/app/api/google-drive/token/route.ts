@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { DRIVE_BACKUP_CALLBACK_PATH } from "@/lib/google-drive/backup";
 
 export const runtime = "nodejs";
@@ -64,6 +66,16 @@ function googleErrorMessage(payload: GoogleTokenPayload): string {
 }
 
 export async function POST(request: Request) {
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
+  if (!user) {
+    return NextResponse.json(
+      { error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
+      { status: 401 },
+    );
+  }
+
   const clientId = getGoogleDriveClientId();
   const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() ?? "";
 

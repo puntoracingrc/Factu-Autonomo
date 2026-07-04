@@ -3,7 +3,10 @@ import { billingProfileFromDbRow } from "@/lib/billing/billing-profile";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-function isMissingBillingProfileSchemaError(error: { code?: string; message?: string }) {
+function isMissingBillingProfileSchemaError(error: {
+  code?: string;
+  message?: string;
+}) {
   const message = error.message ?? "";
   return (
     error.code === "42703" ||
@@ -13,7 +16,9 @@ function isMissingBillingProfileSchemaError(error: { code?: string; message?: st
 }
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

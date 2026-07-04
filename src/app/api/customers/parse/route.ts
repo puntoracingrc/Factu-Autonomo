@@ -28,11 +28,15 @@ async function canUseCustomerAi(userId: string): Promise<{
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
 
   if (isBillingEnforced() && !user) {
     return NextResponse.json(
-      { error: "Crea una cuenta e inicia sesión para usar el autorrelleno IA." },
+      {
+        error: "Crea una cuenta e inicia sesión para usar el autorrelleno IA.",
+      },
       { status: 401 },
     );
   }
@@ -56,7 +60,9 @@ export async function POST(request: Request) {
 
   if (text.length > 4000) {
     return NextResponse.json(
-      { error: "El texto es demasiado largo. Usa como máximo 4.000 caracteres." },
+      {
+        error: "El texto es demasiado largo. Usa como máximo 4.000 caracteres.",
+      },
       { status: 400 },
     );
   }

@@ -26,7 +26,9 @@ async function canUseAddressAutofill(userId: string): Promise<{
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
 
   if (isBillingEnforced() && !user) {
     return NextResponse.json(

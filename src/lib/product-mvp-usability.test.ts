@@ -6,8 +6,14 @@ import { DOCUMENT_EMPTY_ACTION_LABELS } from "./document-list-copy";
 import { normalizeFactuEmptyActionCopy } from "./factu/action-copy";
 import { FACTU_EMPTY_MESSAGES } from "./factu/copy";
 import { FACTU_EMPTY_TITLES } from "./factu/empty-state-copy";
-import { HOME_CREATE_ACTIONS, HOME_REVIEW_ACTIONS } from "./product-home-actions";
-import { canConvertQuoteToInvoice, findInvoiceCreatedFromQuote } from "./quote-to-invoice";
+import {
+  HOME_CREATE_ACTIONS,
+  HOME_REVIEW_ACTIONS,
+} from "./product-home-actions";
+import {
+  canConvertQuoteToInvoice,
+  findInvoiceCreatedFromQuote,
+} from "./quote-to-invoice";
 import type { Document } from "./types";
 
 const quote: Document = {
@@ -68,9 +74,7 @@ describe("MVP usability polish", () => {
       "cliente",
       createElement("button", null, "Nuevo cliente"),
     );
-    const html = renderToStaticMarkup(
-      createElement("div", null, action),
-    );
+    const html = renderToStaticMarkup(createElement("div", null, action));
 
     expect(html).toContain("Crear cliente");
     expect(html).not.toContain(">Nuevo cliente<");
@@ -215,25 +219,39 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const documentShareSource = readFileSync(
-      new URL("../components/documents/DocumentShareActions.tsx", import.meta.url),
+      new URL(
+        "../components/documents/DocumentShareActions.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const paymentReminderSource = readFileSync(
-      new URL("../components/documents/PaymentReminderButton.tsx", import.meta.url),
+      new URL(
+        "../components/documents/PaymentReminderButton.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
 
     expect(appShellSource).toContain("GuestLocalDataBanner");
     expect(guestBannerSource).toContain("Estás probando sin cuenta");
-    expect(guestBannerSource).toContain("Tienes datos guardados solo en este navegador");
+    expect(guestBannerSource).toContain(
+      "Tienes datos guardados solo en este navegador",
+    );
     expect(guestBannerSource).toContain("Crear cuenta gratis");
     expect(guestBannerSource).toContain("Seguir probando");
     expect(guestBannerSource).toContain("/cuenta?modo=crear#inicio-sesion");
-    expect(cloudAccountSource).toContain("Hemos encontrado datos en este navegador");
+    expect(cloudAccountSource).toContain(
+      "Hemos encontrado datos en este navegador",
+    );
     expect(cloudAccountSource).toContain('requestedMode === "crear"');
     expect(landingSource).toContain("/cuenta?modo=crear#inicio-sesion");
-    expect(documentShareSource).toContain("Inicia sesión para enviar documentos reales");
-    expect(paymentReminderSource).toContain("Inicia sesión para enviar recordatorios reales");
+    expect(documentShareSource).toContain(
+      "Inicia sesión para enviar documentos reales",
+    );
+    expect(paymentReminderSource).toContain(
+      "Inicia sesión para enviar recordatorios reales",
+    );
   });
 
   it("muestra terminos solo en el modo de crear cuenta", () => {
@@ -271,8 +289,78 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).toContain("Guardar estos datos en mi cuenta");
     expect(cloudAccountSource).toContain("Descargar copia antes de continuar");
     expect(cloudAccountSource).toContain("Seguir solo en este navegador");
-    expect(cloudAccountSource).toContain("te preguntaremos si quieres guardarlos");
-    expect(guestBannerSource).toContain("te preguntaremos si quieres guardarlos");
+    expect(cloudAccountSource).toContain(
+      "te preguntaremos si quieres guardarlos",
+    );
+    expect(guestBannerSource).toContain(
+      "te preguntaremos si quieres guardarlos",
+    );
+  });
+
+  it("bloquea nube y acciones reales hasta confirmar email", () => {
+    const cloudContextSource = readFileSync(
+      new URL("../context/CloudSyncContext.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const documentShareSource = readFileSync(
+      new URL(
+        "../components/documents/DocumentShareActions.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const paymentReminderSource = readFileSync(
+      new URL(
+        "../components/documents/PaymentReminderButton.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const paymentReminderClientSource = readFileSync(
+      new URL("../lib/payment-reminder-client.ts", import.meta.url),
+      "utf8",
+    );
+    const paymentReminderRouteSource = readFileSync(
+      new URL("../app/api/email/payment-reminder/route.ts", import.meta.url),
+      "utf8",
+    );
+    const driveTokenRouteSource = readFileSync(
+      new URL("../app/api/google-drive/token/route.ts", import.meta.url),
+      "utf8",
+    );
+    const serverAuthSource = readFileSync(
+      new URL("../lib/billing/server-auth.ts", import.meta.url),
+      "utf8",
+    );
+    const serverDocumentsRouteSource = readFileSync(
+      new URL("../lib/server-documents/route-handler.ts", import.meta.url),
+      "utf8",
+    );
+    const driveBackupSource = readFileSync(
+      new URL("../components/cloud/GoogleDriveBackupCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudContextSource).toContain("emailConfirmed");
+    expect(cloudContextSource).toContain("requiresEmailConfirmation");
+    expect(cloudContextSource).toContain("EMAIL_CONFIRMATION_REQUIRED_MESSAGE");
+    expect(cloudAccountSource).toContain("Email pendiente de confirmar");
+    expect(documentShareSource).toContain(
+      "Confirma tu email para enviar documentos reales",
+    );
+    expect(paymentReminderSource).toContain(
+      "Confirma tu email para enviar recordatorios reales",
+    );
+    expect(paymentReminderClientSource).toContain("Authorization");
+    expect(paymentReminderRouteSource).toContain("requireEmailConfirmed: true");
+    expect(driveTokenRouteSource).toContain("requireEmailConfirmed: true");
+    expect(serverAuthSource).toContain("isUserEmailConfirmed");
+    expect(serverDocumentsRouteSource).toContain("requireEmailConfirmed: true");
+    expect(driveBackupSource).toContain("Confirma tu email para activar Drive");
   });
 
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
@@ -314,7 +402,9 @@ describe("MVP usability polish", () => {
     );
 
     expect(supabaseConfigSource).toContain("NEXT_PUBLIC_GOOGLE_AUTH_ENABLED");
-    expect(googleAuthConfigSource).toContain("NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID");
+    expect(googleAuthConfigSource).toContain(
+      "NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID",
+    );
     expect(cloudAccountSource).toContain("googleAuthEnabled");
     expect(cloudAccountSource).toContain("Continuar con Google");
     expect(cloudAccountSource).toContain("Crear cuenta con Google");
@@ -333,7 +423,9 @@ describe("MVP usability polish", () => {
     expect(googleAuthCallbackSource).toContain('provider: "google"');
     expect(googleAuthCallbackSource).toContain("token: payload.idToken");
     expect(googleAuthConfigSource).not.toContain("GOOGLE_DRIVE_CLIENT_ID");
-    expect(googleAuthConfigSource).not.toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
+    expect(googleAuthConfigSource).not.toContain(
+      "NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID",
+    );
     expect(cloudContextSource).not.toContain("drive.file");
     expect(cloudContextSource).not.toContain("drive.metadata");
     expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
@@ -357,7 +449,7 @@ describe("MVP usability polish", () => {
       "utf8",
     );
 
-    expect(referralSource).toContain('if (!user)');
+    expect(referralSource).toContain("if (!user)");
     expect(referralSource).toContain('href="/cuenta?modo=crear#inicio-sesion"');
     expect(referralSource).toContain("Crear cuenta");
     expect(referralSource).not.toContain("Crea cuenta abajo");
@@ -369,7 +461,10 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const verifactuSource = readFileSync(
-      new URL("../components/verifactu/VerifactuSettingsCard.tsx", import.meta.url),
+      new URL(
+        "../components/verifactu/VerifactuSettingsCard.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
 
@@ -562,7 +657,9 @@ describe("MVP usability polish", () => {
     expect(homePageSource).toContain("InstallAppCard");
     expect(helpButtonSource).toContain('section?.title ?? "Manual de usuario"');
     expect(helpButtonSource).toContain("const href = manualHelpHref(pathname)");
-    expect(helpButtonSource).not.toContain("if (!href || !section) return null");
+    expect(helpButtonSource).not.toContain(
+      "if (!href || !section) return null",
+    );
     expect(installCardSource).toContain("beforeinstallprompt");
     expect(installCardSource).toContain("appinstalled");
     expect(installCardSource).toContain("object-contain");

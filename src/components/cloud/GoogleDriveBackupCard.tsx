@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_RETENTION_LIMIT,
@@ -52,10 +53,11 @@ function formatLastBackup(value?: string): string {
   }).format(new Date(value));
 }
 
-function driveStatusCopy(input: {
-  enabled: boolean;
-  tokenReady: boolean;
-}): { label: string; className: string; icon: "ok" | "warn" | "off" } {
+function driveStatusCopy(input: { enabled: boolean; tokenReady: boolean }): {
+  label: string;
+  className: string;
+  icon: "ok" | "warn" | "off";
+} {
   if (!input.enabled) {
     return {
       label: "Drive no conectado",
@@ -81,8 +83,10 @@ function driveStatusCopy(input: {
 
 export function GoogleDriveBackupCard() {
   const { data } = useAppStore();
+  const { user, emailConfirmed } = useCloudSync();
   const clientId = getGoogleDriveClientId();
   const driveConfigured = isGoogleDriveBackupEnabled();
+  const driveAccountReady = Boolean(user && emailConfirmed);
   const [settings, setSettings] = useState<DriveBackupSettings>(
     DEFAULT_DRIVE_BACKUP_SETTINGS,
   );
@@ -119,10 +123,19 @@ export function GoogleDriveBackupCard() {
 
   const runDriveBackup = useCallback(
     async (options: { automatic?: boolean; signature?: string } = {}) => {
+      if (!driveAccountReady) {
+        setFeedback({
+          tone: "error",
+          message: "Confirma tu email para conectar Drive.",
+        });
+        return;
+      }
+
       if (!driveConfigured) {
         setFeedback({
           tone: "error",
-          message: "La copia extra en Google Drive aún no está disponible aquí.",
+          message:
+            "La copia extra en Google Drive aún no está disponible aquí.",
         });
         return;
       }
@@ -178,6 +191,7 @@ export function GoogleDriveBackupCard() {
     [
       clientId,
       data,
+      driveAccountReady,
       driveConfigured,
       persistSettings,
       settings.enabled,
@@ -186,6 +200,14 @@ export function GoogleDriveBackupCard() {
   );
 
   const startDriveConnection = useCallback(() => {
+    if (!driveAccountReady) {
+      setFeedback({
+        tone: "error",
+        message: "Confirma tu email para conectar Drive.",
+      });
+      return;
+    }
+
     if (!driveConfigured) {
       setFeedback({
         tone: "error",
@@ -219,6 +241,7 @@ export function GoogleDriveBackupCard() {
     }
   }, [
     clientId,
+    driveAccountReady,
     driveConfigured,
     runDriveBackup,
     settings.enabled,
@@ -226,7 +249,7 @@ export function GoogleDriveBackupCard() {
   ]);
 
   useEffect(() => {
-    if (!hydrated || !driveConfigured || busy) return;
+    if (!hydrated || !driveConfigured || !driveAccountReady || busy) return;
     if (!settings.enabled || tokenReady || restoreAttemptedRef.current) return;
 
     restoreAttemptedRef.current = true;
@@ -259,6 +282,7 @@ export function GoogleDriveBackupCard() {
   }, [
     busy,
     clientId,
+    driveAccountReady,
     driveConfigured,
     hydrated,
     settings.enabled,
@@ -266,7 +290,7 @@ export function GoogleDriveBackupCard() {
   ]);
 
   useEffect(() => {
-    if (!hydrated || !driveConfigured || busy) return;
+    if (!hydrated || !driveConfigured || !driveAccountReady || busy) return;
 
     const decision = shouldRunAutomaticDriveBackup(settings, data);
     if (!decision.due) return;
@@ -294,7 +318,15 @@ export function GoogleDriveBackupCard() {
     }, 5000);
 
     return () => window.clearTimeout(timer);
-  }, [busy, data, driveConfigured, hydrated, runDriveBackup, settings]);
+  }, [
+    busy,
+    data,
+    driveAccountReady,
+    driveConfigured,
+    hydrated,
+    runDriveBackup,
+    settings,
+  ]);
 
   function updateFrequency(value: DriveBackupSettings["frequency"]) {
     persistSettings((current) => ({ ...current, frequency: value }));
@@ -373,6 +405,12 @@ export function GoogleDriveBackupCard() {
             seguir usando la copia manual y la nube de Factu.
           </p>
         ) : null}
+        {user && !emailConfirmed ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Confirma tu email para activar Drive. Puedes exportar una copia
+            manual mientras tanto.
+          </p>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <Field
@@ -381,7 +419,7 @@ export function GoogleDriveBackupCard() {
           >
             <Select
               value={settings.frequency}
-              disabled={!driveConfigured || busy}
+              disabled={!driveConfigured || !driveAccountReady || busy}
               onChange={(event) =>
                 updateFrequency(
                   event.target.value as DriveBackupSettings["frequency"],
@@ -400,7 +438,7 @@ export function GoogleDriveBackupCard() {
             <Button
               type="button"
               onClick={startDriveConnection}
-              disabled={!driveConfigured || busy}
+              disabled={!driveConfigured || !driveAccountReady || busy}
             >
               {busy ? (
                 <RefreshCw className="h-5 w-5 animate-spin" />
@@ -451,10 +489,9 @@ export function GoogleDriveBackupCard() {
 
         {settings.enabled && !tokenReady ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Las copias extra en Drive están pausadas porque Google no ha dado
-            un permiso activo en esta sesión. Reconecta Drive para volver a
-            guardar copias. No afecta a tu inicio de sesión ni a la nube de
-            Factu.
+            Las copias extra en Drive están pausadas porque Google no ha dado un
+            permiso activo en esta sesión. Reconecta Drive para volver a guardar
+            copias. No afecta a tu inicio de sesión ni a la nube de Factu.
           </p>
         ) : null}
 

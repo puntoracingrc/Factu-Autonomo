@@ -4,7 +4,9 @@ import { buildAiUsageMeter } from "@/lib/billing/scan-limits";
 import { getExpenseScanQuota } from "@/lib/billing/scan-usage-server";
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

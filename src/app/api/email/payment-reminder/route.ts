@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isEmailConfigured } from "@/lib/email/config";
 import { sendPaymentReminderEmail } from "@/lib/email/send-payment-reminder";
 import type { BusinessProfile, Document } from "@/lib/types";
@@ -6,6 +8,16 @@ import type { BusinessProfile, Document } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
+      { status: 401 },
+    );
+  }
+
   if (!isEmailConfigured()) {
     return NextResponse.json(
       { ok: false, skipped: true, error: "Email no configurado" },

@@ -8,7 +8,9 @@ import { getStripe, scanPackPriceId } from "@/lib/billing/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
-    customer_email: customerId ? undefined : user.email ?? undefined,
+    customer_email: customerId ? undefined : (user.email ?? undefined),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/gastos/nuevo?checkout=scan_pack_success`,
     cancel_url: `${appUrl}/gastos/nuevo?checkout=scan_pack_cancel`,
