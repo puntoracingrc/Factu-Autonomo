@@ -363,6 +363,48 @@ describe("MVP usability polish", () => {
     expect(driveBackupSource).toContain("Confirma tu email para activar Drive");
   });
 
+  it("presenta la demo como sandbox separado y reiniciable", () => {
+    const homePageSource = readFileSync(
+      new URL("../app/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const landingSource = readFileSync(
+      new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
+      "utf8",
+    );
+    const demoBannerSource = readFileSync(
+      new URL("../components/demo/DemoModeBanner.tsx", import.meta.url),
+      "utf8",
+    );
+    const demoPanelSource = readFileSync(
+      new URL("../components/demo/DemoSandboxPanel.tsx", import.meta.url),
+      "utf8",
+    );
+    const demoWorkspaceSource = readFileSync(
+      new URL("../lib/demo-workspace.ts", import.meta.url),
+      "utf8",
+    );
+    const storageSource = readFileSync(
+      new URL("../lib/storage.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(homePageSource).toContain("DemoSandboxPanel");
+    expect(landingSource).toContain("Demo sin registro");
+    expect(demoBannerSource).toContain("Sandbox separado");
+    expect(demoBannerSource).toContain("Reiniciar demo");
+    expect(demoPanelSource).toContain("Sandbox de prueba");
+    expect(demoPanelSource).toContain("Estás viendo una empresa ficticia");
+    expect(demoPanelSource).toContain("Abrir factura pendiente");
+    expect(demoPanelSource).toContain("Ver presupuesto aceptado");
+    expect(demoPanelSource).toContain("Registrar gasto ficticio");
+    expect(demoPanelSource).toContain("createDemoWorkspaceData");
+    expect(demoPanelSource).toContain("resetDemoWorkspaceData");
+    expect(demoPanelSource).toContain("/cuenta?modo=crear#inicio-sesion");
+    expect(demoWorkspaceSource).toContain("DEMO_WORKSPACE_STORAGE_KEY");
+    expect(storageSource).toContain("isDemoWorkspaceMode()");
+  });
+
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),

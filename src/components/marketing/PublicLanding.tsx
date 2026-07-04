@@ -175,7 +175,7 @@ export function PublicLanding() {
               href="/demo"
               className="hidden min-h-10 items-center justify-center rounded-2xl px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 md:inline-flex"
             >
-              Ver demo
+              Demo sin registro
             </Link>
             <Link
               href="/cuenta#inicio-sesion"
@@ -223,7 +223,7 @@ export function PublicLanding() {
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 text-base font-bold text-blue-700 hover:bg-blue-50"
                 >
                   <MonitorPlay className="h-5 w-5" />
-                  Ver demo
+                  Demo sin registro
                 </Link>
                 <Link
                   href="/precios"
@@ -236,7 +236,8 @@ export function PublicLanding() {
               <p className="mt-5 flex max-w-xl items-start gap-2 text-sm font-medium text-slate-600">
                 <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                 El plan gratis empieza con cuenta verificada, sin tarjeta. Las
-                funciones avanzadas de IA y nube tienen límites para evitar abuso.
+                funciones avanzadas de IA y nube tienen límites para evitar
+                abuso.
               </p>
             </div>
           </div>
@@ -372,7 +373,8 @@ export function PublicLanding() {
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
               Sin tarjeta para probar. Si necesitas documentos ilimitados, nube,
-              importación avanzada o IA, puedes pasar a Pro cuando tenga sentido.
+              importación avanzada o IA, puedes pasar a Pro cuando tenga
+              sentido.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -387,7 +389,7 @@ export function PublicLanding() {
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 text-base font-bold text-blue-700 hover:bg-blue-50"
               >
                 <MonitorPlay className="h-5 w-5" />
-                Ver demo
+                Demo sin registro
               </Link>
               <Link
                 href="/ayuda/inicio"
