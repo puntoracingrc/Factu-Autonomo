@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, HardDrive, Loader2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
 import {
   buildDriveBackupSignature,
   cacheDriveAccessToken,
@@ -15,6 +16,7 @@ import {
   saveDriveBackupSettings,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "@/lib/google-drive/backup";
+import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
 type CallbackStatus =
   | { state: "working"; message: string }
@@ -45,9 +47,19 @@ async function exchangeCodeForAccessToken(input: {
   code: string;
   redirectUri: string;
 }): Promise<{ accessToken: string; expiresIn: number }> {
+  const supabase = await getSupabaseClientAsync();
+  const { data } = supabase ? await supabase.auth.getSession() : { data: null };
+  const accessToken = data?.session?.access_token;
+  if (!accessToken) {
+    throw new Error(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+  }
+
   const response = await fetch("/api/google-drive/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify(input),
   });
   const payload = (await response.json()) as TokenExchangeResponse;
@@ -123,7 +135,8 @@ export default function GoogleDriveCallbackPage() {
 
         const currentSettings = loadDriveBackupSettings();
         const signature =
-          buildDriveBackupSignature(data, pending.frequency) || result.exportedAt;
+          buildDriveBackupSignature(data, pending.frequency) ||
+          result.exportedAt;
 
         saveDriveBackupSettings({
           ...currentSettings,
@@ -222,9 +235,7 @@ export default function GoogleDriveCallbackPage() {
         ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <ButtonLink href="/cuenta#drive-backup">
-            Volver a Cuenta
-          </ButtonLink>
+          <ButtonLink href="/cuenta#drive-backup">Volver a Cuenta</ButtonLink>
           {status.state === "error" ? (
             <ButtonLink href="/cuenta#drive-backup" variant="secondary">
               Reintentar desde Cuenta

@@ -45,6 +45,10 @@ import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
+import {
+  EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
+  isUserEmailConfirmed,
+} from "@/lib/auth/email-confirmation";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { loadData } from "@/lib/storage";
 import { pickNewerAppData } from "@/lib/cloud/sync";
@@ -53,28 +57,21 @@ import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
 
 export type SyncStatus =
-  | "disabled"
-  | "offline"
-  | "idle"
-  | "pending"
-  | "syncing"
-  | "synced"
-  | "error";
+  "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
 
 export type SignUpResult =
   | { ok: true; email: string; needsEmailConfirmation: boolean }
   | { ok: false; error: string };
 
 export type LocalDataHandoffStatus =
-  | "none"
-  | "pending"
-  | "kept_local"
-  | "syncing";
+  "none" | "pending" | "kept_local" | "syncing";
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
   authReady: boolean;
   user: User | null;
+  emailConfirmed: boolean;
+  requiresEmailConfirmation: boolean;
   email: string;
   syncStatus: SyncStatus;
   syncMessage: string | null;
@@ -147,15 +144,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [data]);
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
+  const emailConfirmed = isUserEmailConfirmed(user);
+  const requiresEmailConfirmation = Boolean(user && !emailConfirmed);
   const handoffDecision = user ? readHandoffDecision(user.id) : null;
   const hasUndecidedLocalData =
     !demoMode &&
     ready &&
     Boolean(user) &&
+    emailConfirmed &&
     handoffDecision === null &&
     hasWorkspaceContent(data) &&
     !data.meta?.lastSyncedAt;
   const handoffPausesCloud =
+    requiresEmailConfirmation ||
     localDataHandoffStatus === "pending" ||
     localDataHandoffStatus === "kept_local" ||
     handoffDecision === "keep_local" ||
@@ -174,6 +175,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!user || !cloudEnabled) return;
+    if (requiresEmailConfirmation) {
+      setSyncStatus("idle");
+      setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+      return;
+    }
     if (handoffPausesCloud) {
       setSyncStatus("idle");
       setSyncMessage(
@@ -185,10 +191,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
-      setSyncMessage("Sin conexión. Los cambios se subirán cuando vuelva internet.");
+      setSyncMessage(
+        "Sin conexión. Los cambios se subirán cuando vuelva internet.",
+      );
       return;
     }
-    if (hasPendingSyncChanges(data) || hasUnsyncedChanges(data) || isSyncPendingFlag()) {
+    if (
+      hasPendingSyncChanges(data) ||
+      hasUnsyncedChanges(data) ||
+      isSyncPendingFlag()
+    ) {
       setSyncStatus("pending");
       setSyncMessage(
         pendingChangeCount > 0
@@ -203,6 +215,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     data,
     demoMode,
     handoffPausesCloud,
+    requiresEmailConfirmation,
     localDataHandoffStatus,
     pendingChangeCount,
     syncStatus,
@@ -248,6 +261,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       if (!user) return false;
+      if (requiresEmailConfirmation) {
+        setSyncStatus("idle");
+        setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+        return false;
+      }
       if (handoffPausesCloud && !options?.allowLocalDataUpload) {
         setSyncStatus("idle");
         setSyncMessage(
@@ -326,6 +344,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       handoffPausesCloud,
       localDataHandoffStatus,
       replaceData,
+      requiresEmailConfirmation,
       user,
     ],
   );
@@ -338,6 +357,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     ) => {
       if (demoMode) return false;
       if (!user) return false;
+      if (requiresEmailConfirmation) return false;
       if (handoffPausesCloud && !options?.allowLocalDataUpload) return false;
       if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
         clearSyncPending();
@@ -350,146 +370,174 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncing.current = false;
       return ok;
     },
-    [demoMode, handoffPausesCloud, pushToCloud, user],
+    [
+      demoMode,
+      handoffPausesCloud,
+      pushToCloud,
+      requiresEmailConfirmation,
+      user,
+    ],
   );
 
-  const pullFromCloud = useCallback(async (options?: {
-    allowLocalDataUpload?: boolean;
-  }): Promise<boolean> => {
-    if (demoMode) return false;
-    if (!user) return false;
-    if (handoffPausesCloud && !options?.allowLocalDataUpload) {
-      setSyncStatus("idle");
-      setSyncMessage(
-        localDataHandoffStatus === "kept_local"
-          ? "Tus datos siguen solo en este navegador. Puedes guardarlos en tu cuenta desde Cuenta."
-          : "Elige primero qué hacer con los datos locales.",
-      );
-      return false;
-    }
-
-    const cloudAccess = await canUseCloudForUser(user.id);
-    if (!cloudAccess.allowed) {
-      setSyncStatus("idle");
-      setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
-      return false;
-    }
-
-    if (!isBrowserOnline()) {
-      setSyncStatus("offline");
-      setSyncMessage("Sin conexión. Trabajando en local.");
-      return false;
-    }
-
-    let workingData = dataRef.current;
-
-    if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
-      const uploaded = await flushPendingUpload(true, workingData, options);
-      workingData = dataRef.current;
-      if (!uploaded && hasUnsyncedChanges(workingData)) return false;
-    }
-
-    setSyncStatus("syncing");
-    try {
-      const since = workingData.meta?.lastSyncedAt;
-      let remoteChanges = await pullSyncChanges(user.id, since);
-
-      if (remoteChanges.length === 0) {
-        const entityCount = await countSyncEntities(user.id);
-        if (entityCount === 0) {
-          const legacy = await fetchLegacyCloudBackup(user.id);
-          if (legacy) {
-            const picked = pickNewerAppData(
-              workingData,
-              legacy.data,
-              legacy.updated_at,
-            );
-            workingData = picked.data;
-            dataRef.current = workingData;
-            skipPush.current = true;
-            replaceData(workingData, { fromRemote: true });
-            skipPush.current = false;
-            await migrateLegacyBackupToEntities(user.id, workingData);
-            remoteChanges = appDataToSyncChanges(workingData);
-            setSyncMessage("Copia antigua migrada a sincronización por cambios");
-          }
-        }
+  const pullFromCloud = useCallback(
+    async (options?: { allowLocalDataUpload?: boolean }): Promise<boolean> => {
+      if (demoMode) return false;
+      if (!user) return false;
+      if (requiresEmailConfirmation) {
+        setSyncStatus("idle");
+        setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+        return false;
+      }
+      if (handoffPausesCloud && !options?.allowLocalDataUpload) {
+        setSyncStatus("idle");
+        setSyncMessage(
+          localDataHandoffStatus === "kept_local"
+            ? "Tus datos siguen solo en este navegador. Puedes guardarlos en tu cuenta desde Cuenta."
+            : "Elige primero qué hacer con los datos locales.",
+        );
+        return false;
       }
 
-      if (remoteChanges.length > 0) {
-        const { data: merged, applied } = mergeRemoteOntoLocal(
-          workingData,
-          remoteChanges,
-        );
-        workingData = merged;
-        dataRef.current = workingData;
-        skipPush.current = true;
-        replaceData(workingData, { fromRemote: true });
-        skipPush.current = false;
-        setSyncStatus("synced");
-        setSyncMessage(
-          applied > 0
-            ? `${applied} cambio(s) recibido(s) de la nube`
-            : "Ya estabas al día",
-        );
-      } else if (!since) {
-        const initial = appDataToSyncChanges(workingData);
-        if (initial.length > 0) {
-          const syncedAt = new Date().toISOString();
-          await pushSyncChanges(user.id, initial);
-          workingData = markChangesSynced(workingData, initial, syncedAt);
+      const cloudAccess = await canUseCloudForUser(user.id);
+      if (!cloudAccess.allowed) {
+        setSyncStatus("idle");
+        setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
+        return false;
+      }
+
+      if (!isBrowserOnline()) {
+        setSyncStatus("offline");
+        setSyncMessage("Sin conexión. Trabajando en local.");
+        return false;
+      }
+
+      let workingData = dataRef.current;
+
+      if (
+        hasPendingSyncChanges(workingData) ||
+        hasUnsyncedChanges(workingData) ||
+        isSyncPendingFlag()
+      ) {
+        const uploaded = await flushPendingUpload(true, workingData, options);
+        workingData = dataRef.current;
+        if (!uploaded && hasUnsyncedChanges(workingData)) return false;
+      }
+
+      setSyncStatus("syncing");
+      try {
+        const since = workingData.meta?.lastSyncedAt;
+        let remoteChanges = await pullSyncChanges(user.id, since);
+
+        if (remoteChanges.length === 0) {
+          const entityCount = await countSyncEntities(user.id);
+          if (entityCount === 0) {
+            const legacy = await fetchLegacyCloudBackup(user.id);
+            if (legacy) {
+              const picked = pickNewerAppData(
+                workingData,
+                legacy.data,
+                legacy.updated_at,
+              );
+              workingData = picked.data;
+              dataRef.current = workingData;
+              skipPush.current = true;
+              replaceData(workingData, { fromRemote: true });
+              skipPush.current = false;
+              await migrateLegacyBackupToEntities(user.id, workingData);
+              remoteChanges = appDataToSyncChanges(workingData);
+              setSyncMessage(
+                "Copia antigua migrada a sincronización por cambios",
+              );
+            }
+          }
+        }
+
+        if (remoteChanges.length > 0) {
+          const { data: merged, applied } = mergeRemoteOntoLocal(
+            workingData,
+            remoteChanges,
+          );
+          workingData = merged;
           dataRef.current = workingData;
           skipPush.current = true;
           replaceData(workingData, { fromRemote: true });
           skipPush.current = false;
+          setSyncStatus("synced");
+          setSyncMessage(
+            applied > 0
+              ? `${applied} cambio(s) recibido(s) de la nube`
+              : "Ya estabas al día",
+          );
+        } else if (!since) {
+          const initial = appDataToSyncChanges(workingData);
+          if (initial.length > 0) {
+            const syncedAt = new Date().toISOString();
+            await pushSyncChanges(user.id, initial);
+            workingData = markChangesSynced(workingData, initial, syncedAt);
+            dataRef.current = workingData;
+            skipPush.current = true;
+            replaceData(workingData, { fromRemote: true });
+            skipPush.current = false;
+          }
+          setSyncStatus("synced");
+          setSyncMessage("Copia inicial creada en la nube");
+        } else {
+          setSyncStatus("synced");
+          setSyncMessage("Todo sincronizado");
         }
-        setSyncStatus("synced");
-        setSyncMessage("Copia inicial creada en la nube");
-      } else {
-        setSyncStatus("synced");
-        setSyncMessage("Todo sincronizado");
-      }
 
-      if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
-        await flushPendingUpload(true, workingData, options);
-        workingData = dataRef.current;
-      }
+        if (
+          hasPendingSyncChanges(workingData) ||
+          hasUnsyncedChanges(workingData) ||
+          isSyncPendingFlag()
+        ) {
+          await flushPendingUpload(true, workingData, options);
+          workingData = dataRef.current;
+        }
 
-      if (!hasPendingSyncChanges(workingData) && !hasUnsyncedChanges(workingData)) {
-        finalizeSyncState(workingData);
-      }
-      return true;
-    } catch (error) {
-      void reportAppError({
-        severity: "error",
-        area: "sync",
-        code: "pull_failed",
-        message:
+        if (
+          !hasPendingSyncChanges(workingData) &&
+          !hasUnsyncedChanges(workingData)
+        ) {
+          finalizeSyncState(workingData);
+        }
+        return true;
+      } catch (error) {
+        void reportAppError({
+          severity: "error",
+          area: "sync",
+          code: "pull_failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Error al descargar de la nube",
+          metadata: {
+            hasPendingChanges:
+              hasPendingSyncChanges(dataRef.current) ||
+              hasUnsyncedChanges(dataRef.current),
+          },
+        });
+        setSyncStatus("error");
+        setSyncMessage(
           error instanceof Error
             ? error.message
             : "Error al descargar de la nube",
-        metadata: {
-          hasPendingChanges:
-            hasPendingSyncChanges(dataRef.current) ||
-            hasUnsyncedChanges(dataRef.current),
-        },
-      });
-      setSyncStatus("error");
-      setSyncMessage(
-        error instanceof Error ? error.message : "Error al descargar de la nube",
-      );
-      skipPush.current = false;
-      return false;
-    }
-  }, [
-    demoMode,
-    finalizeSyncState,
-    flushPendingUpload,
-    handoffPausesCloud,
-    localDataHandoffStatus,
-    replaceData,
-    user,
-  ]);
+        );
+        skipPush.current = false;
+        return false;
+      }
+    },
+    [
+      demoMode,
+      finalizeSyncState,
+      flushPendingUpload,
+      handoffPausesCloud,
+      localDataHandoffStatus,
+      replaceData,
+      requiresEmailConfirmation,
+      user,
+    ],
+  );
 
   const pullFromCloudRef = useRef(pullFromCloud);
   pullFromCloudRef.current = pullFromCloud;
@@ -501,6 +549,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const saveLocalDataToAccount = useCallback(async () => {
     if (!user) return;
+    if (requiresEmailConfirmation) {
+      setSyncStatus("idle");
+      setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+      return;
+    }
     const changes = appDataToSyncChanges(dataRef.current);
     if (changes.length === 0) {
       rememberHandoffDecision(user.id, "synced");
@@ -533,7 +586,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLocalDataHandoffStatus("pending");
     }
-  }, [replaceData, user]);
+  }, [replaceData, requiresEmailConfirmation, user]);
 
   const keepLocalDataOnDevice = useCallback(() => {
     if (!user) return;
@@ -550,6 +603,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!user) return;
+    if (requiresEmailConfirmation) {
+      setSyncStatus("idle");
+      setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+      return;
+    }
 
     if (syncing.current) {
       setSyncMessage("Ya hay una sincronización en marcha.");
@@ -629,7 +687,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       syncing.current = false;
     }
-  }, [demoMode, replaceLocalDataFromCloud, user]);
+  }, [demoMode, replaceLocalDataFromCloud, requiresEmailConfirmation, user]);
 
   const schedulePush = useCallback(() => {
     if (demoMode) return;
@@ -722,6 +780,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!user) setLocalDataHandoffStatus("none");
       return;
     }
+    if (requiresEmailConfirmation) {
+      setLocalDataHandoffStatus("none");
+      setSyncStatus("idle");
+      setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+      return;
+    }
     if (localDataHandoffStatus === "syncing") return;
 
     const decision = readHandoffDecision(user.id);
@@ -733,20 +797,32 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setLocalDataHandoffStatus("kept_local");
       return;
     }
-    if (hasWorkspaceContent(dataRef.current) && !dataRef.current.meta?.lastSyncedAt) {
+    if (
+      hasWorkspaceContent(dataRef.current) &&
+      !dataRef.current.meta?.lastSyncedAt
+    ) {
       setLocalDataHandoffStatus("pending");
       setSyncStatus("idle");
       setSyncMessage("Elige qué hacer con los datos de este navegador.");
       return;
     }
     setLocalDataHandoffStatus("none");
-  }, [data, demoMode, localDataHandoffStatus, ready, user]);
+  }, [
+    data,
+    demoMode,
+    localDataHandoffStatus,
+    ready,
+    requiresEmailConfirmation,
+    user,
+  ]);
 
   useEffect(() => {
     if (!demoMode || !ready || !user) return;
     setDemoWorkspaceMode(false);
     replaceLocalDataFromCloud(loadData());
-    setSyncMessage("Demo cerrada al iniciar sesión. Ya estás en tu espacio real.");
+    setSyncMessage(
+      "Demo cerrada al iniciar sesión. Ya estás en tu espacio real.",
+    );
   }, [demoMode, ready, replaceLocalDataFromCloud, user]);
 
   useEffect(() => {
@@ -780,7 +856,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
 
     document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisible);
   }, [
     cloudEnabled,
     data,
@@ -804,7 +881,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [cloudEnabled, demoMode, handoffPausesCloud, pullFromCloud, user]);
 
   useEffect(() => {
-    if (demoMode || handoffPausesCloud || !user || !pendingUpload || !online) return;
+    if (demoMode || handoffPausesCloud || !user || !pendingUpload || !online)
+      return;
 
     if (retryTimer.current) clearInterval(retryTimer.current);
     retryTimer.current = setInterval(() => {
@@ -814,7 +892,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (retryTimer.current) clearInterval(retryTimer.current);
     };
-  }, [demoMode, flushPendingUpload, handoffPausesCloud, online, pendingUpload, user]);
+  }, [
+    demoMode,
+    flushPendingUpload,
+    handoffPausesCloud,
+    online,
+    pendingUpload,
+    user,
+  ]);
 
   useEffect(() => {
     updatePendingStatus();
@@ -824,7 +909,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     async (password: string): Promise<SignUpResult> => {
       const supabase = await getSupabaseClientAsync();
       if (!supabase) {
-        return { ok: false, error: "La nube no está configurada en este servidor" };
+        return {
+          ok: false,
+          error: "La nube no está configurada en este servidor",
+        };
       }
       if (!email.trim()) {
         return { ok: false, error: "Introduce tu email" };
@@ -877,7 +965,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!supabase) return "La nube no está configurada en este servidor";
       if (!email.trim()) return "Introduce tu email";
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) return error.message;
 
       pulledForUser.current = null;
@@ -970,11 +1061,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       skipPush.current = false;
       markSyncPending();
 
-      if (user) await pushToCloud(withQueue, false);
+      if (user && emailConfirmed) await pushToCloud(withQueue, false);
       setSyncMessage("Copia importada correctamente");
       return null;
     },
-    [demoMode, pushToCloud, replaceData, user],
+    [demoMode, emailConfirmed, pushToCloud, replaceData, user],
   );
 
   const value = useMemo(
@@ -982,6 +1073,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       cloudEnabled,
       authReady,
       user,
+      emailConfirmed,
+      requiresEmailConfirmation,
       email,
       syncStatus,
       syncMessage,
@@ -1004,6 +1097,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [
       cloudEnabled,
       user,
+      emailConfirmed,
+      requiresEmailConfirmation,
       email,
       syncStatus,
       syncMessage,

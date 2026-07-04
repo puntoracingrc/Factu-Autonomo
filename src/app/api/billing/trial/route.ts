@@ -3,7 +3,9 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { ensureTrialSubscriptionServer } from "@/lib/billing/server-repository";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

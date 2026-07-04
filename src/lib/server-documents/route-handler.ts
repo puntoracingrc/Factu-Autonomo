@@ -215,7 +215,10 @@ export async function handleServerDocumentIngestRoute(
   }
   const action = getSafeServerDocumentAction(parsed.body);
 
-  const authenticate = dependencies.authenticate ?? getUserFromBearer;
+  const authenticate =
+    dependencies.authenticate ??
+    ((authorization: string | null) =>
+      getUserFromBearer(authorization, { requireEmailConfirmed: true }));
   const user = await authenticate(request.headers.get("authorization"));
   if (!user?.id) {
     const response = safeRejectedResponse("unauthorized", "No autorizado.");

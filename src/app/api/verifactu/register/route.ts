@@ -5,14 +5,21 @@ import {
   getVerifactuEnvironment,
   normalizeVerifactuSettings,
 } from "@/lib/verifactu/eligibility";
-import { registerDocumentVerifactu, resolveChainState } from "@/lib/verifactu/register";
+import {
+  registerDocumentVerifactu,
+  resolveChainState,
+} from "@/lib/verifactu/register";
 import {
   findVerifactuRecordByDocument,
   loadVerifactuChain,
   persistVerifactuRecord,
   upsertVerifactuChain,
 } from "@/lib/verifactu/server-db";
-import type { BusinessProfile, Document, VerifactuChainState } from "@/lib/types";
+import type {
+  BusinessProfile,
+  Document,
+  VerifactuChainState,
+} from "@/lib/types";
 
 interface RegisterBody {
   document: Document;
@@ -21,16 +28,24 @@ interface RegisterBody {
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
-    return NextResponse.json({ error: "Inicia sesión para registrar Veri*Factu" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Inicia sesión para registrar Veri*Factu" },
+      { status: 401 },
+    );
   }
 
   let body: RegisterBody;
   try {
     body = (await request.json()) as RegisterBody;
   } catch {
-    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Cuerpo JSON inválido" },
+      { status: 400 },
+    );
   }
 
   const profile: BusinessProfile = {
@@ -63,7 +78,11 @@ export async function POST(request: Request) {
 
   const doc = body.document;
 
-  if (doc.type !== "factura" || doc.status === "borrador" || !profile.nif?.trim()) {
+  if (
+    doc.type !== "factura" ||
+    doc.status === "borrador" ||
+    !profile.nif?.trim()
+  ) {
     return NextResponse.json(
       { error: "Este documento no requiere registro Veri*Factu" },
       { status: 422 },
@@ -98,7 +117,10 @@ export async function POST(request: Request) {
   });
 
   if (!result) {
-    return NextResponse.json({ error: "No se pudo generar el registro" }, { status: 422 });
+    return NextResponse.json(
+      { error: "No se pudo generar el registro" },
+      { status: 422 },
+    );
   }
 
   const aeat = await submitRegistroToAeat({

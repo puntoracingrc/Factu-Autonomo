@@ -47,12 +47,7 @@ type AuthMode = "signin" | "signup";
 
 function GoogleLogoIcon() {
   return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      focusable="false"
-    >
+    <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" focusable="false">
       <path
         fill="#4285F4"
         d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.46-1.13 2.7-2.41 3.54v2.93h3.78c2.21-2.04 3.65-5.04 3.65-8.71Z"
@@ -77,6 +72,7 @@ export function CloudAccountCard() {
   const {
     cloudEnabled,
     user,
+    requiresEmailConfirmation,
     email,
     setEmail,
     signUp,
@@ -261,7 +257,10 @@ export function CloudAccountCard() {
           <Download className="h-4 w-4" />
           Exportar copia
         </Button>
-        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+        <Button
+          variant="secondary"
+          onClick={() => fileInputRef.current?.click()}
+        >
           <Upload className="h-4 w-4" />
           Importar copia
         </Button>
@@ -293,7 +292,27 @@ export function CloudAccountCard() {
           <p className="text-sm text-slate-700">
             Sesión: <strong>{user.email}</strong>
           </p>
-          {localDataHandoffStatus !== "none" ? (
+          {requiresEmailConfirmation ? (
+            <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <div>
+                <p className="font-black">Email pendiente de confirmar</p>
+                <p className="mt-1 leading-6">
+                  Confirma tu email para activar la nube, Drive, envíos reales y
+                  acciones de cuenta. Puedes seguir trabajando en este navegador
+                  mientras tanto.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => void handleResendConfirmation()}
+                disabled={busy || !email.trim()}
+              >
+                <Mail className="h-4 w-4" />
+                Reenviar email de confirmación
+              </Button>
+            </div>
+          ) : null}
+          {!requiresEmailConfirmation && localDataHandoffStatus !== "none" ? (
             <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
               <div>
                 <p className="text-sm font-black text-slate-900">
@@ -310,13 +329,21 @@ export function CloudAccountCard() {
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   onClick={() => void handleSaveLocalDataToAccount()}
-                  disabled={busy || localDataHandoffStatus === "syncing"}
+                  disabled={
+                    busy ||
+                    requiresEmailConfirmation ||
+                    localDataHandoffStatus === "syncing"
+                  }
                 >
                   {localDataHandoffStatus === "syncing"
                     ? "Guardando…"
                     : "Guardar estos datos en mi cuenta"}
                 </Button>
-                <Button variant="secondary" onClick={exportBackup} disabled={busy}>
+                <Button
+                  variant="secondary"
+                  onClick={exportBackup}
+                  disabled={busy}
+                >
                   <Download className="h-4 w-4" />
                   Descargar copia antes de continuar
                 </Button>
@@ -360,7 +387,11 @@ export function CloudAccountCard() {
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" onClick={() => void syncNow()} disabled={busy}>
+            <Button
+              variant="secondary"
+              onClick={() => void syncNow()}
+              disabled={busy || requiresEmailConfirmation}
+            >
               <RefreshCw className="h-4 w-4" />
               Sincronizar ahora
             </Button>
@@ -374,13 +405,14 @@ export function CloudAccountCard() {
             </summary>
             <div className="mt-3 space-y-3">
               <p>
-                Si este dispositivo no muestra los datos que sí aparecen en otro,
-                puedes repararlo descargando otra vez la copia completa de la nube.
+                Si este dispositivo no muestra los datos que sí aparecen en
+                otro, puedes repararlo descargando otra vez la copia completa de
+                la nube.
               </p>
               <Button
                 variant="secondary"
                 onClick={() => void handleForceDownload()}
-                disabled={busy}
+                disabled={busy || requiresEmailConfirmation}
               >
                 <Download className="h-4 w-4" />
                 Reparar con la copia de la nube
@@ -395,8 +427,8 @@ export function CloudAccountCard() {
               <>
                 Hemos encontrado datos en este navegador. Crear cuenta o iniciar
                 sesión <strong>no los borra</strong>. Si tu plan incluye nube,
-                te preguntaremos si quieres guardarlos en tu cuenta o seguir solo
-                en este navegador.
+                te preguntaremos si quieres guardarlos en tu cuenta o seguir
+                solo en este navegador.
               </>
             ) : (
               <>
@@ -526,10 +558,13 @@ export function CloudAccountCard() {
               >
                 <Input
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    setReferralCode(e.target.value.toUpperCase())
+                  }
                   placeholder="Ej: ABC12XY9"
                   onBlur={() => {
-                    if (referralCode.trim()) storePendingReferralCode(referralCode);
+                    if (referralCode.trim())
+                      storePendingReferralCode(referralCode);
                   }}
                 />
               </Field>
@@ -544,7 +579,10 @@ export function CloudAccountCard() {
                 />
                 <span>
                   Al crear cuenta acepto los{" "}
-                  <Link href="/legal/terminos" className="font-semibold underline">
+                  <Link
+                    href="/legal/terminos"
+                    className="font-semibold underline"
+                  >
                     términos de uso
                   </Link>{" "}
                   y la{" "}

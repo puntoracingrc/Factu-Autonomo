@@ -1,10 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { POST } from "./route";
 
-function makeRequest(body: unknown): Request {
+vi.mock("@/lib/billing/server-auth", () => ({
+  getUserFromBearer: vi.fn(),
+}));
+
+function makeRequest(
+  body: unknown,
+  authorization = "Bearer test-token",
+): Request {
   return new Request("http://localhost:3000/api/google-drive/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -19,10 +31,15 @@ describe("Google Drive token route", () => {
       NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID: "google-client-id",
       GOOGLE_DRIVE_CLIENT_SECRET: "google-client-secret",
     };
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-1",
+      email: "ana@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -64,6 +81,9 @@ describe("Google Drive token route", () => {
     expect(params.get("code")).toBe("oauth-code");
     expect(params.get("client_id")).toBe("google-client-id");
     expect(params.get("grant_type")).toBe("authorization_code");
+    expect(getUserFromBearer).toHaveBeenCalledWith("Bearer test-token", {
+      requireEmailConfirmed: true,
+    });
   });
 
   it("acepta el callback local permitido para pruebas en navegador", async () => {
@@ -106,6 +126,28 @@ describe("Google Drive token route", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "El retorno de Google Drive no es válido.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rechaza peticiones sin cuenta confirmada", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      makeRequest(
+        {
+          code: "oauth-code",
+          redirectUri: "https://facturacion-autonomos.app/drive/callback",
+        },
+        "",
+      ),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });

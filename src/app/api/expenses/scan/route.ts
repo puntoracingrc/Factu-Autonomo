@@ -18,9 +18,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ quota });
   }
 
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
-    return NextResponse.json({ error: "Inicia sesión para escanear gastos" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Inicia sesión para escanear gastos" },
+      { status: 401 },
+    );
   }
 
   const quota = await getExpenseScanQuota(user.id);
@@ -28,11 +33,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
 
   if (isBillingEnforced() && !user) {
     return NextResponse.json(
-      { error: "Crea una cuenta e inicia sesión para escanear facturas de gasto." },
+      {
+        error:
+          "Crea una cuenta e inicia sesión para escanear facturas de gasto.",
+      },
       { status: 401 },
     );
   }
@@ -40,7 +50,10 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Falta el archivo de la factura." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Falta el archivo de la factura." },
+      { status: 400 },
+    );
   }
 
   const fileError = validateScanFile(file);
@@ -63,7 +76,10 @@ export async function POST(request: Request) {
     resolveScanMimeType(file),
   );
   if (result.error) {
-    return NextResponse.json({ error: result.error, quota: gate.quota }, { status: 422 });
+    return NextResponse.json(
+      { error: result.error, quota: gate.quota },
+      { status: 422 },
+    );
   }
 
   return NextResponse.json({

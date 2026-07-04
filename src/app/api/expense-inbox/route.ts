@@ -23,7 +23,9 @@ function serverError(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json(
       { error: "Inicia sesión para usar el buzón de gastos." },
@@ -66,7 +68,9 @@ export async function GET(request: Request) {
   }
 }
 export async function PATCH(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json(
       { error: "Inicia sesión para actualizar el buzón de gastos." },
@@ -94,7 +98,10 @@ export async function PATCH(request: Request) {
     const id = typeof body.id === "string" ? body.id : "";
     const status = body.status === "ignored" ? "ignored" : "processed";
     if (!id) {
-      return NextResponse.json({ error: "Falta el identificador." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Falta el identificador." },
+        { status: 400 },
+      );
     }
 
     await updateExpenseInboxItemStatus({

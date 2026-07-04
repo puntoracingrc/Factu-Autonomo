@@ -9,6 +9,7 @@ import {
   hasClientEmail,
   hasClientPhone,
 } from "./share";
+import { getSupabaseClientAsync } from "./supabase/client";
 import type { BusinessProfile, Document } from "./types";
 
 export type PaymentReminderChannel = "email" | "whatsapp";
@@ -24,6 +25,14 @@ export interface SendPaymentReminderResult {
   ok: boolean;
   via?: "api" | "mailto" | "whatsapp" | "native";
   error?: string;
+}
+
+async function getCurrentAccessToken(): Promise<string | null> {
+  const supabase = await getSupabaseClientAsync();
+  if (!supabase) return null;
+
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
 function validatePaymentReminderMessage(
@@ -59,7 +68,9 @@ async function shareReminderPdfNative(
   if (typeof navigator === "undefined" || !navigator.share) return false;
 
   const blob = await buildDocumentPdfBlob(doc, profile, pdfOptions);
-  const file = new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
+  const file = new File([blob], `${doc.number}.pdf`, {
+    type: "application/pdf",
+  });
   const payload = { files: [file], title: doc.number, text };
 
   if (navigator.canShare && !navigator.canShare(payload)) return false;
@@ -68,7 +79,8 @@ async function shareReminderPdfNative(
     await navigator.share(payload);
     return true;
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return true;
+    if (error instanceof DOMException && error.name === "AbortError")
+      return true;
     return false;
   }
 }
@@ -89,9 +101,13 @@ export async function sendPaymentReminderByEmail(
   const message = input.message.trim();
 
   try {
+    const token = await getCurrentAccessToken();
     const response = await fetch("/api/email/payment-reminder", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         doc: input.doc,
         profile: input.profile,
@@ -132,7 +148,10 @@ export async function sendPaymentReminderByEmail(
   try {
     await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
   } catch {
-    return { ok: false, error: "No se pudo descargar el PDF. Inténtalo de nuevo." };
+    return {
+      ok: false,
+      error: "No se pudo descargar el PDF. Inténtalo de nuevo.",
+    };
   }
 
   window.location.href = buildMailtoUrl(email, subject, mailtoBody);
@@ -173,7 +192,10 @@ export async function sendPaymentReminderByWhatsApp(
     try {
       await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
     } catch {
-      return { ok: false, error: "No se pudo descargar el PDF. Inténtalo de nuevo." };
+      return {
+        ok: false,
+        error: "No se pudo descargar el PDF. Inténtalo de nuevo.",
+      };
     }
   }
 
@@ -199,7 +221,6 @@ export function canSendPaymentReminder(
 
 export function canShowPaymentReminder(doc: Document): boolean {
   return (
-    isPendingInvoicePayment(doc) &&
-    (hasClientEmail(doc) || hasClientPhone(doc))
+    isPendingInvoicePayment(doc) && (hasClientEmail(doc) || hasClientPhone(doc))
   );
 }

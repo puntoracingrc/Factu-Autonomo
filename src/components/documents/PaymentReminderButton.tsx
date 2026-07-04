@@ -37,7 +37,7 @@ export function PaymentReminderButton({
 }: PaymentReminderButtonProps) {
   const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
-  const { user } = useCloudSync();
+  const { user, emailConfirmed } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<PaymentReminderChannel | null>(null);
@@ -59,12 +59,20 @@ export function PaymentReminderButton({
 
   const canEmail = canSendPaymentReminder(contactDoc, "email");
   const canWhatsApp = canSendPaymentReminder(contactDoc, "whatsapp");
+  const accountCanSend = Boolean(user && emailConfirmed);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
     if (!user) {
       showFactuToast(
         "Inicia sesión para enviar recordatorios reales a clientes.",
+        5000,
+      );
+      return;
+    }
+    if (!emailConfirmed) {
+      showFactuToast(
+        "Confirma tu email para enviar recordatorios reales a clientes.",
         5000,
       );
       return;
@@ -90,6 +98,12 @@ export function PaymentReminderButton({
   async function handleSend(channel: PaymentReminderChannel) {
     if (!user) {
       setError("Inicia sesión para enviar recordatorios reales a clientes.");
+      return;
+    }
+    if (!emailConfirmed) {
+      setError(
+        "Confirma tu email para enviar recordatorios reales a clientes.",
+      );
       return;
     }
     setBusy(channel);
@@ -141,14 +155,16 @@ export function PaymentReminderButton({
       <IconActionButton
         label={PAYMENT_REMINDER_COPY.triggerLabel}
         tooltip={
-          user
+          accountCanSend
             ? PAYMENT_REMINDER_COPY.triggerTooltip
-            : "Inicia sesión para enviar recordatorios"
+            : user
+              ? "Confirma tu email para enviar recordatorios"
+              : "Inicia sesión para enviar recordatorios"
         }
         onClick={handleOpen}
-        disabled={!user}
+        disabled={!accountCanSend}
         className={
-          user
+          accountCanSend
             ? "bg-amber-50 text-amber-800 hover:bg-amber-100"
             : "cursor-not-allowed bg-slate-100 text-slate-300"
         }
@@ -229,7 +245,11 @@ export function PaymentReminderButton({
 
             <div className="flex flex-col gap-2 border-t border-slate-100 p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <Button variant="secondary" onClick={handleClose} disabled={busy !== null}>
+                <Button
+                  variant="secondary"
+                  onClick={handleClose}
+                  disabled={busy !== null}
+                >
                   Cancelar
                 </Button>
                 {canEmail && (
