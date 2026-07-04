@@ -9,8 +9,10 @@ import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { useAppStore } from "@/context/AppStore";
+import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
+import { hasClientEmail, hasClientPhone } from "@/lib/share";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -31,7 +33,9 @@ export function DocumentReadOnlyActions({
   listHref,
 }: DocumentReadOnlyActionsProps) {
   const { data } = useAppStore();
-  const missingContact = !doc.client.email && !doc.client.phone;
+  const contactDoc = documentWithCurrentCustomerContact(doc, data.customers);
+  const missingContact =
+    !hasClientEmail(contactDoc) && !hasClientPhone(contactDoc);
   const typeLabel = TYPE_LABELS[doc.type];
   const linkedInvoice =
     doc.type === "presupuesto"
@@ -64,15 +68,15 @@ export function DocumentReadOnlyActions({
         {(doc.type === "factura" || doc.type === "recibo") && (
           <MarkAsPaidButton doc={doc} />
         )}
-        {doc.type === "factura" && canShowPaymentReminder(doc) && (
+        {doc.type === "factura" && canShowPaymentReminder(contactDoc) && (
           <PaymentReminderButton
-            doc={doc}
+            doc={contactDoc}
             profile={profile}
             variant="button"
           />
         )}
         <DocumentLinkManagerButton doc={doc} />
-        <DocumentPdfShareActions doc={doc} profile={profile} />
+        <DocumentPdfShareActions doc={contactDoc} profile={profile} />
       </div>
 
       {missingContact && (

@@ -23,6 +23,7 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
+import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import {
   filterDocumentsByQuery,
   isDocumentEditable,
@@ -56,6 +57,7 @@ import {
   documentStatusHint,
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
+import { hasClientEmail, hasClientPhone } from "@/lib/share";
 import type { Document, DocumentType } from "@/lib/types";
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
@@ -362,7 +364,12 @@ export function DocumentList({
               type === "presupuesto"
                 ? findInvoiceCreatedFromQuote(data.documents, doc.id)
                 : undefined;
-            const missingShareContact = !doc.client.email && !doc.client.phone;
+            const contactDoc = documentWithCurrentCustomerContact(
+              doc,
+              data.customers,
+            );
+            const missingShareContact =
+              !hasClientEmail(contactDoc) && !hasClientPhone(contactDoc);
             const displayNumber = isDraftInvoiceNumber(doc)
               ? "Borrador de factura"
               : doc.number;
@@ -463,11 +470,14 @@ export function DocumentList({
                       <MarkAsPaidButton doc={doc} />
                     )}
                     {type === "factura" && (
-                      <PaymentReminderButton doc={doc} profile={data.profile} />
+                      <PaymentReminderButton
+                        doc={contactDoc}
+                        profile={data.profile}
+                      />
                     )}
                     <DocumentLinkManagerButton doc={doc} />
                     <DocumentPdfShareActions
-                      doc={doc}
+                      doc={contactDoc}
                       profile={data.profile}
                       showPreview={editable}
                     />

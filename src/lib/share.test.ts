@@ -5,6 +5,7 @@ import {
   buildMailtoUrl,
   buildShareMessage,
   buildWhatsAppUrl,
+  greetingForDate,
   hasClientEmail,
   hasClientPhone,
   normalizePhoneForWhatsApp,
@@ -110,10 +111,14 @@ describe("buildShareMessage", () => {
     const message = buildShareMessage(
       { ...sampleDoc, status: "enviado" },
       profile,
+      new Date("2026-06-24T09:00:00"),
     );
+    expect(message).toContain("Buenos días, Juan");
     expect(message).toContain("F-2025-001");
     expect(message).toContain("la factura");
     expect(message).toContain("Mi Negocio");
+    expect(message).toContain("NIF: 12345678Z");
+    expect(message).toContain("Tel.: 600000000");
     expect(message).toContain("IBAN:");
   });
 
@@ -124,7 +129,7 @@ describe("buildShareMessage", () => {
     );
 
     expect(message).toContain("Marca Visible");
-    expect(message).not.toContain("\nMi Negocio");
+    expect(message).toContain("\nMi Negocio");
   });
 
   it("no incluye IBAN si la factura ya está cobrada", () => {
@@ -191,6 +196,14 @@ describe("buildShareMessage", () => {
     expect(message).not.toContain("F-2099-999");
     expect(message).not.toContain("Negocio cambiado");
     expect(message).not.toContain("Marca cambiada");
+  });
+});
+
+describe("greetingForDate", () => {
+  it("saluda según la franja horaria", () => {
+    expect(greetingForDate(new Date("2026-06-24T09:00:00"))).toBe("Buenos días");
+    expect(greetingForDate(new Date("2026-06-24T17:00:00"))).toBe("Buenas tardes");
+    expect(greetingForDate(new Date("2026-06-24T22:00:00"))).toBe("Buenas noches");
   });
 });
 

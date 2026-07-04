@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { Bell, Mail, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
+import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { Field, Textarea } from "@/components/ui/Field";
+import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
@@ -31,23 +33,28 @@ export function PaymentReminderButton({
   profile,
   variant = "icon",
 }: PaymentReminderButtonProps) {
+  const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<PaymentReminderChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const contactDoc = useMemo(
+    () => documentWithCurrentCustomerContact(doc, data.customers),
+    [data.customers, doc],
+  );
 
   const defaultMessage = useMemo(
-    () => buildDefaultPaymentReminderMessage(doc, profile),
-    [doc, profile],
+    () => buildDefaultPaymentReminderMessage(contactDoc, profile),
+    [contactDoc, profile],
   );
   const [message, setMessage] = useState(defaultMessage);
 
-  if (!canShowPaymentReminder(doc)) {
+  if (!canShowPaymentReminder(contactDoc)) {
     return null;
   }
 
-  const canEmail = canSendPaymentReminder(doc, "email");
-  const canWhatsApp = canSendPaymentReminder(doc, "whatsapp");
+  const canEmail = canSendPaymentReminder(contactDoc, "email");
+  const canWhatsApp = canSendPaymentReminder(contactDoc, "whatsapp");
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
@@ -66,7 +73,7 @@ export function PaymentReminderButton({
     setBusy(channel);
     setError(null);
 
-    const input = { doc, profile, message, pdfOptions };
+    const input = { doc: contactDoc, profile, message, pdfOptions };
     const result =
       channel === "email"
         ? await sendPaymentReminderByEmail(input)
@@ -82,7 +89,10 @@ export function PaymentReminderButton({
     markFactuFeatureUsed("payment_reminder");
 
     if (channel === "email" && result.via === "api") {
-      showFactuToast(`Recordatorio enviado por email a ${doc.client.email}`, 4500);
+      showFactuToast(
+        `Recordatorio enviado por email a ${contactDoc.client.email}`,
+        4500,
+      );
       setOpen(false);
       return;
     }
@@ -136,13 +146,17 @@ export function PaymentReminderButton({
                   {PAYMENT_REMINDER_COPY.dialogTitle}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {doc.number} · {doc.client.name}
+                  {contactDoc.number} · {contactDoc.client.name}
                 </p>
-                {hasClientEmail(doc) && (
-                  <p className="text-sm text-slate-500">{doc.client.email}</p>
+                {hasClientEmail(contactDoc) && (
+                  <p className="text-sm text-slate-500">
+                    {contactDoc.client.email}
+                  </p>
                 )}
-                {hasClientPhone(doc) && (
-                  <p className="text-sm text-slate-500">{doc.client.phone}</p>
+                {hasClientPhone(contactDoc) && (
+                  <p className="text-sm text-slate-500">
+                    {contactDoc.client.phone}
+                  </p>
                 )}
               </div>
               <button
