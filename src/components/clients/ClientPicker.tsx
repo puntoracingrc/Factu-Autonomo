@@ -41,6 +41,7 @@ interface ClientPickerProps {
   onSelectCustomer: (customer: Customer) => void;
   onClearSelection: () => void;
   onChange: (field: keyof ClientFormValues, value: string) => void;
+  requireInvoiceFields?: boolean;
 }
 
 export function ClientPicker({
@@ -49,6 +50,7 @@ export function ClientPicker({
   onSelectCustomer,
   onClearSelection,
   onChange,
+  requireInvoiceFields = false,
 }: ClientPickerProps) {
   const { data } = useAppStore();
   const sorted = useMemo(
@@ -161,6 +163,7 @@ export function ClientPicker({
   const selectedCustomer = selectedCustomerId
     ? data.customers.find((c) => c.id === selectedCustomerId)
     : null;
+  const requiredMark = requireInvoiceFields ? " *" : "";
 
   return (
     <div className="space-y-5">
@@ -269,7 +272,7 @@ export function ClientPicker({
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
           <div className="xl:col-span-3">
-            <Field label="Nombre">
+            <Field label={`Nombre${requiredMark}`}>
               <Input
                 value={values.firstName}
                 onChange={(e) => handleFieldChange("firstName", e.target.value)}
@@ -287,7 +290,7 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="xl:col-span-2">
-            <Field label="NIF / CIF">
+            <Field label={`NIF / CIF${requiredMark}`}>
               <Input
                 value={values.nif}
                 onChange={(e) => handleFieldChange("nif", e.target.value)}
@@ -325,7 +328,7 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="md:col-span-2 xl:col-span-5">
-            <Field label="Nombre de vía y número">
+            <Field label={`Nombre de vía y número${requiredMark}`}>
               <GoogleAddressAutocomplete
                 value={values.address}
                 onChange={(value) => handleFieldChange("address", value)}
@@ -337,7 +340,7 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="xl:col-span-2">
-            <Field label="Código postal">
+            <Field label={`Código postal${requiredMark}`}>
               <Input
                 value={values.postalCode}
                 onChange={(e) =>
@@ -348,7 +351,7 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="xl:col-span-3">
-            <Field label="Ciudad">
+            <Field label={`Ciudad${requiredMark}`}>
               <Input
                 value={values.city}
                 onChange={(e) => handleFieldChange("city", e.target.value)}

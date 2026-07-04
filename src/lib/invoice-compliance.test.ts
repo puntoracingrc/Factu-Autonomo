@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE } from "./types";
 import type { Document } from "./types";
 import {
+  invoiceClientMissingDocumentLabels,
   ivaBreakdownByRate,
   validateDocumentEmission,
 } from "./invoice-compliance";
@@ -91,6 +92,26 @@ describe("invoice compliance", () => {
       postalCode: "28001",
     });
     expect(complete.ok).toBe(true);
+  });
+
+  it("detecta los datos legales del cliente necesarios para emitir factura", () => {
+    expect(invoiceClientMissingDocumentLabels({})).toEqual([
+      "nombre o razón social del cliente",
+      "NIF/CIF del cliente",
+      "dirección del cliente",
+      "código postal del cliente",
+      "ciudad del cliente",
+    ]);
+
+    expect(
+      invoiceClientMissingDocumentLabels({
+        name: "Teresa",
+        nif: "12345678A",
+        address: "Mandri, 26 2-2",
+        postalCode: "08022",
+        city: "Barcelona",
+      }),
+    ).toEqual([]);
   });
 
   it("groups IVA breakdown by rate", () => {

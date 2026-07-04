@@ -66,7 +66,10 @@ import {
   normalizeLineItemUnits,
 } from "@/lib/document-units";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
-import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import {
+  invoiceClientMissingDocumentLabels,
+  validateDocumentEmission,
+} from "@/lib/invoice-compliance";
 import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
@@ -586,6 +589,7 @@ export function DocumentForm({
     : null;
 
   const requiresConcept = type !== "presupuesto";
+  const requiresInvoiceClientFields = type === "factura";
   const lineGridClass = vatExempt
     ? "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6.5rem_7.5rem]"
     : "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6rem_6.5rem_7.5rem]";
@@ -825,6 +829,29 @@ export function DocumentForm({
       return;
     }
 
+    const requestedStatus = statusOverride ?? status;
+    const resolvedStatus =
+      type === "presupuesto" && requestedStatus === "pagado"
+        ? "aceptado"
+        : requestedStatus;
+    const clientLegalLabels =
+      type === "factura" && resolvedStatus !== "borrador"
+        ? invoiceClientMissingDocumentLabels({
+            name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+            nif: clientForm.nif,
+            address: clientForm.address,
+            postalCode: clientForm.postalCode,
+            city: clientForm.city,
+          })
+        : [];
+
+    if (clientLegalLabels.length > 0) {
+      setFormError(
+        `Completa estos datos del cliente antes de emitir la factura: ${clientLegalLabels.join(", ")}.`,
+      );
+      return;
+    }
+
     setSaveAction(download ? "save-pdf" : "save");
 
     if (!existing) {
@@ -869,12 +896,6 @@ export function DocumentForm({
       customerId = customerResult.customerId;
       client = customerResult.client;
     }
-
-    const requestedStatus = statusOverride ?? status;
-    const resolvedStatus =
-      type === "presupuesto" && requestedStatus === "pagado"
-        ? "aceptado"
-        : requestedStatus;
 
     const payload = {
       type,
@@ -969,6 +990,7 @@ export function DocumentForm({
           onSelectCustomer={handleSelectCustomer}
           onClearSelection={() => setSelectedCustomerId(null)}
           onChange={handleClientFieldChange}
+          requireInvoiceFields={requiresInvoiceClientFields}
         />
       </Card>
 
