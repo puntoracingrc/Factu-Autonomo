@@ -4,7 +4,6 @@ import {
   formatStreetLine,
   getStreetType,
   normalizeStreetFields,
-  streetAddressSortKey,
 } from "./customer-address";
 
 const LEGAL_SUFFIX_PATTERN =
@@ -205,18 +204,13 @@ export function supplierPurchasedTotal(
     .reduce((sum, expense) => sum + expenseTotal(expense), 0);
 }
 
-export type SupplierSortField = "nombre" | "compras" | "direccion";
+export type SupplierSortField = "nombre" | "compras";
 export type SupplierSortDirection = "asc" | "desc";
 
 export const SUPPLIER_SORT_FIELD_LABELS: Record<SupplierSortField, string> = {
   nombre: "Nombre",
   compras: "Volumen de compras",
-  direccion: "Dirección",
 };
-
-export function supplierAddressSortKey(supplier: Supplier): string {
-  return streetAddressSortKey(migrateSupplier(supplier));
-}
 
 export function supplierSortDirectionLabel(
   field: SupplierSortField,
@@ -245,8 +239,6 @@ export function sortSuppliers(
     switch (field) {
       case "nombre":
         return compareText(a.name, b.name);
-      case "direccion":
-        return compareText(supplierAddressSortKey(a), supplierAddressSortKey(b));
       case "compras":
         return (
           factor *
