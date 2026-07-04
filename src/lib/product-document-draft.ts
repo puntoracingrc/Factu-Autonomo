@@ -1,4 +1,4 @@
-import type { DocumentType, LineItem } from "./types";
+import type { Document, DocumentType, LineItem } from "./types";
 import { normalizeDocumentUnitId } from "./document-units";
 import type { PurchaseProductSummary } from "./purchase-products";
 import {
@@ -7,6 +7,10 @@ import {
 } from "./document-product-suggestions";
 
 const PRODUCT_DOCUMENT_DRAFT_KEY = "factu:product-document-draft:v1";
+const DOCUMENT_PRODUCT_RETURN_KEY = "factu:document-product-return:v1";
+const DOCUMENT_PRODUCT_PICK_REQUEST_KEY = "factu:document-product-pick:v1";
+const DOCUMENT_PRODUCT_PICKED_LINE_KEY =
+  "factu:document-product-picked-line:v1";
 
 export interface ProductDocumentDraftLine {
   productKey: string;
@@ -21,6 +25,64 @@ export interface ProductDocumentDraft {
   documentType: DocumentType;
   createdAt: string;
   lines: ProductDocumentDraftLine[];
+}
+
+export interface DocumentProductLinePricingDraft {
+  basePrice: number;
+  markupPercent: number;
+  priceSource: DocumentProductSalePriceSource;
+  productName: string;
+}
+
+export interface DocumentProductAreaDraft {
+  width: number;
+  height: number;
+}
+
+export interface DocumentProductFormStateDraft {
+  clientForm: Record<string, string>;
+  selectedCustomerId: string | null;
+  date: string;
+  dueDate: string;
+  notes: string;
+  paymentTerms: string;
+  status: Document["status"];
+  documentIvaPercent: number;
+  items: LineItem[];
+  lineProductPricing: Record<string, DocumentProductLinePricingDraft>;
+  lineAreaDrafts: Record<string, DocumentProductAreaDraft>;
+}
+
+export interface DocumentProductReturnDraft {
+  source: "document";
+  documentType: DocumentType;
+  returnPath: string;
+  targetLineId: string;
+  createdAt: string;
+  form: DocumentProductFormStateDraft;
+}
+
+export interface DocumentProductPickRequest {
+  source: "document";
+  documentType: DocumentType;
+  returnPath: string;
+  targetLineId: string;
+  createdAt: string;
+  prefill?: {
+    name?: string;
+    description?: string;
+    unit?: string;
+    unitPrice?: number;
+    ivaPercent?: number;
+  };
+}
+
+export interface DocumentProductPickedLine {
+  source: "productos";
+  documentType: DocumentType;
+  targetLineId: string;
+  createdAt: string;
+  draftLine: ProductDocumentDraftLine;
 }
 
 export function productSummaryToDocumentDraftLine(
@@ -68,6 +130,142 @@ export function saveProductDocumentDraft(
   } catch {
     return false;
   }
+}
+
+export function saveDocumentProductReturnDraft(
+  draft: DocumentProductReturnDraft,
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(
+      DOCUMENT_PRODUCT_RETURN_KEY,
+      JSON.stringify(draft),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function consumeDocumentProductReturnDraft(
+  documentType: DocumentType,
+): DocumentProductReturnDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(DOCUMENT_PRODUCT_RETURN_KEY);
+    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_RETURN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DocumentProductReturnDraft;
+    if (
+      parsed?.source !== "document" ||
+      parsed.documentType !== documentType ||
+      !parsed.returnPath ||
+      !parsed.targetLineId ||
+      !parsed.form
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDocumentProductPickRequest(
+  request: DocumentProductPickRequest,
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(
+      DOCUMENT_PRODUCT_PICK_REQUEST_KEY,
+      JSON.stringify(request),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getDocumentProductPickRequest(): DocumentProductPickRequest | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(
+      DOCUMENT_PRODUCT_PICK_REQUEST_KEY,
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DocumentProductPickRequest;
+    if (
+      parsed?.source !== "document" ||
+      !parsed.returnPath ||
+      !parsed.targetLineId
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearDocumentProductPickRequest(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_PICK_REQUEST_KEY);
+  } catch {
+    // Ignore private browsing storage errors.
+  }
+}
+
+export function saveDocumentProductPickedLine(
+  selection: DocumentProductPickedLine,
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(
+      DOCUMENT_PRODUCT_PICKED_LINE_KEY,
+      JSON.stringify(selection),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function consumeDocumentProductPickedLine(
+  documentType: DocumentType,
+): DocumentProductPickedLine | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
+    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DocumentProductPickedLine;
+    if (
+      parsed?.source !== "productos" ||
+      parsed.documentType !== documentType ||
+      !parsed.targetLineId ||
+      !parsed.draftLine
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function productSummaryToPickedLine(
+  product: PurchaseProductSummary,
+  request: DocumentProductPickRequest,
+  defaultIva = 21,
+): DocumentProductPickedLine {
+  return {
+    source: "productos",
+    documentType: request.documentType,
+    targetLineId: request.targetLineId,
+    createdAt: new Date().toISOString(),
+    draftLine: productSummaryToDocumentDraftLine(product, defaultIva),
+  };
 }
 
 export function consumeProductDocumentDraft(): ProductDocumentDraft | null {

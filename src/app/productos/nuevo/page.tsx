@@ -1,19 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Save } from "lucide-react";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
 import {
+  clearDocumentProductPickRequest,
+  getDocumentProductPickRequest,
+  productSummaryToPickedLine,
+  saveDocumentProductPickedLine,
+  type DocumentProductPickRequest,
+} from "@/lib/product-document-draft";
+import {
   PRODUCT_ATTRIBUTE_SUGGESTIONS,
   addProductAttributeLine,
   productAttributesFromText,
 } from "@/lib/product-attributes";
-import { purchaseProductKey } from "@/lib/purchase-products";
+import {
+  buildPurchaseProductSummaries,
+  purchaseProductKey,
+} from "@/lib/purchase-products";
 
 const EMPTY_FORM = {
   sku: "",
@@ -47,6 +57,31 @@ export default function NuevoProductoPage() {
   const { data, addProduct } = useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [documentPickRequest, setDocumentPickRequest] =
+    useState<DocumentProductPickRequest | null>(null);
+
+  useLayoutEffect(() => {
+    const request = getDocumentProductPickRequest();
+    setDocumentPickRequest(request);
+    const prefill = request?.prefill;
+    if (!prefill) return;
+    setForm((current) => ({
+      ...current,
+      name: prefill.name || current.name,
+      saleDescription:
+        prefill.description || prefill.name || current.saleDescription,
+      saleUnit: prefill.unit || current.saleUnit,
+      purchaseUnit: prefill.unit || current.purchaseUnit,
+      salePrice:
+        prefill.unitPrice !== undefined && prefill.unitPrice > 0
+          ? String(prefill.unitPrice)
+          : current.salePrice,
+      saleIvaPercent:
+        prefill.ivaPercent !== undefined
+          ? String(prefill.ivaPercent)
+          : current.saleIvaPercent,
+    }));
+  }, []);
 
   const familyOptions = useMemo(
     () =>
@@ -69,7 +104,9 @@ export default function NuevoProductoPage() {
     setForm((current) => ({
       ...current,
       [field]: value,
-      ...(field === "calculationKind" && value === "area" ? { saleUnit: "m2" } : {}),
+      ...(field === "calculationKind" && value === "area"
+        ? { saleUnit: "m2" }
+        : {}),
     }));
     setError(null);
   }
@@ -83,7 +120,9 @@ export default function NuevoProductoPage() {
 
     const key = purchaseProductKey(name);
     if (data.products.some((product) => product.key === key)) {
-      setError("Ya existe un producto muy parecido. Edítalo desde la lista o unifícalo.");
+      setError(
+        "Ya existe un producto muy parecido. Edítalo desde la lista o unifícalo.",
+      );
       return;
     }
 
@@ -104,12 +143,14 @@ export default function NuevoProductoPage() {
     const saleUnit =
       calculationKind === "area"
         ? "m2"
-        : (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) || "ud";
+        : (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) ||
+          "ud";
     const purchaseUnit =
-      (normalizeDocumentUnitId(form.purchaseUnit) ?? form.purchaseUnit.trim()) ||
+      (normalizeDocumentUnitId(form.purchaseUnit) ??
+        form.purchaseUnit.trim()) ||
       saleUnit;
 
-    addProduct({
+    const created = addProduct({
       key,
       aliases: [],
       sku: form.sku.trim() || undefined,
@@ -131,11 +172,11 @@ export default function NuevoProductoPage() {
       purchase: {
         enabled: Boolean(
           supplierName ||
-            form.purchaseDescription.trim() ||
-            form.supplierReference.trim() ||
-            purchaseListPrice ||
-            purchaseDiscountPercent ||
-            purchaseNetUnitCost,
+          form.purchaseDescription.trim() ||
+          form.supplierReference.trim() ||
+          purchaseListPrice ||
+          purchaseDiscountPercent ||
+          purchaseNetUnitCost,
         ),
         description: form.purchaseDescription.trim() || undefined,
         unit: purchaseUnit,
@@ -155,6 +196,37 @@ export default function NuevoProductoPage() {
       notes: form.notes.trim() || undefined,
       source: "manual",
     });
+
+    if (documentPickRequest) {
+      const createdSummary = buildPurchaseProductSummaries([], [created])[0];
+      if (
+        !createdSummary ||
+        !saveDocumentProductPickedLine(
+          productSummaryToPickedLine(
+            createdSummary,
+            documentPickRequest,
+            data.profile.iva?.defaultRate ?? 21,
+          ),
+        )
+      ) {
+        setError(
+          "El producto se ha guardado, pero no se pudo llevar al documento.",
+        );
+        return;
+      }
+      clearDocumentProductPickRequest();
+      router.push(documentPickRequest.returnPath);
+      return;
+    }
+    router.push("/productos");
+  }
+
+  function handleCancel() {
+    if (documentPickRequest) {
+      clearDocumentProductPickRequest();
+      router.push(documentPickRequest.returnPath);
+      return;
+    }
     router.push("/productos");
   }
 
@@ -162,12 +234,16 @@ export default function NuevoProductoPage() {
     <div className="space-y-5">
       <PageHeader
         title="Nuevo producto"
-        subtitle="Crea un material o servicio habitual para tenerlo controlado."
+        subtitle={
+          documentPickRequest
+            ? "Se guardará en Productos y volverá al documento."
+            : "Crea un material o servicio habitual para tenerlo controlado."
+        }
         action={
-          <ButtonLink href="/productos" variant="secondary">
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             <ArrowLeft className="h-5 w-5" />
-            Volver
-          </ButtonLink>
+            {documentPickRequest ? "Volver al documento" : "Volver"}
+          </Button>
         }
       />
 
@@ -218,7 +294,9 @@ export default function NuevoProductoPage() {
             <Field label="Unidad venta">
               <Input
                 value={form.saleUnit}
-                onChange={(event) => updateField("saleUnit", event.target.value)}
+                onChange={(event) =>
+                  updateField("saleUnit", event.target.value)
+                }
                 placeholder="ud"
               />
             </Field>
@@ -226,7 +304,9 @@ export default function NuevoProductoPage() {
               <Input
                 inputMode="decimal"
                 value={form.salePrice}
-                onChange={(event) => updateField("salePrice", event.target.value)}
+                onChange={(event) =>
+                  updateField("salePrice", event.target.value)
+                }
                 placeholder="0,00"
               />
             </Field>
@@ -343,7 +423,9 @@ export default function NuevoProductoPage() {
         >
           <Textarea
             value={form.attributesText}
-            onChange={(event) => updateField("attributesText", event.target.value)}
+            onChange={(event) =>
+              updateField("attributesText", event.target.value)
+            }
             placeholder={"Talla: L\nColor: Blanco\nMetro lineal: barras de 6 m"}
           />
           <div className="mt-2 flex flex-wrap gap-2">
@@ -374,12 +456,12 @@ export default function NuevoProductoPage() {
         </Field>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <ButtonLink href="/productos" variant="secondary">
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancelar
-          </ButtonLink>
+          </Button>
           <Button type="button" onClick={handleSave}>
             <Save className="h-5 w-5" />
-            Guardar producto
+            {documentPickRequest ? "Guardar y volver" : "Guardar producto"}
           </Button>
         </div>
       </Card>
@@ -394,9 +476,9 @@ export default function NuevoProductoPage() {
               También se completará solo
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-600">
-              Los productos detectados en facturas de proveedor seguirán apareciendo
-              automáticamente. Si editas una familia aquí o en la lista, Factu la
-              recordará para futuros escaneos parecidos.
+              Los productos detectados en facturas de proveedor seguirán
+              apareciendo automáticamente. Si editas una familia aquí o en la
+              lista, Factu la recordará para futuros escaneos parecidos.
             </p>
           </div>
         </div>

@@ -41,8 +41,13 @@ import {
   type PurchaseProductSummary,
 } from "@/lib/purchase-products";
 import {
+  clearDocumentProductPickRequest,
+  getDocumentProductPickRequest,
+  productSummaryToPickedLine,
   productSummaryToDocumentDraftLine,
+  saveDocumentProductPickedLine,
   saveProductDocumentDraft,
+  type DocumentProductPickRequest,
 } from "@/lib/product-document-draft";
 import type { Product } from "@/lib/types";
 
@@ -85,6 +90,8 @@ export default function ProductosPage() {
   const [sort, setSort] = useState<ProductSort>("newest");
   const [visibleCount, setVisibleCount] = useState(30);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
+  const [documentPickRequest, setDocumentPickRequest] =
+    useState<DocumentProductPickRequest | null>(null);
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -173,6 +180,10 @@ export default function ProductosPage() {
     setVisibleCount(30);
   }, [family, query, sort, supplier]);
 
+  useEffect(() => {
+    setDocumentPickRequest(getDocumentProductPickRequest());
+  }, []);
+
   function toggleProductForDraft(product: PurchaseProductSummary) {
     setSelectedProductKeys((current) =>
       current.includes(product.key)
@@ -202,6 +213,27 @@ export default function ProductosPage() {
           ? "/presupuestos/nuevo"
           : "/recibos/nuevo";
     router.push(`${route}?desde=productos`);
+  }
+
+  function handlePickProductForDocument(product: PurchaseProductSummary) {
+    if (!documentPickRequest) return;
+    const pickedLine = productSummaryToPickedLine(
+      product,
+      documentPickRequest,
+      data.profile.iva?.defaultRate ?? 21,
+    );
+    if (!saveDocumentProductPickedLine(pickedLine)) {
+      alert("No se pudo llevar el producto al documento. Inténtalo de nuevo.");
+      return;
+    }
+    clearDocumentProductPickRequest();
+    router.push(documentPickRequest.returnPath);
+  }
+
+  function cancelDocumentPick() {
+    if (!documentPickRequest) return;
+    clearDocumentProductPickRequest();
+    router.push(documentPickRequest.returnPath);
   }
 
   function productFromSummary(
@@ -294,7 +326,7 @@ export default function ProductosPage() {
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <Plus className="h-5 w-5" />
-            Nuevo producto
+            {documentPickRequest ? "Crear producto" : "Nuevo producto"}
           </Link>
         }
       />
@@ -334,6 +366,28 @@ export default function ProductosPage() {
         </Card>
       ) : (
         <>
+          {documentPickRequest ? (
+            <Card className="border-blue-100 bg-blue-50/80">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-blue-950">
+                    Elige un producto para la línea del documento
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-blue-800">
+                    Al seleccionarlo volverás al documento con la línea rellena.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelDocumentPick}
+                  className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  Volver sin elegir
+                </button>
+              </div>
+            </Card>
+          ) : null}
+
           <Card className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-4">
               <SummaryTile
@@ -415,7 +469,7 @@ export default function ProductosPage() {
             {filteredProducts.length} de {products.length} producto(s)
           </p>
 
-          {selectedProducts.length > 0 ? (
+          {!documentPickRequest && selectedProducts.length > 0 ? (
             <Card className="fixed bottom-24 left-4 right-4 z-40 border-blue-100 bg-white/95 shadow-2xl backdrop-blur lg:bottom-6 lg:left-auto lg:right-6 lg:w-[min(44rem,calc(100vw-22rem))]">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -469,7 +523,9 @@ export default function ProductosPage() {
                 product={product}
                 allProducts={products}
                 selected={selectedProductKeys.includes(product.key)}
+                pickMode={Boolean(documentPickRequest)}
                 onToggleSelected={() => toggleProductForDraft(product)}
+                onPickForDocument={() => handlePickProductForDocument(product)}
                 onSave={(patch) => saveProductPatch(product, patch)}
                 onDelete={deleteProduct}
                 onMerge={(removeKey) => handleMergeProducts(product, removeKey)}
@@ -551,7 +607,9 @@ function ProductCard({
   product,
   allProducts,
   selected,
+  pickMode,
   onToggleSelected,
+  onPickForDocument,
   onSave,
   onDelete,
   onMerge,
@@ -559,7 +617,9 @@ function ProductCard({
   product: PurchaseProductSummary;
   allProducts: PurchaseProductSummary[];
   selected: boolean;
+  pickMode: boolean;
   onToggleSelected: () => void;
+  onPickForDocument: () => void;
   onSave: (patch: Partial<Product>) => void;
   onDelete: (id: string) => void;
   onMerge: (removeKey: string) => void;
@@ -776,13 +836,15 @@ function ProductCard({
     <>
       <Card
         className={`p-0 transition-colors ${
-          selected ? "border-emerald-200 bg-emerald-50/35" : ""
+          selected
+            ? "border-emerald-300 bg-emerald-50 ring-2 ring-emerald-200"
+            : ""
         }`}
       >
         <div className="grid gap-3 p-3 lg:grid-cols-[minmax(16rem,2fr)_minmax(9rem,0.8fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-center">
           <button
             type="button"
-            onClick={openPanel}
+            onClick={pickMode ? onPickForDocument : openPanel}
             className="min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <div className="flex min-w-0 flex-col gap-1">
@@ -803,6 +865,11 @@ function ProductCard({
                 {product.calculation?.kind === "area" ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                     alto x ancho
+                  </span>
+                ) : null}
+                {selected ? (
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">
+                    Seleccionado
                   </span>
                 ) : null}
                 <span className="min-w-0 flex-1 truncate text-base font-black text-slate-950 lg:text-lg">
@@ -836,24 +903,30 @@ function ProductCard({
             </span>
             <button
               type="button"
-              onClick={onToggleSelected}
+              onClick={pickMode ? onPickForDocument : onToggleSelected}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                selected
-                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                  : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                pickMode
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : selected
+                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                    : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
               }`}
               aria-label={
-                selected
-                  ? "Quitar producto del documento"
-                  : "Añadir producto a un documento"
+                pickMode
+                  ? "Usar producto en el documento"
+                  : selected
+                    ? "Quitar producto del documento"
+                    : "Añadir producto a un documento"
               }
               title={
-                selected
-                  ? "Quitar del documento"
-                  : "Añadir a factura, presupuesto o recibo"
+                pickMode
+                  ? "Usar en esta línea del documento"
+                  : selected
+                    ? "Quitar del documento"
+                    : "Añadir a factura, presupuesto o recibo"
               }
             >
-              {selected ? (
+              {pickMode || selected ? (
                 <Check className="h-4 w-4" />
               ) : (
                 <Plus className="h-4 w-4" />

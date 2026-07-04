@@ -50,7 +50,7 @@ export function ClientPicker({
 }: ClientPickerProps) {
   const { data } = useAppStore();
   const sorted = useMemo(
-    () => sortCustomers(data.customers, [], "reciente", "desc"),
+    () => sortCustomers(data.customers, [], "reciente", "desc").slice(0, 10),
     [data.customers],
   );
 
@@ -152,97 +152,89 @@ export function ClientPicker({
   return (
     <div className="space-y-5">
       {sorted.length > 0 ? (
-        <FormSection
-          variant="search"
-          title="Buscar o elegir cliente"
-          hint="Lista de clientes recientes o búsqueda por nombre, apellidos o NIF."
-        >
-          <Field
-            label="Lista de clientes"
-            hint="Últimos añadidos primero"
-          >
-            <Select
-              value={selectedCustomerId ?? ""}
-              onChange={(e) => handleDropdownChange(e.target.value)}
-            >
-              <option value="">— Selecciona un cliente —</option>
-              {sorted.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {getCustomerDisplayName(c)}
-                  {c.nif ? ` (${c.nif})` : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <div className="relative" ref={containerRef}>
-            <Field
-              label="Búsqueda rápida"
-              hint="Escribe y pulsa Intro para rellenar la ficha"
-            >
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setOpen(true);
-                    if (selectedCustomerId) onClearSelection();
-                  }}
-                  onFocus={() => search.trim() && setOpen(true)}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder="Ej: García, Ana, 12345678A..."
-                  className="pl-10"
-                />
-              </div>
+        <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3 sm:p-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(14rem,0.9fr)_minmax(18rem,1.4fr)]">
+            <Field label="Clientes recientes">
+              <Select
+                value={selectedCustomerId ?? ""}
+                onChange={(e) => handleDropdownChange(e.target.value)}
+              >
+                <option value="">— Selecciona un cliente —</option>
+                {sorted.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {getCustomerDisplayName(c)}
+                    {c.nif ? ` (${c.nif})` : ""}
+                  </option>
+                ))}
+              </Select>
             </Field>
 
-            {open && search.trim() && (
-              <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                {results.length === 0 ? (
-                  <li className="px-4 py-3 text-sm text-slate-500">
-                    No hay clientes que coincidan
-                  </li>
-                ) : (
-                  results.map((customer, index) => (
-                    <li key={customer.id}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => applyCustomer(customer)}
-                        className={`w-full px-4 py-3 text-left transition-colors ${
-                          index === highlight
-                            ? "bg-blue-50 text-blue-900"
-                            : "hover:bg-slate-50"
-                        }`}
-                      >
-                        <p className="font-semibold text-slate-900">
-                          {getCustomerDisplayName(customer)}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {[customer.nif, customer.phone, customer.email]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      </button>
+            <div className="relative" ref={containerRef}>
+              <Field label="Buscar cliente">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setOpen(true);
+                      if (selectedCustomerId) onClearSelection();
+                    }}
+                    onFocus={() => search.trim() && setOpen(true)}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Nombre, apellidos o NIF"
+                    className="pl-10"
+                  />
+                </div>
+              </Field>
+
+              {open && search.trim() && (
+                <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {results.length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-slate-500">
+                      Sin resultados
                     </li>
-                  ))
-                )}
-              </ul>
-            )}
+                  ) : (
+                    results.map((customer, index) => (
+                      <li key={customer.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => applyCustomer(customer)}
+                          className={`w-full px-4 py-3 text-left transition-colors ${
+                            index === highlight
+                              ? "bg-blue-50 text-blue-900"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <p className="font-semibold text-slate-900">
+                            {getCustomerDisplayName(customer)}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {[customer.nif, customer.phone, customer.email]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
           </div>
 
           {selectedCustomer && (
-            <p className="rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
+            <p className="mt-3 rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
               Cliente seleccionado: {getCustomerDisplayName(selectedCustomer)}
             </p>
           )}
-        </FormSection>
+        </div>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
           <p className="text-sm text-slate-600">
-            Aún no tienes clientes guardados. Puedes crearlos aquí abajo o en
-            la sección Clientes.
+            Aún no tienes clientes guardados. Puedes crearlos aquí abajo o en la
+            sección Clientes.
           </p>
           <Link
             href="/clientes"
@@ -259,62 +251,68 @@ export function ClientPicker({
       <FormSection
         variant="fields"
         title="Ficha del cliente"
-        hint="Si es un cliente nuevo, se guardará al crear el documento. Los apellidos son opcionales."
+        hint="Si es nuevo, se guardará al crear el documento."
+        className="p-3 sm:p-4"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre *">
-            <Input
-              value={values.firstName}
-              onChange={(e) => handleFieldChange("firstName", e.target.value)}
-              placeholder="Ej: María"
-            />
-          </Field>
-          <Field label="Apellidos" hint="Opcional">
-            <Input
-              value={values.lastName}
-              onChange={(e) => handleFieldChange("lastName", e.target.value)}
-              placeholder="Ej: López García"
-            />
-          </Field>
-          <Field label="NIF / CIF">
-            <Input
-              value={values.nif}
-              onChange={(e) => handleFieldChange("nif", e.target.value)}
-              placeholder="12345678A"
-            />
-          </Field>
-          <Field
-            label="Teléfono"
-            hint="El teléfono se usará para WhatsApp si está informado."
-          >
-            <Input
-              value={values.phone}
-              onChange={(e) => handleFieldChange("phone", e.target.value)}
-              placeholder="600 000 000"
-            />
-          </Field>
-          <Field
-            label="Email"
-            hint="Se usará para activar el envío por email en documentos guardados."
-          >
-            <Input
-              type="email"
-              value={values.email}
-              onChange={(e) => handleFieldChange("email", e.target.value)}
-              placeholder="cliente@email.com"
-            />
-          </Field>
-          <div className="sm:col-span-2 grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
-            <Field label="Tipo de vía" hint="Opcional">
-              <StreetTypeSelect
-                value={values.streetType}
-                onChange={(streetType) => handleFieldChange("streetType", streetType)}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="xl:col-span-3">
+            <Field label="Nombre">
+              <Input
+                value={values.firstName}
+                onChange={(e) => handleFieldChange("firstName", e.target.value)}
+                placeholder="Ej: María"
               />
             </Field>
-            <Field
-              label="Nombre de vía y número"
-              hint="Sin C/, Avda. ni otros prefijos"
-            >
+          </div>
+          <div className="xl:col-span-3">
+            <Field label="Apellidos">
+              <Input
+                value={values.lastName}
+                onChange={(e) => handleFieldChange("lastName", e.target.value)}
+                placeholder="Ej: López García"
+              />
+            </Field>
+          </div>
+          <div className="xl:col-span-2">
+            <Field label="NIF / CIF">
+              <Input
+                value={values.nif}
+                onChange={(e) => handleFieldChange("nif", e.target.value)}
+                placeholder="12345678A"
+              />
+            </Field>
+          </div>
+          <div className="xl:col-span-2">
+            <Field label="Teléfono">
+              <Input
+                value={values.phone}
+                onChange={(e) => handleFieldChange("phone", e.target.value)}
+                placeholder="600 000 000"
+              />
+            </Field>
+          </div>
+          <div className="xl:col-span-2">
+            <Field label="Email">
+              <Input
+                type="email"
+                value={values.email}
+                onChange={(e) => handleFieldChange("email", e.target.value)}
+                placeholder="cliente@email.com"
+              />
+            </Field>
+          </div>
+          <div className="xl:col-span-2">
+            <Field label="Tipo de vía">
+              <StreetTypeSelect
+                value={values.streetType}
+                onChange={(streetType) =>
+                  handleFieldChange("streetType", streetType)
+                }
+              />
+            </Field>
+          </div>
+          <div className="md:col-span-2 xl:col-span-5">
+            <Field label="Nombre de vía y número">
               <Input
                 value={values.address}
                 onChange={(e) => handleFieldChange("address", e.target.value)}
@@ -322,26 +320,33 @@ export function ClientPicker({
               />
             </Field>
           </div>
-          <Field label="Código postal">
-            <Input
-              value={values.postalCode}
-              onChange={(e) => handleFieldChange("postalCode", e.target.value)}
-              placeholder="08017"
-            />
-          </Field>
-          <Field label="Ciudad">
-            <Input
-              value={values.city}
-              onChange={(e) => handleFieldChange("city", e.target.value)}
-              placeholder="Barcelona"
-            />
-          </Field>
-          <div className="sm:col-span-2">
+          <div className="xl:col-span-2">
+            <Field label="Código postal">
+              <Input
+                value={values.postalCode}
+                onChange={(e) =>
+                  handleFieldChange("postalCode", e.target.value)
+                }
+                placeholder="08017"
+              />
+            </Field>
+          </div>
+          <div className="xl:col-span-3">
+            <Field label="Ciudad">
+              <Input
+                value={values.city}
+                onChange={(e) => handleFieldChange("city", e.target.value)}
+                placeholder="Barcelona"
+              />
+            </Field>
+          </div>
+          <div className="md:col-span-2 xl:col-span-12">
             <Field label="Notas del cliente">
               <Textarea
                 value={values.notes}
                 onChange={(e) => handleFieldChange("notes", e.target.value)}
                 placeholder="Datos internos de la ficha del cliente..."
+                className="min-h-20"
               />
             </Field>
           </div>
@@ -357,9 +362,7 @@ export function clientToFormValues(client: Client): ClientFormValues {
   return {
     firstName: client.firstName ?? client.name?.split(" ")[0] ?? "",
     lastName:
-      client.lastName ??
-      client.name?.split(" ").slice(1).join(" ") ??
-      "",
+      client.lastName ?? client.name?.split(" ").slice(1).join(" ") ?? "",
     nif: client.nif ?? "",
     email: client.email ?? "",
     phone: client.phone ?? "",
