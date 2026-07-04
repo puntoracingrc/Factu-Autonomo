@@ -12,11 +12,15 @@ export function isStripeConfigured(): boolean {
 export function getStripePriceIds(): {
   monthly: string | undefined;
   yearly: string | undefined;
+  proPlusMonthly: string | undefined;
+  proPlusYearly: string | undefined;
   scanPack: string | undefined;
 } {
   return {
     monthly: process.env.STRIPE_PRICE_MONTHLY,
     yearly: process.env.STRIPE_PRICE_YEARLY,
+    proPlusMonthly: process.env.STRIPE_PRICE_PRO_PLUS_MONTHLY,
+    proPlusYearly: process.env.STRIPE_PRICE_PRO_PLUS_YEARLY,
     scanPack: process.env.STRIPE_PRICE_SCAN_PACK,
   };
 }

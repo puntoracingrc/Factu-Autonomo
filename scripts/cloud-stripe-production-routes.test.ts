@@ -19,6 +19,18 @@ vi.mock("../src/lib/billing/stripe", () => ({
       ? process.env.STRIPE_PRICE_YEARLY
       : process.env.STRIPE_PRICE_MONTHLY,
   ),
+  priceIdForPlanInterval: vi.fn(
+    (plan: "pro" | "pro_plus", interval: "monthly" | "yearly") => {
+      if (plan === "pro_plus") {
+        return interval === "yearly"
+          ? process.env.STRIPE_PRICE_PRO_PLUS_YEARLY
+          : process.env.STRIPE_PRICE_PRO_PLUS_MONTHLY;
+      }
+      return interval === "yearly"
+        ? process.env.STRIPE_PRICE_YEARLY
+        : process.env.STRIPE_PRICE_MONTHLY;
+    },
+  ),
 }));
 
 vi.mock("../src/lib/supabase/admin", () => ({
@@ -112,8 +124,8 @@ describe("cloud and Stripe production routes", () => {
         line_items: [{ price: "price_monthly", quantity: 1 }],
         success_url: "https://facturacion-autonomos.app/precios?checkout=success",
         cancel_url: "https://facturacion-autonomos.app/precios?checkout=cancel",
-        metadata: { user_id: "user_1" },
-        subscription_data: { metadata: { user_id: "user_1" } },
+        metadata: { user_id: "user_1", plan: "pro" },
+        subscription_data: { metadata: { user_id: "user_1", plan: "pro" } },
       }),
     );
   });

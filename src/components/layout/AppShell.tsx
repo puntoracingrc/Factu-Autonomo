@@ -365,11 +365,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold ${
                   plan === "trial"
                     ? "bg-violet-100 text-violet-800"
+                    : plan === "pro_plus"
+                      ? "bg-emerald-100 text-emerald-800"
                     : "bg-amber-100 text-amber-800"
                 }`}
               >
                 <Crown className="h-3.5 w-3.5" />
-                {plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
+                {plan === "trial"
+                  ? "Prueba Pro"
+                  : plan === "pro_plus"
+                    ? "Miembro Pro+"
+                    : "Miembro Pro"}
               </Link>
             )}
             {billingEnabled && !isPro && (

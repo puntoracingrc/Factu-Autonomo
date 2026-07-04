@@ -1,4 +1,4 @@
-import { PLANS, type PlanId } from "./plans";
+import { isPaidPlan, PLANS, type PlanId } from "./plans";
 
 export type SubscriptionStatus =
   | "active"
@@ -25,11 +25,11 @@ export function resolveEffectivePlan(
 
   const { plan, status, trialEndsAt, currentPeriodEnd } = subscription;
 
-  if (plan === "pro" && (status === "active" || status === "trialing")) {
+  if (isPaidPlan(plan) && (status === "active" || status === "trialing")) {
     if (currentPeriodEnd && new Date(currentPeriodEnd) < now) {
       return "free";
     }
-    return "pro";
+    return plan;
   }
 
   if (plan === "trial" || status === "trialing") {

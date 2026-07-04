@@ -23,7 +23,7 @@ function request(token: string | null) {
   });
 }
 
-function subscription(plan: "free" | "pro" | "trial") {
+function subscription(plan: "free" | "pro" | "pro_plus" | "trial") {
   return {
     userId: `user-${plan}`,
     plan,

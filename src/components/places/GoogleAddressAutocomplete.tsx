@@ -6,6 +6,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { isProPlan } from "@/lib/billing/plans";
 import type { ScanQuota } from "@/lib/billing/scan-limits";
 import {
   GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST,
@@ -220,12 +221,10 @@ export function GoogleAddressAutocomplete({
         const usage = await registerAddressFill();
         if (!usage.allowed) {
           const isCreditTopUp =
-            isPro ||
-            usage.quota?.plan === "pro" ||
-            usage.quota?.plan === "trial";
+            isPro || (usage.quota ? isProPlan(usage.quota.plan) : false);
           setUpgradeMode(isCreditTopUp ? "scanPack" : "upgrade");
           setUpgradeReason(usage.reason);
-          if (usage.quota?.plan === "pro" || usage.quota?.plan === "trial") {
+          if (usage.quota && isProPlan(usage.quota.plan)) {
             setUpgradeOpen(true);
           } else if (lockedByPlan || usage.reason?.includes("Pro")) {
             setUpgradeOpen(true);

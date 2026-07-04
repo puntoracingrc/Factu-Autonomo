@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/billing/config";
+import type { PaidPlanId } from "@/lib/billing/plans";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { getStripe, priceIdForInterval } from "@/lib/billing/stripe";
+import { getStripe, priceIdForPlanInterval } from "@/lib/billing/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -18,12 +19,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { interval?: "monthly" | "yearly" };
+  const body = (await request.json()) as {
+    interval?: "monthly" | "yearly";
+    plan?: PaidPlanId;
+  };
   const interval = body.interval === "yearly" ? "yearly" : "monthly";
-  const priceId = priceIdForInterval(interval);
+  const plan: PaidPlanId = body.plan === "pro_plus" ? "pro_plus" : "pro";
+  const priceId = priceIdForPlanInterval(plan, interval);
   if (!priceId) {
     return NextResponse.json(
-      { error: "Precio de Stripe no configurado" },
+      { error: "Precio de Stripe no configurado para este plan" },
       { status: 503 },
     );
   }
@@ -48,9 +53,9 @@ export async function POST(request: Request) {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/precios?checkout=success`,
     cancel_url: `${appUrl}/precios?checkout=cancel`,
-    metadata: { user_id: user.id },
+    metadata: { user_id: user.id, plan },
     subscription_data: {
-      metadata: { user_id: user.id },
+      metadata: { user_id: user.id, plan },
     },
     tax_id_collection: { enabled: true },
     billing_address_collection: "required",

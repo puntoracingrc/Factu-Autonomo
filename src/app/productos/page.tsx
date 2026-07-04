@@ -25,6 +25,7 @@ import {
 import { Card, PageHeader } from "@/components/ui/Card";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
   DOCUMENT_UNIT_CATALOG,
@@ -97,6 +98,7 @@ export default function ProductosPage() {
   const router = useRouter();
   const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
     useAppStore();
+  const { checkCanAddProduct } = useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
   const [supplier, setSupplier] = useState(ALL);
@@ -337,10 +339,21 @@ export default function ProductosPage() {
     };
   }
 
+  function catalogProductCount(): number {
+    return data.products.filter((product) => !product.hidden).length;
+  }
+
+  function canAddCatalogProduct(): boolean {
+    const limit = checkCanAddProduct(catalogProductCount());
+    if (limit.allowed) return true;
+    alert(limit.reason ?? "No puedes añadir más productos con tu plan actual.");
+    return false;
+  }
+
   function saveProductPatch(
     product: PurchaseProductSummary,
     patch: Partial<Product>,
-  ): Product {
+  ): Product | null {
     const existing = product.productId
       ? data.products.find((entry) => entry.id === product.productId)
       : data.products.find((entry) => entry.key === product.key);
@@ -349,6 +362,7 @@ export default function ProductosPage() {
       updateProduct(updated);
       return updated;
     }
+    if (!canAddCatalogProduct()) return null;
     return addProduct({ ...productFromSummary(product), ...patch });
   }
 
@@ -365,6 +379,7 @@ export default function ProductosPage() {
       ],
       source: keep.source === "manual" ? "manual" : "detected",
     });
+    if (!keepProduct) return;
     if (remove.productId) {
       mergeProducts(keepProduct.id, [remove.productId]);
     }
@@ -398,6 +413,7 @@ export default function ProductosPage() {
   }
 
   function duplicateProduct(product: PurchaseProductSummary) {
+    if (!canAddCatalogProduct()) return;
     const duplicate = uniqueDuplicateProductParts(product);
     const created = addProduct({
       ...productFromSummary(product),
@@ -783,7 +799,7 @@ function ProductCard({
   onToggleSelected: () => void;
   onPickForDocument: () => void;
   onPickSavedProduct?: (product: Product) => void;
-  onSave: (patch: Partial<Product>) => Product;
+  onSave: (patch: Partial<Product>) => Product | null;
   onDuplicate: () => void;
   onRemove: () => void;
   onAutoEditConsumed: () => void;
@@ -982,6 +998,7 @@ function ProductCard({
       notes: notes.trim() || undefined,
       source: product.source,
     });
+    if (!savedProduct) return;
     setPanelOpen(false);
     if (pickMode) {
       onPickSavedProduct?.(savedProduct);

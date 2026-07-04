@@ -51,7 +51,7 @@ describe("admin users helpers", () => {
         expense_scans_created: 2,
         customer_ai_autofills_created: 15,
       },
-      { aiCreditUnits: 25 },
+      { aiCreditUnits: 25, plan: "pro" },
       "2026-07",
     );
 
@@ -66,12 +66,27 @@ describe("admin users helpers", () => {
   it("muestra IA mensual completa si el usuario aun no tiene uso del mes", () => {
     const snapshot = buildAdminAiUsageSnapshot(
       undefined,
-      { aiCreditUnits: 0 },
+      { aiCreditUnits: 0, plan: "pro" },
       "2026-07",
     );
 
     expect(snapshot.monthlyRemainingUnits).toBe(300);
     expect(snapshot.monthlyUsedUnits).toBe(0);
     expect(snapshot.percentRemaining).toBe(100);
+  });
+
+  it("calcula el uso mensual de IA de Pro+ con su cupo ampliado", () => {
+    const snapshot = buildAdminAiUsageSnapshot(
+      {
+        expense_scans_created: 10,
+      },
+      { aiCreditUnits: 0, plan: "pro_plus" },
+      "2026-07",
+    );
+
+    expect(snapshot.monthlyIncludedUnits).toBe(1500);
+    expect(snapshot.monthlyUsedUnits).toBe(100);
+    expect(snapshot.monthlyRemainingUnits).toBe(1400);
+    expect(snapshot.percentRemaining).toBe(93);
   });
 });

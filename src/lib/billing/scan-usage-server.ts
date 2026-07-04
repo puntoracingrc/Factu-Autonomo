@@ -8,10 +8,11 @@ import {
   aiUsageBlockedMessage,
   buildScanQuota,
   FREE_EXPENSE_SCAN_TRIAL,
-  PRO_EXPENSE_SCANS_PER_MONTH,
+  includedExpenseScansForPlan,
   scanBlockedMessage,
   type ScanQuota,
 } from "./scan-limits";
+import { isProPlan } from "./plans";
 import { fetchUserSubscriptionServer } from "./server-repository";
 import { resolveEffectivePlan } from "./subscription";
 
@@ -224,14 +225,14 @@ async function consumeAiUnitsLegacy(
   const sub = await fetchUserSubscriptionServer(userId);
   const plan = resolveEffectivePlan(sub);
 
-  if (plan === "pro" || plan === "trial") {
+  if (isProPlan(plan)) {
     const usage = await getMonthlyAiUsage(userId, monthKey);
     const usedUnits =
       usage.expenseScansCreated * AI_UNITS_PER_SCAN +
       usage.customerAiAutofillsCreated;
     const includedRemainingUnits = Math.max(
       0,
-      PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN - usedUnits,
+      includedExpenseScansForPlan(plan) * AI_UNITS_PER_SCAN - usedUnits,
     );
     const aiCreditUnits =
       sub?.aiCreditUnits ?? (sub?.scanCredits ?? 0) * AI_UNITS_PER_SCAN;
@@ -389,7 +390,7 @@ async function consumeAiUnits(
     p_customer_ai_autofills_increment:
       increments.customerAiAutofillsCreated ?? 0,
     p_pro_monthly_units:
-      PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN,
+      includedExpenseScansForPlan(quotaBefore.plan) * AI_UNITS_PER_SCAN,
     p_free_trial_decrement: 1,
   });
 

@@ -35,10 +35,12 @@ Copia desde tu `.env.local` (Production + Preview):
 |----------|--------|
 | `NEXT_PUBLIC_APP_URL` | `https://facturacion-autonomos.app` |
 | `NEXT_PUBLIC_BILLING_ENABLED` | `true` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | tu `pk_test_...` |
-| `STRIPE_SECRET_KEY` | tu `sk_test_...` |
-| `STRIPE_PRICE_MONTHLY` | `price_1TgeydRr6FrMLNZFM5rSFVSY` |
-| `STRIPE_PRICE_YEARLY` | `price_1TgeydRr6FrMLNZFtk6bvDjH` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | tu `pk_live_...` |
+| `STRIPE_SECRET_KEY` | tu `sk_live_...` |
+| `STRIPE_PRICE_MONTHLY` | `price_1TpVbwRr6FrMLNZFc8Rn2d7T` |
+| `STRIPE_PRICE_YEARLY` | `price_1TpVc8Rr6FrMLNZFtblG0vCk` |
+| `STRIPE_PRICE_PRO_PLUS_MONTHLY` | `price_1TpVSNRr6FrMLNZFqOQJZ3wH` |
+| `STRIPE_PRICE_PRO_PLUS_YEARLY` | `price_1TpVUKRr6FrMLNZFu5igCCKH` |
 | `STRIPE_WEBHOOK_SECRET` | el `whsec_...` del webhook de **esta URL** (ver abajo) |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` (sin `/rest/v1/`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (o legacy `anon` JWT) |

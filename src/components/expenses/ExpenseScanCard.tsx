@@ -60,6 +60,10 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     quota.remaining !== Number.MAX_SAFE_INTEGER;
   const scanControlsDisabled = scanning || noScansLeft || !aiConsent.accepted;
   const dropDisabled = scanning || noScansLeft;
+  const includedScanLimit =
+    quota?.limit && quota.limit !== Number.MAX_SAFE_INTEGER
+      ? quota.limit
+      : PRO_EXPENSE_SCANS_PER_MONTH;
   const usageLabel = useMemo(() => {
     if (!quota || quota.remainingUnits === Number.MAX_SAFE_INTEGER) return null;
     return `${buildAiUsageMeter(quota).percentRemaining}% restante`;
@@ -377,9 +381,8 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
               <p className="text-sm text-violet-800">
                 {isPro ? (
                   <>
-                    Has usado los {PRO_EXPENSE_SCANS_PER_MONTH} escaneos incluidos
-                    este mes. Puedes comprar un pack extra o esperar al mes que
-                    viene.
+                    Has usado los {includedScanLimit} escaneos incluidos este
+                    mes. Puedes comprar un pack extra o esperar al mes que viene.
                   </>
                 ) : (
                   <>
