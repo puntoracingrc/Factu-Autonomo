@@ -49,6 +49,7 @@ import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { loadData } from "@/lib/storage";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { EMPTY_DATA } from "@/lib/types";
+import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
 
 export type SyncStatus =
@@ -64,6 +65,12 @@ export type SignUpResult =
   | { ok: true; email: string; needsEmailConfirmation: boolean }
   | { ok: false; error: string };
 
+export type LocalDataHandoffStatus =
+  | "none"
+  | "pending"
+  | "kept_local"
+  | "syncing";
+
 interface CloudSyncValue {
   cloudEnabled: boolean;
   authReady: boolean;
@@ -73,6 +80,7 @@ interface CloudSyncValue {
   syncMessage: string | null;
   pendingUpload: boolean;
   pendingChangeCount: number;
+  localDataHandoffStatus: LocalDataHandoffStatus;
   setEmail: (value: string) => void;
   signUp: (password: string) => Promise<SignUpResult>;
   signIn: (password: string) => Promise<string | null>;
@@ -80,6 +88,8 @@ interface CloudSyncValue {
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
+  saveLocalDataToAccount: () => Promise<void>;
+  keepLocalDataOnDevice: () => void;
   forceDownloadFromCloud: () => Promise<void>;
   exportBackup: () => void;
   importBackup: (file: File) => Promise<string | null>;
@@ -89,6 +99,27 @@ const CloudSyncContext = createContext<CloudSyncValue | null>(null);
 
 const RETRY_MS = 30_000;
 const PULL_INTERVAL_MS = 45_000;
+const LOCAL_DATA_HANDOFF_PREFIX = "factura-autonomo-local-data-handoff";
+
+type LocalDataHandoffDecision = "synced" | "keep_local";
+
+function handoffDecisionKey(userId: string): string {
+  return `${LOCAL_DATA_HANDOFF_PREFIX}:${userId}`;
+}
+
+function readHandoffDecision(userId: string): LocalDataHandoffDecision | null {
+  if (typeof localStorage === "undefined") return null;
+  const value = localStorage.getItem(handoffDecisionKey(userId));
+  return value === "synced" || value === "keep_local" ? value : null;
+}
+
+function rememberHandoffDecision(
+  userId: string,
+  decision: LocalDataHandoffDecision,
+): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(handoffDecisionKey(userId), decision);
+}
 
 export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const { data, ready, replaceData } = useAppStore();
@@ -102,6 +133,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     cloudEnabled ? "idle" : "disabled",
   );
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [localDataHandoffStatus, setLocalDataHandoffStatus] =
+    useState<LocalDataHandoffStatus>("none");
   const skipPush = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,8 +147,22 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [data]);
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
+  const handoffDecision = user ? readHandoffDecision(user.id) : null;
+  const hasUndecidedLocalData =
+    !demoMode &&
+    ready &&
+    Boolean(user) &&
+    handoffDecision === null &&
+    hasWorkspaceContent(data) &&
+    !data.meta?.lastSyncedAt;
+  const handoffPausesCloud =
+    localDataHandoffStatus === "pending" ||
+    localDataHandoffStatus === "kept_local" ||
+    handoffDecision === "keep_local" ||
+    hasUndecidedLocalData;
   const pendingUpload =
     !demoMode &&
+    !handoffPausesCloud &&
     (hasPendingSyncChanges(data) ||
       isSyncPendingFlag() ||
       hasUnsyncedChanges(data));
@@ -127,6 +174,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!user || !cloudEnabled) return;
+    if (handoffPausesCloud) {
+      setSyncStatus("idle");
+      setSyncMessage(
+        localDataHandoffStatus === "kept_local"
+          ? "Datos en modo local para esta cuenta."
+          : "Elige qué hacer con los datos de este navegador.",
+      );
+      return;
+    }
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
       setSyncMessage("Sin conexión. Los cambios se subirán cuando vuelva internet.");
@@ -142,7 +198,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } else if (syncStatus !== "syncing" && syncStatus !== "error") {
       setSyncStatus("synced");
     }
-  }, [cloudEnabled, data, demoMode, pendingChangeCount, syncStatus, user]);
+  }, [
+    cloudEnabled,
+    data,
+    demoMode,
+    handoffPausesCloud,
+    localDataHandoffStatus,
+    pendingChangeCount,
+    syncStatus,
+    user,
+  ]);
 
   const finalizeSyncState = useCallback(
     (payload: typeof data) => {
@@ -172,13 +237,26 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pushToCloud = useCallback(
-    async (payload = data, silent = false): Promise<boolean> => {
+    async (
+      payload = data,
+      silent = false,
+      options?: { allowLocalDataUpload?: boolean },
+    ): Promise<boolean> => {
       if (demoMode) {
         setSyncStatus("idle");
         setSyncMessage("Modo demo: no se sincronizan datos ficticios.");
         return false;
       }
       if (!user) return false;
+      if (handoffPausesCloud && !options?.allowLocalDataUpload) {
+        setSyncStatus("idle");
+        setSyncMessage(
+          localDataHandoffStatus === "kept_local"
+            ? "Tus datos siguen solo en este navegador. Puedes guardarlos en tu cuenta desde Cuenta."
+            : "Elige primero qué hacer con los datos locales.",
+        );
+        return false;
+      }
 
       const cloudAccess = await canUseCloudForUser(user.id);
       if (!cloudAccess.allowed) {
@@ -242,13 +320,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [data, demoMode, replaceData, user],
+    [
+      data,
+      demoMode,
+      handoffPausesCloud,
+      localDataHandoffStatus,
+      replaceData,
+      user,
+    ],
   );
 
   const flushPendingUpload = useCallback(
-    async (silent = true, payload = dataRef.current) => {
+    async (
+      silent = true,
+      payload = dataRef.current,
+      options?: { allowLocalDataUpload?: boolean },
+    ) => {
       if (demoMode) return false;
       if (!user) return false;
+      if (handoffPausesCloud && !options?.allowLocalDataUpload) return false;
       if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
         clearSyncPending();
         setSyncStatus("synced");
@@ -256,36 +346,47 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
       if (syncing.current) return false;
       syncing.current = true;
-      const ok = await pushToCloud(payload, silent);
+      const ok = await pushToCloud(payload, silent, options);
       syncing.current = false;
       return ok;
     },
-    [demoMode, pushToCloud, user],
+    [demoMode, handoffPausesCloud, pushToCloud, user],
   );
 
-  const pullFromCloud = useCallback(async () => {
-    if (demoMode) return;
-    if (!user) return;
+  const pullFromCloud = useCallback(async (options?: {
+    allowLocalDataUpload?: boolean;
+  }): Promise<boolean> => {
+    if (demoMode) return false;
+    if (!user) return false;
+    if (handoffPausesCloud && !options?.allowLocalDataUpload) {
+      setSyncStatus("idle");
+      setSyncMessage(
+        localDataHandoffStatus === "kept_local"
+          ? "Tus datos siguen solo en este navegador. Puedes guardarlos en tu cuenta desde Cuenta."
+          : "Elige primero qué hacer con los datos locales.",
+      );
+      return false;
+    }
 
     const cloudAccess = await canUseCloudForUser(user.id);
     if (!cloudAccess.allowed) {
       setSyncStatus("idle");
       setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
-      return;
+      return false;
     }
 
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
       setSyncMessage("Sin conexión. Trabajando en local.");
-      return;
+      return false;
     }
 
     let workingData = dataRef.current;
 
     if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
-      const uploaded = await flushPendingUpload(true, workingData);
+      const uploaded = await flushPendingUpload(true, workingData, options);
       workingData = dataRef.current;
-      if (!uploaded && hasUnsyncedChanges(workingData)) return;
+      if (!uploaded && hasUnsyncedChanges(workingData)) return false;
     }
 
     setSyncStatus("syncing");
@@ -350,13 +451,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (hasPendingSyncChanges(workingData) || hasUnsyncedChanges(workingData) || isSyncPendingFlag()) {
-        await flushPendingUpload(true, workingData);
+        await flushPendingUpload(true, workingData, options);
         workingData = dataRef.current;
       }
 
       if (!hasPendingSyncChanges(workingData) && !hasUnsyncedChanges(workingData)) {
         finalizeSyncState(workingData);
       }
+      return true;
     } catch (error) {
       void reportAppError({
         severity: "error",
@@ -377,8 +479,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         error instanceof Error ? error.message : "Error al descargar de la nube",
       );
       skipPush.current = false;
+      return false;
     }
-  }, [demoMode, finalizeSyncState, flushPendingUpload, replaceData, user]);
+  }, [
+    demoMode,
+    finalizeSyncState,
+    flushPendingUpload,
+    handoffPausesCloud,
+    localDataHandoffStatus,
+    replaceData,
+    user,
+  ]);
 
   const pullFromCloudRef = useRef(pullFromCloud);
   pullFromCloudRef.current = pullFromCloud;
@@ -387,6 +498,51 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const syncNow = useCallback(async () => {
     await pullFromCloudRef.current();
   }, []);
+
+  const saveLocalDataToAccount = useCallback(async () => {
+    if (!user) return;
+    const changes = appDataToSyncChanges(dataRef.current);
+    if (changes.length === 0) {
+      rememberHandoffDecision(user.id, "synced");
+      setLocalDataHandoffStatus("none");
+      setSyncMessage("No había datos locales pendientes que guardar.");
+      return;
+    }
+
+    const queued = {
+      ...dataRef.current,
+      meta: {
+        ...dataRef.current.meta,
+        lastModified: new Date().toISOString(),
+        pendingChanges: changes,
+      },
+    };
+    dataRef.current = queued;
+    skipPush.current = true;
+    replaceData(queued, { fromRemote: true });
+    skipPush.current = false;
+    markSyncPending();
+
+    setLocalDataHandoffStatus("syncing");
+    setSyncMessage("Guardando los datos locales en tu cuenta…");
+    const ok = await pullFromCloudRef.current({ allowLocalDataUpload: true });
+    if (ok) {
+      rememberHandoffDecision(user.id, "synced");
+      setLocalDataHandoffStatus("none");
+      setSyncMessage("Datos de este navegador guardados en tu cuenta.");
+    } else {
+      setLocalDataHandoffStatus("pending");
+    }
+  }, [replaceData, user]);
+
+  const keepLocalDataOnDevice = useCallback(() => {
+    if (!user) return;
+    rememberHandoffDecision(user.id, "keep_local");
+    clearSyncPending();
+    setLocalDataHandoffStatus("kept_local");
+    setSyncStatus("idle");
+    setSyncMessage("Tus datos seguirán solo en este navegador.");
+  }, [user]);
 
   const forceDownloadFromCloud = useCallback(async () => {
     if (demoMode) {
@@ -428,6 +584,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const synced = markFullySynced(normalized);
         clearSyncPending();
         replaceLocalDataFromCloud(synced);
+        rememberHandoffDecision(user.id, "synced");
+        setLocalDataHandoffStatus("none");
         setSyncStatus("synced");
         setSyncMessage(
           applied > 0
@@ -442,6 +600,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const synced = markFullySynced(legacy.data, legacy.updated_at);
         clearSyncPending();
         replaceLocalDataFromCloud(synced);
+        rememberHandoffDecision(user.id, "synced");
+        setLocalDataHandoffStatus("none");
         await migrateLegacyBackupToEntities(user.id, synced);
         setSyncStatus("synced");
         setSyncMessage("Copia antigua descargada y actualizada en la nube");
@@ -473,6 +633,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const schedulePush = useCallback(() => {
     if (demoMode) return;
+    if (handoffPausesCloud) return;
     if (!ready || !user || skipPush.current) return;
     if (!pendingUpload) return;
 
@@ -483,13 +644,22 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     pushTimer.current = setTimeout(() => {
       void flushPendingUpload(true);
     }, 2000);
-  }, [demoMode, flushPendingUpload, pendingUpload, ready, updatePendingStatus, user]);
+  }, [
+    demoMode,
+    flushPendingUpload,
+    handoffPausesCloud,
+    pendingUpload,
+    ready,
+    updatePendingStatus,
+    user,
+  ]);
 
   useEffect(() => {
     setOnline(isBrowserOnline());
     function handleOnline() {
       setOnline(true);
       if (demoMode) return;
+      if (handoffPausesCloud) return;
       void flushPendingUpload(true);
     }
     function handleOffline() {
@@ -504,7 +674,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [demoMode, flushPendingUpload]);
+  }, [demoMode, flushPendingUpload, handoffPausesCloud]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -548,6 +718,31 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [schedulePush]);
 
   useEffect(() => {
+    if (demoMode || !ready || !user) {
+      if (!user) setLocalDataHandoffStatus("none");
+      return;
+    }
+    if (localDataHandoffStatus === "syncing") return;
+
+    const decision = readHandoffDecision(user.id);
+    if (decision === "synced") {
+      setLocalDataHandoffStatus("none");
+      return;
+    }
+    if (decision === "keep_local") {
+      setLocalDataHandoffStatus("kept_local");
+      return;
+    }
+    if (hasWorkspaceContent(dataRef.current) && !dataRef.current.meta?.lastSyncedAt) {
+      setLocalDataHandoffStatus("pending");
+      setSyncStatus("idle");
+      setSyncMessage("Elige qué hacer con los datos de este navegador.");
+      return;
+    }
+    setLocalDataHandoffStatus("none");
+  }, [data, demoMode, localDataHandoffStatus, ready, user]);
+
+  useEffect(() => {
     if (!demoMode || !ready || !user) return;
     setDemoWorkspaceMode(false);
     replaceLocalDataFromCloud(loadData());
@@ -556,17 +751,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (demoMode || !ready || !user) return;
+    if (handoffPausesCloud || localDataHandoffStatus === "syncing") return;
     if (pulledForUser.current === user.id) return;
     pulledForUser.current = user.id;
     void pullFromCloud();
-  }, [demoMode, ready, user, pullFromCloud]);
+  }, [
+    demoMode,
+    handoffPausesCloud,
+    localDataHandoffStatus,
+    pullFromCloud,
+    ready,
+    user,
+  ]);
 
   useEffect(() => {
     if (!user) pulledForUser.current = null;
   }, [user]);
 
   useEffect(() => {
-    if (demoMode || !cloudEnabled || !user) return;
+    if (demoMode || handoffPausesCloud || !cloudEnabled || !user) return;
 
     function handleVisible() {
       if (document.visibilityState === "visible" && isBrowserOnline()) {
@@ -578,10 +781,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener("visibilitychange", handleVisible);
     return () => document.removeEventListener("visibilitychange", handleVisible);
-  }, [cloudEnabled, data, demoMode, flushPendingUpload, pullFromCloud, user]);
+  }, [
+    cloudEnabled,
+    data,
+    demoMode,
+    flushPendingUpload,
+    handoffPausesCloud,
+    pullFromCloud,
+    user,
+  ]);
 
   useEffect(() => {
-    if (demoMode || !cloudEnabled || !user) return;
+    if (demoMode || handoffPausesCloud || !cloudEnabled || !user) return;
 
     const pullTimer = setInterval(() => {
       if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
@@ -590,10 +801,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }, PULL_INTERVAL_MS);
 
     return () => clearInterval(pullTimer);
-  }, [cloudEnabled, demoMode, pullFromCloud, user]);
+  }, [cloudEnabled, demoMode, handoffPausesCloud, pullFromCloud, user]);
 
   useEffect(() => {
-    if (demoMode || !user || !pendingUpload || !online) return;
+    if (demoMode || handoffPausesCloud || !user || !pendingUpload || !online) return;
 
     if (retryTimer.current) clearInterval(retryTimer.current);
     retryTimer.current = setInterval(() => {
@@ -603,7 +814,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (retryTimer.current) clearInterval(retryTimer.current);
     };
-  }, [demoMode, flushPendingUpload, online, pendingUpload, user]);
+  }, [demoMode, flushPendingUpload, handoffPausesCloud, online, pendingUpload, user]);
 
   useEffect(() => {
     updatePendingStatus();
@@ -670,13 +881,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (error) return error.message;
 
       pulledForUser.current = null;
-      setSyncMessage("Sesión iniciada — sincronizando…");
-      if (ready && !demoMode) {
-        void pullFromCloud();
-      }
+      setSyncMessage("Sesión iniciada.");
       return null;
     },
-    [demoMode, email, pullFromCloud, ready],
+    [email],
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -779,6 +987,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncMessage,
       pendingUpload,
       pendingChangeCount,
+      localDataHandoffStatus,
       setEmail,
       signUp,
       signIn,
@@ -786,6 +995,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       resendConfirmationEmail,
       signOut,
       syncNow,
+      saveLocalDataToAccount,
+      keepLocalDataOnDevice,
       forceDownloadFromCloud,
       exportBackup: () => downloadBackup(data),
       importBackup,
@@ -798,12 +1009,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncMessage,
       pendingUpload,
       pendingChangeCount,
+      localDataHandoffStatus,
       signUp,
       signIn,
       signInWithGoogle,
       resendConfirmationEmail,
       signOut,
       syncNow,
+      saveLocalDataToAccount,
+      keepLocalDataOnDevice,
       forceDownloadFromCloud,
       data,
       authReady,

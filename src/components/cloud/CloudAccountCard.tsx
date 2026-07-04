@@ -88,6 +88,9 @@ export function CloudAccountCard() {
     forceDownloadFromCloud,
     exportBackup,
     importBackup,
+    localDataHandoffStatus,
+    saveLocalDataToAccount,
+    keepLocalDataOnDevice,
     syncStatus,
     syncMessage,
     pendingUpload,
@@ -226,6 +229,16 @@ export function CloudAccountCard() {
     setBusy(false);
   }
 
+  async function handleSaveLocalDataToAccount() {
+    setBusy(true);
+    await saveLocalDataToAccount();
+    setBusy(false);
+  }
+
+  function handleKeepLocalDataOnDevice() {
+    keepLocalDataOnDevice();
+  }
+
   return (
     <Card className="mb-6 space-y-4">
       <div id="inicio-sesion" className="flex scroll-mt-24 items-start gap-3">
@@ -280,6 +293,45 @@ export function CloudAccountCard() {
           <p className="text-sm text-slate-700">
             Sesión: <strong>{user.email}</strong>
           </p>
+          {localDataHandoffStatus !== "none" ? (
+            <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
+              <div>
+                <p className="text-sm font-black text-slate-900">
+                  {localDataHandoffStatus === "kept_local"
+                    ? "Datos locales sin subir"
+                    : "Datos locales encontrados"}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {localDataHandoffStatus === "kept_local"
+                    ? "Has elegido seguir usando estos datos solo en este navegador. Puedes guardarlos en tu cuenta más adelante."
+                    : "Antes de sincronizar, elige qué hacemos con lo que ya creaste en este navegador."}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Button
+                  onClick={() => void handleSaveLocalDataToAccount()}
+                  disabled={busy || localDataHandoffStatus === "syncing"}
+                >
+                  {localDataHandoffStatus === "syncing"
+                    ? "Guardando…"
+                    : "Guardar estos datos en mi cuenta"}
+                </Button>
+                <Button variant="secondary" onClick={exportBackup} disabled={busy}>
+                  <Download className="h-4 w-4" />
+                  Descargar copia antes de continuar
+                </Button>
+                {localDataHandoffStatus === "pending" ? (
+                  <Button
+                    variant="ghost"
+                    onClick={handleKeepLocalDataOnDevice}
+                    disabled={busy}
+                  >
+                    Seguir solo en este navegador
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <p className="text-sm text-slate-500">
             Estado: {STATUS_LABELS[syncStatus]}
             {syncMessage ? ` — ${syncMessage}` : ""}
@@ -343,8 +395,8 @@ export function CloudAccountCard() {
               <>
                 Hemos encontrado datos en este navegador. Crear cuenta o iniciar
                 sesión <strong>no los borra</strong>. Si tu plan incluye nube,
-                la app intentará subirlos a tu cuenta; también puedes exportar
-                una copia manual.
+                te preguntaremos si quieres guardarlos en tu cuenta o seguir solo
+                en este navegador.
               </>
             ) : (
               <>

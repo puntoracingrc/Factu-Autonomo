@@ -50,7 +50,7 @@ export function GuestLocalDataBanner() {
             </p>
             <p className="mt-0.5 text-xs font-medium leading-5 text-sky-900 sm:text-sm">
               {hasLocalWork
-                ? "Puedes crear, editar y borrar aquí, pero otros dispositivos no lo verán. Al iniciar sesión no borramos estos datos; si tu plan incluye nube, se subirán a tu cuenta."
+                ? "Puedes crear, editar y borrar aquí, pero otros dispositivos no lo verán. Al iniciar sesión no borramos estos datos; te preguntaremos si quieres guardarlos en tu cuenta."
                 : "Puedes crear clientes, productos, facturas y gastos de prueba. Hasta que inicies sesión, todo queda en este navegador."}
             </p>
           </div>
