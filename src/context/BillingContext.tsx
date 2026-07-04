@@ -10,7 +10,13 @@ import {
 } from "react";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { isBillingEnforced } from "@/lib/billing/config";
-import { getPlanLimits, isProPlan, PLANS, type PlanId } from "@/lib/billing/plans";
+import {
+  getPlanLimits,
+  isProPlan,
+  PLANS,
+  type PaidPlanId,
+  type PlanId,
+} from "@/lib/billing/plans";
 import {
   ensureTrialSubscription,
   fetchUserSubscription,
@@ -36,7 +42,10 @@ interface BillingContextValue {
   showUsageWarning: boolean;
   trialDaysLeft: number | null;
   loading: boolean;
-  checkout: (interval: "monthly" | "yearly") => Promise<string | null>;
+  checkout: (
+    interval: "monthly" | "yearly",
+    plan?: PaidPlanId,
+  ) => Promise<string | null>;
   checkoutScanPack: () => Promise<string | null>;
   openPortal: () => Promise<string | null>;
   recordDocumentCreated: () => void;
@@ -45,6 +54,10 @@ interface BillingContextValue {
     reason?: string;
   };
   checkCanAddCustomer: (customerCount: number) => {
+    allowed: boolean;
+    reason?: string;
+  };
+  checkCanAddProduct: (productCount: number) => {
     allowed: boolean;
     reason?: string;
   };
@@ -116,16 +129,19 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const checkout = useCallback(
-    async (interval: "monthly" | "yearly"): Promise<string | null> => {
+    async (
+      interval: "monthly" | "yearly",
+      planToBuy: PaidPlanId = "pro",
+    ): Promise<string | null> => {
       const token = await getAccessToken();
-      if (!token) return "Inicia sesión para suscribirte a Pro";
+      if (!token) return "Inicia sesión para suscribirte";
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ interval }),
+        body: JSON.stringify({ interval, plan: planToBuy }),
       });
       const body = (await res.json()) as { url?: string; error?: string };
       if (!res.ok) return body.error ?? "No se pudo iniciar el pago";
@@ -186,6 +202,21 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     [billingEnabled, isPro],
   );
 
+  const checkCanAddProduct = useCallback(
+    (productCount: number) => {
+      if (!billingEnabled || isPro) return { allowed: true };
+      const max = PLANS.free.limits.maxProducts;
+      if (max !== null && productCount >= max) {
+        return {
+          allowed: false,
+          reason: `Has alcanzado el límite de ${max} productos en el plan Gratis. Pasa a Pro para tener catálogo ilimitado.`,
+        };
+      }
+      return { allowed: true };
+    },
+    [billingEnabled, isPro],
+  );
+
   const recordDocumentCreated = useCallback(() => {
     const snapshot = incrementLocalDocumentUsage();
     setDocumentsThisMonth(snapshot.documentsCreated);
@@ -207,6 +238,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       recordDocumentCreated,
       checkCanCreateDocument,
       checkCanAddCustomer,
+      checkCanAddProduct,
     }),
     [
       billingEnabled,
@@ -223,6 +255,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       recordDocumentCreated,
       checkCanCreateDocument,
       checkCanAddCustomer,
+      checkCanAddProduct,
     ],
   );
 

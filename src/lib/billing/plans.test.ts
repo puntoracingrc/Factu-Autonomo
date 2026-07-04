@@ -5,6 +5,9 @@ describe("billing plans", () => {
   it("posiciona Pro por debajo de competidores habituales", () => {
     expect(PLANS.pro.priceMonthlyEur).toBeLessThan(12);
     expect(PLANS.pro.priceYearlyEur).toBeLessThan(100);
+    expect(PLANS.pro_plus.priceMonthlyEur).toBeGreaterThan(
+      PLANS.pro.priceMonthlyEur ?? 0,
+    );
   });
 
   it("limita el plan gratis", () => {
@@ -17,6 +20,7 @@ describe("billing plans", () => {
 
   it("desbloquea funciones en pro y trial", () => {
     expect(isProPlan("pro")).toBe(true);
+    expect(isProPlan("pro_plus")).toBe(true);
     expect(isProPlan("trial")).toBe(true);
     expect(isProPlan("free")).toBe(false);
     expect(PLANS.pro.limits.databaseImport).toBe(true);
@@ -24,6 +28,8 @@ describe("billing plans", () => {
     expect(PLANS.pro.limits.aiTextAutofill).toBe(true);
     expect(PLANS.trial.limits.aiTextAutofill).toBe(true);
     expect(PLANS.pro.limits.quarterlyExport).toBe(true);
+    expect(PLANS.pro_plus.limits.productCreationFromExpenses).toBe(true);
+    expect(PLANS.pro.limits.productCreationFromExpenses).toBe(false);
   });
 
   it("formatea precios en español", () => {
@@ -33,5 +39,6 @@ describe("billing plans", () => {
 
   it("calcula ahorro anual", () => {
     expect(yearlySavingsPercent()).toBeGreaterThan(0);
+    expect(yearlySavingsPercent("pro_plus")).toBeGreaterThan(0);
   });
 });

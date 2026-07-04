@@ -59,7 +59,7 @@ export async function grantBonusScans(
     currentPeriodEnd: row.current_period_end as string | null | undefined,
   });
 
-  if (isProPlan(effectivePlan) || effectivePlan === "trial") {
+  if (isProPlan(effectivePlan)) {
     return addScanCredits(userId, amount);
   }
 

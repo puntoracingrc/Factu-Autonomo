@@ -19,6 +19,19 @@ describe("subscription", () => {
     expect(plan).toBe("pro");
   });
 
+  it("resuelve plan pro plus activo", () => {
+    const plan = resolveEffectivePlan(
+      {
+        userId: "u1",
+        plan: "pro_plus",
+        status: "active",
+        currentPeriodEnd: "2027-01-01T00:00:00.000Z",
+      },
+      new Date("2026-06-01"),
+    );
+    expect(plan).toBe("pro_plus");
+  });
+
   it("baja a free si el periodo expiró", () => {
     const plan = resolveEffectivePlan(
       {

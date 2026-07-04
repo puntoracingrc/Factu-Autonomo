@@ -28,6 +28,7 @@ import {
 import {
   AI_UNITS_PER_SCAN,
 } from "@/lib/billing/scan-limits";
+import { PLANS } from "@/lib/billing/plans";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -453,7 +454,7 @@ function UserAdminCard({
           >
             {ADMIN_PLAN_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {PLANS[option].name}
               </option>
             ))}
           </select>

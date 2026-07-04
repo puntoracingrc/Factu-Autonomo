@@ -11,32 +11,52 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import { PricingComparisonPanel } from "@/components/billing/PricingComparisonPanel";
 import {
   formatPlanPrice,
+  isPaidPlan,
   PLANS,
+  type PaidPlanId,
   yearlySavingsPercent,
 } from "@/lib/billing/plans";
-import { PRO_EXPENSE_SCANS_PER_MONTH } from "@/lib/billing/scan-limits";
+import {
+  PRO_EXPENSE_SCANS_PER_MONTH,
+  PRO_PLUS_EXPENSE_SCANS_PER_MONTH,
+} from "@/lib/billing/scan-limits";
 import { getPricingRankingSummary } from "@/lib/billing/competitor-pricing";
 import { subscriptionLabel } from "@/lib/billing/subscription";
 
 const FREE_FEATURES = [
+  "Cuenta gratuita verificada, sin tarjeta",
   "Hasta 10 documentos al mes",
   "Hasta 15 clientes",
   "Facturas, presupuestos y recibos en PDF",
   "VeriFactu incluido",
   "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
+  "2 escaneos IA de prueba",
   "Copia manual export/import",
 ];
 
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",
-  `Escanear facturas de gasto (${PRO_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos; packs extra opcionales)`,
+  "Productos, servicios y proveedores ilimitados",
+  `Escaneo simple de gastos (${PRO_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos; packs extra opcionales)`,
   "Rellenar clientes con IA desde texto (10 rellenos equivalen a 1 escaneo), incluido CP si la dirección se localiza",
+  "Buzón inteligente básico para facturas de proveedores",
   "Importar datos desde otros programas de facturación",
   "Diseñador Pro de plantillas para facturas, presupuestos y recibos",
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",
   "14 días de prueba al crear cuenta",
+];
+
+const PRO_PLUS_FEATURES = [
+  `IA avanzada para gastos y catálogo (${PRO_PLUS_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos)`,
+  "Lee líneas de factura y permite elegir qué líneas crean producto",
+  "Actualiza costes y referencias de proveedor con revisión previa",
+  "Recuerda productos descartados para no volver a proponerlos",
+  "Reglas de incremento y margen por familia",
+  "Margen real por línea y global del documento",
+  "Panel de aprendizaje para corregir lecturas",
+  "Soporte prioritario",
 ];
 
 function CheckoutNotice() {
@@ -47,7 +67,7 @@ function CheckoutNotice() {
     return (
       <Card className="mb-6 border-green-200 bg-green-50">
         <p className="text-sm font-medium text-green-900">
-          Pago completado. Tu plan Pro se activará en unos segundos. Si no ves
+          Pago completado. Tu plan se activará en unos segundos. Si no ves
           los cambios, recarga la página o vuelve a iniciar sesión.
         </p>
       </Card>
@@ -75,10 +95,10 @@ export default function PreciosPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function subscribe(interval: "monthly" | "yearly") {
+  async function subscribe(planToBuy: PaidPlanId, interval: "monthly" | "yearly") {
     setBusy(true);
     setError(null);
-    const result = await checkout(interval);
+    const result = await checkout(interval, planToBuy);
     setBusy(false);
     if (result) setError(result);
   }
@@ -120,7 +140,7 @@ export default function PreciosPage() {
               : ""}
             .
           </p>
-          {user && plan === "pro" && (
+          {user && isPaidPlan(plan) && (
             <Button className="mt-3" variant="secondary" onClick={() => void manage()} disabled={busy}>
               Gestionar suscripción
             </Button>
@@ -128,11 +148,13 @@ export default function PreciosPage() {
         </Card>
       )}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Card>
           <h2 className="text-xl font-bold text-slate-900">Gratis</h2>
           <p className="mt-1 text-3xl font-bold text-slate-900">0 €</p>
-          <p className="mt-1 text-sm text-slate-500">Para empezar sin tarjeta</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Para empezar con email verificado, sin tarjeta
+          </p>
           <ul className="mt-4 space-y-2">
             {FREE_FEATURES.map((feature) => (
               <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
@@ -163,7 +185,7 @@ export default function PreciosPage() {
               </li>
             ))}
           </ul>
-          {!isPro && (
+          {plan !== "pro" && plan !== "pro_plus" && (
             <div className="mt-5 space-y-2">
               {!user && (
                 <p className="text-sm text-slate-600">
@@ -173,16 +195,57 @@ export default function PreciosPage() {
                   para activar la prueba de 14 días.
                 </p>
               )}
-              <Button fullWidth onClick={() => void subscribe("yearly")} disabled={busy}>
+              <Button fullWidth onClick={() => void subscribe("pro", "yearly")} disabled={busy}>
                 Pro anual — mejor precio
               </Button>
               <Button
                 variant="secondary"
                 fullWidth
-                onClick={() => void subscribe("monthly")}
+                onClick={() => void subscribe("pro", "monthly")}
                 disabled={busy}
               >
                 Pro mensual
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <Card className="border-emerald-300 bg-emerald-50/50">
+          <div className="flex items-center gap-2">
+            <Crown className="h-5 w-5 text-emerald-700" />
+            <h2 className="text-xl font-bold text-slate-900">Pro+ IA</h2>
+          </div>
+          <p className="mt-1 text-3xl font-bold text-emerald-900">
+            {formatPlanPrice(PLANS.pro_plus.priceMonthlyEur ?? 0, "month")}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            o {formatPlanPrice(PLANS.pro_plus.priceYearlyEur ?? 0, "year")} (ahorra{" "}
+            {yearlySavingsPercent("pro_plus")}%)
+          </p>
+          <ul className="mt-4 space-y-2">
+            {PRO_PLUS_FEATURES.map((feature) => (
+              <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          {plan !== "pro_plus" && (
+            <div className="mt-5 space-y-2">
+              <Button
+                fullWidth
+                onClick={() => void subscribe("pro_plus", "yearly")}
+                disabled={busy}
+              >
+                Pro+ anual
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => void subscribe("pro_plus", "monthly")}
+                disabled={busy}
+              >
+                Pro+ mensual
               </Button>
             </div>
           )}

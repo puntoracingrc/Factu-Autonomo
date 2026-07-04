@@ -5,6 +5,9 @@ import { SCAN_PACK_SIZE, formatScanPackPrice } from "./scan-packs";
 /** Escaneos/mes en Pro (margen ~95% incluso si se agota el cupo con gpt-4o-mini). */
 export const PRO_EXPENSE_SCANS_PER_MONTH = 30;
 
+/** Escaneos/mes en Pro+ IA para automatizaciones avanzadas de gastos y productos. */
+export const PRO_PLUS_EXPENSE_SCANS_PER_MONTH = 150;
+
 /** Escaneos de regalo al crear cuenta (plan Gratis). */
 export const FREE_EXPENSE_SCAN_TRIAL = 2;
 
@@ -62,7 +65,13 @@ function usagePercent(remaining: number, total: number): number {
 
 export function monthlyScanLimit(plan: PlanId): number {
   if (!isBillingEnforced()) return Number.MAX_SAFE_INTEGER;
-  return isProPlan(plan) ? PRO_EXPENSE_SCANS_PER_MONTH : 0;
+  return includedExpenseScansForPlan(plan);
+}
+
+export function includedExpenseScansForPlan(plan: PlanId): number {
+  if (plan === "pro_plus") return PRO_PLUS_EXPENSE_SCANS_PER_MONTH;
+  if (plan === "pro" || plan === "trial") return PRO_EXPENSE_SCANS_PER_MONTH;
+  return 0;
 }
 
 export function buildScanQuota(
@@ -91,7 +100,7 @@ export function buildScanQuota(
   }
 
   if (isProPlan(plan)) {
-    const limit = PRO_EXPENSE_SCANS_PER_MONTH;
+    const limit = includedExpenseScansForPlan(plan);
     const usedUnits =
       monthlyUsed * AI_UNITS_PER_SCAN + Math.max(0, monthlyTextAutofillsUsed);
     const includedUnits = limit * AI_UNITS_PER_SCAN;
@@ -228,7 +237,7 @@ export function buildAiUsageMeter(quota: ScanQuota): AiUsageMeter {
 
 export function scanBlockedMessage(plan: PlanId): string {
   if (isProPlan(plan)) {
-    return `Has usado los ${PRO_EXPENSE_SCANS_PER_MONTH} escaneos incluidos este mes. Compra un pack de ${SCAN_PACK_SIZE} escaneos (${formatScanPackPrice()} + IVA) o espera al mes que viene.`;
+    return `Has usado los ${includedExpenseScansForPlan(plan)} escaneos incluidos este mes. Compra un pack de ${SCAN_PACK_SIZE} escaneos (${formatScanPackPrice()} + IVA) o espera al mes que viene.`;
   }
   return `Has agotado tus ${FREE_EXPENSE_SCAN_TRIAL} escaneos de prueba. Pasa a Pro (${PLANS.pro.priceMonthlyEur} €/mes) para escanear hasta ${PRO_EXPENSE_SCANS_PER_MONTH} facturas al mes.`;
 }

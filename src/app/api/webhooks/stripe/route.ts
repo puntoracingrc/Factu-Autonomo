@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { addScanCredits } from "@/lib/billing/add-scan-credits";
+import type { PaidPlanId } from "@/lib/billing/plans";
 import {
   findUserIdByStripeCustomer,
   receiptFromCheckoutSession,
@@ -16,7 +17,7 @@ import {
   markStripeEventProcessed,
   reserveStripeEvent,
 } from "@/lib/billing/stripe-events";
-import { getStripe } from "@/lib/billing/stripe";
+import { getStripe, planFromStripePriceId } from "@/lib/billing/stripe";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -27,8 +28,21 @@ function subscriptionPeriodEnd(subscription: Stripe.Subscription): number | null
   return firstItem?.current_period_end ?? null;
 }
 
-async function upsertProSubscription(params: {
+function subscriptionPlanFromStripe(
+  subscription: Stripe.Subscription,
+  fallbackPlan?: PaidPlanId | null,
+): PaidPlanId {
+  const metadataPlan =
+    subscription.metadata?.plan === "pro_plus" ? "pro_plus" : null;
+  const pricePlan = planFromStripePriceId(
+    subscription.items?.data?.[0]?.price?.id,
+  );
+  return metadataPlan ?? pricePlan ?? fallbackPlan ?? "pro";
+}
+
+async function upsertPaidSubscription(params: {
   userId: string;
+  plan: PaidPlanId;
   customerId: string;
   subscriptionId: string;
   status: string;
@@ -44,7 +58,7 @@ async function upsertProSubscription(params: {
   const { error } = await admin.from("user_subscriptions").upsert(
     {
       user_id: params.userId,
-      plan: "pro",
+      plan: params.plan,
       status:
         params.status === "trialing"
           ? "trialing"
@@ -116,11 +130,14 @@ async function handleCheckoutCompleted(
     const subscriptionId = session.subscription as string | null;
     const customerId = session.customer as string | null;
     if (subscriptionId && customerId) {
+      const sessionPlan: PaidPlanId =
+        session.metadata?.plan === "pro_plus" ? "pro_plus" : "pro";
       const subscription = (await stripe.subscriptions.retrieve(
         subscriptionId,
       )) as unknown as Stripe.Subscription;
-      await upsertProSubscription({
+      await upsertPaidSubscription({
         userId,
+        plan: subscriptionPlanFromStripe(subscription, sessionPlan),
         customerId,
         subscriptionId,
         status: subscription.status,
@@ -247,8 +264,9 @@ export async function POST(request: Request) {
           subscription.status === "active" ||
           subscription.status === "trialing"
         ) {
-          await upsertProSubscription({
+          await upsertPaidSubscription({
             userId,
+            plan: subscriptionPlanFromStripe(subscription),
             customerId: subscription.customer as string,
             subscriptionId: subscription.id,
             status: subscription.status,

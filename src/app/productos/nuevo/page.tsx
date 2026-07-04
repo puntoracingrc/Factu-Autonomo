@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
 import {
   clearDocumentProductPickRequest,
@@ -55,6 +56,7 @@ function parseAmount(value: string): number | undefined {
 export default function NuevoProductoPage() {
   const router = useRouter();
   const { data, addProduct } = useAppStore();
+  const { checkCanAddProduct } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [documentPickRequest, setDocumentPickRequest] =
@@ -123,6 +125,14 @@ export default function NuevoProductoPage() {
       setError(
         "Ya existe un producto muy parecido. Edítalo desde la lista o unifícalo.",
       );
+      return;
+    }
+
+    const productLimit = checkCanAddProduct(
+      data.products.filter((product) => !product.hidden).length,
+    );
+    if (!productLimit.allowed) {
+      setError(productLimit.reason ?? "No puedes añadir más productos con tu plan actual.");
       return;
     }
 

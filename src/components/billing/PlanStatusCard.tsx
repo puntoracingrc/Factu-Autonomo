@@ -5,6 +5,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { isPaidPlan } from "@/lib/billing/plans";
 import { subscriptionLabel } from "@/lib/billing/subscription";
 
 export function PlanStatusCard() {
@@ -29,7 +30,7 @@ export function PlanStatusCard() {
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {!isPro && <ButtonLink href="/precios">Ver planes Pro</ButtonLink>}
-            {isPro && user && plan === "pro" && (
+            {isPro && user && isPaidPlan(plan) && (
               <Button variant="secondary" onClick={() => void openPortal()}>
                 Gestionar suscripción
               </Button>

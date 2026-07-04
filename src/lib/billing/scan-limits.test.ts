@@ -6,6 +6,7 @@ import {
   CUSTOMER_AI_AUTOFILL_UNITS,
   FREE_EXPENSE_SCAN_TRIAL,
   PRO_EXPENSE_SCANS_PER_MONTH,
+  PRO_PLUS_EXPENSE_SCANS_PER_MONTH,
   scanBlockedMessage,
 } from "./scan-limits";
 
@@ -29,6 +30,13 @@ describe("scan limits", () => {
     const q = buildScanQuota("pro", PRO_EXPENSE_SCANS_PER_MONTH, 2, "2026-06", 10);
     expect(q.remaining).toBe(10);
     expect(q.bonusCredits).toBe(10);
+  });
+
+  it("asigna más escaneos mensuales en Pro+ IA", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota("pro_plus", 50, 2, "2026-06");
+    expect(q.limit).toBe(PRO_PLUS_EXPENSE_SCANS_PER_MONTH);
+    expect(q.remaining).toBe(PRO_PLUS_EXPENSE_SCANS_PER_MONTH - 50);
   });
 
   it("cobra el relleno de cliente como una decima parte de escaneo", () => {

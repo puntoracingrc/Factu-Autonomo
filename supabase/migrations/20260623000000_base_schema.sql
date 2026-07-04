@@ -58,7 +58,7 @@ create policy "Actualizar entidades propias"
 -- billing.sql
 create table if not exists public.user_subscriptions (
   user_id uuid primary key references auth.users (id) on delete cascade,
-  plan text not null default 'free' check (plan in ('free', 'pro', 'trial')),
+  plan text not null default 'free' check (plan in ('free', 'pro', 'pro_plus', 'trial')),
   status text not null default 'inactive' check (
     status in ('active', 'trialing', 'canceled', 'past_due', 'inactive')
   ),

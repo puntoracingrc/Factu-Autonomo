@@ -4,12 +4,20 @@
  * Ver docs/MARKET_PRICING.md
  */
 
-export type PlanId = "free" | "pro" | "trial";
+export type PlanId = "free" | "pro" | "pro_plus" | "trial";
+export type PaidPlanId = "pro" | "pro_plus";
 
 export interface PlanLimits {
   maxDocumentsPerMonth: number | null;
   maxCustomers: number | null;
+  maxProducts: number | null;
   expenseScansPerMonth: number | null;
+  expenseInbox: boolean;
+  expenseLineExtraction: boolean;
+  productCreationFromExpenses: boolean;
+  productCostAutoUpdate: boolean;
+  productLearning: boolean;
+  familyMarginRules: boolean;
   cloudSync: boolean;
   databaseImport: boolean;
   aiTextAutofill: boolean;
@@ -41,7 +49,14 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: 10,
       maxCustomers: 15,
+      maxProducts: 10,
       expenseScansPerMonth: 0,
+      expenseInbox: false,
+      expenseLineExtraction: false,
+      productCreationFromExpenses: false,
+      productCostAutoUpdate: false,
+      productLearning: false,
+      familyMarginRules: false,
       cloudSync: false,
       databaseImport: false,
       aiTextAutofill: false,
@@ -61,7 +76,14 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
+      maxProducts: null,
       expenseScansPerMonth: 30,
+      expenseInbox: true,
+      expenseLineExtraction: false,
+      productCreationFromExpenses: false,
+      productCostAutoUpdate: false,
+      productLearning: false,
+      familyMarginRules: false,
       cloudSync: true,
       databaseImport: true,
       aiTextAutofill: true,
@@ -81,7 +103,41 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxDocumentsPerMonth: null,
       maxCustomers: null,
+      maxProducts: null,
       expenseScansPerMonth: 30,
+      expenseInbox: true,
+      expenseLineExtraction: false,
+      productCreationFromExpenses: false,
+      productCostAutoUpdate: false,
+      productLearning: false,
+      familyMarginRules: false,
+      cloudSync: true,
+      databaseImport: true,
+      aiTextAutofill: true,
+      quarterlySummary: true,
+      quarterlyExport: true,
+      customLogo: true,
+      documentTemplateDesigner: true,
+      prioritySupport: true,
+    },
+  },
+  pro_plus: {
+    id: "pro_plus",
+    name: "Pro+ IA",
+    priceMonthlyEur: 14.99,
+    priceYearlyEur: 149,
+    trialDays: 0,
+    limits: {
+      maxDocumentsPerMonth: null,
+      maxCustomers: null,
+      maxProducts: null,
+      expenseScansPerMonth: 150,
+      expenseInbox: true,
+      expenseLineExtraction: true,
+      productCreationFromExpenses: true,
+      productCostAutoUpdate: true,
+      productLearning: true,
+      familyMarginRules: true,
       cloudSync: true,
       databaseImport: true,
       aiTextAutofill: true,
@@ -99,7 +155,15 @@ export function getPlanLimits(plan: PlanId): PlanLimits {
 }
 
 export function isProPlan(plan: PlanId): boolean {
-  return plan === "pro" || plan === "trial";
+  return plan === "pro" || plan === "pro_plus" || plan === "trial";
+}
+
+export function isPaidPlan(plan: PlanId): plan is PaidPlanId {
+  return plan === "pro" || plan === "pro_plus";
+}
+
+export function isProPlusPlan(plan: PlanId): boolean {
+  return plan === "pro_plus";
 }
 
 export function formatPlanPrice(
@@ -115,9 +179,9 @@ export function formatPlanPrice(
     : `${formatted} €/año (+ IVA)`;
 }
 
-export function yearlySavingsPercent(): number {
-  const monthly = PLANS.pro.priceMonthlyEur ?? 0;
-  const yearly = PLANS.pro.priceYearlyEur ?? 0;
+export function yearlySavingsPercent(plan: PaidPlanId = "pro"): number {
+  const monthly = PLANS[plan].priceMonthlyEur ?? 0;
+  const yearly = PLANS[plan].priceYearlyEur ?? 0;
   if (monthly <= 0) return 0;
   const fullYearMonthly = monthly * 12;
   return Math.round(((fullYearMonthly - yearly) / fullYearMonthly) * 100);

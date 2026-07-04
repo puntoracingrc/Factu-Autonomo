@@ -3,7 +3,7 @@ import { getAppUrl } from "@/lib/billing/config";
 import { SCAN_PACK_SIZE } from "@/lib/billing/scan-packs";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
-import { isProPlan } from "@/lib/billing/plans";
+import { isProPlan, type PlanId } from "@/lib/billing/plans";
 import { getStripe, scanPackPriceId } from "@/lib/billing/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     subRow
       ? {
           userId: user.id,
-          plan: (subRow.plan as "free" | "pro" | "trial") ?? "free",
+          plan: (subRow.plan as PlanId) ?? "free",
           status: subRow.status ?? "inactive",
           stripeCustomerId: subRow.stripe_customer_id,
           stripeSubscriptionId: subRow.stripe_subscription_id,

@@ -2,11 +2,11 @@ import type { User } from "@supabase/supabase-js";
 import type { PlanId } from "@/lib/billing/plans";
 import {
   AI_UNITS_PER_SCAN,
-  PRO_EXPENSE_SCANS_PER_MONTH,
+  includedExpenseScansForPlan,
 } from "@/lib/billing/scan-limits";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 
-export const ADMIN_PLAN_OPTIONS: PlanId[] = ["free", "trial", "pro"];
+export const ADMIN_PLAN_OPTIONS: PlanId[] = ["free", "trial", "pro", "pro_plus"];
 export const ADMIN_STATUS_OPTIONS: SubscriptionStatus[] = [
   "inactive",
   "trialing",
@@ -157,10 +157,11 @@ export function normalizeAdminAiCreditUnits(
 
 export function buildAdminAiUsageSnapshot(
   usageRow: Record<string, unknown> | undefined,
-  subscription: Pick<AdminSubscriptionSnapshot, "aiCreditUnits">,
+  subscription: Pick<AdminSubscriptionSnapshot, "aiCreditUnits" | "plan">,
   monthKey: string,
 ): AdminAiUsageSnapshot {
-  const monthlyIncludedUnits = PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN;
+  const monthlyIncludedUnits =
+    includedExpenseScansForPlan(subscription.plan) * AI_UNITS_PER_SCAN;
   const expenseScansCreated = coerceNonNegativeInteger(
     usageRow?.expense_scans_created,
   );
