@@ -13,7 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
@@ -24,6 +24,7 @@ import {
   friendlyAuthError,
   isEmailNotConfirmedError,
 } from "@/lib/supabase/auth-errors";
+import { buildFirstUseOnboardingState } from "@/lib/first-use-onboarding";
 import { isGoogleAuthEnabled } from "@/lib/supabase/config";
 import {
   captureReferralFromSearchParams,
@@ -115,6 +116,17 @@ export function CloudAccountCard() {
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const hasLocalWork = hasWorkspaceContent(data);
+  const firstUseState = buildFirstUseOnboardingState({
+    data,
+    demoMode: false,
+    emailConfirmed: !requiresEmailConfirmation,
+    hasUser: Boolean(user),
+  });
+  const shouldOfferFirstSteps =
+    Boolean(user) &&
+    !requiresEmailConfirmation &&
+    firstUseState.visible &&
+    (!firstUseState.profileReady || !firstUseState.hasFirstDocument);
 
   useEffect(() => {
     if (requestedMode === "crear" || requestedMode === "signup") {
@@ -292,6 +304,22 @@ export function CloudAccountCard() {
           <p className="text-sm text-slate-700">
             Sesión: <strong>{user.email}</strong>
           </p>
+          {shouldOfferFirstSteps ? (
+            <div className="space-y-3 rounded-xl border border-blue-200 bg-white p-4">
+              <div>
+                <p className="text-sm font-black text-slate-900">
+                  Primeros pasos de la cuenta
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  La cuenta ya está activa. En el Panel tienes una guía breve
+                  para completar tus datos y crear la primera factura real.
+                </p>
+              </div>
+              <ButtonLink href="/" variant="secondary">
+                Abrir primeros pasos
+              </ButtonLink>
+            </div>
+          ) : null}
           {requiresEmailConfirmation ? (
             <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <div>
@@ -440,7 +468,8 @@ export function CloudAccountCard() {
 
           {authStatus === "confirmed" ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
-              Cuenta confirmada. Ya puedes iniciar sesión con tu contraseña.
+              Cuenta confirmada. Ya puedes iniciar sesión con tu contraseña; al
+              entrar verás los primeros pasos en el Panel.
             </p>
           ) : null}
 

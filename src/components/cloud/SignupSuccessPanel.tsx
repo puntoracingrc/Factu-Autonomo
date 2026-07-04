@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { CheckCircle2, Mail, LogIn } from "lucide-react";
+import { CheckCircle2, FileText, Mail, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface SignupSuccessPanelProps {
@@ -86,6 +86,17 @@ export function SignupSuccessPanel({
             <br />
             <span className="text-emerald-800">
               Vuelve aquí con la misma contraseña para sincronizar móvil y PC.
+            </span>
+          </span>
+        </li>
+        <li className="flex items-start gap-2 rounded-xl bg-white/80 px-3 py-2">
+          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <span>
+            <strong>Paso 4 — Panel de primeros pasos</strong>
+            <br />
+            <span className="text-emerald-800">
+              Al entrar verás una guía corta para completar tus datos y crear la
+              primera factura real.
             </span>
           </span>
         </li>

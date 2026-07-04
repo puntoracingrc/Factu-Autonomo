@@ -19,6 +19,7 @@ import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PublicLanding } from "@/components/marketing/PublicLanding";
+import { FirstUseOnboardingPanel } from "@/components/onboarding/FirstUseOnboardingPanel";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
@@ -102,6 +103,8 @@ export default function HomePage() {
       <FactuDailyGreeting enabled={ready} />
 
       <DemoSandboxPanel />
+
+      <FirstUseOnboardingPanel />
 
       <HomeUserReminders />
 
