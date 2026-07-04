@@ -14,6 +14,7 @@ export function ConditionalAppShell({ children }: { children: React.ReactNode })
   const { authReady, user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const isAuthRoute = pathname.startsWith("/auth/");
+  const isPublicStartRoute = pathname === "/inicio";
   const isPublicHome =
     pathname === "/" &&
     !demoMode &&
@@ -25,7 +26,7 @@ export function ConditionalAppShell({ children }: { children: React.ReactNode })
     );
   }
 
-  if (isPublicHome) {
+  if (isPublicStartRoute || isPublicHome) {
     return <>{children}</>;
   }
 

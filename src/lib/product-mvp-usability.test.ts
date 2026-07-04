@@ -177,6 +177,26 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).toContain('id="inicio-sesion"');
   });
 
+  it("permite volver al inicio publico aunque haya datos locales sin sesion", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const conditionalShellSource = readFileSync(
+      new URL("../components/layout/ConditionalAppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const landingSource = readFileSync(
+      new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain('href="/inicio"');
+    expect(appShellSource).toContain("Volver al inicio");
+    expect(conditionalShellSource).toContain('pathname === "/inicio"');
+    expect(landingSource).toContain('href="/inicio"');
+  });
+
   it("muestra terminos solo en el modo de crear cuenta", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
