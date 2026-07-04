@@ -557,29 +557,17 @@ export function DocumentForm({
 
   const totals = documentFormAmounts(items, vatExempt);
   const isDraftStatus = status === "borrador";
-  const previewButtonLabel =
-    type === "factura" && isDraftStatus
-      ? "Vista previa borrador"
-      : "Vista previa PDF";
-  const downloadStatusOverride: Document["status"] | undefined =
-    type === "factura" && !existing ? "enviado" : undefined;
+  const canSaveDraft = !existing || isDraftStatus;
+  const finalStatusOverride: Document["status"] = isDraftStatus
+    ? "enviado"
+    : status;
+  const previewButtonLabel = "Vista previa PDF";
+  const primarySaveButtonLabel =
+    type === "factura" && isDraftStatus ? "Emitir factura" : `Guardar ${label}`;
   const downloadButtonLabel =
-    type === "presupuesto" && !existing
-      ? "Guardar presupuesto y descargar PDF"
-      : type === "factura" && (!existing || !isDraftStatus)
-        ? "Emitir y descargar PDF"
-        : isDraftStatus
-          ? "Guardar borrador y descargar PDF"
-          : "Guardar y descargar PDF";
-  const showNewQuoteSaveActions = type === "presupuesto" && !existing;
-  const saveButtonLabel =
-    type === "factura"
-      ? isDraftStatus
-        ? "Guardar borrador"
-        : "Emitir factura"
-      : isDraftStatus
-        ? `Guardar ${label}`
-        : `Guardar ${label}`;
+    type === "factura" && isDraftStatus
+      ? "Emitir y descargar PDF"
+      : `Guardar ${label} y descargar PDF`;
 
   const shareDoc: Document | null = existing
     ? {
@@ -1549,10 +1537,10 @@ export function DocumentForm({
         </Button>
         <div
           className={`grid gap-3 ${
-            showNewQuoteSaveActions ? "sm:grid-cols-3" : "sm:grid-cols-2"
+            canSaveDraft ? "sm:grid-cols-3" : "sm:grid-cols-2"
           }`}
         >
-          {showNewQuoteSaveActions && (
+          {canSaveDraft && (
             <Button
               variant="secondary"
               fullWidth
@@ -1564,29 +1552,15 @@ export function DocumentForm({
           )}
           <Button
             fullWidth
-            onClick={() =>
-              void handleSave(
-                false,
-                showNewQuoteSaveActions ? "enviado" : undefined,
-              )
-            }
+            onClick={() => void handleSave(false, finalStatusOverride)}
             disabled={saving || previewLoading}
           >
-            {saveAction === "save"
-              ? "Guardando…"
-              : showNewQuoteSaveActions
-                ? "Guardar presupuesto"
-                : saveButtonLabel}
+            {saveAction === "save" ? "Guardando…" : primarySaveButtonLabel}
           </Button>
           <Button
             variant="secondary"
             fullWidth
-            onClick={() =>
-              void handleSave(
-                true,
-                showNewQuoteSaveActions ? "enviado" : downloadStatusOverride,
-              )
-            }
+            onClick={() => void handleSave(true, finalStatusOverride)}
             disabled={saving || previewLoading}
           >
             {saveAction === "save-pdf"
