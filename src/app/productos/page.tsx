@@ -25,7 +25,11 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
-import { normalizeDocumentUnitId } from "@/lib/document-units";
+import {
+  DOCUMENT_UNIT_CATALOG,
+  normalizeDocumentUnitId,
+  unitShortLabel,
+} from "@/lib/document-units";
 import {
   PRODUCT_ATTRIBUTE_SUGGESTIONS,
   addProductAttributeLine,
@@ -412,15 +416,15 @@ export default function ProductosPage() {
           </p>
 
           {selectedProducts.length > 0 ? (
-            <Card className="sticky bottom-24 z-20 border-blue-100 bg-white/95 shadow-lg backdrop-blur">
+            <Card className="fixed bottom-24 left-4 right-4 z-40 border-blue-100 bg-white/95 shadow-2xl backdrop-blur lg:bottom-6 lg:left-auto lg:right-6 lg:w-[min(44rem,calc(100vw-22rem))]">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-black text-slate-950">
-                    {selectedProducts.length} producto(s) preparados
+                    {selectedProducts.length} producto(s) añadido(s) al
+                    documento
                   </p>
                   <p className="text-sm font-semibold text-slate-500">
-                    Se insertarán como líneas editables. Si falta PVP, verás
-                    aviso en el documento.
+                    Elige dónde insertarlos como líneas editables.
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-4">
@@ -625,13 +629,21 @@ function ProductCard({
       .includes(term);
   });
 
-  const displayUnit = product.saleUnit ?? product.unit ?? "";
+  const normalizedDisplayUnit = normalizeDocumentUnitId(
+    product.saleUnit ?? product.unit,
+  );
+  const displayUnit = unitShortLabel(
+    normalizedDisplayUnit ?? product.saleUnit ?? product.unit ?? "",
+  );
   const salePriceLabel = product.saleUnitPrice
     ? formatMoney(product.saleUnitPrice)
     : "Sin PVP";
   const supplierLabel = product.usualSupplier?.supplierName ?? "Sin proveedor";
+  const volumeUnit = unitShortLabel(
+    normalizeDocumentUnitId(product.unit) ?? product.unit ?? "",
+  );
   const volumeLabel = `${product.totalQuantity.toLocaleString("es-ES")} ${
-    product.unit ?? ""
+    volumeUnit ?? ""
   }`.trim();
 
   function resetPanelForm() {
@@ -754,6 +766,12 @@ function ProductCard({
     }
   }
 
+  const addedAttributeLabels = new Set(
+    productAttributesFromText(attributesText).map((attribute) =>
+      attribute.label.trim().toLocaleLowerCase("es"),
+    ),
+  );
+
   return (
     <>
       <Card
@@ -819,26 +837,36 @@ function ProductCard({
             <button
               type="button"
               onClick={onToggleSelected}
-              className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                 selected
                   ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                   : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
               }`}
+              aria-label={
+                selected
+                  ? "Quitar producto del documento"
+                  : "Añadir producto a un documento"
+              }
+              title={
+                selected
+                  ? "Quitar del documento"
+                  : "Añadir a factura, presupuesto o recibo"
+              }
             >
               {selected ? (
                 <Check className="h-4 w-4" />
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              {selected ? "Añadido" : "Añadir"}
             </button>
             <button
               type="button"
               onClick={openPanel}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              aria-label="Editar producto"
+              title="Editar producto"
             >
               <Edit3 className="h-4 w-4" />
-              Editar
             </button>
             {product.productId ? (
               <button
@@ -935,7 +963,7 @@ function ProductCard({
                 onChange={setSaleDescription}
                 placeholder={product.name}
               />
-              <EditInput
+              <ProductUnitSelect
                 label="Unidad venta"
                 value={saleUnit}
                 onChange={setSaleUnit}
@@ -965,7 +993,7 @@ function ProductCard({
                 value={supplierReference}
                 onChange={setSupplierReference}
               />
-              <EditInput
+              <ProductUnitSelect
                 label="Unidad compra"
                 value={purchaseUnit}
                 onChange={setPurchaseUnit}
@@ -1003,20 +1031,31 @@ function ProductCard({
                 className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
               <span className="mt-2 flex flex-wrap gap-2">
-                {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() =>
-                      setAttributesText((current) =>
-                        addProductAttributeLine(current, label),
-                      )
-                    }
-                    className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    {label}
-                  </button>
-                ))}
+                {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => {
+                  const added = addedAttributeLabels.has(
+                    label.toLocaleLowerCase("es"),
+                  );
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() =>
+                        setAttributesText((current) =>
+                          addProductAttributeLine(current, label),
+                        )
+                      }
+                      className={`rounded-full px-3 py-1 text-xs font-bold ring-1 transition-colors ${
+                        added
+                          ? "bg-blue-50 text-blue-700 ring-blue-200"
+                          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+                      }`}
+                      aria-pressed={added}
+                    >
+                      {added ? <Check className="mr-1 inline h-3 w-3" /> : null}
+                      {label}
+                    </button>
+                  );
+                })}
               </span>
             </label>
 
@@ -1174,6 +1213,57 @@ function ProductCard({
         </div>
       </ResponsiveEntityPanel>
     </>
+  );
+}
+
+function ProductUnitSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const trimmedValue = value.trim();
+  const currentUnitId = normalizeDocumentUnitId(trimmedValue) ?? trimmedValue;
+  const currentIsCatalog = DOCUMENT_UNIT_CATALOG.some(
+    (unit) => unit.id === currentUnitId,
+  );
+  const options =
+    currentUnitId && !currentIsCatalog
+      ? [
+          {
+            id: currentUnitId,
+            label: `${trimmedValue} (detectada)`,
+            shortLabel: trimmedValue,
+          },
+          ...DOCUMENT_UNIT_CATALOG,
+        ]
+      : DOCUMENT_UNIT_CATALOG;
+
+  return (
+    <label className="space-y-1.5">
+      <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+        {label}
+      </span>
+      <select
+        value={currentUnitId}
+        onChange={(event) =>
+          onChange(
+            normalizeDocumentUnitId(event.target.value) ?? event.target.value,
+          )
+        }
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      >
+        <option value="">Sin unidad</option>
+        {options.map((unit) => (
+          <option key={unit.id} value={unit.id}>
+            {unit.shortLabel} - {unit.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

@@ -8,9 +8,14 @@ import {
 
 describe("product attributes", () => {
   it("convierte texto libre en atributos estructurados", () => {
-    expect(productAttributesFromText("Talla: L\nColor = Blanco\nSin separador")).toEqual([
+    expect(
+      productAttributesFromText(
+        "Talla: L\nColor = Blanco\nMarca:\nSin separador",
+      ),
+    ).toEqual([
       { key: "talla", label: "Talla", value: "L" },
       { key: "color", label: "Color", value: "Blanco" },
+      { key: "marca", label: "Marca", value: "" },
     ]);
   });
 
@@ -33,7 +38,8 @@ describe("product attributes", () => {
       productAttributesToText([
         { key: "largo", label: "Largo", value: "6", unit: "ml" },
         { key: "color", label: "Color", value: "Blanco" },
+        { key: "marca", label: "Marca", value: "" },
       ]),
-    ).toBe("Largo: 6 ml\nColor: Blanco");
+    ).toBe("Largo: 6 ml\nColor: Blanco\nMarca: ");
   });
 });

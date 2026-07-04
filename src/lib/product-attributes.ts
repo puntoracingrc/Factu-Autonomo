@@ -60,10 +60,11 @@ export function productAttributesToText(
   attributes?: ProductAttribute[],
 ): string {
   return (attributes ?? [])
-    .filter((item) => item.label.trim() && item.value.trim())
+    .filter((item) => item.label.trim())
     .map((item) => {
       const unit = item.unit?.trim();
-      return `${item.label.trim()}: ${item.value.trim()}${unit ? ` ${unit}` : ""}`;
+      const value = item.value.trim();
+      return `${item.label.trim()}: ${value}${value && unit ? ` ${unit}` : ""}`;
     })
     .join("\n");
 }
@@ -75,11 +76,11 @@ export function productAttributesFromText(text: string): ProductAttribute[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^([^:=]+)[:=](.+)$/);
+      const match = line.match(/^([^:=]+)[:=](.*)$/);
       if (!match) return null;
       const label = cleanText(match[1]);
       const value = cleanText(match[2]);
-      if (!label || !value) return null;
+      if (!label) return null;
       const key = keyFromLabel(label);
       if (!key || seen.has(key)) return null;
       seen.add(key);
@@ -92,7 +93,9 @@ export function addProductAttributeLine(text: string, label: string): string {
   const cleanLabel = cleanText(label);
   if (!cleanLabel) return text;
   const key = keyFromLabel(cleanLabel);
-  const exists = productAttributesFromText(text).some((item) => item.key === key);
+  const exists = productAttributesFromText(text).some(
+    (item) => item.key === key,
+  );
   if (exists) return text;
   return [text.trim(), `${cleanLabel}: `].filter(Boolean).join("\n");
 }

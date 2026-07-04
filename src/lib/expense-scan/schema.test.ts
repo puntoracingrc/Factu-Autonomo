@@ -69,7 +69,9 @@ describe("expense scan schema", () => {
       confidence: 0.4,
       warnings: [],
     });
-    expect(result?.warnings.some((w) => w.includes("Confianza baja"))).toBe(true);
+    expect(result?.warnings.some((w) => w.includes("Confianza baja"))).toBe(
+      true,
+    );
   });
 
   it("normaliza líneas de compra detectadas", () => {
@@ -84,6 +86,7 @@ describe("expense scan schema", () => {
         paymentMethod: "Tarjeta",
         purchaseLines: [
           {
+            supplierReference: "SM-502",
             description: " Lama persiana ",
             quantity: "2",
             unit: "ud",
@@ -110,6 +113,7 @@ describe("expense scan schema", () => {
 
     expect(result?.expense.purchaseLines).toHaveLength(2);
     expect(result?.expense.purchaseLines?.[0]).toMatchObject({
+      supplierReference: "SM-502",
       description: "Lama persiana",
       quantity: 2,
       unitPrice: 30.5,
@@ -238,7 +242,8 @@ describe("expense scan schema", () => {
         ivaPercent: 21,
         category: "Material",
         paymentMethod: "Tarjeta",
-        notes: "Pedido nº 417906 de fecha 07/05/2026\nOferta nº 152763 de fecha 04/05/2026",
+        notes:
+          "Pedido nº 417906 de fecha 07/05/2026\nOferta nº 152763 de fecha 04/05/2026",
         purchaseDocument: {
           invoiceNumber: "FD/223537",
         },

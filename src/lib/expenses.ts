@@ -1,4 +1,5 @@
 import { roundMoney } from "./calculations";
+import { normalizeDocumentUnitId } from "./document-units";
 import type {
   Expense,
   ExpensePurchaseDocument,
@@ -127,9 +128,11 @@ export function sanitizeExpensePurchaseLines(
   return lines
     .map((line) => ({
       ...line,
+      supplierReference: line.supplierReference?.trim() || undefined,
       description: line.description.trim(),
       quantity: normalizeExpenseAmount(line.quantity),
-      unit: line.unit?.trim() || undefined,
+      unit:
+        normalizeDocumentUnitId(line.unit) ?? line.unit?.trim() ?? undefined,
       unitPrice: normalizeExpenseAmount(line.unitPrice),
       discountPercent: Number.isFinite(line.discountPercent)
         ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
@@ -229,7 +232,10 @@ export function findExpensePurchaseLinePriceAlerts(input: {
         })),
       )
       .find(({ previous }) =>
-        purchaseLineKeysMatch(currentKey, purchaseLineSearchKey(previous.description)),
+        purchaseLineKeysMatch(
+          currentKey,
+          purchaseLineSearchKey(previous.description),
+        ),
       );
 
     if (!previousMatch || previousMatch.previous.unitPrice <= 0) return [];

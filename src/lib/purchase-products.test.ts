@@ -132,31 +132,34 @@ describe("purchase products", () => {
   });
 
   it("respeta facetas de venta y compra guardadas en el catálogo", () => {
-    const [summary] = buildPurchaseProductSummaries([], [
-      product("Persiana mini aluminio", {
-        sku: "MB490",
-        unit: "m2",
-        pvp: 65,
-        cost: 39,
-        sales: {
-          enabled: true,
-          description: "Persiana mini aluminio instalada",
+    const [summary] = buildPurchaseProductSummaries(
+      [],
+      [
+        product("Persiana mini aluminio", {
+          sku: "MB490",
           unit: "m2",
-          unitPrice: 95,
-          ivaPercent: 21,
-        },
-        purchase: {
-          enabled: true,
-          description: "MB490 MINIAL proveedor",
-          unit: "M2",
-          listPrice: 65,
-          discountPercent: 40,
-          netUnitCost: 39,
-          supplierReference: "MB490",
-        },
-        calculation: { kind: "area", unit: "m2", roundingDecimals: 2 },
-      }),
-    ]);
+          pvp: 65,
+          cost: 39,
+          sales: {
+            enabled: true,
+            description: "Persiana mini aluminio instalada",
+            unit: "m2",
+            unitPrice: 95,
+            ivaPercent: 21,
+          },
+          purchase: {
+            enabled: true,
+            description: "MB490 MINIAL proveedor",
+            unit: "M2",
+            listPrice: 65,
+            discountPercent: 40,
+            netUnitCost: 39,
+            supplierReference: "MB490",
+          },
+          calculation: { kind: "area", unit: "m2", roundingDecimals: 2 },
+        }),
+      ],
+    );
 
     expect(summary).toMatchObject({
       sku: "MB490",
@@ -175,19 +178,45 @@ describe("purchase products", () => {
     });
   });
 
-  it("conserva atributos flexibles del catalogo", () => {
-    const [summary] = buildPurchaseProductSummaries([], [
-      product("Camiseta tecnica", {
-        attributes: [
-          { key: "talla", label: "Talla", value: "L" },
-          { key: "color", label: "Color", value: "Azul" },
-        ],
-      }),
+  it("hereda la referencia del proveedor desde la línea de compra escaneada", () => {
+    const [summary] = buildPurchaseProductSummaries([
+      expense("e-ref", "2026-06-09", "Metalurgica Arandes", [
+        {
+          id: "l-ref",
+          supplierReference: "SM-502",
+          description: "Kit motor G50: Sop.+ Ad. Ø 60 Oct.",
+          quantity: 10,
+          unit: "JG",
+          unitPrice: 7.63,
+          discountPercent: 35,
+          ivaPercent: 21,
+          total: 49.59,
+        },
+      ]),
     ]);
+
+    expect(summary.purchaseSupplierReference).toBe("SM-502");
+    expect(summary.purchaseUnit).toBe("ud");
+  });
+
+  it("conserva atributos flexibles del catalogo", () => {
+    const [summary] = buildPurchaseProductSummaries(
+      [],
+      [
+        product("Camiseta tecnica", {
+          attributes: [
+            { key: "talla", label: "Talla", value: "L" },
+            { key: "color", label: "Color", value: "Azul" },
+            { key: "marca", label: "Marca", value: "" },
+          ],
+        }),
+      ],
+    );
 
     expect(summary.attributes).toEqual([
       { key: "talla", label: "Talla", value: "L", unit: undefined },
       { key: "color", label: "Color", value: "Azul", unit: undefined },
+      { key: "marca", label: "Marca", value: "", unit: undefined },
     ]);
   });
 
@@ -230,14 +259,17 @@ describe("purchase products", () => {
   });
 
   it("muestra productos manuales aunque todavía no tengan compras", () => {
-    const [summary] = buildPurchaseProductSummaries([], [
-      product("Cinta blanca 14 mm", {
-        source: "manual",
-        family: "Persianas y accesorios",
-        cost: 2.5,
-        pvp: 4,
-      }),
-    ]);
+    const [summary] = buildPurchaseProductSummaries(
+      [],
+      [
+        product("Cinta blanca 14 mm", {
+          source: "manual",
+          family: "Persianas y accesorios",
+          cost: 2.5,
+          pvp: 4,
+        }),
+      ],
+    );
 
     expect(summary).toMatchObject({
       name: "Cinta blanca 14 mm",

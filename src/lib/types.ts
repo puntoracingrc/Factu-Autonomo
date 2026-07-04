@@ -1,10 +1,7 @@
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
 export type DocumentKind =
-  | "factura"
-  | "factura_rectificativa"
-  | "presupuesto"
-  | "recibo";
+  "factura" | "factura_rectificativa" | "presupuesto" | "recibo";
 
 export type DocumentStatus =
   | "borrador"
@@ -23,16 +20,10 @@ export type DocumentIntegrityLock = "unlocked" | "locked";
 export type DocumentDeliveryStatus = "not_sent" | "sent";
 
 export type DocumentPaymentStatus =
-  | "not_applicable"
-  | "pending"
-  | "paid"
-  | "overdue";
+  "not_applicable" | "pending" | "paid" | "overdue";
 
 export type DocumentAcceptanceStatus =
-  | "not_applicable"
-  | "pending"
-  | "accepted"
-  | "rejected";
+  "not_applicable" | "pending" | "accepted" | "rejected";
 
 export type RectificationType = "anulacion" | "correccion";
 
@@ -213,13 +204,12 @@ export interface RecurringExpense {
 }
 
 export type ExpenseBusinessKind =
-  | "purchase"
-  | "purchase_invoice"
-  | "quick_ticket"
-  | "fixed";
+  "purchase" | "purchase_invoice" | "quick_ticket" | "fixed";
 
 export interface ExpensePurchaseLine {
   id: string;
+  /** Referencia/código del proveedor leído en columnas tipo REF., Código o Artículo. */
+  supplierReference?: string;
   description: string;
   quantity: number;
   /** Unidad leída o introducida: ud, m, h, kg... */
@@ -417,11 +407,7 @@ export interface VerifactuChainState {
 }
 
 export type VerifactuSubmissionStatus =
-  | "registered"
-  | "test_registered"
-  | "pending"
-  | "failed"
-  | "not_required";
+  "registered" | "test_registered" | "pending" | "failed" | "not_required";
 
 export interface VerifactuInfo {
   recordHash: string;
@@ -464,11 +450,7 @@ export interface DocumentPaymentMethodsSettings {
 
 export type DocumentTemplateStyle = "clasico" | "editorial" | "futuro";
 export type DocumentTemplateFont = "moderna" | "limpia" | "clasica" | "tecnica";
-export type DocumentTemplateAccent =
-  | "azul"
-  | "esmeralda"
-  | "carbon"
-  | "coral";
+export type DocumentTemplateAccent = "azul" | "esmeralda" | "carbon" | "coral";
 export type DocumentTemplateDensity = "compacta" | "normal" | "amplia";
 export type DocumentTemplateFontSize = "pequena" | "normal" | "grande";
 

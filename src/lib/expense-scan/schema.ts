@@ -12,11 +12,7 @@ import type {
 
 export type ExpenseScanPurchaseLine = Omit<ExpensePurchaseLine, "id">;
 export type ExpenseScanDocumentKind =
-  | "expense_invoice"
-  | "ticket"
-  | "quote_or_order"
-  | "proforma"
-  | "other";
+  "expense_invoice" | "ticket" | "quote_or_order" | "proforma" | "other";
 
 export interface ExpenseScanPayload {
   document?: {
@@ -123,7 +119,10 @@ function hasSupplierInvoiceEvidence(input: {
   description: string;
   notes?: string | null;
 }): boolean {
-  if (input.documentKind === "expense_invoice" || input.documentKind === "ticket") {
+  if (
+    input.documentKind === "expense_invoice" ||
+    input.documentKind === "ticket"
+  ) {
     return true;
   }
 
@@ -182,6 +181,11 @@ function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
   if (!raw || typeof raw !== "object") return null;
   const line = raw as Record<string, unknown>;
   const description = cleanText(line.description);
+  const supplierReference =
+    cleanText(line.supplierReference) ||
+    cleanText(line.reference) ||
+    cleanText(line.ref) ||
+    undefined;
   const quantity = parsePositiveNumber(line.quantity) ?? 1;
   const unit = cleanText(line.unit) || undefined;
   const unitPrice = parsePositiveNumber(line.unitPrice);
@@ -193,6 +197,7 @@ function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
   const ivaPercent = parseNonNegativeNumber(line.ivaPercent);
 
   return {
+    supplierReference,
     description,
     quantity: inferAreaQuantity({
       quantity,
@@ -216,13 +221,16 @@ function normalizePurchaseDocument(
   raw: unknown,
   fallback: { date: string; supplierNif?: string | null },
 ): ExpensePurchaseDocument | undefined {
-  const source = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const source =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const document: ExpensePurchaseDocument = {
     invoiceNumber: cleanText(source.invoiceNumber) || undefined,
     issueDate: parseDateOptional(source.issueDate) ?? fallback.date,
     dueDate: parseDateOptional(source.dueDate),
     supplierNif:
-      cleanText(source.supplierNif) || fallback.supplierNif?.trim() || undefined,
+      cleanText(source.supplierNif) ||
+      fallback.supplierNif?.trim() ||
+      undefined,
     supplierAddress: cleanText(source.supplierAddress) || undefined,
     supplierPostalCode: cleanText(source.supplierPostalCode) || undefined,
     supplierCity: cleanText(source.supplierCity) || undefined,
@@ -245,8 +253,7 @@ export function normalizeExpenseScanPayload(
   const supplier = supplierRaw as Record<string, unknown>;
   const expense = expenseRaw as Record<string, unknown>;
 
-  const name =
-    typeof supplier.name === "string" ? supplier.name.trim() : "";
+  const name = typeof supplier.name === "string" ? supplier.name.trim() : "";
   const description =
     typeof expense.description === "string" ? expense.description.trim() : "";
   const amount = Number(expense.amount);
@@ -275,7 +282,7 @@ export function normalizeExpenseScanPayload(
   const normalizedDate = parseDate(expense.date);
   const documentRaw =
     data.document && typeof data.document === "object"
-      ? data.document as Record<string, unknown>
+      ? (data.document as Record<string, unknown>)
       : {};
   const documentKindRaw = cleanText(documentRaw.kind);
   const documentKind = (
@@ -330,8 +337,9 @@ export function normalizeExpenseScanPayload(
   const nonExpenseReason = hasInvoiceEvidence
     ? null
     : explicitlyNotExpense
-      ? documentReason || "Este documento no parece una factura o ticket de gasto."
-      : inferredNonExpenseReason ?? aiNonExpenseReason;
+      ? documentReason ||
+        "Este documento no parece una factura o ticket de gasto."
+      : (inferredNonExpenseReason ?? aiNonExpenseReason);
   const normalizedDocumentKind: ExpenseScanDocumentKind = nonExpenseReason
     ? documentKind === "proforma"
       ? "proforma"
@@ -409,6 +417,8 @@ export const EXPENSE_SCAN_JSON_SCHEMA = {
     },
     purchaseLines: [
       {
+        supplierReference:
+          "string opcional — referencia/código del proveedor si hay columna REF., Código, Artículo o similar",
         description: "string — producto, material o servicio si aparece",
         quantity: "number — cantidad; 1 si no aparece",
         unit: "string opcional — ud, m, h, kg...",
