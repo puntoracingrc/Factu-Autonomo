@@ -297,6 +297,52 @@ describe("purchase products", () => {
 
     expect(buildPurchaseProductSummaries(expenses, [hidden])).toEqual([]);
   });
+
+  it("solo crea resumen de producto con líneas marcadas para catálogo", () => {
+    const summaries = buildPurchaseProductSummaries([
+      expense("1", "2026-07-01", "Arandes", [
+        {
+          id: "l1",
+          description: "Motor vendible",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 95,
+          ivaPercent: 21,
+        },
+        {
+          id: "l2",
+          description: "Taladro para uso interno",
+          catalogProduct: false,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 180,
+          ivaPercent: 21,
+        },
+      ]),
+    ]);
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].name).toBe("Motor vendible");
+  });
+
+  it("mantiene líneas históricas sin marca para no perder productos existentes", () => {
+    const summaries = buildPurchaseProductSummaries([
+      expense("1", "2026-07-01", "Arandes", [
+        {
+          id: "legacy",
+          description: "Producto detectado antiguo",
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 25,
+          ivaPercent: 21,
+        },
+      ]),
+    ]);
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].name).toBe("Producto detectado antiguo");
+  });
 });
 
 function product(name: string, patch: Partial<Product> = {}): Product {

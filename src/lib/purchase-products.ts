@@ -1,6 +1,7 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
 import {
+  expensePurchaseLineTracksProduct,
   expensePurchaseLineBaseTotal,
   sanitizeExpensePurchaseLines,
 } from "./expenses";
@@ -479,7 +480,9 @@ export function buildPurchaseProductSummaries(
   }
 
   for (const expense of expenses) {
-    const lines = sanitizeExpensePurchaseLines(expense.purchaseLines);
+    const lines = sanitizeExpensePurchaseLines(expense.purchaseLines).filter(
+      expensePurchaseLineTracksProduct,
+    );
     for (const line of lines) {
       const detectedKey = purchaseProductKey(line.description);
       if (hiddenKeys.has(detectedKey)) continue;

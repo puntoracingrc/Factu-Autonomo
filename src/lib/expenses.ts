@@ -90,6 +90,12 @@ export function expensePurchaseLinesBaseTotal(
   );
 }
 
+export function expensePurchaseLineTracksProduct(
+  line: Pick<ExpensePurchaseLine, "catalogProduct">,
+): boolean {
+  return line.catalogProduct !== false;
+}
+
 export function summarizeWorkDocumentExpenses(
   expenses: Expense[],
   documentId: string,
@@ -130,6 +136,12 @@ export function sanitizeExpensePurchaseLines(
       ...line,
       supplierReference: line.supplierReference?.trim() || undefined,
       description: line.description.trim(),
+      catalogProduct:
+        line.catalogProduct === true
+          ? true
+          : line.catalogProduct === false
+            ? false
+            : undefined,
       quantity: normalizeExpenseAmount(line.quantity),
       unit:
         normalizeDocumentUnitId(line.unit) ?? line.unit?.trim() ?? undefined,
@@ -209,7 +221,9 @@ export function findExpensePurchaseLinePriceAlerts(input: {
 }): ExpensePurchaseLinePriceAlert[] {
   const priceThreshold = input.priceChangeThresholdPercent ?? 15;
   const discountThreshold = input.discountChangeThresholdPoints ?? 5;
-  const currentLines = sanitizeExpensePurchaseLines(input.currentLines);
+  const currentLines = sanitizeExpensePurchaseLines(input.currentLines).filter(
+    expensePurchaseLineTracksProduct,
+  );
 
   const previousExpenses = input.expenses
     .filter((expense) => expense.id !== input.excludeExpenseId)
@@ -226,10 +240,12 @@ export function findExpensePurchaseLinePriceAlerts(input: {
     const currentKey = purchaseLineSearchKey(line.description);
     const previousMatch = previousExpenses
       .flatMap((expense) =>
-        sanitizeExpensePurchaseLines(expense.purchaseLines).map((previous) => ({
-          expense,
-          previous,
-        })),
+        sanitizeExpensePurchaseLines(expense.purchaseLines)
+          .filter(expensePurchaseLineTracksProduct)
+          .map((previous) => ({
+            expense,
+            previous,
+          })),
       )
       .find(({ previous }) =>
         purchaseLineKeysMatch(

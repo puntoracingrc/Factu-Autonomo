@@ -240,4 +240,44 @@ describe("expenseTotalsFromBase", () => {
       }),
     ).toHaveLength(0);
   });
+
+  it("no avisa de precio en líneas que no alimentan catálogo", () => {
+    const previousExpense: Expense = {
+      id: "expense-1",
+      date: "2026-06-01",
+      supplierId: "supplier-1",
+      supplierName: "Proveedor Demo",
+      description: "Compra anterior",
+      amount: 50,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      purchaseLines: [
+        {
+          id: "previous-line",
+          description: "Taladro para uso interno",
+          catalogProduct: false,
+          quantity: 1,
+          unitPrice: 100,
+        },
+      ],
+      createdAt: "2026-06-01T10:00:00.000Z",
+    };
+
+    const alerts = findExpensePurchaseLinePriceAlerts({
+      currentLines: [
+        {
+          id: "current-line",
+          description: "Taladro para uso interno",
+          catalogProduct: false,
+          quantity: 1,
+          unitPrice: 150,
+        },
+      ],
+      expenses: [previousExpense],
+      supplierId: "supplier-1",
+    });
+
+    expect(alerts).toHaveLength(0);
+  });
 });

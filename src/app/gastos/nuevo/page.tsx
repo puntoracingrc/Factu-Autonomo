@@ -67,6 +67,7 @@ function emptyPurchaseLine(
   return {
     id: crypto.randomUUID(),
     description: partial.description ?? "",
+    catalogProduct: partial.catalogProduct ?? false,
     quantity: partial.quantity ?? 1,
     unit: partial.unit ?? "ud",
     unitPrice: partial.unitPrice ?? 0,
@@ -1264,7 +1265,7 @@ export default function NuevoGastoPage() {
           <FormSection
             variant="fields"
             title="Líneas de compra"
-            hint="Opcional. Sirve para recordar precios de materiales o servicios que se repiten."
+            hint="Marca solo las líneas que quieres llevar al catálogo de productos."
           >
             <div className="space-y-3">
               {purchaseLines.length === 0 ? (
@@ -1276,7 +1277,11 @@ export default function NuevoGastoPage() {
                 purchaseLines.map((line, index) => (
                   <div
                     key={line.id}
-                    className="rounded-2xl border border-slate-100 bg-slate-50 p-3"
+                    className={`rounded-2xl border p-3 ${
+                      line.catalogProduct !== false
+                        ? "border-green-100 bg-green-50"
+                        : "border-slate-100 bg-slate-50"
+                    }`}
                   >
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -1359,6 +1364,28 @@ export default function NuevoGastoPage() {
                     </div>
                     <p className="mt-3 text-right text-sm font-bold text-slate-700">
                       Base línea: {formatMoney(expensePurchaseLineBaseTotal(line))}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePurchaseLine(line.id, {
+                          catalogProduct: line.catalogProduct === false,
+                        })
+                      }
+                      className={`mt-3 rounded-xl border px-3 py-2 text-left text-sm font-bold ${
+                        line.catalogProduct !== false
+                          ? "border-green-200 bg-white text-green-800"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {line.catalogProduct !== false
+                        ? "Se usará como producto"
+                        : "No crear producto"}
+                    </button>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Actívalo solo si vendes esta línea o quieres seguir su
+                      precio. Herramientas, gastos internos y servicios sueltos
+                      pueden quedarse fuera.
                     </p>
                   </div>
                 ))
