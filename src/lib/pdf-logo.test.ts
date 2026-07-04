@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { formatMoney } from "./calculations";
 import { DEFAULT_DOCUMENT_TEMPLATE } from "./document-templates";
 import { DEFAULT_PROFILE } from "./types";
 import type { Document } from "./types";
-import { buildDocumentPdf } from "./pdf";
+import { buildDocumentPdf, pdfVatTotalLines } from "./pdf";
 import { logoMimeFormat, pdfLogoDrawSize, resolvePdfLogoUrl } from "./pdf-logo";
 
 const baseDoc: Document = {
@@ -56,6 +57,37 @@ describe("pdfLogoDrawSize", () => {
 });
 
 describe("buildDocumentPdf", () => {
+  it("resume un único IVA sin repetir base y cuota", () => {
+    expect(
+      pdfVatTotalLines({
+        breakdown: [{ rate: 21, base: 531.5, quota: 111.62 }],
+        subtotal: 531.5,
+        iva: 111.62,
+      }),
+    ).toEqual([
+      `Base imponible: ${formatMoney(531.5)}`,
+      `IVA 21%: ${formatMoney(111.62)}`,
+    ]);
+  });
+
+  it("mantiene desglose por tipo cuando hay varios IVAs", () => {
+    expect(
+      pdfVatTotalLines({
+        breakdown: [
+          { rate: 10, base: 100, quota: 10 },
+          { rate: 21, base: 200, quota: 42 },
+        ],
+        subtotal: 300,
+        iva: 52,
+      }),
+    ).toEqual([
+      `IVA 10% — Base: ${formatMoney(100)} · Cuota: ${formatMoney(10)}`,
+      `IVA 21% — Base: ${formatMoney(200)} · Cuota: ${formatMoney(42)}`,
+      `Base imponible: ${formatMoney(300)}`,
+      `IVA total: ${formatMoney(52)}`,
+    ]);
+  });
+
   it("genera PDF con una plantilla avanzada", () => {
     const pdf = buildDocumentPdf(
       {

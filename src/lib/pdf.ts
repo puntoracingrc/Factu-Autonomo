@@ -90,6 +90,31 @@ function pdfVatBreakdown(viewModel: DocumentPdfViewModel) {
   return ivaBreakdownByRate(viewModel.items);
 }
 
+export function pdfVatTotalLines(input: {
+  breakdown: Array<{ rate: number; base: number; quota: number }>;
+  subtotal: number;
+  iva: number;
+}): string[] {
+  if (input.breakdown.length <= 1) {
+    const rate = input.breakdown[0]?.rate;
+    const ivaLabel =
+      typeof rate === "number" ? `IVA ${rate}%` : "IVA";
+    return [
+      `Base imponible: ${formatMoney(input.subtotal)}`,
+      `${ivaLabel}: ${formatMoney(input.iva)}`,
+    ];
+  }
+
+  return [
+    ...input.breakdown.map(
+      (row) =>
+        `IVA ${row.rate}% — Base: ${formatMoney(row.base)} · Cuota: ${formatMoney(row.quota)}`,
+    ),
+    `Base imponible: ${formatMoney(input.subtotal)}`,
+    `IVA total: ${formatMoney(input.iva)}`,
+  ];
+}
+
 function drawVerifactuQrBlock(
   pdf: jsPDF,
   doc: Document,
@@ -445,19 +470,14 @@ export function buildDocumentPdfFromViewModel(
   } else {
     pdf.setFontSize(bodyFontSize);
     pdf.setFont(pdfFont, "normal");
-    const breakdown = pdfVatBreakdown(viewModel);
-    for (const row of breakdown) {
-      pdf.text(
-        `IVA ${row.rate}% — Base: ${formatMoney(row.base)} · Cuota: ${formatMoney(row.quota)}`,
-        120,
-        totalsY,
-      );
+    for (const line of pdfVatTotalLines({
+      breakdown: pdfVatBreakdown(viewModel),
+      subtotal,
+      iva,
+    })) {
+      pdf.text(line, 120, totalsY);
       totalsY += 6;
     }
-    pdf.text(`Base imponible: ${formatMoney(subtotal)}`, 120, totalsY);
-    totalsY += 6;
-    pdf.text(`IVA total: ${formatMoney(iva)}`, 120, totalsY);
-    totalsY += 6;
     pdf.setFontSize(totalFontSize);
     pdf.setFont(pdfFont, "bold");
     if (template.style !== "clasico") {
