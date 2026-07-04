@@ -228,6 +228,8 @@ export interface ExpensePurchaseLine {
   /** Referencia/código del proveedor leído en columnas tipo REF., Código o Artículo. */
   supplierReference?: string;
   description: string;
+  /** Si esta línea alimenta el catálogo de productos y sus históricos de coste. */
+  catalogProduct?: boolean;
   quantity: number;
   /** Unidad leída o introducida: ud, m, h, kg... */
   unit?: string;
