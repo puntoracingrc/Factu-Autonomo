@@ -40,10 +40,11 @@ export default function DemoPage() {
           <MonitorPlay className="h-6 w-6" />
         </div>
         <h1 className="mt-4 text-xl font-black text-slate-950">
-          Preparando demo
+          Preparando demo guiada
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Cargando datos ficticios para que puedas pasearte sin tocar nada real.
+          Cargando una empresa ficticia con facturas, gastos y clientes de
+          ejemplo para que puedas pasearte sin tocar nada real.
         </p>
       </div>
     </div>

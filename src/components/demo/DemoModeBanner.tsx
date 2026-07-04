@@ -1,6 +1,6 @@
 "use client";
 
-import { LogIn, RotateCcw, ShieldCheck } from "lucide-react";
+import { LogIn, MonitorPlay, RotateCcw, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/context/AppStore";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -47,6 +47,14 @@ export function DemoModeBanner() {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 text-sm font-bold text-amber-950 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+          >
+            <MonitorPlay className="h-4 w-4" />
+            Volver al tour
+          </button>
           <button
             type="button"
             onClick={resetDemo}

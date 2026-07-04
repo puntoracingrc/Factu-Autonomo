@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  BarChart3,
+  CheckCircle2,
   FileText,
+  FilePlus2,
   type LucideIcon,
   LogIn,
   RotateCcw,
@@ -24,16 +27,23 @@ import {
 import { documentDetailPath } from "@/lib/document-links";
 import { loadData } from "@/lib/storage";
 
-const demoActions = [
+const demoTourSteps = [
   {
-    label: "Abrir factura pendiente",
-    description: "Revisa una factura emitida con cobro pendiente.",
+    label: "Mira una factura pendiente",
+    description: "PDF, cobro pendiente y recordatorio sin enviar nada real.",
     documentId: "demo-invoice-1",
     Icon: FileText,
   },
   {
-    label: "Ver presupuesto aceptado",
-    description: "Prueba el flujo de convertir presupuesto a factura.",
+    label: "Crea una factura de cero",
+    description:
+      "Escribe un cliente nuevo dentro de la factura y verás cómo se guarda.",
+    href: "/facturas/nuevo",
+    Icon: FilePlus2,
+  },
+  {
+    label: "Convierte un presupuesto",
+    description: "Prueba el flujo de presupuesto aceptado a factura.",
     documentId: "demo-quote-1",
     Icon: Wallet,
   },
@@ -42,6 +52,12 @@ const demoActions = [
     description: "Crea compras y tickets de ejemplo sin tocar nada real.",
     href: "/gastos/nuevo",
     Icon: ShoppingCart,
+  },
+  {
+    label: "Revisa impuestos",
+    description: "Consulta el resumen orientativo de IVA, IRPF e ingresos.",
+    href: "/impuestos",
+    Icon: BarChart3,
   },
 ];
 
@@ -52,6 +68,10 @@ type DemoSandboxAction = {
   Icon: LucideIcon;
 };
 
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function DemoSandboxPanel() {
   const router = useRouter();
   const demoMode = useDemoWorkspaceMode();
@@ -59,7 +79,7 @@ export function DemoSandboxPanel() {
 
   if (!demoMode) return null;
 
-  const actions: DemoSandboxAction[] = demoActions.map((action) => {
+  const actions: DemoSandboxAction[] = demoTourSteps.map((action) => {
     if ("href" in action) {
       return {
         label: action.label,
@@ -78,6 +98,23 @@ export function DemoSandboxPanel() {
       Icon: action.Icon,
     };
   });
+  const pendingInvoices = data.documents.filter(
+    (document) =>
+      document.type === "factura" &&
+      document.paymentStatus === "pending" &&
+      document.documentLifecycle === "issued",
+  ).length;
+  const acceptedQuotes = data.documents.filter(
+    (document) =>
+      document.type === "presupuesto" &&
+      document.acceptanceStatus === "accepted",
+  ).length;
+  const demoStats = [
+    countLabel(data.customers.length, "cliente de ejemplo", "clientes de ejemplo"),
+    countLabel(pendingInvoices, "factura pendiente", "facturas pendientes"),
+    countLabel(acceptedQuotes, "presupuesto aceptado", "presupuestos aceptados"),
+    countLabel(data.expenses.length, "gasto cargado", "gastos cargados"),
+  ];
 
   function resetDemo() {
     const nextData = createDemoWorkspaceData();
@@ -101,12 +138,24 @@ export function DemoSandboxPanel() {
             Sandbox de prueba
           </p>
           <h2 className="mt-2 text-2xl font-black text-slate-950">
-            Estás viendo una empresa ficticia
+            Prueba el producto en 3 minutos
           </h2>
           <p className="mt-2 text-sm leading-6 text-amber-950">
-            Puedes crear clientes, facturas, gastos y productos de prueba. Todo
-            se guarda solo en este navegador y no se sincroniza con la nube.
+            Estás viendo una empresa ficticia. Sigue la ruta recomendada para
+            tocar facturas, clientes automáticos, gastos e impuestos sin
+            sincronizar nada con la nube.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {demoStats.map((stat) => (
+              <span
+                key={stat}
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-200 bg-white px-3 text-xs font-bold text-amber-950"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                {stat}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
@@ -126,8 +175,19 @@ export function DemoSandboxPanel() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
-        {actions.map(({ label, description, href, Icon }) => (
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wide text-amber-900">
+            Ruta recomendada
+          </h3>
+          <p className="mt-1 text-xs font-medium leading-5 text-amber-900">
+            Puedes saltar a cualquier paso. Todo queda dentro del sandbox.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {actions.map(({ label, description, href, Icon }, index) => (
           <Link
             key={label}
             href={href}
@@ -137,7 +197,10 @@ export function DemoSandboxPanel() {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
                 <Icon className="h-5 w-5" />
               </span>
-              <ArrowRight className="h-5 w-5 text-amber-700 transition-transform group-hover:translate-x-0.5" />
+              <span className="flex items-center gap-1 text-xs font-black text-amber-800">
+                {index + 1}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </span>
             <span>
               <span className="block text-sm font-black">{label}</span>
