@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Boxes,
   CalendarDays,
   Check,
+  Copy,
   Edit3,
   Euro,
   Factory,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/product-attributes";
 import {
   buildPurchaseProductSummaries,
+  purchaseProductKey,
   type PurchaseProductSummary,
 } from "@/lib/purchase-products";
 import {
@@ -103,6 +105,7 @@ export default function ProductosPage() {
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
+  const [editingProductKey, setEditingProductKey] = useState<string | null>(null);
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -367,6 +370,83 @@ export default function ProductosPage() {
     }
   }
 
+  function uniqueDuplicateProductParts(product: PurchaseProductSummary): {
+    key: string;
+    name: string;
+  } {
+    const existingKeys = new Set(data.products.map((entry) => entry.key));
+    const existingNames = new Set(
+      data.products.map((entry) => entry.name.trim().toLowerCase()),
+    );
+
+    for (let copyNumber = 1; copyNumber < 100; copyNumber += 1) {
+      const suffix = copyNumber === 1 ? "copia" : `copia ${copyNumber}`;
+      const name = `${product.name} ${suffix}`;
+      const key = purchaseProductKey(
+        `copia ${String(copyNumber).padStart(2, "0")} ${product.key}`,
+      );
+      if (!existingKeys.has(key) && !existingNames.has(name.toLowerCase())) {
+        return { key, name };
+      }
+    }
+
+    const fallback = Date.now().toString();
+    return {
+      key: purchaseProductKey(`copia ${fallback} ${product.key}`),
+      name: `${product.name} copia`,
+    };
+  }
+
+  function duplicateProduct(product: PurchaseProductSummary) {
+    const duplicate = uniqueDuplicateProductParts(product);
+    const created = addProduct({
+      ...productFromSummary(product),
+      key: duplicate.key,
+      aliases: [],
+      name: duplicate.name,
+      source: "manual",
+    });
+    setQuery("");
+    setFamily(ALL);
+    setSupplier(ALL);
+    setSort("newest");
+    setVisibleCount((current) => Math.max(current, 30));
+    setEditingProductKey(created.key);
+  }
+
+  function removeProduct(product: PurchaseProductSummary) {
+    const existing = product.productId
+      ? data.products.find((entry) => entry.id === product.productId)
+      : undefined;
+
+    if (existing && product.purchaseCount === 0) {
+      if (confirm("¿Eliminar este producto?")) {
+        deleteProduct(existing.id);
+        setSelectedProductKeys((current) =>
+          current.filter((key) => key !== product.key),
+        );
+      }
+      return;
+    }
+
+    const message =
+      "¿Ocultar este producto de la lista? Las compras registradas seguirán guardadas.";
+    if (!confirm(message)) return;
+
+    if (existing) {
+      updateProduct({ ...existing, hidden: true });
+    } else {
+      addProduct({
+        ...productFromSummary(product),
+        hidden: true,
+        source: "detected",
+      });
+    }
+    setSelectedProductKeys((current) =>
+      current.filter((key) => key !== product.key),
+    );
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -585,15 +665,19 @@ export default function ProductosPage() {
                     documentPickRequest?.mode === "edit" && targetFromDocument
                   }
                   startOpen={
-                    documentPickRequest?.mode === "edit" && targetFromDocument
+                    (documentPickRequest?.mode === "edit" && targetFromDocument) ||
+                    editingProductKey === product.key
                   }
+                  autoEdit={editingProductKey === product.key}
                   onToggleSelected={() => toggleProductForDraft(product)}
                   onPickForDocument={() =>
                     handlePickProductForDocument(product)
                   }
                   onPickSavedProduct={handlePickSavedProductForDocument}
                   onSave={(patch) => saveProductPatch(product, patch)}
-                  onDelete={deleteProduct}
+                  onDuplicate={() => duplicateProduct(product)}
+                  onRemove={() => removeProduct(product)}
+                  onAutoEditConsumed={() => setEditingProductKey(null)}
                   onMerge={(removeKey) =>
                     handleMergeProducts(product, removeKey)
                   }
@@ -679,11 +763,14 @@ function ProductCard({
   pickMode,
   editMode,
   startOpen,
+  autoEdit,
   onToggleSelected,
   onPickForDocument,
   onPickSavedProduct,
   onSave,
-  onDelete,
+  onDuplicate,
+  onRemove,
+  onAutoEditConsumed,
   onMerge,
 }: {
   product: PurchaseProductSummary;
@@ -692,11 +779,14 @@ function ProductCard({
   pickMode: boolean;
   editMode: boolean;
   startOpen: boolean;
+  autoEdit: boolean;
   onToggleSelected: () => void;
   onPickForDocument: () => void;
   onPickSavedProduct?: (product: Product) => void;
   onSave: (patch: Partial<Product>) => Product;
-  onDelete: (id: string) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onAutoEditConsumed: () => void;
   onMerge: (removeKey: string) => void;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
@@ -781,7 +871,7 @@ function ProductCard({
     volumeUnit ?? ""
   }`.trim();
 
-  function resetPanelForm() {
+  const resetPanelForm = useCallback(() => {
     setSku(product.sku ?? "");
     setName(product.name);
     setFamily(product.family);
@@ -815,7 +905,7 @@ function ProductCard({
     setCalculationKind(product.calculation?.kind ?? "none");
     setMergeKey("");
     setMergeSearch("");
-  }
+  }, [product]);
 
   function openPanel() {
     resetPanelForm();
@@ -826,6 +916,13 @@ function ProductCard({
     if (!startOpen) return;
     setPanelOpen(true);
   }, [startOpen]);
+
+  useEffect(() => {
+    if (!autoEdit) return;
+    resetPanelForm();
+    setPanelOpen(true);
+    onAutoEditConsumed();
+  }, [autoEdit, onAutoEditConsumed, resetPanelForm]);
 
   function saveEdits() {
     const parsedSalePrice = parseOptionalNumber(salePrice);
@@ -898,23 +995,11 @@ function ProductCard({
     setMergeSearch("");
   }
 
-  function deleteCatalogProduct() {
-    if (!product.productId) return;
-    const message =
-      product.purchaseCount > 0
-        ? "¿Quitar los ajustes guardados de este producto? Las compras seguirán estando guardadas."
-        : "¿Eliminar este producto?";
-    if (confirm(message)) {
-      onDelete(product.productId);
-    }
-  }
-
   const addedAttributeLabels = new Set(
     productAttributesFromText(attributesText).map((attribute) =>
       attribute.label.trim().toLocaleLowerCase("es"),
     ),
   );
-
   return (
     <>
       <Card
@@ -1019,25 +1104,28 @@ function ProductCard({
             >
               <Edit3 className="h-4 w-4" />
             </button>
-            {product.productId ? (
-              <button
-                type="button"
-                onClick={deleteCatalogProduct}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-                aria-label={
-                  product.purchaseCount > 0
-                    ? "Quitar ajustes guardados"
-                    : "Eliminar producto"
-                }
-                title={
-                  product.purchaseCount > 0
-                    ? "Quitar ajustes guardados"
-                    : "Eliminar producto"
-                }
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={onDuplicate}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              aria-label="Duplicar producto"
+              title="Duplicar producto"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+              aria-label={
+                product.purchaseCount > 0 ? "Ocultar producto" : "Eliminar producto"
+              }
+              title={
+                product.purchaseCount > 0 ? "Ocultar producto" : "Eliminar producto"
+              }
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </Card>
@@ -1070,7 +1158,6 @@ function ProductCard({
               </span>
             ) : null}
           </div>
-
           <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
             <div className="grid gap-3 lg:grid-cols-[0.5fr_1.4fr_1fr_0.7fr]">
               <EditInput label="Código" value={sku} onChange={setSku} />

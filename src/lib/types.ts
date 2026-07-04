@@ -349,6 +349,8 @@ export interface Product {
   /** Campos libres para sectores distintos: talla, color, material, tejido, acabado... */
   attributes?: ProductAttribute[];
   notes?: string;
+  /** Oculto de la lista sin borrar las compras históricas que lo originaron. */
+  hidden?: boolean;
   source: ProductSource;
   createdAt: string;
   updatedAt: string;
