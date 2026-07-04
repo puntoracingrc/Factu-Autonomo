@@ -67,7 +67,11 @@ function lineFromSnapshot(item: LineItemSnapshot): DocumentPdfLineView {
   };
 }
 
-function docFromSnapshot(base: Document, snapshot: DocumentSnapshot): Document {
+function docFromSnapshot(
+  base: Document,
+  snapshot: DocumentSnapshot,
+  issuer: IssuerProfile,
+): Document {
   return {
     ...base,
     type: snapshot.documentType,
@@ -78,7 +82,7 @@ function docFromSnapshot(base: Document, snapshot: DocumentSnapshot): Document {
     items: snapshot.items.map(lineFromSnapshot),
     notes: snapshot.notes,
     paymentTerms: snapshot.paymentTerms,
-    issuer: { ...snapshot.issuer },
+    issuer: { ...snapshot.issuer, commercialName: issuer.commercialName },
     rectification: snapshot.rectification
       ? { ...snapshot.rectification }
       : undefined,
@@ -86,9 +90,15 @@ function docFromSnapshot(base: Document, snapshot: DocumentSnapshot): Document {
   };
 }
 
-function issuerFromSnapshot(snapshot: DocumentSnapshot): IssuerProfile {
+function issuerFromSnapshot(
+  snapshot: DocumentSnapshot,
+  profile: BusinessProfile,
+): IssuerProfile {
   return {
-    commercialName: snapshot.issuer.commercialName,
+    commercialName:
+      snapshot.issuer.commercialName?.trim() ||
+      profile.commercialName?.trim() ||
+      undefined,
     name: snapshot.issuer.name,
     nif: snapshot.issuer.nif,
     address: snapshot.issuer.address,
@@ -133,11 +143,11 @@ function snapshotViewModel(
   source: DocumentPdfSourceKind,
   hasOriginalDocumentSnapshot: boolean,
 ): DocumentPdfViewModel {
-  const issuer = issuerFromSnapshot(snapshot);
+  const issuer = issuerFromSnapshot(snapshot, profile);
   const template = normalizeDocumentTemplate(
     pdfSnapshot?.template ?? profile.documentTemplate,
   );
-  const viewDoc = docFromSnapshot(doc, snapshot);
+  const viewDoc = docFromSnapshot(doc, snapshot, issuer);
 
   return {
     source,

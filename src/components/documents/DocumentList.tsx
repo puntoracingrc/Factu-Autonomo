@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Download, Eye, FileWarning, Pencil, Search, X } from "lucide-react";
+import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
@@ -27,9 +27,9 @@ import {
   filterDocumentsByQuery,
   isDocumentEditable,
   isDraftInvoiceNumber,
-  sortDocumentsByNewest,
+  sortDocumentsByNumberDesc,
 } from "@/lib/documents";
-import { buildDocumentPdfBlob } from "@/lib/pdf";
+import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
@@ -65,9 +65,9 @@ const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
 };
 
 const SEARCH_HINTS: Record<DocumentType, string> = {
-  factura: "Ordenadas de más nueva a más antigua",
-  presupuesto: "Ordenados de más nuevo a más antiguo",
-  recibo: "Ordenados de más nuevo a más antiguo",
+  factura: "Ordenadas por número, más recientes primero",
+  presupuesto: "Ordenados por número, más recientes primero",
+  recibo: "Ordenados por número, más recientes primero",
 };
 
 const SEARCH_LABELS: Record<DocumentType, string> = {
@@ -146,10 +146,6 @@ export function DocumentList({
   const [previewingDocumentId, setPreviewingDocumentId] = useState<string | null>(
     null,
   );
-  const [pdfPreview, setPdfPreview] = useState<{
-    url: string;
-    filename: string;
-  } | null>(null);
 
   const allDocuments = getDocumentsByType(type);
   const years = useMemo(
@@ -162,7 +158,7 @@ export function DocumentList({
     const statusDocuments = periodDocuments.filter((document) =>
       matchesDocumentStatusFilter(document, statusFilter, data.documents),
     );
-    const sorted = sortDocumentsByNewest(statusDocuments);
+    const sorted = sortDocumentsByNumberDesc(statusDocuments);
     return filterDocumentsByQuery(sorted, search, { vatExempt });
   }, [allDocuments, data.documents, period, search, statusFilter, vatExempt]);
 
@@ -185,24 +181,14 @@ export function DocumentList({
   async function handlePdfPreview(doc: Document) {
     setPreviewingDocumentId(doc.id);
     try {
-      const blob = await buildDocumentPdfBlob(doc, data.profile, pdfOptions);
-      const url = URL.createObjectURL(blob);
-      setPdfPreview((current) => {
-        if (current) URL.revokeObjectURL(current.url);
-        return { url, filename: documentPreviewFilename(doc) };
-      });
+      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
     } catch {
-      alert("No se pudo abrir el PDF. Descárgalo e inténtalo de nuevo.");
+      alert(
+        "No se pudo abrir el PDF. Permite ventanas emergentes o descárgalo.",
+      );
     } finally {
       setPreviewingDocumentId(null);
     }
-  }
-
-  function closePdfPreview() {
-    setPdfPreview((current) => {
-      if (current) URL.revokeObjectURL(current.url);
-      return null;
-    });
   }
 
   useEffect(() => {
@@ -217,54 +203,8 @@ export function DocumentList({
     type,
   ]);
 
-  useEffect(
-    () => () => {
-      if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
-    },
-    [pdfPreview],
-  );
-
   return (
     <div className="space-y-4">
-      {pdfPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Vista previa PDF"
-        >
-          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-              <p className="min-w-0 truncate text-sm font-bold text-slate-900">
-                {pdfPreview.filename}
-              </p>
-              <div className="flex shrink-0 items-center gap-2">
-                <a
-                  href={pdfPreview.url}
-                  download={pdfPreview.filename}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                >
-                  <Download className="h-4 w-4" />
-                  Descargar
-                </a>
-                <button
-                  type="button"
-                  onClick={closePdfPreview}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                  aria-label="Cerrar vista previa"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <iframe
-              src={pdfPreview.url}
-              title="Vista previa PDF"
-              className="min-h-0 flex-1 bg-slate-100"
-            />
-          </div>
-        </div>
-      )}
       {totalCount > 0 && (
         <Card className="space-y-4 p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
@@ -633,13 +573,4 @@ function matchesDocumentStatusFilter(
     return deriveDocumentLifecycle(document) === "issued";
   }
   return true;
-}
-
-function documentPreviewFilename(doc: Document): string {
-  const base =
-    isDraftInvoiceNumber(doc) && doc.type === "factura"
-      ? `factura-borrador-${doc.id.slice(0, 8)}`
-      : doc.number || "documento";
-  const clean = base.replace(/[^\w.-]+/g, "_").trim() || "documento";
-  return clean.toLowerCase().endsWith(".pdf") ? clean : `${clean}.pdf`;
 }

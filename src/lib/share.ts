@@ -152,8 +152,9 @@ export async function shareDocumentByWhatsApp(
   if (!url) return;
 
   const shared = await sharePdfNative(doc, profile, message, pdfOptions);
-  if (!shared) await downloadDocumentPdf(doc, profile, pdfOptions);
+  if (shared) return;
 
+  await downloadDocumentPdf(doc, profile, pdfOptions);
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

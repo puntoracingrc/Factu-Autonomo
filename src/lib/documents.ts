@@ -281,6 +281,104 @@ export function sortDocumentsByNewest(documents: Document[]): Document[] {
   return [...documents].sort(compareDocumentsByNewest);
 }
 
+type DocumentNumberOrder = {
+  hasNumber: boolean;
+  year: number;
+  sequence: number;
+  revision: number;
+};
+
+function yearFromDocumentDate(doc: Pick<Document, "date">): number {
+  const year = new Date(doc.date).getFullYear();
+  return Number.isFinite(year) ? year : 0;
+}
+
+function fallbackNumberOrder(
+  doc: Pick<Document, "date" | "number">,
+): DocumentNumberOrder {
+  const matches = Array.from(doc.number.matchAll(/\d+/g));
+  const groups = matches.map((match) => Number(match[0]));
+  const lastMatch = matches.at(-1);
+  const previousMatch = matches.at(-2);
+  const lastLooksLikeDecimalRevision =
+    Boolean(lastMatch && previousMatch) &&
+    lastMatch![0].length <= 2 &&
+    previousMatch![0].length >= 3 &&
+    doc.number
+      .slice(previousMatch!.index! + previousMatch![0].length, lastMatch!.index)
+      .includes(".");
+  const sequenceMatch = lastLooksLikeDecimalRevision ? previousMatch : lastMatch;
+  const sequenceIndex = sequenceMatch ? matches.indexOf(sequenceMatch) : -1;
+  const revision = lastLooksLikeDecimalRevision ? Number(lastMatch![0]) : 0;
+  const explicitYear = groups.find((value, index) => {
+    return (
+      index !== sequenceIndex &&
+      value >= 2000 &&
+      value <= 2100
+    );
+  });
+
+  return {
+    hasNumber: sequenceMatch !== undefined,
+    year: explicitYear ?? yearFromDocumentDate(doc),
+    sequence: sequenceMatch ? Number(sequenceMatch[0]) : 0,
+    revision,
+  };
+}
+
+function documentNumberOrder(doc: Document): DocumentNumberOrder {
+  const parsed = parseDocumentNumber(doc.number);
+  if (parsed) {
+    return {
+      hasNumber: true,
+      year: parsed.year,
+      sequence: parsed.sequence,
+      revision: 0,
+    };
+  }
+
+  return fallbackNumberOrder(doc);
+}
+
+export function compareDocumentsByNumberDesc(
+  a: Document,
+  b: Document,
+): number {
+  const orderA = documentNumberOrder(a);
+  const orderB = documentNumberOrder(b);
+
+  if (orderA.hasNumber !== orderB.hasNumber) {
+    return orderA.hasNumber ? -1 : 1;
+  }
+
+  if (orderA.year !== orderB.year) {
+    return orderB.year - orderA.year;
+  }
+
+  if (orderA.sequence !== orderB.sequence) {
+    return orderB.sequence - orderA.sequence;
+  }
+
+  if (orderA.revision !== orderB.revision) {
+    return orderB.revision - orderA.revision;
+  }
+
+  const byDate = b.date.localeCompare(a.date);
+  if (byDate !== 0) return byDate;
+
+  const byCreatedAt = b.createdAt.localeCompare(a.createdAt);
+  if (byCreatedAt !== 0) return byCreatedAt;
+
+  return b.number.localeCompare(a.number, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+export function sortDocumentsByNumberDesc(documents: Document[]): Document[] {
+  return [...documents].sort(compareDocumentsByNumberDesc);
+}
+
 function normalizeSearchAmount(value: string): string {
   return value
     .replace(/[€\s]/g, "")
