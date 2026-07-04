@@ -220,11 +220,11 @@ jobs:
         run: |
           for attempt in {1..30}; do
             body="$(curl -fsSL "https://${PRODUCTION_DOMAIN}" || true)"
-            if grep -q "Factura Autónomo" <<< "$body"; then
+            if grep -q "Facturación Autónomos" <<< "$body"; then
               exit 0
             fi
             sleep 5
           done
 
-          echo "Production domain did not respond with the app after alias assignment."
+          echo "Production domain did not respond with the expected brand after alias assignment."
           exit 1
