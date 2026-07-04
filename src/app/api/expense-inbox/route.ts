@@ -1,0 +1,94 @@
+import { NextResponse } from "next/server";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  canUseExpenseInbox,
+  ensureExpenseInboxAlias,
+  getExpenseInboxItem,
+  listExpenseInboxItems,
+  updateExpenseInboxItemStatus,
+} from "@/lib/expense-inbox-server";
+
+function serverError(error: unknown) {
+  return NextResponse.json(
+    {
+      error:
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el buzón de gastos.",
+    },
+    { status: 500 },
+  );
+}
+
+export async function GET(request: Request) {
+  const user = await getUserFromBearer(request.headers.get("authorization"));
+  if (!user) {
+    return NextResponse.json(
+      { error: "Inicia sesión para usar el buzón de gastos." },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const access = await canUseExpenseInbox(user.id);
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.reason }, { status: 402 });
+    }
+
+    const url = new URL(request.url);
+    const itemId = url.searchParams.get("id");
+    const alias = await ensureExpenseInboxAlias(user.id);
+
+    if (itemId) {
+      const item = await getExpenseInboxItem(user.id, itemId);
+      if (!item) {
+        return NextResponse.json(
+          { error: "No encuentro esa factura del buzón." },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json({ alias, item });
+    }
+
+    const items = await listExpenseInboxItems(user.id);
+    return NextResponse.json({
+      alias,
+      items,
+      pendingCount: items.filter((item) => item.status === "pending").length,
+      errorCount: items.filter((item) => item.status === "error").length,
+    });
+  } catch (error) {
+    return serverError(error);
+  }
+}
+export async function PATCH(request: Request) {
+  const user = await getUserFromBearer(request.headers.get("authorization"));
+  if (!user) {
+    return NextResponse.json(
+      { error: "Inicia sesión para actualizar el buzón de gastos." },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const body = (await request.json().catch(() => ({}))) as {
+      id?: unknown;
+      status?: unknown;
+    };
+    const id = typeof body.id === "string" ? body.id : "";
+    const status = body.status === "ignored" ? "ignored" : "processed";
+    if (!id) {
+      return NextResponse.json({ error: "Falta el identificador." }, { status: 400 });
+    }
+
+    await updateExpenseInboxItemStatus({
+      userId: user.id,
+      itemId: id,
+      status,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return serverError(error);
+  }
+}
