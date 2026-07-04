@@ -29,7 +29,9 @@ export const DOCUMENT_UNIT_CATALOG: DocumentUnitDefinition[] = [
 const CATALOG_IDS = new Set(DOCUMENT_UNIT_CATALOG.map((unit) => unit.id));
 const DEFAULT_UNIT_ID = "ud";
 
-export function normalizeDocumentUnitId(unitId?: string | null): string | undefined {
+export function normalizeDocumentUnitId(
+  unitId?: string | null,
+): string | undefined {
   const normalized = (unitId ?? "")
     .trim()
     .toLowerCase()
@@ -38,7 +40,13 @@ export function normalizeDocumentUnitId(unitId?: string | null): string | undefi
     .replace(/\s+/g, "");
 
   if (!normalized) return undefined;
-  if (["u", "uds", "unidad", "unidades"].includes(normalized)) return "ud";
+  if (
+    ["u", "uds", "unidad", "unidades", "jg", "jgo", "juego", "juegos"].includes(
+      normalized,
+    )
+  ) {
+    return "ud";
+  }
   if (
     [
       "m2",
@@ -83,8 +91,7 @@ export function normalizeDocumentUnits(
     (id) => CATALOG_IDS.has(id),
   );
   const uniqueEnabled = [...new Set(enabledUnitIds)];
-  const enabled =
-    uniqueEnabled.length > 0 ? uniqueEnabled : [DEFAULT_UNIT_ID];
+  const enabled = uniqueEnabled.length > 0 ? uniqueEnabled : [DEFAULT_UNIT_ID];
 
   const requestedDefault = settings?.defaultUnitId ?? DEFAULT_UNIT_ID;
   const defaultUnitId = enabled.includes(requestedDefault)
@@ -150,7 +157,11 @@ export function resolveLineItemUnit(
   settings: DocumentUnitsSettings,
 ): string {
   const normalized = normalizeDocumentUnitId(item.unit) ?? item.unit;
-  if (normalized && (settings.enabledUnitIds.includes(normalized) || CATALOG_IDS.has(normalized))) {
+  if (
+    normalized &&
+    (settings.enabledUnitIds.includes(normalized) ||
+      CATALOG_IDS.has(normalized))
+  ) {
     return normalized;
   }
   return settings.defaultUnitId;
@@ -166,7 +177,10 @@ export function normalizeLineItemUnits(
   }));
 }
 
-export function formatQuantityWithUnit(quantity: number, unitId: string): string {
+export function formatQuantityWithUnit(
+  quantity: number,
+  unitId: string,
+): string {
   const qty = Number.isInteger(quantity)
     ? String(quantity)
     : quantity

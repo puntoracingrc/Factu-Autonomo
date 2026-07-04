@@ -1,6 +1,9 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
-import { expensePurchaseLineBaseTotal, sanitizeExpensePurchaseLines } from "./expenses";
+import {
+  expensePurchaseLineBaseTotal,
+  sanitizeExpensePurchaseLines,
+} from "./expenses";
 import type { Expense, Product, ProductAttribute } from "./types";
 
 export interface PurchaseProductSupplierSummary {
@@ -111,15 +114,19 @@ function normalizeAttributeKey(value: string): string {
     .slice(0, 40);
 }
 
-function normalizeProductAttributes(value: unknown): ProductAttribute[] | undefined {
+function normalizeProductAttributes(
+  value: unknown,
+): ProductAttribute[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const attributes: ProductAttribute[] = [];
   for (const raw of value) {
     if (!raw || typeof raw !== "object") continue;
     const source = raw as Partial<ProductAttribute>;
-    const label = cleanOptionalText(source.label) ?? cleanOptionalText(source.key);
-    const attributeValue = cleanOptionalText(source.value);
-    if (!label || !attributeValue) continue;
+    const label =
+      cleanOptionalText(source.label) ?? cleanOptionalText(source.key);
+    const attributeValue =
+      typeof source.value === "string" ? source.value.trim() : "";
+    if (!label) continue;
     const key = cleanOptionalText(source.key) ?? normalizeAttributeKey(label);
     attributes.push({
       key: normalizeAttributeKey(key) || normalizeAttributeKey(label),
@@ -178,7 +185,8 @@ export function normalizeProductCatalogItem(product: Product): Product {
   const purchaseListPrice =
     normalizeOptionalAmount(product.purchase?.listPrice) ?? legacyPvp;
   const purchaseDiscountPercent =
-    normalizeOptionalPercent(product.purchase?.discountPercent) ?? legacyDiscount;
+    normalizeOptionalPercent(product.purchase?.discountPercent) ??
+    legacyDiscount;
   const purchaseNetUnitCost =
     normalizeOptionalAmount(product.purchase?.netUnitCost) ??
     legacyCost ??
@@ -194,15 +202,16 @@ export function normalizeProductCatalogItem(product: Product): Product {
     cleanOptionalText(product.purchase?.supplierId) ??
     cleanOptionalText(product.supplierId);
   const salesEnabled =
-    product.sales?.enabled ?? Boolean(saleDescription || saleUnitPrice || salesUnit);
+    product.sales?.enabled ??
+    Boolean(saleDescription || saleUnitPrice || salesUnit);
   const purchaseEnabled =
     product.purchase?.enabled ??
     Boolean(
       product.purchase ||
-        purchaseListPrice ||
-        purchaseNetUnitCost ||
-        purchaseDiscountPercent ||
-        supplierName,
+      purchaseListPrice ||
+      purchaseNetUnitCost ||
+      purchaseDiscountPercent ||
+      supplierName,
     );
   const calculationKind = product.calculation?.kind ?? "none";
   const calculation =
@@ -213,7 +222,10 @@ export function normalizeProductCatalogItem(product: Product): Product {
           roundingDecimals:
             typeof product.calculation?.roundingDecimals === "number" &&
             Number.isFinite(product.calculation.roundingDecimals)
-              ? Math.min(Math.max(Math.trunc(product.calculation.roundingDecimals), 0), 4)
+              ? Math.min(
+                  Math.max(Math.trunc(product.calculation.roundingDecimals), 0),
+                  4,
+                )
               : 2,
         }
       : undefined;
@@ -221,7 +233,11 @@ export function normalizeProductCatalogItem(product: Product): Product {
   return {
     ...product,
     key: key || product.id,
-    aliases: [...new Set((product.aliases ?? []).map(purchaseProductKey).filter(Boolean))],
+    aliases: [
+      ...new Set(
+        (product.aliases ?? []).map(purchaseProductKey).filter(Boolean),
+      ),
+    ],
     name: productName || product.key || "Producto",
     family: productFamily || inferPurchaseProductFamily(productName),
     sku: cleanOptionalText(product.sku),
@@ -252,7 +268,9 @@ export function normalizeProductCatalogItem(product: Product): Product {
           ivaPercent: purchaseIvaPercent,
           supplierId,
           supplierName,
-          supplierReference: cleanOptionalText(product.purchase?.supplierReference),
+          supplierReference: cleanOptionalText(
+            product.purchase?.supplierReference,
+          ),
           purchaseToSaleFactor: normalizeOptionalPositive(
             product.purchase?.purchaseToSaleFactor,
           ),
@@ -284,18 +302,43 @@ export function purchaseProductKey(description: string): string {
 export function inferPurchaseProductFamily(description: string): string {
   const key = purchaseProductKey(description);
   const checks: Array<[string, string[]]> = [
-    ["Persianas y accesorios", ["persiana", "cinta", "guia", "tirante", "tri", "panel", "alu", "aluminio"]],
-    ["Motores y electrónica", ["motor", "radio", "mando", "sensor", "automatismo"]],
+    [
+      "Persianas y accesorios",
+      [
+        "persiana",
+        "cinta",
+        "guia",
+        "tirante",
+        "tri",
+        "panel",
+        "alu",
+        "aluminio",
+      ],
+    ],
+    [
+      "Motores y electrónica",
+      ["motor", "radio", "mando", "sensor", "automatismo"],
+    ],
     ["PVC y perfiles", ["pvc", "perfil", "lama"]],
-    ["Herramientas y ferretería", ["tornillo", "broca", "herramienta", "soporte", "kit"]],
+    [
+      "Herramientas y ferretería",
+      ["tornillo", "broca", "herramienta", "soporte", "kit"],
+    ],
     ["Servicios", ["servicio", "mano", "porte", "instalacion", "reparacion"]],
   ];
 
-  return checks.find(([, words]) => words.some((word) => key.includes(word)))?.[0] ?? "Sin familia";
+  return (
+    checks.find(([, words]) => words.some((word) => key.includes(word)))?.[0] ??
+    "Sin familia"
+  );
 }
 
 function supplierKey(expense: Expense): string {
-  return expense.supplierId || expense.supplierName.trim().toLowerCase() || "sin-proveedor";
+  return (
+    expense.supplierId ||
+    expense.supplierName.trim().toLowerCase() ||
+    "sin-proveedor"
+  );
 }
 
 function normalizedDiscountPercent(
@@ -305,14 +348,21 @@ function normalizedDiscountPercent(
   return Number.isFinite(discount) ? Math.min(Math.max(discount, 0), 100) : 0;
 }
 
-function purchaseLineNetUnitCost(line: NonNullable<Expense["purchaseLines"]>[number]): number {
+function purchaseLineNetUnitCost(
+  line: NonNullable<Expense["purchaseLines"]>[number],
+): number {
   const discount = normalizedDiscountPercent(line);
   if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
     return roundMoney(line.unitPrice * (1 - discount / 100));
   }
 
   const quantity = line.quantity || 1;
-  if (line.total !== undefined && Number.isFinite(line.total) && line.total > 0 && quantity > 0) {
+  if (
+    line.total !== undefined &&
+    Number.isFinite(line.total) &&
+    line.total > 0 &&
+    quantity > 0
+  ) {
     return roundMoney(line.total / quantity);
   }
 
@@ -438,48 +488,48 @@ export function buildPurchaseProductSummaries(
         netUnitCost,
       );
       const existing = accumulators.get(key);
-      const accumulator: ProductAccumulator =
-        existing ??
-        {
-          productId: catalogProduct?.id,
-          key,
-          aliases: catalogProduct?.aliases ?? [],
-          name: catalogProduct?.name || line.description,
-          family:
-            catalogProduct?.family || inferPurchaseProductFamily(line.description),
-          source: catalogProduct?.source ?? "detected",
-          sku: catalogProduct?.sku,
-          externalId: catalogProduct?.externalId,
-          unit: catalogProduct?.sales?.unit ?? catalogProduct?.unit ?? line.unit,
-          saleUnit: catalogProduct?.sales?.unit,
-          saleDescription: catalogProduct?.sales?.description,
-          saleUnitPrice: catalogProduct?.sales?.unitPrice,
-          saleIvaPercent: catalogProduct?.sales?.ivaPercent,
-          purchaseUnit: catalogProduct?.purchase?.unit ?? line.unit,
-          purchaseDescription: catalogProduct?.purchase?.description,
-          purchaseListPrice: catalogProduct?.purchase?.listPrice,
-          purchaseDiscountPercent: catalogProduct?.purchase?.discountPercent,
-          purchaseNetUnitCost: catalogProduct?.purchase?.netUnitCost,
-          purchaseSupplierReference: catalogProduct?.purchase?.supplierReference,
-          purchaseToSaleFactor: catalogProduct?.purchase?.purchaseToSaleFactor,
-          calculation: catalogProduct?.calculation,
-          attributes: catalogProduct?.attributes,
-          notes: catalogProduct?.notes,
-          purchaseCount: 0,
-          totalQuantity: 0,
-          totalBase: 0,
-          unitPriceSum: 0,
-          pvpSum: 0,
-          discountSum: 0,
-          lastUnitPrice: netUnitCost,
-          minUnitPrice: netUnitCost,
-          maxUnitPrice: netUnitCost,
-          lastPvp: line.unitPrice,
-          lastDiscountPercent: discount,
-          ivaPercent: line.ivaPercent,
-          lastPurchaseDate: expense.date,
-          suppliers: new Map(),
-        };
+      const accumulator: ProductAccumulator = existing ?? {
+        productId: catalogProduct?.id,
+        key,
+        aliases: catalogProduct?.aliases ?? [],
+        name: catalogProduct?.name || line.description,
+        family:
+          catalogProduct?.family ||
+          inferPurchaseProductFamily(line.description),
+        source: catalogProduct?.source ?? "detected",
+        sku: catalogProduct?.sku,
+        externalId: catalogProduct?.externalId,
+        unit: catalogProduct?.sales?.unit ?? catalogProduct?.unit ?? line.unit,
+        saleUnit: catalogProduct?.sales?.unit,
+        saleDescription: catalogProduct?.sales?.description,
+        saleUnitPrice: catalogProduct?.sales?.unitPrice,
+        saleIvaPercent: catalogProduct?.sales?.ivaPercent,
+        purchaseUnit: catalogProduct?.purchase?.unit ?? line.unit,
+        purchaseDescription: catalogProduct?.purchase?.description,
+        purchaseListPrice: catalogProduct?.purchase?.listPrice,
+        purchaseDiscountPercent: catalogProduct?.purchase?.discountPercent,
+        purchaseNetUnitCost: catalogProduct?.purchase?.netUnitCost,
+        purchaseSupplierReference:
+          catalogProduct?.purchase?.supplierReference ?? line.supplierReference,
+        purchaseToSaleFactor: catalogProduct?.purchase?.purchaseToSaleFactor,
+        calculation: catalogProduct?.calculation,
+        attributes: catalogProduct?.attributes,
+        notes: catalogProduct?.notes,
+        purchaseCount: 0,
+        totalQuantity: 0,
+        totalBase: 0,
+        unitPriceSum: 0,
+        pvpSum: 0,
+        discountSum: 0,
+        lastUnitPrice: netUnitCost,
+        minUnitPrice: netUnitCost,
+        maxUnitPrice: netUnitCost,
+        lastPvp: line.unitPrice,
+        lastDiscountPercent: discount,
+        ivaPercent: line.ivaPercent,
+        lastPurchaseDate: expense.date,
+        suppliers: new Map(),
+      };
 
       accumulator.purchaseCount += 1;
       accumulator.totalQuantity += summaryQuantity;
@@ -487,8 +537,14 @@ export function buildPurchaseProductSummaries(
       accumulator.unitPriceSum += netUnitCost;
       accumulator.pvpSum += line.unitPrice;
       accumulator.discountSum += discount;
-      accumulator.minUnitPrice = Math.min(accumulator.minUnitPrice, netUnitCost);
-      accumulator.maxUnitPrice = Math.max(accumulator.maxUnitPrice, netUnitCost);
+      accumulator.minUnitPrice = Math.min(
+        accumulator.minUnitPrice,
+        netUnitCost,
+      );
+      accumulator.maxUnitPrice = Math.max(
+        accumulator.maxUnitPrice,
+        netUnitCost,
+      );
       accumulator.ivaPercent = line.ivaPercent ?? accumulator.ivaPercent;
 
       if (expense.date >= accumulator.lastPurchaseDate) {
@@ -499,7 +555,13 @@ export function buildPurchaseProductSummaries(
           line.unit ??
           accumulator.unit;
         accumulator.purchaseUnit =
-          catalogProduct?.purchase?.unit ?? line.unit ?? accumulator.purchaseUnit;
+          catalogProduct?.purchase?.unit ??
+          line.unit ??
+          accumulator.purchaseUnit;
+        accumulator.purchaseSupplierReference =
+          catalogProduct?.purchase?.supplierReference ??
+          line.supplierReference ??
+          accumulator.purchaseSupplierReference;
         accumulator.lastPurchaseDate = expense.date;
         accumulator.lastUnitPrice = netUnitCost;
         accumulator.lastPvp = line.unitPrice;
@@ -507,15 +569,13 @@ export function buildPurchaseProductSummaries(
       }
 
       const keySupplier = supplierKey(expense);
-      const supplier =
-        accumulator.suppliers.get(keySupplier) ??
-        {
-          supplierId: expense.supplierId,
-          supplierName: expense.supplierName || "Sin proveedor",
-          count: 0,
-          totalBase: 0,
-          lastPurchaseDate: expense.date,
-        };
+      const supplier = accumulator.suppliers.get(keySupplier) ?? {
+        supplierId: expense.supplierId,
+        supplierName: expense.supplierName || "Sin proveedor",
+        count: 0,
+        totalBase: 0,
+        lastPurchaseDate: expense.date,
+      };
       supplier.count += 1;
       supplier.totalBase = roundMoney(supplier.totalBase + base);
       if (expense.date >= supplier.lastPurchaseDate) {

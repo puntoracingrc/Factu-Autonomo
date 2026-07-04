@@ -32,6 +32,8 @@ describe("document-units", () => {
     expect(normalizeDocumentUnitId("m²")).toBe("m2");
     expect(normalizeDocumentUnitId("metro lineal")).toBe("ml");
     expect(normalizeDocumentUnitId("m.l.")).toBe("ml");
+    expect(normalizeDocumentUnitId("JG")).toBe("ud");
+    expect(normalizeDocumentUnitId("juego")).toBe("ud");
   });
 
   it("normaliza líneas antiguas sin unidad", () => {
@@ -46,7 +48,10 @@ describe("document-units", () => {
     ];
     const normalized = normalizeLineItemUnits(
       items,
-      normalizeDocumentUnits({ enabledUnitIds: ["ud", "m2"], defaultUnitId: "m2" }),
+      normalizeDocumentUnits({
+        enabledUnitIds: ["ud", "m2"],
+        defaultUnitId: "m2",
+      }),
     );
     expect(normalized[0].unit).toBe("m2");
   });

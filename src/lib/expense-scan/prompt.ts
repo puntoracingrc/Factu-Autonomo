@@ -31,6 +31,7 @@ Reglas:
 - Si parece ticket o recibo sin datos fiscales completos, trátalo como quick_ticket y añade un warning claro.
 - Si parece gasto fijo recurrente, añade un warning sugiriendo revisar si conviene configurarlo como gasto fijo.
 - Si aparecen líneas de producto, material o servicio, rellena purchaseLines.
+- Si una línea tiene columna REF., Código, Artículo, Referencia o similar, pon ese valor en purchaseLines[].supplierReference. Ejemplo: REF. "SM-502" no es descripción; es supplierReference.
 - En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece.
 - Si una línea tiene una columna de unidades/piezas y otra de TOTAL en m2/m², usa como quantity el TOTAL m2/m² y unit "M2"; no uses el número de piezas como quantity.
 - Si el documento solo tiene resumen total y no muestra líneas claras, deja purchaseLines vacío u omitido.
