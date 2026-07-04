@@ -4,7 +4,7 @@ export const productosSection: ManualSection = {
   slug: "productos",
   title: "Productos",
   summary: "Consulta materiales y servicios detectados en tus compras.",
-  order: 8,
+  order: 10,
   steps: [
     {
       title: "1. Cómo se crea la lista",

@@ -4,7 +4,7 @@ export const inicioSection: ManualSection = {
   slug: "inicio",
   title: "Panel y avisos",
   summary: "Accesos rápidos, recordatorios, instalación y resumen del negocio.",
-  order: 2,
+  order: 3,
   intro: [
     "El panel está pensado para actuar rápido: crear recordatorios, abrir avisos, cliente, factura, presupuesto, recibo y gasto sin bajar por la app.",
     "También incluye un resumen del negocio visible por defecto, que puedes ocultar si no quieres enseñar cifras en pantalla, y la instalación de la app al final.",

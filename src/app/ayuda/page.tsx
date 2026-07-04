@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   BadgeQuestionMark,
   FileText,
+  MailCheck,
   MonitorPlay,
   Settings,
 } from "lucide-react";
@@ -18,7 +19,7 @@ import { sanitizeReturnPath } from "@/lib/manual/return-url";
 export const metadata: Metadata = {
   title: "Ayuda",
   description:
-    "Manual de Facturación Autónomos: primeros pasos, facturas, clientes automáticos, gastos, nube y configuración.",
+    "Manual de Facturación Autónomos: demo, cuenta, email confirmado, facturas, clientes automáticos, gastos, nube y configuración.",
   alternates: {
     canonical: "/ayuda",
   },
@@ -59,6 +60,14 @@ const QUICK_HELP = [
     action: "Abrir demo",
     Icon: MonitorPlay,
   },
+  {
+    title: "Crear cuenta y confirmar email",
+    description:
+      "Alta gratis, correo de Supabase, datos locales encontrados y primeros pasos reales.",
+    href: "/ayuda/cuenta",
+    action: "Ver cuenta",
+    Icon: MailCheck,
+  },
 ];
 
 export default async function AyudaPage({ searchParams }: AyudaPageProps) {
@@ -88,7 +97,7 @@ export default async function AyudaPage({ searchParams }: AyudaPageProps) {
         </div>
       </Card>
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-3" aria-label="Ayuda rápida">
+      <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Ayuda rápida">
         {QUICK_HELP.map(({ title, description, href, action, Icon }) => (
           <Card key={title} className="flex flex-col">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">

@@ -4,7 +4,7 @@ export const proveedoresSection: ManualSection = {
   slug: "proveedores",
   title: "Proveedores",
   summary: "Centraliza a quienes les compras y evita duplicados.",
-  order: 9,
+  order: 11,
   steps: [
     {
       title: "1. Dar de alta un proveedor",
@@ -37,7 +37,7 @@ export const configuracionSection: ManualSection = {
   slug: "configuracion",
   title: "Ajustes avanzados",
   summary: "Plantillas PDF, validez de presupuestos, numeración, Veri*Factu y cuenta.",
-  order: 11,
+  order: 13,
   steps: [
     {
       title: "1. Moverse por Ajustes",
@@ -61,7 +61,7 @@ export const configuracionSection: ManualSection = {
       title: "3. Diseñador de plantillas PDF",
       paragraphs: [
         "Con plan **Pro** puedes abrir el **Diseñador de formularios** desde Ajustes para cambiar el estilo visual de facturas, presupuestos y recibos en una pantalla dedicada.",
-        "Puedes elegir estilo, fuente profesional, tamaños de texto, color de marca, densidad de la tabla y algunos bloques visibles del PDF. Usa **Ver grande** para revisar una factura ficticia completa antes de guardar. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR fiscal obligatorio y líneas reales.",
+        "Puedes elegir estilo, fuente profesional, tamaños de texto, color de marca, densidad de la tabla y algunos bloques visibles del PDF. Usa **Ver grande** para revisar una factura ficticia completa antes de guardar. La vista previa es orientativa: el PDF final conserva los datos fiscales, numeración, Veri*Factu, QR tributario cuando corresponda y líneas reales.",
         "El QR tributario queda reservado al principio de la factura con el texto fiscal correspondiente; no se mueve como un elemento decorativo de la plantilla.",
         "El plan **Gratis** mantiene el diseño estándar y añade una firma discreta en gris al pie del PDF. En **Pro** esa firma no aparece en presupuestos, borradores y nuevos PDFs generados.",
       ],
@@ -84,6 +84,8 @@ export const configuracionSection: ManualSection = {
         "Puedes dejarlo desactivado hasta que corresponda. Si está apagado, no se registran facturas en Veri*Factu.",
         "La pantalla distingue entre **modo simulado**, preparación de envío a AEAT y falta de certificado. No guarda ni muestra claves privadas en esta tarjeta.",
         "El QR y la huella se aplican a facturas emitidas cuando la configuración lo permite; los borradores no se registran.",
+        "La app incluye funciones VeriFactu/SIF desde el plan Gratis con cuenta verificada, pero no sustituye a tu gestor. No afirmamos homologación comercial por parte de AEAT.",
+        "Si tienes dudas de plazos, obligación o modalidad, revisa **Legal → VeriFactu** y las fuentes oficiales enlazadas allí.",
       ],
     },
     {

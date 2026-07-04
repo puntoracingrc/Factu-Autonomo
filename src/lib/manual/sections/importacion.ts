@@ -4,7 +4,7 @@ export const importacionSection: ManualSection = {
   slug: "importacion",
   title: "Importar datos",
   summary: "Trae clientes, facturas y presupuestos desde otros programas.",
-  order: 12,
+  order: 14,
   intro: [
     "El importador está pensado para migrar datos desde programas antiguos o externos. Cada origen guarda la información de una forma distinta, por eso primero se elige o detecta el programa de origen.",
     "La importación de bases de datos externas es una función Pro. Puedes revisar la pantalla y los orígenes disponibles, pero para analizar e importar necesitas Pro o la prueba Pro activa.",

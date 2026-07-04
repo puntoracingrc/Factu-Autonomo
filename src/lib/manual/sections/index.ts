@@ -6,6 +6,7 @@
 import type { ManualSection } from "../types";
 import { clientesSection } from "./clientes";
 import { cuentaSection } from "./cuenta";
+import { demoSection } from "./demo";
 import { configuracionSection, proveedoresSection } from "./proveedores-ajustes";
 import { facturasSection } from "./facturas";
 import { gastosSection } from "./gastos";
@@ -18,6 +19,7 @@ import { primerosPasosSection } from "./primeros-pasos";
 
 export const manualSections: ManualSection[] = [
   primerosPasosSection,
+  demoSection,
   inicioSection,
   clientesSection,
   facturasSection,
