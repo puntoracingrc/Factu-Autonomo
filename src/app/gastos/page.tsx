@@ -15,6 +15,7 @@ import {
   Upload,
 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
+import { ExpenseInboxCard } from "@/components/expenses/ExpenseInboxCard";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
@@ -346,6 +347,10 @@ export default function GastosPage() {
       />
 
       <RecurringDueBanner data={data} />
+
+      <div className="mb-4">
+        <ExpenseInboxCard />
+      </div>
 
       <Card className="mb-4 space-y-2 p-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">

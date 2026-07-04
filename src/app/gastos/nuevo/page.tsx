@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
+import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import {
   filterDocumentsByQuery,
   sortDocumentsByNewest,
@@ -58,6 +59,7 @@ import type {
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
 } from "@/lib/types";
+import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
@@ -80,7 +82,21 @@ interface PendingExpenseScan {
   fileName?: string;
 }
 
+interface ExpenseInboxItemResponse {
+  item?: ExpenseInboxItem;
+  error?: string;
+}
+
 type ScanReviewStatus = "ready" | "review" | "blocked";
+
+async function currentAuthHeaders(): Promise<HeadersInit> {
+  const supabase = await getSupabaseClientAsync();
+  const { data } = (await supabase?.auth.getSession()) ?? {
+    data: { session: null },
+  };
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export default function NuevoGastoPage() {
   const router = useRouter();
@@ -119,6 +135,10 @@ export default function NuevoGastoPage() {
   const [activeScanReview, setActiveScanReview] =
     useState<PendingExpenseScan | null>(null);
   const [scanFormCollapsed, setScanFormCollapsed] = useState(false);
+  const [inboxItemId, setInboxItemId] = useState<string | null>(null);
+  const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
+  const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(null);
+  const [inboxLoadError, setInboxLoadError] = useState<string | null>(null);
   const [, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -133,6 +153,7 @@ export default function NuevoGastoPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setEditingExpenseId(params.get("editar"));
+    setInboxItemId(params.get("inbox"));
   }, []);
 
   useEffect(() => {
@@ -173,7 +194,7 @@ export default function NuevoGastoPage() {
     );
   }, [data.suppliers, editingExpense, loadedExpenseId, vatExempt]);
 
-  function fillFormFromScan(review: PendingExpenseScan) {
+  const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
     const { payload, fileName } = review;
     const match = findBestSupplierMatch(data.suppliers, {
       name: payload.supplier.name,
@@ -220,7 +241,62 @@ export default function NuevoGastoPage() {
         ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
         : "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
     );
-  }
+  }, [data.suppliers, vatExempt]);
+
+  useEffect(() => {
+    if (!inboxItemId || loadedInboxItemId === inboxItemId) return;
+    let cancelled = false;
+
+    async function loadInboxItem() {
+      setInboxLoadError(null);
+      try {
+        const headers = await currentAuthHeaders();
+        const response = await fetch(`/api/expense-inbox?id=${inboxItemId}`, {
+          headers,
+        });
+        const body = (await response.json().catch(() => ({}))) as ExpenseInboxItemResponse;
+        if (cancelled) return;
+
+        if (!response.ok || !body.item) {
+          setInboxLoadError(body.error ?? "No se pudo abrir la factura del buzón.");
+          setLoadedInboxItemId(inboxItemId);
+          return;
+        }
+
+        if (!body.item.scanPayload) {
+          setInboxLoadError(
+            body.item.scanError ??
+              "Esta factura llegó al buzón, pero no se pudo leer con IA.",
+          );
+          setLoadedInboxItemId(inboxItemId);
+          return;
+        }
+
+        fillFormFromScan({
+          id: body.item.id,
+          payload: body.item.scanPayload,
+          fileName: body.item.attachmentFilename,
+        });
+        setScanFormCollapsed(false);
+        setActiveInboxItemId(body.item.id);
+        setLoadedInboxItemId(inboxItemId);
+        setScanHint(
+          `Factura recibida por email: ${body.item.attachmentFilename}. Revisa y guarda para quitarla del buzón.`,
+        );
+      } catch {
+        if (!cancelled) {
+          setInboxLoadError("No se pudo abrir la factura del buzón.");
+          setLoadedInboxItemId(inboxItemId);
+        }
+      }
+    }
+
+    void loadInboxItem();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fillFormFromScan, inboxItemId, loadedInboxItemId]);
 
   function clearScanForm() {
     setDate(todayISO());
@@ -539,7 +615,7 @@ export default function NuevoGastoPage() {
     });
   }
 
-  function handleSaveReadyScans() {
+  async function handleSaveReadyScans() {
     const reviews = [
       ...(activeScanReview && scanFormCollapsed ? [activeScanReview] : []),
       ...pendingScans,
@@ -547,6 +623,9 @@ export default function NuevoGastoPage() {
     const ready = reviews.filter((review) => scanReviewStatus(review) === "ready");
     if (ready.length === 0) return;
     ready.forEach(saveScanPayload);
+    if (activeInboxItemId && ready.some((review) => review.id === activeInboxItemId)) {
+      await markInboxItemProcessed();
+    }
     const remaining = reviews.filter((review) => scanReviewStatus(review) !== "ready");
     setActiveScanReview(null);
     setPendingScans(remaining);
@@ -585,7 +664,21 @@ export default function NuevoGastoPage() {
     ],
   );
 
-  function handleSubmit() {
+  async function markInboxItemProcessed() {
+    if (!activeInboxItemId) return;
+    const headers = await currentAuthHeaders();
+    await fetch("/api/expense-inbox", {
+      method: "PATCH",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: activeInboxItemId, status: "processed" }),
+    });
+    setActiveInboxItemId(null);
+  }
+
+  async function handleSubmit() {
     const totals = expenseTotalsFromBase(
       parseDecimalInput(amountText),
       ivaPercent,
@@ -656,6 +749,8 @@ export default function NuevoGastoPage() {
       addExpense(payload);
     }
 
+    await markInboxItemProcessed();
+
     setActiveScanReview(null);
     if (!editingExpense && pendingScans.length > 0) {
       const [next, ...rest] = pendingScans;
@@ -686,6 +781,11 @@ export default function NuevoGastoPage() {
             o guardar este formulario como gasto nuevo.
           </Card>
         )}
+        {inboxLoadError && (
+          <Card className="border-red-200 bg-red-50 text-sm font-semibold text-red-800">
+            {inboxLoadError}
+          </Card>
+        )}
         {scanHint && (
           <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-900">
             {scanHint}
@@ -704,7 +804,7 @@ export default function NuevoGastoPage() {
               </div>
               <Button
                 variant="secondary"
-                onClick={handleSaveReadyScans}
+                onClick={() => void handleSaveReadyScans()}
                 disabled={
                   ![
                     ...(activeScanReview && scanFormCollapsed
@@ -1295,7 +1395,11 @@ export default function NuevoGastoPage() {
           </FormSection>
         </Card>}
         {showExpenseForm && (
-          <Button fullWidth onClick={handleSubmit} disabled={Boolean(duplicateExpense)}>
+          <Button
+            fullWidth
+            onClick={() => void handleSubmit()}
+            disabled={Boolean(duplicateExpense)}
+          >
             {duplicateExpense
               ? "Factura ya guardada"
               : editingExpense
