@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { isProPlan } from "@/lib/billing/plans";
 import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
@@ -8,9 +8,12 @@ import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
+  buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
   extractExpenseInboxAliasToken,
   mapExpenseInboxScanPayload,
+  nextFriendlyExpenseInboxAliasCounter,
+  normalizeExpenseInboxAliasBase,
   normalizeExpenseInboxInboundPayload,
   normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
@@ -83,8 +86,35 @@ function getResendApiKey(): string {
   return apiKey;
 }
 
-function createAliasToken(): string {
-  return randomBytes(9).toString("hex");
+function isLegacyRandomAliasToken(aliasToken: string): boolean {
+  return /^[a-f0-9]{18}$/.test(aliasToken);
+}
+
+function profileAliasName(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const source = payload as Record<string, unknown>;
+  const candidates = [source.commercialName, source.name, source.email];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+  }
+  return "";
+}
+
+async function aliasBaseForUser(userId: string): Promise<string> {
+  const admin = ensureAdmin();
+  const { data, error } = await admin
+    .from("sync_entities")
+    .select("payload")
+    .eq("user_id", userId)
+    .eq("entity_type", "profile")
+    .eq("entity_id", "profile")
+    .eq("deleted", false)
+    .maybeSingle();
+
+  if (error) return normalizeExpenseInboxAliasBase(undefined);
+  return normalizeExpenseInboxAliasBase(
+    profileAliasName((data as { payload?: unknown } | null)?.payload),
+  );
 }
 
 function mapItem(row: ExpenseInboxItemRow): ExpenseInboxItem {
@@ -188,6 +218,7 @@ async function ensureExpenseInboxAliasInSyncEntities(
   userId: string,
 ): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
+  const aliasBase = await aliasBaseForUser(userId);
   const { data: existing, error: existingError } = await admin
     .from("sync_entities")
     .select("payload")
@@ -208,6 +239,14 @@ async function ensureExpenseInboxAliasInSyncEntities(
     (existing as { payload?: unknown } | null)?.payload,
   );
   if (existingAlias?.active) {
+    if (isLegacyRandomAliasToken(existingAlias.alias_token)) {
+      return writeExpenseInboxAliasInSyncEntities({
+        userId,
+        aliasBase,
+        counterStart: 1,
+      });
+    }
+
     return {
       userId,
       aliasToken: existingAlias.alias_token,
@@ -218,55 +257,64 @@ async function ensureExpenseInboxAliasInSyncEntities(
     };
   }
 
-  const now = new Date().toISOString();
-  const aliasToken = createAliasToken();
-  const { error } = await admin.from("sync_entities").upsert(
-    {
-      user_id: userId,
-      entity_type: ALIAS_ENTITY_TYPE,
-      entity_id: PRIMARY_ALIAS_ENTITY_ID,
-      payload: {
-        userId,
-        aliasToken,
-        active: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-      deleted: false,
-      updated_at: now,
-    },
-    { onConflict: "user_id,entity_type,entity_id" },
-  );
-
-  if (error) throw error;
-
-  return {
+  return writeExpenseInboxAliasInSyncEntities({
     userId,
-    aliasToken,
-    address: buildExpenseInboxAddress(aliasToken, getExpenseInboxDomain()),
-  };
+    aliasBase,
+    counterStart: 1,
+  });
 }
 
-async function rotateExpenseInboxAliasInSyncEntities(
+async function syncAliasTokenTakenByAnotherUser(
   userId: string,
-): Promise<ExpenseInboxAlias> {
+  aliasToken: string,
+): Promise<boolean> {
+  const admin = ensureAdmin();
+  const { data, error } = await admin
+    .from("sync_entities")
+    .select("user_id")
+    .eq("entity_type", ALIAS_ENTITY_TYPE)
+    .eq("deleted", false)
+    .filter("payload->>aliasToken", "eq", aliasToken)
+    .neq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function writeExpenseInboxAliasInSyncEntities(input: {
+  userId: string;
+  aliasBase: string;
+  counterStart: number;
+}): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
   const now = new Date().toISOString();
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const aliasToken = createAliasToken();
+  for (
+    let counter = input.counterStart;
+    counter < input.counterStart + 50;
+    counter += 1
+  ) {
+    const aliasToken = buildFriendlyExpenseInboxAliasToken(
+      input.aliasBase,
+      counter,
+    );
+    if (await syncAliasTokenTakenByAnotherUser(input.userId, aliasToken)) {
+      continue;
+    }
+
     const { error } = await admin.from("sync_entities").upsert(
       {
-        user_id: userId,
+        user_id: input.userId,
         entity_type: ALIAS_ENTITY_TYPE,
         entity_id: PRIMARY_ALIAS_ENTITY_ID,
         payload: {
-          userId,
+          userId: input.userId,
           aliasToken,
           active: true,
           createdAt: now,
           updatedAt: now,
-          rotatedAt: now,
         },
         deleted: false,
         updated_at: now,
@@ -274,17 +322,44 @@ async function rotateExpenseInboxAliasInSyncEntities(
       { onConflict: "user_id,entity_type,entity_id" },
     );
 
-    if (!error) {
-      return {
-        userId,
-        aliasToken,
-        address: buildExpenseInboxAddress(aliasToken, getExpenseInboxDomain()),
-      };
-    }
-    if (error.code !== "23505") throw error;
+    if (error) throw error;
+
+    return {
+      userId: input.userId,
+      aliasToken,
+      address: buildExpenseInboxAddress(aliasToken, getExpenseInboxDomain()),
+    };
   }
 
-  throw new Error("No se pudo renovar el buzón de gastos.");
+  throw new Error("No se pudo crear el buzón de gastos.");
+}
+
+async function rotateExpenseInboxAliasInSyncEntities(
+  userId: string,
+): Promise<ExpenseInboxAlias> {
+  const admin = ensureAdmin();
+  const aliasBase = await aliasBaseForUser(userId);
+  const { data, error: existingError } = await admin
+    .from("sync_entities")
+    .select("payload")
+    .eq("user_id", userId)
+    .eq("entity_type", ALIAS_ENTITY_TYPE)
+    .eq("entity_id", PRIMARY_ALIAS_ENTITY_ID)
+    .eq("deleted", false)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  const existingAlias = syncPayloadToAlias(
+    (data as { payload?: unknown } | null)?.payload,
+  );
+  return writeExpenseInboxAliasInSyncEntities({
+    userId,
+    aliasBase,
+    counterStart: nextFriendlyExpenseInboxAliasCounter(
+      aliasBase,
+      existingAlias?.alias_token,
+    ),
+  });
 }
 
 async function resolveAliasInSyncEntities(
@@ -466,6 +541,7 @@ export async function ensureExpenseInboxAlias(
   userId: string,
 ): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
+  const aliasBase = await aliasBaseForUser(userId);
   const { data: existing, error: existingError } = await admin
     .from("expense_inbox_aliases")
     .select("user_id, alias_token, active")
@@ -481,6 +557,14 @@ export async function ensureExpenseInboxAlias(
 
   const activeExisting = existing as ExpenseInboxAliasRow | null;
   if (activeExisting?.active && activeExisting.alias_token) {
+    if (isLegacyRandomAliasToken(activeExisting.alias_token)) {
+      return writeExpenseInboxAlias({
+        userId,
+        aliasBase,
+        counterStart: 1,
+      });
+    }
+
     return {
       userId,
       aliasToken: activeExisting.alias_token,
@@ -491,13 +575,34 @@ export async function ensureExpenseInboxAlias(
     };
   }
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const aliasToken = createAliasToken();
+  return writeExpenseInboxAlias({
+    userId,
+    aliasBase,
+    counterStart: 1,
+  });
+}
+
+async function writeExpenseInboxAlias(input: {
+  userId: string;
+  aliasBase: string;
+  counterStart: number;
+}): Promise<ExpenseInboxAlias> {
+  const admin = ensureAdmin();
+
+  for (
+    let counter = input.counterStart;
+    counter < input.counterStart + 50;
+    counter += 1
+  ) {
+    const aliasToken = buildFriendlyExpenseInboxAliasToken(
+      input.aliasBase,
+      counter,
+    );
     const { data, error } = await admin
       .from("expense_inbox_aliases")
       .upsert(
         {
-          user_id: userId,
+          user_id: input.userId,
           alias_token: aliasToken,
           active: true,
           updated_at: new Date().toISOString(),
@@ -510,14 +615,14 @@ export async function ensureExpenseInboxAlias(
     if (!error && data) {
       const row = data as ExpenseInboxAliasRow;
       return {
-        userId,
+        userId: input.userId,
         aliasToken: row.alias_token,
         address: buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain()),
       };
     }
 
     if (error && isMissingInboxTableError(error)) {
-      return ensureExpenseInboxAliasInSyncEntities(userId);
+      return writeExpenseInboxAliasInSyncEntities(input);
     }
     if (error?.code !== "23505") throw error;
   }
@@ -529,39 +634,29 @@ export async function rotateExpenseInboxAlias(
   userId: string,
 ): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
+  const aliasBase = await aliasBaseForUser(userId);
+  const { data: existing, error: existingError } = await admin
+    .from("expense_inbox_aliases")
+    .select("user_id, alias_token, active")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const aliasToken = createAliasToken();
-    const { data, error } = await admin
-      .from("expense_inbox_aliases")
-      .upsert(
-        {
-          user_id: userId,
-          alias_token: aliasToken,
-          active: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      )
-      .select("user_id, alias_token, active")
-      .single();
-
-    if (!error && data) {
-      const row = data as ExpenseInboxAliasRow;
-      return {
-        userId,
-        aliasToken: row.alias_token,
-        address: buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain()),
-      };
-    }
-
-    if (error && isMissingInboxTableError(error)) {
+  if (existingError) {
+    if (isMissingInboxTableError(existingError)) {
       return rotateExpenseInboxAliasInSyncEntities(userId);
     }
-    if (error?.code !== "23505") throw error;
+    throw existingError;
   }
 
-  throw new Error("No se pudo renovar el buzón de gastos.");
+  const existingAlias = existing as ExpenseInboxAliasRow | null;
+  return writeExpenseInboxAlias({
+    userId,
+    aliasBase,
+    counterStart: nextFriendlyExpenseInboxAliasCounter(
+      aliasBase,
+      existingAlias?.alias_token,
+    ),
+  });
 }
 
 export async function canUseExpenseInbox(userId: string): Promise<{
