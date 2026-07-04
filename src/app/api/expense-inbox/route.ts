@@ -5,6 +5,7 @@ import {
   ensureExpenseInboxAlias,
   getExpenseInboxItem,
   listExpenseInboxItems,
+  rotateExpenseInboxAlias,
   updateExpenseInboxItemStatus,
 } from "@/lib/expense-inbox-server";
 
@@ -72,9 +73,20 @@ export async function PATCH(request: Request) {
 
   try {
     const body = (await request.json().catch(() => ({}))) as {
+      action?: unknown;
       id?: unknown;
       status?: unknown;
     };
+    if (body.action === "rotate-alias") {
+      const access = await canUseExpenseInbox(user.id);
+      if (!access.allowed) {
+        return NextResponse.json({ error: access.reason }, { status: 402 });
+      }
+
+      const alias = await rotateExpenseInboxAlias(user.id);
+      return NextResponse.json({ alias });
+    }
+
     const id = typeof body.id === "string" ? body.id : "";
     const status = body.status === "ignored" ? "ignored" : "processed";
     if (!id) {
