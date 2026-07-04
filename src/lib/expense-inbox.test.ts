@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
+  buildPrivateExpenseInboxAliasToken,
   classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
   isSupportedExpenseInboxAttachment,
@@ -50,6 +51,21 @@ describe("expense inbox", () => {
         "persianas-almar-2",
       ),
     ).toBe(3);
+  });
+
+  it("crea alias legibles con sufijo privado no secuencial", () => {
+    expect(
+      buildPrivateExpenseInboxAliasToken(
+        "Persianas Almar",
+        "A1B2-C3D4-E5F6",
+      ),
+    ).toBe("persianas-almar-a1b2c3d4e5");
+    expect(
+      buildPrivateExpenseInboxAliasToken(
+        "Mi Empresa con Nombre Muy Largo",
+        "1234567890",
+      ),
+    ).toMatch(/^mi-empresa-con-nombre-muy-largo-[a-z0-9]{10}$/);
   });
 
   it("detecta cuando el dominio del buzón aún entrega en IONOS", () => {
