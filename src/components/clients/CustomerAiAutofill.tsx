@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import type { AiUsageMeter, ScanQuota } from "@/lib/billing/scan-limits";
 
 export interface CustomerAiAutofillValues {
@@ -45,6 +46,7 @@ interface AiUsageResponse {
 export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   const { billingEnabled, isPro, limits } = useBilling();
   const { user } = useCloudSync();
+  const demoMode = useDemoWorkspaceMode();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -62,6 +64,10 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   const locked = billingEnabled && !limits.aiTextAutofill;
 
   const loadUsage = useCallback(async () => {
+    if (demoMode) {
+      setUsage(null);
+      return;
+    }
     if (!billingEnabled || !user) {
       setUsage(null);
       return;
@@ -85,7 +91,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     } finally {
       setUsageLoading(false);
     }
-  }, [billingEnabled, user]);
+  }, [billingEnabled, demoMode, user]);
 
   useEffect(() => {
     void loadUsage();
@@ -102,6 +108,11 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     const rawText = text.trim();
     setError(null);
     setWarnings([]);
+
+    if (demoMode) {
+      setError("En modo demo no se usa IA. Rellena este cliente a mano.");
+      return;
+    }
 
     if (locked) {
       setUpgradeMode("upgrade");
@@ -222,7 +233,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           <Button
             variant="secondary"
             onClick={() => void handleAutofill()}
-            disabled={loading || !aiConsent.accepted}
+            disabled={demoMode || loading || !aiConsent.accepted}
             fullWidth
           >
             {loading ? (
@@ -240,6 +251,11 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           {locked && (
             <p className="text-sm text-sky-800">
               Función Pro. Puedes seguir creando clientes manualmente en el plan Gratis.
+            </p>
+          )}
+          {demoMode && (
+            <p className="text-sm text-amber-800">
+              La IA está desactivada en demo para no consumir créditos.
             </p>
           )}
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}

@@ -9,6 +9,7 @@ import {
 } from "@/components/legal/AiProcessingConsentNotice";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   appendVoiceTranscript,
   normalizeVoiceTranscript,
@@ -49,6 +50,7 @@ export function ReminderRealtimeVoiceInput({
 }: ReminderRealtimeVoiceInputProps) {
   const { billingEnabled, isPro, loading: billingLoading } = useBilling();
   const { user } = useCloudSync();
+  const demoMode = useDemoWorkspaceMode();
   const aiConsent = useAiProcessingConsent();
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -201,6 +203,10 @@ export function ReminderRealtimeVoiceInput({
     lastCommitAtRef.current = 0;
 
     if (billingLoading) return;
+    if (demoMode) {
+      setError("En modo demo no se usa voz IA.");
+      return;
+    }
     if (needsLogin) {
       setError("Inicia sesión con una cuenta Pro para usar voz IA.");
       return;
@@ -301,6 +307,7 @@ export function ReminderRealtimeVoiceInput({
   }
 
   const buttonText = (() => {
+    if (demoMode) return "Voz IA no demo";
     if (billingLoading) return "Comprobando Pro";
     if (locked || needsLogin) return "Voz IA Pro";
     if (status === "connecting") return "Conectando";
@@ -315,7 +322,7 @@ export function ReminderRealtimeVoiceInput({
         <button
           type="button"
           onClick={() => (busy ? void stopVoice() : void startVoice())}
-          disabled={billingLoading || status === "stopping"}
+          disabled={demoMode || billingLoading || status === "stopping"}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === "connecting" || status === "stopping" ? (
@@ -342,6 +349,11 @@ export function ReminderRealtimeVoiceInput({
         {needsLogin ? (
           <span className="text-xs font-semibold text-slate-500">
             Inicia sesión para usarla.
+          </span>
+        ) : null}
+        {demoMode ? (
+          <span className="text-xs font-semibold text-amber-700">
+            Desactivada en modo demo.
           </span>
         ) : null}
       </div>

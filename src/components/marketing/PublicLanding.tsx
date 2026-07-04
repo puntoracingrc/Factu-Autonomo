@@ -10,6 +10,7 @@ import {
   FileText,
   Landmark,
   MailCheck,
+  MonitorPlay,
   Receipt,
   ScanLine,
   ShieldCheck,
@@ -171,6 +172,12 @@ export function PublicLanding() {
 
           <div className="flex shrink-0 items-center gap-2">
             <Link
+              href="/demo"
+              className="hidden min-h-10 items-center justify-center rounded-2xl px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 md:inline-flex"
+            >
+              Ver demo
+            </Link>
+            <Link
               href="/cuenta#inicio-sesion"
               className="hidden min-h-10 items-center justify-center rounded-2xl px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 sm:inline-flex"
             >
@@ -210,6 +217,13 @@ export function PublicLanding() {
                 >
                   Probar gratis
                   <ArrowRight className="h-5 w-5" />
+                </Link>
+                <Link
+                  href="/demo"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 text-base font-bold text-blue-700 hover:bg-blue-50"
+                >
+                  <MonitorPlay className="h-5 w-5" />
+                  Ver demo
                 </Link>
                 <Link
                   href="/precios"
@@ -367,6 +381,13 @@ export function PublicLanding() {
               >
                 Crear cuenta gratis
                 <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="/demo"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 text-base font-bold text-blue-700 hover:bg-blue-50"
+              >
+                <MonitorPlay className="h-5 w-5" />
+                Ver demo
               </Link>
               <Link
                 href="/ayuda/inicio"

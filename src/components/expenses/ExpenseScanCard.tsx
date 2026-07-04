@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   buildAiUsageMeter,
   PRO_EXPENSE_SCANS_PER_MONTH,
@@ -43,6 +44,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const searchParams = useSearchParams();
   const { billingEnabled, isPro, checkoutScanPack } = useBilling();
   const { user } = useCloudSync();
+  const demoMode = useDemoWorkspaceMode();
   const inputRef = useRef<HTMLInputElement>(null);
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [loadingQuota, setLoadingQuota] = useState(false);
@@ -58,8 +60,9 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     quota !== null &&
     quota.remaining <= 0 &&
     quota.remaining !== Number.MAX_SAFE_INTEGER;
-  const scanControlsDisabled = scanning || noScansLeft || !aiConsent.accepted;
-  const dropDisabled = scanning || noScansLeft;
+  const scanControlsDisabled =
+    demoMode || scanning || noScansLeft || !aiConsent.accepted;
+  const dropDisabled = demoMode || scanning || noScansLeft;
   const includedScanLimit =
     quota?.limit && quota.limit !== Number.MAX_SAFE_INTEGER
       ? quota.limit
@@ -71,6 +74,10 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const learningAccess = aiLearningAccountForEmail(user?.email);
 
   const loadQuota = useCallback(async () => {
+    if (demoMode) {
+      setQuota(null);
+      return;
+    }
     if (billingEnabled && !user) {
       setQuota(null);
       return;
@@ -93,7 +100,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     } finally {
       setLoadingQuota(false);
     }
-  }, [billingEnabled, user]);
+  }, [billingEnabled, demoMode, user]);
 
   useEffect(() => {
     void loadQuota();
@@ -165,6 +172,12 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     setWarnings([]);
 
     if (scanning) return;
+
+    if (demoMode) {
+      setError("En modo demo no se usa IA. Registra gastos de prueba a mano.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
 
     if (!aiConsent.accepted) {
       setError("Acepta primero el aviso de tratamiento con IA.");
@@ -271,7 +284,12 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
         </p>
       )}
 
-      {needsAccount ? (
+      {demoMode ? (
+        <p className="rounded-xl bg-white px-4 py-3 text-sm text-amber-800">
+          En modo demo no se escanean facturas ni tickets con IA. Puedes crear
+          gastos ficticios manualmente para ver el flujo.
+        </p>
+      ) : needsAccount ? (
         <p className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700">
           Necesitas{" "}
           <Link href="/configuracion" className="font-semibold text-sky-700 underline">

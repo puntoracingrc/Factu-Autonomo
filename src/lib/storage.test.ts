@@ -4,6 +4,10 @@ import {
   isDocumentIntegrityLocked,
   issueDocument,
 } from "./document-integrity";
+import {
+  DEMO_WORKSPACE_STORAGE_KEY,
+  setDemoWorkspaceMode,
+} from "./demo-workspace";
 import { loadData, normalizeLoadedData, saveData } from "./storage";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
@@ -90,6 +94,39 @@ describe("storage", () => {
     const loaded = loadData();
     expect(loaded.customers).toHaveLength(1);
     expect(localStorage.getItem(STORAGE_KEY)).toContain("Ana");
+  });
+
+  it("usa almacenamiento separado cuando esta activo el modo demo", () => {
+    saveData(sampleData());
+
+    setDemoWorkspaceMode(true);
+    const demoData = loadData();
+
+    expect(demoData.profile.name).toBe("Reformas Martin Demo SL");
+    expect(demoData.customers.length).toBeGreaterThan(0);
+
+    saveData({
+      ...demoData,
+      customers: [
+        ...demoData.customers,
+        {
+          id: "demo-customer-extra",
+          firstName: "Cliente",
+          lastName: "Nuevo",
+          name: "Cliente Nuevo Demo",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    });
+
+    expect(localStorage.getItem(DEMO_WORKSPACE_STORAGE_KEY)).toContain(
+      "Cliente Nuevo Demo",
+    );
+    expect(localStorage.getItem(STORAGE_KEY)).toContain("Ana");
+
+    setDemoWorkspaceMode(false);
+    expect(loadData().profile.name).toBe("Mi negocio");
   });
 
   it("conserva campos de integridad documental en saveData -> loadData", () => {

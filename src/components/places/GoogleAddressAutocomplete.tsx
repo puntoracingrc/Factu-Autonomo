@@ -6,6 +6,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { isProPlan } from "@/lib/billing/plans";
 import type { ScanQuota } from "@/lib/billing/scan-limits";
 import {
@@ -131,6 +132,7 @@ export function GoogleAddressAutocomplete({
   const pendingCleanGoogleAddressRef = useRef<string | null>(null);
   const { billingEnabled, isPro } = useBilling();
   const { user } = useCloudSync();
+  const demoMode = useDemoWorkspaceMode();
   const [status, setStatus] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<"success" | "warning">(
     "success",
@@ -144,9 +146,9 @@ export function GoogleAddressAutocomplete({
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | null>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
-  const lockedByPlan = Boolean(enabled && billingEnabled && !isPro);
+  const lockedByPlan = Boolean(enabled && !demoMode && billingEnabled && !isPro);
   const canUsePlaces = Boolean(
-    enabled && apiKey && !lockedByPlan && !disabled,
+    enabled && !demoMode && apiKey && !lockedByPlan && !disabled,
   );
 
   useEffect(() => {
@@ -350,7 +352,14 @@ export function GoogleAddressAutocomplete({
         </button>
       )}
 
-      {enabled && !apiKey && !lockedByPlan && (
+      {enabled && demoMode && (
+        <p className="text-xs text-amber-700">
+          En modo demo no se consulta Google Places. Puedes escribir la dirección
+          a mano.
+        </p>
+      )}
+
+      {enabled && !demoMode && !apiKey && !lockedByPlan && (
         <p className="text-xs text-amber-700">
           Autorrelleno pendiente de configurar. Puedes escribir la dirección a mano.
         </p>
