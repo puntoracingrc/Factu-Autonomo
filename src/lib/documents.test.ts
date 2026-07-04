@@ -3,6 +3,7 @@ import { documentTotals } from "./calculations";
 import { ensureCustomerForDocument } from "./customers";
 import {
   assignNextDocumentNumberByType,
+  compareDocumentsByNumberDesc,
   compareDocumentsByNewest,
   DRAFT_INVOICE_NUMBER,
   filterDocumentsByQuery,
@@ -14,6 +15,7 @@ import {
   renumberDocumentsForKindYear,
   renumberDocumentsForTypeYear,
   shouldUseDraftInvoiceNumber,
+  sortDocumentsByNumberDesc,
   sortDocumentsByNewest,
 } from "./documents";
 import { issueDocument } from "./document-integrity";
@@ -80,6 +82,63 @@ describe("numeración automática", () => {
         olderCreatedButHigherNumber,
       ]).map((item) => item.number),
     ).toEqual(["F-2026-0010", "F-2026-0002"]);
+  });
+
+  it("ordena listados por número descendente aunque la fecha del documento sea la misma o posterior", () => {
+    const documents: Document[] = [
+      {
+        ...doc("a", "factura", "F-2026-0008", "Ana García"),
+        date: "2026-06-10",
+        createdAt: "2026-06-10T10:00:00.000Z",
+      },
+      {
+        ...doc("b", "factura", "F-2026-0010", "Luis Pérez"),
+        date: "2026-06-09",
+        createdAt: "2026-06-09T10:00:00.000Z",
+      },
+      {
+        ...doc("c", "factura", "F-2026-0009", "Eva Gómez"),
+        date: "2026-06-10",
+        createdAt: "2026-06-10T11:00:00.000Z",
+      },
+    ];
+
+    expect(sortDocumentsByNumberDesc(documents).map((item) => item.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+    expect(compareDocumentsByNumberDesc(documents[0], documents[1])).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("ordena formatos personalizados usando el último grupo numérico", () => {
+    const documents: Document[] = [
+      { ...doc("a", "presupuesto", "Presupuesto 9", "Ana") },
+      { ...doc("b", "presupuesto", "Presupuesto 11", "Luis") },
+      { ...doc("c", "presupuesto", "Borrador", "Eva") },
+    ];
+
+    expect(sortDocumentsByNumberDesc(documents).map((item) => item.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+  });
+
+  it("trata sufijos decimales importados como revisión, no como número principal", () => {
+    const documents: Document[] = [
+      { ...doc("a", "factura", "FD-225585.0", "Ana") },
+      { ...doc("b", "factura", "FD-225572.1", "Luis") },
+      { ...doc("c", "factura", "FD-225585.1", "Eva") },
+    ];
+
+    expect(sortDocumentsByNumberDesc(documents).map((item) => item.id)).toEqual([
+      "c",
+      "a",
+      "b",
+    ]);
   });
 
   it("respeta el último número configurado al migrar", () => {

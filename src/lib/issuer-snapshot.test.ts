@@ -114,6 +114,31 @@ describe("issuer snapshot", () => {
     ).toBe("data:image/png;base64,logo");
   });
 
+  it("aplica el nombre comercial actual a snapshots antiguos que no lo tenían", () => {
+    const doc: Document = {
+      ...baseDoc,
+      issuer: {
+        name: "Nombre fiscal congelado",
+        nif: "12345678Z",
+        address: "Calle original 1",
+        city: "Barcelona",
+        postalCode: "08001",
+        capturedAt: "2026-01-01",
+      },
+    };
+
+    const issuer = resolveIssuerForDocument(doc, {
+      ...DEFAULT_PROFILE,
+      commercialName: "Marca visible actual",
+      name: "Nombre fiscal nuevo",
+      nif: "99999999R",
+    });
+
+    expect(issuer.commercialName).toBe("Marca visible actual");
+    expect(issuer.name).toBe("Nombre fiscal congelado");
+    expect(issuer.nif).toBe("12345678Z");
+  });
+
   it("does not snapshot borradores", () => {
     const draft = attachIssuerSnapshot(
       { ...baseDoc, status: "borrador" },

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PROFILE, type Document } from "./types";
 import { issueDocument } from "./document-integrity";
 import {
@@ -8,6 +8,7 @@ import {
   hasClientEmail,
   hasClientPhone,
   normalizePhoneForWhatsApp,
+  shareDocumentByWhatsApp,
 } from "./share";
 
 const sampleDoc: Document = {
@@ -47,6 +48,10 @@ const profile = {
   iban: "ES00 0000 0000 0000 0000 0000",
 };
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("normalizePhoneForWhatsApp", () => {
   it("normaliza móvil español de 9 dígitos", () => {
     expect(normalizePhoneForWhatsApp("612 34 56 78")).toBe("34612345678");
@@ -66,6 +71,28 @@ describe("buildWhatsAppUrl", () => {
     const url = buildWhatsAppUrl("612345678", "Hola");
     expect(url).toContain("https://wa.me/34612345678");
     expect(url).toContain(encodeURIComponent("Hola"));
+  });
+});
+
+describe("shareDocumentByWhatsApp", () => {
+  it("comparte el PDF nativo sin abrir después un enlace de WhatsApp", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const canShare = vi.fn().mockReturnValue(true);
+    const open = vi.fn();
+
+    vi.stubGlobal("navigator", {
+      share,
+      canShare,
+    });
+    vi.stubGlobal("window", {
+      open,
+    });
+
+    await shareDocumentByWhatsApp(sampleDoc, profile);
+
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(share.mock.calls[0][0].files[0].type).toBe("application/pdf");
+    expect(open).not.toHaveBeenCalled();
   });
 });
 

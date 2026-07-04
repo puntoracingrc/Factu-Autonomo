@@ -78,6 +78,8 @@ export function resolveIssuerForDocument(
   const base = doc.issuer ?? profile;
   return {
     ...base,
+    commercialName:
+      text(base.commercialName) || text(profile.commercialName) || undefined,
     logoUrl: base.logoUrl ?? profile.logoUrl,
   };
 }

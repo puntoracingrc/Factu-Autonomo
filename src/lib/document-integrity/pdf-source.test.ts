@@ -294,6 +294,25 @@ describe("document PDF source", () => {
     expect(partialLegacy.pdfSnapshot).toBeUndefined();
   });
 
+  it("aplica nombre comercial actual a snapshots historicos que no lo tenian", () => {
+    const profileWithoutCommercialName = {
+      ...profile,
+      commercialName: "",
+    };
+    const issued = issueDocument(
+      invoice({ issuer: undefined }),
+      profileWithoutCommercialName,
+      NOW,
+    );
+    const view = buildPdfViewModelForDocument(issued, changedProfile());
+
+    expect(view.source).toBe("snapshot");
+    expect(view.issuer.commercialName).toBe("Marca cambiada");
+    expect(view.issuer.name).toBe("Punto Racing RC");
+    expect(view.issuer.nif).toBe("12345678Z");
+    expect(view.doc.issuer?.commercialName).toBe("Marca cambiada");
+  });
+
   it("documento legacy bloqueado sin snapshot usa fallback conservador y no persiste snapshot", () => {
     const legacy: Document = {
       ...invoice({ status: "enviado" }),
