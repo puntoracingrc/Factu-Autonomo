@@ -83,8 +83,10 @@ import {
   applyDocumentProductToLine,
   buildDocumentProductSuggestionIndex,
   DOCUMENT_PRODUCT_MARKUPS,
+  documentProductMentionQuery,
   documentProductSaleUnitPriceInfo,
   priceWithDocumentProductMarkup,
+  replaceDocumentProductMention,
   searchDocumentProductSuggestions,
   type DocumentProductSalePriceSource,
 } from "@/lib/document-product-suggestions";
@@ -591,8 +593,8 @@ export function DocumentForm({
   const requiresConcept = type !== "presupuesto";
   const requiresInvoiceClientFields = type === "factura";
   const lineGridClass = vatExempt
-    ? "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6.5rem_7.5rem]"
-    : "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_6rem_6.5rem_7.5rem]";
+    ? "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_5.5rem_6.5rem_7.5rem]"
+    : "lg:grid-cols-[2rem_minmax(16rem,1fr)_4.5rem_5rem_6rem_5.5rem_6rem_6.5rem_7.5rem]";
   const compactInputClass = "!h-10 !min-h-10 !rounded-lg !px-3 !text-sm";
 
   function updateItem(id: string, patch: Partial<LineItem>) {
@@ -661,7 +663,15 @@ export function DocumentForm({
       defaultIva: effectiveDocumentIva,
       vatExempt,
     });
-    updateItem(item.id, applied.line);
+    const selectedDescription =
+      applied.line.description ?? product.saleDescription ?? product.name;
+    updateItem(item.id, {
+      ...applied.line,
+      description: replaceDocumentProductMention(
+        item.description,
+        selectedDescription,
+      ),
+    });
     setLineProductPricing((prev) => ({
       ...prev,
       [item.id]: {
@@ -1105,16 +1115,20 @@ export function DocumentForm({
               <span className="text-right">
                 {vatExempt ? "Precio" : "Sin IVA"}
               </span>
+              <span>Inc.</span>
               {!vatExempt && <span className="text-right">Con IVA</span>}
               <span className="text-right">Total</span>
               <span aria-hidden="true" />
             </div>
             {items.map((item, index) => {
+              const productMention = documentProductMentionQuery(
+                item.description,
+              );
               const suggestions =
-                focusedProductLineId === item.id
+                focusedProductLineId === item.id && productMention
                   ? searchDocumentProductSuggestions(
                       productSuggestionIndex,
-                      item.description,
+                      productMention.query,
                     )
                   : [];
               const productPricing = lineProductPricing[item.id];
@@ -1207,9 +1221,23 @@ export function DocumentForm({
                           );
                         }, 120);
                       }}
-                      placeholder="Producto, servicio o concepto"
-                      className={compactInputClass}
+                      placeholder="Concepto libre o @producto"
+                      className={`${compactInputClass} placeholder:text-slate-400`}
                     />
+                    {productPricing && (
+                      <p
+                        className={`mt-1 text-xs font-semibold ${productPriceSourceTone(
+                          productPricing.priceSource,
+                        )}`}
+                      >
+                        Base: {formatMoney(productPricing.basePrice)}{" "}
+                        {productPriceSourceLabel(productPricing.priceSource)} sin
+                        IVA
+                        {productPricing.markupPercent === -1
+                          ? " · precio manual"
+                          : ""}
+                      </p>
+                    )}
                     {suggestions.length > 0 && (
                       <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                         <div className="border-b border-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-blue-700">
@@ -1303,6 +1331,35 @@ export function DocumentForm({
                     />
                   </div>
 
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      Inc.
+                    </span>
+                    {productPricing ? (
+                      <Select
+                        value={String(productPricing.markupPercent)}
+                        onChange={(event) =>
+                          handleLineMarkupChange(
+                            item.id,
+                            Number(event.target.value),
+                          )
+                        }
+                        className={compactInputClass}
+                      >
+                        <option value="-1">Manual</option>
+                        {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
+                          <option key={markup} value={markup}>
+                            +{markup}%
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <p className="flex h-10 items-center rounded-lg bg-white px-3 text-sm font-semibold text-slate-400 ring-1 ring-slate-100 lg:bg-slate-50">
+                        --
+                      </p>
+                    )}
+                  </div>
+
                   {!vatExempt && (
                     <div className="min-w-0">
                       <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
@@ -1391,62 +1448,6 @@ export function DocumentForm({
                             }
                             placeholder="0,00"
                           />
-                        </Field>
-                      </div>
-                    </div>
-                  )}
-                  {productPricing && (
-                    <div
-                      className={`rounded-2xl border p-3 sm:col-span-2 lg:col-span-full ${
-                        productPricing.priceSource === "sale"
-                          ? "border-emerald-100 bg-emerald-50"
-                          : "border-amber-200 bg-amber-50"
-                      }`}
-                    >
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-slate-900">
-                            {productPricing.productName}
-                          </p>
-                          <p className="text-xs font-semibold text-slate-600">
-                            Base: {formatMoney(productPricing.basePrice)}{" "}
-                            {productPriceSourceLabel(
-                              productPricing.priceSource,
-                            )}{" "}
-                            sin IVA
-                          </p>
-                          {productPriceSourceWarning(
-                            productPricing.priceSource,
-                          ) && (
-                            <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">
-                              {productPriceSourceWarning(
-                                productPricing.priceSource,
-                              )}
-                            </p>
-                          )}
-                          {productPricing.markupPercent === -1 && (
-                            <p className="text-xs font-semibold text-blue-700">
-                              Precio ajustado manualmente.
-                            </p>
-                          )}
-                        </div>
-                        <Field label="Incremento">
-                          <Select
-                            value={String(productPricing.markupPercent)}
-                            onChange={(event) =>
-                              handleLineMarkupChange(
-                                item.id,
-                                Number(event.target.value),
-                              )
-                            }
-                          >
-                            <option value="-1">Manual</option>
-                            {DOCUMENT_PRODUCT_MARKUPS.map((markup) => (
-                              <option key={markup} value={markup}>
-                                +{markup}%
-                              </option>
-                            ))}
-                          </Select>
                         </Field>
                       </div>
                     </div>

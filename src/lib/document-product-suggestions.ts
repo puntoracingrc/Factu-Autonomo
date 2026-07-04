@@ -31,6 +31,42 @@ export interface DocumentProductSalePriceInfo {
   source: DocumentProductSalePriceSource;
 }
 
+export interface DocumentProductMentionQuery {
+  query: string;
+  start: number;
+  end: number;
+}
+
+export function documentProductMentionQuery(
+  description: string,
+): DocumentProductMentionQuery | null {
+  const match = /(^|\s)@([^\n]*)$/.exec(description);
+  if (!match || match.index < 0) return null;
+
+  const prefixLength = match[1]?.length ?? 0;
+  const start = match.index + prefixLength;
+  const query = match[2]?.trim() ?? "";
+
+  return {
+    query,
+    start,
+    end: description.length,
+  };
+}
+
+export function replaceDocumentProductMention(
+  description: string,
+  replacement: string,
+): string {
+  const mention = documentProductMentionQuery(description);
+  const cleanReplacement = replacement.trim();
+  if (!mention || !cleanReplacement) return cleanReplacement || description;
+
+  return `${description.slice(0, mention.start)}${cleanReplacement}${description.slice(
+    mention.end,
+  )}`.trim();
+}
+
 export function documentProductSaleUnitPriceInfo(
   product: PurchaseProductSummary,
 ): DocumentProductSalePriceInfo {

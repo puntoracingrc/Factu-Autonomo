@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyDocumentProductToLine,
   buildDocumentProductSuggestionIndex,
+  documentProductMentionQuery,
   documentProductSaleUnitPriceInfo,
   priceWithDocumentProductMarkup,
+  replaceDocumentProductMention,
   searchDocumentProductSuggestions,
 } from "./document-product-suggestions";
 import { inferPurchaseProductFamily, purchaseProductKey } from "./purchase-products";
@@ -11,6 +13,27 @@ import type { LineItem } from "./types";
 import type { PurchaseProductSummary } from "./purchase-products";
 
 describe("document product suggestions", () => {
+  it("solo activa busqueda de catalogo con @producto", () => {
+    expect(documentProductMentionQuery("Instalacion motor Somfy")).toBeNull();
+    expect(documentProductMentionQuery("Instalacion @motor Somfy")).toEqual({
+      query: "motor Somfy",
+      start: 12,
+      end: 24,
+    });
+  });
+
+  it("sustituye la mencion por el producto seleccionado", () => {
+    expect(
+      replaceDocumentProductMention(
+        "Instalacion @motor",
+        "Motor Persiana SUPER Gradhermetic",
+      ),
+    ).toBe("Instalacion Motor Persiana SUPER Gradhermetic");
+    expect(replaceDocumentProductMention("@canal", "Canal PVC blanco")).toBe(
+      "Canal PVC blanco",
+    );
+  });
+
   it("busca por nombre, familia y proveedor sin renderizar todo el catálogo", () => {
     const products = [
       summary("Panel blanco PC43", {
