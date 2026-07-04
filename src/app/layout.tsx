@@ -15,10 +15,28 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   applicationName: "Factura Autónomo",
-  title: "Factura Autónomo",
+  title: {
+    default: "Factura Autónomo | Facturación sencilla para autónomos",
+    template: "%s | Factura Autónomo",
+  },
   description:
-    "Programa sencillo de facturación para autónomos. Facturas, presupuestos, recibos y control de gastos.",
+    "Programa sencillo de facturación para autónomos: facturas, presupuestos, recibos, gastos e impuestos orientativos en un solo sitio.",
   manifest: "/manifest.json",
+  openGraph: {
+    title: "Factura Autónomo",
+    description:
+      "Facturación sencilla para autónomos: documentos, gastos e impuestos orientativos sin hojas de cálculo.",
+    url: "https://facturacion-autonomos.app",
+    siteName: "Factura Autónomo",
+    locale: "es_ES",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Factura Autónomo",
+    description:
+      "Facturas, gastos e impuestos orientativos para autónomos y pequeños negocios.",
+  },
   icons: {
     icon: [
       { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },

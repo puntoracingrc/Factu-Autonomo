@@ -63,6 +63,7 @@ export type SignUpResult =
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
+  authReady: boolean;
   user: User | null;
   email: string;
   syncStatus: SyncStatus;
@@ -89,6 +90,7 @@ const PULL_INTERVAL_MS = 45_000;
 export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const { data, ready, replaceData } = useAppStore();
   const cloudEnabled = isCloudEnabled();
+  const [authReady, setAuthReady] = useState(!cloudEnabled);
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [online, setOnline] = useState(true);
@@ -482,19 +484,29 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [flushPendingUpload]);
 
   useEffect(() => {
-    if (!cloudEnabled) return;
+    if (!cloudEnabled) {
+      setAuthReady(true);
+      return;
+    }
     let unsubscribe: (() => void) | undefined;
 
     void getSupabaseClientAsync().then((supabase) => {
-      if (!supabase) return;
+      if (!supabase) {
+        setAuthReady(true);
+        return;
+      }
 
-      void supabase.auth.getUser().then(({ data: authData }) => {
-        setUser(authData.user);
-        if (authData.user?.email) setEmail(authData.user.email);
-      });
+      void supabase.auth
+        .getUser()
+        .then(({ data: authData }) => {
+          setUser(authData.user);
+          if (authData.user?.email) setEmail(authData.user.email);
+        })
+        .finally(() => setAuthReady(true));
 
       const { data: listener } = supabase.auth.onAuthStateChange(
         (_event, session) => {
+          setAuthReady(true);
           setUser(session?.user ?? null);
           if (session?.user?.email) setEmail(session.user.email);
         },
@@ -727,6 +739,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       cloudEnabled,
+      authReady,
       user,
       email,
       syncStatus,
@@ -760,6 +773,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncNow,
       forceDownloadFromCloud,
       data,
+      authReady,
       importBackup,
     ],
   );

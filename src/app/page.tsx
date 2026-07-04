@@ -17,8 +17,11 @@ import { HomeBusinessSummary } from "@/components/dashboard/HomeBusinessSummary"
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
+import { PublicLanding } from "@/components/marketing/PublicLanding";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
+import { hasWorkspaceContent } from "@/lib/workspace-state";
 
 const quickActions = [
   {
@@ -80,10 +83,15 @@ const quickActions = [
 
 export default function HomePage() {
   const { data, ready } = useAppStore();
+  const { authReady, user } = useCloudSync();
   const { badgeCount: alertCount } = useAppRecommendations();
 
-  if (!ready) {
+  if (!ready || !authReady) {
     return <p className="text-center text-slate-500">Cargando...</p>;
+  }
+
+  if (!user && !hasWorkspaceContent(data)) {
+    return <PublicLanding />;
   }
 
   return (
