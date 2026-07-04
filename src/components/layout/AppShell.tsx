@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowLeft,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -103,6 +104,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
   const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
+  const brandHref = user ? "/" : "/inicio";
+  const brandAriaLabel = user ? "Ir al panel" : "Ir al inicio";
 
   const updateNavScrollState = useCallback(() => {
     const node = mobileNavRef.current;
@@ -168,8 +171,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
         <div className="border-b border-slate-200 px-5 py-4">
           <Link
-            href="/"
-            aria-label="Ir al panel"
+            href={brandHref}
+            aria-label={brandAriaLabel}
             className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
           >
             <Image
@@ -202,13 +205,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="truncate">{accountLabel}</span>
             </Link>
           ) : (
-            <Link
-              href="/cuenta#inicio-sesion"
-              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
-            >
-              <LogIn className="h-4 w-4" />
-              Iniciar sesión
-            </Link>
+            <div className="grid gap-2">
+              <Link
+                href="/inicio"
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al inicio
+              </Link>
+              <Link
+                href="/cuenta#inicio-sesion"
+                className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
+              >
+                <LogIn className="h-4 w-4" />
+                Iniciar sesión
+              </Link>
+            </div>
           )}
         </div>
 
@@ -271,8 +283,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm lg:hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <Link
-              href="/"
-              aria-label="Ir al panel"
+              href={brandHref}
+              aria-label={brandAriaLabel}
               className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
             >
               <Image
@@ -294,6 +306,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <div className="flex shrink-0 items-center gap-2">
               <FactuHelpButton />
+              {!user ? (
+                <Link
+                  href="/inicio"
+                  className="hidden items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:flex"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Inicio
+                </Link>
+              ) : null}
               {user ? (
                 <Link
                   href="/cuenta"
@@ -342,6 +363,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <header className="sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
           <div className="flex min-h-16 items-center justify-end gap-3 px-6 py-3 xl:px-8 2xl:px-10">
+            {!user ? (
+              <Link
+                href="/inicio"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al inicio
+              </Link>
+            ) : null}
             {user ? (
               <Link
                 href="/cuenta"

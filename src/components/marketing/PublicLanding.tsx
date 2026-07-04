@@ -133,7 +133,7 @@ export function PublicLanding() {
     <div className="min-h-screen bg-white text-slate-950">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
+          <Link href="/inicio" className="flex min-w-0 items-center gap-3">
             <Image
               src="/brand/app-icon.png"
               alt=""
