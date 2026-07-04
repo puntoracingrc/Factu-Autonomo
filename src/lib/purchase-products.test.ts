@@ -279,6 +279,24 @@ describe("purchase products", () => {
       lastPvp: 4,
     });
   });
+
+  it("oculta productos detectados sin borrar compras históricas", () => {
+    const expenses = [
+      expense("1", "2026-07-01", "Arandes", [
+        {
+          id: "l1",
+          description: "Mosquitera enrollable Blanco",
+          quantity: 3,
+          unit: "ud",
+          unitPrice: 58.3,
+          ivaPercent: 21,
+        },
+      ]),
+    ];
+    const hidden = product("Mosquitera enrollable Blanco", { hidden: true });
+
+    expect(buildPurchaseProductSummaries(expenses, [hidden])).toEqual([]);
+  });
 });
 
 function product(name: string, patch: Partial<Product> = {}): Product {

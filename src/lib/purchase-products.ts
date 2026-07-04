@@ -393,6 +393,7 @@ function purchaseLineSummaryQuantity(
 function catalogLookup(products: Product[]): Map<string, Product> {
   const lookup = new Map<string, Product>();
   for (const product of products.map(normalizeProductCatalogItem)) {
+    if (product.hidden) continue;
     lookup.set(product.key, product);
     for (const alias of product.aliases ?? []) {
       lookup.set(alias, product);
@@ -465,9 +466,15 @@ export function buildPurchaseProductSummaries(
 ): PurchaseProductSummary[] {
   const accumulators = new Map<string, ProductAccumulator>();
   const catalog = products.map(normalizeProductCatalogItem);
+  const hiddenKeys = new Set(
+    catalog
+      .filter((product) => product.hidden)
+      .flatMap((product) => [product.key, ...(product.aliases ?? [])]),
+  );
   const lookup = catalogLookup(catalog);
 
   for (const product of catalog) {
+    if (product.hidden) continue;
     accumulators.set(product.key, emptyAccumulatorFromProduct(product));
   }
 
@@ -475,6 +482,7 @@ export function buildPurchaseProductSummaries(
     const lines = sanitizeExpensePurchaseLines(expense.purchaseLines);
     for (const line of lines) {
       const detectedKey = purchaseProductKey(line.description);
+      if (hiddenKeys.has(detectedKey)) continue;
       const catalogProduct = lookup.get(detectedKey);
       const key = catalogProduct?.key ?? detectedKey;
       if (!key) continue;
