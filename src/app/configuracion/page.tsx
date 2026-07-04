@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Building2,
@@ -10,6 +10,7 @@ import {
   FileCog,
   FileText,
   MapPin,
+  Plus,
   Star,
   Trash2,
   type LucideIcon,
@@ -60,11 +61,18 @@ import {
   MAX_QUOTE_VALIDITY_DAYS,
   normalizeQuoteValidityDays,
 } from "@/lib/quote-validity";
+import {
+  MAX_PRODUCT_FAMILY_MARKUP_PERCENT,
+  normalizeProductFamilyMarkupPercent,
+  normalizeProductFamilyMarkupSettings,
+} from "@/lib/product-family-markups";
+import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import type {
   BusinessProfile,
   IvaSettings,
   NumberingFormats,
   NumberingLastSequence,
+  ProductFamilyMarkupSettings,
 } from "@/lib/types";
 
 type SettingsSectionKey = "business" | "documents" | "taxes" | "account";
@@ -200,6 +208,9 @@ export default function ConfiguracionPage() {
         next.documentPaymentMethods,
       ),
       documentUnits: normalizeDocumentUnits(next.documentUnits),
+      productFamilyMarkups: normalizeProductFamilyMarkupSettings(
+        next.productFamilyMarkups,
+      ),
       googlePlaces: normalizeGooglePlacesSettings(next.googlePlaces),
     });
     setSaved(true);
@@ -300,6 +311,75 @@ export default function ConfiguracionPage() {
     }));
   }
 
+  function updateProductFamilyMarkups(next: ProductFamilyMarkupSettings) {
+    setForm((prev) => ({
+      ...prev,
+      productFamilyMarkups: normalizeProductFamilyMarkupSettings(next),
+    }));
+  }
+
+  function addProductFamilyMarkupRule() {
+    const settings = normalizeProductFamilyMarkupSettings(
+      form.productFamilyMarkups,
+    );
+    const usedFamilies = new Set(
+      settings.rules.map((rule) => rule.family.toLocaleLowerCase("es")),
+    );
+    const family =
+      productFamilyOptions.find(
+        (option) => !usedFamilies.has(option.toLocaleLowerCase("es")),
+      ) ?? "";
+
+    setForm((prev) => ({
+      ...prev,
+      productFamilyMarkups: {
+        rules: [
+          ...settings.rules,
+          {
+            id: crypto.randomUUID(),
+            family,
+            markupPercent: 0,
+          },
+        ],
+      },
+    }));
+  }
+
+  function updateProductFamilyMarkupRule(
+    id: string,
+    patch: Partial<ProductFamilyMarkupSettings["rules"][number]>,
+  ) {
+    const settings = normalizeProductFamilyMarkupSettings(
+      form.productFamilyMarkups,
+    );
+    setForm((prev) => ({
+      ...prev,
+      productFamilyMarkups: {
+        rules: settings.rules.map((rule) =>
+          rule.id === id
+            ? {
+                ...rule,
+                ...patch,
+                markupPercent:
+                  patch.markupPercent === undefined
+                    ? rule.markupPercent
+                    : normalizeProductFamilyMarkupPercent(patch.markupPercent),
+              }
+            : rule,
+        ),
+      },
+    }));
+  }
+
+  function removeProductFamilyMarkupRule(id: string) {
+    const settings = normalizeProductFamilyMarkupSettings(
+      form.productFamilyMarkups,
+    );
+    updateProductFamilyMarkups({
+      rules: settings.rules.filter((rule) => rule.id !== id),
+    });
+  }
+
   function handleAddIva() {
     const rate = Number(newIva);
     if (!Number.isFinite(rate)) {
@@ -341,6 +421,20 @@ export default function ConfiguracionPage() {
     (notice) => notice.level === "warning",
   );
   const profileReady = isBusinessProfileReadyForIssuedInvoices(form);
+  const productFamilyOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          buildPurchaseProductSummaries(data.expenses, data.products)
+            .map((product) => product.family)
+            .filter((family) => family.trim().length > 0),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [data.expenses, data.products],
+  );
+  const productFamilyMarkups = normalizeProductFamilyMarkupSettings(
+    form.productFamilyMarkups,
+  );
 
   return (
     <div>
@@ -656,6 +750,83 @@ export default function ConfiguracionPage() {
             setForm((prev) => ({ ...prev, documentUnits }))
           }
         />
+
+        <Card className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Incrementos por familia
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Se aplican al añadir productos sin precio de venta propio.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addProductFamilyMarkupRule}
+              className="sm:min-h-10 sm:px-4 sm:text-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Añadir
+            </Button>
+          </div>
+
+          {productFamilyMarkups.rules.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+              Sin incrementos automáticos por familia.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {productFamilyMarkups.rules.map((rule) => (
+                <div
+                  key={rule.id}
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_9rem_2.75rem] sm:items-end"
+                >
+                  <Field label="Familia">
+                    <Input
+                      list="product-family-markup-options"
+                      value={rule.family}
+                      onChange={(event) =>
+                        updateProductFamilyMarkupRule(rule.id, {
+                          family: event.target.value,
+                        })
+                      }
+                      placeholder="Ej: Motores"
+                    />
+                  </Field>
+                  <Field label="% incremento">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={MAX_PRODUCT_FAMILY_MARKUP_PERCENT}
+                      step="0.1"
+                      value={rule.markupPercent}
+                      onChange={(event) =>
+                        updateProductFamilyMarkupRule(rule.id, {
+                          markupPercent: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    onClick={() => removeProductFamilyMarkupRule(rule.id)}
+                    aria-label={`Quitar incremento de ${rule.family || "familia"}`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <datalist id="product-family-markup-options">
+            {productFamilyOptions.map((family) => (
+              <option key={family} value={family} />
+            ))}
+          </datalist>
+        </Card>
 
         <Card className="space-y-4">
           <div>

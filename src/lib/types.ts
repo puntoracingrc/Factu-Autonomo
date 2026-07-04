@@ -468,6 +468,17 @@ export interface DocumentTemplateSettings {
   showPaymentBox: boolean;
 }
 
+export interface ProductFamilyMarkupRule {
+  id: string;
+  family: string;
+  /** Incremento automático sobre base de proveedor/coste al llevar productos a documentos. */
+  markupPercent: number;
+}
+
+export interface ProductFamilyMarkupSettings {
+  rules: ProductFamilyMarkupRule[];
+}
+
 export type DocumentSnapshotSource = "issue" | "legacy_backfill";
 
 export interface FiscalContextSnapshot {
@@ -526,6 +537,8 @@ export interface BusinessProfile {
   documentUnits?: DocumentUnitsSettings;
   /** Diseño visual de facturas, presupuestos y recibos */
   documentTemplate?: DocumentTemplateSettings;
+  /** Incrementos de venta por familia de producto */
+  productFamilyMarkups?: ProductFamilyMarkupSettings;
   /** Autorrelleno opcional de direcciones con Google Places para cuentas Pro */
   googlePlaces?: GooglePlacesSettings;
   iva: IvaSettings;
@@ -638,6 +651,9 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   quoteValidityDays: 30,
   googlePlaces: {
     enabled: false,
+  },
+  productFamilyMarkups: {
+    rules: [],
   },
   vatExempt: false,
   verifactu: {

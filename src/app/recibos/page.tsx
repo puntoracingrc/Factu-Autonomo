@@ -8,10 +8,7 @@ import { DocumentList } from "@/components/documents/DocumentList";
 export default function RecibosPage() {
   return (
     <div>
-      <PageHeader
-        title="Recibos"
-        subtitle="Crea recibos y envíalos por email o WhatsApp"
-      />
+      <PageHeader title="Recibos" />
       <PageCreateButton
         href="/recibos/nuevo"
         icon={Receipt}

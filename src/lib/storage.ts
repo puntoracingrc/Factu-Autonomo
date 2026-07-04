@@ -14,6 +14,7 @@ import { normalizeGooglePlacesSettings } from "./google-places";
 import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
+import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -34,6 +35,9 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     ),
     documentUnits: normalizeDocumentUnits(profile?.documentUnits),
     documentTemplate: normalizeDocumentTemplate(profile?.documentTemplate),
+    productFamilyMarkups: normalizeProductFamilyMarkupSettings(
+      profile?.productFamilyMarkups,
+    ),
     googlePlaces: normalizeGooglePlacesSettings(profile?.googlePlaces),
   };
 }

@@ -11,10 +11,7 @@ export default function NuevaFacturaPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Nueva factura"
-        subtitle="Rellena los datos paso a paso"
-      />
+      <PageHeader title="Nueva factura" />
       <DocumentForm type="factura" initialCustomerId={initialCustomerId} />
     </div>
   );
