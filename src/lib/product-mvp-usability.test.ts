@@ -620,6 +620,96 @@ describe("MVP usability polish", () => {
     expect(referralSource).not.toContain("Crea cuenta abajo");
   });
 
+  it("refuerza confianza publica sin promesas legales excesivas", () => {
+    const landingSource = readFileSync(
+      new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
+      "utf8",
+    );
+    const verifactuLegalSource = readFileSync(
+      new URL("../app/legal/verifactu/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const termsSource = readFileSync(
+      new URL("../app/legal/terminos/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const referralSource = readFileSync(
+      new URL("../components/referrals/ReferralCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const verifactuConstantsSource = readFileSync(
+      new URL("../lib/verifactu/constants.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(landingSource).toContain("De visita a cuenta real");
+    expect(landingSource).toContain("Mira la demo");
+    expect(landingSource).toContain("Crea cuenta gratis");
+    expect(landingSource).toContain("Confirma tu email");
+    expect(landingSource).toContain("Email verificado antes de acciones reales");
+    expect(landingSource).toContain("VeriFactu incluido desde Gratis");
+    expect(verifactuLegalSource).toContain(
+      "No afirmamos que la AEAT haya homologado",
+    );
+    expect(verifactuLegalSource).toContain("Qué no promete la app");
+    expect(verifactuLegalSource).toContain("Fuentes oficiales");
+    expect(verifactuLegalSource).toContain(
+      "sistemas-informaticos-facturacion-verifactu.html",
+    );
+    expect(verifactuLegalSource).toContain("Real Decreto 1007/2023");
+    expect(verifactuLegalSource).toContain("Orden HAC/1177/2024");
+    expect(termsSource).toContain("No afirmamos homologación");
+    expect(referralSource).toContain("APP_BRAND_NAME");
+    expect(verifactuConstantsSource).toContain("APP_BRAND_NAME");
+  });
+
+  it("publica SEO basico para el recorrido de visitante", () => {
+    const layoutSource = readFileSync(
+      new URL("../app/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const robotsSource = readFileSync(
+      new URL("../app/robots.ts", import.meta.url),
+      "utf8",
+    );
+    const sitemapSource = readFileSync(
+      new URL("../app/sitemap.ts", import.meta.url),
+      "utf8",
+    );
+    const inicioLayoutSource = readFileSync(
+      new URL("../app/inicio/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const preciosLayoutSource = readFileSync(
+      new URL("../app/precios/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const demoLayoutSource = readFileSync(
+      new URL("../app/demo/layout.tsx", import.meta.url),
+      "utf8",
+    );
+    const helpSource = readFileSync(
+      new URL("../app/ayuda/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(layoutSource).toContain("metadataBase");
+    expect(layoutSource).toContain("https://facturacion-autonomos.app");
+    expect(layoutSource).toContain("VeriFactu autónomos");
+    expect(robotsSource).toContain("sitemap.xml");
+    expect(robotsSource).toContain('"/admin"');
+    expect(robotsSource).toContain('"/api"');
+    expect(sitemapSource).toContain('"/inicio"');
+    expect(sitemapSource).toContain('"/demo"');
+    expect(sitemapSource).toContain('"/precios"');
+    expect(sitemapSource).toContain('"/ayuda"');
+    expect(sitemapSource).toContain('"/legal/verifactu"');
+    expect(inicioLayoutSource).toContain('canonical: "/inicio"');
+    expect(preciosLayoutSource).toContain('canonical: "/precios"');
+    expect(demoLayoutSource).toContain('canonical: "/demo"');
+    expect(helpSource).toContain('canonical: "/ayuda"');
+  });
+
   it("mantiene accesos de configuracion como pastillas compactas", () => {
     const settingsSource = readFileSync(
       new URL("../app/configuracion/page.tsx", import.meta.url),

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   BadgeQuestionMark,
   FileText,
@@ -13,6 +14,21 @@ import { Card } from "@/components/ui/Card";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import { manualSections } from "@/lib/manual/sections";
 import { sanitizeReturnPath } from "@/lib/manual/return-url";
+
+export const metadata: Metadata = {
+  title: "Ayuda",
+  description:
+    "Manual de Facturación Autónomos: primeros pasos, facturas, clientes automáticos, gastos, nube y configuración.",
+  alternates: {
+    canonical: "/ayuda",
+  },
+  openGraph: {
+    title: `Ayuda | ${APP_BRAND_NAME}`,
+    description:
+      "Guía paso a paso para empezar a facturar, registrar gastos y entender cada zona de la app.",
+    url: "/ayuda",
+  },
+};
 
 interface AyudaPageProps {
   searchParams: Promise<{ from?: string }>;

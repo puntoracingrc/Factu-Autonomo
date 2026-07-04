@@ -1,15 +1,16 @@
 import { Card, PageHeader } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 export default function TerminosPage() {
   return (
     <div>
       <PageHeader
         title="Términos de uso"
-        subtitle="Condiciones básicas de uso de Factura Autónomo"
+        subtitle={`Condiciones básicas de uso de ${APP_BRAND_NAME}`}
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
-          Al usar Factura Autónomo aceptas estos términos. El servicio ofrece
+          Al usar {APP_BRAND_NAME} aceptas estos términos. El servicio ofrece
           herramientas de facturación y estimaciones fiscales orientativas; no
           sustituye asesoramiento de gestoría o asesor fiscal.
         </p>
@@ -61,7 +62,8 @@ export default function TerminosPage() {
         <h2>VeriFactu y normativa</h2>
         <p>
           La app incorpora herramientas orientadas al cumplimiento VeriFactu/SIF
-          cuando estén activadas y configuradas. Aun así, el usuario debe
+          cuando estén activadas y configuradas. No afirmamos homologación ni
+          validación comercial por parte de AEAT. Aun así, el usuario debe
           comprobar que su uso concreto se ajusta a su actividad, plazos y
           obligaciones.
         </p>
@@ -74,10 +76,10 @@ export default function TerminosPage() {
         <p>
           <strong>Limitación de responsabilidad:</strong> no nos hacemos
           responsables de sanciones tributarias por uso incorrecto de las
-          estimaciones o por incumplimiento de normativa (Verifactu, etc.).
+          estimaciones o por incumplimiento de normativa (VeriFactu, etc.).
         </p>
         <h2>Última actualización</h2>
-        <p>3 de julio de 2026.</p>
+        <p>4 de julio de 2026.</p>
       </Card>
     </div>
   );

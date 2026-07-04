@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import {
   fetchReferralProfile,
   redeemReferralCodeApi,
@@ -77,11 +78,11 @@ export function ReferralCard() {
 
   async function handleShare() {
     if (!profile?.code || !profile.shareUrl) return;
-    const text = `Te invito a Factura Autónomo. Usa mi código ${profile.code} al crear cuenta: los dos recibimos ${profile.bonusPerReferral} escaneos IA extra. ${profile.shareUrl}`;
+    const text = `Te invito a ${APP_BRAND_NAME}. Usa mi código ${profile.code} al crear cuenta: los dos recibimos ${profile.bonusPerReferral} escaneos IA extra. ${profile.shareUrl}`;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Factura Autónomo",
+          title: APP_BRAND_NAME,
           text,
           url: profile.shareUrl,
         });
