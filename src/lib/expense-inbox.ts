@@ -2,6 +2,8 @@ import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./expense-
 
 export const DEFAULT_EXPENSE_INBOX_DOMAIN = "mail.facturacion-autonomos.app";
 export const EXPENSE_INBOX_LOCAL_PART = "gastos";
+const EXPENSE_INBOX_ALIAS_FALLBACK = "mi-negocio";
+const EXPENSE_INBOX_ALIAS_MAX_LENGTH = 48;
 
 export type ExpenseInboxItemStatus =
   | "pending"
@@ -186,7 +188,7 @@ export function buildExpenseInboxAddress(
   aliasToken: string,
   domain = DEFAULT_EXPENSE_INBOX_DOMAIN,
 ): string {
-  return `${EXPENSE_INBOX_LOCAL_PART}+${aliasToken}@${domain}`;
+  return `${EXPENSE_INBOX_LOCAL_PART}-${aliasToken}@${domain}`;
 }
 
 export function extractExpenseInboxAliasToken(
@@ -195,8 +197,64 @@ export function extractExpenseInboxAliasToken(
   const email = cleanEmailValue(recipient).toLowerCase();
   const [localPart] = email.split("@");
   if (!localPart) return null;
-  const match = localPart.match(/^gastos\+([a-z0-9_-]{8,64})$/);
+  const match = localPart.match(/^gastos[-+]([a-z0-9_-]{8,64})$/);
   return match?.[1] ?? null;
+}
+
+export function normalizeExpenseInboxAliasBase(value: string | undefined): string {
+  const normalized = (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+  const readable = normalized || EXPENSE_INBOX_ALIAS_FALLBACK;
+  const longEnough = readable.length >= 8 ? readable : `${readable}-gastos`;
+  return (
+    longEnough
+      .slice(0, EXPENSE_INBOX_ALIAS_MAX_LENGTH)
+      .replace(/-+$/g, "") || EXPENSE_INBOX_ALIAS_FALLBACK
+  );
+}
+
+export function buildFriendlyExpenseInboxAliasToken(
+  base: string,
+  counter = 1,
+): string {
+  const suffix = counter > 1 ? `-${counter}` : "";
+  const cleanBase = normalizeExpenseInboxAliasBase(base);
+  const baseMaxLength = Math.max(
+    EXPENSE_INBOX_ALIAS_MAX_LENGTH - suffix.length,
+    8,
+  );
+  const trimmedBase =
+    cleanBase.slice(0, baseMaxLength).replace(/-+$/g, "") ||
+    EXPENSE_INBOX_ALIAS_FALLBACK;
+  return `${trimmedBase}${suffix}`;
+}
+
+export function nextFriendlyExpenseInboxAliasCounter(
+  base: string,
+  currentToken: string | undefined,
+): number {
+  if (!currentToken) return 1;
+
+  if (currentToken === buildFriendlyExpenseInboxAliasToken(base, 1)) {
+    return 2;
+  }
+
+  const match = currentToken.match(/-(\d+)$/);
+  const currentCounter = Number(match?.[1]);
+  if (
+    Number.isInteger(currentCounter) &&
+    currentCounter > 1 &&
+    currentToken === buildFriendlyExpenseInboxAliasToken(base, currentCounter)
+  ) {
+    return currentCounter + 1;
+  }
+
+  return 1;
 }
 
 export function resolveExpenseInboxAttachmentMimeType(

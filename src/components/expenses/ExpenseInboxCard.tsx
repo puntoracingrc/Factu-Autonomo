@@ -245,7 +245,8 @@ export function ExpenseInboxCard() {
           <p className="mt-2 flex gap-2 text-sm text-amber-800">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             Usa este correo solo para facturas o tickets de proveedores. Si lo
-            publicas o empieza a entrar basura, genera uno nuevo.
+            publicas o empieza a entrar basura, genera uno nuevo. Se revisan los
+            10 primeros adjuntos de cada email.
           </p>
         </div>
       ) : null}

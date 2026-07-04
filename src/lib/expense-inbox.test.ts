@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
   extractExpenseInboxAliasToken,
   isSupportedExpenseInboxAttachment,
+  nextFriendlyExpenseInboxAliasCounter,
+  normalizeExpenseInboxAliasBase,
   normalizeExpenseInboxInboundPayload,
   normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
@@ -15,13 +18,37 @@ describe("expense inbox", () => {
       "facturacion-autonomos.app",
     );
 
-    expect(address).toBe("gastos+abc123def456@facturacion-autonomos.app");
+    expect(address).toBe("gastos-abc123def456@facturacion-autonomos.app");
     expect(extractExpenseInboxAliasToken(address)).toBe("abc123def456");
     expect(
       extractExpenseInboxAliasToken(
         "Factu <gastos+abc123def456@facturacion-autonomos.app>",
       ),
     ).toBe("abc123def456");
+  });
+
+  it("crea alias legibles para el buzón de gastos", () => {
+    expect(normalizeExpenseInboxAliasBase("Persianas Almar")).toBe(
+      "persianas-almar",
+    );
+    expect(normalizeExpenseInboxAliasBase("Álvaro & Hijos S.L.")).toBe(
+      "alvaro-hijos-s-l",
+    );
+    expect(buildFriendlyExpenseInboxAliasToken("Persianas Almar", 1)).toBe(
+      "persianas-almar",
+    );
+    expect(buildFriendlyExpenseInboxAliasToken("Persianas Almar", 2)).toBe(
+      "persianas-almar-2",
+    );
+    expect(
+      nextFriendlyExpenseInboxAliasCounter("Persianas Almar", "persianas-almar"),
+    ).toBe(2);
+    expect(
+      nextFriendlyExpenseInboxAliasCounter(
+        "Persianas Almar",
+        "persianas-almar-2",
+      ),
+    ).toBe(3);
   });
 
   it("solo acepta pdfs e imagenes", () => {
