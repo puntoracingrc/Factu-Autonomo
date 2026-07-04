@@ -432,7 +432,12 @@ export async function ensureExpenseInboxAlias(
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existingError) throw existingError;
+  if (existingError) {
+    if (isMissingInboxTableError(existingError)) {
+      return ensureExpenseInboxAliasInSyncEntities(userId);
+    }
+    throw existingError;
+  }
 
   const activeExisting = existing as ExpenseInboxAliasRow | null;
   if (activeExisting?.active && activeExisting.alias_token) {
