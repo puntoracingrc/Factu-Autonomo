@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "crypto";
+import { resolveMx } from "node:dns/promises";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { isProPlan } from "@/lib/billing/plans";
 import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
@@ -10,6 +11,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
+  classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
   mapExpenseInboxScanPayload,
   nextFriendlyExpenseInboxAliasCounter,
@@ -18,6 +20,7 @@ import {
   normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
   type ExpenseInboxAttachmentInput,
+  type ExpenseInboxDeliveryStatus,
   type ExpenseInboxInboundEmail,
   type ExpenseInboxItem,
   type ExpenseInboxItemStatus,
@@ -69,6 +72,15 @@ const RESEND_API_BASE_URL = "https://api.resend.com";
 const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
 const ITEM_ENTITY_TYPE = "expense_inbox_item";
 const PRIMARY_ALIAS_ENTITY_ID = "primary";
+const DELIVERY_STATUS_CACHE_MS = 5 * 60 * 1000;
+
+let cachedDeliveryStatus:
+  | {
+      domain: string;
+      expiresAt: number;
+      value: ExpenseInboxDeliveryStatus;
+    }
+  | undefined;
 
 function getExpenseInboxDomain(): string {
   return (
@@ -76,6 +88,47 @@ function getExpenseInboxDomain(): string {
     process.env.RESEND_INBOUND_DOMAIN?.trim() ||
     "mail.facturacion-autonomos.app"
   ).replace(/^https?:\/\//i, "");
+}
+
+export async function getExpenseInboxDeliveryStatus(): Promise<ExpenseInboxDeliveryStatus> {
+  const domain = getExpenseInboxDomain();
+  const now = Date.now();
+  if (
+    cachedDeliveryStatus &&
+    cachedDeliveryStatus.domain === domain &&
+    cachedDeliveryStatus.expiresAt > now
+  ) {
+    return cachedDeliveryStatus.value;
+  }
+
+  let value: ExpenseInboxDeliveryStatus;
+  try {
+    const records = await resolveMx(domain);
+    value = classifyExpenseInboxDelivery(
+      domain,
+      records.map((record) => record.exchange),
+    );
+  } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : "";
+    value =
+      code === "ENODATA" || code === "ENOTFOUND"
+        ? classifyExpenseInboxDelivery(domain, [])
+        : {
+            state: "unknown",
+            message:
+              "No he podido comprobar ahora el DNS del buzón. Si los emails rebotan, revisa el MX o el reenvío del proveedor de correo.",
+          };
+  }
+
+  cachedDeliveryStatus = {
+    domain,
+    expiresAt: now + DELIVERY_STATUS_CACHE_MS,
+    value,
+  };
+  return value;
 }
 
 function getResendApiKey(): string {

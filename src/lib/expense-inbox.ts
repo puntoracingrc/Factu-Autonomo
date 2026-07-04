@@ -5,6 +5,14 @@ export const EXPENSE_INBOX_LOCAL_PART = "gastos";
 const EXPENSE_INBOX_ALIAS_FALLBACK = "mi-negocio";
 const EXPENSE_INBOX_ALIAS_MAX_LENGTH = 48;
 
+export type ExpenseInboxDeliveryState = "ready" | "needs_setup" | "unknown";
+
+export interface ExpenseInboxDeliveryStatus {
+  state: ExpenseInboxDeliveryState;
+  message: string;
+  mxHosts?: string[];
+}
+
 export type ExpenseInboxItemStatus =
   | "pending"
   | "processing"
@@ -61,6 +69,67 @@ export interface ExpenseInboxItem {
   scanPayload?: ExpenseScanPayload;
   scanError?: string;
   createdAt: string;
+}
+
+function cleanMxHost(host: string): string {
+  return host.trim().toLowerCase().replace(/\.+$/g, "");
+}
+
+function isResendReceivingDomain(domain: string): boolean {
+  return cleanMxHost(domain).endsWith(".resend.app");
+}
+
+function isResendInboundMxHost(host: string): boolean {
+  const cleanHost = cleanMxHost(host);
+  return cleanHost.includes("resend") || cleanHost.includes("inbound-smtp.");
+}
+
+export function classifyExpenseInboxDelivery(
+  domain: string,
+  mxHosts: string[],
+): ExpenseInboxDeliveryStatus {
+  const cleanDomain = cleanMxHost(domain);
+  const hosts = Array.from(new Set(mxHosts.map(cleanMxHost).filter(Boolean)));
+
+  if (isResendReceivingDomain(cleanDomain)) {
+    return {
+      state: "ready",
+      message: "El buzón de gastos usa el dominio de recepción de Resend.",
+      mxHosts: hosts,
+    };
+  }
+
+  if (hosts.some(isResendInboundMxHost)) {
+    return {
+      state: "ready",
+      message: "El dominio del buzón parece conectado para recibir emails.",
+      mxHosts: hosts,
+    };
+  }
+
+  if (hosts.some((host) => host.includes("ionos"))) {
+    return {
+      state: "needs_setup",
+      message:
+        "Este buzón todavía no está listo para recibir: el correo entra en IONOS y allí no existe este buzón dinámico. Configura un buzón comodín/alias en IONOS o apunta el MX del subdominio a Resend Inbound.",
+      mxHosts: hosts,
+    };
+  }
+
+  if (hosts.length === 0) {
+    return {
+      state: "needs_setup",
+      message: `El dominio ${cleanDomain} no tiene MX de recepción configurado.`,
+      mxHosts: hosts,
+    };
+  }
+
+  return {
+    state: "unknown",
+    message:
+      "No puedo confirmar que el dominio del buzón esté conectado a Resend Inbound. Si los emails rebotan, revisa el MX o el reenvío desde tu proveedor de correo.",
+    mxHosts: hosts,
+  };
 }
 
 const SUPPORTED_ATTACHMENT_EXTENSIONS = new Map([

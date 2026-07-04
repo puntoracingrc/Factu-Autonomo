@@ -59,8 +59,8 @@ const quickActions = [
     color: "bg-violet-500 text-white",
   },
   {
-    href: "/gastos/nuevo",
-    label: "Añadir gasto",
+    href: "/gastos",
+    label: "Gastos",
     icon: ShoppingCart,
     color: "bg-emerald-600 text-white",
   },
