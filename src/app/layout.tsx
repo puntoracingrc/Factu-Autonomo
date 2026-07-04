@@ -14,7 +14,10 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
+const appUrl = "https://facturacion-autonomos.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   applicationName: APP_BRAND_NAME,
   title: {
     default: `${APP_BRAND_NAME} | Facturación sencilla para autónomos`,
@@ -23,11 +26,21 @@ export const metadata: Metadata = {
   description:
     "Programa sencillo de facturación para autónomos: facturas, presupuestos, recibos, gastos e impuestos orientativos en un solo sitio.",
   manifest: "/manifest.json",
+  keywords: [
+    "facturación autónomos",
+    "programa facturación autónomos",
+    "facturas autónomos",
+    "gastos autónomos",
+    "VeriFactu autónomos",
+  ],
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: APP_BRAND_NAME,
     description:
       "Facturación sencilla para autónomos: documentos, gastos e impuestos orientativos sin hojas de cálculo.",
-    url: "https://facturacion-autonomos.app",
+    url: appUrl,
     siteName: APP_BRAND_NAME,
     locale: "es_ES",
     type: "website",

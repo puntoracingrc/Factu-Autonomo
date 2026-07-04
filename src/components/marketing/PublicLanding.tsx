@@ -58,10 +58,32 @@ const firstSteps = [
 ];
 
 const trustItems = [
-  "Plan gratis sin tarjeta",
-  "Cuenta con email verificado",
+  "Gratis real, sin tarjeta",
+  "VeriFactu incluido desde Gratis",
+  "Email verificado antes de acciones reales",
   "Datos locales y nube opcional",
-  "Textos legales visibles antes de pagar",
+  "Fiscal orientativo, revisable con tu gestor",
+];
+
+const visitorPath = [
+  {
+    title: "Mira la demo",
+    description:
+      "Entra en un espacio ficticio, toca facturas, gastos y productos, y vuelve al inicio cuando quieras.",
+    Icon: MonitorPlay,
+  },
+  {
+    title: "Crea cuenta gratis",
+    description:
+      "Empiezas sin tarjeta. Si tenías datos locales, la app te pregunta antes de guardarlos en tu cuenta.",
+    Icon: BadgeCheck,
+  },
+  {
+    title: "Confirma tu email",
+    description:
+      "Con el correo confirmado se activan las acciones reales: nube, envíos y flujo de trabajo con tus datos.",
+    Icon: ShieldCheck,
+  },
 ];
 
 function ProductBackdrop() {
@@ -351,7 +373,7 @@ export function PublicLanding() {
 
         <section className="bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {trustItems.map((item) => (
                 <div
                   key={item}
@@ -360,6 +382,43 @@ export function PublicLanding() {
                   <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
                   <p className="text-sm font-bold text-slate-800">{item}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-2xl">
+              <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+                De visita a cuenta real
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-slate-950">
+                Primero mira, luego empiezas con tus datos
+              </h2>
+            </div>
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {visitorPath.map(({ title, description, Icon }, index) => (
+                <article
+                  key={title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                      Paso {index + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-lg font-black text-slate-950">
+                    {title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {description}
+                  </p>
+                </article>
               ))}
             </div>
           </div>

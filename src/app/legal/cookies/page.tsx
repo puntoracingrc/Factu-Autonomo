@@ -1,4 +1,5 @@
 import { Card, PageHeader } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 export default function CookiesPage() {
   return (
@@ -9,7 +10,7 @@ export default function CookiesPage() {
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
-          Factura Autónomo usa almacenamiento local y tecnologías similares para
+          {APP_BRAND_NAME} usa almacenamiento local y tecnologías similares para
           que la app funcione correctamente.
         </p>
         <h2>Uso técnico necesario</h2>
@@ -37,7 +38,7 @@ export default function CookiesPage() {
           no estaba sincronizado o exportado.
         </p>
         <h2>Última actualización</h2>
-        <p>2 de julio de 2026.</p>
+        <p>4 de julio de 2026.</p>
       </Card>
     </div>
   );

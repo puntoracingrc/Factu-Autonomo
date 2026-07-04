@@ -1,4 +1,5 @@
 import { Card, PageHeader } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 export default function EncargoTratamientoPage() {
   return (
@@ -10,13 +11,13 @@ export default function EncargoTratamientoPage() {
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
           Este documento resume el marco de tratamiento de datos cuando el
-          usuario usa Factura Autónomo para gestionar datos de sus clientes,
+          usuario usa {APP_BRAND_NAME} para gestionar datos de sus clientes,
           proveedores y documentos en la nube.
         </p>
         <h2>Roles</h2>
         <p>
           El usuario profesional actúa como responsable del tratamiento de los
-          datos que introduce en la app. Factura Autónomo actúa como encargado
+          datos que introduce en la app. {APP_BRAND_NAME} actúa como encargado
           del tratamiento cuando almacena, sincroniza o procesa esos datos para
           prestar el servicio.
         </p>
@@ -53,7 +54,7 @@ export default function EncargoTratamientoPage() {
           descargar una copia antes de cerrar su cuenta.
         </p>
         <h2>Última actualización</h2>
-        <p>2 de julio de 2026.</p>
+        <p>4 de julio de 2026.</p>
       </Card>
     </div>
   );

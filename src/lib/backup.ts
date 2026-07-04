@@ -1,3 +1,4 @@
+import { APP_BRAND_NAME } from "./brand";
 import { normalizeLoadedData } from "./storage";
 import type { AppData } from "./types";
 
@@ -211,7 +212,7 @@ function parseValidatedBackupPayload(
   }
 
   if (metadata.app !== BACKUP_APP_ID) {
-    return { ok: false, error: "La copia no parece ser de Factura Autónomo." };
+    return { ok: false, error: `La copia no parece ser de ${APP_BRAND_NAME}.` };
   }
 
   return { ok: true, fileName, metadata, data };
@@ -396,7 +397,7 @@ export function parseBackupJson(raw: unknown): AppData | { error: string } {
     payload.data && typeof payload.data === "object" ? payload.data : payload;
 
   if (!backupData.profile && !backupData.documents && !backupData.customers) {
-    return { error: "No parece una copia de Factura Autónomo" };
+    return { error: `No parece una copia de ${APP_BRAND_NAME}` };
   }
 
   return normalizeLoadedData(backupData);

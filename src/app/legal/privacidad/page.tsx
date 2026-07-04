@@ -1,16 +1,17 @@
 import { Card, PageHeader } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 export default function PrivacidadPage() {
   return (
     <div>
       <PageHeader
         title="Política de privacidad"
-        subtitle="Cómo tratamos tus datos al usar Factura Autónomo"
+        subtitle={`Cómo tratamos tus datos al usar ${APP_BRAND_NAME}`}
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
           Esta política explica cómo se tratan los datos personales al usar
-          Factura Autónomo, tanto en modo local como con cuenta en la nube.
+          {APP_BRAND_NAME}, tanto en modo local como con cuenta en la nube.
         </p>
         <p>
           <strong>Responsable del servicio:</strong> Alberto Ibáñez de Opacua
@@ -63,7 +64,7 @@ export default function PrivacidadPage() {
         </ul>
         <h2>Modo local y modo nube</h2>
         <p>
-          Factura Autónomo guarda tus datos de facturación en el dispositivo
+          {APP_BRAND_NAME} guarda tus datos de facturación en el dispositivo
           cuando trabajas sin cuenta. Si activas cuenta y sincronización, los
           datos se guardan también en la nube para poder usarlos desde móvil y
           ordenador.
@@ -108,7 +109,7 @@ export default function PrivacidadPage() {
         <h2>Google Drive</h2>
         <p>
           La copia extra en Google Drive es opcional y se activa desde Cuenta.
-          Si la conectas, Factura Autónomo guarda un archivo de copia de
+          Si la conectas, {APP_BRAND_NAME} guarda un archivo de copia de
           seguridad en tu Drive. No solicitamos acceso completo a tu unidad ni a
           archivos ajenos a los usados con esta app.
         </p>
@@ -136,7 +137,7 @@ export default function PrivacidadPage() {
           previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>3 de julio de 2026.</p>
+        <p>4 de julio de 2026.</p>
       </Card>
     </div>
   );

@@ -1,16 +1,17 @@
 import { Card, PageHeader } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 export default function AvisoLegalPage() {
   return (
     <div>
       <PageHeader
         title="Aviso legal"
-        subtitle="Información legal del titular de Factura Autónomo"
+        subtitle={`Información legal del titular de ${APP_BRAND_NAME}`}
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
-          Este aviso legal regula la información básica del titular de Factura
-          Autónomo y del sitio web o aplicación desde la que se presta el
+          Este aviso legal regula la información básica del titular de{" "}
+          {APP_BRAND_NAME} y del sitio web o aplicación desde la que se presta el
           servicio.
         </p>
         <h2>Titular</h2>
@@ -30,7 +31,7 @@ export default function AvisoLegalPage() {
         </p>
         <h2>Objeto</h2>
         <p>
-          Factura Autónomo es una aplicación de facturación para autónomos y
+          {APP_BRAND_NAME} es una aplicación de facturación para autónomos y
           pequeños negocios, con funciones de emisión de documentos, gestión de
           gastos, sincronización opcional, importación e IA según el plan
           contratado.
@@ -48,7 +49,7 @@ export default function AvisoLegalPage() {
           fiscales, contables y mercantiles.
         </p>
         <h2>Última actualización</h2>
-        <p>2 de julio de 2026.</p>
+        <p>4 de julio de 2026.</p>
       </Card>
     </div>
   );

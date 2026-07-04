@@ -1,7 +1,9 @@
+import { APP_BRAND_NAME } from "../brand";
+
 /** Datos del SIF para verificación in situ y declaración responsable (art. 15 HAC/1177/2024). */
 export const VERIFACTU_SOFTWARE = {
   developerName:
-    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NAME ?? "Factura Autónomo",
+    process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NAME ?? APP_BRAND_NAME,
   developerNif:
     process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_NIF ?? "PENDIENTE-NIF",
   developerAddress:
@@ -14,7 +16,7 @@ export const VERIFACTU_SOFTWARE = {
   developerEmail:
     process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL ?? "",
   developerUrl: process.env.NEXT_PUBLIC_APP_URL ?? "",
-  softwareName: "Factura Autónomo",
+  softwareName: APP_BRAND_NAME,
   /** Código IdSistemaInformatico (apartado 1.b art. 15). */
   softwareId: process.env.NEXT_PUBLIC_VERIFACTU_SYSTEM_ID ?? "FA",
   softwareVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.2.0",
