@@ -201,7 +201,7 @@ describe("product MVP final smoke", () => {
 
     expect(sources).toContain("Nueva factura");
     expect(sources).toContain("Nuevo presupuesto");
-    expect(sources).toContain("Añadir gasto");
+    expect(sources).toContain("Gastos");
     expect(sources).toContain("Exportar copia");
     expect(sources).toContain("Resumen del negocio");
     expect(sources).toContain("Periodo:");

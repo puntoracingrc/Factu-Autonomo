@@ -3,6 +3,7 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   canUseExpenseInbox,
   ensureExpenseInboxAlias,
+  getExpenseInboxDeliveryStatus,
   getExpenseInboxItem,
   listExpenseInboxItems,
   rotateExpenseInboxAlias,
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const itemId = url.searchParams.get("id");
     const alias = await ensureExpenseInboxAlias(user.id);
+    const deliveryStatus = await getExpenseInboxDeliveryStatus();
 
     if (itemId) {
       const item = await getExpenseInboxItem(user.id, itemId);
@@ -48,12 +50,13 @@ export async function GET(request: Request) {
           { status: 404 },
         );
       }
-      return NextResponse.json({ alias, item });
+      return NextResponse.json({ alias, deliveryStatus, item });
     }
 
     const items = await listExpenseInboxItems(user.id);
     return NextResponse.json({
       alias,
+      deliveryStatus,
       items,
       pendingCount: items.filter((item) => item.status === "pending").length,
       errorCount: items.filter((item) => item.status === "error").length,
@@ -84,7 +87,8 @@ export async function PATCH(request: Request) {
       }
 
       const alias = await rotateExpenseInboxAlias(user.id);
-      return NextResponse.json({ alias });
+      const deliveryStatus = await getExpenseInboxDeliveryStatus();
+      return NextResponse.json({ alias, deliveryStatus });
     }
 
     const id = typeof body.id === "string" ? body.id : "";

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
+  classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
   isSupportedExpenseInboxAttachment,
   nextFriendlyExpenseInboxAliasCounter,
@@ -49,6 +50,24 @@ describe("expense inbox", () => {
         "persianas-almar-2",
       ),
     ).toBe(3);
+  });
+
+  it("detecta cuando el dominio del buzón aún entrega en IONOS", () => {
+    expect(
+      classifyExpenseInboxDelivery("mail.facturacion-autonomos.app", [
+        "mx00.ionos.es.",
+        "mx01.ionos.es.",
+      ]),
+    ).toMatchObject({
+      state: "needs_setup",
+    });
+    expect(
+      classifyExpenseInboxDelivery("mail.facturacion-autonomos.app", [
+        "inbound-smtp.eu-west-1.amazonaws.com.",
+      ]),
+    ).toMatchObject({
+      state: "ready",
+    });
   });
 
   it("solo acepta pdfs e imagenes", () => {

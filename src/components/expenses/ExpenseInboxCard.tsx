@@ -16,12 +16,16 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { AiUsageMeter } from "@/lib/billing/scan-limits";
-import type { ExpenseInboxItem } from "@/lib/expense-inbox";
+import type {
+  ExpenseInboxDeliveryStatus,
+  ExpenseInboxItem,
+} from "@/lib/expense-inbox";
 
 interface ExpenseInboxResponse {
   alias?: {
     address: string;
   };
+  deliveryStatus?: ExpenseInboxDeliveryStatus;
   items?: ExpenseInboxItem[];
   pendingCount?: number;
   error?: string;
@@ -52,6 +56,8 @@ export function ExpenseInboxCard() {
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [deliveryStatus, setDeliveryStatus] =
+    useState<ExpenseInboxDeliveryStatus | null>(null);
   const [usageLabel, setUsageLabel] = useState<string | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,6 +70,7 @@ export function ExpenseInboxCard() {
       setAddress("");
       setItems([]);
       setPendingCount(0);
+      setDeliveryStatus(null);
       setUsageLabel(null);
       return;
     }
@@ -97,6 +104,7 @@ export function ExpenseInboxCard() {
       setAddress(body.alias?.address ?? "");
       setItems(body.items ?? []);
       setPendingCount(body.pendingCount ?? 0);
+      setDeliveryStatus(body.deliveryStatus ?? null);
     } catch {
       setError("No se pudo cargar el buzón.");
     } finally {
@@ -138,6 +146,7 @@ export function ExpenseInboxCard() {
         return;
       }
       setAddress(body.alias.address);
+      setDeliveryStatus(body.deliveryStatus ?? null);
       setCopied(false);
     } catch {
       setError("No se pudo generar un correo nuevo.");
@@ -222,7 +231,7 @@ export function ExpenseInboxCard() {
             Email para proveedores
           </p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="min-w-0 flex-1 rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-900">
+            <code className="min-w-0 flex-1 break-all rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-900">
               {address}
             </code>
             <Button variant="secondary" onClick={() => void copyAddress()}>
@@ -248,6 +257,19 @@ export function ExpenseInboxCard() {
             publicas o empieza a entrar basura, genera uno nuevo. Se revisan los
             10 primeros adjuntos de cada email.
           </p>
+          {deliveryStatus && deliveryStatus.state !== "ready" ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <p className="flex gap-2 font-semibold">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {deliveryStatus.message}
+              </p>
+              {deliveryStatus.mxHosts?.length ? (
+                <p className="mt-1 text-xs text-amber-800">
+                  MX actual: {deliveryStatus.mxHosts.join(", ")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

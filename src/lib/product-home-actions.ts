@@ -8,5 +8,5 @@ export const HOME_REVIEW_ACTIONS = [
   { href: "/facturas", label: "Ver facturas" },
   { href: "/avisos", label: "Avisos", showBadge: true },
   { href: "/recibos/nuevo", label: "Nuevo recibo" },
-  { href: "/gastos/nuevo", label: "Añadir gasto" },
+  { href: "/gastos", label: "Ver gastos" },
 ] as const;
