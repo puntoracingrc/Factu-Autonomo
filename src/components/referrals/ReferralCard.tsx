@@ -163,7 +163,7 @@ export function ReferralCard() {
             }}
           />
         </Field>
-        <ButtonLink href="/cuenta#inicio-sesion">
+        <ButtonLink href="/cuenta?modo=crear#inicio-sesion">
           <LogIn className="h-4 w-4" />
           Crear cuenta
         </ButtonLink>

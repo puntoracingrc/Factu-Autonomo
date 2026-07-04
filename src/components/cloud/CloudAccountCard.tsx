@@ -16,6 +16,7 @@ import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
+import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { SignUpResult } from "@/context/CloudSyncContext";
@@ -30,6 +31,7 @@ import {
   storePendingReferralCode,
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
+import { hasWorkspaceContent } from "@/lib/workspace-state";
 
 const STATUS_LABELS = {
   disabled: "Sincronización no disponible",
@@ -91,6 +93,7 @@ export function CloudAccountCard() {
     pendingUpload,
     pendingChangeCount,
   } = useCloudSync();
+  const { data } = useAppStore();
   const { billingEnabled, limits } = useBilling();
 
   const [password, setPassword] = useState("");
@@ -107,10 +110,20 @@ export function CloudAccountCard() {
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
+  const requestedMode = searchParams.get("modo");
   const googleAuthEnabled = isGoogleAuthEnabled();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
+  const hasLocalWork = hasWorkspaceContent(data);
+
+  useEffect(() => {
+    if (requestedMode === "crear" || requestedMode === "signup") {
+      setAuthMode("signup");
+      setAuthError(null);
+      setResendNotice(null);
+    }
+  }, [requestedMode]);
 
   useEffect(() => {
     captureReferralFromSearchParams(searchParams);
@@ -325,6 +338,22 @@ export function CloudAccountCard() {
         </div>
       ) : (
         <div className="space-y-3">
+          <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            {hasLocalWork ? (
+              <>
+                Hemos encontrado datos en este navegador. Crear cuenta o iniciar
+                sesión <strong>no los borra</strong>. Si tu plan incluye nube,
+                la app intentará subirlos a tu cuenta; también puedes exportar
+                una copia manual.
+              </>
+            ) : (
+              <>
+                Puedes probar sin cuenta, pero lo que guardes quedará solo en
+                este navegador hasta que inicies sesión.
+              </>
+            )}
+          </p>
+
           {authStatus === "confirmed" ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
               Cuenta confirmada. Ya puedes iniciar sesión con tu contraseña.

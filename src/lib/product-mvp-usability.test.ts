@@ -197,6 +197,45 @@ describe("MVP usability polish", () => {
     expect(landingSource).toContain('href="/inicio"');
   });
 
+  it("explica el modo local sin sesion y envia altas a crear cuenta", () => {
+    const guestBannerSource = readFileSync(
+      new URL("../components/cloud/GuestLocalDataBanner.tsx", import.meta.url),
+      "utf8",
+    );
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const landingSource = readFileSync(
+      new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
+      "utf8",
+    );
+    const documentShareSource = readFileSync(
+      new URL("../components/documents/DocumentShareActions.tsx", import.meta.url),
+      "utf8",
+    );
+    const paymentReminderSource = readFileSync(
+      new URL("../components/documents/PaymentReminderButton.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain("GuestLocalDataBanner");
+    expect(guestBannerSource).toContain("Estás probando sin cuenta");
+    expect(guestBannerSource).toContain("Tienes datos guardados solo en este navegador");
+    expect(guestBannerSource).toContain("Crear cuenta gratis");
+    expect(guestBannerSource).toContain("Seguir probando");
+    expect(guestBannerSource).toContain("/cuenta?modo=crear#inicio-sesion");
+    expect(cloudAccountSource).toContain("Hemos encontrado datos en este navegador");
+    expect(cloudAccountSource).toContain('requestedMode === "crear"');
+    expect(landingSource).toContain("/cuenta?modo=crear#inicio-sesion");
+    expect(documentShareSource).toContain("Inicia sesión para enviar documentos reales");
+    expect(paymentReminderSource).toContain("Inicia sesión para enviar recordatorios reales");
+  });
+
   it("muestra terminos solo en el modo de crear cuenta", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
@@ -291,7 +330,7 @@ describe("MVP usability polish", () => {
     );
 
     expect(referralSource).toContain('if (!user)');
-    expect(referralSource).toContain('href="/cuenta#inicio-sesion"');
+    expect(referralSource).toContain('href="/cuenta?modo=crear#inicio-sesion"');
     expect(referralSource).toContain("Crear cuenta");
     expect(referralSource).not.toContain("Crea cuenta abajo");
   });

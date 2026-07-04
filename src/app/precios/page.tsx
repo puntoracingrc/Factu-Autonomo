@@ -189,7 +189,7 @@ export default function PreciosPage() {
             <div className="mt-5 space-y-2">
               {!user && (
                 <p className="text-sm text-slate-600">
-                  <Link href="/configuracion" className="font-semibold text-blue-600 underline">
+                  <Link href="/cuenta?modo=crear#inicio-sesion" className="font-semibold text-blue-600 underline">
                     Crea una cuenta
                   </Link>{" "}
                   para activar la prueba de 14 días.
