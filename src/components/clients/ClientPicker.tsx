@@ -8,6 +8,7 @@ import {
   type CustomerAiAutofillValues,
 } from "@/components/clients/CustomerAiAutofill";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
+import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
@@ -18,6 +19,7 @@ import {
   getCustomerDisplayName,
   sortCustomers,
 } from "@/lib/customers";
+import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import type { Client, Customer } from "@/lib/types";
 
 export interface ClientFormValues {
@@ -143,6 +145,17 @@ export function ClientPicker({
       const value = values[field];
       if (value) onChange(field, value);
     }
+  }
+
+  function handleAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
+    if (selectedCustomerId) onClearSelection();
+
+    if (suggestion.streetType) onChange("streetType", suggestion.streetType);
+    if (suggestion.streetLine || suggestion.address) {
+      onChange("address", suggestion.streetLine || suggestion.address);
+    }
+    if (suggestion.postalCode) onChange("postalCode", suggestion.postalCode);
+    if (suggestion.city) onChange("city", suggestion.city);
   }
 
   const selectedCustomer = selectedCustomerId
@@ -313,9 +326,12 @@ export function ClientPicker({
           </div>
           <div className="md:col-span-2 xl:col-span-5">
             <Field label="Nombre de vía y número">
-              <Input
+              <GoogleAddressAutocomplete
                 value={values.address}
-                onChange={(e) => handleFieldChange("address", e.target.value)}
+                onChange={(value) => handleFieldChange("address", value)}
+                onAddressSelected={handleAddressSuggestion}
+                enabled={Boolean(data.profile.googlePlaces?.enabled)}
+                displayStreetLineOnly
                 placeholder="Ej: Valencia 546 7/1"
               />
             </Field>
