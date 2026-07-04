@@ -7,6 +7,28 @@ export interface EmissionValidationResult {
   message?: string;
 }
 
+export interface InvoiceClientIdentityInput {
+  name?: string;
+  nif?: string;
+  address?: string;
+  postalCode?: string;
+  city?: string;
+}
+
+export function invoiceClientMissingDocumentLabels(
+  client: InvoiceClientIdentityInput,
+): string[] {
+  const labels: string[] = [];
+
+  if (!client.name?.trim()) labels.push("nombre o razón social del cliente");
+  if (!client.nif?.trim()) labels.push("NIF/CIF del cliente");
+  if (!client.address?.trim()) labels.push("dirección del cliente");
+  if (!client.postalCode?.trim()) labels.push("código postal del cliente");
+  if (!client.city?.trim()) labels.push("ciudad del cliente");
+
+  return labels;
+}
+
 export function ivaBreakdownByRate(
   items: LineItem[],
 ): Array<{ rate: number; base: number; quota: number }> {
