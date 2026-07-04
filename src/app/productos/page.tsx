@@ -924,7 +924,7 @@ function ProductCard({
             : ""
         }`}
       >
-        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(16rem,2fr)_minmax(9rem,0.8fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-center">
+        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(20rem,1fr)_minmax(7rem,0.45fr)_minmax(7rem,0.45fr)_auto] lg:items-center">
           <button
             type="button"
             onClick={pickMode && !editMode ? onPickForDocument : openPanel}
@@ -961,19 +961,12 @@ function ProductCard({
               </div>
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <CalendarDays className="h-3.5 w-3.5" />
-                {formatShortDate(product.lastPurchaseDate)}
+                <span>{formatShortDate(product.lastPurchaseDate)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{product.purchaseCount} compra(s)</span>
               </p>
             </div>
           </button>
-
-          <div className="min-w-0 text-sm">
-            <p className="truncate font-black text-slate-900">
-              {supplierLabel}
-            </p>
-            <p className="truncate font-semibold text-slate-500">
-              {product.purchaseCount} compra(s)
-            </p>
-          </div>
 
           <CompactValue
             label="Último coste"
