@@ -4,6 +4,7 @@ export const DEFAULT_EXPENSE_INBOX_DOMAIN = "mail.facturacion-autonomos.app";
 export const EXPENSE_INBOX_LOCAL_PART = "gastos";
 const EXPENSE_INBOX_ALIAS_FALLBACK = "mi-negocio";
 const EXPENSE_INBOX_ALIAS_MAX_LENGTH = 48;
+const EXPENSE_INBOX_PRIVATE_SUFFIX_LENGTH = 10;
 
 export type ExpenseInboxDeliveryState = "ready" | "needs_setup" | "unknown";
 
@@ -301,6 +302,33 @@ export function buildFriendlyExpenseInboxAliasToken(
     cleanBase.slice(0, baseMaxLength).replace(/-+$/g, "") ||
     EXPENSE_INBOX_ALIAS_FALLBACK;
   return `${trimmedBase}${suffix}`;
+}
+
+export function normalizeExpenseInboxPrivateSuffix(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, EXPENSE_INBOX_PRIVATE_SUFFIX_LENGTH);
+}
+
+export function buildPrivateExpenseInboxAliasToken(
+  base: string,
+  suffix: string,
+): string {
+  const cleanSuffix = normalizeExpenseInboxPrivateSuffix(suffix);
+  if (cleanSuffix.length < EXPENSE_INBOX_PRIVATE_SUFFIX_LENGTH) {
+    throw new Error("El sufijo privado del buzón no es válido.");
+  }
+
+  const cleanBase = normalizeExpenseInboxAliasBase(base);
+  const baseMaxLength = Math.max(
+    EXPENSE_INBOX_ALIAS_MAX_LENGTH - cleanSuffix.length - 1,
+    8,
+  );
+  const trimmedBase =
+    cleanBase.slice(0, baseMaxLength).replace(/-+$/g, "") ||
+    EXPENSE_INBOX_ALIAS_FALLBACK;
+  return `${trimmedBase}-${cleanSuffix}`;
 }
 
 export function nextFriendlyExpenseInboxAliasCounter(

@@ -9,12 +9,11 @@ import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
-  buildFriendlyExpenseInboxAliasToken,
   buildExpenseInboxAddress,
+  buildPrivateExpenseInboxAliasToken,
   classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
   mapExpenseInboxScanPayload,
-  nextFriendlyExpenseInboxAliasCounter,
   normalizeExpenseInboxAliasBase,
   normalizeExpenseInboxInboundPayload,
   normalizeResendReceivedEmailMetadata,
@@ -70,6 +69,7 @@ export interface ExpenseInboxIngestResult {
 const MAX_INBOX_ATTACHMENTS_PER_EMAIL = 10;
 const RESEND_API_BASE_URL = "https://api.resend.com";
 const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
+const ALIAS_HISTORY_ENTITY_TYPE = "expense_inbox_alias_history";
 const ITEM_ENTITY_TYPE = "expense_inbox_item";
 const PRIMARY_ALIAS_ENTITY_ID = "primary";
 const DELIVERY_STATUS_CACHE_MS = 5 * 60 * 1000;
@@ -199,12 +199,29 @@ function isMissingInboxTableError(error: unknown): boolean {
   );
 }
 
+function isMissingAliasHistoryTableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const source = error as { code?: string; message?: string };
+  const message = source.message?.toLowerCase() ?? "";
+  return (
+    source.code === "42P01" ||
+    message.includes("expense_inbox_alias_history")
+  );
+}
+
 function ensureAdmin(): SupabaseClient {
   const admin = getSupabaseAdmin();
   if (!admin) {
     throw new Error("Supabase no está configurado para el buzón de gastos.");
   }
   return admin;
+}
+
+function randomExpenseInboxAliasToken(aliasBase: string): string {
+  return buildPrivateExpenseInboxAliasToken(
+    aliasBase,
+    randomUUID().replace(/-/g, ""),
+  );
 }
 
 function syncPayloadToAlias(payload: unknown): ExpenseInboxAliasRow | null {
@@ -296,7 +313,7 @@ async function ensureExpenseInboxAliasInSyncEntities(
       return writeExpenseInboxAliasInSyncEntities({
         userId,
         aliasBase,
-        counterStart: 1,
+        previousAliasToken: existingAlias.alias_token,
       });
     }
 
@@ -313,47 +330,96 @@ async function ensureExpenseInboxAliasInSyncEntities(
   return writeExpenseInboxAliasInSyncEntities({
     userId,
     aliasBase,
-    counterStart: 1,
   });
 }
 
-async function syncAliasTokenTakenByAnotherUser(
-  userId: string,
-  aliasToken: string,
-): Promise<boolean> {
+async function syncAliasTokenReserved(aliasToken: string): Promise<boolean> {
   const admin = ensureAdmin();
-  const { data, error } = await admin
+  const { data: activeAlias, error: activeError } = await admin
     .from("sync_entities")
     .select("user_id")
     .eq("entity_type", ALIAS_ENTITY_TYPE)
     .eq("deleted", false)
     .filter("payload->>aliasToken", "eq", aliasToken)
-    .neq("user_id", userId)
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
-  return Boolean(data);
+  if (activeError) throw activeError;
+  if (activeAlias) return true;
+
+  const { data: historicalAlias, error: historicalError } = await admin
+    .from("sync_entities")
+    .select("user_id")
+    .eq("entity_type", ALIAS_HISTORY_ENTITY_TYPE)
+    .eq("entity_id", aliasToken)
+    .eq("deleted", false)
+    .limit(1)
+    .maybeSingle();
+
+  if (historicalError) throw historicalError;
+  return Boolean(historicalAlias);
+}
+
+async function rememberSyncExpenseInboxAlias(input: {
+  userId: string;
+  aliasToken: string;
+  previousAliasToken?: string;
+}): Promise<void> {
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+
+  if (
+    input.previousAliasToken &&
+    input.previousAliasToken !== input.aliasToken
+  ) {
+    await admin.from("sync_entities").upsert(
+      {
+        user_id: input.userId,
+        entity_type: ALIAS_HISTORY_ENTITY_TYPE,
+        entity_id: input.previousAliasToken,
+        payload: {
+          userId: input.userId,
+          aliasToken: input.previousAliasToken,
+          status: "retired",
+          retiredAt: now,
+          updatedAt: now,
+        },
+        deleted: false,
+        updated_at: now,
+      },
+      { onConflict: "user_id,entity_type,entity_id" },
+    );
+  }
+
+  await admin.from("sync_entities").upsert(
+    {
+      user_id: input.userId,
+      entity_type: ALIAS_HISTORY_ENTITY_TYPE,
+      entity_id: input.aliasToken,
+      payload: {
+        userId: input.userId,
+        aliasToken: input.aliasToken,
+        status: "active",
+        updatedAt: now,
+      },
+      deleted: false,
+      updated_at: now,
+    },
+    { onConflict: "user_id,entity_type,entity_id" },
+  );
 }
 
 async function writeExpenseInboxAliasInSyncEntities(input: {
   userId: string;
   aliasBase: string;
-  counterStart: number;
+  previousAliasToken?: string;
 }): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
   const now = new Date().toISOString();
 
-  for (
-    let counter = input.counterStart;
-    counter < input.counterStart + 50;
-    counter += 1
-  ) {
-    const aliasToken = buildFriendlyExpenseInboxAliasToken(
-      input.aliasBase,
-      counter,
-    );
-    if (await syncAliasTokenTakenByAnotherUser(input.userId, aliasToken)) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const aliasToken = randomExpenseInboxAliasToken(input.aliasBase);
+    if (await syncAliasTokenReserved(aliasToken)) {
       continue;
     }
 
@@ -376,6 +442,12 @@ async function writeExpenseInboxAliasInSyncEntities(input: {
     );
 
     if (error) throw error;
+
+    await rememberSyncExpenseInboxAlias({
+      userId: input.userId,
+      aliasToken,
+      previousAliasToken: input.previousAliasToken,
+    });
 
     return {
       userId: input.userId,
@@ -408,10 +480,7 @@ async function rotateExpenseInboxAliasInSyncEntities(
   return writeExpenseInboxAliasInSyncEntities({
     userId,
     aliasBase,
-    counterStart: nextFriendlyExpenseInboxAliasCounter(
-      aliasBase,
-      existingAlias?.alias_token,
-    ),
+    previousAliasToken: existingAlias?.alias_token,
   });
 }
 
@@ -614,7 +683,7 @@ export async function ensureExpenseInboxAlias(
       return writeExpenseInboxAlias({
         userId,
         aliasBase,
-        counterStart: 1,
+        previousAliasToken: activeExisting.alias_token,
       });
     }
 
@@ -631,26 +700,103 @@ export async function ensureExpenseInboxAlias(
   return writeExpenseInboxAlias({
     userId,
     aliasBase,
-    counterStart: 1,
   });
+}
+
+async function aliasTokenReserved(aliasToken: string): Promise<boolean> {
+  const admin = ensureAdmin();
+  const { data, error } = await admin
+    .from("expense_inbox_alias_history")
+    .select("alias_token")
+    .eq("alias_token", aliasToken)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingAliasHistoryTableError(error)) {
+      const { data: activeAlias, error: activeError } = await admin
+        .from("expense_inbox_aliases")
+        .select("alias_token")
+        .eq("alias_token", aliasToken)
+        .limit(1)
+        .maybeSingle();
+      if (activeError) throw activeError;
+      return Boolean(activeAlias);
+    }
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
+async function rememberExpenseInboxAlias(input: {
+  userId: string;
+  aliasToken: string;
+  previousAliasToken?: string;
+}): Promise<void> {
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+
+  const retirePatch = {
+    status: "retired",
+    retired_at: now,
+    updated_at: now,
+  };
+  const { error: retireActiveError } = await admin
+    .from("expense_inbox_alias_history")
+    .update(retirePatch)
+    .eq("user_id", input.userId)
+    .eq("status", "active");
+
+  if (retireActiveError) {
+    if (isMissingAliasHistoryTableError(retireActiveError)) return;
+    throw retireActiveError;
+  }
+
+  if (
+    input.previousAliasToken &&
+    input.previousAliasToken !== input.aliasToken
+  ) {
+    const { error: previousError } = await admin
+      .from("expense_inbox_alias_history")
+      .upsert(
+        {
+          user_id: input.userId,
+          alias_token: input.previousAliasToken,
+          status: "retired",
+          retired_at: now,
+          updated_at: now,
+        },
+        { onConflict: "alias_token" },
+      );
+    if (previousError) throw previousError;
+  }
+
+  const { error: activeError } = await admin
+    .from("expense_inbox_alias_history")
+    .insert(
+      {
+        user_id: input.userId,
+        alias_token: input.aliasToken,
+        status: "active",
+        updated_at: now,
+      },
+    );
+
+  if (activeError) throw activeError;
 }
 
 async function writeExpenseInboxAlias(input: {
   userId: string;
   aliasBase: string;
-  counterStart: number;
+  previousAliasToken?: string;
 }): Promise<ExpenseInboxAlias> {
   const admin = ensureAdmin();
 
-  for (
-    let counter = input.counterStart;
-    counter < input.counterStart + 50;
-    counter += 1
-  ) {
-    const aliasToken = buildFriendlyExpenseInboxAliasToken(
-      input.aliasBase,
-      counter,
-    );
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const aliasToken = randomExpenseInboxAliasToken(input.aliasBase);
+    if (await aliasTokenReserved(aliasToken)) continue;
+
     const { data, error } = await admin
       .from("expense_inbox_aliases")
       .upsert(
@@ -667,6 +813,11 @@ async function writeExpenseInboxAlias(input: {
 
     if (!error && data) {
       const row = data as ExpenseInboxAliasRow;
+      await rememberExpenseInboxAlias({
+        userId: input.userId,
+        aliasToken: row.alias_token,
+        previousAliasToken: input.previousAliasToken,
+      });
       return {
         userId: input.userId,
         aliasToken: row.alias_token,
@@ -705,10 +856,7 @@ export async function rotateExpenseInboxAlias(
   return writeExpenseInboxAlias({
     userId,
     aliasBase,
-    counterStart: nextFriendlyExpenseInboxAliasCounter(
-      aliasBase,
-      existingAlias?.alias_token,
-    ),
+    previousAliasToken: existingAlias?.alias_token,
   });
 }
 
