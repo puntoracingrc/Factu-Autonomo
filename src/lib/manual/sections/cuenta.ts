@@ -34,7 +34,7 @@ export const cuentaSection: ManualSection = {
       title: "3. Exportar o importar una copia JSON",
       paragraphs: [
         "**Exportar copia** descarga un archivo JSON con tus datos para guardarlo donde quieras.",
-        "**Importar copia** sirve para recuperar una copia JSON de Factura Autónomo. Revísalo con calma: una copia sustituye los datos locales del navegador donde la importas.",
+        "**Importar copia** sirve para recuperar una copia JSON de Facturación Autónomos. Revísalo con calma: una copia sustituye los datos locales del navegador donde la importas.",
         "Aunque uses la nube, conviene exportar una copia manual de vez en cuando.",
       ],
     },

@@ -53,7 +53,7 @@ export const inicioSection: ManualSection = {
       title: "4. Resumen del negocio e instalación",
       paragraphs: [
         "El **Resumen del negocio** aparece abierto por defecto. Puedes elegir periodo y año dentro del propio bloque, o pulsar **Ocultar resumen** si no quieres enseñar cifras.",
-        "El bloque **Instalar app** queda al final del Panel y te ayuda a añadir Factura Autónomo como acceso directo en móvil, Windows o Mac.",
+        "El bloque **Instalar app** queda al final del Panel y te ayuda a añadir Facturación Autónomos como acceso directo en móvil, Windows o Mac.",
         "Las cifras son orientativas y se calculan con los datos guardados en la app. Para el resumen fiscal trimestral, entra en **Impuestos**.",
       ],
     },

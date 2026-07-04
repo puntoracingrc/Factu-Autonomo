@@ -3,8 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, Crown } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import {
+  ArrowRight,
+  Check,
+  CircleHelp,
+  CreditCard,
+  Crown,
+  Database,
+  MailCheck,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -22,6 +32,53 @@ import {
 } from "@/lib/billing/scan-limits";
 import { getPricingRankingSummary } from "@/lib/billing/competitor-pricing";
 import { subscriptionLabel } from "@/lib/billing/subscription";
+
+const PLAN_GUIDE = [
+  {
+    title: "Empieza gratis",
+    description:
+      "Es un plan gratuito real, no una prueba camuflada: cuenta verificada, documentos limitados y sin tarjeta.",
+    Icon: MailCheck,
+    tone: "bg-blue-50 text-blue-700",
+  },
+  {
+    title: "Pasa a Pro cuando trabajes a diario",
+    description:
+      "Para documentos, clientes, productos y nube sin límites de uso normal en un negocio pequeño.",
+    Icon: Crown,
+    tone: "bg-violet-50 text-violet-700",
+  },
+  {
+    title: "Añade IA si tienes muchos gastos",
+    description:
+      "Pro+ IA tiene sentido cuando escanear compras, leer líneas y revisar márgenes empieza a ahorrar tiempo.",
+    Icon: Sparkles,
+    tone: "bg-emerald-50 text-emerald-700",
+  },
+];
+
+const TRUST_POINTS = [
+  {
+    title: "Sin tarjeta en Gratis",
+    description: "Puedes crear cuenta y empezar sin meter datos de pago.",
+    Icon: CreditCard,
+  },
+  {
+    title: "Pago gestionado por Stripe",
+    description: "Las tarjetas y facturas de suscripción se gestionan fuera de la app.",
+    Icon: ShieldCheck,
+  },
+  {
+    title: "Tus datos bajo control",
+    description: "Puedes trabajar localmente y decidir cuándo usar cuenta o nube.",
+    Icon: Database,
+  },
+  {
+    title: "Ayuda antes de pagar",
+    description: "El manual explica los flujos principales y qué hace cada plan.",
+    Icon: CircleHelp,
+  },
+];
 
 const FREE_FEATURES = [
   "Cuenta gratuita verificada, sin tarjeta",
@@ -118,6 +175,35 @@ export default function PreciosPage() {
         subtitle={rankingSummary.subtitle}
       />
 
+      <Card className="mb-6 border-blue-200 bg-blue-50/70">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
+              <MailCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">
+                Empieza gratis, sube solo cuando te compense
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                El plan Gratis sirve para empezar de verdad. Si luego necesitas
+                más documentos, nube, importación avanzada o IA, puedes elegir
+                Pro o Pro+ IA con la cuenta ya preparada.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <ButtonLink href="/cuenta?modo=crear#inicio-sesion" className="whitespace-nowrap">
+              Crear cuenta gratis
+              <ArrowRight className="h-4 w-4" />
+            </ButtonLink>
+            <ButtonLink href="/ayuda/primeros-pasos" variant="secondary" className="whitespace-nowrap">
+              Ver primeros pasos
+            </ButtonLink>
+          </div>
+        </div>
+      </Card>
+
       <CheckoutNotice />
 
       {!billingEnabled && (
@@ -148,6 +234,27 @@ export default function PreciosPage() {
         </Card>
       )}
 
+      <section className="mb-6 grid gap-4 lg:grid-cols-3" aria-label="Guía rápida de planes">
+        {PLAN_GUIDE.map(({ title, description, Icon, tone }) => (
+          <div
+            key={title}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <span
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}
+            >
+              <Icon className="h-5 w-5" />
+            </span>
+            <h2 className="mt-4 text-base font-bold text-slate-950">
+              {title}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
+          </div>
+        ))}
+      </section>
+
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Card>
           <h2 className="text-xl font-bold text-slate-900">Gratis</h2>
@@ -163,6 +270,16 @@ export default function PreciosPage() {
               </li>
             ))}
           </ul>
+          {!user && (
+            <div className="mt-5 space-y-2">
+              <ButtonLink href="/cuenta?modo=crear#inicio-sesion" fullWidth>
+                Crear cuenta gratis
+              </ButtonLink>
+              <ButtonLink href="/demo" variant="secondary" fullWidth>
+                Ver demo primero
+              </ButtonLink>
+            </div>
+          )}
         </Card>
 
         <Card className="border-violet-300 bg-violet-50/50">
@@ -232,6 +349,14 @@ export default function PreciosPage() {
           </ul>
           {plan !== "pro_plus" && (
             <div className="mt-5 space-y-2">
+              {!user && (
+                <p className="text-sm text-slate-600">
+                  <Link href="/cuenta?modo=crear#inicio-sesion" className="font-semibold text-blue-600 underline">
+                    Crea una cuenta
+                  </Link>{" "}
+                  para contratar Pro+ IA con tu email verificado.
+                </p>
+              )}
               <Button
                 fullWidth
                 onClick={() => void subscribe("pro_plus", "yearly")}
@@ -252,12 +377,33 @@ export default function PreciosPage() {
         </Card>
       </div>
 
+      <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Confianza y condiciones">
+        {TRUST_POINTS.map(({ title, description, Icon }) => (
+          <div
+            key={title}
+            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+              <Icon className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-slate-950">{title}</h2>
+              <p className="mt-1 text-sm leading-5 text-slate-600">
+                {description}
+              </p>
+            </div>
+          </div>
+        ))}
+      </section>
+
       <PricingComparisonPanel />
 
       {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs leading-5 text-slate-500">
         Precios sin IVA. Al pagar se añade el 21 % según normativa española.{" "}
+        La información fiscal de la app es orientativa y no sustituye a tu
+        gestor o asesor.{" "}
         <Link href="/legal/terminos" className="underline">
           Términos
         </Link>{" "}

@@ -393,6 +393,8 @@ describe("MVP usability polish", () => {
     expect(landingSource).toContain("Demo sin registro");
     expect(landingSource).toContain("Empezar gratis");
     expect(landingSource).toContain("Sin tarjeta para empezar");
+    expect(landingSource).toContain("¿VeriFactu gratis?");
+    expect(landingSource).toContain("incluido desde el plan Gratis");
     expect(landingSource).not.toContain("Probar gratis");
     expect(demoBannerSource).toContain("Sandbox separado");
     expect(demoBannerSource).toContain("Reiniciar demo");
@@ -475,12 +477,47 @@ describe("MVP usability polish", () => {
     expect(brandSource).toContain("La .APP para tu Negocio: Simple y Claro");
     expect(appShellSource).toContain("APP_BRAND_NAME");
     expect(appShellSource).toContain("APP_BRAND_TAGLINE");
+    expect(appShellSource).not.toContain("truncate text-xs text-slate-500");
     expect(landingSource).toContain("APP_BRAND_NAME");
     expect(layoutSource).toContain("APP_BRAND_NAME");
     expect(manifest.name).toBe("Facturación Autónomos");
     expect(manifest.description).toBe(
       "La .APP para tu Negocio: Simple y Claro",
     );
+  });
+
+  it("refuerza precios y ayuda como entrada comercial de confianza", () => {
+    const pricingSource = readFileSync(
+      new URL("../app/precios/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const helpSource = readFileSync(
+      new URL("../app/ayuda/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const comparisonSource = readFileSync(
+      new URL("../components/billing/PricingComparisonPanel.tsx", import.meta.url),
+      "utf8",
+    );
+    const competitorPricingSource = readFileSync(
+      new URL("../lib/billing/competitor-pricing.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(pricingSource).toContain(
+      "Empieza gratis, sube solo cuando te compense",
+    );
+    expect(pricingSource).toContain("plan gratuito real");
+    expect(pricingSource).toContain("Crear cuenta gratis");
+    expect(pricingSource).toContain("Pago gestionado por Stripe");
+    expect(pricingSource).toContain("Tus datos bajo control");
+    expect(pricingSource).toContain("gestor o asesor");
+    expect(helpSource).toContain("Duda típica al empezar");
+    expect(helpSource).toContain("se guarda automáticamente");
+    expect(helpSource).toContain("Probar sin tocar datos reales");
+    expect(comparisonSource).toContain("APP_BRAND_NAME");
+    expect(competitorPricingSource).toContain("APP_BRAND_NAME");
+    expect(competitorPricingSource).not.toContain("Factura Autónomo");
   });
 
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {

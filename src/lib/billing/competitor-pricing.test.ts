@@ -9,6 +9,7 @@ import {
   isPricingReviewStale,
 } from "./competitor-pricing";
 import { PLANS } from "./plans";
+import { APP_BRAND_NAME } from "../brand";
 
 describe("competitor pricing", () => {
   it("incluye solo competidores del segmento lite-invoicing", () => {
@@ -17,11 +18,12 @@ describe("competitor pricing", () => {
     expect(competitors.every((c) => c.segment === "lite-invoicing")).toBe(true);
   });
 
-  it("coloca Factura Autónomo en el ranking ordenado por precio habitual", () => {
+  it("coloca Facturación Autónomos en el ranking ordenado por precio habitual", () => {
     const ranking = buildPricingRanking();
     const us = ranking.find((entry) => entry.isUs);
 
     expect(us).toBeDefined();
+    expect(us?.name).toBe(APP_BRAND_NAME);
     expect(us?.referenceMonthlyEur).toBe(PLANS.pro.priceMonthlyEur);
     expect(ranking[0].isUs).toBe(true);
     expect(ranking.every((entry, i) => entry.rank === i + 1)).toBe(true);

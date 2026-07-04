@@ -41,7 +41,7 @@ export const importacionSection: ManualSection = {
         "Cuando la previsualización sea correcta, pulsa **Importar a esta cuenta**. Si ya habías importado ese origen antes, la app reemplaza esa importación para evitar duplicados del mismo lote.",
         "Si el archivo trae facturas antiguas marcadas como impagadas, la app te preguntará si quieres mantener ese estado o marcarlas como pagadas al importar.",
         "Antes de importar puedes pedir una **segunda revisión con IA**. Consume 1 unidad IA, no guarda cambios por sí sola y sirve para detectar dudas o riesgos en la previsualización.",
-        "Los datos creados manualmente en Factura Autónomo se conservan. Si tienes sesión en la nube y plan Pro, los cambios se sincronizan con tus otros dispositivos.",
+        "Los datos creados manualmente en Facturación Autónomos se conservan. Si tienes sesión en la nube y plan Pro, los cambios se sincronizan con tus otros dispositivos.",
       ],
     },
   ],

@@ -72,7 +72,7 @@ export function InstallAppCard() {
             Instalar app
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            Añade Factura Autónomo al móvil, Windows o Mac con su icono propio.
+            Añade Facturación Autónomos al móvil, Windows o Mac con su icono propio.
           </p>
         </div>
       </div>

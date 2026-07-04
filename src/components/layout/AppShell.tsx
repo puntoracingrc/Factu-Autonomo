@@ -189,7 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="truncate text-base font-bold text-slate-900">
                 {APP_BRAND_NAME}
               </p>
-              <p className="truncate text-xs text-slate-500">
+              <p className="text-xs leading-tight text-slate-500">
                 {APP_BRAND_TAGLINE}
               </p>
             </div>
@@ -301,7 +301,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-base font-bold text-slate-900">
                   {APP_BRAND_NAME}
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="text-xs leading-tight text-slate-500">
                   {APP_BRAND_TAGLINE}
                 </p>
               </div>

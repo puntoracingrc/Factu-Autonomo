@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   FileText,
   Landmark,
-  MailCheck,
   MonitorPlay,
   Receipt,
   ScanLine,
@@ -147,7 +146,7 @@ export function PublicLanding() {
               <p className="truncate text-base font-black text-slate-950">
                 {APP_BRAND_NAME}
               </p>
-              <p className="truncate text-xs font-medium text-slate-500">
+              <p className="text-xs font-medium leading-tight text-slate-500">
                 {APP_BRAND_TAGLINE}
               </p>
             </div>
@@ -235,10 +234,10 @@ export function PublicLanding() {
               </div>
 
               <p className="mt-5 flex max-w-xl items-start gap-2 text-sm font-medium text-slate-600">
-                <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                El plan gratis empieza con cuenta verificada, sin tarjeta. Las
-                funciones avanzadas de IA y nube tienen límites para evitar
-                abuso.
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                ¿VeriFactu gratis? Sí: incluido desde el plan Gratis con cuenta
+                verificada, sin tarjeta. Las funciones avanzadas de IA y nube
+                tienen límites para evitar abuso.
               </p>
             </div>
           </div>
