@@ -17,6 +17,7 @@ import {
   UploadCloud,
   WalletCards,
 } from "lucide-react";
+import { APP_BRAND_NAME, APP_BRAND_TAGLINE } from "@/lib/brand";
 
 const productPillars = [
   {
@@ -144,10 +145,10 @@ export function PublicLanding() {
             />
             <div className="min-w-0">
               <p className="truncate text-base font-black text-slate-950">
-                Factura Autónomo
+                {APP_BRAND_NAME}
               </p>
               <p className="truncate text-xs font-medium text-slate-500">
-                Tu negocio, simple y claro
+                {APP_BRAND_TAGLINE}
               </p>
             </div>
           </Link>
@@ -289,7 +290,7 @@ export function PublicLanding() {
               <p className="mt-4 text-base leading-7 text-slate-600">
                 La app está pensada para trabajar rápido: no tienes que crear
                 una ficha de cliente antes. Empieza el documento, rellena los
-                datos y Factura Autónomo guarda lo necesario.
+                datos y Facturación Autónomos guarda lo necesario.
               </p>
             </div>
 
@@ -404,7 +405,9 @@ export function PublicLanding() {
 
       <footer className="border-t border-slate-200 bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Factura Autónomo · Facturación clara para autónomos.</p>
+          <p>
+            {APP_BRAND_NAME} · {APP_BRAND_TAGLINE}
+          </p>
           <div className="flex flex-wrap gap-4 font-semibold">
             <Link href="/legal/aviso-legal" className="hover:text-slate-900">
               Aviso legal
