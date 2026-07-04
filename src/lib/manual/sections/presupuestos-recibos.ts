@@ -4,12 +4,13 @@ export const presupuestosSection: ManualSection = {
   slug: "presupuestos",
   title: "Presupuestos",
   summary: "Envía propuestas, controla su validez y conviértelas en factura.",
-  order: 5,
+  order: 6,
   steps: [
     {
       title: "1. Crear y enviar un presupuesto",
       paragraphs: [
         "Funciona como una factura orientada a propuesta: creas líneas, generas PDF y lo envías por email o WhatsApp.",
+        "Puedes elegir un cliente existente o rellenar sus datos dentro del presupuesto. Si el cliente no existe, se crea su ficha al guardar.",
         "El IVA se elige una vez para todo el presupuesto, no en cada línea.",
         "En las líneas puedes buscar productos detectados en compras. Si hay PVP, se inserta como precio de venta; si la app solo conoce el coste, aparece un aviso para que ajustes el precio antes de enviar.",
         "La fecha de validez se calcula con los días configurados en **Ajustes → Documentos**. En el formulario verás **Válido hasta**.",
@@ -56,7 +57,7 @@ export const recibosSection: ManualSection = {
   slug: "recibos",
   title: "Recibos",
   summary: "Justificantes de cobro, a veces creados automáticamente.",
-  order: 6,
+  order: 7,
   steps: [
     {
       title: "1. Recibo al cobrar una factura",
@@ -73,6 +74,7 @@ export const recibosSection: ManualSection = {
       title: "2. Crear un recibo manual",
       paragraphs: [
         "También puedes ir a **Recibos** → **Nuevo recibo** si necesitas un justificante independiente.",
+        "Igual que en facturas y presupuestos, puedes escribir los datos de un cliente nuevo en el propio recibo y la ficha se guardará al guardar el documento.",
         "El IVA se elige una vez para todo el recibo, igual que en facturas y presupuestos.",
         "Si escribes un producto o servicio usado antes, la app puede sugerirlo en la línea. Revisa el aviso si no existe PVP y solo se ha rellenado el coste conocido.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón **PDF** lo descarga.",

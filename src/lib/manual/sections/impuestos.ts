@@ -4,7 +4,7 @@ export const impuestosSection: ManualSection = {
   slug: "impuestos",
   title: "Impuestos y exportación",
   summary: "Resumen trimestral orientativo y CSV para tu gestor (Pro).",
-  order: 8,
+  order: 9,
   steps: [
     {
       title: "1. Ver el resumen fiscal",

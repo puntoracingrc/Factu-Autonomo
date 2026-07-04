@@ -4,10 +4,18 @@ export const clientesSection: ManualSection = {
   slug: "clientes",
   title: "Clientes",
   summary: "Guarda los datos de quien te paga para reutilizarlos en facturas.",
-  order: 3,
+  order: 4,
   steps: [
     {
-      title: "1. Añadir un cliente",
+      title: "1. No siempre tienes que crear el cliente antes",
+      paragraphs: [
+        "Puedes crear una factura, presupuesto o recibo y escribir los datos del cliente directamente en el documento.",
+        "Si ese cliente no existe, la app crea su ficha automáticamente al guardar el documento. Así puedes empezar por la factura y ordenar la ficha después.",
+        "Crear el cliente desde **Clientes** sigue siendo útil si quieres tenerlo preparado antes o revisar duplicados con calma.",
+      ],
+    },
+    {
+      title: "2. Añadir un cliente manualmente",
       paragraphs: [
         "En **Clientes** pulsa **Nuevo cliente**. Se abrirá una pantalla limpia para introducir nombre, apellidos, NIF, email y teléfono; al guardar o cancelar volverás al listado.",
         "Para la dirección, elige el **tipo de vía** (Calle, Avenida, etc.) y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni otros prefijos. Así el listado puede ordenarse bien por calle.",
@@ -20,7 +28,7 @@ export const clientesSection: ManualSection = {
       },
     },
     {
-      title: "2. Rellenar con IA desde un texto",
+      title: "3. Rellenar con IA desde un texto",
       paragraphs: [
         "Si tienes plan **Pro**, puedes pegar texto recibido por WhatsApp, email o web en **Rellenar con IA** dentro del formulario de cliente, aunque venga desordenado.",
         "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Si falta el código postal pero hay dirección y ciudad, puede intentar localizarlo automáticamente. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
@@ -31,7 +39,7 @@ export const clientesSection: ManualSection = {
       ],
     },
     {
-      title: "3. Buscar y facturar rápido",
+      title: "4. Buscar y facturar rápido",
       paragraphs: [
         "Usa el **buscador** para localizar un cliente por nombre o NIF. Al elegirlo, verás solo su ficha en el listado.",
         "El listado no carga todos los clientes de golpe: muestra un bloque inicial y después el botón **Cargar más** para que la página sea más ligera con bases grandes.",
@@ -40,16 +48,17 @@ export const clientesSection: ManualSection = {
       ],
     },
     {
-      title: "4. Unificar clientes repetidos",
+      title: "5. Unificar clientes repetidos",
       paragraphs: [
         "Si tienes clientes duplicados, usa **Unificar manualmente**. Primero busca por nombre, NIF, teléfono o email, marca los registros repetidos y elige cuál conservar.",
         "Los documentos emitidos mantienen el cliente original por seguridad histórica. Si quieres, puedes actualizar también borradores.",
       ],
     },
     {
-      title: "5. Usar un cliente en una factura",
+      title: "6. Usar un cliente en una factura",
       paragraphs: [
-        "Al crear una factura o presupuesto, busca el cliente por nombre. Sus datos se rellenan solos.",
+        "Al crear una factura o presupuesto, puedes buscar un cliente existente por nombre para rellenar sus datos al instante.",
+        "Si todavía no existe, rellena los datos del cliente en el propio documento y la app guardará la ficha al guardar.",
         "Si editas un cliente después, las facturas ya emitidas **no cambian** (conservan los datos del momento de emisión).",
       ],
       screenshot: {

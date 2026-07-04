@@ -4,7 +4,7 @@ export const facturasSection: ManualSection = {
   slug: "facturas",
   title: "Facturas",
   summary: "Crear, enviar, cobrar y recordar el pago de tus facturas.",
-  order: 4,
+  order: 5,
   intro: [
     "Las facturas son el núcleo de la app. Puedes crearlas en borrador, emitirlas en PDF, enviarlas al cliente y marcarlas como cobradas.",
   ],
@@ -13,7 +13,8 @@ export const facturasSection: ManualSection = {
       title: "1. Crear una factura nueva",
       paragraphs: [
         "Ve a **Facturas** → **Nueva factura** (o usa el acceso rápido en Panel).",
-        "Elige o crea un **cliente**, añade líneas con concepto, cantidad, unidad y precio con o sin IVA. El IVA se elige una vez para todo el documento. En escritorio las líneas se muestran compactas; en móvil se apilan para poder rellenarlas sin pelearte con la pantalla.",
+        "Puedes elegir un **cliente** ya guardado o escribir sus datos directamente en la factura. Si es nuevo, la app crea la ficha del cliente automáticamente al guardar.",
+        "Añade líneas con concepto, cantidad, unidad y precio con o sin IVA. El IVA se elige una vez para todo el documento. En escritorio las líneas se muestran compactas; en móvil se apilan para poder rellenarlas sin pelearte con la pantalla.",
         "Al escribir el concepto, la app puede sugerir productos detectados en tus compras. Si el producto tiene PVP, lo usa como precio de venta; si solo conoce el coste, lo marca con aviso para que revises el precio antes de emitir.",
         "Si tienes plan **Pro**, puedes pegar datos de facturación en **Rellenar con IA** dentro de **Datos del cliente**. La app rellena la ficha y, si es un cliente nuevo, lo guarda automáticamente al guardar la factura.",
         "Puedes poner **fecha de vencimiento**, forma de pago y notas antes de guardar. La **Vista previa borrador** usa el mismo generador de PDF que la descarga, pero sin emitir la factura.",
@@ -51,6 +52,7 @@ export const facturasSection: ManualSection = {
       paragraphs: [
         "Si el cliente tiene **email** o **teléfono** guardado, verás iconos de **Email** y **WhatsApp**.",
         "La app prepara un mensaje con el importe y, si aplica, el IBAN. En muchos móviles puedes compartir el PDF directamente; si no, se descarga para que lo adjuntes tú.",
+        "Para enviar emails o recordatorios reales necesitas haber iniciado sesión y confirmado tu email.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-enviar.png",
@@ -75,6 +77,7 @@ export const facturasSection: ManualSection = {
         "En facturas **pendientes** con contacto del cliente aparece **Recordar** (icono de campana).",
         "Se abre un cuadro con un **mensaje amable sugerido** que puedes editar antes de enviar.",
         "Puedes enviarlo por **email** (automático si el servidor de correo está configurado) o por **WhatsApp**.",
+        "Si todavía no has confirmado el email de tu cuenta, la app te pedirá hacerlo antes de enviar recordatorios reales.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-recordatorio.png",

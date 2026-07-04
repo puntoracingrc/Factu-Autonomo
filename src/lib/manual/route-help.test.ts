@@ -4,6 +4,7 @@ import { manualHelpHref, resolveManualSlug } from "./route-help";
 describe("manual route help", () => {
   it("mapea rutas principales a secciones del manual", () => {
     expect(resolveManualSlug("/")).toBe("inicio");
+    expect(resolveManualSlug("/demo")).toBe("demo");
     expect(resolveManualSlug("/facturas")).toBe("facturas");
     expect(resolveManualSlug("/facturas/nuevo")).toBe("facturas");
     expect(resolveManualSlug("/facturas/abc-123")).toBe("facturas");

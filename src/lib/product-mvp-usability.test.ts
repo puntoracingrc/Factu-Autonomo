@@ -703,6 +703,8 @@ describe("MVP usability polish", () => {
     expect(sitemapSource).toContain('"/demo"');
     expect(sitemapSource).toContain('"/precios"');
     expect(sitemapSource).toContain('"/ayuda"');
+    expect(sitemapSource).toContain('"/ayuda/demo"');
+    expect(sitemapSource).toContain('"/ayuda/cuenta"');
     expect(sitemapSource).toContain('"/legal/verifactu"');
     expect(inicioLayoutSource).toContain('canonical: "/inicio"');
     expect(preciosLayoutSource).toContain('canonical: "/precios"');
