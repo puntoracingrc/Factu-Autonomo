@@ -64,6 +64,24 @@ const EMPTY_FORM = {
 
 const CUSTOMER_LIST_BATCH_SIZE = 30;
 
+function customerWhatsappHref(phone: string): string {
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "";
+  const hasInternationalPrefix =
+    trimmed.startsWith("+") || trimmed.startsWith("00");
+  const normalized = hasInternationalPrefix
+    ? digits.replace(/^00/, "")
+    : digits.length === 9
+      ? `34${digits}`
+      : digits;
+  return `https://wa.me/${normalized}`;
+}
+
+function customerEmailHref(email: string): string {
+  return `mailto:${email.trim()}`;
+}
+
 export default function ClientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -676,16 +694,28 @@ export default function ClientesPage() {
                       )}
                       <div className="mt-2 flex min-w-0 flex-wrap gap-2">
                         {migrated.phone && (
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                          <a
+                            href={customerWhatsappHref(migrated.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+                            aria-label={`Contactar por WhatsApp con ${getCustomerDisplayName(customer)}`}
+                            title="Abrir WhatsApp"
+                          >
                             <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{migrated.phone}</span>
-                          </span>
+                          </a>
                         )}
                         {migrated.email && (
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                          <a
+                            href={customerEmailHref(migrated.email)}
+                            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+                            aria-label={`Enviar email a ${getCustomerDisplayName(customer)}`}
+                            title="Enviar email"
+                          >
                             <Mail className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{migrated.email}</span>
-                          </span>
+                          </a>
                         )}
                         {!migrated.phone && !migrated.email && (
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
