@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { FactuDailyGreeting } from "@/components/factu/FactuDailyGreeting";
 import { HomeBusinessSummary } from "@/components/dashboard/HomeBusinessSummary";
+import { DemoSandboxPanel } from "@/components/demo/DemoSandboxPanel";
 import { HomeUserReminders } from "@/components/reminders/HomeUserReminders";
 import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
@@ -99,6 +100,8 @@ export default function HomePage() {
   return (
     <div>
       <FactuDailyGreeting enabled={ready} />
+
+      <DemoSandboxPanel />
 
       <HomeUserReminders />
 
