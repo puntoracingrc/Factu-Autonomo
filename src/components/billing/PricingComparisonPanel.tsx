@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Info } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import {
   COMPARISON_METHODOLOGY,
   PRICING_REVIEW,
@@ -29,8 +30,9 @@ export function PricingComparisonPanel() {
             {summary.headline}
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Factura Autónomo no incluye banca, nóminas ni modelos AEAT automáticos:
-            solo facturación clara, gastos y resumen fiscal. Por eso Pro está en{" "}
+            {APP_BRAND_NAME} está pensada para facturar, controlar gastos y
+            orientarte con impuestos. No intenta ser banco, nóminas ni gestoría
+            automática. Por eso Pro está en{" "}
             <strong>{formatReferencePrice(ranking.find((e) => e.isUs)?.referenceMonthlyEur ?? 0)}/mes</strong>{" "}
             — por debajo de alternativas parecidas del mercado español.
           </p>

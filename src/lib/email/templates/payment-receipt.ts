@@ -1,5 +1,6 @@
 import type { BillingProfile } from "../../billing/billing-profile";
 import { formatBillingProfileSummary } from "../../billing/billing-profile";
+import { APP_BRAND_NAME } from "../../brand";
 import { VERIFACTU_SOFTWARE } from "../../verifactu/constants";
 import { getAppBaseUrl } from "../config";
 
@@ -36,9 +37,9 @@ export function buildPaymentReceiptEmail(
     ? `\n\nDescargar factura/recibo de Stripe:\n${input.invoiceUrl}`
     : "";
 
-  const text = `Hola,
+const text = `Hola,
 
-Confirmamos tu pago en Factura Autónomo.
+Confirmamos tu pago en ${APP_BRAND_NAME}.
 
 Concepto: ${input.description}
 Importe: ${input.amountLabel}
@@ -68,7 +69,7 @@ ${issuer.developerName}`;
   const html = `
     <div style="font-family:system-ui,sans-serif;line-height:1.5;color:#0f172a;max-width:560px">
       <h1 style="font-size:20px;margin:0 0 12px">Pago confirmado</h1>
-      <p>Gracias por tu pago en <strong>Factura Autónomo</strong>.</p>
+      <p>Gracias por tu pago en <strong>${APP_BRAND_NAME}</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0">
         <tr><td style="padding:6px 0;color:#64748b">Concepto</td><td style="padding:6px 0"><strong>${input.description}</strong></td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Importe</td><td style="padding:6px 0"><strong>${input.amountLabel}</strong></td></tr>
@@ -83,7 +84,7 @@ ${issuer.developerName}`;
       </p>
       ${invoiceHtml}
       <p style="color:#64748b;font-size:14px">Comprobante automático. Para cambiar tus datos de facturación, usa el portal de suscripción en Configuración.</p>
-      <p><a href="${appUrl}">Abrir Factura Autónomo</a></p>
+      <p><a href="${appUrl}">Abrir ${APP_BRAND_NAME}</a></p>
     </div>
   `.trim();
 

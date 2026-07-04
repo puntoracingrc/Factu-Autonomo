@@ -18,6 +18,7 @@ import {
   reserveStripeEvent,
 } from "@/lib/billing/stripe-events";
 import { getStripe, planFromStripePriceId } from "@/lib/billing/stripe";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -188,7 +189,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string) {
   if (!customerEmail || invoice.amount_paid == null) return;
 
   const description =
-    invoice.lines?.data?.[0]?.description?.trim() || "Factura Autónomo Pro";
+    invoice.lines?.data?.[0]?.description?.trim() || `${APP_BRAND_NAME} Pro`;
 
   void sendPaymentReceiptEmail({
     userId,

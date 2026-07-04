@@ -6,7 +6,7 @@ export const primerosPasosSection: ManualSection = {
   summary: "Configura tu negocio, entiende la navegación y prepara tus copias.",
   order: 1,
   intro: [
-    "Factura Autónomo está pensada para usarse desde el móvil o el ordenador sin complicaciones. En unos minutos puedes dejar lista la base para crear documentos con tus datos.",
+    "Facturación Autónomos está pensada para usarse desde el móvil o el ordenador sin complicaciones. En unos minutos puedes dejar lista la base para crear documentos con tus datos.",
   ],
   steps: [
     {
@@ -50,7 +50,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "4. Instala la app si quieres usarla como acceso directo",
       paragraphs: [
-        "Al final de **Panel** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Factura Autónomo al móvil, Windows o Mac con su icono propio.",
+        "Al final de **Panel** aparece el bloque **Instalar app**. Si tu navegador lo permite, podrás añadir Facturación Autónomos al móvil, Windows o Mac con su icono propio.",
       ],
     },
     {

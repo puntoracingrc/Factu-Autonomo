@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ManualSectionView } from "@/components/manual/ManualSectionView";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import {
   getManualSection,
   getManualSlugs,
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: ManualSectionPageProps) {
   if (!section) return { title: "Manual no encontrado" };
 
   return {
-    title: `${section.title} — Manual Factura Autónomo`,
+    title: `${section.title} — Manual ${APP_BRAND_NAME}`,
     description: section.summary,
   };
 }

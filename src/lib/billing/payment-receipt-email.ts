@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { APP_BRAND_NAME } from "../brand";
 import { sendEmail } from "../email/send";
 import { buildPaymentReceiptEmail } from "../email/templates/payment-receipt";
 import { getSupabaseAdmin } from "../supabase/admin";
@@ -111,7 +112,7 @@ export function receiptFromCheckoutSession(
   const description =
     session.metadata?.checkout_type === "scan_pack"
       ? "Pack de 10 escaneos extra"
-      : "Factura Autónomo Pro";
+      : `${APP_BRAND_NAME} Pro`;
 
   const customerEmail =
     session.customer_details?.email?.trim() ||

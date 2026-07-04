@@ -1,4 +1,5 @@
 import { PLANS } from "./plans";
+import { APP_BRAND_NAME } from "../brand";
 
 /** Revisar trimestralmente y actualizar lastVerified + precios. Ver docs/MARKET_PRICING.md */
 export const PRICING_REVIEW_MAX_STALE_DAYS = 90;
@@ -145,7 +146,7 @@ export const COMPARABLE_COMPETITORS: ComparableCompetitor[] = [
 ];
 
 export const COMPARISON_METHODOLOGY = [
-  "Solo entran herramientas de facturación para autónomos con funciones parecidas a Factura Autónomo.",
+  `Solo entran herramientas de facturación para autónomos con funciones parecidas a ${APP_BRAND_NAME}.`,
   "Comparamos el plan de pago más cercano a Pro: facturas, presupuestos y gastos básicos.",
   "Excluimos ERP (Holded completo), nóminas, banca y contabilidad asistida.",
   "El ranking usa el precio mensual habitual publicado, no promos temporales.",
@@ -158,7 +159,7 @@ function ourComparableEntry(): ComparableCompetitor {
 
   return {
     id: OUR_PRODUCT_ID,
-    name: "Factura Autónomo",
+    name: APP_BRAND_NAME,
     planName: "Pro",
     segment: "lite-invoicing",
     referenceMonthlyEur: monthly,
