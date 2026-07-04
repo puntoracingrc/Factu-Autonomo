@@ -184,7 +184,7 @@ export function PublicLanding() {
               Iniciar sesión
             </Link>
             <Link
-              href="/cuenta#inicio-sesion"
+              href="/cuenta?modo=crear#inicio-sesion"
               className="inline-flex min-h-10 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
             >
               Probar gratis
@@ -212,7 +212,7 @@ export function PublicLanding() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href="/cuenta#inicio-sesion"
+                  href="/cuenta?modo=crear#inicio-sesion"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-bold text-white shadow-sm hover:bg-blue-700"
                 >
                   Probar gratis
@@ -376,7 +376,7 @@ export function PublicLanding() {
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/cuenta#inicio-sesion"
+                href="/cuenta?modo=crear#inicio-sesion"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-bold text-white shadow-sm hover:bg-blue-700"
               >
                 Crear cuenta gratis

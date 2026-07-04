@@ -17,6 +17,7 @@ import {
   CloudSyncNavBadge,
   CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
+import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
 import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
@@ -424,6 +425,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <DemoModeBanner />
+        <GuestLocalDataBanner />
 
         <FactuOccasionalHost />
 

@@ -38,7 +38,7 @@ export function DemoModeBanner() {
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => leaveDemo("/cuenta#inicio-sesion")}
+            onClick={() => leaveDemo("/cuenta?modo=crear#inicio-sesion")}
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <LogIn className="h-4 w-4" />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { Field, Textarea } from "@/components/ui/Field";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
@@ -36,6 +37,7 @@ export function PaymentReminderButton({
 }: PaymentReminderButtonProps) {
   const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
+  const { user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<PaymentReminderChannel | null>(null);
@@ -60,6 +62,13 @@ export function PaymentReminderButton({
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
+    if (!user) {
+      showFactuToast(
+        "Inicia sesión para enviar recordatorios reales a clientes.",
+        5000,
+      );
+      return;
+    }
     if (demoMode) {
       showFactuToast(
         "En modo demo no se envían recordatorios a clientes.",
@@ -79,6 +88,10 @@ export function PaymentReminderButton({
   }
 
   async function handleSend(channel: PaymentReminderChannel) {
+    if (!user) {
+      setError("Inicia sesión para enviar recordatorios reales a clientes.");
+      return;
+    }
     setBusy(channel);
     setError(null);
 
@@ -127,9 +140,18 @@ export function PaymentReminderButton({
     ) : (
       <IconActionButton
         label={PAYMENT_REMINDER_COPY.triggerLabel}
-        tooltip={PAYMENT_REMINDER_COPY.triggerTooltip}
+        tooltip={
+          user
+            ? PAYMENT_REMINDER_COPY.triggerTooltip
+            : "Inicia sesión para enviar recordatorios"
+        }
         onClick={handleOpen}
-        className="bg-amber-50 text-amber-800 hover:bg-amber-100"
+        disabled={!user}
+        className={
+          user
+            ? "bg-amber-50 text-amber-800 hover:bg-amber-100"
+            : "cursor-not-allowed bg-slate-100 text-slate-300"
+        }
       >
         <Bell className="h-5 w-5" />
       </IconActionButton>
