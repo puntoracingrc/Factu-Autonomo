@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  CircleHelp,
+  Edit3,
   Eye,
   GripVertical,
   PackageCheck,
@@ -35,6 +37,7 @@ import { useBilling } from "@/context/BillingContext";
 import {
   formatMoney,
   formatShortDate,
+  roundMoney,
   todayISO,
   unitPriceFromGross,
   unitPriceGross,
@@ -153,7 +156,11 @@ interface LineProductPricingState {
   basePrice: number;
   markupPercent: number;
   priceSource: DocumentProductSalePriceSource;
+  productKey?: string;
+  productId?: string;
   productName: string;
+  costUnitPrice?: number;
+  costIvaPercent?: number;
 }
 
 interface LineAreaDraft {
@@ -198,6 +205,61 @@ function productPriceSourceTone(
   source: DocumentProductSalePriceSource,
 ): string {
   return source === "sale" ? "text-emerald-700" : "text-amber-800";
+}
+
+function lineProductCostSummary(
+  pricing: LineProductPricingState,
+  item: LineItem,
+  irpfPercent: number,
+  vatExempt: boolean,
+): {
+  text: string;
+  tone: string;
+  tooltip: string;
+} {
+  const quantity =
+    Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+  const costUnitPrice =
+    Number.isFinite(pricing.costUnitPrice) && (pricing.costUnitPrice ?? 0) > 0
+      ? (pricing.costUnitPrice ?? 0)
+      : pricing.priceSource === "cost"
+        ? pricing.basePrice
+        : undefined;
+
+  if (!costUnitPrice) {
+    return {
+      text: `Referencia: ${formatMoney(pricing.basePrice)} ${productPriceSourceLabel(
+        pricing.priceSource,
+      )} sin IVA${pricing.markupPercent === -1 ? " · precio manual" : ""}`,
+      tone: productPriceSourceTone(pricing.priceSource),
+      tooltip:
+        "Todavía no hay coste de material guardado para este producto, así que la app no puede estimar el margen real de esta línea.",
+    };
+  }
+
+  const saleBase = roundMoney(item.unitPrice * quantity);
+  const costBase = roundMoney(costUnitPrice * quantity);
+  const costIva = vatExempt
+    ? 0
+    : roundMoney(
+        costBase * ((pricing.costIvaPercent ?? item.ivaPercent ?? 0) / 100),
+      );
+  const grossMargin = roundMoney(saleBase - costBase);
+  const irpfEstimate =
+    grossMargin > 0 ? roundMoney(grossMargin * (irpfPercent / 100)) : 0;
+  const netMargin = roundMoney(grossMargin - irpfEstimate);
+  const manualText = pricing.markupPercent === -1 ? " · precio manual" : "";
+
+  return {
+    text: `Coste: ${formatMoney(costBase)} + IVA deducible: ${formatMoney(
+      costIva,
+    )} · Margen: ${formatMoney(grossMargin)} · Tras IRPF ${irpfPercent}%: ${formatMoney(
+      netMargin,
+    )}${manualText}`,
+    tone: grossMargin < 0 ? "text-red-700" : "text-emerald-700",
+    tooltip:
+      "Margen estimado: precio de venta sin IVA menos coste del material sin IVA. El IVA se muestra aparte porque normalmente el IVA soportado se deduce del IVA repercutido; si estás en régimen sin IVA, no se deduce. La cifra tras IRPF aplica el porcentaje configurado en la app sobre ese margen, como orientación para decidir si el precio compensa.",
+  };
 }
 
 function productPriceSourceWarning(
@@ -357,6 +419,9 @@ export function DocumentForm({
   const [focusedProductLineId, setFocusedProductLineId] = useState<
     string | null
   >(null);
+  const [openMarginInfoLineId, setOpenMarginInfoLineId] = useState<
+    string | null
+  >(null);
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
@@ -412,7 +477,11 @@ export function DocumentForm({
           basePrice: pickedLine.draftLine.basePrice,
           markupPercent: 0,
           priceSource: pickedLine.draftLine.priceSource,
+          productKey: pickedLine.draftLine.productKey,
+          productId: pickedLine.draftLine.productId,
           productName: pickedLine.draftLine.productName,
+          costUnitPrice: pickedLine.draftLine.costUnitPrice,
+          costIvaPercent: pickedLine.draftLine.costIvaPercent,
         },
       };
     }
@@ -464,7 +533,11 @@ export function DocumentForm({
             basePrice: draft.lines[index].basePrice,
             markupPercent: 0,
             priceSource: draft.lines[index].priceSource,
+            productKey: draft.lines[index].productKey,
+            productId: draft.lines[index].productId,
             productName: draft.lines[index].productName,
+            costUnitPrice: draft.lines[index].costUnitPrice,
+            costIvaPercent: draft.lines[index].costIvaPercent,
           },
         ]),
       ),
@@ -666,7 +739,14 @@ export function DocumentForm({
         basePrice: applied.basePrice,
         markupPercent: 0,
         priceSource: applied.priceSource,
+        productKey: product.key,
+        productId: product.productId,
         productName: product.name,
+        costUnitPrice:
+          product.purchaseNetUnitCost ??
+          product.lastUnitPrice ??
+          product.averageUnitPrice,
+        costIvaPercent: product.ivaPercent ?? product.saleIvaPercent,
       },
     }));
     setFocusedProductLineId(null);
@@ -675,10 +755,13 @@ export function DocumentForm({
   function openProductFlowForLine(
     item: LineItem,
     destination: "/productos" | "/productos/nuevo",
+    mode: "pick" | "edit" = "pick",
   ) {
     const currentItems = itemsRef.current;
     const currentItem =
       currentItems.find((entry) => entry.id === item.id) ?? item;
+    const currentPricing =
+      lineProductPricing[currentItem.id] ?? lineProductPricing[item.id];
     const returnPath = documentFormReturnPath(type, existing);
     const createdAt = new Date().toISOString();
     const description = currentItem.description.trim();
@@ -708,6 +791,9 @@ export function DocumentForm({
       returnPath,
       targetLineId: item.id,
       createdAt,
+      mode,
+      productKey: currentPricing?.productKey,
+      productId: currentPricing?.productId,
       prefill: {
         name: description || undefined,
         description: description || undefined,
@@ -1120,6 +1206,17 @@ export function DocumentForm({
                     )
                   : [];
               const productPricing = lineProductPricing[item.id];
+              const productCostSummary = productPricing
+                ? lineProductCostSummary(
+                    productPricing,
+                    item,
+                    data.profile.irpfPercent ?? 20,
+                    vatExempt,
+                  )
+                : null;
+              const hasLinkedProduct = Boolean(
+                productPricing?.productKey || productPricing?.productId,
+              );
               const grossPrice = unitPriceGross(
                 item.unitPrice,
                 effectiveDocumentIva,
@@ -1212,19 +1309,32 @@ export function DocumentForm({
                       placeholder="Concepto libre o @producto"
                       className={`${compactInputClass} placeholder:text-slate-400`}
                     />
-                    {productPricing && (
-                      <p
-                        className={`mt-1 text-xs font-semibold ${productPriceSourceTone(
-                          productPricing.priceSource,
-                        )}`}
-                      >
-                        Base: {formatMoney(productPricing.basePrice)}{" "}
-                        {productPriceSourceLabel(productPricing.priceSource)} sin
-                        IVA
-                        {productPricing.markupPercent === -1
-                          ? " · precio manual"
-                          : ""}
-                      </p>
+                    {productCostSummary && (
+                      <>
+                        <p
+                          className={`mt-1 flex items-center gap-1.5 text-xs font-semibold ${productCostSummary.tone}`}
+                        >
+                          <span>{productCostSummary.text}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMarginInfoLineId((current) =>
+                                current === item.id ? null : item.id,
+                              )
+                            }
+                            aria-label="Qué significa el margen estimado"
+                            title={productCostSummary.tooltip}
+                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                          >
+                            <CircleHelp className="h-3.5 w-3.5" />
+                          </button>
+                        </p>
+                        {openMarginInfoLineId === item.id ? (
+                          <p className="mt-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold leading-relaxed text-slate-600">
+                            {productCostSummary.tooltip}
+                          </p>
+                        ) : null}
+                      </>
                     )}
                     {suggestions.length > 0 && (
                       <div className="mt-2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -1385,17 +1495,31 @@ export function DocumentForm({
                     >
                       <PackageSearch className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openProductFlowForLine(item, "/productos/nuevo")
-                      }
-                      aria-label={`Crear producto desde línea ${index + 1}`}
-                      title="Crear producto"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                    >
-                      <PackagePlus className="h-4 w-4" />
-                    </button>
+                    {hasLinkedProduct ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openProductFlowForLine(item, "/productos", "edit")
+                        }
+                        aria-label={`Editar producto de línea ${index + 1}`}
+                        title="Editar producto"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openProductFlowForLine(item, "/productos/nuevo")
+                        }
+                        aria-label={`Crear producto desde línea ${index + 1}`}
+                        title="Crear producto"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                      >
+                        <PackagePlus className="h-4 w-4" />
+                      </button>
+                    )}
                     {items.length > 1 && (
                       <button
                         type="button"
