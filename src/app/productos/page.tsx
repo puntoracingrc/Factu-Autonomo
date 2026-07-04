@@ -80,6 +80,17 @@ function numberToInput(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? "" : String(value);
 }
 
+function productMatchesDocumentPickRequest(
+  product: PurchaseProductSummary,
+  request: DocumentProductPickRequest | null,
+): boolean {
+  if (!request) return false;
+  return Boolean(
+    (request.productId && product.productId === request.productId) ||
+    (request.productKey && product.key === request.productKey),
+  );
+}
+
 export default function ProductosPage() {
   const router = useRouter();
   const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
@@ -184,6 +195,23 @@ export default function ProductosPage() {
     setDocumentPickRequest(getDocumentProductPickRequest());
   }, []);
 
+  useEffect(() => {
+    if (
+      documentPickRequest?.mode !== "edit" ||
+      (!documentPickRequest.productId && !documentPickRequest.productKey)
+    ) {
+      return;
+    }
+    const targetProduct = products.find((product) =>
+      productMatchesDocumentPickRequest(product, documentPickRequest),
+    );
+    if (!targetProduct) return;
+    setQuery(targetProduct.name);
+    setFamily(ALL);
+    setSupplier(ALL);
+    setSort("name");
+  }, [documentPickRequest, products]);
+
   function toggleProductForDraft(product: PurchaseProductSummary) {
     setSelectedProductKeys((current) =>
       current.includes(product.key)
@@ -228,6 +256,30 @@ export default function ProductosPage() {
     }
     clearDocumentProductPickRequest();
     router.push(documentPickRequest.returnPath);
+  }
+
+  function handlePickSavedProductForDocument(savedProduct: Product) {
+    if (!documentPickRequest) return;
+    const catalogProducts = data.products.some(
+      (product) => product.id === savedProduct.id,
+    )
+      ? data.products.map((product) =>
+          product.id === savedProduct.id ? savedProduct : product,
+        )
+      : [...data.products, savedProduct];
+    const savedSummary = buildPurchaseProductSummaries(
+      data.expenses,
+      catalogProducts,
+    ).find(
+      (product) =>
+        product.productId === savedProduct.id ||
+        product.key === savedProduct.key,
+    );
+    if (!savedSummary) {
+      alert("El producto se ha guardado, pero no se pudo llevar al documento.");
+      return;
+    }
+    handlePickProductForDocument(savedSummary);
   }
 
   function cancelDocumentPick() {
@@ -517,20 +569,37 @@ export default function ProductosPage() {
           ) : null}
 
           <div className="grid gap-4">
-            {visibleProducts.map((product) => (
-              <ProductCard
-                key={product.key}
-                product={product}
-                allProducts={products}
-                selected={selectedProductKeys.includes(product.key)}
-                pickMode={Boolean(documentPickRequest)}
-                onToggleSelected={() => toggleProductForDraft(product)}
-                onPickForDocument={() => handlePickProductForDocument(product)}
-                onSave={(patch) => saveProductPatch(product, patch)}
-                onDelete={deleteProduct}
-                onMerge={(removeKey) => handleMergeProducts(product, removeKey)}
-              />
-            ))}
+            {visibleProducts.map((product) => {
+              const targetFromDocument = productMatchesDocumentPickRequest(
+                product,
+                documentPickRequest,
+              );
+              return (
+                <ProductCard
+                  key={product.key}
+                  product={product}
+                  allProducts={products}
+                  selected={selectedProductKeys.includes(product.key)}
+                  pickMode={Boolean(documentPickRequest)}
+                  editMode={
+                    documentPickRequest?.mode === "edit" && targetFromDocument
+                  }
+                  startOpen={
+                    documentPickRequest?.mode === "edit" && targetFromDocument
+                  }
+                  onToggleSelected={() => toggleProductForDraft(product)}
+                  onPickForDocument={() =>
+                    handlePickProductForDocument(product)
+                  }
+                  onPickSavedProduct={handlePickSavedProductForDocument}
+                  onSave={(patch) => saveProductPatch(product, patch)}
+                  onDelete={deleteProduct}
+                  onMerge={(removeKey) =>
+                    handleMergeProducts(product, removeKey)
+                  }
+                />
+              );
+            })}
           </div>
           {visibleProducts.length < filteredProducts.length ? (
             <div className="flex justify-center">
@@ -608,8 +677,11 @@ function ProductCard({
   allProducts,
   selected,
   pickMode,
+  editMode,
+  startOpen,
   onToggleSelected,
   onPickForDocument,
+  onPickSavedProduct,
   onSave,
   onDelete,
   onMerge,
@@ -618,9 +690,12 @@ function ProductCard({
   allProducts: PurchaseProductSummary[];
   selected: boolean;
   pickMode: boolean;
+  editMode: boolean;
+  startOpen: boolean;
   onToggleSelected: () => void;
   onPickForDocument: () => void;
-  onSave: (patch: Partial<Product>) => void;
+  onPickSavedProduct?: (product: Product) => void;
+  onSave: (patch: Partial<Product>) => Product;
   onDelete: (id: string) => void;
   onMerge: (removeKey: string) => void;
 }) {
@@ -747,6 +822,11 @@ function ProductCard({
     setPanelOpen(true);
   }
 
+  useEffect(() => {
+    if (!startOpen) return;
+    setPanelOpen(true);
+  }, [startOpen]);
+
   function saveEdits() {
     const parsedSalePrice = parseOptionalNumber(salePrice);
     const parsedSaleIva = parseOptionalNumber(saleIvaPercent);
@@ -766,7 +846,7 @@ function ProductCard({
     const manualPurchaseUnit =
       normalizeDocumentUnitId(purchaseUnit) ?? purchaseUnit.trim();
     const normalizedPurchaseUnit = manualPurchaseUnit || normalizedSaleUnit;
-    onSave({
+    const savedProduct = onSave({
       sku: sku.trim() || undefined,
       name: name.trim() || product.name,
       family: family.trim() || "Sin familia",
@@ -806,6 +886,9 @@ function ProductCard({
       source: product.source,
     });
     setPanelOpen(false);
+    if (pickMode) {
+      onPickSavedProduct?.(savedProduct);
+    }
   }
 
   function mergeSelectedProduct() {
@@ -844,7 +927,7 @@ function ProductCard({
         <div className="grid gap-3 p-3 lg:grid-cols-[minmax(16rem,2fr)_minmax(9rem,0.8fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-center">
           <button
             type="button"
-            onClick={pickMode ? onPickForDocument : openPanel}
+            onClick={pickMode && !editMode ? onPickForDocument : openPanel}
             className="min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <div className="flex min-w-0 flex-col gap-1">
@@ -901,37 +984,39 @@ function ProductCard({
             <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
               {volumeLabel}
             </span>
-            <button
-              type="button"
-              onClick={pickMode ? onPickForDocument : onToggleSelected}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                pickMode
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : selected
-                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                    : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-              }`}
-              aria-label={
-                pickMode
-                  ? "Usar producto en el documento"
-                  : selected
-                    ? "Quitar producto del documento"
-                    : "Añadir producto a un documento"
-              }
-              title={
-                pickMode
-                  ? "Usar en esta línea del documento"
-                  : selected
-                    ? "Quitar del documento"
-                    : "Añadir a factura, presupuesto o recibo"
-              }
-            >
-              {pickMode || selected ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-            </button>
+            {!editMode ? (
+              <button
+                type="button"
+                onClick={pickMode ? onPickForDocument : onToggleSelected}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                  pickMode
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : selected
+                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                      : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                }`}
+                aria-label={
+                  pickMode
+                    ? "Usar producto en el documento"
+                    : selected
+                      ? "Quitar producto del documento"
+                      : "Añadir producto a un documento"
+                }
+                title={
+                  pickMode
+                    ? "Usar en esta línea del documento"
+                    : selected
+                      ? "Quitar del documento"
+                      : "Añadir a factura, presupuesto o recibo"
+                }
+              >
+                {pickMode || selected ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={openPanel}
@@ -1150,7 +1235,7 @@ function ProductCard({
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
             >
               <Save className="h-4 w-4" />
-              Guardar y cerrar
+              {pickMode ? "Guardar y volver" : "Guardar y cerrar"}
             </button>
             <p className="text-sm font-semibold text-blue-900">
               Estos datos se recordarán para futuros escaneos del mismo

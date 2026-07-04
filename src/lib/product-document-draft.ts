@@ -14,9 +14,12 @@ const DOCUMENT_PRODUCT_PICKED_LINE_KEY =
 
 export interface ProductDocumentDraftLine {
   productKey: string;
+  productId?: string;
   productName: string;
   basePrice: number;
   priceSource: DocumentProductSalePriceSource;
+  costUnitPrice?: number;
+  costIvaPercent?: number;
   line: Omit<LineItem, "id">;
 }
 
@@ -31,7 +34,11 @@ export interface DocumentProductLinePricingDraft {
   basePrice: number;
   markupPercent: number;
   priceSource: DocumentProductSalePriceSource;
+  productKey?: string;
+  productId?: string;
   productName: string;
+  costUnitPrice?: number;
+  costIvaPercent?: number;
 }
 
 export interface DocumentProductAreaDraft {
@@ -68,6 +75,9 @@ export interface DocumentProductPickRequest {
   returnPath: string;
   targetLineId: string;
   createdAt: string;
+  mode?: "pick" | "edit";
+  productKey?: string;
+  productId?: string;
   prefill?: {
     name?: string;
     description?: string;
@@ -75,6 +85,14 @@ export interface DocumentProductPickRequest {
     unitPrice?: number;
     ivaPercent?: number;
   };
+}
+
+function firstPositiveNumber(
+  ...values: Array<number | undefined>
+): number | undefined {
+  return values.find(
+    (value): value is number => Number.isFinite(value) && (value ?? 0) > 0,
+  );
 }
 
 export interface DocumentProductPickedLine {
@@ -92,9 +110,16 @@ export function productSummaryToDocumentDraftLine(
   const price = documentProductSaleUnitPriceInfo(product);
   return {
     productKey: product.key,
+    productId: product.productId,
     productName: product.name,
     basePrice: price.unitPrice,
     priceSource: price.source,
+    costUnitPrice: firstPositiveNumber(
+      product.purchaseNetUnitCost,
+      product.lastUnitPrice,
+      product.averageUnitPrice,
+    ),
+    costIvaPercent: product.ivaPercent ?? product.saleIvaPercent ?? defaultIva,
     line: {
       description: product.saleDescription || product.name,
       quantity: 1,

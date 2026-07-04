@@ -49,13 +49,18 @@ describe("product document draft", () => {
         lastUnitPrice: 18,
         averageUnitPrice: 17,
         ivaPercent: 21,
+        productId: "product-panel",
       }),
     );
 
     expect(line).toMatchObject({
+      productKey: "panel blanco",
+      productId: "product-panel",
       productName: "Panel blanco",
       basePrice: 45,
       priceSource: "sale",
+      costUnitPrice: 18,
+      costIvaPercent: 21,
       line: {
         description: "Panel blanco vendido",
         quantity: 1,
@@ -121,21 +126,33 @@ describe("product document draft", () => {
       returnPath: "/facturas/nuevo",
       targetLineId: "line-1",
       createdAt: "2026-07-04T00:00:00.000Z",
+      mode: "edit" as const,
+      productKey: "panel blanco",
+      productId: "product-panel",
       prefill: { name: "Panel" },
     };
 
     expect(saveDocumentProductPickRequest(request)).toBe(true);
     expect(getDocumentProductPickRequest()).toMatchObject({
       targetLineId: "line-1",
+      mode: "edit",
+      productKey: "panel blanco",
+      productId: "product-panel",
       prefill: { name: "Panel" },
     });
 
-    const picked = productSummaryToPickedLine(summary("Panel blanco"), request);
+    const picked = productSummaryToPickedLine(
+      summary("Panel blanco", { productId: "product-panel" }),
+      request,
+    );
     expect(saveDocumentProductPickedLine(picked)).toBe(true);
     expect(consumeDocumentProductPickedLine("factura")).toMatchObject({
       targetLineId: "line-1",
       draftLine: {
+        productKey: "panel blanco",
+        productId: "product-panel",
         productName: "Panel blanco",
+        costUnitPrice: 8,
         line: { description: "Panel blanco" },
       },
     });
