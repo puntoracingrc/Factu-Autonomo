@@ -19,6 +19,7 @@ import { HomeFactuTip } from "@/components/recommendations/HomeFactuTip";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PublicLanding } from "@/components/marketing/PublicLanding";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { useAppRecommendations } from "@/hooks/useAppRecommendations";
 import { useAppStore } from "@/context/AppStore";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
@@ -84,13 +85,14 @@ const quickActions = [
 export default function HomePage() {
   const { data, ready } = useAppStore();
   const { authReady, user } = useCloudSync();
+  const demoMode = useDemoWorkspaceMode();
   const { badgeCount: alertCount } = useAppRecommendations();
 
   if (!ready || !authReady) {
     return <p className="text-center text-slate-500">Cargando...</p>;
   }
 
-  if (!user && !hasWorkspaceContent(data)) {
+  if (!demoMode && !user && !hasWorkspaceContent(data)) {
     return <PublicLanding />;
   }
 

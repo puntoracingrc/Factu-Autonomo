@@ -15,6 +15,11 @@ import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
+import {
+  DEMO_WORKSPACE_STORAGE_KEY,
+  createDemoWorkspaceData,
+  isDemoWorkspaceMode,
+} from "./demo-workspace";
 import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -47,6 +52,10 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
 }
 
 const STORAGE_KEY = "factura-autonomo-data";
+
+function currentStorageKey(): string {
+  return isDemoWorkspaceMode() ? DEMO_WORKSPACE_STORAGE_KEY : STORAGE_KEY;
+}
 
 export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
   const documents = (parsed.documents ?? []).map((document) =>
@@ -98,11 +107,13 @@ export function getDataTimestamp(data: AppData): string {
 export function loadData(): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_DATA;
+    const raw = localStorage.getItem(currentStorageKey());
+    if (!raw) {
+      return isDemoWorkspaceMode() ? createDemoWorkspaceData() : EMPTY_DATA;
+    }
     return normalizeLoadedData(JSON.parse(raw));
   } catch {
-    return EMPTY_DATA;
+    return isDemoWorkspaceMode() ? createDemoWorkspaceData() : EMPTY_DATA;
   }
 }
 
@@ -131,14 +142,15 @@ function inMemoryDataIsEmpty(data: AppData): boolean {
 export function saveData(data: AppData): void {
   if (typeof window === "undefined") return;
   try {
-    const existing = localStorage.getItem(STORAGE_KEY);
+    const storageKey = currentStorageKey();
+    const existing = localStorage.getItem(storageKey);
     if (existing && inMemoryDataIsEmpty(data)) {
       const parsed = JSON.parse(existing) as Partial<AppData>;
       if (storedDataHasContent(parsed)) {
         return;
       }
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(storageKey, JSON.stringify(data));
   } catch (error) {
     console.error("No se pudo guardar en localStorage:", error);
   }

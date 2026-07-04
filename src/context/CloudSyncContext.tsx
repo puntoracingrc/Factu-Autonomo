@@ -44,6 +44,9 @@ import {
 import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
+import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
+import { loadData } from "@/lib/storage";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { EMPTY_DATA } from "@/lib/types";
 import { reportAppError } from "@/lib/monitoring/client";
@@ -89,6 +92,7 @@ const PULL_INTERVAL_MS = 45_000;
 
 export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const { data, ready, replaceData } = useAppStore();
+  const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
   const [authReady, setAuthReady] = useState(!cloudEnabled);
   const [user, setUser] = useState<User | null>(null);
@@ -111,11 +115,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
   const pendingUpload =
-    hasPendingSyncChanges(data) ||
-    isSyncPendingFlag() ||
-    hasUnsyncedChanges(data);
+    !demoMode &&
+    (hasPendingSyncChanges(data) ||
+      isSyncPendingFlag() ||
+      hasUnsyncedChanges(data));
 
   const updatePendingStatus = useCallback(() => {
+    if (demoMode) {
+      setSyncStatus("idle");
+      setSyncMessage("Modo demo: los datos ficticios no se suben a la nube.");
+      return;
+    }
     if (!user || !cloudEnabled) return;
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
@@ -132,7 +142,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } else if (syncStatus !== "syncing" && syncStatus !== "error") {
       setSyncStatus("synced");
     }
-  }, [cloudEnabled, data, pendingChangeCount, syncStatus, user]);
+  }, [cloudEnabled, data, demoMode, pendingChangeCount, syncStatus, user]);
 
   const finalizeSyncState = useCallback(
     (payload: typeof data) => {
@@ -163,6 +173,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const pushToCloud = useCallback(
     async (payload = data, silent = false): Promise<boolean> => {
+      if (demoMode) {
+        setSyncStatus("idle");
+        setSyncMessage("Modo demo: no se sincronizan datos ficticios.");
+        return false;
+      }
       if (!user) return false;
 
       const cloudAccess = await canUseCloudForUser(user.id);
@@ -227,11 +242,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [data, replaceData, user],
+    [data, demoMode, replaceData, user],
   );
 
   const flushPendingUpload = useCallback(
     async (silent = true, payload = dataRef.current) => {
+      if (demoMode) return false;
       if (!user) return false;
       if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
         clearSyncPending();
@@ -244,10 +260,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncing.current = false;
       return ok;
     },
-    [pushToCloud, user],
+    [demoMode, pushToCloud, user],
   );
 
   const pullFromCloud = useCallback(async () => {
+    if (demoMode) return;
     if (!user) return;
 
     const cloudAccess = await canUseCloudForUser(user.id);
@@ -361,7 +378,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
       skipPush.current = false;
     }
-  }, [finalizeSyncState, flushPendingUpload, replaceData, user]);
+  }, [demoMode, finalizeSyncState, flushPendingUpload, replaceData, user]);
 
   const pullFromCloudRef = useRef(pullFromCloud);
   pullFromCloudRef.current = pullFromCloud;
@@ -372,6 +389,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const forceDownloadFromCloud = useCallback(async () => {
+    if (demoMode) {
+      setSyncMessage("Sal de la demo para descargar datos reales de la nube.");
+      return;
+    }
     if (!user) return;
 
     if (syncing.current) {
@@ -448,9 +469,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       syncing.current = false;
     }
-  }, [replaceLocalDataFromCloud, user]);
+  }, [demoMode, replaceLocalDataFromCloud, user]);
 
   const schedulePush = useCallback(() => {
+    if (demoMode) return;
     if (!ready || !user || skipPush.current) return;
     if (!pendingUpload) return;
 
@@ -461,12 +483,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     pushTimer.current = setTimeout(() => {
       void flushPendingUpload(true);
     }, 2000);
-  }, [flushPendingUpload, pendingUpload, ready, updatePendingStatus, user]);
+  }, [demoMode, flushPendingUpload, pendingUpload, ready, updatePendingStatus, user]);
 
   useEffect(() => {
     setOnline(isBrowserOnline());
     function handleOnline() {
       setOnline(true);
+      if (demoMode) return;
       void flushPendingUpload(true);
     }
     function handleOffline() {
@@ -481,7 +504,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [flushPendingUpload]);
+  }, [demoMode, flushPendingUpload]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -525,18 +548,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [schedulePush]);
 
   useEffect(() => {
-    if (!ready || !user) return;
+    if (!demoMode || !ready || !user) return;
+    setDemoWorkspaceMode(false);
+    replaceLocalDataFromCloud(loadData());
+    setSyncMessage("Demo cerrada al iniciar sesión. Ya estás en tu espacio real.");
+  }, [demoMode, ready, replaceLocalDataFromCloud, user]);
+
+  useEffect(() => {
+    if (demoMode || !ready || !user) return;
     if (pulledForUser.current === user.id) return;
     pulledForUser.current = user.id;
     void pullFromCloud();
-  }, [ready, user, pullFromCloud]);
+  }, [demoMode, ready, user, pullFromCloud]);
 
   useEffect(() => {
     if (!user) pulledForUser.current = null;
   }, [user]);
 
   useEffect(() => {
-    if (!cloudEnabled || !user) return;
+    if (demoMode || !cloudEnabled || !user) return;
 
     function handleVisible() {
       if (document.visibilityState === "visible" && isBrowserOnline()) {
@@ -548,10 +578,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener("visibilitychange", handleVisible);
     return () => document.removeEventListener("visibilitychange", handleVisible);
-  }, [cloudEnabled, data, flushPendingUpload, pullFromCloud, user]);
+  }, [cloudEnabled, data, demoMode, flushPendingUpload, pullFromCloud, user]);
 
   useEffect(() => {
-    if (!cloudEnabled || !user) return;
+    if (demoMode || !cloudEnabled || !user) return;
 
     const pullTimer = setInterval(() => {
       if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
@@ -560,10 +590,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }, PULL_INTERVAL_MS);
 
     return () => clearInterval(pullTimer);
-  }, [cloudEnabled, pullFromCloud, user]);
+  }, [cloudEnabled, demoMode, pullFromCloud, user]);
 
   useEffect(() => {
-    if (!user || !pendingUpload || !online) return;
+    if (demoMode || !user || !pendingUpload || !online) return;
 
     if (retryTimer.current) clearInterval(retryTimer.current);
     retryTimer.current = setInterval(() => {
@@ -573,7 +603,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (retryTimer.current) clearInterval(retryTimer.current);
     };
-  }, [flushPendingUpload, online, pendingUpload, user]);
+  }, [demoMode, flushPendingUpload, online, pendingUpload, user]);
 
   useEffect(() => {
     updatePendingStatus();
@@ -641,12 +671,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
       pulledForUser.current = null;
       setSyncMessage("Sesión iniciada — sincronizando…");
-      if (ready) {
+      if (ready && !demoMode) {
         void pullFromCloud();
       }
       return null;
     },
-    [email, pullFromCloud, ready],
+    [demoMode, email, pullFromCloud, ready],
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -707,6 +737,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const importBackup = useCallback(
     async (file: File) => {
+      if (demoMode) {
+        return "Sal de la demo para importar una copia real.";
+      }
       const parsed = await readBackupFile(file);
       if ("error" in parsed) return parsed.error;
 
@@ -733,7 +766,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage("Copia importada correctamente");
       return null;
     },
-    [pushToCloud, replaceData, user],
+    [demoMode, pushToCloud, replaceData, user],
   );
 
   const value = useMemo(

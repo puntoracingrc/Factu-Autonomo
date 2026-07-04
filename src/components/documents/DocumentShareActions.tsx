@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { Mail, MessageCircle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
+import { showFactuToast } from "@/lib/factu/occasional";
 import {
   hasClientEmail,
   hasClientPhone,
@@ -29,6 +31,7 @@ export function DocumentShareActions({
   pdfOptions,
 }: DocumentShareActionsProps) {
   const { data, issueDocument, markDocumentSent } = useAppStore();
+  const demoMode = useDemoWorkspaceMode();
   const [busy, setBusy] = useState<"email" | "whatsapp" | null>(null);
   const contactDoc = useMemo(
     () => documentWithCurrentCustomerContact(doc, data.customers),
@@ -40,6 +43,13 @@ export function DocumentShareActions({
 
   async function handleEmail() {
     if (!canEmail || busy) return;
+    if (demoMode) {
+      showFactuToast(
+        "En modo demo no se envían documentos. Crea una cuenta real para enviar facturas.",
+        5000,
+      );
+      return;
+    }
     setBusy("email");
     try {
       await shareDocumentWithIntegrity({
@@ -61,6 +71,13 @@ export function DocumentShareActions({
 
   async function handleWhatsApp() {
     if (!canWhatsApp || busy) return;
+    if (demoMode) {
+      showFactuToast(
+        "En modo demo no se comparten documentos por WhatsApp.",
+        5000,
+      );
+      return;
+    }
     setBusy("whatsapp");
     try {
       await shareDocumentWithIntegrity({
@@ -80,10 +97,14 @@ export function DocumentShareActions({
     }
   }
 
-  const emailTooltip = canEmail
+  const emailTooltip = demoMode
+    ? "En demo no se envían documentos"
+    : canEmail
     ? `Enviar por email a ${contactDoc.client.email}`
     : "Añade el email del cliente para enviar";
-  const whatsappTooltip = canWhatsApp
+  const whatsappTooltip = demoMode
+    ? "En demo no se comparten documentos"
+    : canWhatsApp
     ? `Enviar por WhatsApp a ${contactDoc.client.phone}`
     : "Añade el teléfono del cliente para enviar";
 
@@ -93,9 +114,9 @@ export function DocumentShareActions({
         label="Email"
         tooltip={emailTooltip}
         onClick={() => void handleEmail()}
-        disabled={!canEmail || busy !== null}
+        disabled={!canEmail || busy !== null || demoMode}
         className={
-          canEmail
+          canEmail && !demoMode
             ? "bg-violet-50 text-violet-700 hover:bg-violet-100"
             : "cursor-not-allowed bg-slate-100 text-slate-300"
         }
@@ -106,9 +127,9 @@ export function DocumentShareActions({
         label="WhatsApp"
         tooltip={whatsappTooltip}
         onClick={() => void handleWhatsApp()}
-        disabled={!canWhatsApp || busy !== null}
+        disabled={!canWhatsApp || busy !== null || demoMode}
         className={
-          canWhatsApp
+          canWhatsApp && !demoMode
             ? "bg-green-50 text-green-700 hover:bg-green-100"
             : "cursor-not-allowed bg-slate-100 text-slate-300"
         }

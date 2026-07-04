@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { Field, Textarea } from "@/components/ui/Field";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { showFactuToast } from "@/lib/factu/occasional";
@@ -35,6 +36,7 @@ export function PaymentReminderButton({
 }: PaymentReminderButtonProps) {
   const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
+  const demoMode = useDemoWorkspaceMode();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<PaymentReminderChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,13 @@ export function PaymentReminderButton({
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
+    if (demoMode) {
+      showFactuToast(
+        "En modo demo no se envían recordatorios a clientes.",
+        5000,
+      );
+      return;
+    }
     setMessage(defaultMessage);
     setError(null);
     setOpen(true);
