@@ -21,7 +21,7 @@ const productPillars = [
   {
     title: "Facturas y documentos",
     description:
-      "Crea facturas, presupuestos y recibos con numeración, PDF, logo, borradores y rectificativas cuando toca corregir.",
+      "Abre una factura, rellena los datos del cliente y descarga el PDF. Si el cliente es nuevo, la app crea su ficha sola.",
     Icon: FileText,
     tone: "bg-blue-50 text-blue-700",
   },
@@ -50,7 +50,8 @@ const productPillars = [
 
 const firstSteps = [
   "Completa tus datos fiscales una vez.",
-  "Crea o elige un cliente.",
+  "Abre una factura y escribe los datos del cliente.",
+  "Guarda: el cliente queda creado automáticamente.",
   "Emite la factura y descarga el PDF.",
   "Registra gastos y revisa el resumen fiscal.",
 ];
@@ -271,12 +272,13 @@ export function PublicLanding() {
                 De cero a primera factura sin perder contexto
               </h2>
               <p className="mt-4 text-base leading-7 text-slate-600">
-                La app está pensada para trabajar rápido: datos fiscales,
-                cliente, documento, PDF y gastos. Lo avanzado puede esperar.
+                La app está pensada para trabajar rápido: no tienes que crear
+                una ficha de cliente antes. Empieza el documento, rellena los
+                datos y Factura Autónomo guarda lo necesario.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {firstSteps.map((step, index) => (
                 <div
                   key={step}
