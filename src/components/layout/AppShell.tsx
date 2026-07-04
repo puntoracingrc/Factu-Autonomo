@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Inicio", shortLabel: "Inicio", icon: Home },
+  { href: "/", label: "Panel", shortLabel: "Panel", icon: Home },
   { href: "/clientes", label: "Clientes", shortLabel: "Clientes", icon: Users },
   {
     href: "/presupuestos",
@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-b border-slate-200 px-5 py-4">
           <Link
             href="/"
-            aria-label="Ir al inicio"
+            aria-label="Ir al panel"
             className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
           >
             <Image
@@ -272,7 +272,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <Link
               href="/"
-              aria-label="Ir al inicio"
+              aria-label="Ir al panel"
               className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
             >
               <Image

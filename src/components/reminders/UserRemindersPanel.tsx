@@ -333,7 +333,7 @@ export function UserRemindersPanel() {
               <p className="mt-1 text-sm text-slate-600">
                 {target === "office"
                   ? "Deja una tarea para el equipo usando la misma cuenta."
-                  : "Apunta una tarea personal para tenerla visible en Inicio."}
+                  : "Apunta una tarea personal para tenerla visible en Panel."}
               </p>
             </div>
 

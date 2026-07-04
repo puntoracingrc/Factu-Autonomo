@@ -81,7 +81,7 @@ export function RecommendationsEmptyHint() {
           no has probado.
         </p>
         <ButtonLink href="/ayuda/inicio" variant="secondary" className="mt-3">
-          Ver ayuda de inicio
+          Ver ayuda del panel
         </ButtonLink>
       </div>
     </Card>

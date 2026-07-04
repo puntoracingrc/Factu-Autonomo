@@ -39,7 +39,7 @@ export function collectFactuFeatureTips(
       category: "factu",
       title: "Tus propios recordatorios",
       message:
-        "Jefe, puedes apuntarme cosas como «facturar a María esta tarde». Las ves en Inicio, les haces check y listo. Very Bonito.",
+        "Jefe, puedes apuntarme cosas como «facturar a María esta tarde». Las ves en Panel, les haces check y listo. Very Bonito.",
       href: "/avisos",
       actionLabel: "Crear recordatorio",
     });

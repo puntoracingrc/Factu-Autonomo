@@ -9,7 +9,7 @@ const RETURN_LABELS: Array<{ prefix: string; label: string }> = [
   { prefix: "/presupuestos", label: "Presupuestos" },
   { prefix: "/facturas", label: "Facturas" },
   { prefix: "/clientes", label: "Clientes" },
-  { prefix: "/", label: "Inicio" },
+  { prefix: "/", label: "Panel" },
 ];
 
 /** Solo rutas internas de la app; evita open redirect. */
