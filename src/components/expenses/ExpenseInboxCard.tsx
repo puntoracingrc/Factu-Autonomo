@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import type { AiUsageMeter } from "@/lib/billing/scan-limits";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 
 interface ExpenseInboxResponse {
@@ -24,6 +25,10 @@ interface ExpenseInboxResponse {
   items?: ExpenseInboxItem[];
   pendingCount?: number;
   error?: string;
+}
+
+interface AiUsageResponse {
+  meter?: AiUsageMeter;
 }
 
 async function currentAuthHeaders(): Promise<HeadersInit> {
@@ -47,6 +52,8 @@ export function ExpenseInboxCard() {
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [usageLabel, setUsageLabel] = useState<string | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +63,31 @@ export function ExpenseInboxCard() {
       setAddress("");
       setItems([]);
       setPendingCount(0);
+      setUsageLabel(null);
       return;
     }
 
     setLoading(true);
+    setUsageLoading(true);
     setError(null);
     try {
       const headers = await currentAuthHeaders();
-      const response = await fetch("/api/expense-inbox", { headers });
+      const [response, usageResponse] = await Promise.all([
+        fetch("/api/expense-inbox", { headers }),
+        fetch("/api/billing/ai-usage", { headers }).catch(() => null),
+      ]);
       const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      const usageBody =
+        usageResponse && usageResponse.ok
+          ? ((await usageResponse.json().catch(() => ({}))) as AiUsageResponse)
+          : null;
+      const percentRemaining = usageBody?.meter?.percentRemaining;
+      setUsageLabel(
+        typeof percentRemaining === "number"
+          ? `IA ${percentRemaining}% restante`
+          : null,
+      );
+
       if (!response.ok) {
         setError(body.error ?? "No se pudo cargar el buzón.");
         return;
@@ -77,6 +100,7 @@ export function ExpenseInboxCard() {
       setError("No se pudo cargar el buzón.");
     } finally {
       setLoading(false);
+      setUsageLoading(false);
     }
   }, [user]);
 
@@ -126,6 +150,11 @@ export function ExpenseInboxCard() {
               {pendingCount > 0 ? (
                 <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
                   {pendingCount} pendiente(s)
+                </span>
+              ) : null}
+              {usageLabel || usageLoading ? (
+                <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-bold text-emerald-800">
+                  {usageLabel ?? "IA calculando..."}
                 </span>
               ) : null}
             </div>
