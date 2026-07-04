@@ -14,6 +14,7 @@ export const cuentaSection: ManualSection = {
       paragraphs: [
         "En **Cuenta** puedes iniciar sesión con email y contraseña o pulsar **Continuar con Google**.",
         "Si eliges Google con el mismo email con el que ya usabas la app, seguirás entrando en la misma cuenta. Google solo se usa para identificarte; Drive se conecta aparte.",
+        "Si ya habías creado datos sin cuenta en este navegador, al iniciar sesión Factu te preguntará si quieres guardarlos en tu cuenta, descargar una copia o seguir solo en local.",
         "La casilla de términos, privacidad y el **Código de invitación** solo aparecen al elegir **Crear cuenta**, no al iniciar sesión.",
       ],
       screenshot: {
@@ -25,7 +26,7 @@ export const cuentaSection: ManualSection = {
       title: "2. Sincronizar móvil y ordenador",
       paragraphs: [
         "Con sesión iniciada, el bloque **Cuenta y copia de seguridad** muestra tu email, el estado de sincronización y el botón **Sincronizar ahora**.",
-        "Si hay cambios pendientes, la app muestra cuántos quedan por subir. Normalmente se suben solos en unos segundos si la pestaña está abierta y tienes conexión.",
+        "Si ya decidiste guardar los datos en tu cuenta y hay cambios pendientes, la app muestra cuántos quedan por subir. Normalmente se suben solos en unos segundos si la pestaña está abierta y tienes conexión.",
         "Si otro dispositivo tiene la copia buena y este no la refleja, abre **Problemas de sincronización** y usa **Reparar con la copia de la nube**.",
       ],
     },

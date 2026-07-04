@@ -48,7 +48,7 @@ export function SignupSuccessPanel({
           <span>
             <strong>Paso 1 — Cuenta creada</strong>
             <br />
-            <span className="text-emerald-800">Datos guardados en la nube.</span>
+            <span className="text-emerald-800">Cuenta preparada.</span>
           </span>
         </li>
         <li className="flex items-start gap-2 rounded-xl bg-white/80 px-3 py-2">

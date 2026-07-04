@@ -56,7 +56,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "5. (Opcional) Crea tu cuenta en la nube",
       paragraphs: [
-        "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos se sincronizan entre móvil y PC.",
+        "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos pueden sincronizarse entre móvil y PC cuando eliges guardarlos en tu cuenta.",
         "En **Cuenta** puedes registrarte con email o continuar con Google, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o importar una copia JSON.",
         "También encontrarás el bloque **Legal y privacidad** con términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
         "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",

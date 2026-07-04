@@ -247,6 +247,34 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).not.toContain("Al iniciar sesión acepto");
   });
 
+  it("pide permiso antes de subir datos locales a una cuenta", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudContextSource = readFileSync(
+      new URL("../context/CloudSyncContext.tsx", import.meta.url),
+      "utf8",
+    );
+    const guestBannerSource = readFileSync(
+      new URL("../components/cloud/GuestLocalDataBanner.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudContextSource).toContain("localDataHandoffStatus");
+    expect(cloudContextSource).toContain("hasUndecidedLocalData");
+    expect(cloudContextSource).toContain("allowLocalDataUpload");
+    expect(cloudContextSource).toContain("saveLocalDataToAccount");
+    expect(cloudContextSource).toContain("keepLocalDataOnDevice");
+    expect(cloudContextSource).not.toContain("Sesión iniciada — sincronizando");
+    expect(cloudAccountSource).toContain("Datos locales encontrados");
+    expect(cloudAccountSource).toContain("Guardar estos datos en mi cuenta");
+    expect(cloudAccountSource).toContain("Descargar copia antes de continuar");
+    expect(cloudAccountSource).toContain("Seguir solo en este navegador");
+    expect(cloudAccountSource).toContain("te preguntaremos si quieres guardarlos");
+    expect(guestBannerSource).toContain("te preguntaremos si quieres guardarlos");
+  });
+
   it("prepara Google como acceso opcional sin pedir Drive todavia", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
