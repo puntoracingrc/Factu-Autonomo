@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clientAddressToFormFields,
+  formatAddressBlock,
   formatStreetLine,
   normalizeCustomerStreetFields,
   splitLegacyStreetAddress,
@@ -89,6 +90,34 @@ describe("formatStreetLine", () => {
   });
 });
 
+describe("formatAddressBlock", () => {
+  it("incluye piso y puerta en pisos", () => {
+    expect(
+      formatAddressBlock({
+        streetType: "calle",
+        address: "Nena Casas 52",
+        residenceType: "flat",
+        addressExtra: "2º 2ª",
+        postalCode: "08017",
+        city: "Barcelona",
+      }),
+    ).toBe("C/ Nena Casas 52, 2º 2ª, 08017 Barcelona");
+  });
+
+  it("omite piso y puerta cuando es casa", () => {
+    expect(
+      formatAddressBlock({
+        streetType: "calle",
+        address: "Nena Casas 52",
+        residenceType: "house",
+        addressExtra: "2º 2ª",
+        postalCode: "08017",
+        city: "Barcelona",
+      }),
+    ).toBe("C/ Nena Casas 52, 08017 Barcelona");
+  });
+});
+
 describe("normalizeCustomerStreetFields", () => {
   it("migra direcciones legacy al cargar", () => {
     const customer: Customer = {
@@ -119,6 +148,24 @@ describe("clientAddressToFormFields", () => {
     ).toEqual({
       streetType: "calle",
       streetLine: "Mayor 1",
+      addressExtra: "",
+      residenceType: "flat",
+    });
+  });
+
+  it("recupera el piso congelado en un documento", () => {
+    expect(
+      clientAddressToFormFields({
+        streetType: "calle",
+        address: "C/ Mayor 1, 2º 2ª, 28001 Madrid",
+        residenceType: "flat",
+        addressExtra: "2º 2ª",
+      }),
+    ).toEqual({
+      streetType: "calle",
+      streetLine: "Mayor 1",
+      addressExtra: "2º 2ª",
+      residenceType: "flat",
     });
   });
 });

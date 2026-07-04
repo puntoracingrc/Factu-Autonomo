@@ -63,6 +63,7 @@ export interface DocumentUnitsSettings {
 }
 
 export type CustomerType = "person" | "company";
+export type AddressResidenceType = "flat" | "house";
 
 export interface Client {
   customerType?: CustomerType;
@@ -75,6 +76,10 @@ export interface Client {
   phone?: string;
   /** Tipo de vía congelado en el documento (calle, avenida…). */
   streetType?: string;
+  /** Piso/puerta/escalera, cuando aplica. */
+  addressExtra?: string;
+  /** Distingue si la dirección es piso o casa para mostrar campos útiles. */
+  residenceType?: AddressResidenceType;
   address?: string;
 }
 
@@ -92,6 +97,8 @@ export interface Customer {
   phone?: string;
   /** Identificador de tipo de vía (calle, avenida…). */
   streetType?: string;
+  addressExtra?: string;
+  residenceType?: AddressResidenceType;
   address?: string;
   city?: string;
   postalCode?: string;

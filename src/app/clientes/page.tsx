@@ -31,6 +31,10 @@ import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
+  formatAddressBlock,
+  RESIDENCE_TYPE_LABELS,
+} from "@/lib/customer-address";
+import {
   CUSTOMER_TYPE_LABELS,
   customerFullName,
   buildCustomerInvoicedTotals,
@@ -47,9 +51,12 @@ import {
   type CustomerSortDirection,
   type CustomerSortField,
 } from "@/lib/customers";
-import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
-import type { Customer, CustomerType } from "@/lib/types";
+import type {
+  AddressResidenceType,
+  Customer,
+  CustomerType,
+} from "@/lib/types";
 
 const EMPTY_FORM = {
   customerType: "person" as CustomerType,
@@ -60,7 +67,9 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   streetType: "",
+  residenceType: "flat" as AddressResidenceType,
   address: "",
+  addressExtra: "",
   city: "",
   postalCode: "",
   notes: "",
@@ -232,7 +241,9 @@ export default function ClientesPage() {
       email: migrated.email ?? "",
       phone: migrated.phone ?? "",
       streetType: migrated.streetType ?? "",
+      residenceType: migrated.residenceType ?? "flat",
       address: migrated.address ?? "",
+      addressExtra: migrated.addressExtra ?? "",
       city: migrated.city ?? "",
       postalCode: migrated.postalCode ?? "",
       notes: migrated.notes ?? "",
@@ -285,7 +296,11 @@ export default function ClientesPage() {
       email: values.email || current.email,
       phone: values.phone || current.phone,
       streetType: values.streetType || current.streetType,
+      residenceType:
+        (values.residenceType as AddressResidenceType | undefined) ||
+        current.residenceType,
       address: values.address || current.address,
+      addressExtra: values.addressExtra || current.addressExtra,
       city: values.city || current.city,
       postalCode: values.postalCode || current.postalCode,
       notes: values.notes || current.notes,
@@ -339,7 +354,9 @@ export default function ClientesPage() {
         email: validation.email,
         phone: validation.phone,
         streetType: form.streetType,
+        residenceType: form.residenceType,
         address: form.address,
+        addressExtra: form.addressExtra,
       }),
       city: form.city.trim() || undefined,
       postalCode: form.postalCode.trim() || undefined,
@@ -374,6 +391,7 @@ export default function ClientesPage() {
     ? "Ej: Persianas Almar S.L."
     : "Ej: María";
   const formNifLabel = formIsCompany ? "CIF" : "NIF / CIF";
+  const formIsFlat = form.residenceType !== "house";
 
   return (
     <div>
@@ -598,6 +616,31 @@ export default function ClientesPage() {
                   placeholder="Ej: Valencia 546 7/1"
                 />
               </Field>
+              <Field label="Vivienda">
+                <Select
+                  value={form.residenceType}
+                  onChange={(e) =>
+                    updateFormField(
+                      "residenceType",
+                      e.target.value as AddressResidenceType,
+                    )
+                  }
+                >
+                  <option value="flat">{RESIDENCE_TYPE_LABELS.flat}</option>
+                  <option value="house">{RESIDENCE_TYPE_LABELS.house}</option>
+                </Select>
+              </Field>
+              {formIsFlat && (
+                <Field label="Piso / puerta">
+                  <Input
+                    value={form.addressExtra}
+                    onChange={(e) =>
+                      updateFormField("addressExtra", e.target.value)
+                    }
+                    placeholder="Ej: 2º 2ª"
+                  />
+                </Field>
+              )}
               <Field label="Código postal">
                 <Input
                   value={form.postalCode}
@@ -785,18 +828,9 @@ export default function ClientesPage() {
                           </span>
                         )}
                       </div>
-                      {(migrated.address || customer.city) && (
+                      {(migrated.address || migrated.addressExtra || migrated.city) && (
                         <p className="break-words text-sm text-slate-400">
-                          {[
-                            formatStreetLine(
-                              migrated.streetType,
-                              migrated.address,
-                            ),
-                            customer.postalCode,
-                            customer.city,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
+                          {formatAddressBlock(migrated)}
                         </p>
                       )}
                     </div>

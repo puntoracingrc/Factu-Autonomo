@@ -22,7 +22,9 @@ export interface CustomerAiAutofillValues {
   email: string;
   phone: string;
   streetType: string;
+  residenceType: "flat" | "house";
   address: string;
+  addressExtra: string;
   city: string;
   postalCode: string;
   notes: string;

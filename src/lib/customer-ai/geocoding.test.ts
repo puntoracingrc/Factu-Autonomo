@@ -76,6 +76,7 @@ describe("customer geocoding", () => {
           firstName: "FERRER NEUROCIENCIAS",
           lastName: "",
           address: "Doctor Carulla 19",
+          residenceType: "flat",
           city: "Barcelona",
           streetType: "calle",
         },
