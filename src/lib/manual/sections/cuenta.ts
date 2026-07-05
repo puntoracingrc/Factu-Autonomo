@@ -13,14 +13,15 @@ export const cuentaSection: ManualSection = {
     {
       title: "1. Crear cuenta o iniciar sesión",
       paragraphs: [
-        "En **Cuenta** verás dos pestañas: **Iniciar sesión** y **Crear cuenta**. Usa **Crear cuenta** si es la primera vez; usa **Iniciar sesión** si ya tienes usuario.",
+        "En **Cuenta**, el bloque **Acceso** reúne la creación de cuenta, el inicio de sesión, la confirmación de email y la decisión sobre datos locales.",
+        "Usa **Crear cuenta** si es la primera vez; usa **Iniciar sesión** si ya tienes usuario.",
         "Puedes entrar con email y contraseña o con Google. Si eliges Google con el mismo email con el que ya usabas la app, seguirás entrando en la misma cuenta. Google solo se usa para identificarte; Drive se conecta aparte.",
         "La casilla de términos, privacidad y el **Código de invitación** solo aparecen al elegir **Crear cuenta**, no al iniciar sesión.",
         "Crear cuenta no exige tarjeta. El plan Gratis tiene límites de uso, pero sirve para empezar de verdad con cuenta verificada.",
       ],
       screenshot: {
         src: "/ayuda/capturas/cuenta-nube.png",
-        alt: "Cuenta y copia de seguridad",
+        alt: "Acceso a tu cuenta",
       },
     },
     {
@@ -44,7 +45,8 @@ export const cuentaSection: ManualSection = {
     {
       title: "4. Sincronizar móvil y ordenador",
       paragraphs: [
-        "Con sesión iniciada, el bloque **Cuenta y copia de seguridad** muestra tu email, el estado de sincronización y el botón **Sincronizar ahora**.",
+        "Con sesión iniciada, **Acceso** muestra tu email, el estado del email, los datos locales pendientes y los controles principales de nube.",
+        "La sección **Sincronización** explica cómo funciona la nube de Factu y te lleva de vuelta a **Acceso** para evitar duplicar botones.",
         "Si ya decidiste guardar los datos en tu cuenta y hay cambios pendientes, la app muestra cuántos quedan por subir. Normalmente se suben solos en unos segundos si la pestaña está abierta y tienes conexión.",
         "Si otro dispositivo tiene la copia buena y este no la refleja, abre **Problemas de sincronización** y usa **Reparar con la copia de la nube**.",
         "La sincronización automática en la nube es función Pro. En Gratis puedes crear cuenta y exportar copias manuales.",
@@ -75,6 +77,7 @@ export const cuentaSection: ManualSection = {
         "Arriba tienes pastillas para saltar a **Acceso**, **Plan**, **Sincronización**, **Copias**, **Importación** y **Legal**.",
         "**Acceso** reúne inicio de sesión, creación de cuenta, confirmación de email y decisión sobre datos locales. **Sincronización** te recuerda que los controles de nube están dentro de ese flujo para evitar duplicar acciones.",
         "**Copias** agrupa la copia manual, la restauración de JSON revisado y la copia extra en Google Drive. **Importación** queda aparte para traer datos desde otros programas.",
+        "**Plan** agrupa límites, uso de IA, suscripción e invitaciones. **Legal** reúne condiciones, privacidad, cookies, encargo de tratamiento y notas sobre VeriFactu.",
         "El manual ya no aparece como tarjeta dentro de Cuenta: el icono **?** de la cabecera está disponible en toda la app.",
       ],
     },

@@ -92,9 +92,10 @@ export const configuracionSection: ManualSection = {
     {
       title: "6. Preferencias de uso",
       paragraphs: [
-        "En **Preferencias** puedes elegir **Sistema**, **Claro** u **Oscuro** para la apariencia de la app.",
-        "También puedes cambiar entre vista **Cómoda** y **Compacta**, elegir qué pantalla abre el logo cuando tienes sesión iniciada y activar **Reducir animaciones** si prefieres menos movimiento.",
-        "Pulsa **Guardar cambios** al final de Ajustes para aplicar estas preferencias.",
+        "En **Preferencias** puedes elegir **Sistema**, **Claro** u **Oscuro** para la apariencia de la app. **Sistema** sigue el tema del móvil u ordenador; **Oscuro** fuerza una vista de baja luz en toda la app.",
+        "También puedes cambiar entre vista **Cómoda** y **Compacta**. La vista compacta reduce altura en listados y paneles, especialmente útil en ordenador, sin convertir los botones móviles en zonas difíciles de tocar.",
+        "Puedes elegir qué pantalla abre el logo cuando tienes sesión iniciada y activar **Reducir animaciones** si prefieres menos movimiento.",
+        "Pulsa **Guardar cambios** al final de Ajustes para aplicar estas preferencias. En móvil, la zona de guardado baja con el contenido para no tapar los últimos campos.",
       ],
     },
     {

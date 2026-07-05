@@ -25,6 +25,7 @@ describe("manual sections", () => {
 
     expect(getManualSection("demo")?.summary).toContain("datos ficticios");
     expect(manualText).toContain("Demo sin registro");
+    expect(manualText).toContain("Empezar gratis");
     expect(manualText).toContain("Volver al tour");
     expect(manualText).toContain("Crear cuenta real");
     expect(manualText).toContain("email verificado");
@@ -34,6 +35,9 @@ describe("manual sections", () => {
     expect(manualText).toContain(
       "la app crea la ficha del cliente automáticamente",
     );
+    expect(manualText).toContain("Factu no flota sobre el contenido");
+    expect(manualText).toContain("Sistema");
+    expect(manualText).toContain("Acceso");
     expect(manualText).toContain("No afirmamos homologación");
     expect(manualText).not.toContain("Probar gratis");
     expect(manualText).not.toContain("QR fiscal obligatorio");
