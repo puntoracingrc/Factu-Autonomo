@@ -83,7 +83,7 @@ ${issuer.developerName}`;
         ${issuer.developerCity}, ${issuer.developerCountry}
       </p>
       ${invoiceHtml}
-      <p style="color:#64748b;font-size:14px">Comprobante automático. Para cambiar tus datos de facturación, usa el portal de suscripción en Configuración.</p>
+      <p style="color:#64748b;font-size:14px">Comprobante automático. Para cambiar tus datos de facturación, usa el portal de suscripción en Cuenta.</p>
       <p><a href="${appUrl}">Abrir ${APP_BRAND_NAME}</a></p>
     </div>
   `.trim();

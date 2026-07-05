@@ -11,6 +11,7 @@ import {
   FileText,
   MapPin,
   Plus,
+  SlidersHorizontal,
   Star,
   Trash2,
   type LucideIcon,
@@ -75,11 +76,12 @@ import type {
   ProductFamilyMarkupSettings,
 } from "@/lib/types";
 
-type SettingsSectionKey = "business" | "documents" | "taxes" | "account";
+type SettingsSectionKey = "business" | "documents" | "taxes" | "preferences";
 
 const SETTINGS_NAV_ITEMS: Array<{
   key: SettingsSectionKey;
   id: string;
+  aliases?: string[];
   title: string;
   Icon: LucideIcon;
 }> = [
@@ -91,21 +93,23 @@ const SETTINGS_NAV_ITEMS: Array<{
   },
   {
     key: "documents",
-    id: "ajustes-documentos",
-    title: "Documentos",
+    id: "ajustes-facturacion",
+    aliases: ["ajustes-documentos"],
+    title: "Facturación",
     Icon: FileText,
   },
   {
     key: "taxes",
-    id: "ajustes-impuestos",
-    title: "Impuestos",
+    id: "ajustes-fiscalidad",
+    aliases: ["ajustes-impuestos"],
+    title: "Fiscalidad",
     Icon: Calculator,
   },
   {
-    key: "account",
-    id: "ajustes-cuenta",
-    title: "Cuenta",
-    Icon: CreditCard,
+    key: "preferences",
+    id: "ajustes-preferencias",
+    title: "Preferencias",
+    Icon: SlidersHorizontal,
   },
 ];
 
@@ -172,14 +176,21 @@ export default function ConfiguracionPage() {
     business: true,
     documents: false,
     taxes: false,
-    account: false,
+    preferences: false,
   });
 
   useEffect(() => {
     function openSectionFromHash() {
       const id = window.location.hash.replace("#", "");
-      const item = SETTINGS_NAV_ITEMS.find((entry) => entry.id === id);
-      if (!item) return;
+      const item = SETTINGS_NAV_ITEMS.find(
+        (entry) => entry.id === id || entry.aliases?.includes(id),
+      );
+      if (!item) {
+        window.setTimeout(() => {
+          document.getElementById(id)?.scrollIntoView({ block: "start" });
+        }, 0);
+        return;
+      }
       setOpenSections((prev) => ({ ...prev, [item.key]: true }));
       window.setTimeout(() => {
         document.getElementById(item.id)?.scrollIntoView({ block: "start" });
@@ -441,8 +452,8 @@ export default function ConfiguracionPage() {
   return (
     <div>
       <PageHeader
-        title="Configuración"
-        subtitle="Datos del negocio, numeración y preferencias de documentos"
+        title="Ajustes"
+        subtitle="Negocio, facturación, fiscalidad y preferencias de uso"
       />
 
       <nav
@@ -463,6 +474,39 @@ export default function ConfiguracionPage() {
           </a>
         ))}
       </nav>
+
+      <div id="ajustes-cuenta" className="scroll-mt-24">
+        <Card className="mb-5 border-blue-100 bg-blue-50/70">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm">
+                <CreditCard className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-bold text-slate-900">
+                  <span className="sm:hidden">Cuenta y copias</span>
+                  <span className="hidden sm:inline">
+                    Cuenta, plan y copias
+                  </span>
+                </h2>
+                <p className="mt-1 hidden text-sm text-slate-600 sm:block">
+                  Acceso, sincronización, Drive, copias, plan, importación y
+                  legal viven en Cuenta.
+                </p>
+              </div>
+            </div>
+            <ButtonLink
+              href="/cuenta"
+              variant="secondary"
+              className="min-h-10 shrink-0 rounded-xl px-3 text-sm sm:min-h-12 sm:rounded-2xl sm:px-5 sm:text-base"
+            >
+              <span className="sm:hidden">Abrir</span>
+              <span className="hidden sm:inline">Abrir Cuenta</span>
+              <ArrowRight className="h-4 w-4" />
+            </ButtonLink>
+          </div>
+        </Card>
+      </div>
 
       <SettingsSection
         id="ajustes-negocio"
@@ -707,9 +751,9 @@ export default function ConfiguracionPage() {
       />
 
       <SettingsSection
-        id="ajustes-documentos"
-        title="Documentos"
-        description="Presupuestos, plantillas, textos, pagos y numeración"
+        id="ajustes-facturacion"
+        title="Facturación"
+        description="Documentos, plantillas, pagos, productos y numeración"
         Icon={FileText}
         open={openSections.documents}
         onToggle={(open) => setSectionOpen("documents", open)}
@@ -974,9 +1018,9 @@ export default function ConfiguracionPage() {
       </SettingsSection>
 
       <SettingsSection
-        id="ajustes-impuestos"
-        title="Impuestos"
-        description="Régimen de IVA, tipos, IRPF estimado y VeriFactu"
+        id="ajustes-fiscalidad"
+        title="Fiscalidad"
+        description="IVA, IRPF orientativo y VeriFactu"
         Icon={Calculator}
         open={openSections.taxes}
         onToggle={(open) => setSectionOpen("taxes", open)}
@@ -1134,28 +1178,54 @@ export default function ConfiguracionPage() {
       </SettingsSection>
 
       <SettingsSection
-        id="ajustes-cuenta"
-        title="Cuenta"
-        description="Plan, sincronización, propiedad de datos y ayuda"
-        Icon={CreditCard}
-        open={openSections.account}
-        onToggle={(open) => setSectionOpen("account", open)}
+        id="ajustes-preferencias"
+        title="Preferencias"
+        description="Apariencia, comodidad y comportamiento de la app"
+        Icon={SlidersHorizontal}
+        open={openSections.preferences}
+        onToggle={(open) => setSectionOpen("preferences", open)}
       >
-        <Card className="space-y-3 border-blue-100 bg-white">
+        <Card className="space-y-4 border-blue-100 bg-white">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              Cuenta, nube y plan
+              Preferencias de la app
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Toda la gestión de cuenta vive en una sola página: inicio de
-              sesión, sincronización, Drive, importación, plan, facturación,
-              datos, legal y copia extra en Drive.
+              Esta zona agrupará cómo quieres usar Facturación Autónomos. En
+              esta fase solo queda ordenada; los controles llegarán en la
+              siguiente fase.
             </p>
           </div>
-          <ButtonLink href="/cuenta" variant="secondary">
-            Abrir Cuenta
-            <ArrowRight className="h-4 w-4" />
-          </ButtonLink>
+          <div className="grid gap-3 md:grid-cols-2">
+            {[
+              {
+                title: "Apariencia",
+                description: "Claro, oscuro o según el dispositivo.",
+              },
+              {
+                title: "Vista",
+                description: "Cómoda o compacta para listas y formularios.",
+              },
+              {
+                title: "Pantalla inicial",
+                description: "Elegir qué se abre al entrar.",
+              },
+              {
+                title: "Accesibilidad",
+                description: "Reducir animaciones y mejorar contraste.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
         </Card>
       </SettingsSection>
 

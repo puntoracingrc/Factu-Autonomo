@@ -33,7 +33,7 @@ export default function CookiesPage() {
         </p>
         <h2>Cómo borrar datos locales</h2>
         <p>
-          Puedes exportar una copia desde Cuenta o Configuración. Si borras los
+          Puedes exportar una copia desde Cuenta. Si borras los
           datos del sitio desde el navegador, puedes perder el histórico local si
           no estaba sincronizado o exportado.
         </p>

@@ -385,7 +385,7 @@ export function TaxSummaryCard({
               href="/configuracion"
               className="font-semibold text-blue-600 underline"
             >
-              Configuración
+              Ajustes
             </Link>
             .
           </>
@@ -394,7 +394,7 @@ export function TaxSummaryCard({
             href="/configuracion"
             className="font-semibold text-blue-600 underline"
           >
-            Configuración
+            Ajustes
           </Link>
         )}
       </p>

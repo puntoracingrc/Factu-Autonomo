@@ -36,14 +36,15 @@ export const proveedoresSection: ManualSection = {
 export const configuracionSection: ManualSection = {
   slug: "configuracion",
   title: "Ajustes avanzados",
-  summary: "Plantillas PDF, validez de presupuestos, numeración, Veri*Factu y cuenta.",
+  summary: "Negocio, facturación, fiscalidad, Veri*Factu y preferencias.",
   order: 13,
   steps: [
     {
       title: "1. Moverse por Ajustes",
       paragraphs: [
-        "La parte superior muestra accesos compactos a **Negocio**, **Documentos**, **Impuestos** y **Cuenta**.",
-        "En **Cuenta** verás un bloque breve con **Abrir Cuenta**. La pantalla completa de cuenta, Drive e importación vive en **Cuenta**, no dentro de Ajustes.",
+        "La parte superior muestra accesos compactos a **Negocio**, **Facturación**, **Fiscalidad** y **Preferencias**.",
+        "Los datos del emisor viven en **Negocio**. Plantillas, frases, pagos, productos y numeración viven en **Facturación**. IVA, IRPF orientativo y Veri*Factu viven en **Fiscalidad**.",
+        "Cuenta, plan, sincronización, Drive, importación, datos y legal viven en **Cuenta**. En Ajustes queda un acceso rápido para llegar sin perderte.",
       ],
     },
     {
@@ -74,13 +75,13 @@ export const configuracionSection: ManualSection = {
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-numeracion.png",
-        alt: "Configuración de numeración",
+        alt: "Ajustes de numeración",
       },
     },
     {
       title: "5. Veri*Factu",
       paragraphs: [
-        "En **Impuestos** dentro de Ajustes está la tarjeta **Veri*Factu**.",
+        "En **Fiscalidad** dentro de Ajustes está la tarjeta **Veri*Factu**.",
         "Puedes dejarlo desactivado hasta que corresponda. Si está apagado, no se registran facturas en Veri*Factu.",
         "La pantalla distingue entre **modo simulado**, preparación de envío a AEAT y falta de certificado. No guarda ni muestra claves privadas en esta tarjeta.",
         "El QR y la huella se aplican a facturas emitidas cuando la configuración lo permite; los borradores no se registran.",
