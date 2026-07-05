@@ -831,14 +831,19 @@ export default function ConfiguracionPage() {
         </Card>
 
         <DocumentPaymentMethodsCard
-          settings={normalizeDocumentPaymentMethods(form.documentPaymentMethods)}
+          settings={normalizeDocumentPaymentMethods(
+            form.documentPaymentMethods,
+            { keepEmpty: true },
+          )}
           onChange={(documentPaymentMethods) =>
             setForm((prev) => ({ ...prev, documentPaymentMethods }))
           }
         />
 
         <DocumentPhrasesCard
-          settings={normalizeDocumentPhrases(form.documentPhrases)}
+          settings={normalizeDocumentPhrases(form.documentPhrases, {
+            keepEmpty: true,
+          })}
           onChange={(documentPhrases) =>
             setForm((prev) => ({ ...prev, documentPhrases }))
           }

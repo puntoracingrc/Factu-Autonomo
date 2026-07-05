@@ -8,6 +8,16 @@ import {
 } from "./document-payment-methods";
 
 describe("document-payment-methods", () => {
+  it("mantiene borradores vacios en ajustes y los limpia al guardar", () => {
+    let settings = normalizeDocumentPaymentMethods();
+    settings = addDocumentPaymentMethod(settings, "factura");
+
+    expect(
+      normalizeDocumentPaymentMethods(settings, { keepEmpty: true }).methods,
+    ).toHaveLength(1);
+    expect(normalizeDocumentPaymentMethods(settings).methods).toHaveLength(0);
+  });
+
   it("guarda y predetermina formas de pago por tipo", () => {
     let settings = normalizeDocumentPaymentMethods();
     settings = addDocumentPaymentMethod(

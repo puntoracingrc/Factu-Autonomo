@@ -952,6 +952,21 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("break-words text-sm text-slate-400");
   });
 
+  it("la unificacion por NIF exige elegir que cliente conservar", () => {
+    const customersPageSource = readFileSync(
+      new URL("../app/clientes/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(customersPageSource).toContain("Elige cuál conservar");
+    expect(customersPageSource).toContain("DuplicateCustomerChoiceCard");
+    expect(customersPageSource).toContain('type="radio"');
+    expect(customersPageSource).toContain("Elige qué cliente conservar");
+    expect(customersPageSource).not.toContain(
+      "const canonical = pickCanonicalCustomer(group, data.documents)",
+    );
+  });
+
   it("carga clientes por bloques para listas grandes", () => {
     const customersPageSource = readFileSync(
       new URL("../app/clientes/page.tsx", import.meta.url),

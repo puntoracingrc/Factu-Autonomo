@@ -17,6 +17,14 @@ describe("document-phrases", () => {
     });
   });
 
+  it("mantiene borradores vacios en ajustes y los limpia al guardar", () => {
+    let settings = normalizeDocumentPhrases();
+    settings = addDocumentPhrase(settings, "factura");
+
+    expect(normalizeDocumentPhrases(settings, { keepEmpty: true }).phrases).toHaveLength(1);
+    expect(normalizeDocumentPhrases(settings).phrases).toHaveLength(0);
+  });
+
   it("filtra frases por tipo y predeterminada", () => {
     let settings = normalizeDocumentPhrases();
     settings = addDocumentPhrase(
