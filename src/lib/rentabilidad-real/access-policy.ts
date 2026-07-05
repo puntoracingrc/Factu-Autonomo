@@ -35,6 +35,7 @@ export interface RentabilidadRealBillingAccessInput {
   billingEnabled: boolean;
   planKey: PlanId;
   env?: RentabilidadRealEnvLike;
+  hostname?: string;
 }
 
 export interface RentabilidadRealBillingAccess {
@@ -49,8 +50,34 @@ function readRuntimeEnv(): RentabilidadRealEnvLike {
   return process.env;
 }
 
+function readRuntimeHostname(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.location.hostname;
+}
+
+function normalizeHostname(hostname: string | undefined): string {
+  return hostname?.trim().toLowerCase() ?? "";
+}
+
+function isLocalDevelopmentHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isKnownProductionHostname(hostname: string): boolean {
+  return [
+    "facturacion-autonomos.app",
+    "www.facturacion-autonomos.app",
+    "factu-autonomo.vercel.app",
+  ].includes(hostname);
+}
+
+function isVercelPreviewHostname(hostname: string): boolean {
+  return hostname.endsWith(".vercel.app") && !isKnownProductionHostname(hostname);
+}
+
 export function getRentabilidadRealRuntimeEnvironment(
   env: RentabilidadRealEnvLike = readRuntimeEnv(),
+  hostname = readRuntimeHostname(),
 ): RentabilidadRealRuntimeEnvironment {
   if (env.NODE_ENV === "development") return "development";
   if (env.NODE_ENV === "test") return "test";
@@ -65,6 +92,11 @@ export function getRentabilidadRealRuntimeEnvironment(
   if (deployEnv === "preview" || deployEnv === "staging") return "preview";
   if (deployEnv === "development") return "development";
 
+  const normalizedHostname = normalizeHostname(hostname);
+  if (isLocalDevelopmentHostname(normalizedHostname)) return "development";
+  if (isKnownProductionHostname(normalizedHostname)) return "production";
+  if (isVercelPreviewHostname(normalizedHostname)) return "preview";
+
   if (env.NODE_ENV === "production") return "production";
   return "unknown";
 }
@@ -72,12 +104,14 @@ export function getRentabilidadRealRuntimeEnvironment(
 export function shouldUseRentabilidadRealProPlusFallback({
   billingEnabled,
   env,
+  hostname,
 }: {
   billingEnabled: boolean;
   env?: RentabilidadRealEnvLike;
+  hostname?: string;
 }): boolean {
   if (billingEnabled) return false;
-  const runtimeEnvironment = getRentabilidadRealRuntimeEnvironment(env);
+  const runtimeEnvironment = getRentabilidadRealRuntimeEnvironment(env, hostname);
   return (
     runtimeEnvironment === "development" ||
     runtimeEnvironment === "preview" ||
@@ -89,11 +123,13 @@ export function resolveRentabilidadRealBillingAccess({
   billingEnabled,
   planKey,
   env,
+  hostname,
 }: RentabilidadRealBillingAccessInput): RentabilidadRealBillingAccess {
-  const runtimeEnvironment = getRentabilidadRealRuntimeEnvironment(env);
+  const runtimeEnvironment = getRentabilidadRealRuntimeEnvironment(env, hostname);
   const localProPlusFallback = shouldUseRentabilidadRealProPlusFallback({
     billingEnabled,
     env,
+    hostname,
   });
   const effectivePlanKey = billingEnabled
     ? planKey

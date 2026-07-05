@@ -188,6 +188,53 @@ describe("rentabilidad real access policy", () => {
     });
   });
 
+  it("detecta preview desde un deployment vercel.app no productivo", () => {
+    expect(
+      resolveRentabilidadRealBillingAccess({
+        billingEnabled: false,
+        planKey: "pro",
+        env: { NODE_ENV: "production" },
+        hostname:
+          "factu-autonomo-eyur6xsr4-persianas-almar-web-s-projects.vercel.app",
+      }),
+    ).toMatchObject({
+      planKey: "pro_plus",
+      isProPlus: true,
+      localProPlusFallback: true,
+      runtimeEnvironment: "preview",
+    });
+  });
+
+  it("no abre fallback Pro+ en dominios productivos conocidos", () => {
+    expect(
+      resolveRentabilidadRealBillingAccess({
+        billingEnabled: false,
+        planKey: "pro",
+        env: { NODE_ENV: "production" },
+        hostname: "facturacion-autonomos.app",
+      }),
+    ).toMatchObject({
+      planKey: "pro",
+      isProPlus: false,
+      localProPlusFallback: false,
+      runtimeEnvironment: "production",
+    });
+
+    expect(
+      resolveRentabilidadRealBillingAccess({
+        billingEnabled: false,
+        planKey: "pro",
+        env: { NODE_ENV: "production" },
+        hostname: "factu-autonomo.vercel.app",
+      }),
+    ).toMatchObject({
+      planKey: "pro",
+      isProPlus: false,
+      localProPlusFallback: false,
+      runtimeEnvironment: "production",
+    });
+  });
+
   it("mantiene Pro+ real cuando billing está activo", () => {
     expect(
       resolveRentabilidadRealBillingAccess({
