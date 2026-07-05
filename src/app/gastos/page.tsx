@@ -52,14 +52,16 @@ import {
   inferExpenseBusinessKind,
   isFixedExpense,
 } from "@/lib/expense-classification";
-import { purchaseProductKey } from "@/lib/purchase-products";
+import {
+  purchaseLineHasCatalogProduct,
+  purchaseProductCatalogKeys,
+} from "@/lib/purchase-products";
 import type { Quarter } from "@/lib/periods";
 import type { Expense, ExpenseBusinessKind, Supplier } from "@/lib/types";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
-const EXPENSE_LINE_PREVIEW_LIMIT = 4;
 
 function fixedExpenseFilterKey(expense: Expense): string {
   if (expense.recurringExpenseId) return `fixed:${expense.recurringExpenseId}`;
@@ -230,7 +232,7 @@ function ExpensePurchaseLinesPreview({
   const lines = (expense.purchaseLines ?? [])
     .map((line) => ({
       description: line.description.trim(),
-      hasProduct: productKeys.has(purchaseProductKey(line.description)),
+      hasProduct: purchaseLineHasCatalogProduct(line, productKeys),
     }))
     .filter((line) => line.description.length > 0);
 
@@ -242,21 +244,18 @@ function ExpensePurchaseLinesPreview({
     );
   }
 
-  const visibleLines = lines.slice(0, EXPENSE_LINE_PREVIEW_LIMIT);
-  const hiddenCount = Math.max(lines.length - visibleLines.length, 0);
-
   return (
     <div className="min-w-0">
       <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
         Líneas detectadas
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {visibleLines.map((line, index) => (
+        {lines.map((line, index) => (
           <span
             key={`${line.description}-${index}`}
-            className={`max-w-[15rem] truncate rounded-full px-2.5 py-1 text-xs font-semibold ${
+            className={`max-w-full rounded-full px-2.5 py-1 text-xs font-semibold leading-snug [overflow-wrap:anywhere] ${
               line.hasProduct
-                ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
+                ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
                 : "bg-slate-100 text-slate-600"
             }`}
             title={
@@ -268,11 +267,6 @@ function ExpensePurchaseLinesPreview({
             {line.description}
           </span>
         ))}
-        {hiddenCount > 0 && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-            +{hiddenCount}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -305,18 +299,10 @@ export default function GastosPage() {
     () => new Map(data.documents.map((document) => [document.id, document])),
     [data.documents],
   );
-  const productKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const product of data.products) {
-      if (product.hidden) continue;
-      const candidates = [product.key, product.name, ...(product.aliases ?? [])];
-      for (const candidate of candidates) {
-        const key = purchaseProductKey(candidate);
-        if (key) keys.add(key);
-      }
-    }
-    return keys;
-  }, [data.products]);
+  const productKeys = useMemo(
+    () => purchaseProductCatalogKeys(data.products, data.expenses),
+    [data.expenses, data.products],
+  );
 
   const periodExpenses = useMemo(
     () =>

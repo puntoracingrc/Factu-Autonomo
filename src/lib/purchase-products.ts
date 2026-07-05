@@ -5,7 +5,12 @@ import {
   expensePurchaseLineBaseTotal,
   sanitizeExpensePurchaseLines,
 } from "./expenses";
-import type { Expense, Product, ProductAttribute } from "./types";
+import type {
+  Expense,
+  ExpensePurchaseLine,
+  Product,
+  ProductAttribute,
+} from "./types";
 
 export interface PurchaseProductSupplierSummary {
   supplierId?: string;
@@ -655,4 +660,61 @@ export function buildPurchaseProductSummaries(
       };
     })
     .sort((a, b) => b.lastPurchaseDate.localeCompare(a.lastPurchaseDate));
+}
+
+function addPurchaseProductKeys(
+  keys: Set<string>,
+  candidates: Array<string | undefined>,
+) {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const key = purchaseProductKey(candidate);
+    if (key) keys.add(key);
+  }
+}
+
+export function purchaseProductCatalogKeys(
+  products: Product[] = [],
+  expenses: Expense[] = [],
+): Set<string> {
+  const keys = new Set<string>();
+
+  for (const product of products.map(normalizeProductCatalogItem)) {
+    if (product.hidden) continue;
+    addPurchaseProductKeys(keys, [
+      product.key,
+      product.name,
+      ...(product.aliases ?? []),
+      product.sku,
+      product.externalId,
+      product.purchase?.description,
+      product.purchase?.supplierReference,
+      product.sales?.description,
+    ]);
+  }
+
+  for (const summary of buildPurchaseProductSummaries(expenses, products)) {
+    addPurchaseProductKeys(keys, [
+      summary.key,
+      summary.name,
+      ...summary.aliases,
+      summary.sku,
+      summary.externalId,
+      summary.purchaseDescription,
+      summary.purchaseSupplierReference,
+      summary.saleDescription,
+    ]);
+  }
+
+  return keys;
+}
+
+export function purchaseLineHasCatalogProduct(
+  line: Pick<ExpensePurchaseLine, "description" | "supplierReference">,
+  productKeys: Set<string>,
+): boolean {
+  return [line.description, line.supplierReference].some((candidate) => {
+    if (!candidate) return false;
+    return productKeys.has(purchaseProductKey(candidate));
+  });
 }
