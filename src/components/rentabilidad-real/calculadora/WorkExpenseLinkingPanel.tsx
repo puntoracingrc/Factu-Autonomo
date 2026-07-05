@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { EyeOff, Link2, RotateCcw, Unlink } from "lucide-react";
+import { EyeOff, Link2, RotateCcw, Search, Unlink } from "lucide-react";
 import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Field, Input, Select } from "@/components/ui/Field";
+import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
-import { formatMoney } from "@/lib/calculations";
+import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
   decimalInputFromNumber,
   parseDecimalInput,
   sanitizeDecimalTyping,
 } from "@/lib/decimal-input";
+import { uniqueSupplierOptions } from "@/lib/expense-filters";
 import { expenseTotals } from "@/lib/expenses";
 import { purchaseProductCatalogKeys } from "@/lib/purchase-products";
 import {
@@ -21,12 +24,15 @@ import {
   canLinkExpenseToWork,
   createExpenseWorkDocumentUnlinkPayload,
   createExpenseWorkDocumentUpdatePayload,
+  filterAndSortExpenseLinkCandidates,
+  groupExpenseLinkCandidatesByMonth,
   getHiddenExpenseCandidateIdsForWork,
   hideExpenseCandidateForWork,
   restoreAllExpenseCandidatesForWork,
   restoreExpenseCandidateForWork,
   setExpenseCostAllocationForWork,
   clearExpenseCostAllocationForWork,
+  sortExpenseLinkCandidatesByDateDesc,
   type ExpenseCostAllocationsByExpenseId,
   type RentabilidadRealExpenseLinkCandidate,
 } from "@/lib/rentabilidad-real/expense-linking";
@@ -71,6 +77,10 @@ export function WorkExpenseLinkingPanel({
     profitabilityInput.linkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
   const candidates =
     profitabilityInput.candidateUnlinkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateSupplierFilter, setCandidateSupplierFilter] = useState<
+    string | null
+  >(null);
   const [hiddenCandidateIds, setHiddenCandidateIds] = useState<string[]>(() =>
     getHiddenExpenseCandidateIdsForWork(targetDocumentId),
   );
@@ -78,23 +88,55 @@ export function WorkExpenseLinkingPanel({
     () => purchaseProductCatalogKeys(data.products, data.expenses),
     [data.expenses, data.products],
   );
+  const sortedLinkedExpenses = useMemo(
+    () => sortExpenseLinkCandidatesByDateDesc(linkedExpenses),
+    [linkedExpenses],
+  );
+  const visibleCandidatesWithoutFilters = useMemo(
+    () =>
+      filterAndSortExpenseLinkCandidates(candidates, {
+        hiddenCandidateIds,
+      }),
+    [candidates, hiddenCandidateIds],
+  );
   const visibleCandidates = useMemo(
     () =>
-      candidates.filter(
-        (candidate) => !hiddenCandidateIds.includes(candidate.expense.id),
+      filterAndSortExpenseLinkCandidates(candidates, {
+        hiddenCandidateIds,
+        query: candidateSearch,
+        supplierFilterKey: candidateSupplierFilter,
+      }),
+    [candidateSearch, candidateSupplierFilter, candidates, hiddenCandidateIds],
+  );
+  const visibleCandidateGroups = useMemo(
+    () => groupExpenseLinkCandidatesByMonth(visibleCandidates),
+    [visibleCandidates],
+  );
+  const supplierOptions = useMemo(
+    () =>
+      uniqueSupplierOptions(
+        visibleCandidatesWithoutFilters.map((candidate) => candidate.expense),
       ),
-    [candidates, hiddenCandidateIds],
+    [visibleCandidatesWithoutFilters],
   );
   const hiddenCandidates = useMemo(
     () =>
-      candidates.filter((candidate) =>
-        hiddenCandidateIds.includes(candidate.expense.id),
+      sortExpenseLinkCandidatesByDateDesc(
+        candidates.filter((candidate) =>
+          hiddenCandidateIds.includes(candidate.expense.id),
+        ),
       ),
     [candidates, hiddenCandidateIds],
   );
+  const visibleCandidateCountLabel =
+    visibleCandidates.length === 1
+      ? "1 gasto visible"
+      : `${visibleCandidates.length} gastos visibles`;
 
   useEffect(() => {
     setHiddenCandidateIds(getHiddenExpenseCandidateIdsForWork(targetDocumentId));
+    setCandidateSearch("");
+    setCandidateSupplierFilter(null);
   }, [targetDocumentId]);
 
   function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
@@ -200,12 +242,12 @@ export function WorkExpenseLinkingPanel({
             Gastos ya enlazados
           </h3>
           <div className="mt-3 space-y-3">
-            {linkedExpenses.length === 0 ? (
+            {sortedLinkedExpenses.length === 0 ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
                 No hay gastos enlazados a este trabajo.
               </p>
             ) : (
-              linkedExpenses.map((candidate) => (
+              sortedLinkedExpenses.map((candidate) => (
                 <ExpenseRow
                   key={candidate.expense.id}
                   candidate={candidate}
@@ -240,44 +282,108 @@ export function WorkExpenseLinkingPanel({
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
             Gastos candidatos sin enlazar
           </h3>
+          {candidates.length > 0 ? (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+                <Field
+                  label="Buscar producto o línea"
+                  hint="Busca por descripción de línea, referencia, factura, proveedor o categoría."
+                >
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={candidateSearch}
+                      onChange={(event) => setCandidateSearch(event.target.value)}
+                      placeholder="Ej. motor, canal, aluminio..."
+                      className="pl-10 text-sm"
+                    />
+                  </div>
+                </Field>
+                <Field label="Proveedor">
+                  <Select
+                    value={candidateSupplierFilter ?? ""}
+                    onChange={(event) =>
+                      setCandidateSupplierFilter(event.target.value || null)
+                    }
+                    className="text-sm"
+                  >
+                    <option value="">Todos los proveedores</option>
+                    {supplierOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>
+                  Ordenado por fecha: más recientes primero ·{" "}
+                  {visibleCandidateCountLabel}
+                </span>
+                {(candidateSearch || candidateSupplierFilter) && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 font-bold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-slate-800"
+                    onClick={() => {
+                      setCandidateSearch("");
+                      setCandidateSupplierFilter(null);
+                    }}
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
           <div className="mt-3 space-y-3">
             {candidates.length === 0 ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                 No hay gastos candidatos sin enlazar.
               </p>
-            ) : visibleCandidates.length === 0 ? (
+            ) : visibleCandidatesWithoutFilters.length === 0 ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                 No hay gastos candidatos visibles. Puedes recuperar los ocultos
                 desde el bloque inferior.
               </p>
+            ) : visibleCandidates.length === 0 ? (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                No hay gastos que coincidan con la búsqueda o el proveedor
+                seleccionado.
+              </p>
             ) : (
-              visibleCandidates.map((candidate) => (
-                <ExpenseRow
-                  key={candidate.expense.id}
-                  candidate={candidate}
-                  productKeys={productKeys}
-                  action={
-                    <div className="flex flex-col gap-2 sm:items-end">
-                      <Button
-                        type="button"
-                        className="min-h-10 px-3 text-sm"
-                        onClick={() => linkExpense(candidate)}
-                      >
-                        <Link2 className="h-4 w-4" />
-                        Asignar a este trabajo
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="min-h-10 px-3 text-sm text-slate-600 dark:text-slate-200"
-                        onClick={() => hideCandidate(candidate)}
-                      >
-                        <EyeOff className="h-4 w-4" />
-                        Ocultar de esta lista
-                      </Button>
-                    </div>
-                  }
-                />
+              visibleCandidateGroups.map((group) => (
+                <div key={group.key} className="space-y-3">
+                  <TimelineMonthDivider label={group.label} />
+                  {group.candidates.map((candidate) => (
+                    <ExpenseRow
+                      key={candidate.expense.id}
+                      candidate={candidate}
+                      productKeys={productKeys}
+                      action={
+                        <div className="flex flex-col gap-2 sm:items-end">
+                          <Button
+                            type="button"
+                            className="min-h-10 px-3 text-sm"
+                            onClick={() => linkExpense(candidate)}
+                          >
+                            <Link2 className="h-4 w-4" />
+                            Asignar a este trabajo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="min-h-10 px-3 text-sm text-slate-600 dark:text-slate-200"
+                            onClick={() => hideCandidate(candidate)}
+                          >
+                            <EyeOff className="h-4 w-4" />
+                            Ocultar de esta lista
+                          </Button>
+                        </div>
+                      }
+                    />
+                  ))}
+                </div>
               ))
             )}
           </div>
@@ -353,7 +459,8 @@ function ExpenseRow({
             {expense.supplierName}
           </p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            {expense.date} · {expense.category} · {originLabel(expense)}
+            {formatShortDate(expense.date)} · {expense.category} ·{" "}
+            {originLabel(expense)}
           </p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             Base {formatMoney(totals.base)} · IVA {formatMoney(totals.iva)} ·
