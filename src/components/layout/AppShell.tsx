@@ -340,7 +340,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-sm font-bold text-slate-900 sm:text-base">
                   {APP_BRAND_NAME}
                 </p>
-                <p className="text-xs leading-tight text-slate-500">
+                <p className="hidden text-xs leading-tight text-slate-500 min-[430px]:block">
                   {APP_BRAND_TAGLINE}
                 </p>
               </div>
@@ -359,11 +359,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {user ? (
                 <Link
                   href="/cuenta"
-                  className="flex max-w-[9rem] items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 sm:max-w-[13rem]"
+                  className="flex h-9 w-9 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-0 text-xs font-bold text-emerald-800 hover:bg-emerald-100 min-[430px]:h-auto min-[430px]:w-auto min-[430px]:max-w-[9rem] min-[430px]:justify-start min-[430px]:px-2.5 min-[430px]:py-1.5 sm:max-w-[13rem]"
                   title={accountLabel}
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{accountLabel}</span>
+                  <span className="hidden truncate min-[430px]:inline">
+                    {accountLabel}
+                  </span>
                 </Link>
               ) : (
                 <Link

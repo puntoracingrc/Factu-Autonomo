@@ -32,12 +32,15 @@ export function FactuOccasionalHost() {
 
   return (
     <div
-      className="pointer-events-none fixed left-0 right-0 top-16 z-40 mx-auto max-w-3xl px-4"
+      className="pointer-events-none fixed right-4 z-30 factu-toast-offset w-[min(21rem,calc(100vw-2rem))] sm:right-6"
       role="status"
       aria-live="polite"
     >
-      <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-md">
-        <span className="text-xl" aria-hidden>
+      <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur-md">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg"
+          aria-hidden
+        >
           🤖
         </span>
         <div className="min-w-0 flex-1">

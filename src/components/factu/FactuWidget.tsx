@@ -27,11 +27,11 @@ export function FactuWidget({ onDismiss }: FactuWidgetProps) {
   }
 
   return (
-    <div className="factu-widget-bar pointer-events-none fixed left-0 right-0 z-20 mx-auto max-w-3xl px-4 factu-widget-offset">
-      <div className="pointer-events-auto relative flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 pr-12 shadow-lg backdrop-blur-md">
+    <div className="factu-widget-bar pointer-events-none fixed right-4 z-20 hidden factu-widget-offset sm:block sm:right-6">
+      <div className="pointer-events-auto relative flex items-center gap-2">
         {bubbleText ? (
           <div
-            className="absolute bottom-full left-3 right-3 mb-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl transition-opacity duration-200"
+            className="absolute bottom-full right-0 mb-2 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl transition-opacity duration-200"
             role="status"
           >
             <p className="text-xs font-medium leading-normal text-slate-600">
@@ -44,7 +44,7 @@ export function FactuWidget({ onDismiss }: FactuWidgetProps) {
         <button
           onClick={triggerJoke}
           type="button"
-          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xl transition-transform hover:bg-slate-100 active:scale-95"
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 text-xl shadow-lg backdrop-blur-md transition-transform hover:border-blue-200 hover:bg-blue-50 active:scale-95"
           title="Hablar con Factu"
           aria-label="Hablar con Factu, asistente de facturación"
         >
@@ -52,17 +52,10 @@ export function FactuWidget({ onDismiss }: FactuWidgetProps) {
           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
         </button>
 
-        <div className="min-w-0 flex-1 text-left">
-          <p className="truncate text-xs font-bold text-slate-800">Factu</p>
-          <p className="truncate text-[10px] font-semibold text-blue-600">
-            Veri Legal y Very Bonito
-          </p>
-        </div>
-
         <button
           type="button"
           onClick={handleDismiss}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-400 shadow-md backdrop-blur-md hover:bg-slate-100 hover:text-slate-700"
           aria-label="Cerrar Factu"
           title="Cerrar Factu"
         >
