@@ -192,6 +192,7 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain("dataset.reduceMotion");
     expect(appShellSource).toContain("app-main");
     expect(appShellSource).toContain("appPreferences.reduceMotion");
+    expect(globalCssSource).toContain("@custom-variant dark");
     expect(globalCssSource).toContain('html[data-app-theme="dark"]');
     expect(globalCssSource).toContain('html[data-app-density="compact"]');
     expect(globalCssSource).toContain('html[data-reduce-motion="true"]');
