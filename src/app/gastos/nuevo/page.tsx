@@ -45,7 +45,9 @@ import {
   expensePurchaseLineBaseTotal,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
+  findDuplicatePurchaseExpense,
   findExpensePurchaseLinePriceAlerts,
+  purchaseExpenseDuplicateMatches,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
 } from "@/lib/expenses";
@@ -412,33 +414,9 @@ export default function NuevoGastoPage() {
     supplierName?: string;
     amount?: number;
   }) {
-    const invoiceNumber = input.invoiceNumber?.trim().toLowerCase();
-    if (!invoiceNumber) return null;
-    const nif = input.supplierNif?.trim().toLowerCase();
-    const supplier = input.supplierName?.trim().toLowerCase();
-    const amount = input.amount ?? 0;
-
-    return (
-      data.expenses.find((expense) => {
-        if (editingExpense && expense.id === editingExpense.id) return false;
-        const documentNumber =
-          expense.purchaseDocument?.invoiceNumber?.trim().toLowerCase();
-        if (!documentNumber || documentNumber !== invoiceNumber) return false;
-
-        const expenseNif =
-          expense.purchaseDocument?.supplierNif?.trim().toLowerCase();
-        if (nif && expenseNif && nif === expenseNif) return true;
-
-        if (amount > 0 && Math.abs(expense.amount - amount) < 0.01) {
-          return true;
-        }
-
-        return Boolean(
-          supplier &&
-            expense.supplierName.trim().toLowerCase() === supplier,
-        );
-      }) ?? null
-    );
+    return findDuplicatePurchaseExpense(data.expenses, input, {
+      excludeExpenseId: editingExpense?.id,
+    });
   }
 
   const duplicateExpense = findDuplicateExpense({
@@ -455,17 +433,47 @@ export default function NuevoGastoPage() {
       .filter(Boolean)
       .slice(0, 2)
       .join(", ") || duplicateExpense?.description;
+  const currentScanReviews = useMemo(
+    () =>
+      [activeScanReview, ...pendingScans].filter(
+        (review): review is PendingExpenseScan => Boolean(review),
+      ),
+    [activeScanReview, pendingScans],
+  );
   const showWorkDocumentSection = editingRequested || expenseOrigin !== "scan";
   const showExpenseForm = !scanFormCollapsed;
 
-  function duplicateForScanPayload(payload: ExpenseScanPayload) {
-    return findDuplicateExpense({
+  function duplicateCandidateForScanPayload(payload: ExpenseScanPayload) {
+    return {
       invoiceNumber: payload.expense.purchaseDocument?.invoiceNumber,
       supplierNif:
         payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif,
       supplierName: payload.supplier.name,
       amount: payload.expense.amount,
-    });
+    };
+  }
+
+  function duplicateForScanPayload(payload: ExpenseScanPayload) {
+    return findDuplicateExpense(duplicateCandidateForScanPayload(payload));
+  }
+
+  function duplicateScanReviewInCurrentBatch(review: PendingExpenseScan) {
+    const currentIndex = currentScanReviews.findIndex(
+      (item) => item.id === review.id,
+    );
+    if (currentIndex <= 0) return null;
+
+    const current = duplicateCandidateForScanPayload(review.payload);
+    return (
+      currentScanReviews
+        .slice(0, currentIndex)
+        .find((previous) =>
+          purchaseExpenseDuplicateMatches(
+            current,
+            duplicateCandidateForScanPayload(previous.payload),
+          ),
+        ) ?? null
+    );
   }
 
   function negativeAmountReasonForScanPayload(payload: ExpenseScanPayload) {
@@ -552,6 +560,11 @@ export default function NuevoGastoPage() {
       return `Ya existe como ${duplicate.description}, factura ${invoiceNumber}, guardada el ${formatDate(duplicate.date)} por ${formatMoney(duplicate.amount)}.`;
     }
 
+    const duplicateInBatch = duplicateScanReviewInCurrentBatch(review);
+    if (duplicateInBatch) {
+      return "Esta factura está repetida en este lote. Se guardará solo una vez.";
+    }
+
     const priceAlert = priceAlertsForScanPayload(review.payload)[0];
     if (priceAlert) {
       const discountText =
@@ -572,6 +585,7 @@ export default function NuevoGastoPage() {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (negativeAmountReasonForScanPayload(review.payload)) return "blocked";
     if (duplicateForScanPayload(review.payload)) return "blocked";
+    if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
       review.payload.warnings.length > 0 ||
@@ -582,8 +596,24 @@ export default function NuevoGastoPage() {
     return "ready";
   }
 
-  function saveScanPayload(review: PendingExpenseScan) {
+  function saveScanPayload(
+    review: PendingExpenseScan,
+    savedPayloads: ExpenseScanPayload[] = [],
+  ): boolean {
     const { payload } = review;
+    const currentDuplicateCandidate = duplicateCandidateForScanPayload(payload);
+    if (duplicateForScanPayload(payload)) return false;
+    if (
+      savedPayloads.some((savedPayload) =>
+        purchaseExpenseDuplicateMatches(
+          currentDuplicateCandidate,
+          duplicateCandidateForScanPayload(savedPayload),
+        ),
+      )
+    ) {
+      return false;
+    }
+
     const match = findBestSupplierMatch(data.suppliers, {
       name: payload.supplier.name,
       nif: payload.supplier.nif,
@@ -629,6 +659,7 @@ export default function NuevoGastoPage() {
       origin: "scan",
       businessKind: payload.expense.businessKind ?? "purchase_invoice",
     });
+    return true;
   }
 
   async function handleSaveReadyScans() {
@@ -638,11 +669,18 @@ export default function NuevoGastoPage() {
     ];
     const ready = reviews.filter((review) => scanReviewStatus(review) === "ready");
     if (ready.length === 0) return;
-    ready.forEach(saveScanPayload);
-    if (activeInboxItemId && ready.some((review) => review.id === activeInboxItemId)) {
+    const savedPayloads: ExpenseScanPayload[] = [];
+    const savedReviewIds = new Set<string>();
+    ready.forEach((review) => {
+      if (!saveScanPayload(review, savedPayloads)) return;
+      savedPayloads.push(review.payload);
+      savedReviewIds.add(review.id);
+    });
+    if (savedReviewIds.size === 0) return;
+    if (activeInboxItemId && savedReviewIds.has(activeInboxItemId)) {
       await markInboxItemProcessed();
     }
-    const remaining = reviews.filter((review) => scanReviewStatus(review) !== "ready");
+    const remaining = reviews.filter((review) => !savedReviewIds.has(review.id));
     setActiveScanReview(null);
     setPendingScans(remaining);
     setScanFormCollapsed(false);
