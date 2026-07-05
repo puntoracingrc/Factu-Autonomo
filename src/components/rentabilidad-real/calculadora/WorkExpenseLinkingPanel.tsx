@@ -1,19 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link2, Unlink } from "lucide-react";
+import { EyeOff, Link2, RotateCcw, Unlink } from "lucide-react";
+import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
+import {
+  decimalInputFromNumber,
+  parseDecimalInput,
+  sanitizeDecimalTyping,
+} from "@/lib/decimal-input";
 import { expenseTotals } from "@/lib/expenses";
+import { purchaseProductCatalogKeys } from "@/lib/purchase-products";
 import {
   buildExpenseLinkImpact,
   buildExpenseUnlinkImpact,
   canLinkExpenseToWork,
   createExpenseWorkDocumentUnlinkPayload,
   createExpenseWorkDocumentUpdatePayload,
+  getHiddenExpenseCandidateIdsForWork,
+  hideExpenseCandidateForWork,
+  restoreAllExpenseCandidatesForWork,
+  restoreExpenseCandidateForWork,
+  setExpenseCostAllocationForWork,
+  clearExpenseCostAllocationForWork,
+  type ExpenseCostAllocationsByExpenseId,
   type RentabilidadRealExpenseLinkCandidate,
 } from "@/lib/rentabilidad-real/expense-linking";
 import type { RentabilidadRealWorkProfitabilityInput } from "@/lib/rentabilidad-real/calculation";
@@ -37,16 +51,51 @@ function confirmationText(
   return relevantWarnings ? `${message}\n\n${relevantWarnings}` : message;
 }
 
+const EMPTY_EXPENSE_LINK_CANDIDATES: RentabilidadRealExpenseLinkCandidate[] = [];
+
 export function WorkExpenseLinkingPanel({
   profitabilityInput,
+  directCostAmountOverrides,
+  onDirectCostAmountOverridesChange,
 }: {
   profitabilityInput: RentabilidadRealWorkProfitabilityInput;
+  directCostAmountOverrides: ExpenseCostAllocationsByExpenseId;
+  onDirectCostAmountOverridesChange: (
+    allocations: ExpenseCostAllocationsByExpenseId,
+  ) => void;
 }) {
-  const { updateExpense } = useAppStore();
+  const { data, updateExpense } = useAppStore();
   const [notice, setNotice] = useState<string | null>(null);
   const targetDocumentId = profitabilityInput.source.sourceDocumentId;
-  const linkedExpenses = profitabilityInput.linkedExpenses ?? [];
-  const candidates = profitabilityInput.candidateUnlinkedExpenses ?? [];
+  const linkedExpenses =
+    profitabilityInput.linkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
+  const candidates =
+    profitabilityInput.candidateUnlinkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
+  const [hiddenCandidateIds, setHiddenCandidateIds] = useState<string[]>(() =>
+    getHiddenExpenseCandidateIdsForWork(targetDocumentId),
+  );
+  const productKeys = useMemo(
+    () => purchaseProductCatalogKeys(data.products, data.expenses),
+    [data.expenses, data.products],
+  );
+  const visibleCandidates = useMemo(
+    () =>
+      candidates.filter(
+        (candidate) => !hiddenCandidateIds.includes(candidate.expense.id),
+      ),
+    [candidates, hiddenCandidateIds],
+  );
+  const hiddenCandidates = useMemo(
+    () =>
+      candidates.filter((candidate) =>
+        hiddenCandidateIds.includes(candidate.expense.id),
+      ),
+    [candidates, hiddenCandidateIds],
+  );
+
+  useEffect(() => {
+    setHiddenCandidateIds(getHiddenExpenseCandidateIdsForWork(targetDocumentId));
+  }, [targetDocumentId]);
 
   function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
     const expense = candidate.expense;
@@ -76,6 +125,50 @@ export function WorkExpenseLinkingPanel({
 
     updateExpense(createExpenseWorkDocumentUnlinkPayload(expense));
     setNotice("El cálculo se ha actualizado usando tus gastos existentes.");
+  }
+
+  function hideCandidate(candidate: RentabilidadRealExpenseLinkCandidate) {
+    const nextIds = hideExpenseCandidateForWork(
+      targetDocumentId,
+      candidate.expense.id,
+    );
+    setHiddenCandidateIds(nextIds);
+    setNotice(
+      "Gasto ocultado de esta lista. El gasto sigue intacto en Gastos.",
+    );
+  }
+
+  function restoreCandidate(candidate: RentabilidadRealExpenseLinkCandidate) {
+    const nextIds = restoreExpenseCandidateForWork(
+      targetDocumentId,
+      candidate.expense.id,
+    );
+    setHiddenCandidateIds(nextIds);
+    setNotice("Gasto recuperado en la lista de candidatos.");
+  }
+
+  function restoreAllCandidates() {
+    setHiddenCandidateIds(restoreAllExpenseCandidatesForWork(targetDocumentId));
+    setNotice("Candidatos ocultos recuperados.");
+  }
+
+  function setAppliedAmount(expense: Expense, amount: number) {
+    const totals = expenseTotals(expense);
+    const nextAllocations = setExpenseCostAllocationForWork(
+      targetDocumentId,
+      expense.id,
+      amount,
+      totals.base,
+    );
+    onDirectCostAmountOverridesChange(nextAllocations);
+  }
+
+  function resetAppliedAmount(expense: Expense) {
+    const nextAllocations = clearExpenseCostAllocationForWork(
+      targetDocumentId,
+      expense.id,
+    );
+    onDirectCostAmountOverridesChange(nextAllocations);
   }
 
   return (
@@ -116,6 +209,16 @@ export function WorkExpenseLinkingPanel({
                 <ExpenseRow
                   key={candidate.expense.id}
                   candidate={candidate}
+                  productKeys={productKeys}
+                  allocationAmount={
+                    directCostAmountOverrides[candidate.expense.id]
+                  }
+                  onAllocationAmountChange={(amount) =>
+                    setAppliedAmount(candidate.expense, amount)
+                  }
+                  onAllocationAmountReset={() =>
+                    resetAppliedAmount(candidate.expense)
+                  }
                   action={
                     <Button
                       type="button"
@@ -142,25 +245,79 @@ export function WorkExpenseLinkingPanel({
               <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                 No hay gastos candidatos sin enlazar.
               </p>
+            ) : visibleCandidates.length === 0 ? (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                No hay gastos candidatos visibles. Puedes recuperar los ocultos
+                desde el bloque inferior.
+              </p>
             ) : (
-              candidates.map((candidate) => (
+              visibleCandidates.map((candidate) => (
                 <ExpenseRow
                   key={candidate.expense.id}
                   candidate={candidate}
+                  productKeys={productKeys}
                   action={
-                    <Button
-                      type="button"
-                      className="min-h-10 px-3 text-sm"
-                      onClick={() => linkExpense(candidate)}
-                    >
-                      <Link2 className="h-4 w-4" />
-                      Asignar a este trabajo
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <Button
+                        type="button"
+                        className="min-h-10 px-3 text-sm"
+                        onClick={() => linkExpense(candidate)}
+                      >
+                        <Link2 className="h-4 w-4" />
+                        Asignar a este trabajo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-10 px-3 text-sm text-slate-600 dark:text-slate-200"
+                        onClick={() => hideCandidate(candidate)}
+                      >
+                        <EyeOff className="h-4 w-4" />
+                        Ocultar de esta lista
+                      </Button>
+                    </div>
                   }
                 />
               ))
             )}
           </div>
+          {hiddenCandidates.length > 0 ? (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-950 dark:text-slate-50">
+                    {hiddenCandidates.length} gasto(s) oculto(s) en esta lista
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    Solo se ocultan aquí. Siguen existiendo en Gastos y no se
+                    enlazan al trabajo.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-10 px-3 text-sm"
+                  onClick={restoreAllCandidates}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Mostrar todos
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {hiddenCandidates.map((candidate) => (
+                  <button
+                    type="button"
+                    key={candidate.expense.id}
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
+                    onClick={() => restoreCandidate(candidate)}
+                    title="Volver a mostrar este gasto candidato"
+                  >
+                    {candidate.expense.supplierName || candidate.expense.description}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
     </Card>
@@ -170,12 +327,23 @@ export function WorkExpenseLinkingPanel({
 function ExpenseRow({
   candidate,
   action,
+  productKeys,
+  allocationAmount,
+  onAllocationAmountChange,
+  onAllocationAmountReset,
 }: {
   candidate: RentabilidadRealExpenseLinkCandidate;
   action: ReactNode;
+  productKeys: Set<string>;
+  allocationAmount?: number;
+  onAllocationAmountChange?: (amount: number) => void;
+  onAllocationAmountReset?: () => void;
 }) {
   const expense = candidate.expense;
   const totals = expenseTotals(expense);
+  const appliedAmount = allocationAmount ?? totals.base;
+  const hasPartialAllocation =
+    allocationAmount !== undefined && allocationAmount < totals.base;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
@@ -194,6 +362,52 @@ function ExpenseRow({
           <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             {candidate.suggestedReason}
           </p>
+          <div className="mt-3">
+            <ExpensePurchaseLinesPreview
+              expense={expense}
+              productKeys={productKeys}
+              emptyLabel="Sin líneas detectadas en este gasto"
+            />
+          </div>
+          {onAllocationAmountChange ? (
+            <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <label className="block">
+                  <span className="text-xs font-black text-slate-600 dark:text-slate-300">
+                    Importe aplicado a este trabajo
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="mt-1 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:border-blue-400 dark:focus:ring-blue-950"
+                    value={decimalInputFromNumber(appliedAmount)}
+                    onChange={(event) =>
+                      onAllocationAmountChange(
+                        parseDecimalInput(
+                          sanitizeDecimalTyping(event.target.value),
+                        ),
+                      )
+                    }
+                    aria-label={`Importe aplicado de ${expense.description}`}
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-10 px-3 text-sm"
+                  onClick={onAllocationAmountReset}
+                  disabled={!hasPartialAllocation}
+                >
+                  Aplicar todo
+                </Button>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                Gasto completo: {formatMoney(totals.base)} sin IVA. Si solo una
+                parte pertenece a este trabajo, aplica aquí ese importe. El gasto
+                original no se modifica.
+              </p>
+            </div>
+          ) : null}
         </div>
         <div className="shrink-0">{action}</div>
       </div>

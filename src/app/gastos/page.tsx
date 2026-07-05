@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseInboxCard } from "@/components/expenses/ExpenseInboxCard";
+import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
 import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
@@ -53,7 +54,6 @@ import {
   isFixedExpense,
 } from "@/lib/expense-classification";
 import {
-  purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
 } from "@/lib/purchase-products";
 import type { Quarter } from "@/lib/periods";
@@ -220,56 +220,6 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
     return "border-violet-100 bg-violet-50 text-violet-700";
   }
   return "border-emerald-100 bg-emerald-50 text-emerald-700";
-}
-
-function ExpensePurchaseLinesPreview({
-  expense,
-  productKeys,
-}: {
-  expense: Expense;
-  productKeys: Set<string>;
-}) {
-  const lines = (expense.purchaseLines ?? [])
-    .map((line) => ({
-      description: line.description.trim(),
-      hasProduct: purchaseLineHasCatalogProduct(line, productKeys),
-    }))
-    .filter((line) => line.description.length > 0);
-
-  if (lines.length === 0) {
-    return (
-      <p className="text-sm text-slate-400 md:text-center">
-        Sin líneas de producto
-      </p>
-    );
-  }
-
-  return (
-    <div className="min-w-0">
-      <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-        Líneas detectadas
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {lines.map((line, index) => (
-          <span
-            key={`${line.description}-${index}`}
-            className={`max-w-full rounded-full px-2.5 py-1 text-xs font-semibold leading-snug [overflow-wrap:anywhere] ${
-              line.hasProduct
-                ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
-                : "bg-slate-100 text-slate-600"
-            }`}
-            title={
-              line.hasProduct
-                ? `${line.description} · artículo creado`
-                : `${line.description} · sin artículo creado`
-            }
-          >
-            {line.description}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 export default function GastosPage() {
@@ -617,6 +567,7 @@ export default function GastosPage() {
                     <ExpensePurchaseLinesPreview
                       expense={expense}
                       productKeys={productKeys}
+                      emptyClassName="md:text-center"
                     />
                   </Link>
                   <div className="flex items-center justify-end gap-2">

@@ -33,6 +33,10 @@ export interface RentabilidadRealWorkCost {
   amount: number;
   ivaAmount: number;
   total: number;
+  originalAmount?: number;
+  originalIvaAmount?: number;
+  originalTotal?: number;
+  appliedAmountOverride?: number;
   category: string;
   origin?: "manual" | "scan" | "import" | "recurring";
   workDocumentId?: string;
