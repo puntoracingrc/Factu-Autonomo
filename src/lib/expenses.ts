@@ -30,6 +30,7 @@ export interface ExpensePurchaseLinePriceAlert {
 export interface WorkDocumentExpenseSummary {
   count: number;
   cost: number;
+  iva: number;
 }
 
 export interface PurchaseExpenseDuplicateCandidate {
@@ -111,6 +112,7 @@ export function summarizeWorkDocumentExpenses(
     summarizeWorkDocumentExpensesById(expenses).get(documentId) ?? {
       count: 0,
       cost: 0,
+      iva: 0,
     }
   );
 }
@@ -125,10 +127,13 @@ export function summarizeWorkDocumentExpensesById(
     const current = summaries.get(expense.workDocumentId) ?? {
       count: 0,
       cost: 0,
+      iva: 0,
     };
+    const totals = expenseTotals(expense);
     summaries.set(expense.workDocumentId, {
       count: current.count + 1,
       cost: roundMoney(current.cost + normalizeExpenseAmount(expense.amount)),
+      iva: roundMoney(current.iva + totals.iva),
     });
   }
 

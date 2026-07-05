@@ -144,12 +144,10 @@ export function ClientPicker({
     field: K,
     value: ClientFormValues[K],
   ) {
-    if (selectedCustomerId) onClearSelection();
     onChange(field, value);
   }
 
   function handleAiApply(values: Partial<CustomerAiAutofillValues>) {
-    if (selectedCustomerId) onClearSelection();
     const fields: Array<keyof ClientFormValues> = [
       "customerType",
       "firstName",
@@ -174,8 +172,6 @@ export function ClientPicker({
   }
 
   function handleAddressSuggestion(suggestion: GooglePlaceAddressSuggestion) {
-    if (selectedCustomerId) onClearSelection();
-
     if (suggestion.streetType) onChange("streetType", suggestion.streetType);
     if (suggestion.streetLine || suggestion.address) {
       onChange("address", suggestion.streetLine || suggestion.address);
@@ -272,7 +268,8 @@ export function ClientPicker({
 
           {selectedCustomer && (
             <p className="mt-3 rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
-              Cliente seleccionado: {getCustomerDisplayName(selectedCustomer)}
+              Cliente seleccionado: {getCustomerDisplayName(selectedCustomer)}.
+              Los cambios de la ficha se guardarán en este cliente.
             </p>
           )}
         </div>
@@ -297,7 +294,11 @@ export function ClientPicker({
       <FormSection
         variant="fields"
         title="Ficha del cliente"
-        hint="Si es nuevo, se guardará al crear el documento."
+        hint={
+          selectedCustomer
+            ? "Estás editando la ficha del cliente seleccionado para este documento."
+            : "Si es nuevo, se guardará al crear el documento."
+        }
         className="p-3 sm:p-4"
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">

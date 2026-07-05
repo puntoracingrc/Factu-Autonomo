@@ -48,7 +48,6 @@ import {
 } from "@/lib/numbering";
 import { DEFAULT_IRPF_PERCENT, normalizeIrpfPercent } from "@/lib/taxes";
 import {
-  GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST,
   normalizeGooglePlacesSettings,
   type GooglePlaceAddressSuggestion,
 } from "@/lib/google-places";
@@ -577,8 +576,8 @@ export default function ConfiguracionPage() {
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     Propondrá dirección, código postal y ciudad. Escribir a mano
-                    siempre seguirá disponible. Cada dirección aceptada consume{" "}
-                    {GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST} crédito.
+                    siempre seguirá disponible. Cada dirección aceptada descuenta
+                    uso de IA y mostrará el porcentaje restante.
                   </p>
                 </div>
               </div>

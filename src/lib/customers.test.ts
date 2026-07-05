@@ -607,6 +607,29 @@ describe("ensureCustomerForDocument", () => {
       expect(result.customer.city).toBe("Barcelona");
     }
   });
+
+  it("permite actualizar datos del cliente seleccionado aunque conserve el mismo NIF", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        firstName: "Ana",
+        lastName: "García",
+        nif: "12345678A",
+        phone: "600222333",
+        email: "ana.actualizada@test.com",
+      },
+      "2",
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.created).toBe(false);
+      expect(result.customer.id).toBe("2");
+      expect(result.customer.nif).toBe("12345678A");
+      expect(result.customer.phone).toBe("600222333");
+      expect(result.customer.email).toBe("ana.actualizada@test.com");
+    }
+  });
 });
 
 describe("customerToClient", () => {
