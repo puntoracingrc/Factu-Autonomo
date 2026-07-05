@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin/access";
 import {
-  aiUnitsToScanCredits,
   coerceAdminPlan,
   coerceAdminStatus,
   coerceNonNegativeInteger,
@@ -172,7 +171,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       trial_ends_at: normalizeAdminDate(body.trialEndsAt),
       current_period_end: normalizeAdminDate(body.currentPeriodEnd),
       scan_trial_remaining: coerceNonNegativeInteger(body.scanTrialRemaining),
-      scan_credits: aiUnitsToScanCredits(normalizedAiCreditUnits),
       ai_credit_units: normalizedAiCreditUnits,
       updated_at: new Date().toISOString(),
     });

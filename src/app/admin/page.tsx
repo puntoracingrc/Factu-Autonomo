@@ -326,7 +326,6 @@ function UserAdminCard({
         status,
         trialEndsAt,
         currentPeriodEnd,
-        scanCredits: aiScanEquivalent,
         aiCreditUnits: normalizedAiCreditUnits,
         scanTrialRemaining: coerceNonNegativeInteger(scanTrialRemaining),
       }),
