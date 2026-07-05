@@ -46,7 +46,7 @@ describe("income helpers", () => {
     expect(isCollectedDocument(docs[1])).toBe(true);
   });
 
-  it("no duplica ingresos con recibo automático de factura", () => {
+  it("no duplica ingresos con recibo vinculado a factura", () => {
     const paidInvoice = { ...invoice("pagado", 121), id: "inv-1" };
     const autoReceipt = {
       ...invoice("pagado", 121),

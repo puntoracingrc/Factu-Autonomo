@@ -44,7 +44,7 @@ export const facturasSection: ManualSection = {
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
-        "Si has vinculado compras a esa factura desde **Gastos**, el listado muestra **Costes vinculados** y **Margen estimado**. Es una ayuda rápida para saber si ese trabajo va bien; no modifica el PDF ni la factura emitida.",
+        "El listado muestra **Beneficio Real** y **Reserva impuestos** como referencia rápida. Si has vinculado compras a esa factura desde **Gastos**, el beneficio descuenta esos costes vinculados; no modifica el PDF ni la factura emitida.",
       ],
     },
     {
@@ -62,8 +62,8 @@ export const facturasSection: ManualSection = {
     {
       title: "5. Marcar como cobrada",
       paragraphs: [
-        "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado** y, en facturas normales, se crea un **recibo** vinculado.",
-        "Los documentos relacionados aparecen como pastillas con icono de cadena. Usa **Vincular** para enlazar manualmente un presupuesto de origen o un recibo asociado; si ya hay vínculo, el botón cambia a **Desvincular** y lo quita directamente sin cambiar el PDF ya emitido.",
+        "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado**. Esto no genera un recibo por sí solo.",
+        "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. Los documentos relacionados aparecen como pastillas con icono de cadena. Usa **Vincular** para enlazar manualmente un presupuesto de origen o un recibo asociado; si ya hay vínculo, el botón cambia a **Desvincular** y lo quita directamente sin cambiar el PDF ya emitido.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
       ],
       screenshot: {

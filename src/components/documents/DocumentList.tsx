@@ -12,6 +12,7 @@ import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShare
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
+import { GenerateReceiptButton } from "@/components/documents/GenerateReceiptButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
@@ -504,6 +505,7 @@ export function DocumentList({
                     {(type === "factura" || type === "recibo") && (
                       <MarkAsPaidButton doc={doc} />
                     )}
+                    {type === "factura" && <GenerateReceiptButton doc={doc} />}
                     {type === "factura" && (
                       <PaymentReminderButton
                         doc={contactDoc}

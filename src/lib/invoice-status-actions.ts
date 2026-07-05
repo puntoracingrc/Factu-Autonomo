@@ -147,7 +147,7 @@ export function collectionActionCopy(doc: Document, collected: boolean): {
     return {
       label: "Cobrar",
       tooltip:
-        "Marcar como cobrada en local y crear un recibo vinculado. No cobra por banco ni pasarela.",
+        "Marcar como cobrada en local. Si necesitas recibo, genéralo después desde Recibo. No cobra por banco ni pasarela.",
     };
   }
 

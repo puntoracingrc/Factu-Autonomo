@@ -53,7 +53,11 @@ import {
   syncNumberingToDocuments,
 } from "@/lib/numbering";
 import type { DocumentKind } from "@/lib/types";
-import { canMarkAsCollected, statusAfterUnmarkingCollection } from "@/lib/income";
+import {
+  canMarkAsCollected,
+  isCollectedDocument,
+  statusAfterUnmarkingCollection,
+} from "@/lib/income";
 import {
   canMarkQuoteAsAccepted,
   canMarkQuoteAsRejected,
@@ -128,6 +132,7 @@ interface AppStoreValue {
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
+  generateReceiptForInvoice: (invoiceId: string) => Document | null;
   markQuoteAsAccepted: (id: string) => void;
   unmarkQuoteAsAccepted: (id: string) => void;
   markQuoteAsRejected: (id: string) => void;
@@ -565,44 +570,40 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         }
 
         const now = new Date().toISOString();
-        const numbering = prev.profile.numbering;
+        const paid = markDocumentPaidWithIntegrity(doc, now);
 
-        if (doc.type === "recibo") {
-          const paid = markDocumentPaidWithIntegrity(doc, now);
-          return {
-            ...prev,
-            documents: prev.documents.map((d) =>
-              d.id === id ? paid : d,
-            ),
-          };
+        return {
+          ...prev,
+          documents: prev.documents.map((d) => (d.id === id ? paid : d)),
+        };
+      });
+    },
+    [setAppData],
+  );
+
+  const generateReceiptForInvoice = useCallback(
+    (invoiceId: string): Document | null => {
+      let result: Document | null = null;
+
+      setAppData((prev) => {
+        const invoice = prev.documents.find((doc) => doc.id === invoiceId);
+        if (!invoice || invoice.type !== "factura" || !isCollectedDocument(invoice)) {
+          return prev;
         }
 
         const existingReceipt = findReceiptForInvoice(
           prev.documents,
-          doc.id,
-          doc.receiptDocumentId,
+          invoice.id,
+          invoice.receiptDocumentId,
         );
-
         if (existingReceipt) {
-          return {
-            ...prev,
-            documents: prev.documents.map((d) => {
-              if (d.id === doc.id) {
-                const paid = markDocumentPaidWithIntegrity(doc, now);
-                return {
-                  ...paid,
-                  receiptDocumentId: existingReceipt.id,
-                };
-              }
-              if (d.id === existingReceipt.id) {
-                return markDocumentPaidWithIntegrity(d, now);
-              }
-              return d;
-            }),
-          };
+          result = existingReceipt;
+          return prev;
         }
 
-        const receiptDraft = buildReceiptFromInvoice(doc);
+        const now = new Date().toISOString();
+        const numbering = prev.profile.numbering;
+        const receiptDraft = buildReceiptFromInvoice(invoice);
         const year = new Date(receiptDraft.date).getFullYear();
         const { number, sequence } = assignNextDocumentNumberByType(
           prev.documents,
@@ -614,24 +615,31 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
         const receipt: Document = {
           ...receiptDraft,
+          status: "borrador",
           id: newId(),
           number,
-          issuer: doc.issuer ?? captureIssuerSnapshot(prev.profile),
+          issuer: invoice.issuer ?? captureIssuerSnapshot(prev.profile),
           createdAt: now,
           updatedAt: now,
         };
-        const paidReceipt = markDocumentPaidWithIntegrity(receipt, now);
-        const paidDocument = markDocumentPaidWithIntegrity(doc, now);
-
-        const documents = prev.documents.map((d) =>
-          d.id === doc.id
-            ? {
-                ...paidDocument,
-                receiptDocumentId: receipt.id,
-              }
-            : d,
+        const paidReceipt = markDocumentPaidWithIntegrity(
+          issueDocumentWithIntegrity(receipt, prev.profile, now),
+          now,
         );
-        documents.push(paidReceipt);
+        result = paidReceipt;
+
+        const documents = [
+          ...prev.documents.map((doc) =>
+            doc.id === invoice.id
+              ? {
+                  ...doc,
+                  receiptDocumentId: paidReceipt.id,
+                  updatedAt: now,
+                }
+              : doc,
+          ),
+          paidReceipt,
+        ];
 
         return {
           ...prev,
@@ -648,6 +656,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           counters: countersFromDocuments(documents, year, numbering),
         };
       });
+
+      return result;
     },
     [setAppData],
   );
@@ -1488,6 +1498,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,
+      generateReceiptForInvoice,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
       markQuoteAsRejected,
@@ -1534,6 +1545,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,
+      generateReceiptForInvoice,
       markQuoteAsAccepted,
       unmarkQuoteAsAccepted,
       markQuoteAsRejected,
