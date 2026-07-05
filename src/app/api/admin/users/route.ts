@@ -5,6 +5,7 @@ import {
   ageDaysFromIso,
   buildAdminAiUsageSnapshot,
   emptySubscription,
+  normalizeAdminAiCreditUnits,
   providerLabel,
   type AdminBanSnapshot,
   type AdminErrorSnapshot,
@@ -23,6 +24,7 @@ function subscriptionFromRow(
   userId: string,
 ): AdminSubscriptionSnapshot {
   if (!row) return emptySubscription(userId);
+  const scanCredits = typeof row.scan_credits === "number" ? row.scan_credits : 0;
   return {
     plan: (row.plan as PlanId) ?? "free",
     status: (row.status as SubscriptionStatus) ?? "inactive",
@@ -32,9 +34,11 @@ function subscriptionFromRow(
     stripeSubscriptionId: (row.stripe_subscription_id as string | null) ?? null,
     scanTrialRemaining:
       typeof row.scan_trial_remaining === "number" ? row.scan_trial_remaining : 0,
-    scanCredits: typeof row.scan_credits === "number" ? row.scan_credits : 0,
-    aiCreditUnits:
-      typeof row.ai_credit_units === "number" ? row.ai_credit_units : 0,
+    scanCredits,
+    aiCreditUnits: normalizeAdminAiCreditUnits(
+      row.ai_credit_units,
+      scanCredits,
+    ),
     createdAt: (row.created_at as string | null) ?? null,
     updatedAt: (row.updated_at as string | null) ?? null,
   };

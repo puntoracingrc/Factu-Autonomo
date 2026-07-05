@@ -1,16 +1,38 @@
 import { NextResponse } from "next/server";
+import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isBillingEnforced } from "@/lib/billing/config";
+import {
+  buildScanQuota,
+  UNLIMITED_AI_CREDIT_UNITS,
+} from "@/lib/billing/scan-limits";
 import {
   consumeExpenseScan,
   getExpenseScanQuota,
 } from "@/lib/billing/scan-usage-server";
+import { currentMonthKey } from "@/lib/billing/usage";
 import {
   extractExpenseFromImage,
   fileToBase64,
   resolveScanMimeType,
   validateScanFile,
 } from "@/lib/expense-scan/openai";
+
+function buildAiLearningTestQuota() {
+  return buildScanQuota(
+    "pro_plus",
+    0,
+    0,
+    currentMonthKey(),
+    0,
+    0,
+    UNLIMITED_AI_CREDIT_UNITS,
+  );
+}
+
+function hasAiLearningScanAccess(email?: string | null): boolean {
+  return aiLearningAccountForEmail(email).allowed;
+}
 
 export async function GET(request: Request) {
   if (!isBillingEnforced()) {
@@ -26,6 +48,10 @@ export async function GET(request: Request) {
       { error: "Inicia sesión para escanear gastos" },
       { status: 401 },
     );
+  }
+
+  if (hasAiLearningScanAccess(user.email)) {
+    return NextResponse.json({ quota: buildAiLearningTestQuota() });
   }
 
   const quota = await getExpenseScanQuota(user.id);
@@ -62,7 +88,10 @@ export async function POST(request: Request) {
   }
 
   const userId = user?.id ?? "dev";
-  const gate = await consumeExpenseScan(userId);
+  const gate =
+    user && hasAiLearningScanAccess(user.email)
+      ? { allowed: true, quota: buildAiLearningTestQuota() }
+      : await consumeExpenseScan(userId);
   if (!gate.allowed) {
     return NextResponse.json(
       { error: gate.reason, quota: gate.quota },

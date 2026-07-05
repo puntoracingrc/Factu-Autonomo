@@ -50,4 +50,20 @@ describe("GET /api/billing/ai-usage", () => {
     expect(body.meter.percentRemaining).toBe(100);
     expect(body.quota.bonusCredits).toBe(10);
   });
+
+  it("devuelve modo sin limite para cuentas de aprendizaje IA", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "learning-user",
+      email: "persianasalmar@gmail.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await GET(request("token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(getExpenseScanQuota).not.toHaveBeenCalled();
+    expect(body.meter.mode).toBe("unlimited");
+    expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
+  });
 });
