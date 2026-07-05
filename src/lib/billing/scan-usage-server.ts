@@ -372,7 +372,10 @@ async function consumeAiUnits(
   const monthKey = currentMonthKey();
   const quotaBefore = await getExpenseScanQuota(userId);
 
-  if (!isBillingEnforced()) {
+  if (
+    !isBillingEnforced() ||
+    quotaBefore.remainingUnits === Number.MAX_SAFE_INTEGER
+  ) {
     return { allowed: true, quota: quotaBefore };
   }
 

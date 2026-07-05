@@ -3,6 +3,7 @@ import type { PlanId } from "@/lib/billing/plans";
 import {
   AI_UNITS_PER_SCAN,
   includedExpenseScansForPlan,
+  isUnlimitedAiCreditUnits,
 } from "@/lib/billing/scan-limits";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 
@@ -174,6 +175,17 @@ export function buildAdminAiUsageSnapshot(
     0,
     monthlyIncludedUnits - monthlyUsedUnits,
   );
+  if (isUnlimitedAiCreditUnits(subscription.aiCreditUnits)) {
+    return {
+      monthKey,
+      monthlyIncludedUnits,
+      monthlyUsedUnits,
+      monthlyRemainingUnits,
+      extraUnits: Number.MAX_SAFE_INTEGER,
+      totalRemainingUnits: Number.MAX_SAFE_INTEGER,
+      percentRemaining: 100,
+    };
+  }
   const extraUnits = coerceNonNegativeInteger(subscription.aiCreditUnits);
   const percentRemaining =
     monthlyIncludedUnits > 0

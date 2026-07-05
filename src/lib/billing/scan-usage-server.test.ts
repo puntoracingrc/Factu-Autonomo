@@ -3,6 +3,7 @@ import {
   consumeCustomerAiAutofill,
   consumeExpenseScan,
 } from "./scan-usage-server";
+import { UNLIMITED_AI_CREDIT_UNITS } from "./scan-limits";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { fetchUserSubscriptionServer } from "./server-repository";
 
@@ -132,6 +133,34 @@ describe("AI unit consumption", () => {
       expect.objectContaining({ expense_scans_created: 5 }),
       { onConflict: "user_id,month_key" },
     );
+  });
+
+  it("no descuenta IA cuando admin activa escaneos sin limite", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const rpc = vi.fn();
+
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      from: vi.fn(() => usageQueryBuilder()),
+      rpc,
+    } as unknown as ReturnType<typeof getSupabaseAdmin>);
+    vi.mocked(fetchUserSubscriptionServer).mockResolvedValue({
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      plan: "free",
+      status: "inactive",
+      currentPeriodEnd: null,
+      trialEndsAt: null,
+      scanTrialRemaining: 0,
+      scanCredits: 0,
+      aiCreditUnits: UNLIMITED_AI_CREDIT_UNITS,
+    });
+
+    const result = await consumeExpenseScan(
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
+
+    expect(result.allowed).toBe(true);
+    expect(result.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("mantiene el autorrelleno Pro si falta temporalmente el contador nuevo", async () => {

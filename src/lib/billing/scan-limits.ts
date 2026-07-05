@@ -14,6 +14,10 @@ export const FREE_EXPENSE_SCAN_TRIAL = 2;
 /** Unidad interna: 1 escaneo de documento equivale a 10 usos pequeños de IA. */
 export const AI_UNITS_PER_SCAN = 10;
 
+/** Marca interna para cuentas de prueba activadas desde Admin. Debe caber en integer de Postgres. */
+export const UNLIMITED_AI_CREDIT_UNITS = 2_000_000_000;
+export const UNLIMITED_AI_CREDIT_UNITS_THRESHOLD = 1_000_000_000;
+
 /** Rellenar un cliente desde texto es barato: 10 rellenos equivalen a 1 escaneo. */
 export const CUSTOMER_AI_AUTOFILL_UNITS = 1;
 
@@ -63,6 +67,14 @@ function usagePercent(remaining: number, total: number): number {
   return Math.max(1, Math.min(100, Math.round((remaining / total) * 100)));
 }
 
+export function isUnlimitedAiCreditUnits(value: unknown): boolean {
+  const numeric = Number(value);
+  return (
+    Number.isFinite(numeric) &&
+    numeric >= UNLIMITED_AI_CREDIT_UNITS_THRESHOLD
+  );
+}
+
 export function monthlyScanLimit(plan: PlanId): number {
   if (!isBillingEnforced()) return Number.MAX_SAFE_INTEGER;
   return includedExpenseScansForPlan(plan);
@@ -93,6 +105,24 @@ export function buildScanQuota(
       usedUnits: 0,
       remainingUnits: Number.MAX_SAFE_INTEGER,
       bonusCreditUnits: 0,
+      unitScale: AI_UNITS_PER_SCAN,
+      period: "month",
+      monthKey,
+    };
+  }
+
+  if (isUnlimitedAiCreditUnits(bonusCreditUnits)) {
+    const usedUnits =
+      monthlyUsed * AI_UNITS_PER_SCAN + Math.max(0, monthlyTextAutofillsUsed);
+    return {
+      plan,
+      limit: Number.MAX_SAFE_INTEGER,
+      used: Math.floor(usedUnits / AI_UNITS_PER_SCAN),
+      remaining: Number.MAX_SAFE_INTEGER,
+      bonusCredits: Number.MAX_SAFE_INTEGER,
+      usedUnits,
+      remainingUnits: Number.MAX_SAFE_INTEGER,
+      bonusCreditUnits: Number.MAX_SAFE_INTEGER,
       unitScale: AI_UNITS_PER_SCAN,
       period: "month",
       monthKey,
