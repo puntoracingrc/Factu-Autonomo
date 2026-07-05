@@ -236,7 +236,11 @@ export function scoreRentabilidadRealProfile(
       profileLabel: "Autónomo con estructura ligera",
       explanation:
         "Tu perfil sigue siendo de autónomo persona física, pero la estructura ligera cambia el coste real de cada trabajo.",
-      recommendedProductIds: ["RR_ASSETS_LIGHT", "RR_FIXED_COSTS_PRO"],
+      recommendedProductIds: [
+        "RR_BASE",
+        "RR_ASSETS_LIGHT",
+        "RR_FIXED_COSTS_PRO",
+      ],
       optionalProductIds: ["RR_PRICE_SIMULATOR", "RR_ADVISOR_REVIEW"],
       pendingQuestions,
     });
@@ -258,7 +262,7 @@ export function scoreRentabilidadRealProfile(
       profileLabel: "Profesional por horas y proyectos",
       explanation:
         "Tu rentabilidad depende de horas facturables, proyectos, clientes recurrentes o retenciones profesionales.",
-      recommendedProductIds: ["RR_HOURS_PROJECTS"],
+      recommendedProductIds: ["RR_BASE", "RR_HOURS_PROJECTS"],
       optionalProductIds: [
         "RR_FIXED_COSTS_PRO",
         "RR_PRICE_SIMULATOR",
@@ -285,8 +289,13 @@ export function scoreRentabilidadRealProfile(
       profileLabel: "Autónomo por obras y oficios",
       explanation:
         "Tu perfil encaja con trabajos cerrados, obras, reparaciones o servicios con costes variables sencillos.",
-      recommendedProductIds: ["RR_TRADES_JOBS", "RR_FIXED_COSTS_PRO"],
-      optionalProductIds: ["RR_PRICE_SIMULATOR", "RR_ADVISOR_REVIEW"],
+      recommendedProductIds: [
+        "RR_BASE",
+        "RR_TRADES_JOBS",
+        "RR_FIXED_COSTS_PRO",
+        "RR_PRICE_SIMULATOR",
+      ],
+      optionalProductIds: ["RR_ADVISOR_REVIEW"],
       pendingQuestions,
     });
   }

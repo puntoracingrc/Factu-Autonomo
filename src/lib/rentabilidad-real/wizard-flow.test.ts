@@ -13,7 +13,10 @@ describe("rentabilidad real wizard scoring integration", () => {
     });
 
     expect(result.level).toBe(2);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+    expect(result.recommendedProductIds).toContain("RR_FIXED_COSTS_PRO");
+    expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
   });
 
   it("clasifica diseñador con retención como nivel 3", () => {
@@ -27,6 +30,7 @@ describe("rentabilidad real wizard scoring integration", () => {
     });
 
     expect(result.level).toBe(3);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_HOURS_PROJECTS");
   });
 
@@ -42,6 +46,7 @@ describe("rentabilidad real wizard scoring integration", () => {
     });
 
     expect(result.level).toBe(4);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_ASSETS_LIGHT");
   });
 

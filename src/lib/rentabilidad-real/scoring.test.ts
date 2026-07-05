@@ -27,7 +27,10 @@ describe("rentabilidad real scoring", () => {
     });
 
     expect(result.level).toBe(2);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+    expect(result.recommendedProductIds).toContain("RR_FIXED_COSTS_PRO");
+    expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
     expect(result.outOfPhase).toBe(false);
   });
 
@@ -43,6 +46,7 @@ describe("rentabilidad real scoring", () => {
     });
 
     expect(result.level).toBe(3);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_HOURS_PROJECTS");
     expect(result.outOfPhase).toBe(false);
   });
@@ -58,6 +62,7 @@ describe("rentabilidad real scoring", () => {
     });
 
     expect(result.level).toBe(4);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
     expect(result.recommendedProductIds).toContain("RR_ASSETS_LIGHT");
     expect(result.outOfPhase).toBe(false);
   });
