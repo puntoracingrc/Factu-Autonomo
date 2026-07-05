@@ -52,12 +52,14 @@ import {
   inferExpenseBusinessKind,
   isFixedExpense,
 } from "@/lib/expense-classification";
+import { purchaseProductKey } from "@/lib/purchase-products";
 import type { Quarter } from "@/lib/periods";
 import type { Expense, ExpenseBusinessKind, Supplier } from "@/lib/types";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
+const EXPENSE_LINE_PREVIEW_LIMIT = 4;
 
 function fixedExpenseFilterKey(expense: Expense): string {
   if (expense.recurringExpenseId) return `fixed:${expense.recurringExpenseId}`;
@@ -218,6 +220,64 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
   return "border-emerald-100 bg-emerald-50 text-emerald-700";
 }
 
+function ExpensePurchaseLinesPreview({
+  expense,
+  productKeys,
+}: {
+  expense: Expense;
+  productKeys: Set<string>;
+}) {
+  const lines = (expense.purchaseLines ?? [])
+    .map((line) => ({
+      description: line.description.trim(),
+      hasProduct: productKeys.has(purchaseProductKey(line.description)),
+    }))
+    .filter((line) => line.description.length > 0);
+
+  if (lines.length === 0) {
+    return (
+      <p className="text-sm text-slate-400 md:text-center">
+        Sin líneas de producto
+      </p>
+    );
+  }
+
+  const visibleLines = lines.slice(0, EXPENSE_LINE_PREVIEW_LIMIT);
+  const hiddenCount = Math.max(lines.length - visibleLines.length, 0);
+
+  return (
+    <div className="min-w-0">
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+        Líneas detectadas
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {visibleLines.map((line, index) => (
+          <span
+            key={`${line.description}-${index}`}
+            className={`max-w-[15rem] truncate rounded-full px-2.5 py-1 text-xs font-semibold ${
+              line.hasProduct
+                ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
+                : "bg-slate-100 text-slate-600"
+            }`}
+            title={
+              line.hasProduct
+                ? `${line.description} · artículo creado`
+                : `${line.description} · sin artículo creado`
+            }
+          >
+            {line.description}
+          </span>
+        ))}
+        {hiddenCount > 0 && (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+            +{hiddenCount}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function GastosPage() {
   const { data, deleteExpense } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
@@ -245,6 +305,18 @@ export default function GastosPage() {
     () => new Map(data.documents.map((document) => [document.id, document])),
     [data.documents],
   );
+  const productKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const product of data.products) {
+      if (product.hidden) continue;
+      const candidates = [product.key, product.name, ...(product.aliases ?? [])];
+      for (const candidate of candidates) {
+        const key = purchaseProductKey(candidate);
+        if (key) keys.add(key);
+      }
+    }
+    return keys;
+  }, [data.products]);
 
   const periodExpenses = useMemo(
     () =>
@@ -498,7 +570,7 @@ export default function GastosPage() {
                     label={formatTimelineMonthLabel(expense.date)}
                   />
                 )}
-                <Card className="flex items-center justify-between gap-3">
+                <Card className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,1.35fr)_auto] md:items-center">
                   <Link
                     href={expenseEditHref(expense, recurringExpenseIds)}
                     className="min-w-0 flex-1 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -551,7 +623,17 @@ export default function GastosPage() {
                       </div>
                     )}
                   </Link>
-                  <div className="flex items-center gap-2">
+                  <Link
+                    href={expenseEditHref(expense, recurringExpenseIds)}
+                    className="min-w-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    aria-label={`Ver líneas de ${expense.description}`}
+                  >
+                    <ExpensePurchaseLinesPreview
+                      expense={expense}
+                      productKeys={productKeys}
+                    />
+                  </Link>
+                  <div className="flex items-center justify-end gap-2">
                     <span className="font-bold text-red-700">
                       {formatMoney(expenseAmount(expense, vatExempt))}
                     </span>

@@ -75,6 +75,15 @@ describe("product expenses/providers polish wiring", () => {
     expect(listPage).toContain("formatMoney(expenseAmount");
   });
 
+  it("muestra las lineas de compra en el listado de gastos", () => {
+    const listPage = source("../app/gastos/page.tsx");
+
+    expect(listPage).toContain("ExpensePurchaseLinesPreview");
+    expect(listPage).toContain("Líneas detectadas");
+    expect(listPage).toContain("purchaseProductKey(line.description)");
+    expect(listPage).toContain("artículo creado");
+  });
+
   it("evita claims prohibidos en copy visible de gastos y proveedores", () => {
     const copy = [
       source("../app/gastos/page.tsx"),

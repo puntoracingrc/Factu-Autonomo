@@ -3,7 +3,9 @@ import {
   expensePurchaseLineBaseTotal,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
+  findDuplicatePurchaseExpense,
   findExpensePurchaseLinePriceAlerts,
+  purchaseExpenseDuplicateMatches,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
   summarizeWorkDocumentExpensesById,
@@ -87,6 +89,59 @@ describe("expenseTotalsFromBase", () => {
       invoiceNumber: "FD-1",
       supplierNif: "B12345678",
     });
+  });
+
+  it("detecta facturas de proveedor duplicadas por numero, proveedor e importe", () => {
+    const previousExpense: Expense = {
+      id: "expense-1",
+      date: "2026-06-16",
+      supplierName: "METALURGICA ARANDES S.L.",
+      description: "Compra de materiales y componentes metalicos",
+      amount: 386.45,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Transferencia",
+      purchaseDocument: {
+        invoiceNumber: "FD/224811",
+        supplierNif: "B60470374",
+      },
+      createdAt: "2026-06-16T10:00:00.000Z",
+    };
+
+    expect(
+      purchaseExpenseDuplicateMatches(
+        {
+          invoiceNumber: " fd/224811 ",
+          supplierName: "metalurgica arandes s.l.",
+          amount: 386.45,
+        },
+        {
+          invoiceNumber: previousExpense.purchaseDocument?.invoiceNumber,
+          supplierNif: previousExpense.purchaseDocument?.supplierNif,
+          supplierName: previousExpense.supplierName,
+          amount: previousExpense.amount,
+        },
+      ),
+    ).toBe(true);
+    expect(
+      findDuplicatePurchaseExpense([previousExpense], {
+        invoiceNumber: "FD/224811",
+        supplierNif: "B60470374",
+        supplierName: "METALURGICA ARANDES S.L.",
+        amount: 386.45,
+      }),
+    ).toBe(previousExpense);
+    expect(
+      findDuplicatePurchaseExpense(
+        [previousExpense],
+        {
+          invoiceNumber: "FD/224811",
+          supplierName: "METALURGICA ARANDES S.L.",
+          amount: 386.45,
+        },
+        { excludeExpenseId: "expense-1" },
+      ),
+    ).toBeNull();
   });
 
   it("resume costes vinculados a un trabajo", () => {

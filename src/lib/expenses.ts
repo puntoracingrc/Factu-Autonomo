@@ -32,6 +32,13 @@ export interface WorkDocumentExpenseSummary {
   cost: number;
 }
 
+export interface PurchaseExpenseDuplicateCandidate {
+  invoiceNumber?: string;
+  supplierNif?: string | null;
+  supplierName?: string;
+  amount?: number;
+}
+
 export function normalizeExpenseAmount(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
@@ -180,6 +187,65 @@ export function sanitizeExpensePurchaseDocument(
   };
 
   return Object.values(sanitized).some(Boolean) ? sanitized : undefined;
+}
+
+function normalizeDuplicateText(value?: string | null): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function normalizeDuplicateAmount(value?: number): number | undefined {
+  return Number.isFinite(value) && (value ?? 0) > 0
+    ? roundMoney(value ?? 0)
+    : undefined;
+}
+
+export function purchaseExpenseDuplicateMatches(
+  current: PurchaseExpenseDuplicateCandidate,
+  previous: PurchaseExpenseDuplicateCandidate,
+): boolean {
+  const currentInvoice = normalizeDuplicateText(current.invoiceNumber);
+  const previousInvoice = normalizeDuplicateText(previous.invoiceNumber);
+  if (!currentInvoice || currentInvoice !== previousInvoice) return false;
+
+  const currentNif = normalizeDuplicateText(current.supplierNif);
+  const previousNif = normalizeDuplicateText(previous.supplierNif);
+  if (currentNif && previousNif && currentNif === previousNif) return true;
+
+  const currentAmount = normalizeDuplicateAmount(current.amount);
+  const previousAmount = normalizeDuplicateAmount(previous.amount);
+  if (
+    currentAmount !== undefined &&
+    previousAmount !== undefined &&
+    Math.abs(currentAmount - previousAmount) < 0.01
+  ) {
+    return true;
+  }
+
+  const currentSupplier = normalizeDuplicateText(current.supplierName);
+  const previousSupplier = normalizeDuplicateText(previous.supplierName);
+  return Boolean(
+    currentSupplier &&
+      previousSupplier &&
+      currentSupplier === previousSupplier,
+  );
+}
+
+export function findDuplicatePurchaseExpense(
+  expenses: Expense[],
+  candidate: PurchaseExpenseDuplicateCandidate,
+  options: { excludeExpenseId?: string } = {},
+): Expense | null {
+  return (
+    expenses.find((expense) => {
+      if (expense.id === options.excludeExpenseId) return false;
+      return purchaseExpenseDuplicateMatches(candidate, {
+        invoiceNumber: expense.purchaseDocument?.invoiceNumber,
+        supplierNif: expense.purchaseDocument?.supplierNif,
+        supplierName: expense.supplierName,
+        amount: expense.amount,
+      });
+    }) ?? null
+  );
 }
 
 function purchaseLineSearchKey(description: string): string {
