@@ -14,6 +14,7 @@ interface MarkAsPaidButtonProps {
 export function MarkAsPaidButton({ doc }: MarkAsPaidButtonProps) {
   const { markAsCollected, unmarkAsCollected } = useAppStore();
 
+  if (doc.type === "recibo" && doc.sourceDocumentId) return null;
   if (!canMarkAsCollected(doc)) return null;
 
   const collected = isCollectedDocument(doc);

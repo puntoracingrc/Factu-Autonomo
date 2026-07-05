@@ -45,7 +45,7 @@ describe("buildReceiptFromInvoice", () => {
     expect(receipt.paymentTerms).toBe("Transferencia bancaria");
   });
 
-  it("marcar cobro crea recibo automático como antes si procede", () => {
+  it("el recibo generado bajo petición puede emitirse como pagado", () => {
     const paidInvoice = markDocumentPaid(invoice, "2026-06-24T10:00:00.000Z");
     const receiptDraft = {
       ...buildReceiptFromInvoice(invoice),

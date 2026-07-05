@@ -153,6 +153,9 @@ describe("invoice status action copy", () => {
     expect(collectionActionCopy(emitted, false).tooltip).toContain(
       "No cobra por banco ni pasarela",
     );
+    expect(collectionActionCopy(emitted, false).tooltip).not.toContain(
+      "crear un recibo",
+    );
     expect(collectionActionCopy(markDocumentPaid(emitted), true).label).toBe(
       "Cobrada",
     );
