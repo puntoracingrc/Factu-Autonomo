@@ -150,6 +150,19 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain("sm:hidden");
   });
 
+  it("mantiene la cabecera movil compacta sin estrujar la marca", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain("min-w-0 flex-1 items-center");
+    expect(appShellSource).toContain("sm:hidden\">Entrar");
+    expect(appShellSource).toContain("hidden sm:inline\">Iniciar sesión");
+    expect(appShellSource).toContain("hidden min-[430px]:inline");
+    expect(appShellSource).toContain('title="Hazte Pro"');
+  });
+
   it("distingue exportacion gratis de importador Pro en cuenta", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
