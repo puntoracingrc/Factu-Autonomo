@@ -56,6 +56,10 @@ import {
   expenseBusinessKindHint,
   inferExpenseBusinessKind,
 } from "@/lib/expense-classification";
+import {
+  purchaseLineHasCatalogProduct,
+  purchaseProductCatalogKeys,
+} from "@/lib/purchase-products";
 import type {
   ExpenseBusinessKind,
   ExpensePurchaseDocument,
@@ -376,6 +380,10 @@ export default function NuevoGastoPage() {
 
   const purchaseLinesBaseTotal = expensePurchaseLinesBaseTotal(
     sanitizeExpensePurchaseLines(purchaseLines),
+  );
+  const productKeys = useMemo(
+    () => purchaseProductCatalogKeys(data.products, data.expenses),
+    [data.expenses, data.products],
   );
   const linkableWorkDocuments = useMemo(
     () =>
@@ -1318,7 +1326,7 @@ export default function NuevoGastoPage() {
           <FormSection
             variant="fields"
             title="Líneas de compra"
-            hint="Las líneas marcadas pueden crear o actualizar productos al guardar. Si escaneas varias facturas, revisa cada una antes de confirmar."
+            hint="Las líneas verdes ya coinciden con Productos. Las marcadas pueden crear o actualizar productos al guardar."
           >
             <div className="space-y-3">
               {purchaseLines.length === 0 ? (
@@ -1327,19 +1335,43 @@ export default function NuevoGastoPage() {
                   añadirlas a mano.
                 </div>
               ) : (
-                purchaseLines.map((line, index) => (
-                  <div
-                    key={line.id}
-                    className={`rounded-2xl border p-3 ${
-                      line.catalogProduct !== false
-                        ? "border-green-100 bg-green-50"
-                        : "border-slate-100 bg-slate-50"
-                    }`}
-                  >
+                purchaseLines.map((line, index) => {
+                  const lineInCatalog = purchaseLineHasCatalogProduct(
+                    line,
+                    productKeys,
+                  );
+                  const lineWillGoToCatalog = line.catalogProduct !== false;
+                  const cardTone = lineInCatalog
+                    ? "border-green-200 bg-green-50"
+                    : lineWillGoToCatalog
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-slate-100 bg-slate-50";
+                  const checkboxTone = lineInCatalog
+                    ? "border-green-200 bg-white text-green-800"
+                    : lineWillGoToCatalog
+                      ? "border-blue-200 bg-white text-blue-800"
+                      : "border-slate-200 bg-white text-slate-700";
+
+                  return (
+                    <div
+                      key={line.id}
+                      className={`rounded-2xl border p-3 ${cardTone}`}
+                    >
                     <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                        Línea {index + 1}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Línea {index + 1}
+                        </p>
+                        {lineInCatalog ? (
+                          <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-green-800 ring-1 ring-green-200">
+                            Ya está en Productos
+                          </span>
+                        ) : lineWillGoToCatalog ? (
+                          <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-800 ring-1 ring-blue-200">
+                            Se creará al guardar
+                          </span>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
                         onClick={() =>
@@ -1419,16 +1451,12 @@ export default function NuevoGastoPage() {
                       Base línea: {formatMoney(expensePurchaseLineBaseTotal(line))}
                     </p>
                     <label
-                      className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${
-                        line.catalogProduct !== false
-                          ? "border-green-200 bg-white text-green-800"
-                          : "border-slate-200 bg-white text-slate-700"
-                      }`}
+                      className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
                     >
                       <span className="flex items-center gap-2 font-bold">
                         <input
                           type="checkbox"
-                          checked={line.catalogProduct !== false}
+                          checked={lineWillGoToCatalog}
                           onChange={(e) =>
                             updatePurchaseLine(line.id, {
                               catalogProduct: e.target.checked,
@@ -1436,12 +1464,16 @@ export default function NuevoGastoPage() {
                           }
                           className="h-5 w-5 rounded"
                         />
-                        Crear producto desde esta línea al guardar
+                        {lineInCatalog
+                          ? "Actualizar producto desde esta línea al guardar"
+                          : "Crear producto desde esta línea al guardar"}
                       </span>
                       <span className="text-xs font-bold">
-                        {line.catalogProduct !== false
-                          ? "Sí, se llevará a Productos"
-                          : "No se llevará a Productos"}
+                        {lineInCatalog
+                          ? "Ya existe en Productos"
+                          : lineWillGoToCatalog
+                            ? "Sí, se llevará a Productos"
+                            : "No se llevará a Productos"}
                       </span>
                     </label>
                     <p className="mt-2 text-xs text-slate-500">
@@ -1449,8 +1481,9 @@ export default function NuevoGastoPage() {
                       la factura, dejar marcada esta opción y guardar. Desmarca
                       herramientas, gastos internos o servicios sueltos.
                     </p>
-                  </div>
-                ))
+                    </div>
+                  );
+                })
               )}
               <div className="flex flex-wrap items-center gap-3">
                 <button

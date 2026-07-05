@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildPurchaseProductSummaries,
   inferPurchaseProductFamily,
+  purchaseLineHasCatalogProduct,
+  purchaseProductCatalogKeys,
   purchaseProductKey,
 } from "./purchase-products";
 import type { Expense, Product } from "./types";
@@ -324,6 +326,53 @@ describe("purchase products", () => {
 
     expect(summaries).toHaveLength(1);
     expect(summaries[0].name).toBe("Motor vendible");
+  });
+
+  it("marca líneas que ya existen en productos manuales o detectados", () => {
+    const expenses = [
+      expense("1", "2026-07-01", "Arandes", [
+        {
+          id: "l1",
+          description: "Motor vendible",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 95,
+          ivaPercent: 21,
+        },
+        {
+          id: "l2",
+          description: "Taladro para uso interno",
+          catalogProduct: false,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 180,
+          ivaPercent: 21,
+        },
+      ]),
+    ];
+    const catalog = [
+      product("MB490 MINIAL: MINI Aluminio Basica", {
+        aliases: [purchaseProductKey("MB490 MINIAL aluminio blanco")],
+      }),
+    ];
+    const keys = purchaseProductCatalogKeys(catalog, expenses);
+
+    expect(
+      purchaseLineHasCatalogProduct({ description: "Motor vendible" }, keys),
+    ).toBe(true);
+    expect(
+      purchaseLineHasCatalogProduct(
+        { description: "MB490 MINIAL aluminio blanco" },
+        keys,
+      ),
+    ).toBe(true);
+    expect(
+      purchaseLineHasCatalogProduct(
+        { description: "Taladro para uso interno" },
+        keys,
+      ),
+    ).toBe(false);
   });
 
   it("mantiene líneas históricas sin marca para no perder productos existentes", () => {

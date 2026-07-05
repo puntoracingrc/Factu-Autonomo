@@ -80,8 +80,10 @@ describe("product expenses/providers polish wiring", () => {
 
     expect(listPage).toContain("ExpensePurchaseLinesPreview");
     expect(listPage).toContain("Líneas detectadas");
-    expect(listPage).toContain("purchaseProductKey(line.description)");
+    expect(listPage).toContain("purchaseProductCatalogKeys(data.products");
+    expect(listPage).toContain("purchaseLineHasCatalogProduct(line");
     expect(listPage).toContain("artículo creado");
+    expect(listPage).not.toContain("EXPENSE_LINE_PREVIEW_LIMIT");
   });
 
   it("evita claims prohibidos en copy visible de gastos y proveedores", () => {
