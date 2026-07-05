@@ -33,6 +33,7 @@ import {
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
+import { calculateInvoiceListProfitability } from "@/lib/document-list-profitability";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
@@ -356,6 +357,17 @@ export function DocumentList({
               workExpenseSummary && workExpenseSummary.count > 0
                 ? amounts.subtotal - workExpenseSummary.cost
                 : undefined;
+            const invoiceProfitability =
+              type === "factura" && doc.status !== "borrador"
+                ? calculateInvoiceListProfitability({
+                    salesBase: amounts.subtotal,
+                    salesIva: amounts.iva,
+                    linkedExpenseBase: workExpenseSummary?.cost,
+                    linkedExpenseIva: workExpenseSummary?.iva,
+                    irpfPercent: data.profile.irpfPercent,
+                    vatExempt,
+                  })
+                : null;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
@@ -420,26 +432,49 @@ export function DocumentList({
                       document={doc}
                       documents={data.documents}
                     />
-                    {workExpenseSummary && workMargin !== undefined && (
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
-                          Costes vinculados:{" "}
-                          {formatMoney(workExpenseSummary.cost)}
-                        </span>
+                    {type !== "factura" &&
+                      workExpenseSummary &&
+                      workMargin !== undefined && (
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+                            Costes vinculados:{" "}
+                            {formatMoney(workExpenseSummary.cost)}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 ${
+                              workMargin >= 0
+                                ? "bg-emerald-50 text-emerald-800"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            Margen estimado: {formatMoney(workMargin)}
+                          </span>
+                        </div>
+                      )}
+                    {invoiceProfitability && (
+                      <div className="mt-2 grid gap-2 text-xs font-bold sm:max-w-xl sm:grid-cols-2">
                         <span
-                          className={`rounded-full px-2.5 py-1 ${
-                            workMargin >= 0
+                          className={`rounded-xl px-3 py-2 ${
+                            invoiceProfitability.realProfit >= 0
                               ? "bg-emerald-50 text-emerald-800"
                               : "bg-red-50 text-red-700"
                           }`}
                         >
-                          Margen estimado: {formatMoney(workMargin)}
+                          Beneficio Real:{" "}
+                          {formatMoney(invoiceProfitability.realProfit)}
+                        </span>
+                        <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">
+                          Reserva impuestos:{" "}
+                          {formatMoney(invoiceProfitability.taxReserve)}
                         </span>
                       </div>
                     )}
-                    {statusHint && (
-                      <p className="mt-1 text-xs text-slate-500">{statusHint}</p>
-                    )}
+                    {statusHint &&
+                      !(type === "factura" && doc.status === "pagado") && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {statusHint}
+                        </p>
+                      )}
                     {doc.rectification && (
                       <p className="text-xs text-orange-700">
                         Rectifica: {doc.rectification.originalNumber}
@@ -450,7 +485,7 @@ export function DocumentList({
                         Tiene factura rectificativa asociada
                       </p>
                     )}
-                    {missingShareContact && (
+                    {missingShareContact && type !== "factura" && (
                       <p className="text-xs text-slate-500">
                         Sin email ni teléfono para enviar desde aquí.
                       </p>

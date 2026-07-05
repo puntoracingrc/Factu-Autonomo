@@ -187,10 +187,12 @@ describe("expenseTotalsFromBase", () => {
     expect(summarizeWorkDocumentExpenses(expenses, "document-1")).toEqual({
       count: 2,
       cost: 150.5,
+      iva: 31.61,
     });
     expect(summarizeWorkDocumentExpensesById(expenses).get("document-2")).toEqual({
       count: 1,
       cost: 80,
+      iva: 16.8,
     });
   });
 
