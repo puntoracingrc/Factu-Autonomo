@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import {
   Cloud,
   CreditCard,
   HardDrive,
+  LogIn,
+  RefreshCw,
   Scale,
-  Shield,
   Upload,
   type LucideIcon,
 } from "lucide-react";
@@ -35,17 +36,20 @@ const ACCOUNT_NAV_ITEMS: Array<{
   label: string;
   Icon: LucideIcon;
 }> = [
-  { href: "#inicio-sesion", label: "Cuenta y nube", Icon: Cloud },
+  { href: "#inicio-sesion", label: "Acceso", Icon: LogIn },
   { href: "#plan-cuenta", label: "Plan", Icon: CreditCard },
-  { href: "#drive-backup", label: "Drive", Icon: HardDrive },
-  { href: "#importar-datos", label: "Importar", Icon: Upload },
-  { href: "#datos-privacidad", label: "Tus datos", Icon: Shield },
+  { href: "#sincronizacion-cuenta", label: "Sincronización", Icon: RefreshCw },
+  { href: "#copias-cuenta", label: "Copias", Icon: HardDrive },
+  { href: "#importar-datos", label: "Importación", Icon: Upload },
   { href: "#legal-privacidad", label: "Legal", Icon: Scale },
 ];
 
 function AccountQuickLinks() {
   return (
-    <nav aria-label="Opciones de cuenta" className="mb-5 flex flex-wrap gap-2">
+    <nav
+      aria-label="Opciones de cuenta"
+      className="mb-6 flex flex-wrap gap-2"
+    >
       {ACCOUNT_NAV_ITEMS.map(({ href, label, Icon }) => (
         <a
           key={href}
@@ -62,38 +66,125 @@ function AccountQuickLinks() {
   );
 }
 
+function AccountSection({
+  id,
+  title,
+  description,
+  Icon,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  Icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {description}
+          </p>
+        </div>
+      </div>
+      <div className="mb-8">{children}</div>
+    </section>
+  );
+}
+
 export default function CuentaPage() {
   return (
     <div>
       <PageHeader
         title="Cuenta"
-        subtitle="Inicia sesión, sincroniza tus dispositivos y guarda una copia de seguridad."
+        subtitle="Acceso, plan, sincronización, copias, importación y documentos legales."
       />
 
       <AccountQuickLinks />
 
-      <Suspense
-        fallback={
-          <p className="mb-6 text-sm text-slate-500">Cargando cuenta…</p>
-        }
+      <AccountSection
+        id="inicio-sesion"
+        title="Acceso"
+        description="Crea cuenta, inicia sesión, confirma el email y decide qué hacer con los datos locales."
+        Icon={LogIn}
       >
-        <CloudAccountCard />
-      </Suspense>
+        <Suspense
+          fallback={
+            <p className="mb-6 text-sm text-slate-500">Cargando cuenta…</p>
+          }
+        >
+          <CloudAccountCard />
+        </Suspense>
+      </AccountSection>
 
-      <section id="plan-cuenta" className="scroll-mt-24">
+      <AccountSection
+        id="plan-cuenta"
+        title="Plan"
+        description="Consulta tu plan, límites de uso, facturación y ventajas de invitación."
+        Icon={CreditCard}
+      >
         <PlanStatusCard />
         <AiUsageMeterCard />
         <SubscriptionBillingCard />
         <Suspense fallback={null}>
           <ReferralCard />
         </Suspense>
-      </section>
+      </AccountSection>
 
-      <GoogleDriveBackupCard />
+      <AccountSection
+        id="sincronizacion-cuenta"
+        title="Sincronización"
+        description="La nube de Factu mantiene tus datos entre móvil y ordenador cuando tu cuenta está activa."
+        Icon={RefreshCw}
+      >
+        <Card className="mb-6 space-y-3 border-sky-100 bg-sky-50/70">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
+              <Cloud className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Nube de Factu
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Los controles de sesión, subida de datos locales y reparación de
+                nube están en el bloque Acceso para mantener el flujo de entrada
+                en un solo sitio.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="#inicio-sesion" variant="secondary">
+            Ir a Acceso
+          </ButtonLink>
+        </Card>
+      </AccountSection>
 
-      <section id="importar-datos" className="scroll-mt-24">
+      <AccountSection
+        id="copias-cuenta"
+        title="Copias"
+        description="Descarga una copia manual, restaura un JSON revisado o guarda una copia extra en Google Drive."
+        Icon={HardDrive}
+      >
+        <GoogleDriveBackupCard />
+
+        <div id="datos-privacidad" className="scroll-mt-24">
+          <DataOwnershipCard />
+        </div>
+      </AccountSection>
+
+      <AccountSection
+        id="importar-datos"
+        title="Importación"
+        description="Trae datos desde otros programas con una previsualización antes de aplicar cambios."
+        Icon={Upload}
+      >
         <Card className="mb-6 space-y-3">
-          <h2 className="text-lg font-bold text-slate-900">Importar datos</h2>
+          <h3 className="text-lg font-bold text-slate-900">Importar datos</h3>
           <p className="text-sm text-slate-600">
             Trae clientes, presupuestos, facturas y datos de empresa desde
             archivos compatibles. Revisa una previsualización antes de aplicar la
@@ -103,15 +194,16 @@ export default function CuentaPage() {
             Abrir importador
           </ButtonLink>
         </Card>
-      </section>
+      </AccountSection>
 
-      <div id="datos-privacidad" className="scroll-mt-24">
-        <DataOwnershipCard />
-      </div>
-
-      <div id="legal-privacidad" className="scroll-mt-24">
+      <AccountSection
+        id="legal-privacidad"
+        title="Legal"
+        description="Condiciones, privacidad, cookies, tratamiento de datos y notas sobre VeriFactu."
+        Icon={Scale}
+      >
         <LegalLinksCard />
-      </div>
+      </AccountSection>
     </div>
   );
 }

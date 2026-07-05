@@ -205,15 +205,34 @@ describe("MVP usability polish", () => {
       new URL("../app/auth/callback/page.tsx", import.meta.url),
       "utf8",
     );
-    const cloudAccountSource = readFileSync(
-      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+    const accountPageSource = readFileSync(
+      new URL("../app/cuenta/page.tsx", import.meta.url),
       "utf8",
     );
 
     expect(appShellSource).toContain('href="/cuenta#inicio-sesion"');
     expect(authCallbackSource).toContain("/cuenta?auth=");
     expect(authCallbackSource).toContain("#inicio-sesion");
-    expect(cloudAccountSource).toContain('id="inicio-sesion"');
+    expect(accountPageSource).toContain('id="inicio-sesion"');
+    expect(accountPageSource).toContain("<CloudAccountCard />");
+  });
+
+  it("ordena cuenta por bloques reconocibles", () => {
+    const accountPageSource = readFileSync(
+      new URL("../app/cuenta/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(accountPageSource).toContain("AccountSection");
+    expect(accountPageSource).toContain("Acceso");
+    expect(accountPageSource).toContain("Plan");
+    expect(accountPageSource).toContain("Sincronización");
+    expect(accountPageSource).toContain("Copias");
+    expect(accountPageSource).toContain("Importación");
+    expect(accountPageSource).toContain("Legal");
+    expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
+    expect(accountPageSource).toContain('id="copias-cuenta"');
+    expect(accountPageSource).not.toContain("Cuenta y nube");
   });
 
   it("permite volver al inicio publico aunque haya datos locales sin sesion", () => {
@@ -813,14 +832,22 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain("Opciones de cuenta");
     expect(accountPageSource).toContain("flex flex-wrap gap-2");
     expect(accountPageSource).toContain("#inicio-sesion");
-    expect(accountPageSource).toContain("#drive-backup");
+    expect(accountPageSource).toContain("#plan-cuenta");
+    expect(accountPageSource).toContain("#sincronizacion-cuenta");
+    expect(accountPageSource).toContain("#copias-cuenta");
     expect(accountPageSource).toContain("#importar-datos");
-    expect(accountPageSource).toContain("#datos-privacidad");
     expect(accountPageSource).toContain("#legal-privacidad");
+    expect(accountPageSource).toContain("Acceso");
+    expect(accountPageSource).toContain("Sincronización");
+    expect(accountPageSource).toContain("Copias");
+    expect(accountPageSource).toContain("Importación");
     expect(accountPageSource).not.toContain("#manual-cuenta");
     expect(accountPageSource).not.toContain("#instalar-app");
     expect(accountPageSource).not.toContain("ManualHelpLink");
     expect(accountPageSource).not.toContain("InstallAppCard");
+    expect(accountPageSource).toContain('id="plan-cuenta"');
+    expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
+    expect(accountPageSource).toContain('id="copias-cuenta"');
     expect(accountPageSource).toContain('id="importar-datos"');
     expect(accountPageSource).toContain('id="datos-privacidad"');
     expect(accountPageSource).toContain('id="legal-privacidad"');

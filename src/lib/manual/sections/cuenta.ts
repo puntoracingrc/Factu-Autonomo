@@ -2,9 +2,9 @@ import type { ManualSection } from "../types";
 
 export const cuentaSection: ManualSection = {
   slug: "cuenta",
-  title: "Cuenta, nube y copias",
+  title: "Cuenta, sincronización y copias",
   summary:
-    "Alta gratis, email confirmado, sincronización, copias JSON y copia extra en Drive.",
+    "Alta gratis, email confirmado, plan, sincronización, copias JSON, Drive, importación y legal.",
   order: 12,
   intro: [
     "La app puede funcionar solo en este dispositivo, pero la cuenta permite pasar de prueba local a trabajo real. La copia manual JSON y la copia extra en Google Drive son una red de seguridad adicional.",
@@ -72,7 +72,9 @@ export const cuentaSection: ManualSection = {
     {
       title: "7. Accesos rápidos de Cuenta",
       paragraphs: [
-        "Arriba tienes pastillas para saltar a **Cuenta y nube**, **Drive**, **Importar**, **Tus datos** y **Legal**.",
+        "Arriba tienes pastillas para saltar a **Acceso**, **Plan**, **Sincronización**, **Copias**, **Importación** y **Legal**.",
+        "**Acceso** reúne inicio de sesión, creación de cuenta, confirmación de email y decisión sobre datos locales. **Sincronización** te recuerda que los controles de nube están dentro de ese flujo para evitar duplicar acciones.",
+        "**Copias** agrupa la copia manual, la restauración de JSON revisado y la copia extra en Google Drive. **Importación** queda aparte para traer datos desde otros programas.",
         "El manual ya no aparece como tarjeta dentro de Cuenta: el icono **?** de la cabecera está disponible en toda la app.",
       ],
     },

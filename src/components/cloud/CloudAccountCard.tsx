@@ -10,7 +10,6 @@ import {
   EyeOff,
   Mail,
   RefreshCw,
-  Upload,
 } from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -84,7 +83,6 @@ export function CloudAccountCard() {
     syncNow,
     forceDownloadFromCloud,
     exportBackup,
-    importBackup,
     localDataHandoffStatus,
     saveLocalDataToAccount,
     keepLocalDataOnDevice,
@@ -112,7 +110,6 @@ export function CloudAccountCard() {
   const authStatus = searchParams.get("auth");
   const requestedMode = searchParams.get("modo");
   const googleAuthEnabled = isGoogleAuthEnabled();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const hasLocalWork = hasWorkspaceContent(data);
@@ -217,15 +214,6 @@ export function CloudAccountCard() {
     }
   }
 
-  async function handleImport(file: File | undefined) {
-    if (!file) return;
-    setBusy(true);
-    const error = await importBackup(file);
-    setBusy(false);
-    if (error) setAuthError(error);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
   async function handleForceDownload() {
     const confirmed = confirm(
       "Esto sustituirá los datos de este dispositivo por la copia completa de la nube. Úsalo si otro dispositivo tiene los datos correctos. ¿Continuar?",
@@ -249,40 +237,19 @@ export function CloudAccountCard() {
 
   return (
     <Card className="mb-6 space-y-4">
-      <div id="inicio-sesion" className="flex scroll-mt-24 items-start gap-3">
+      <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
           <Cloud className="h-5 w-5" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Cuenta y copia de seguridad
+            Acceso a tu cuenta
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Sincroniza móvil y PC con la misma cuenta, o exporta un archivo JSON
-            por si cambias de teléfono.
+            Inicia sesión para activar la nube entre móvil y PC, o guarda una
+            copia JSON si prefieres seguir solo en este navegador.
           </p>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={exportBackup}>
-          <Download className="h-4 w-4" />
-          Exportar copia
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="h-4 w-4" />
-          Importar copia
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(e) => void handleImport(e.target.files?.[0])}
-        />
       </div>
 
       {billingEnabled && !limits.cloudSync && (

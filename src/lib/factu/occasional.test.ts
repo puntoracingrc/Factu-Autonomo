@@ -16,6 +16,8 @@ describe("factu occasional", () => {
     expect(shouldShowFactuWidget("/facturas/nuevo")).toBe(false);
     expect(shouldShowFactuWidget("/facturas/abc-123")).toBe(false);
     expect(shouldShowFactuWidget("/facturas/abc/rectificar")).toBe(false);
+    expect(shouldShowFactuWidget("/cuenta")).toBe(false);
+    expect(shouldShowFactuWidget("/cuenta#inicio-sesion")).toBe(false);
     expect(shouldShowFactuWidget("/legal/terminos")).toBe(false);
   });
 
