@@ -135,18 +135,16 @@ function hasSupplierInvoiceEvidence(input: {
   return /^\s*(factura|fra\.?|invoice)\b/im.test(text);
 }
 
-function parsePositiveNumber(value: unknown): number | undefined {
+function parseFiniteNumber(value: unknown): number | undefined {
   const number = Number(
     typeof value === "string" ? value.replace(",", ".").trim() : value,
   );
-  return Number.isFinite(number) && number > 0 ? number : undefined;
+  return Number.isFinite(number) ? number : undefined;
 }
 
 function parseNonNegativeNumber(value: unknown): number | undefined {
-  const number = Number(
-    typeof value === "string" ? value.replace(",", ".").trim() : value,
-  );
-  return Number.isFinite(number) && number >= 0 ? number : undefined;
+  const number = parseFiniteNumber(value);
+  return number !== undefined && number >= 0 ? number : undefined;
 }
 
 function isAreaUnit(unit: string): boolean {
@@ -186,10 +184,12 @@ function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
     cleanText(line.reference) ||
     cleanText(line.ref) ||
     undefined;
-  const quantity = parsePositiveNumber(line.quantity) ?? 1;
+  const signedQuantity = parseFiniteNumber(line.quantity);
+  const quantity =
+    signedQuantity !== undefined && signedQuantity !== 0 ? signedQuantity : 1;
   const unit = cleanText(line.unit) || undefined;
-  const unitPrice = parsePositiveNumber(line.unitPrice);
-  const total = parsePositiveNumber(line.total);
+  const unitPrice = parseFiniteNumber(line.unitPrice);
+  const total = parseFiniteNumber(line.total);
 
   if (!description || (!unitPrice && !total)) return null;
 
@@ -256,9 +256,9 @@ export function normalizeExpenseScanPayload(
   const name = typeof supplier.name === "string" ? supplier.name.trim() : "";
   const description =
     typeof expense.description === "string" ? expense.description.trim() : "";
-  const amount = Number(expense.amount);
+  const amount = parseFiniteNumber(expense.amount);
 
-  if (!name || !description || !Number.isFinite(amount) || amount <= 0) {
+  if (!name || !description || amount === undefined || amount === 0) {
     return null;
   }
 
@@ -313,6 +313,11 @@ export function normalizeExpenseScanPayload(
   const confidence = Number(data.confidence);
   if (Number.isFinite(confidence) && confidence < 0.7) {
     warnings.push("Confianza baja: revisa todos los campos antes de guardar.");
+  }
+  if (amount < 0) {
+    warnings.push(
+      "Importe negativo detectado: parece un abono, devolución o saldo a favor. Revísalo antes de guardarlo como gasto normal.",
+    );
   }
   const purchaseDocument = normalizePurchaseDocument(expense.purchaseDocument, {
     date: normalizedDate,
@@ -400,7 +405,8 @@ export const EXPENSE_SCAN_JSON_SCHEMA = {
     businessKind:
       "purchase_invoice | purchase | quick_ticket | fixed — clasificación práctica",
     description: "string — resumen breve del gasto",
-    amount: "number — base imponible SIN IVA en euros",
+    amount:
+      "number — base imponible SIN IVA en euros; usa valor negativo si la factura es un abono, devolución o saldo a favor",
     ivaPercent: "number — tipo de IVA (21, 10, 4 o 0)",
     category: `una de: ${EXPENSE_CATEGORIES.join(", ")}`,
     paymentMethod: `una de: ${PAYMENT_METHODS.join(", ")}`,

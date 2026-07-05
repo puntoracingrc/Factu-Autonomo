@@ -20,6 +20,7 @@ Reglas:
 - Si el título/cabecera principal del documento es "Oferta", "Presupuesto", "Pressupost", "Comanda", "Pedido", "Proforma", "Cotización" o similar, marca document.isExpenseDocument = false.
 - Ojo: si la cabecera principal dice "Factura", "FRA", "Invoice" o contiene número de factura de proveedor, y solo menciona "oferta", "presupuesto" o "pedido" como referencia interna, sigue siendo factura. Decide por el título/cabecera, número de documento y contexto completo, no por una palabra aislada.
 - amount = base imponible SIN IVA. Si solo ves el total con IVA, desglósalo.
+- Si la factura tiene base, IVA o total negativos por devolución, abono, regularización o saldo a favor del cliente, conserva el signo negativo en amount. No la rechaces si la cabecera sigue siendo "Factura", "FRA" o "Invoice"; añade un warning indicando que es un abono/devolución a revisar.
 - Fecha en formato ISO YYYY-MM-DD.
 - businessKind:
   - purchase_invoice si es una factura recibida completa con proveedor fiscal.

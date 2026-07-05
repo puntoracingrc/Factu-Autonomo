@@ -199,6 +199,67 @@ describe("expense scan schema", () => {
     });
   });
 
+  it("acepta facturas de abono con importe negativo y avisa", () => {
+    const result = normalizeExpenseScanPayload({
+      document: {
+        kind: "expense_invoice",
+        isExpenseDocument: true,
+      },
+      supplier: { name: "Metalúrgica Arandes S.L.", nif: "B60470374" },
+      expense: {
+        date: "19/03/2026",
+        description: "Factura FD/222014 con devolución de material",
+        amount: "-2,02",
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        purchaseDocument: {
+          invoiceNumber: "FD/222014",
+        },
+        purchaseLines: [
+          {
+            supplierReference: "PP45BL-150",
+            description: "Lama ALUM. Plana 45 mm. cortada x 150 cm.",
+            quantity: -6,
+            unit: "UD",
+            unitPrice: 2.55,
+            discountPercent: 25,
+            ivaPercent: 21,
+            total: -11.47,
+          },
+          {
+            supplierReference: "P40150-BL",
+            description: "Lama PVC plana 40 x 14 mm. cortada x 150 cm.",
+            quantity: 6,
+            unit: "UD",
+            unitPrice: 2.1,
+            discountPercent: 25,
+            ivaPercent: 21,
+            total: 9.45,
+          },
+        ],
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.document).toMatchObject({
+      kind: "expense_invoice",
+      isExpenseDocument: true,
+      reason: null,
+    });
+    expect(result?.expense.amount).toBe(-2.02);
+    expect(result?.expense.purchaseDocument?.invoiceNumber).toBe("FD/222014");
+    expect(result?.expense.purchaseLines?.[0]).toMatchObject({
+      supplierReference: "PP45BL-150",
+      quantity: -6,
+      total: -11.47,
+    });
+    expect(
+      result?.warnings.some((warning) => warning.includes("Importe negativo")),
+    ).toBe(true);
+  });
+
   it("detecta documentos comerciales que no deben guardarse como gasto", () => {
     expect(detectNonExpenseDocumentReason("Oferta 152184")).toContain(
       "No se guardará como gasto",
