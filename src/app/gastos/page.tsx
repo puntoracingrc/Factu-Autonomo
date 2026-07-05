@@ -33,6 +33,7 @@ import {
   downloadExpensesCsv,
 } from "@/lib/billing/export-expenses-csv";
 import { documentShortNumber } from "@/lib/document-links";
+import { expenseEditHref } from "@/lib/expense-links";
 import {
   aggregateExpensesBySupplier,
   EXPENSE_CHART_COLORS,
@@ -230,6 +231,10 @@ export default function GastosPage() {
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
   const [visibleExpenseCount, setVisibleExpenseCount] = useState(
     EXPENSE_LIST_BATCH_SIZE,
+  );
+  const recurringExpenseIds = useMemo(
+    () => new Set(data.recurringExpenses.map((item) => item.id)),
+    [data.recurringExpenses],
   );
 
   const suppliersById = useMemo(
@@ -495,9 +500,7 @@ export default function GastosPage() {
                 )}
                 <Card className="flex items-center justify-between gap-3">
                   <Link
-                    href={`/gastos/nuevo?editar=${encodeURIComponent(
-                      expense.id,
-                    )}`}
+                    href={expenseEditHref(expense, recurringExpenseIds)}
                     className="min-w-0 flex-1 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                     aria-label={`Abrir gasto ${expense.description}`}
                   >
@@ -553,9 +556,7 @@ export default function GastosPage() {
                       {formatMoney(expenseAmount(expense, vatExempt))}
                     </span>
                     <Link
-                      href={`/gastos/nuevo?editar=${encodeURIComponent(
-                        expense.id,
-                      )}`}
+                      href={expenseEditHref(expense, recurringExpenseIds)}
                       aria-label={`Editar gasto ${expense.description}`}
                       title="Editar"
                       className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"

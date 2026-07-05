@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
+import { expenseEditHref } from "@/lib/expense-links";
 import {
   buildProductBusinessSummary,
   type ProductBusinessSummary,
@@ -457,6 +458,10 @@ function RecentExpensesCard({
   summary: ProductBusinessSummary;
 }) {
   const vatExempt = isVatExempt(data.profile);
+  const recurringExpenseIds = useMemo(
+    () => new Set(data.recurringExpenses.map((item) => item.id)),
+    [data.recurringExpenses],
+  );
 
   return (
     <Card className="min-w-0 p-4">
@@ -469,6 +474,7 @@ function RecentExpensesCard({
             <ExpenseRow
               key={expense.id}
               expense={expense}
+              recurringExpenseIds={recurringExpenseIds}
               amount={safeDisplayAmount(
                 expenseTotals(expense, vatExempt).total,
               )}
@@ -557,10 +563,18 @@ function DocumentRow({
   );
 }
 
-function ExpenseRow({ expense, amount }: { expense: Expense; amount: number }) {
+function ExpenseRow({
+  expense,
+  amount,
+  recurringExpenseIds,
+}: {
+  expense: Expense;
+  amount: number;
+  recurringExpenseIds: ReadonlySet<string>;
+}) {
   return (
     <Link
-      href={`/gastos/nuevo?editar=${encodeURIComponent(expense.id)}`}
+      href={expenseEditHref(expense, recurringExpenseIds)}
       className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
     >
       <span className="min-w-0">
