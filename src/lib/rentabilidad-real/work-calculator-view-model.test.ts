@@ -1,0 +1,132 @@
+import { describe, expect, it } from "vitest";
+import type { Document, Expense } from "@/lib/types";
+import {
+  buildRentabilidadRealFixedCostDisplay,
+  buildRentabilidadRealWorkDocumentOptions,
+  filterRentabilidadRealWorkDocumentOptions,
+} from "./work-calculator-view-model";
+
+function documentFixture(overrides: Partial<Document>): Document {
+  return {
+    id: "doc",
+    type: "factura",
+    number: "F-2026-0001",
+    date: "2026-07-01",
+    client: { name: "Cliente" },
+    items: [
+      {
+        id: "line-1",
+        description: "Trabajo",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "borrador",
+    createdAt: "2026-07-01T10:00:00.000Z",
+    updatedAt: "2026-07-01T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function expenseFixture(overrides: Partial<Expense>): Expense {
+  return {
+    id: "expense-1",
+    date: "2026-07-01",
+    supplierName: "Proveedor",
+    description: "Material",
+    amount: 50,
+    ivaPercent: 21,
+    category: "Material",
+    paymentMethod: "Tarjeta",
+    createdAt: "2026-07-01T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("work calculator view model", () => {
+  it("muestra gastos fijos detectados pero aplicados a cero con metodo none", () => {
+    const display = buildRentabilidadRealFixedCostDisplay({
+      method: "none",
+      selectedTotal: 770.25,
+      allocatedFixedCosts: 320,
+    });
+
+    expect(display.totalLabel).toBe("Gastos fijos detectados");
+    expect(display.totalAmount).toBe(770.25);
+    expect(display.appliedAmount).toBe(0);
+    expect(display.showSelectionControls).toBe(false);
+    expect(display.helperText).toContain("no se aplicarán");
+  });
+
+  it("muestra gastos fijos seleccionados y aplicados cuando hay regla", () => {
+    const display = buildRentabilidadRealFixedCostDisplay({
+      method: "revenue_share",
+      selectedTotal: 770.25,
+      allocatedFixedCosts: 154.05,
+    });
+
+    expect(display.totalLabel).toBe("Gastos fijos seleccionados");
+    expect(display.totalAmount).toBe(770.25);
+    expect(display.appliedAmount).toBe(154.05);
+    expect(display.showSelectionControls).toBe(true);
+    expect(display.helperText).toBeUndefined();
+  });
+
+  it("ordena documentos por fecha descendente y añade contexto de vinculos", () => {
+    const quote = documentFixture({
+      id: "quote-1",
+      type: "presupuesto",
+      number: "P-2026-0001",
+      date: "2026-06-01",
+      client: { name: "Cliente antiguo" },
+      status: "enviado",
+    });
+    const oldInvoice = documentFixture({
+      id: "invoice-old",
+      number: "F-2026-0001",
+      date: "2026-06-10",
+      client: { name: "Cliente antiguo" },
+      sourceQuoteDocumentId: "quote-1",
+    });
+    const recentInvoice = documentFixture({
+      id: "invoice-recent",
+      number: "F-2026-0002",
+      date: "2026-07-05",
+      client: { name: "Cliente reciente" },
+      items: [
+        {
+          id: "line-2",
+          description: "Trabajo reciente",
+          quantity: 1,
+          unitPrice: 500,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const options = buildRentabilidadRealWorkDocumentOptions({
+      documents: [oldInvoice, recentInvoice],
+      allDocuments: [quote, oldInvoice, recentInvoice],
+      expenses: [
+        expenseFixture({ id: "linked", workDocumentId: "invoice-recent" }),
+        expenseFixture({
+          id: "fixed",
+          workDocumentId: "invoice-recent",
+          businessKind: "fixed",
+        }),
+      ],
+    });
+
+    expect(options.map((option) => option.id)).toEqual([
+      "invoice-recent",
+      "invoice-old",
+    ]);
+    expect(options[0].subtotal).toBe(500);
+    expect(options[0].linkedExpensesCount).toBe(1);
+    expect(options[1].linkedDocumentLabel).toBe(
+      "Presupuesto origen P-2026-0001",
+    );
+    expect(filterRentabilidadRealWorkDocumentOptions(options, "reciente")).toHaveLength(1);
+  });
+});

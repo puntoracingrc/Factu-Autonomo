@@ -1,6 +1,7 @@
 "use client";
 
-import { formatMoney } from "@/lib/calculations";
+import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { buildRentabilidadRealFixedCostDisplay } from "@/lib/rentabilidad-real/work-calculator-view-model";
 import type {
   RentabilidadRealCalculationSettings,
   RentabilidadRealFixedCostAllocationMethod,
@@ -31,11 +32,13 @@ function parseNumber(value: string): number | undefined {
 export function FixedCostAllocationForm({
   settings,
   fixedCostCandidates,
+  allocatedFixedCosts,
   fixedCostsAdvancedActive,
   onSettingsChange,
 }: {
   settings: RentabilidadRealCalculationSettings;
   fixedCostCandidates: RentabilidadRealWorkCost[];
+  allocatedFixedCosts: number;
   fixedCostsAdvancedActive: boolean;
   onSettingsChange: (settings: RentabilidadRealCalculationSettings) => void;
 }) {
@@ -47,6 +50,11 @@ export function FixedCostAllocationForm({
   const selectedTotal = fixedCostCandidates
     .filter((cost) => selectedIdSet.has(cost.id))
     .reduce((total, cost) => total + cost.amount, 0);
+  const fixedCostDisplay = buildRentabilidadRealFixedCostDisplay({
+    method: settings.fixedCostAllocationMethod,
+    selectedTotal,
+    allocatedFixedCosts,
+  });
 
   function patchSettings(patch: Partial<RentabilidadRealCalculationSettings>) {
     onSettingsChange({
@@ -149,18 +157,35 @@ export function FixedCostAllocationForm({
           onChange={(value) =>
             patchSettings({ irpfProvisionPercentage: value ?? 20 })
           }
+          hint="Es una provisión orientativa, no tu IRPF definitivo."
         />
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <p className="text-sm font-black text-slate-950 dark:text-slate-50">
             Gastos fijos candidatos
           </p>
-          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
-            Seleccionado: {formatMoney(selectedTotal)}
-          </p>
+          <div className="grid gap-2 text-sm font-bold text-slate-700 sm:grid-cols-2 lg:min-w-[23rem] dark:text-slate-200">
+            <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-950">
+              <span className="block text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                {fixedCostDisplay.totalLabel}
+              </span>
+              <span>{formatMoney(fixedCostDisplay.totalAmount)}</span>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-950">
+              <span className="block text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                {fixedCostDisplay.appliedLabel}
+              </span>
+              <span>{formatMoney(fixedCostDisplay.appliedAmount)}</span>
+            </div>
+          </div>
         </div>
+        {fixedCostDisplay.helperText ? (
+          <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-100">
+            {fixedCostDisplay.helperText}
+          </p>
+        ) : null}
         {fixedCostCandidates.length === 0 ? (
           <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
             No hay gastos fijos o recurrentes detectados todavía.
@@ -172,18 +197,31 @@ export function FixedCostAllocationForm({
                 key={cost.id}
                 className="flex items-start gap-3 rounded-lg bg-white p-3 text-sm dark:bg-slate-950"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedIdSet.has(cost.id)}
-                  onChange={() => toggleFixedCost(cost.id)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
-                />
+                {fixedCostDisplay.showSelectionControls ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedIdSet.has(cost.id)}
+                    onChange={() => toggleFixedCost(cost.id)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
+                ) : (
+                  <span className="mt-0.5 shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Detectado
+                  </span>
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block font-black text-slate-950 dark:text-slate-50">
                     {cost.description}
                   </span>
                   <span className="block text-slate-600 dark:text-slate-300">
-                    {cost.supplierName} · {formatMoney(cost.amount)}
+                    {cost.supplierName || "Sin proveedor"} · {cost.category} ·{" "}
+                    {formatShortDate(cost.date)}
+                  </span>
+                  <span className="block text-slate-500 dark:text-slate-400">
+                    Base {formatMoney(cost.amount)}
+                    {cost.total !== cost.amount
+                      ? ` · Total ${formatMoney(cost.total)}`
+                      : ""}
                   </span>
                 </span>
               </label>
@@ -203,10 +241,12 @@ function NumberField({
   label,
   value,
   onChange,
+  hint,
 }: {
   label: string;
   value: number | undefined;
   onChange: (value: number | undefined) => void;
+  hint?: string;
 }) {
   return (
     <label className="block">
@@ -221,6 +261,11 @@ function NumberField({
         onChange={(event) => onChange(parseNumber(event.target.value))}
         className="mt-2 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition-colors focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
       />
+      {hint ? (
+        <span className="mt-1 block text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
