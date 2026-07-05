@@ -97,6 +97,10 @@ export function buildRentabilidadRealAdvisorValidationSummary({
     `Nivel detectado: ${scoringResult.level}`,
     `Explicación: ${scoringResult.explanation}`,
     `Productos recomendados: ${productNames(scoringResult.recommendedProductIds)}`,
+    `Modos de cálculo recomendados: ${productNames(
+      scoringResult.recommendedCalculationModes,
+    )}`,
+    `Addons recomendados: ${productNames(scoringResult.recommendedAddons)}`,
     `Productos opcionales: ${productNames(scoringResult.optionalProductIds)}`,
     `Forma jurídica: ${answers.legalForm ?? "Pendiente"}`,
     `Empleados en nómina: ${yesNo(answers.hasPayrollEmployees)}`,
@@ -107,6 +111,7 @@ export function buildRentabilidadRealAdvisorValidationSummary({
       answers.hasStockOrCommerce ?? answers.sellsProductsWithStock,
     )}`,
     `Vehículo de trabajo: ${yesNo(answers.hasWorkVehicle)}`,
+    `Tipo de vehículo: ${answers.workVehicleUse ?? "Pendiente"}`,
     `Local, oficina o taller: ${yesNo(
       answers.hasRelevantPremises ?? answers.hasOffice ?? answers.hasWorkshop,
     )}`,
@@ -119,8 +124,11 @@ export function buildRentabilidadRealAdvisorValidationSummary({
         : "Ninguna"
     }`,
     scoringResult.outOfPhase
-      ? "Advertencia: este caso queda reservado para una fase futura; no conviene activar un motor de nivel 1-4."
-      : "Advertencia: el resultado orienta el motor de rentabilidad, pero no es un cálculo fiscal.",
+      ? "Advertencia: este caso queda reservado para una fase futura; no conviene activar módulos de nivel 1-4."
+      : "Advertencia: el resultado orienta los modos de rentabilidad, pero no es un cálculo fiscal.",
+    answers.usesPrivateVehicleForWork
+      ? "Nota vehículo: coche o moto particular se contempla para rentabilidad interna; el tratamiento fiscal debe validarse si hay duda."
+      : "Nota vehículo: sin aviso específico de vehículo particular.",
     "",
     "Aviso: esta función no es un portal de gestoría, no presenta impuestos y no sustituye el asesoramiento profesional.",
   ].join("\n");

@@ -1,5 +1,10 @@
 import { canActivateRentabilidadRealProduct } from "./access-policy";
-import { getRentabilidadRealProductById } from "./catalog";
+import {
+  getRentabilidadRealAddonProductIds,
+  getRentabilidadRealCalculationModeProductIds,
+  getRentabilidadRealProductById,
+  isRentabilidadRealCalculationModeProductId,
+} from "./catalog";
 import { buildRentabilidadRealSwitchImpact } from "./module-switching";
 import type {
   RentabilidadRealActivationDecision,
@@ -11,11 +16,6 @@ import type {
 } from "./types";
 
 const ACTIVE_PRODUCTS_STORAGE_KEY = "fa_rentabilidad_real_active_products";
-
-const PROFILE_ENGINE_PRODUCT_IDS = [
-  "RR_TRADES_JOBS",
-  "RR_HOURS_PROJECTS",
-] as const satisfies readonly RentabilidadRealProductId[];
 
 export const EMPTY_RENTABILIDAD_REAL_USAGE_SUMMARY: RentabilidadRealUsageSummary =
   {
@@ -61,12 +61,6 @@ function isKnownProductId(value: unknown): value is RentabilidadRealProductId {
   );
 }
 
-function isProfileEngine(productId: RentabilidadRealProductId): boolean {
-  return (
-    PROFILE_ENGINE_PRODUCT_IDS as readonly RentabilidadRealProductId[]
-  ).includes(productId);
-}
-
 function productCapabilities(
   productIds: readonly RentabilidadRealProductId[],
 ): RentabilidadRealCapabilityKey[] {
@@ -87,19 +81,16 @@ function normalizeActiveProducts(
     const product = getRentabilidadRealProductById(productId);
     return product?.status === "available";
   });
-  const lastProfileEngine = [...knownIds].reverse().find(isProfileEngine);
-  const withoutDuplicateEngines = knownIds.filter(
-    (productId) => !isProfileEngine(productId) || productId === lastProfileEngine,
-  );
-  const hasNonBase = withoutDuplicateEngines.some(
-    (productId) => productId !== "RR_BASE",
-  );
+  const hasNonBase = knownIds.some((productId) => productId !== "RR_BASE");
 
-  if (hasNonBase && !withoutDuplicateEngines.includes("RR_BASE")) {
-    return ["RR_BASE", ...withoutDuplicateEngines];
+  if (hasNonBase) {
+    return [
+      "RR_BASE",
+      ...knownIds.filter((productId) => productId !== "RR_BASE"),
+    ];
   }
 
-  return withoutDuplicateEngines;
+  return knownIds;
 }
 
 function accessContextWithProducts(
@@ -110,6 +101,9 @@ function accessContextWithProducts(
     ...accessContext,
     activeProductIds: productIds,
     activeCapabilityKeys: productCapabilities(productIds),
+    activeCalculationModes:
+      getRentabilidadRealCalculationModeProductIds(productIds),
+    activeAddons: getRentabilidadRealAddonProductIds(productIds),
   };
 }
 
@@ -192,11 +186,8 @@ export function planActivateRentabilidadRealProduct(
   }
 
   const product = getRentabilidadRealProductById(productId);
-  const withoutCurrentProfile = isProfileEngine(productId)
-    ? previousProductIds.filter((id) => !isProfileEngine(id))
-    : previousProductIds;
   const nextProductIds = normalizeActiveProducts([
-    ...withoutCurrentProfile,
+    ...previousProductIds,
     ...(product?.productKind === "core" ? [] : ["RR_BASE" as const]),
     productId,
   ]);
@@ -270,14 +261,14 @@ export function planSwitchRentabilidadRealProfileEngine(
   nextProductId: RentabilidadRealProductId,
   context: RentabilidadRealLocalActivationContext,
 ): RentabilidadRealLocalActivationResult {
-  if (!isProfileEngine(nextProductId)) {
+  if (!isRentabilidadRealCalculationModeProductId(nextProductId)) {
     const previousProductIds = getStoredRentabilidadRealActiveProducts();
     return buildResult({
       allowed: false,
       previousProductIds,
       activeProductIds: previousProductIds,
       usageSummary: context.usageSummary ?? EMPTY_RENTABILIDAD_REAL_USAGE_SUMMARY,
-      message: "Este producto no es un motor principal de perfil.",
+      message: "Este producto no es un modo de cálculo de Rentabilidad Real.",
     });
   }
 

@@ -73,12 +73,12 @@ export function RentabilidadRealAdvisorValidation() {
               Validar configuración con mi gestor
             </div>
             <h1 className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl dark:text-slate-50">
-              Revisa el motor elegido antes de usarlo
+              Revisa los modos elegidos antes de usarlos
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
               Esta función no es un portal de gestoría. Sirve para compartir tu
-              configuración con tu gestor y confirmar que el motor elegido
-              encaja con tu caso.
+              configuración con tu gestor y confirmar que los modos elegidos
+              encajan con tu caso.
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
               La validación no presenta impuestos ni sustituye el asesoramiento

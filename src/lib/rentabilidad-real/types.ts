@@ -6,7 +6,7 @@ export type RentabilidadRealProductStatus = "available" | "coming_soon";
 
 export type RentabilidadRealProductKind =
   | "core"
-  | "profile_engine"
+  | "calculation_mode"
   | "addon"
   | "future";
 
@@ -35,6 +35,16 @@ export type RentabilidadRealProductId =
   | "RR_SIMPLE_SL"
   | "RR_SL_EMPLOYEES_PARTNERS"
   | "RR_ADVANCED_COMPANY";
+
+export type RentabilidadRealCalculationModeProductId =
+  | "RR_TRADES_JOBS"
+  | "RR_HOURS_PROJECTS";
+
+export type RentabilidadRealAddonProductId =
+  | "RR_FIXED_COSTS_PRO"
+  | "RR_ASSETS_LIGHT"
+  | "RR_PRICE_SIMULATOR"
+  | "RR_ADVISOR_REVIEW";
 
 export type RentabilidadRealCapabilityKey =
   | "basic_profitability"
@@ -130,6 +140,8 @@ export interface RentabilidadRealUserAccessContext {
   isProPlus: boolean;
   activeProductIds: readonly RentabilidadRealProductId[];
   activeCapabilityKeys: readonly RentabilidadRealCapabilityKey[];
+  activeCalculationModes?: readonly RentabilidadRealCalculationModeProductId[];
+  activeAddons?: readonly RentabilidadRealAddonProductId[];
 }
 
 export interface RentabilidadRealActivationDecision {
@@ -182,6 +194,12 @@ export type RentabilidadRealWorkModel =
   | "commerce_stock"
   | "advanced";
 
+export type RentabilidadRealVehicleUse =
+  | "dedicated_van"
+  | "private_car"
+  | "private_motorbike"
+  | "renting_leasing";
+
 export interface RentabilidadRealWizardAnswers {
   legalForm?: RentabilidadRealLegalForm;
   profession?: string;
@@ -199,6 +217,8 @@ export interface RentabilidadRealWizardAnswers {
   hasOffice?: boolean;
   hasWorkshop?: boolean;
   hasWorkVehicle?: boolean;
+  workVehicleUse?: RentabilidadRealVehicleUse;
+  usesPrivateVehicleForWork?: boolean;
   hasRelevantToolsOrEquipment?: boolean;
   hasLightMachinery?: boolean;
   hasSignificantFixedCosts?: boolean;
@@ -237,6 +257,7 @@ export type RentabilidadRealProfileLabel =
   | "Autónomo básico"
   | "Autónomo por obras y oficios"
   | "Profesional por horas y proyectos"
+  | "Autónomo mixto por obras y horas"
   | "Autónomo con estructura ligera"
   | "Stock y comercio"
   | "Módulos y regímenes especiales"
@@ -244,16 +265,32 @@ export type RentabilidadRealProfileLabel =
   | "S.L. con empleados y socios"
   | "Empresa avanzada";
 
+export type RentabilidadRealPrimaryProfile =
+  | "basic"
+  | "trades_jobs"
+  | "hours_projects"
+  | "mixed"
+  | "light_structure"
+  | "stock_commerce"
+  | "modules_special_regimes"
+  | "simple_sl"
+  | "sl_employees_partners"
+  | "advanced_company";
+
 export interface RentabilidadRealScoringResult {
   level: RentabilidadRealLevel;
   score: number;
+  primaryProfile: RentabilidadRealPrimaryProfile;
   profileLabel: RentabilidadRealProfileLabel;
   explanation: string;
   recommendedProductIds: readonly RentabilidadRealProductId[];
+  recommendedCalculationModes: readonly RentabilidadRealCalculationModeProductId[];
+  recommendedAddons: readonly RentabilidadRealAddonProductId[];
   optionalProductIds: readonly RentabilidadRealProductId[];
   unavailableProductIds: readonly RentabilidadRealProductId[];
   pendingQuestions: readonly string[];
   outOfPhase: boolean;
   futureLevel?: RentabilidadRealLevel;
   futureReasons: readonly RentabilidadRealFutureReason[];
+  outOfPhaseReasons: readonly RentabilidadRealFutureReason[];
 }

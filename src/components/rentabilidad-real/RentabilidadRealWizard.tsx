@@ -52,7 +52,9 @@ const QUESTIONS: readonly Question[] = [
       { value: "projects", label: "Por proyectos" },
       { value: "closed_jobs", label: "Por obras o trabajos cerrados" },
       { value: "visits_services", label: "Por visitas o servicios" },
-      { value: "products", label: "Por productos" },
+      { value: "job_materials", label: "Materiales por trabajo" },
+      { value: "customer_products", label: "Producto aportado por cliente" },
+      { value: "stock_commerce", label: "Stock, tienda o e-commerce" },
       { value: "mixed", label: "Mixto" },
     ],
   },
@@ -74,11 +76,14 @@ const QUESTIONS: readonly Question[] = [
     ],
   },
   {
-    id: "hasWorkVehicle",
-    title: "¿Tienes vehículo de trabajo?",
+    id: "workVehicleType",
+    title: "¿Qué vehículo usas para trabajar?",
     options: [
-      { value: "yes", label: "Sí" },
-      { value: "no", label: "No" },
+      { value: "none", label: "Sin vehículo" },
+      { value: "dedicated_van", label: "Vehículo dedicado" },
+      { value: "private_car", label: "Coche particular" },
+      { value: "private_motorbike", label: "Moto particular" },
+      { value: "renting_leasing", label: "Renting/leasing" },
     ],
   },
   {
@@ -91,7 +96,7 @@ const QUESTIONS: readonly Question[] = [
   },
   {
     id: "hasStockOrCommerce",
-    title: "¿Tienes stock o vendes productos con inventario?",
+    title: "¿Tienes stock, inventario, tienda o e-commerce?",
     options: [
       { value: "yes", label: "Sí" },
       { value: "no", label: "No" },
@@ -181,7 +186,7 @@ export function RentabilidadRealWizard() {
               Test guiado
             </div>
             <h1 className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl dark:text-slate-50">
-              Detecta tu motor de Rentabilidad Real
+              Detecta tus modos de Rentabilidad Real
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
               Responde las preguntas clave para recomendar módulos de niveles 1

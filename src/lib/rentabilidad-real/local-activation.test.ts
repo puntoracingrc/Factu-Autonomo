@@ -59,7 +59,7 @@ describe("rentabilidad real local activation", () => {
     ]);
   });
 
-  it("activar RR_HOURS_PROJECTS desactiva RR_TRADES_JOBS si estaba activo", () => {
+  it("activar RR_HOURS_PROJECTS mantiene RR_TRADES_JOBS si estaba activo", () => {
     activateRentabilidadRealProduct("RR_TRADES_JOBS", {
       accessContext: proPlusAccessContext,
     });
@@ -68,7 +68,39 @@ describe("rentabilidad real local activation", () => {
     });
 
     expect(result.allowed).toBe(true);
-    expect(result.activeProductIds).toEqual(["RR_BASE", "RR_HOURS_PROJECTS"]);
+    expect(result.activeProductIds).toEqual([
+      "RR_BASE",
+      "RR_TRADES_JOBS",
+      "RR_HOURS_PROJECTS",
+    ]);
+  });
+
+  it("activar RR_TRADES_JOBS mantiene RR_HOURS_PROJECTS si estaba activo", () => {
+    activateRentabilidadRealProduct("RR_HOURS_PROJECTS", {
+      accessContext: proPlusAccessContext,
+    });
+    const result = activateRentabilidadRealProduct("RR_TRADES_JOBS", {
+      accessContext: proPlusAccessContext,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.activeProductIds).toEqual([
+      "RR_BASE",
+      "RR_HOURS_PROJECTS",
+      "RR_TRADES_JOBS",
+    ]);
+  });
+
+  it("localStorage anterior con un solo modo sigue siendo válido", () => {
+    const normalized = setStoredRentabilidadRealActiveProducts([
+      "RR_TRADES_JOBS",
+    ]);
+
+    expect(normalized).toEqual(["RR_BASE", "RR_TRADES_JOBS"]);
+    expect(getStoredRentabilidadRealActiveProducts()).toEqual([
+      "RR_BASE",
+      "RR_TRADES_JOBS",
+    ]);
   });
 
   it("addons pueden coexistir", () => {
@@ -126,6 +158,38 @@ describe("rentabilidad real local activation", () => {
     expect(result.allowed).toBe(true);
     expect(result.impact.willDeleteData).toBe(false);
     expect(result.activeProductIds).toEqual(["RR_BASE"]);
+  });
+
+  it("desactivar RR_HOURS_PROJECTS no desactiva RR_TRADES_JOBS", () => {
+    setStoredRentabilidadRealActiveProducts([
+      "RR_BASE",
+      "RR_TRADES_JOBS",
+      "RR_HOURS_PROJECTS",
+    ]);
+
+    const result = deactivateRentabilidadRealProduct("RR_HOURS_PROJECTS", {
+      accessContext: proPlusAccessContext,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.impact.willDeleteData).toBe(false);
+    expect(result.activeProductIds).toEqual(["RR_BASE", "RR_TRADES_JOBS"]);
+  });
+
+  it("desactivar RR_TRADES_JOBS no desactiva RR_HOURS_PROJECTS", () => {
+    setStoredRentabilidadRealActiveProducts([
+      "RR_BASE",
+      "RR_TRADES_JOBS",
+      "RR_HOURS_PROJECTS",
+    ]);
+
+    const result = deactivateRentabilidadRealProduct("RR_TRADES_JOBS", {
+      accessContext: proPlusAccessContext,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.impact.willDeleteData).toBe(false);
+    expect(result.activeProductIds).toEqual(["RR_BASE", "RR_HOURS_PROJECTS"]);
   });
 
   it("RR_BASE no deja el sistema inválido si hay otros módulos activos", () => {

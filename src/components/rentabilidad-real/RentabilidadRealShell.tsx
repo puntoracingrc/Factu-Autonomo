@@ -86,7 +86,7 @@ export function RentabilidadRealShell() {
           Rentabilidad Real
         </h1>
         <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-          Elige el motor adecuado, activa módulos incluidos y prepara tu
+          Elige los modos adecuados, activa módulos incluidos y prepara tu
           configuración antes de calcular trabajos reales.
         </p>
       </div>

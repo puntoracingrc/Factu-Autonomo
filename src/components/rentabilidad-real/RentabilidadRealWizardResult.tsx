@@ -15,10 +15,24 @@ import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
 import { buildTestResultViewModel } from "@/lib/rentabilidad-real/view-model";
 import type {
+  RentabilidadRealPrimaryProfile,
   RentabilidadRealScoringResult,
   RentabilidadRealWizardAnswers,
 } from "@/lib/rentabilidad-real/types";
 import { useRentabilidadRealActivation } from "./useRentabilidadRealActivation";
+
+const PRIMARY_PROFILE_LABELS: Record<RentabilidadRealPrimaryProfile, string> = {
+  basic: "Básico",
+  trades_jobs: "Obras y trabajos cerrados",
+  hours_projects: "Horas y proyectos",
+  mixed: "Mixto: obras y horas",
+  light_structure: "Estructura ligera",
+  stock_commerce: "Stock y comercio",
+  modules_special_regimes: "Módulos o régimen especial",
+  simple_sl: "S.L. simple",
+  sl_employees_partners: "S.L. con empleados o socios",
+  advanced_company: "Empresa avanzada",
+};
 
 export function RentabilidadRealWizardResult({
   answers,
@@ -40,11 +54,10 @@ export function RentabilidadRealWizardResult({
   const canActivateRecommended =
     !scoringResult.outOfPhase && scoringResult.recommendedProductIds.length > 0;
   const showWorkCalculatorCta =
-    scoringResult.level === 2 || scoringResult.level === 4;
-  const showHoursProjectsNote = scoringResult.level === 3;
-  const showSecondaryHoursCta =
-    showWorkCalculatorCta &&
-    Boolean(answers.worksByProjects || answers.worksByHours);
+    scoringResult.recommendedCalculationModes.includes("RR_TRADES_JOBS");
+  const showHoursProjectsNote =
+    scoringResult.recommendedCalculationModes.includes("RR_HOURS_PROJECTS");
+  const showSecondaryHoursCta = showWorkCalculatorCta && showHoursProjectsNote;
   const showPriceSimulatorCta =
     !scoringResult.outOfPhase &&
     scoringResult.level >= 1 &&
@@ -70,6 +83,10 @@ export function RentabilidadRealWizardResult({
           <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
             Nivel detectado: {scoringResult.level}
           </p>
+          <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+            Perfil principal:{" "}
+            {PRIMARY_PROFILE_LABELS[scoringResult.primaryProfile]}
+          </p>
           <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
             {scoringResult.explanation}
           </p>
@@ -82,7 +99,7 @@ export function RentabilidadRealWizardResult({
               Caso reservado para fase futura
             </div>
             <p className="mt-2">
-              No activaremos motores de niveles 1 a 4 para este caso.
+              No activaremos módulos de niveles 1 a 4 para este caso.
             </p>
           </div>
         ) : null}
@@ -91,28 +108,47 @@ export function RentabilidadRealWizardResult({
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div>
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
-            Productos recomendados
+            Modos de cálculo recomendados
           </h3>
           <ul className="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-            {viewModel.recommendedProducts.map((product) => (
-              <li key={product.id}>- {product.name}</li>
-            ))}
+            {viewModel.recommendedCalculationModeProducts.length > 0 ? (
+              viewModel.recommendedCalculationModeProducts.map((product) => (
+                <li key={product.id}>- {product.name}</li>
+              ))
+            ) : (
+              <li>- Sin modo específico recomendado todavía</li>
+            )}
           </ul>
         </div>
         <div>
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
-            Productos opcionales
+            Addons recomendados
           </h3>
           <ul className="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-            {viewModel.optionalProducts.length > 0 ? (
-              viewModel.optionalProducts.map((product) => (
+            {viewModel.recommendedAddonProducts.length > 0 ? (
+              viewModel.recommendedAddonProducts.map((product) => (
                 <li key={product.id}>- {product.name}</li>
               ))
             ) : (
-              <li>- Sin extras opcionales en este resultado</li>
+              <li>- Sin addons recomendados en este resultado</li>
             )}
           </ul>
         </div>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
+          Productos opcionales
+        </h3>
+        <ul className="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          {viewModel.optionalProducts.length > 0 ? (
+            viewModel.optionalProducts.map((product) => (
+              <li key={product.id}>- {product.name}</li>
+            ))
+          ) : (
+            <li>- Sin extras opcionales en este resultado</li>
+          )}
+        </ul>
       </div>
 
       {scoringResult.outOfPhase ? (
@@ -132,6 +168,14 @@ export function RentabilidadRealWizardResult({
         <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           <p className="font-bold">Preguntas pendientes</p>
           <p className="mt-1">{scoringResult.pendingQuestions.join(", ")}</p>
+        </div>
+      ) : null}
+
+      {answers.usesPrivateVehicleForWork ? (
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
+          Vehículo particular detectado. En Rentabilidad Real se usará como
+          referencia de rentabilidad interna; si quieres darle tratamiento
+          fiscal, conviene validarlo con tu gestor.
         </div>
       ) : null}
 

@@ -1,8 +1,22 @@
 import type {
+  RentabilidadRealAddonProductId,
+  RentabilidadRealCalculationModeProductId,
   RentabilidadRealLevel,
   RentabilidadRealProduct,
   RentabilidadRealProductId,
 } from "./types";
+
+const CALCULATION_MODE_PRODUCT_IDS = [
+  "RR_TRADES_JOBS",
+  "RR_HOURS_PROJECTS",
+] as const satisfies readonly RentabilidadRealCalculationModeProductId[];
+
+const ADDON_PRODUCT_IDS = [
+  "RR_FIXED_COSTS_PRO",
+  "RR_ASSETS_LIGHT",
+  "RR_PRICE_SIMULATOR",
+  "RR_ADVISOR_REVIEW",
+] as const satisfies readonly RentabilidadRealAddonProductId[];
 
 const RENTABILIDAD_REAL_PRODUCTS = [
   {
@@ -106,7 +120,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
       "job_profit",
       "minimum_job_price",
     ],
-    productKind: "profile_engine",
+    productKind: "calculation_mode",
     capabilities: ["jobs_profitability"],
     includedInProPlus: true,
     commercialAccessNote:
@@ -164,7 +178,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
       "customer_profitability",
       "hourly_profitability",
     ],
-    productKind: "profile_engine",
+    productKind: "calculation_mode",
     capabilities: ["hours_projects_profitability"],
     includedInProPlus: true,
     commercialAccessNote:
@@ -226,7 +240,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     shortDescription:
       "Incluye estructura ligera: vehículo, herramientas caras, local, taller o equipos relevantes.",
     longDescription:
-      "Módulo para autónomos que siguen siendo persona física, pero ya tienen estructura que cambia el coste real de cada trabajo.",
+      "Módulo para autónomos que siguen siendo persona física, pero ya tienen estructura que cambia el coste real interno de cada trabajo.",
     status: "available",
     category: "assets",
     levelMin: 4,
@@ -242,13 +256,14 @@ const RENTABILIDAD_REAL_PRODUCTS = [
       "Separar estructura ligera de gastos simples",
     ],
     covers: [
-      "Vehículo, combustible, seguro y mantenimiento",
+      "Coste interno de vehículo, combustible, seguro y mantenimiento",
       "Herramientas y equipos",
       "Local, taller, oficina y suministros",
       "Amortizaciones simples",
       "Renting o leasing básico como coste",
     ],
     doesNotCover: [
+      "Deducibilidad fiscal automática de coche particular o moto",
       "Flotas",
       "Maquinaria pesada",
       "Empleados",
@@ -265,7 +280,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     capabilities: ["assets_light"],
     includedInProPlus: true,
     commercialAccessNote:
-      "Incluido en Pro+ IA para autónomos persona física de nivel 4.",
+      "Incluido en Pro+ IA para rentabilidad interna de nivel 4; el tratamiento fiscal de coche particular o moto debe validarse si hay duda.",
     recommendedAddons: ["RR_FIXED_COSTS_PRO", "RR_PRICE_SIMULATOR"],
   },
   {
@@ -337,7 +352,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     ],
     covers: [
       "Resumen de respuestas del test",
-      "Revisión de configuración del motor elegido",
+      "Revisión de configuración de los modos elegidos",
       "Estado pendiente, validado o corregido",
     ],
     doesNotCover: [
@@ -547,4 +562,32 @@ export function getRentabilidadRealProductById(
   id: RentabilidadRealProductId,
 ): RentabilidadRealProduct | undefined {
   return RENTABILIDAD_REAL_PRODUCTS.find((product) => product.id === id);
+}
+
+export function isRentabilidadRealCalculationModeProductId(
+  productId: RentabilidadRealProductId,
+): productId is RentabilidadRealCalculationModeProductId {
+  return (
+    CALCULATION_MODE_PRODUCT_IDS as readonly RentabilidadRealProductId[]
+  ).includes(productId);
+}
+
+export function isRentabilidadRealAddonProductId(
+  productId: RentabilidadRealProductId,
+): productId is RentabilidadRealAddonProductId {
+  return (ADDON_PRODUCT_IDS as readonly RentabilidadRealProductId[]).includes(
+    productId,
+  );
+}
+
+export function getRentabilidadRealCalculationModeProductIds(
+  productIds: readonly RentabilidadRealProductId[],
+): RentabilidadRealCalculationModeProductId[] {
+  return productIds.filter(isRentabilidadRealCalculationModeProductId);
+}
+
+export function getRentabilidadRealAddonProductIds(
+  productIds: readonly RentabilidadRealProductId[],
+): RentabilidadRealAddonProductId[] {
+  return productIds.filter(isRentabilidadRealAddonProductId);
 }

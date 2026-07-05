@@ -4,7 +4,7 @@ import { RentabilidadRealWizard } from "@/components/rentabilidad-real/Rentabili
 export const metadata: Metadata = {
   title: "Test de Rentabilidad Real",
   description:
-    "Test guiado para detectar el motor de Rentabilidad Real recomendado.",
+    "Test guiado para detectar los modos de Rentabilidad Real recomendados.",
 };
 
 export default function RentabilidadRealTestPage() {

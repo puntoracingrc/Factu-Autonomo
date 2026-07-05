@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { scoreRentabilidadRealWizardForm } from "./wizard-flow";
+import {
+  buildRentabilidadRealWizardAnswersFromForm,
+  scoreRentabilidadRealWizardForm,
+} from "./wizard-flow";
 
 describe("rentabilidad real wizard scoring integration", () => {
   it("clasifica pintor por obras como nivel 2", () => {
@@ -39,7 +42,7 @@ describe("rentabilidad real wizard scoring integration", () => {
       legalForm: "individual",
       chargeModel: "mixed",
       hasPremises: "yes",
-      hasWorkVehicle: "yes",
+      workVehicleType: "dedicated_van",
       hasPayrollEmployees: "no",
       hasStockOrCommerce: "no",
       isInModulesRegime: "no",
@@ -47,13 +50,54 @@ describe("rentabilidad real wizard scoring integration", () => {
 
     expect(result.level).toBe(4);
     expect(result.recommendedProductIds).toContain("RR_BASE");
+    expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+    expect(result.recommendedProductIds).toContain("RR_HOURS_PROJECTS");
     expect(result.recommendedProductIds).toContain("RR_ASSETS_LIGHT");
   });
 
-  it("manda stock a fase futura nivel 5", () => {
+  it("instalador con materiales para trabajo no va a fase futura", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModel: "job_materials",
+      hasStockOrCommerce: "no",
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(result.outOfPhase).toBe(false);
+    expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+  });
+
+  it("producto comprado para ese trabajo no va a fase futura", () => {
     const result = scoreRentabilidadRealWizardForm({
       legalForm: "individual",
       chargeModel: "products",
+      hasStockOrCommerce: "no",
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(result.outOfPhase).toBe(false);
+    expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+  });
+
+  it("producto aportado por cliente no va a fase futura", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModel: "customer_products",
+      hasStockOrCommerce: "no",
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(result.outOfPhase).toBe(false);
+    expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+  });
+
+  it("manda stock real a fase futura nivel 5", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModel: "closed_jobs",
       hasStockOrCommerce: "yes",
       hasPayrollEmployees: "no",
       isInModulesRegime: "no",
@@ -61,6 +105,34 @@ describe("rentabilidad real wizard scoring integration", () => {
 
     expect(result.outOfPhase).toBe(true);
     expect(result.futureLevel).toBe(5);
+  });
+
+  it("manda tienda o e-commerce a fase futura nivel 5", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModel: "stock_commerce",
+      hasStockOrCommerce: "no",
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(result.outOfPhase).toBe(true);
+    expect(result.futureLevel).toBe(5);
+  });
+
+  it("marca coche o moto particular como vehículo interno pendiente de validación fiscal", () => {
+    const answers = buildRentabilidadRealWizardAnswersFromForm({
+      legalForm: "individual",
+      chargeModel: "closed_jobs",
+      workVehicleType: "private_car",
+      hasStockOrCommerce: "no",
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(answers.hasWorkVehicle).toBe(true);
+    expect(answers.workVehicleUse).toBe("private_car");
+    expect(answers.usesPrivateVehicleForWork).toBe(true);
   });
 
   it("manda módulos a fase futura nivel 6", () => {

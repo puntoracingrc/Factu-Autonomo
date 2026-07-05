@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getRentabilidadRealProductById } from "@/lib/rentabilidad-real/catalog";
+import {
+  getRentabilidadRealAddonProductIds,
+  getRentabilidadRealCalculationModeProductIds,
+} from "@/lib/rentabilidad-real/catalog";
 import {
   getRentabilidadRealActiveCapabilityKeys,
   getStoredRentabilidadRealActiveProducts,
   planActivateRentabilidadRealProduct,
   planDeactivateRentabilidadRealProduct,
-  planSwitchRentabilidadRealProfileEngine,
   setStoredRentabilidadRealActiveProducts,
   type RentabilidadRealLocalActivationContext,
   type RentabilidadRealLocalActivationResult,
@@ -56,6 +58,14 @@ export function useRentabilidadRealActivation({
     () => getRentabilidadRealActiveCapabilityKeys(activeProductIds),
     [activeProductIds],
   );
+  const activeCalculationModes = useMemo(
+    () => getRentabilidadRealCalculationModeProductIds(activeProductIds),
+    [activeProductIds],
+  );
+  const activeAddons = useMemo(
+    () => getRentabilidadRealAddonProductIds(activeProductIds),
+    [activeProductIds],
+  );
 
   const accessContext = useMemo<RentabilidadRealUserAccessContext>(
     () => ({
@@ -63,8 +73,17 @@ export function useRentabilidadRealActivation({
       isProPlus,
       activeProductIds,
       activeCapabilityKeys,
+      activeCalculationModes,
+      activeAddons,
     }),
-    [activeCapabilityKeys, activeProductIds, isProPlus, planKey],
+    [
+      activeAddons,
+      activeCalculationModes,
+      activeCapabilityKeys,
+      activeProductIds,
+      isProPlus,
+      planKey,
+    ],
   );
 
   const activationContext = useMemo<RentabilidadRealLocalActivationContext>(
@@ -111,14 +130,10 @@ export function useRentabilidadRealActivation({
 
   const activate = useCallback(
     (productId: RentabilidadRealProductId) => {
-      const product = getRentabilidadRealProductById(productId);
-      const result =
-        product?.productKind === "profile_engine"
-          ? planSwitchRentabilidadRealProfileEngine(
-              productId,
-              activationContext,
-            )
-          : planActivateRentabilidadRealProduct(productId, activationContext);
+      const result = planActivateRentabilidadRealProduct(
+        productId,
+        activationContext,
+      );
       return commitResult(result);
     },
     [activationContext, commitResult],
@@ -147,6 +162,8 @@ export function useRentabilidadRealActivation({
   return {
     activeProductIds,
     activeCapabilityKeys,
+    activeCalculationModes,
+    activeAddons,
     accessContext,
     notice,
     setNotice,

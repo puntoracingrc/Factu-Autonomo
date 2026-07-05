@@ -205,9 +205,9 @@ export function RentabilidadRealWorkCalculator() {
       {!hasTradesActive ? (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35">
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-            Para obras y oficios, el motor recomendado es Trabajos/obras. Puedes
+            Para obras y oficios, el modo recomendado es Trabajos/obras. Puedes
             calcular con datos existentes, pero conviene activarlo si este será
-            tu uso principal.
+            uno de tus usos principales.
           </p>
         </Card>
       ) : null}
@@ -216,8 +216,9 @@ export function RentabilidadRealWorkCalculator() {
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35">
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
             Tu test apunta a vehículo, local o herramientas relevantes. Esos
-            costes tendrán mejor tratamiento con Activos Light en una fase
-            posterior.
+            costes se tratan como rentabilidad interna con Vehículo,
+            Herramientas, Local y Equipos; si hay coche particular o moto,
+            valida el criterio fiscal con tu gestor.
           </p>
         </Card>
       ) : null}

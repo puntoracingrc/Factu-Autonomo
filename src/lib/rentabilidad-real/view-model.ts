@@ -1,5 +1,7 @@
 import {
   getAvailableRentabilidadRealProducts,
+  getRentabilidadRealAddonProductIds,
+  getRentabilidadRealCalculationModeProductIds,
   getComingSoonRentabilidadRealProducts,
   getRentabilidadRealProductById,
 } from "./catalog";
@@ -70,15 +72,6 @@ function buildMarketplaceProductViewModel(
   accessContext: RentabilidadRealUserAccessContext,
 ): RentabilidadRealMarketplaceProductViewModel {
   const isActive = accessContext.activeProductIds.includes(product.id);
-  const hasOtherProfileEngineActive = accessContext.activeProductIds.some(
-    (productId) => {
-      const activeProduct = getRentabilidadRealProductById(productId);
-      return (
-        activeProduct?.productKind === "profile_engine" &&
-        activeProduct.id !== product.id
-      );
-    },
-  );
   const accessStatus = getRentabilidadRealAccessStatusForProduct(
     product,
     accessContext,
@@ -96,9 +89,7 @@ function buildMarketplaceProductViewModel(
       ? product.id === "RR_PRICE_SIMULATOR"
         ? "Abrir simulador"
         : "Desactivar"
-      : product.productKind === "profile_engine" && hasOtherProfileEngineActive
-        ? "Cambiar a este motor"
-        : ctaLabelForAccessStatus(accessStatus),
+      : ctaLabelForAccessStatus(accessStatus),
     canActivate: activationDecision.canActivate,
     isActive,
     isIncludedInCurrentPlan: accessStatus === "included_in_pro_plus",
@@ -116,6 +107,12 @@ export function buildMarketplaceViewModel(
     comingSoonProducts: getComingSoonRentabilidadRealProducts().map((product) =>
       buildMarketplaceProductViewModel(product, accessContext),
     ),
+    activeCalculationModes: getRentabilidadRealCalculationModeProductIds(
+      accessContext.activeProductIds,
+    ),
+    activeAddons: getRentabilidadRealAddonProductIds(
+      accessContext.activeProductIds,
+    ),
   };
 }
 
@@ -127,6 +124,10 @@ export function buildTestResultViewModel(
     availableProducts: getAvailableRentabilidadRealProducts(),
     comingSoonProducts: getComingSoonRentabilidadRealProducts(),
     recommendedProducts: productsByIds(scoringResult.recommendedProductIds),
+    recommendedCalculationModeProducts: productsByIds(
+      scoringResult.recommendedCalculationModes,
+    ),
+    recommendedAddonProducts: productsByIds(scoringResult.recommendedAddons),
     optionalProducts: productsByIds(scoringResult.optionalProductIds),
     unavailableProducts: productsByIds(scoringResult.unavailableProductIds),
   };

@@ -16,11 +16,21 @@ export type RentabilidadRealWizardChargeModelAnswer =
   | "projects"
   | "closed_jobs"
   | "visits_services"
+  | "job_materials"
+  | "customer_products"
+  | "stock_commerce"
   | "products"
   | "mixed";
 
 export type RentabilidadRealWizardYesNoUnknown = "yes" | "no" | "unknown";
 export type RentabilidadRealWizardYesNo = "yes" | "no";
+
+export type RentabilidadRealWizardVehicleAnswer =
+  | "none"
+  | "dedicated_van"
+  | "private_car"
+  | "private_motorbike"
+  | "renting_leasing";
 
 export type RentabilidadRealWizardProfitUnitAnswer =
   | "job"
@@ -36,6 +46,7 @@ export interface RentabilidadRealWizardFormState {
   hasPayrollEmployees?: RentabilidadRealWizardYesNoUnknown;
   hasPremises?: RentabilidadRealWizardYesNo;
   hasWorkVehicle?: RentabilidadRealWizardYesNo;
+  workVehicleType?: RentabilidadRealWizardVehicleAnswer;
   hasRelevantToolsOrEquipment?: RentabilidadRealWizardYesNo;
   hasStockOrCommerce?: RentabilidadRealWizardYesNo;
   isInModulesRegime?: RentabilidadRealWizardYesNoUnknown;
@@ -58,17 +69,34 @@ function yesNoUnknown(
   return undefined;
 }
 
+function hasWorkVehicleFromType(
+  value: RentabilidadRealWizardVehicleAnswer | undefined,
+): boolean | undefined {
+  if (!value) return undefined;
+  return value !== "none";
+}
+
 export function buildRentabilidadRealWizardAnswersFromForm(
   form: RentabilidadRealWizardFormState,
 ): RentabilidadRealWizardAnswers {
+  const hasWorkVehicle =
+    hasWorkVehicleFromType(form.workVehicleType) ?? yesNo(form.hasWorkVehicle);
   const answers: RentabilidadRealWizardAnswers = {
     hasPayrollEmployees: yesNoUnknown(form.hasPayrollEmployees),
     hasRelevantPremises: yesNo(form.hasPremises),
     hasOffice: yesNo(form.hasPremises),
-    hasWorkVehicle: yesNo(form.hasWorkVehicle),
+    hasWorkVehicle,
+    workVehicleUse:
+      form.workVehicleType && form.workVehicleType !== "none"
+        ? form.workVehicleType
+        : undefined,
+    usesPrivateVehicleForWork:
+      form.workVehicleType === "private_car" ||
+      form.workVehicleType === "private_motorbike",
     hasRelevantToolsOrEquipment: yesNo(form.hasRelevantToolsOrEquipment),
     hasStockOrCommerce: yesNo(form.hasStockOrCommerce),
-    sellsProductsWithStock: form.chargeModel === "products" ? true : undefined,
+    sellsProductsWithStock:
+      form.chargeModel === "stock_commerce" ? true : undefined,
     isInModulesRegime: yesNoUnknown(form.isInModulesRegime),
     appliesNormalVat: yesNoUnknown(form.appliesNormalVat),
     hasProfessionalWithholding: yesNoUnknown(
@@ -100,9 +128,24 @@ export function buildRentabilidadRealWizardAnswersFromForm(
     answers.workModel = "trades_jobs";
     answers.worksWithClosedServices = true;
   }
-  if (form.chargeModel === "products") {
+  if (
+    form.chargeModel === "products" ||
+    form.chargeModel === "job_materials"
+  ) {
+    answers.workModel = "trades_jobs";
+    answers.worksByJobs = true;
+    answers.hasMaterials = true;
+    answers.doesRepairsInstallationsOrTrades = true;
+  }
+  if (form.chargeModel === "customer_products") {
+    answers.workModel = "trades_jobs";
+    answers.worksByJobs = true;
+    answers.worksWithClosedServices = true;
+  }
+  if (form.chargeModel === "stock_commerce") {
     answers.workModel = "commerce_stock";
     answers.hasStockOrCommerce = true;
+    answers.sellsProductsWithStock = true;
   }
   if (form.chargeModel === "mixed") answers.workModel = "mixed";
 
