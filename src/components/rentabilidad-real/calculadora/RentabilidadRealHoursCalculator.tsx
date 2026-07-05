@@ -90,6 +90,7 @@ export function RentabilidadRealHoursCalculator() {
         manualAmount: settings.manualAmount,
         monthlyRevenue: settings.monthlyRevenue,
         monthlyWorkHours: settings.monthlyWorkHours,
+        selectedFixedCostIds: settings.selectedFixedCostIds,
         billedHours: settings.billedHours,
         realWorkedHours: settings.realWorkedHours,
         nonBillableHours: settings.nonBillableHours,
@@ -255,6 +256,8 @@ export function RentabilidadRealHoursCalculator() {
             settings={settings}
             onSettingsChange={setSettings}
             documentMode={settings.sourceType === "document"}
+            fixedCostCandidates={input?.fixedCostCandidates ?? []}
+            allocatedFixedCosts={result?.allocatedFixedCosts ?? 0}
           />
         </Card>
       </div>

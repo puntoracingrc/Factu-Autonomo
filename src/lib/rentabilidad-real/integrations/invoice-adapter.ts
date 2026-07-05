@@ -1,4 +1,5 @@
 import { documentTotals, roundMoney } from "@/lib/calculations";
+import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { Document } from "@/lib/types";
 import type { ProfitabilityIncomeSource } from "./types";
 
@@ -16,7 +17,7 @@ export function mapExistingInvoiceToProfitabilityIncome(
     number: invoice.number,
     date: invoice.date,
     customerId: invoice.customerId,
-    customerName: invoice.client.name,
+    customerName: rentabilidadRealDocumentClientName(invoice),
     status: invoice.status,
     paymentStatus: invoice.paymentStatus,
     acceptanceStatus: invoice.acceptanceStatus,

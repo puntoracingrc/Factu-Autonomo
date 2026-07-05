@@ -31,6 +31,16 @@ function document(
   };
 }
 
+function documentWithoutClient(
+  overrides: Partial<Document> & Pick<Document, "id" | "type" | "number">,
+): Document {
+  const withClient = document(overrides);
+  const copy: Partial<Document> = { ...withClient };
+  delete copy.client;
+  delete copy.customerId;
+  return copy as Document;
+}
+
 function appData(documents: Document[]): AppData {
   return {
     ...EMPTY_DATA,
@@ -126,5 +136,18 @@ describe("buildRentabilidadRealAnalysisUnits", () => {
     buildRentabilidadRealAnalysisUnits(data);
 
     expect(data).toEqual(before);
+  });
+
+  it("documento sin client usa fallback y no rompe", () => {
+    const data = appData([
+      documentWithoutClient({ id: "i1", type: "factura", number: "F-1" }),
+    ]);
+
+    const units = buildRentabilidadRealAnalysisUnits(data);
+
+    expect(units[0]).toMatchObject({
+      clientId: "client_unassigned",
+      clientName: "Cliente sin asignar",
+    });
   });
 });

@@ -43,7 +43,7 @@ export function FixedCostAllocationForm({
   onSettingsChange: (settings: RentabilidadRealCalculationSettings) => void;
 }) {
   const selectedIds =
-    settings.selectedFixedCostIds && settings.selectedFixedCostIds.length > 0
+    settings.selectedFixedCostIds !== undefined
       ? settings.selectedFixedCostIds
       : fixedCostCandidates.map((cost) => cost.id);
   const selectedIdSet = new Set(selectedIds);
@@ -66,7 +66,7 @@ export function FixedCostAllocationForm({
   function toggleFixedCost(costId: string) {
     const allIds = fixedCostCandidates.map((cost) => cost.id);
     const current = new Set(
-      settings.selectedFixedCostIds && settings.selectedFixedCostIds.length > 0
+      settings.selectedFixedCostIds !== undefined
         ? settings.selectedFixedCostIds
         : allIds,
     );

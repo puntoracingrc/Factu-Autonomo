@@ -1,5 +1,6 @@
 import { documentTotals, roundMoney } from "@/lib/calculations";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
+import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { Document } from "@/lib/types";
 import type { ProfitabilityQuoteSource } from "./types";
 
@@ -19,7 +20,7 @@ export function mapExistingQuoteToProfitabilityQuote(
     number: quote.number,
     date: quote.date,
     customerId: quote.customerId,
-    customerName: quote.client.name,
+    customerName: rentabilidadRealDocumentClientName(quote),
     status: quote.status,
     acceptanceStatus: quote.acceptanceStatus,
     linkedInvoiceId: linkedInvoice?.id,

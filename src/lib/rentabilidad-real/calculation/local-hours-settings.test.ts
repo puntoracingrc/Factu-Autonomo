@@ -41,6 +41,7 @@ describe("rentabilidad real hours local settings", () => {
       manualDirectCosts: [{ id: "c1", description: "Coste", amount: 100 }],
       fixedCostAllocationMethod: "hours",
       monthlyWorkHours: 80,
+      selectedFixedCostIds: ["fixed_1"],
       irpfProvisionPercentage: 18,
     });
 
@@ -52,7 +53,28 @@ describe("rentabilidad real hours local settings", () => {
       incomeWithoutIndirectTax: 1000,
       billedHours: 10,
       realWorkedHours: 12,
+      selectedFixedCostIds: ["fixed_1"],
       irpfProvisionPercentage: 18,
+    });
+  });
+
+  it("settings antiguos sin selectedFixedCostIds no rompen", () => {
+    localStorage.setItem(
+      "fa_rentabilidad_real_hours_calculation_settings",
+      JSON.stringify({
+        sourceType: "manual",
+        manualProjectId: "manual_old",
+        projectName: "Proyecto antiguo",
+        billingModel: "hours",
+        fixedCostAllocationMethod: "hours",
+        irpfProvisionPercentage: 20,
+      }),
+    );
+
+    expect(getStoredRentabilidadRealHoursSettings()).toMatchObject({
+      sourceType: "manual",
+      manualProjectId: "manual_old",
+      selectedFixedCostIds: [],
     });
   });
 
@@ -63,6 +85,7 @@ describe("rentabilidad real hours local settings", () => {
       sourceType: "document",
       manualProjectId: "hours_manual_project",
       fixedCostAllocationMethod: "hours",
+      selectedFixedCostIds: [],
       irpfProvisionPercentage: 20,
     });
   });
@@ -79,6 +102,7 @@ describe("rentabilidad real hours local settings", () => {
       projectName: "",
       sourceType: "document",
       manualProjectId: "hours_manual_project",
+      selectedFixedCostIds: [],
     });
   });
 });

@@ -180,11 +180,12 @@ function selectedFixedCostTotal(
   fixedCostCandidates: RentabilidadRealWorkCost[],
   selectedFixedCostIds: string[] | undefined,
 ): number {
-  const selectedIds = new Set(selectedFixedCostIds ?? []);
-  const costs =
-    selectedIds.size > 0
-      ? fixedCostCandidates.filter((cost) => selectedIds.has(cost.id))
-      : fixedCostCandidates;
+  if (selectedFixedCostIds === undefined) {
+    return fixedCostCandidates.reduce((total, cost) => total + cost.amount, 0);
+  }
+
+  const selectedIds = new Set(selectedFixedCostIds);
+  const costs = fixedCostCandidates.filter((cost) => selectedIds.has(cost.id));
 
   return costs.reduce((total, cost) => total + cost.amount, 0);
 }
@@ -270,6 +271,9 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   const ignoredExpensesWithReasons = getIgnoredExpensesForWork(
     data,
     relatedDocumentIdList,
+  );
+  const recurringTemplateIds = new Set(
+    data.recurringExpenses.map((expense) => expense.id),
   );
   const seenDirectCostIds = new Set<string>();
   const directCosts = data.expenses
@@ -370,6 +374,11 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
 
   const fixedCostCandidates = [
     ...data.expenses
+      .filter(
+        (expense) =>
+          !expense.recurringExpenseId ||
+          !recurringTemplateIds.has(expense.recurringExpenseId),
+      )
       .map(mapExistingExpenseToProfitabilityFixedCost)
       .filter((cost): cost is ProfitabilityFixedCostSource => Boolean(cost)),
     ...data.recurringExpenses.map(

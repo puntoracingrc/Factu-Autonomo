@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import {
+  EMPTY_DATA,
+  type AppData,
+  type Document,
+  type Expense,
+  type RecurringExpense,
+} from "@/lib/types";
 import { buildRentabilidadRealHoursProfitabilityInputFromExistingData } from "./hours-profitability-builder";
 
 function deepClone<T>(value: T): T {
@@ -66,6 +72,34 @@ function expenseFixture(overrides: Partial<Expense> = {}): Expense {
   };
 }
 
+function recurringExpenseFixture(
+  overrides: Partial<RecurringExpense> = {},
+): RecurringExpense {
+  return {
+    id: "recurring_1",
+    supplierName: "Proveedor fijo",
+    description: "Gasto fijo",
+    amount: 600,
+    ivaPercent: 0,
+    category: "Profesional",
+    paymentMethod: "Domiciliación",
+    frequency: "monthly",
+    dueTiming: { kind: "start_of_month" },
+    duration: { kind: "indefinite" },
+    startDate: "2026-07-01",
+    enabled: true,
+    createdAt: "2026-07-01T10:00:00.000Z",
+    updatedAt: "2026-07-01T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function withoutClient(document: Document): Document {
+  const copy: Partial<Document> = { ...document };
+  delete copy.client;
+  return copy as Document;
+}
+
 describe("buildRentabilidadRealHoursProfitabilityInputFromExistingData", () => {
   it("factura con sourceQuoteDocumentId encuentra presupuesto", () => {
     const quote = documentFixture({
@@ -130,6 +164,91 @@ describe("buildRentabilidadRealHoursProfitabilityInputFromExistingData", () => {
     );
 
     expect(input?.directCosts.map((cost) => cost.id)).toEqual(["expense_1"]);
+  });
+
+  it("usa solo los gastos fijos seleccionados en modo manual", () => {
+    const fixedA = recurringExpenseFixture({ id: "fixed_a", amount: 600 });
+    const fixedB = recurringExpenseFixture({ id: "fixed_b", amount: 1120.25 });
+
+    const input = buildRentabilidadRealHoursProfitabilityInputFromExistingData(
+      appData({ recurringExpenses: [fixedA, fixedB] }),
+      {
+        sourceType: "manual",
+        projectName: "Proyecto",
+        fixedCostAllocationMethod: "hours",
+        monthlyWorkHours: 120,
+        selectedFixedCostIds: ["fixed_a"],
+      },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "fixed_a",
+      "fixed_b",
+    ]);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(600);
+  });
+
+  it("seleccion vacia aplica cero fijos en horas", () => {
+    const fixedA = recurringExpenseFixture({ id: "fixed_a", amount: 600 });
+
+    const input = buildRentabilidadRealHoursProfitabilityInputFromExistingData(
+      appData({ recurringExpenses: [fixedA] }),
+      {
+        sourceType: "manual",
+        projectName: "Proyecto",
+        fixedCostAllocationMethod: "hours",
+        selectedFixedCostIds: [],
+      },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual(["fixed_a"]);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(0);
+  });
+
+  it("no duplica plantilla recurrente y gasto fijo generado del mismo fijo", () => {
+    const fixedA = recurringExpenseFixture({ id: "fixed_a", amount: 600 });
+    const generatedFixedExpense = expenseFixture({
+      id: "generated_fixed_a",
+      businessKind: "fixed",
+      recurringExpenseId: "fixed_a",
+      recurringOccurrenceKey: "fixed_a:2026-07-01",
+      amount: 600,
+    });
+
+    const input = buildRentabilidadRealHoursProfitabilityInputFromExistingData(
+      appData({
+        expenses: [generatedFixedExpense],
+        recurringExpenses: [fixedA],
+      }),
+      {
+        sourceType: "manual",
+        projectName: "Proyecto",
+        fixedCostAllocationMethod: "hours",
+        monthlyWorkHours: 120,
+        selectedFixedCostIds: ["fixed_a"],
+      },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "fixed_a",
+    ]);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(600);
+  });
+
+  it("documento sin client no rompe y usa fallback", () => {
+    const invoice = withoutClient(
+      documentFixture({ id: "invoice_1", type: "factura" }),
+    );
+
+    const input = buildRentabilidadRealHoursProfitabilityInputFromExistingData(
+      appData({ documents: [invoice] }),
+      {
+        sourceType: "document",
+        selectedDocumentId: "invoice_1",
+      },
+    );
+
+    expect(input?.customerName).toBe("Cliente sin asignar");
   });
 
   it("no muta AppData", () => {

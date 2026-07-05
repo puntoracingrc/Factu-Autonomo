@@ -2,6 +2,7 @@
 
 import { documentTotals, formatMoney } from "@/lib/calculations";
 import type { RentabilidadRealFixedCostAllocationMethod } from "@/lib/rentabilidad-real/calculation";
+import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type {
   RentabilidadRealPriceSimulatorObjectiveType,
   RentabilidadRealPriceSimulatorSettings,
@@ -107,7 +108,7 @@ export function PriceSimulatorInputs({
               ) : null}
               {documents.map((doc) => (
                 <option key={doc.id} value={doc.id}>
-                  {doc.number} · {doc.client.name} ·{" "}
+                  {doc.number} · {rentabilidadRealDocumentClientName(doc)} ·{" "}
                   {formatMoney(documentTotals(doc).subtotal)} base
                 </option>
               ))}

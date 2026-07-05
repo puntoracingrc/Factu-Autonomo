@@ -1,6 +1,7 @@
 import { documentTotals } from "@/lib/calculations";
 import { isFixedExpense } from "@/lib/expense-classification";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
+import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { RentabilidadRealFixedCostAllocationMethod } from "./calculation";
 import type { Document, Expense } from "@/lib/types";
 
@@ -115,7 +116,7 @@ export function buildRentabilidadRealWorkDocumentOptions({
             ? DOCUMENT_TYPE_LABELS[document.type]
             : document.type,
         number: document.number,
-        customerName: document.client.name,
+        customerName: rentabilidadRealDocumentClientName(document),
         date: document.date,
         statusLabel: documentStatusLabel(document),
         subtotal: totals.subtotal,

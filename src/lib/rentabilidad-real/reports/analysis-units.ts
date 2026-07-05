@@ -1,17 +1,19 @@
 import type { AppData, Document } from "@/lib/types";
+import {
+  rentabilidadRealDocumentClientId,
+  rentabilidadRealDocumentClientName,
+} from "@/lib/rentabilidad-real/document-client";
 import type {
   RentabilidadRealAnalysisUnit,
   RentabilidadRealAnalysisUnitSourceType,
 } from "./types";
 
 function clientIdForDocument(document: Document): string {
-  if (document.customerId?.trim()) return document.customerId;
-  const name = document.client.name?.trim() || "Cliente sin identificar";
-  return `client_name_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+  return rentabilidadRealDocumentClientId(document);
 }
 
 function clientNameForDocument(document: Document): string {
-  return document.client.name?.trim() || "Cliente sin identificar";
+  return rentabilidadRealDocumentClientName(document);
 }
 
 function hasLinkedExpenses(appData: AppData, documentIds: readonly string[]) {
