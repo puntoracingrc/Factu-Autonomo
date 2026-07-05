@@ -190,6 +190,18 @@ async function updateAiCreditUnitsLegacy(
 
   if (!error) return true;
 
+  if (errorText(error).includes("scan_credits")) {
+    const retry = await admin
+      .from("user_subscriptions")
+      .update({
+        ai_credit_units: units,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    return !retry.error;
+  }
+
   const { error: legacyError } = await admin
     .from("user_subscriptions")
     .update({
