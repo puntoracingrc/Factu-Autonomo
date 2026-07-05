@@ -10,6 +10,17 @@ interface MetricCard {
   tone?: "default" | "positive" | "warning";
 }
 
+const FIXED_COST_METHOD_LABELS: Record<
+  RentabilidadRealWorkProfitabilityResult["fixedCostAllocationMethod"],
+  string
+> = {
+  none: "No aplicados",
+  manual_amount: "Importe manual",
+  revenue_share: "Según facturación",
+  monthly_jobs: "Por trabajos del mes",
+  hours: "Por horas",
+};
+
 function cardToneClass(tone: MetricCard["tone"]): string {
   if (tone === "positive") {
     return "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35";
@@ -25,99 +36,131 @@ export function WorkProfitabilityResultCards({
 }: {
   result: RentabilidadRealWorkProfitabilityResult;
 }) {
+  const incomeLabel = result.actualIncomeWithoutIndirectTax
+    ? "Factura sin IVA"
+    : "Presupuesto sin IVA";
+  const directCostCount =
+    result.directCosts.length === 1
+      ? "1 gasto enlazado"
+      : `${result.directCosts.length} gastos enlazados`;
   const cards: MetricCard[] = [
     {
-      label: "Ingreso sin IVA",
+      label: incomeLabel,
       value: formatMoney(result.incomeWithoutIndirectTax),
-      detail: result.actualIncomeWithoutIndirectTax
-        ? "Ingreso real de factura"
-        : "Ingreso previsto de presupuesto",
+      detail: "Lo que entra de verdad, sin contar el IVA.",
     },
     {
-      label: "Costes directos",
+      label: "Gastos del trabajo",
       value: formatMoney(result.totalDirectCosts),
-      detail: `${result.directCosts.length} gastos enlazados`,
+      detail: directCostCount,
     },
     {
-      label: "Gastos fijos imputados",
-      value: formatMoney(result.allocatedFixedCosts),
-      detail: result.fixedCostAllocationMethod,
-    },
-    {
-      label: "Margen directo",
-      value: formatMoney(result.grossMargin),
-      detail: "Ingreso sin IVA menos costes directos",
-      tone: result.grossMargin >= 0 ? "positive" : "warning",
-    },
-    {
-      label: "Beneficio operativo documentado",
+      label: "Beneficio antes de impuestos",
       value: formatMoney(result.documentedOperatingProfit),
-      detail: "Antes de provisión IRPF",
+      detail: "Factura sin IVA menos gastos enlazados y fijos aplicados.",
       tone: result.operatingProfit >= 0 ? "positive" : "warning",
     },
     {
-      label: "IVA estimado a reservar",
+      label: "Aparta para IVA",
       value: formatMoney(result.estimatedVatToReserve),
-      detail: "No es IVA definitivo",
+      detail: "Orientativo; el IVA real se revisa en impuestos.",
       tone: "warning",
     },
     {
-      label: "Provisión IRPF estimada",
+      label: "Aparta para IRPF",
       value: formatMoney(result.estimatedIrpfProvision),
-      detail: "No es IRPF definitivo",
+      detail: "Orientativo; no es tu declaración final.",
       tone: "warning",
     },
     {
       label: "Caja prudente",
       value: formatMoney(result.prudentAvailableCash),
-      detail: "Beneficio operativo menos IRPF estimado",
+      detail: "Lo que quedaría apartando el IRPF estimado.",
       tone: result.prudentAvailableCash >= 0 ? "positive" : "warning",
     },
+  ];
+  const detailCards: MetricCard[] = [
     {
-      label: "Ajustes internos no fiscales",
+      label: "Margen antes de gastos fijos",
+      value: formatMoney(result.grossMargin),
+      detail: "Factura sin IVA menos gastos enlazados.",
+      tone: result.grossMargin >= 0 ? "positive" : "warning",
+    },
+    {
+      label: "Gastos fijos aplicados",
+      value: formatMoney(result.allocatedFixedCosts),
+      detail: FIXED_COST_METHOD_LABELS[result.fixedCostAllocationMethod],
+    },
+    {
+      label: "Ajustes internos",
       value: formatMoney(result.internalAdjustmentsTotal),
-      detail: "Solo rentabilidad interna",
+      detail: "Solo para saber tu rentabilidad real interna.",
       tone: result.internalAdjustmentsTotal > 0 ? "warning" : "default",
     },
     {
-      label: "Beneficio interno real",
-      value: formatMoney(result.internalRealProfit),
-      detail: "Documentado menos ajustes internos",
-      tone: result.internalRealProfit >= 0 ? "positive" : "warning",
-    },
-    {
-      label: "Caja interna tras ajustes",
-      value: formatMoney(result.internalPrudentAvailableCash),
-      detail: "Caja prudente menos ajustes internos",
-      tone: result.internalPrudentAvailableCash >= 0 ? "positive" : "warning",
-    },
-    {
-      label: "Margen %",
+      label: "Margen",
       value: `${result.marginPercentage.toLocaleString("es-ES", {
         maximumFractionDigits: 2,
       })}%`,
-      detail: "Sobre ingreso económico sin IVA",
+      detail: "Porcentaje sobre la factura sin IVA.",
+    },
+    {
+      label: "Beneficio interno",
+      value: formatMoney(result.internalRealProfit),
+      detail: "Beneficio menos ajustes internos.",
+      tone: result.internalRealProfit >= 0 ? "positive" : "warning",
+    },
+    {
+      label: "Caja tras ajustes",
+      value: formatMoney(result.internalPrudentAvailableCash),
+      detail: "Caja prudente menos ajustes internos.",
+      tone: result.internalPrudentAvailableCash >= 0 ? "positive" : "warning",
     },
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className={`min-h-32 rounded-lg border p-4 ${cardToneClass(card.tone)}`}
-        >
-          <p className="text-sm font-black text-slate-600 dark:text-slate-300">
-            {card.label}
-          </p>
-          <p className="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
-            {card.value}
-          </p>
-          <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
-            {card.detail}
-          </p>
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => (
+          <ResultMetricCard key={card.label} card={card} />
+        ))}
+      </div>
+      <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-200">
+          Ver detalle del cálculo
+        </summary>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {detailCards.map((card) => (
+            <ResultMetricCard key={card.label} card={card} compact />
+          ))}
         </div>
-      ))}
+      </details>
+    </div>
+  );
+}
+
+function ResultMetricCard({
+  card,
+  compact = false,
+}: {
+  card: MetricCard;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-4 ${compact ? "min-h-28" : "min-h-32"} ${cardToneClass(card.tone)}`}
+    >
+      <p className="text-sm font-black text-slate-600 dark:text-slate-300">
+        {card.label}
+      </p>
+      <p
+        className={`${compact ? "mt-1 text-xl" : "mt-2 text-2xl"} font-black text-slate-950 dark:text-slate-50`}
+      >
+        {card.value}
+      </p>
+      <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
+        {card.detail}
+      </p>
     </div>
   );
 }
