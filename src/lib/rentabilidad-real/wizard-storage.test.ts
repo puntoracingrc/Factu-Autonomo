@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearRentabilidadRealWizardStorageForTests,
   getStoredRentabilidadRealLastScoringResult,
+  getStoredRentabilidadRealWizardAnswers,
 } from "./wizard-storage";
 
 function mockLocalStorage() {
@@ -55,5 +56,30 @@ describe("rentabilidad real wizard storage", () => {
     expect(result?.recommendedCalculationModes).toEqual(["RR_TRADES_JOBS"]);
     expect(result?.recommendedAddons).toEqual(["RR_ASSETS_LIGHT"]);
     expect(result?.outOfPhaseReasons).toEqual([]);
+  });
+
+  it("normaliza respuestas antiguas a arrays flexibles", () => {
+    localStorage.setItem(
+      "fa_rentabilidad_real_wizard_answers",
+      JSON.stringify({
+        legalForm: "individual",
+        workModel: "mixed",
+        hasMaterials: true,
+        workVehicleUse: "private_car",
+        hasStockOrCommerce: false,
+        wantsMinimumPrice: true,
+      }),
+    );
+
+    const answers = getStoredRentabilidadRealWizardAnswers();
+
+    expect(answers?.chargeModels).toEqual([
+      "closed_jobs",
+      "hours",
+      "installation_materials",
+    ]);
+    expect(answers?.materialStockModes).toEqual(["job_materials"]);
+    expect(answers?.workVehicleUses).toEqual(["private_car"]);
+    expect(answers?.analysisInterests).toEqual(["minimum_price"]);
   });
 });
