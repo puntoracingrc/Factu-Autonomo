@@ -56,11 +56,13 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const aiConsent = useAiProcessingConsent();
   const checkoutStatus = searchParams.get("checkout");
   const needsAccount = billingEnabled && !user;
+  const learningAccess = aiLearningAccountForEmail(user?.email);
   const noScansLeft =
     quota !== null &&
     quota.remaining <= 0 &&
     quota.remaining !== Number.MAX_SAFE_INTEGER;
-  const unlimitedScanMode = quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
+  const unlimitedScanMode =
+    learningAccess.allowed || quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
   const scanBatchLimit = unlimitedScanMode
     ? Number.MAX_SAFE_INTEGER
     : MAX_SCAN_FILES;
@@ -81,7 +83,6 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
   const scanBatchHint = unlimitedScanMode
     ? "todos los que necesites para la prueba"
     : `hasta ${MAX_SCAN_FILES}`;
-  const learningAccess = aiLearningAccountForEmail(user?.email);
 
   const loadQuota = useCallback(async () => {
     if (demoMode) {
