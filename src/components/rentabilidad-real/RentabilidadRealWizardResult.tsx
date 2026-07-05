@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
+import { normalizeRentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/scoring";
 import { buildTestResultViewModel } from "@/lib/rentabilidad-real/view-model";
 import type {
   RentabilidadRealPrimaryProfile,
@@ -41,6 +42,7 @@ export function RentabilidadRealWizardResult({
   answers: RentabilidadRealWizardAnswers;
   scoringResult: RentabilidadRealScoringResult;
 }) {
+  const normalizedAnswers = normalizeRentabilidadRealWizardAnswers(answers);
   const { plan, billingEnabled } = useBilling();
   const rentabilidadRealAccess = resolveRentabilidadRealBillingAccess({
     planKey: plan,
@@ -63,6 +65,25 @@ export function RentabilidadRealWizardResult({
     scoringResult.level >= 1 &&
     scoringResult.level <= 4;
   const showReportsCta = showPriceSimulatorCta;
+  const hasVehicleStructure = Boolean(
+    normalizedAnswers.workVehicleUses?.length || normalizedAnswers.hasWorkVehicle,
+  );
+  const hasPrivateVehicle = Boolean(normalizedAnswers.usesPrivateVehicleForWork);
+  const hasSafeMaterials = Boolean(
+    normalizedAnswers.materialStockModes?.some((mode) =>
+      [
+        "job_materials",
+        "customer_products",
+        "install_products_for_job",
+        "habitual_material_no_inventory",
+      ].includes(mode),
+    ),
+  );
+  const hasStockFuture = Boolean(
+    normalizedAnswers.materialStockModes?.some((mode) =>
+      ["stock_inventory", "physical_store", "ecommerce"].includes(mode),
+    ),
+  );
 
   function activateRecommended() {
     if (!canActivateRecommended) return;
@@ -90,6 +111,13 @@ export function RentabilidadRealWizardResult({
           <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
             {scoringResult.explanation}
           </p>
+          {showWorkCalculatorCta && showHoursProjectsNote ? (
+            <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Parece que trabajas por obras o servicios, pero también quieres
+              analizar horas. Te recomendamos activar ambos modos: Obras y
+              Oficios + Horas y Proyectos.
+            </p>
+          ) : null}
         </div>
 
         {scoringResult.outOfPhase ? (
@@ -98,9 +126,14 @@ export function RentabilidadRealWizardResult({
               <ShieldAlert className="mt-0.5 h-4 w-4" />
               Caso reservado para fase futura
             </div>
-            <p className="mt-2">
+          <p className="mt-2">
               No activaremos módulos de niveles 1 a 4 para este caso.
             </p>
+            {hasStockFuture ? (
+              <p className="mt-2">
+                La gestión de inventario/stock será un módulo aparte.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -110,6 +143,9 @@ export function RentabilidadRealWizardResult({
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
             Modos de cálculo recomendados
           </h3>
+          <p className="mt-1 text-xs font-bold text-blue-700 dark:text-blue-200">
+            Incluidos en Pro+ cuando están disponibles.
+          </p>
           <ul className="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
             {viewModel.recommendedCalculationModeProducts.length > 0 ? (
               viewModel.recommendedCalculationModeProducts.map((product) => (
@@ -124,6 +160,9 @@ export function RentabilidadRealWizardResult({
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
             Addons recomendados
           </h3>
+          <p className="mt-1 text-xs font-bold text-blue-700 dark:text-blue-200">
+            Incluidos en Pro+ para niveles 1 a 4.
+          </p>
           <ul className="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
             {viewModel.recommendedAddonProducts.length > 0 ? (
               viewModel.recommendedAddonProducts.map((product) => (
@@ -171,11 +210,21 @@ export function RentabilidadRealWizardResult({
         </div>
       ) : null}
 
-      {answers.usesPrivateVehicleForWork ? (
+      {hasVehicleStructure ? (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
-          Vehículo particular detectado. En Rentabilidad Real se usará como
-          referencia de rentabilidad interna; si quieres darle tratamiento
-          fiscal, conviene validarlo con tu gestor.
+          Añadimos Vehículo, Herramientas, Local y Equipos porque has indicado
+          que usas vehículo o estructura ligera. Esto ayuda a calcular
+          rentabilidad interna, pero no implica deducibilidad fiscal automática
+          {hasPrivateVehicle
+            ? " para coche o moto particular"
+            : ""}. Conviene validarlo con tu gestor.
+        </div>
+      ) : null}
+
+      {hasSafeMaterials ? (
+        <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-100">
+          Los materiales o productos comprados para un trabajo se tratarán como
+          coste directo de ese trabajo, no como inventario.
         </div>
       ) : null}
 

@@ -2,6 +2,7 @@ import {
   getRentabilidadRealAddonProductIds,
   getRentabilidadRealCalculationModeProductIds,
 } from "./catalog";
+import { normalizeRentabilidadRealWizardAnswers } from "./scoring";
 import type {
   RentabilidadRealAddonProductId,
   RentabilidadRealCalculationModeProductId,
@@ -99,13 +100,16 @@ function normalizeStoredScoringResult(
 }
 
 export function getStoredRentabilidadRealWizardAnswers(): RentabilidadRealWizardAnswers | null {
-  return readJson<RentabilidadRealWizardAnswers>(WIZARD_ANSWERS_STORAGE_KEY);
+  const answers = readJson<RentabilidadRealWizardAnswers>(
+    WIZARD_ANSWERS_STORAGE_KEY,
+  );
+  return answers ? normalizeRentabilidadRealWizardAnswers(answers) : null;
 }
 
 export function setStoredRentabilidadRealWizardAnswers(
   answers: RentabilidadRealWizardAnswers,
 ): void {
-  writeJson(WIZARD_ANSWERS_STORAGE_KEY, answers);
+  writeJson(WIZARD_ANSWERS_STORAGE_KEY, normalizeRentabilidadRealWizardAnswers(answers));
 }
 
 export function getStoredRentabilidadRealLastScoringResult(): RentabilidadRealScoringResult | null {

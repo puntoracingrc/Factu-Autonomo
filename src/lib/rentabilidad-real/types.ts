@@ -198,17 +198,49 @@ export type RentabilidadRealVehicleUse =
   | "dedicated_van"
   | "private_car"
   | "private_motorbike"
-  | "renting_leasing";
+  | "renting_leasing"
+  | "industrial_truck"
+  | "taxi_vtc_transport";
+
+export type RentabilidadRealChargeModel =
+  | "hours"
+  | "closed_jobs"
+  | "closed_projects"
+  | "visits_services"
+  | "monthly_retainer"
+  | "installation_materials"
+  | "labor_only";
+
+export type RentabilidadRealMaterialStockMode =
+  | "none"
+  | "job_materials"
+  | "customer_products"
+  | "install_products_for_job"
+  | "habitual_material_no_inventory"
+  | "stock_inventory"
+  | "physical_store"
+  | "ecommerce";
+
+export type RentabilidadRealAnalysisInterest =
+  | "jobs"
+  | "real_hours"
+  | "projects"
+  | "clients"
+  | "documents"
+  | "services_visits"
+  | "minimum_price";
 
 export interface RentabilidadRealWizardAnswers {
   legalForm?: RentabilidadRealLegalForm;
   profession?: string;
   workModel?: RentabilidadRealWorkModel;
+  chargeModels?: RentabilidadRealChargeModel[];
   isLimitedCompany?: boolean;
   hasPayrollEmployees?: boolean;
   isInModulesRegime?: boolean;
   hasStockOrCommerce?: boolean;
   sellsProductsWithStock?: boolean;
+  materialStockModes?: RentabilidadRealMaterialStockMode[];
   advancedCompanyCase?: boolean;
   hasMultipleCompanies?: boolean;
   hasInternationalOperations?: boolean;
@@ -218,6 +250,7 @@ export interface RentabilidadRealWizardAnswers {
   hasWorkshop?: boolean;
   hasWorkVehicle?: boolean;
   workVehicleUse?: RentabilidadRealVehicleUse;
+  workVehicleUses?: RentabilidadRealVehicleUse[];
   usesPrivateVehicleForWork?: boolean;
   hasRelevantToolsOrEquipment?: boolean;
   hasLightMachinery?: boolean;
@@ -234,6 +267,7 @@ export interface RentabilidadRealWizardAnswers {
   hasTravelCosts?: boolean;
   hasOccasionalSubcontracting?: boolean;
   appliesNormalVat?: boolean;
+  analysisInterests?: RentabilidadRealAnalysisInterest[];
   wantsMinimumPrice?: boolean;
   wantsAdvisorReview?: boolean;
 }

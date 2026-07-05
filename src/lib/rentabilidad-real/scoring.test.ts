@@ -102,6 +102,38 @@ describe("rentabilidad real scoring", () => {
     );
   });
 
+  it("acepta arrays de cobro y recomienda obras + horas sin usar Mixto", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["closed_jobs", "hours"],
+      materialStockModes: ["none"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+    });
+
+    expect(result.level).toBe(3);
+    expect(result.primaryProfile).toBe("mixed");
+    expect(result.recommendedCalculationModes).toEqual([
+      "RR_TRADES_JOBS",
+      "RR_HOURS_PROJECTS",
+    ]);
+  });
+
+  it("precio minimo recomienda simulador sin forzar perfil", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["labor_only"],
+      materialStockModes: ["none"],
+      analysisInterests: ["documents", "minimum_price"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+    });
+
+    expect(result.outOfPhase).toBe(false);
+    expect(result.primaryProfile).toBe("basic");
+    expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
+  });
+
   it("nivel 4 con vehiculo y obras mantiene el modo de obras", () => {
     const result = scoreRentabilidadRealProfile({
       legalForm: "individual",
@@ -169,6 +201,59 @@ describe("rentabilidad real scoring", () => {
 
     expect(result.outOfPhase).toBe(false);
     expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+  });
+
+  it.each([
+    "job_materials",
+    "customer_products",
+    "install_products_for_job",
+    "habitual_material_no_inventory",
+  ] as const)("material/producto %s no manda a stock futuro", (mode) => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["installation_materials"],
+      materialStockModes: [mode],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+    });
+
+    expect(result.outOfPhase).toBe(false);
+    expect(result.recommendedProductIds).toContain("RR_TRADES_JOBS");
+    expect(result.recommendedProductIds).not.toContain("RR_STOCK_COMMERCE");
+  });
+
+  it.each([
+    "stock_inventory",
+    "physical_store",
+    "ecommerce",
+  ] as const)("stock/comercio %s va a futureLevel 5", (mode) => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["closed_jobs"],
+      materialStockModes: [mode],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+    });
+
+    expect(result.outOfPhase).toBe(true);
+    expect(result.futureLevel).toBe(5);
+    expect(result.unavailableProductIds).toContain("RR_STOCK_COMMERCE");
+  });
+
+  it("vehiculos multiples recomiendan assets sin tapar el modo real", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["hours"],
+      materialStockModes: ["none"],
+      workVehicleUses: ["private_car", "private_motorbike"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+    });
+
+    expect(result.level).toBe(4);
+    expect(result.primaryProfile).toBe("hours_projects");
+    expect(result.recommendedProductIds).toContain("RR_HOURS_PROJECTS");
+    expect(result.recommendedProductIds).toContain("RR_ASSETS_LIGHT");
   });
 
   it("deja S.L. fuera de fase y la manda a nivel 7", () => {

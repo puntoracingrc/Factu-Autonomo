@@ -29,6 +29,9 @@ interface Option {
 interface Question {
   id: QuestionId;
   title: string;
+  subtitle?: string;
+  multiple?: boolean;
+  exclusiveValues?: readonly string[];
   options: readonly Option[];
 }
 
@@ -45,17 +48,21 @@ const QUESTIONS: readonly Question[] = [
     ],
   },
   {
-    id: "chargeModel",
-    title: "¿Cómo cobras principalmente?",
+    id: "chargeModels",
+    title: "¿Cómo sueles cobrar o presupuestar tus trabajos?",
+    subtitle: "Puedes elegir varias opciones.",
+    multiple: true,
     options: [
       { value: "hours", label: "Por horas" },
-      { value: "projects", label: "Por proyectos" },
-      { value: "closed_jobs", label: "Por obras o trabajos cerrados" },
+      { value: "closed_jobs", label: "Precio cerrado por trabajo/obra" },
+      { value: "closed_projects", label: "Precio cerrado por proyecto" },
       { value: "visits_services", label: "Por visitas o servicios" },
-      { value: "job_materials", label: "Materiales por trabajo" },
-      { value: "customer_products", label: "Producto aportado por cliente" },
-      { value: "stock_commerce", label: "Stock, tienda o e-commerce" },
-      { value: "mixed", label: "Mixto" },
+      { value: "monthly_retainer", label: "Iguala o mantenimiento mensual" },
+      {
+        value: "installation_materials",
+        label: "Instalación con materiales/productos",
+      },
+      { value: "labor_only", label: "Solo mano de obra" },
     ],
   },
   {
@@ -76,27 +83,51 @@ const QUESTIONS: readonly Question[] = [
     ],
   },
   {
-    id: "workVehicleType",
-    title: "¿Qué vehículo usas para trabajar?",
+    id: "materialStockModes",
+    title: "¿Trabajas con materiales, productos o stock?",
+    subtitle: "Elegir materiales para un trabajo no significa tener inventario.",
+    multiple: true,
+    exclusiveValues: ["none"],
+    options: [
+      { value: "none", label: "No uso materiales/productos" },
+      { value: "job_materials", label: "Compro materiales para cada trabajo" },
+      {
+        value: "customer_products",
+        label: "Instalo productos que compra el cliente",
+      },
+      {
+        value: "install_products_for_job",
+        label: "Compro productos para instalarlos en ese trabajo",
+      },
+      {
+        value: "habitual_material_no_inventory",
+        label: "Tengo algo de material habitual, pero no inventario formal",
+      },
+      { value: "stock_inventory", label: "Tengo stock/inventario propio" },
+      { value: "physical_store", label: "Tengo tienda física" },
+      { value: "ecommerce", label: "Tengo e-commerce" },
+    ],
+  },
+  {
+    id: "workVehicleTypes",
+    title: "¿Qué vehículos usas para trabajar?",
+    subtitle:
+      "Puedes elegir varios. El vehículo puede afectar a tu rentabilidad interna; su tratamiento fiscal puede depender del uso y conviene validarlo con tu gestor.",
+    multiple: true,
+    exclusiveValues: ["none"],
     options: [
       { value: "none", label: "Sin vehículo" },
-      { value: "dedicated_van", label: "Vehículo dedicado" },
+      { value: "dedicated_van", label: "Furgoneta dedicada" },
       { value: "private_car", label: "Coche particular" },
       { value: "private_motorbike", label: "Moto particular" },
       { value: "renting_leasing", label: "Renting/leasing" },
+      { value: "industrial_truck", label: "Camión o vehículo industrial" },
+      { value: "taxi_vtc_transport", label: "Taxi/VTC/transporte" },
     ],
   },
   {
     id: "hasRelevantToolsOrEquipment",
     title: "¿Tienes herramientas, maquinaria ligera o equipos relevantes?",
-    options: [
-      { value: "yes", label: "Sí" },
-      { value: "no", label: "No" },
-    ],
-  },
-  {
-    id: "hasStockOrCommerce",
-    title: "¿Tienes stock, inventario, tienda o e-commerce?",
     options: [
       { value: "yes", label: "Sí" },
       { value: "no", label: "No" },
@@ -130,25 +161,36 @@ const QUESTIONS: readonly Question[] = [
     ],
   },
   {
-    id: "profitUnit",
-    title: "¿Quieres calcular beneficio principalmente por qué unidad?",
+    id: "analysisInterests",
+    title: "¿Qué te interesa analizar en Rentabilidad Real?",
+    subtitle:
+      "Puedes elegir varias vistas. Luego podrás usar la calculadora que necesites en cada caso.",
+    multiple: true,
     options: [
-      { value: "job", label: "Trabajo/obra" },
-      { value: "hour", label: "Hora" },
-      { value: "project", label: "Proyecto" },
-      { value: "client", label: "Cliente" },
-      { value: "invoice", label: "Factura" },
-      { value: "service", label: "Servicio" },
+      { value: "jobs", label: "Trabajos u obras" },
+      { value: "real_hours", label: "Horas reales trabajadas" },
+      { value: "projects", label: "Proyectos" },
+      { value: "clients", label: "Clientes" },
+      {
+        value: "documents",
+        label: "Facturas o presupuestos concretos",
+      },
+      { value: "services_visits", label: "Servicios o visitas" },
+      {
+        value: "minimum_price",
+        label: "Precio mínimo que debería cobrar",
+      },
     ],
   },
 ];
 
-function optionValue(
+function selectedValues(
   form: RentabilidadRealWizardFormState,
   id: QuestionId,
-): string | undefined {
+): string[] {
   const value = form[id];
-  return typeof value === "string" ? value : undefined;
+  if (Array.isArray(value)) return value.filter((item) => typeof item === "string");
+  return typeof value === "string" ? [value] : [];
 }
 
 export function RentabilidadRealWizard() {
@@ -160,12 +202,31 @@ export function RentabilidadRealWizard() {
 
   const answeredCount = useMemo(
     () =>
-      QUESTIONS.filter((question) => optionValue(form, question.id)).length,
+      QUESTIONS.filter((question) => selectedValues(form, question.id).length > 0)
+        .length,
     [form],
   );
 
-  function answerQuestion(id: QuestionId, value: string) {
-    setForm((current) => ({ ...current, [id]: value }));
+  function answerQuestion(question: Question, value: string) {
+    setForm((current) => {
+      if (!question.multiple) {
+        return { ...current, [question.id]: value };
+      }
+
+      const exclusiveValues = question.exclusiveValues ?? [];
+      const currentValues = selectedValues(current, question.id);
+      if (exclusiveValues.includes(value)) {
+        return { ...current, [question.id]: [value] };
+      }
+
+      const withoutExclusive = currentValues.filter(
+        (item) => !exclusiveValues.includes(item),
+      );
+      const nextValues = withoutExclusive.includes(value)
+        ? withoutExclusive.filter((item) => item !== value)
+        : [...withoutExclusive, value];
+      return { ...current, [question.id]: nextValues };
+    });
   }
 
   function submitWizard() {
@@ -209,15 +270,21 @@ export function RentabilidadRealWizard() {
               <legend className="text-base font-black text-slate-950 dark:text-slate-50">
                 {question.title}
               </legend>
+              {question.subtitle ? (
+                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {question.subtitle}
+                </p>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-2">
                 {question.options.map((option) => {
                   const selected =
-                    optionValue(form, question.id) === option.value;
+                    selectedValues(form, question.id).includes(option.value);
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => answerQuestion(question.id, option.value)}
+                      aria-pressed={selected}
+                      onClick={() => answerQuestion(question, option.value)}
                       className={`min-h-10 rounded-full border px-3 text-sm font-bold transition-colors ${
                         selected
                           ? "border-blue-600 bg-blue-600 text-white"
