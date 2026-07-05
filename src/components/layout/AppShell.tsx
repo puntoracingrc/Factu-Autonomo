@@ -283,11 +283,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm lg:hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center justify-between gap-2 px-4 py-3">
             <Link
               href={brandHref}
               aria-label={brandAriaLabel}
-              className="flex min-w-0 items-center gap-3 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl transition-colors hover:bg-slate-50 active:bg-slate-100 sm:gap-3"
             >
               <Image
                 src="/brand/app-icon.png"
@@ -297,8 +297,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="h-10 w-10 shrink-0 object-contain drop-shadow-sm"
                 priority
               />
-              <div className="min-w-0">
-                <p className="truncate text-base font-bold text-slate-900">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-900 sm:text-base">
                   {APP_BRAND_NAME}
                 </p>
                 <p className="text-xs leading-tight text-slate-500">
@@ -332,12 +332,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
                 >
                   <LogIn className="h-3.5 w-3.5" />
-                  Iniciar sesión
+                  <span className="sm:hidden">Entrar</span>
+                  <span className="hidden sm:inline">Iniciar sesión</span>
                 </Link>
               )}
               {billingEnabled && isPro && (
                 <Link
                   href="/precios"
+                  title={plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
                   className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold ${
                     plan === "trial"
                       ? "bg-violet-100 text-violet-800"
@@ -345,16 +347,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <Crown className="h-3.5 w-3.5" />
-                  {plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
+                  <span className="hidden min-[430px]:inline">
+                    {plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
+                  </span>
                 </Link>
               )}
               {billingEnabled && !isPro && (
                 <Link
                   href="/precios"
+                  title="Hazte Pro"
                   className="flex items-center gap-1 rounded-xl bg-violet-100 px-2.5 py-1.5 text-xs font-bold text-violet-800"
                 >
                   <Crown className="h-3.5 w-3.5" />
-                  Hazte Pro
+                  <span className="hidden min-[430px]:inline">Hazte Pro</span>
                 </Link>
               )}
               <CloudSyncHeaderIndicator />
