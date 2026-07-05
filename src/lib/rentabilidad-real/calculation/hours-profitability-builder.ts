@@ -29,6 +29,7 @@ export interface BuildRentabilidadRealHoursProfitabilityInputParams {
   manualAmount?: number;
   monthlyRevenue?: number;
   monthlyWorkHours?: number;
+  selectedFixedCostIds?: string[];
   billedHours?: number;
   realWorkedHours?: number;
   nonBillableHours?: number;
@@ -62,8 +63,17 @@ function fixedCostFromSource(source: ProfitabilityFixedCostSource): Rentabilidad
 }
 
 function fixedCostCandidatesFromData(data: AppData): RentabilidadRealWorkCost[] {
+  const recurringTemplateIds = new Set(
+    data.recurringExpenses.map((expense) => expense.id),
+  );
+
   return [
     ...data.expenses
+      .filter(
+        (expense) =>
+          !expense.recurringExpenseId ||
+          !recurringTemplateIds.has(expense.recurringExpenseId),
+      )
       .map(mapExistingExpenseToProfitabilityFixedCost)
       .filter((item): item is ProfitabilityFixedCostSource => Boolean(item)),
     ...data.recurringExpenses.map(
@@ -96,6 +106,15 @@ function sumFixedCosts(costs: RentabilidadRealWorkCost[]): number {
   return roundMoney(costs.reduce((total, cost) => total + cost.amount, 0));
 }
 
+function selectedFixedCosts(
+  costs: RentabilidadRealWorkCost[],
+  selectedFixedCostIds: string[] | undefined,
+): RentabilidadRealWorkCost[] {
+  const selectedIds = new Set(selectedFixedCostIds ?? []);
+  if (selectedIds.size === 0) return [];
+  return costs.filter((cost) => selectedIds.has(cost.id));
+}
+
 export function buildRentabilidadRealHoursProfitabilityInputFromExistingData(
   data: AppData,
   params: BuildRentabilidadRealHoursProfitabilityInputParams,
@@ -103,9 +122,13 @@ export function buildRentabilidadRealHoursProfitabilityInputFromExistingData(
   const warnings: RentabilidadRealCalculationWarning[] = [];
   const billingModel = params.billingModel ?? "hours";
   const fixedCostCandidates = fixedCostCandidatesFromData(data);
+  const selectedFixedCostCandidates = selectedFixedCosts(
+    fixedCostCandidates,
+    params.selectedFixedCostIds,
+  );
   const fixedCostAllocationInput = {
     method: params.fixedCostAllocationMethod ?? "hours",
-    totalFixedCostsForPeriod: sumFixedCosts(fixedCostCandidates),
+    totalFixedCostsForPeriod: sumFixedCosts(selectedFixedCostCandidates),
     manualAmount: params.manualAmount,
     monthlyRevenue: params.monthlyRevenue,
     monthlyWorkHours: params.monthlyWorkHours,
@@ -120,6 +143,7 @@ export function buildRentabilidadRealHoursProfitabilityInputFromExistingData(
         manualAmount: params.manualAmount,
         monthlyRevenue: params.monthlyRevenue,
         monthlyWorkHours: params.monthlyWorkHours,
+        selectedFixedCostIds: params.selectedFixedCostIds,
         irpfProvisionPercentage: params.irpfProvisionPercentage,
       },
     );

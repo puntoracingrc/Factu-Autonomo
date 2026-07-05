@@ -110,6 +110,73 @@ describe("calculateRentabilidadRealHoursProfitability", () => {
     expect(result.operatingProfit).toBe(900);
   });
 
+  it("por horas con solo un fijo seleccionado calcula 80 euros", () => {
+    const result = calculateRentabilidadRealHoursProfitability(
+      input({
+        incomeWithoutIndirectTax: 800,
+        vatFromIncome: 168,
+        directCosts: [cost(50, 10.5)],
+        fixedCostCandidates: [cost(600), cost(1120.25)],
+        fixedCostAllocationInput: {
+          method: "hours",
+          totalFixedCostsForPeriod: 600,
+          monthlyWorkHours: 120,
+        },
+        billedHours: 10,
+        totalRealHoursOverride: 16,
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(80);
+    expect(result.grossMargin).toBe(750);
+    expect(result.operatingProfit).toBe(670);
+    expect(result.operatingProfitPerRealHour).toBe(41.88);
+    expect(result.estimatedIrpfProvision).toBe(134);
+    expect(result.prudentAvailableCash).toBe(536);
+    expect(result.prudentCashPerRealHour).toBe(33.5);
+  });
+
+  it("por horas con todos los fijos seleccionados calcula 229,37 euros", () => {
+    const result = calculateRentabilidadRealHoursProfitability(
+      input({
+        incomeWithoutIndirectTax: 800,
+        directCosts: [cost(50, 10.5)],
+        fixedCostAllocationInput: {
+          method: "hours",
+          totalFixedCostsForPeriod: 1720.25,
+          monthlyWorkHours: 120,
+        },
+        billedHours: 10,
+        totalRealHoursOverride: 16,
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(229.37);
+    expect(result.operatingProfit).toBe(520.63);
+  });
+
+  it("por horas sin fijos seleccionados aplica cero y avisa", () => {
+    const result = calculateRentabilidadRealHoursProfitability(
+      input({
+        incomeWithoutIndirectTax: 800,
+        fixedCostCandidates: [cost(600)],
+        fixedCostAllocationInput: {
+          method: "hours",
+          totalFixedCostsForPeriod: 0,
+          monthlyWorkHours: 120,
+        },
+        totalRealHoursOverride: 16,
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(0);
+    expect(result.operatingProfit).toBe(800);
+    expect(result.warnings.map((warning) => warning.code)).toContain(
+      "fixed_cost_allocation_incomplete",
+    );
+    expect(Number.isFinite(result.operatingProfitPerRealHour)).toBe(true);
+  });
+
   it("IVA no reduce beneficio operativo", () => {
     const result = calculateRentabilidadRealHoursProfitability(input());
 

@@ -30,6 +30,7 @@ export interface RentabilidadRealHoursCalculationSettings {
   manualAmount?: number;
   monthlyRevenue?: number;
   monthlyWorkHours?: number;
+  selectedFixedCostIds: string[];
   irpfProvisionPercentage: number;
 }
 
@@ -41,6 +42,7 @@ export const DEFAULT_RENTABILIDAD_REAL_HOURS_SETTINGS: RentabilidadRealHoursCalc
     billingModel: "hours",
     manualDirectCosts: [],
     fixedCostAllocationMethod: "hours",
+    selectedFixedCostIds: [],
     irpfProvisionPercentage: 20,
   };
 
@@ -94,6 +96,11 @@ function normalizeManualCosts(value: unknown): RentabilidadRealManualDirectCost[
     .filter((item): item is RentabilidadRealManualDirectCost => Boolean(item));
 }
 
+function normalizeSelectedFixedCostIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
 function normalizeSettings(
   settings: Partial<RentabilidadRealHoursCalculationSettings> | null | undefined,
 ): RentabilidadRealHoursCalculationSettings {
@@ -131,6 +138,9 @@ function normalizeSettings(
     manualAmount: numberOrUndefined(settings?.manualAmount),
     monthlyRevenue: numberOrUndefined(settings?.monthlyRevenue),
     monthlyWorkHours: numberOrUndefined(settings?.monthlyWorkHours),
+    selectedFixedCostIds: normalizeSelectedFixedCostIds(
+      settings?.selectedFixedCostIds,
+    ),
     irpfProvisionPercentage:
       numberOrUndefined(settings?.irpfProvisionPercentage) ?? 20,
   };

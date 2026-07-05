@@ -48,6 +48,16 @@ function document(
   };
 }
 
+function documentWithoutClient(
+  overrides: Partial<Document> & Pick<Document, "id" | "type" | "number">,
+): Document {
+  const withClient = document(overrides);
+  const copy: Partial<Document> = { ...withClient };
+  delete copy.client;
+  delete copy.customerId;
+  return copy as Document;
+}
+
 function expense(overrides: Partial<Expense> & Pick<Expense, "id">): Expense {
   return {
     id: overrides.id,
@@ -229,5 +239,24 @@ describe("buildDocumentProfitabilityReport", () => {
     buildDocumentProfitabilityReport(source, settings());
 
     expect(source).toEqual(before);
+  });
+
+  it("documento sin client aparece como Cliente sin asignar", () => {
+    const invoice = documentWithoutClient({
+      id: "i1",
+      type: "factura",
+      number: "F-1",
+    });
+
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoice] }),
+      settings(),
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      clientId: "client_unassigned",
+      clientName: "Cliente sin asignar",
+    });
   });
 });

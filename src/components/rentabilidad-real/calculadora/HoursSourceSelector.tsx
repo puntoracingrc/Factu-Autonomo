@@ -2,6 +2,7 @@
 
 import { documentTotals, formatMoney } from "@/lib/calculations";
 import type { RentabilidadRealHoursSourceType } from "@/lib/rentabilidad-real/calculation";
+import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { Document } from "@/lib/types";
 
 export function HoursSourceSelector({
@@ -59,7 +60,7 @@ export function HoursSourceSelector({
             ) : null}
             {documents.map((doc) => (
               <option key={doc.id} value={doc.id}>
-                {doc.number} · {doc.client.name} ·{" "}
+                {doc.number} · {rentabilidadRealDocumentClientName(doc)} ·{" "}
                 {formatMoney(documentTotals(doc).subtotal)} base
               </option>
             ))}

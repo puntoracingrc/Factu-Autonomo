@@ -324,6 +324,42 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(130);
   });
 
+  it("no duplica fijo recurrente si ya existe el gasto mensual generado", () => {
+    const invoice = documentFixture({
+      id: "invoice_1",
+      type: "factura",
+    });
+    const recurring = recurringExpenseFixture({
+      id: "recurring_1",
+      amount: 50,
+    });
+    const generatedFixedExpense = expenseFixture({
+      id: "generated_recurring_1",
+      businessKind: "fixed",
+      recurringExpenseId: "recurring_1",
+      recurringOccurrenceKey: "recurring_1:2026-07-01",
+      amount: 50,
+    });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [invoice],
+        expenses: [generatedFixedExpense],
+        recurringExpenses: [recurring],
+      }),
+      {
+        sourceDocumentId: "invoice_1",
+        fixedCostAllocationMethod: "monthly_jobs",
+        monthlyJobs: 1,
+        selectedFixedCostIds: ["recurring_1"],
+      },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "recurring_1",
+    ]);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(50);
+  });
+
   it("no muta AppData", () => {
     const invoice = documentFixture({
       id: "invoice_1",

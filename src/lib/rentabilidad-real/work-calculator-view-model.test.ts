@@ -129,4 +129,21 @@ describe("work calculator view model", () => {
     );
     expect(filterRentabilidadRealWorkDocumentOptions(options, "reciente")).toHaveLength(1);
   });
+
+  it("documento sin client usa fallback", () => {
+    const withClient = documentFixture({
+      id: "invoice-no-client",
+      number: "F-2026-0003",
+    });
+    const invoice: Partial<Document> = { ...withClient };
+    delete invoice.client;
+
+    const options = buildRentabilidadRealWorkDocumentOptions({
+      documents: [invoice as Document],
+      allDocuments: [invoice as Document],
+      expenses: [],
+    });
+
+    expect(options[0].customerName).toBe("Cliente sin asignar");
+  });
 });
