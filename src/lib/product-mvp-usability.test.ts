@@ -163,6 +163,28 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain('title="Hazte Pro"');
   });
 
+  it("aplica preferencias de app desde el contenedor principal", () => {
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
+    const globalCssSource = readFileSync(
+      new URL("../app/globals.css", import.meta.url),
+      "utf8",
+    );
+
+    expect(appShellSource).toContain("normalizeAppPreferences");
+    expect(appShellSource).toContain("appStartPageHref");
+    expect(appShellSource).toContain("dataset.appTheme");
+    expect(appShellSource).toContain("dataset.appDensity");
+    expect(appShellSource).toContain("dataset.reduceMotion");
+    expect(appShellSource).toContain("app-main");
+    expect(appShellSource).toContain("appPreferences.reduceMotion");
+    expect(globalCssSource).toContain('html[data-app-theme="dark"]');
+    expect(globalCssSource).toContain('html[data-app-density="compact"]');
+    expect(globalCssSource).toContain('html[data-reduce-motion="true"]');
+  });
+
   it("distingue exportacion gratis de importador Pro en cuenta", () => {
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
@@ -737,6 +759,10 @@ describe("MVP usability polish", () => {
       ),
       "utf8",
     );
+    const appPreferencesSource = readFileSync(
+      new URL("../lib/app-preferences.ts", import.meta.url),
+      "utf8",
+    );
 
     expect(settingsSource).toContain("rounded-full");
     expect(settingsSource).toContain("flex flex-wrap gap-2");
@@ -750,9 +776,18 @@ describe("MVP usability polish", () => {
     expect(settingsSource).toContain("ajustes-facturacion");
     expect(settingsSource).toContain("ajustes-fiscalidad");
     expect(settingsSource).toContain("ajustes-preferencias");
+    expect(settingsSource).toContain("APP_THEME_OPTIONS");
+    expect(settingsSource).toContain("APP_DENSITY_OPTIONS");
+    expect(settingsSource).toContain("APP_START_PAGE_OPTIONS");
+    expect(settingsSource).toContain("normalizeAppPreferences");
     expect(settingsSource).toContain("Apariencia");
     expect(settingsSource).toContain("Pantalla inicial");
     expect(settingsSource).toContain("Reducir animaciones");
+    expect(settingsSource).toContain("lg:sticky lg:bottom-6");
+    expect(settingsSource).not.toContain("sticky bottom-24");
+    expect(appPreferencesSource).toContain("Cómoda");
+    expect(appPreferencesSource).toContain("Compacta");
+    expect(appPreferencesSource).toContain("Oscuro");
     expect(settingsSource).not.toContain("Datos, logo y contacto");
     expect(settingsSource).not.toContain("Plan, datos y ayuda");
     expect(settingsSource).not.toContain("Plan por fases");

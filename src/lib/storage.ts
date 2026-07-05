@@ -15,6 +15,7 @@ import { normalizeVerifactuSettings } from "./verifactu/eligibility";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
+import { normalizeAppPreferences } from "./app-preferences";
 import {
   DEMO_WORKSPACE_STORAGE_KEY,
   createDemoWorkspaceData,
@@ -48,6 +49,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
       profile?.productFamilyMarkups,
     ),
     googlePlaces: normalizeGooglePlacesSettings(profile?.googlePlaces),
+    appPreferences: normalizeAppPreferences(profile?.appPreferences),
   };
 }
 

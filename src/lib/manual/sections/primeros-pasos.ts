@@ -23,7 +23,7 @@ export const primerosPasosSection: ManualSection = {
       paragraphs: [
         "Ve a **Ajustes** (icono de engranaje en la barra inferior) y completa al menos tu **nombre** y **NIF/CIF**. Esos datos salen en el PDF de tus facturas.",
         "Si quieres, añade también dirección, teléfono, email e **IBAN**: el IBAN aparece en facturas pendientes de cobro y en los recordatorios de pago.",
-        "Ajustes está organizado por bloques: **Negocio**, **Facturación**, **Fiscalidad** y **Preferencias**. Usa las pastillas superiores para saltar rápido a cada parte.",
+        "Ajustes está organizado por bloques: **Negocio**, **Facturación**, **Fiscalidad** y **Preferencias**. Usa las pastillas superiores para saltar rápido a cada parte. En **Preferencias** puedes activar modo oscuro, vista compacta, pantalla inicial y reducir animaciones.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-datos-negocio.png",
