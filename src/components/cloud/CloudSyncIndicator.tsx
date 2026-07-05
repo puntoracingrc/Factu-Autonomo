@@ -81,7 +81,7 @@ export function CloudSyncHeaderIndicator() {
       ) : (
         <CloudUpload className="h-3.5 w-3.5" />
       )}
-      <span className="whitespace-nowrap">
+      <span className="hidden whitespace-nowrap min-[430px]:inline">
         {isSyncing
           ? "Subiendo…"
           : isOffline

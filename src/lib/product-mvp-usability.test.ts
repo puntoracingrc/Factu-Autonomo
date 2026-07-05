@@ -155,11 +155,23 @@ describe("MVP usability polish", () => {
       new URL("../components/layout/AppShell.tsx", import.meta.url),
       "utf8",
     );
+    const cloudIndicatorSource = readFileSync(
+      new URL("../components/cloud/CloudSyncIndicator.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(appShellSource).toContain("min-w-0 flex-1 items-center");
     expect(appShellSource).toContain("sm:hidden\">Entrar");
     expect(appShellSource).toContain("hidden sm:inline\">Iniciar sesión");
     expect(appShellSource).toContain("hidden min-[430px]:inline");
+    expect(appShellSource).toContain(
+      "hidden text-xs leading-tight text-slate-500 min-[430px]:block",
+    );
+    expect(appShellSource).toContain("flex h-9 w-9 items-center");
+    expect(appShellSource).toContain("hidden truncate min-[430px]:inline");
+    expect(cloudIndicatorSource).toContain(
+      "hidden whitespace-nowrap min-[430px]:inline",
+    );
     expect(appShellSource).toContain('title="Hazte Pro"');
   });
 
@@ -183,6 +195,38 @@ describe("MVP usability polish", () => {
     expect(globalCssSource).toContain('html[data-app-theme="dark"]');
     expect(globalCssSource).toContain('html[data-app-density="compact"]');
     expect(globalCssSource).toContain('html[data-reduce-motion="true"]');
+    expect(globalCssSource).toContain("factu-toast-offset");
+    expect(globalCssSource).toContain("bg-white\\/80");
+    expect(globalCssSource).toContain("bg-slate-200");
+    expect(globalCssSource).toContain("bg-orange-50");
+    expect(globalCssSource).toContain("text-green-900");
+  });
+
+  it("mantiene Factu discreto en escritorio y fuera de movil estrecho", () => {
+    const homePageSource = readFileSync(
+      new URL("../app/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const factuWidgetSource = readFileSync(
+      new URL("../components/factu/FactuWidget.tsx", import.meta.url),
+      "utf8",
+    );
+    const factuHostSource = readFileSync(
+      new URL("../components/factu/FactuOccasionalHost.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(homePageSource).not.toContain("FactuDailyGreeting");
+    expect(factuWidgetSource).toContain("hidden factu-widget-offset sm:block");
+    expect(factuWidgetSource).toContain("fixed right-4");
+    expect(factuWidgetSource).toContain(
+      "w-[min(18rem,calc(100vw-2rem))]",
+    );
+    expect(factuHostSource).toContain("factu-toast-offset");
+    expect(factuHostSource).toContain(
+      "w-[min(21rem,calc(100vw-2rem))]",
+    );
+    expect(factuHostSource).not.toContain("left-0 right-0 top-16");
   });
 
   it("distingue exportacion gratis de importador Pro en cuenta", () => {
