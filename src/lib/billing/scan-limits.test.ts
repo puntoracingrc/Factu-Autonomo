@@ -8,6 +8,7 @@ import {
   PRO_EXPENSE_SCANS_PER_MONTH,
   PRO_PLUS_EXPENSE_SCANS_PER_MONTH,
   scanBlockedMessage,
+  UNLIMITED_AI_CREDIT_UNITS,
 } from "./scan-limits";
 
 describe("scan limits", () => {
@@ -71,6 +72,25 @@ describe("scan limits", () => {
     expect(meter.mode).toBe("extra");
     expect(meter.percentRemaining).toBe(100);
     expect(meter.scanEquivalentRemaining).toBe(10);
+  });
+
+  it("convierte el permiso admin de pruebas en IA sin limite", () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    const q = buildScanQuota(
+      "free",
+      99,
+      0,
+      "2026-06",
+      0,
+      0,
+      UNLIMITED_AI_CREDIT_UNITS,
+    );
+    const meter = buildAiUsageMeter(q);
+
+    expect(q.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
+    expect(q.remaining).toBe(Number.MAX_SAFE_INTEGER);
+    expect(meter.mode).toBe("unlimited");
+    expect(meter.scanEquivalentRemaining).toBeNull();
   });
 
   it("marca el saldo IA como agotado sin incluida ni recarga", () => {

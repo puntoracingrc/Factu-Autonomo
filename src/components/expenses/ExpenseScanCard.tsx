@@ -60,6 +60,10 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
     quota !== null &&
     quota.remaining <= 0 &&
     quota.remaining !== Number.MAX_SAFE_INTEGER;
+  const unlimitedScanMode = quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
+  const scanBatchLimit = unlimitedScanMode
+    ? Number.MAX_SAFE_INTEGER
+    : MAX_SCAN_FILES;
   const scanControlsDisabled =
     demoMode || scanning || noScansLeft || !aiConsent.accepted;
   const dropDisabled = demoMode || scanning || noScansLeft;
@@ -68,9 +72,15 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       ? quota.limit
       : PRO_EXPENSE_SCANS_PER_MONTH;
   const usageLabel = useMemo(() => {
-    if (!quota || quota.remainingUnits === Number.MAX_SAFE_INTEGER) return null;
+    if (!quota) return null;
+    if (quota.remainingUnits === Number.MAX_SAFE_INTEGER) {
+      return "sin límite de pruebas";
+    }
     return `${buildAiUsageMeter(quota).percentRemaining}% restante`;
   }, [quota]);
+  const scanBatchHint = unlimitedScanMode
+    ? "todos los que necesites para la prueba"
+    : `hasta ${MAX_SCAN_FILES}`;
   const learningAccess = aiLearningAccountForEmail(user?.email);
 
   const loadQuota = useCallback(async () => {
@@ -191,7 +201,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       return;
     }
 
-    if (files.length > MAX_SCAN_FILES) {
+    if (files.length > scanBatchLimit) {
       setError(`Puedes escanear hasta ${MAX_SCAN_FILES} archivos cada vez.`);
       if (inputRef.current) inputRef.current.value = "";
       return;
@@ -390,7 +400,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
             <p className="mt-3 text-xs text-slate-500">
               {dragActive
                 ? "Suelta los archivos para escanearlos."
-                : `Arrastra archivos aquí o selecciona hasta ${MAX_SCAN_FILES}.`}
+                : `Arrastra archivos aquí o selecciona ${scanBatchHint}.`}
             </p>
           </div>
 

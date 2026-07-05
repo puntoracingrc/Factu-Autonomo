@@ -27,6 +27,8 @@ import {
 } from "@/lib/admin/users";
 import {
   AI_UNITS_PER_SCAN,
+  UNLIMITED_AI_CREDIT_UNITS,
+  isUnlimitedAiCreditUnits,
 } from "@/lib/billing/scan-limits";
 import { PLANS } from "@/lib/billing/plans";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -158,6 +160,20 @@ function formatMoney(cents: number) {
   });
 }
 
+function formatAiUnitCount(value: number) {
+  if (value === Number.MAX_SAFE_INTEGER || isUnlimitedAiCreditUnits(value)) {
+    return "Sin límite";
+  }
+  return value.toLocaleString("es-ES");
+}
+
+function formatAiScanCount(value: number) {
+  if (value === Number.MAX_SAFE_INTEGER || isUnlimitedAiCreditUnits(value)) {
+    return "Sin límite";
+  }
+  return value.toLocaleString("es-ES");
+}
+
 function severityClasses(severity: AdminErrorRow["severity"]) {
   if (severity === "warning") return "bg-amber-100 text-amber-800";
   if (severity === "info") return "bg-blue-100 text-blue-800";
@@ -274,24 +290,39 @@ function UserAdminCard({
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState(
     dateOnlyFromIso(user.subscription.currentPeriodEnd),
   );
-  const [aiCreditUnits, setAiCreditUnits] = useState(user.subscription.aiCreditUnits);
+  const initialUnlimitedAi = isUnlimitedAiCreditUnits(
+    user.subscription.aiCreditUnits,
+  );
+  const [aiCreditUnits, setAiCreditUnits] = useState(
+    initialUnlimitedAi ? 0 : user.subscription.aiCreditUnits,
+  );
+  const [unlimitedAi, setUnlimitedAi] = useState(initialUnlimitedAi);
   const [scanTrialRemaining, setScanTrialRemaining] = useState(
     user.subscription.scanTrialRemaining,
   );
   const [banReason, setBanReason] = useState(user.ban.reason ?? "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const normalizedAiCreditUnits = coerceNonNegativeInteger(aiCreditUnits);
-  const aiScanEquivalent = aiUnitsToScanCredits(normalizedAiCreditUnits);
+  const manualAiCreditUnits = coerceNonNegativeInteger(aiCreditUnits);
+  const normalizedAiCreditUnits = unlimitedAi
+    ? UNLIMITED_AI_CREDIT_UNITS
+    : manualAiCreditUnits;
+  const aiScanEquivalent = unlimitedAi
+    ? Number.MAX_SAFE_INTEGER
+    : aiUnitsToScanCredits(manualAiCreditUnits);
   const monthlyUsage = user.aiUsage;
   const monthlyPercent = monthlyUsage.percentRemaining;
 
   useEffect(() => {
+    const nextUnlimitedAi = isUnlimitedAiCreditUnits(
+      user.subscription.aiCreditUnits,
+    );
     setPlan(user.subscription.plan);
     setStatus(user.subscription.status);
     setTrialEndsAt(dateOnlyFromIso(user.subscription.trialEndsAt));
     setCurrentPeriodEnd(dateOnlyFromIso(user.subscription.currentPeriodEnd));
-    setAiCreditUnits(user.subscription.aiCreditUnits);
+    setUnlimitedAi(nextUnlimitedAi);
+    setAiCreditUnits(nextUnlimitedAi ? 0 : user.subscription.aiCreditUnits);
     setScanTrialRemaining(user.subscription.scanTrialRemaining);
     setBanReason(user.ban.reason ?? "");
   }, [
@@ -505,12 +536,17 @@ function UserAdminCard({
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
           />
         </label>
-        <label className="space-y-1 text-sm font-bold text-slate-700">
-          Créditos IA extra
+        <div className="space-y-1 text-sm font-bold text-slate-700">
+          <label className="block" htmlFor={`ai-credits-${user.id}`}>
+            Créditos IA extra
+          </label>
           <input
+            id={`ai-credits-${user.id}`}
             type="number"
             min="0"
-            value={aiCreditUnits}
+            value={unlimitedAi ? "" : aiCreditUnits}
+            placeholder={unlimitedAi ? "Sin límite" : undefined}
+            disabled={unlimitedAi}
             onChange={(event) =>
               setAiCreditUnits(coerceNonNegativeInteger(event.target.value))
             }
@@ -519,14 +555,28 @@ function UserAdminCard({
           <span className="block text-xs font-semibold text-slate-500">
             {AI_UNITS_PER_SCAN} unidades = 1 escaneo extra.
           </span>
-        </label>
+          <label className="mt-2 flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={unlimitedAi}
+              onChange={(event) => setUnlimitedAi(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
+            />
+            <span>
+              Sin límite IA/escaneos para pruebas. Permite también lotes de más de
+              10 documentos.
+            </span>
+          </label>
+        </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <p className="font-bold text-slate-500">Créditos extra</p>
           <p className="text-lg font-bold text-slate-900">
-            {aiScanEquivalent} escaneo(s) extra
+            {formatAiScanCount(aiScanEquivalent)} escaneo(s) extra
           </p>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            {normalizedAiCreditUnits} unidades extra disponibles.
+            {unlimitedAi
+              ? "La app no bloqueará ni descontará usos IA para esta cuenta."
+              : `${manualAiCreditUnits.toLocaleString("es-ES")} unidades extra disponibles.`}
           </p>
         </div>
       </div>
@@ -541,27 +591,28 @@ function UserAdminCard({
               {monthlyPercent}% disponible
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-600">
-              {monthlyUsage.monthlyRemainingUnits} de{" "}
-              {monthlyUsage.monthlyIncludedUnits} unidades del mes.
+              {formatAiUnitCount(monthlyUsage.monthlyRemainingUnits)} de{" "}
+              {formatAiUnitCount(monthlyUsage.monthlyIncludedUnits)} unidades
+              del mes.
             </p>
           </div>
           <div className="grid gap-2 text-sm font-semibold text-slate-700 sm:grid-cols-3 lg:min-w-[34rem]">
             <div className="rounded-2xl bg-white px-4 py-3">
               <span className="block text-xs uppercase text-slate-500">Usadas</span>
               <span className="text-lg font-bold text-slate-900">
-                {monthlyUsage.monthlyUsedUnits}
+                {formatAiUnitCount(monthlyUsage.monthlyUsedUnits)}
               </span>
             </div>
             <div className="rounded-2xl bg-white px-4 py-3">
               <span className="block text-xs uppercase text-slate-500">Extra</span>
               <span className="text-lg font-bold text-slate-900">
-                {monthlyUsage.extraUnits}
+                {formatAiUnitCount(monthlyUsage.extraUnits)}
               </span>
             </div>
             <div className="rounded-2xl bg-white px-4 py-3">
               <span className="block text-xs uppercase text-slate-500">Total</span>
               <span className="text-lg font-bold text-slate-900">
-                {monthlyUsage.totalRemainingUnits}
+                {formatAiUnitCount(monthlyUsage.totalRemainingUnits)}
               </span>
             </div>
           </div>

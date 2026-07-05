@@ -26,8 +26,8 @@ function meterCopy(meter: AiUsageMeter) {
   if (meter.mode === "unlimited") {
     return {
       title: "IA del plan",
-      text: "Modo interno sin límite activo.",
-      detail: "No se descontarán escaneos ni rellenos mientras el cobro esté desactivado.",
+      text: "Modo de pruebas sin límite activo.",
+      detail: "No se descontarán escaneos ni rellenos mientras este permiso esté activo desde Admin.",
     };
   }
 
@@ -141,6 +141,7 @@ export function AiUsageMeterCard() {
   const scanEquivalent = data?.meter.scanEquivalentRemaining;
   const smallUses = data?.meter.smallUseEquivalentRemaining;
   const bonusCredits = data?.quota.bonusCredits ?? 0;
+  const unlimitedUsage = data?.meter.mode === "unlimited";
 
   async function buyPack() {
     setCheckoutError(null);
@@ -164,7 +165,7 @@ export function AiUsageMeterCard() {
               </p>
             </div>
 
-            {!isPro ? (
+            {unlimitedUsage ? null : !isPro ? (
               <ButtonLink href="/precios">Ver Pro</ButtonLink>
             ) : (
               <Button
@@ -222,7 +223,7 @@ export function AiUsageMeterCard() {
                 </strong>
                 .
               </p>
-              {bonusCredits > 0 ? (
+              {!unlimitedUsage && bonusCredits > 0 ? (
                 <p className="mt-1">
                   Recarga extra disponible:{" "}
                   <strong className="text-slate-900">

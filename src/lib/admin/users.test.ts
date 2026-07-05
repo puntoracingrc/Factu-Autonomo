@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UNLIMITED_AI_CREDIT_UNITS } from "@/lib/billing/scan-limits";
 import {
   ageDaysFromIso,
   aiUnitsToScanCredits,
@@ -88,5 +89,19 @@ describe("admin users helpers", () => {
     expect(snapshot.monthlyUsedUnits).toBe(100);
     expect(snapshot.monthlyRemainingUnits).toBe(1400);
     expect(snapshot.percentRemaining).toBe(93);
+  });
+
+  it("muestra sin limite cuando admin activa pruebas ilimitadas", () => {
+    const snapshot = buildAdminAiUsageSnapshot(
+      {
+        expense_scans_created: 99,
+      },
+      { aiCreditUnits: UNLIMITED_AI_CREDIT_UNITS, plan: "free" },
+      "2026-07",
+    );
+
+    expect(snapshot.extraUnits).toBe(Number.MAX_SAFE_INTEGER);
+    expect(snapshot.totalRemainingUnits).toBe(Number.MAX_SAFE_INTEGER);
+    expect(snapshot.percentRemaining).toBe(100);
   });
 });
