@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
+  ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   Crown,
@@ -77,6 +78,12 @@ const navItems = [
     label: "Productos",
     shortLabel: "Productos",
     icon: PackageSearch,
+  },
+  {
+    href: "/rentabilidad-real",
+    label: "Rentabilidad Real",
+    shortLabel: "Rentab.",
+    icon: ChartNoAxesCombined,
   },
   {
     href: "/proveedores",
