@@ -88,6 +88,36 @@ describe("storage", () => {
     expect(loaded.profile.name).toBe("Mi negocio");
   });
 
+  it("normaliza preferencias de app en datos antiguos y nuevos", () => {
+    expect(
+      normalizeLoadedData({ profile: {} } as Partial<AppData>).profile
+        .appPreferences,
+    ).toEqual({
+      theme: "system",
+      density: "comfortable",
+      startPage: "panel",
+      reduceMotion: false,
+    });
+
+    expect(
+      normalizeLoadedData({
+        profile: {
+          appPreferences: {
+            theme: "dark",
+            density: "compact",
+            startPage: "settings",
+            reduceMotion: true,
+          },
+        },
+      } as Partial<AppData>).profile.appPreferences,
+    ).toEqual({
+      theme: "dark",
+      density: "compact",
+      startPage: "settings",
+      reduceMotion: true,
+    });
+  });
+
   it("no borra datos guardados al intentar guardar vacío", () => {
     saveData(sampleData());
     saveData(EMPTY_DATA);

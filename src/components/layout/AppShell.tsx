@@ -33,6 +33,10 @@ import {
 } from "@/lib/factu/occasional";
 import { APP_BRAND_NAME, APP_BRAND_TAGLINE } from "@/lib/brand";
 import {
+  appStartPageHref,
+  normalizeAppPreferences,
+} from "@/lib/app-preferences";
+import {
   FileText,
   Home,
   Landmark,
@@ -100,14 +104,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isPro, billingEnabled, plan } = useBilling();
   const [factuDismissed, setFactuDismissed] = useState(false);
   const mobileNavRef = useRef<HTMLDivElement>(null);
+  const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
   const [navScrollState, setNavScrollState] = useState({
     canScrollLeft: false,
     canScrollRight: false,
   });
+  const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
+  const resolvedTheme =
+    appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
   const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
-  const brandHref = user ? "/" : "/inicio";
-  const brandAriaLabel = user ? "Ir al panel" : "Ir al inicio";
+  const brandHref = user
+    ? appStartPageHref(appPreferences.startPage)
+    : "/inicio";
+  const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
 
   const updateNavScrollState = useCallback(() => {
     const node = mobileNavRef.current;
@@ -124,9 +134,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!node) return;
     node.scrollBy({
       left: direction === "left" ? -180 : 180,
-      behavior: "smooth",
+      behavior: appPreferences.reduceMotion ? "auto" : "smooth",
     });
+  }, [appPreferences.reduceMotion]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    function syncSystemTheme() {
+      setSystemTheme(media.matches ? "dark" : "light");
+    }
+
+    syncSystemTheme();
+    media.addEventListener("change", syncSystemTheme);
+    return () => media.removeEventListener("change", syncSystemTheme);
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.appTheme = resolvedTheme;
+    root.dataset.appDensity = appPreferences.density;
+    root.dataset.reduceMotion = appPreferences.reduceMotion ? "true" : "false";
+
+    return () => {
+      delete root.dataset.appTheme;
+      delete root.dataset.appDensity;
+      delete root.dataset.reduceMotion;
+    };
+  }, [appPreferences.density, appPreferences.reduceMotion, resolvedTheme]);
 
   useEffect(() => {
     setFactuDismissed(isFactuWidgetDismissed());
@@ -164,13 +198,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, updateNavScrollState]);
 
   return (
-    <div className="min-h-screen bg-slate-100 lg:flex">
+    <div
+      className={`app-shell min-h-screen bg-slate-100 lg:flex app-theme-${resolvedTheme} app-density-${appPreferences.density}`}
+    >
       <Suspense fallback={null}>
         <ReferralCapture />
       </Suspense>
       <ReferralRedeemOnLogin />
 
-      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
+      <aside className="app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
         <div className="border-b border-slate-200 px-5 py-4">
           <Link
             href={brandHref}
@@ -227,7 +263,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav
-          className="flex-1 overflow-y-auto px-3 py-4"
+          className="app-side-nav flex-1 overflow-y-auto px-3 py-4"
           aria-label="Navegación principal"
         >
           <div className="space-y-1">
@@ -282,7 +318,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm lg:hidden">
+        <header className="app-mobile-header sticky top-0 z-20 border-b border-slate-200/80 bg-white shadow-sm lg:hidden">
           <div className="flex items-center justify-between gap-2 px-4 py-3">
             <Link
               href={brandHref}
@@ -368,7 +404,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <CloudSyncPendingBanner />
         </header>
 
-        <header className="sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
+        <header className="app-topbar sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
           <div className="flex min-h-16 items-center justify-end gap-3 px-6 py-3 xl:px-8 2xl:px-10">
             {!user ? (
               <Link
@@ -436,7 +472,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <FactuOccasionalHost />
 
         <main
-          className={`w-full flex-1 scroll-pb-32 px-4 py-5 sm:px-6 lg:scroll-pb-8 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${
+          className={`app-main w-full flex-1 scroll-pb-32 px-4 py-5 sm:px-6 lg:scroll-pb-8 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${
             showFactu
               ? "pb-[calc(11rem+env(safe-area-inset-bottom))] lg:pb-8"
               : "pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8"
@@ -456,10 +492,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : null}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom lg:hidden">
+      <nav className="app-mobile-nav fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom lg:hidden">
         <div className="relative mx-auto max-w-3xl">
           {navScrollState.canScrollLeft && (
-            <div className="absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden">
+            <div className="app-mobile-nav-fade absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden">
               <button
                 type="button"
                 onClick={() => scrollMobileNav("left")}
@@ -472,7 +508,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
           {navScrollState.canScrollRight && (
-            <div className="absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden">
+            <div className="app-mobile-nav-fade absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden">
               <button
                 type="button"
                 onClick={() => scrollMobileNav("right")}

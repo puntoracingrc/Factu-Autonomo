@@ -53,6 +53,12 @@ import {
   type GooglePlaceAddressSuggestion,
 } from "@/lib/google-places";
 import {
+  APP_DENSITY_OPTIONS,
+  APP_START_PAGE_OPTIONS,
+  APP_THEME_OPTIONS,
+  normalizeAppPreferences,
+} from "@/lib/app-preferences";
+import {
   businessProfileNotices,
   isBusinessProfileReadyForIssuedInvoices,
   normalizeBusinessProfileForSave,
@@ -69,6 +75,7 @@ import {
 } from "@/lib/product-family-markups";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import type {
+  AppPreferences,
   BusinessProfile,
   IvaSettings,
   NumberingFormats,
@@ -223,6 +230,7 @@ export default function ConfiguracionPage() {
         next.productFamilyMarkups,
       ),
       googlePlaces: normalizeGooglePlacesSettings(next.googlePlaces),
+      appPreferences: normalizeAppPreferences(next.appPreferences),
     });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
@@ -328,6 +336,16 @@ export default function ConfiguracionPage() {
     setForm((prev) => ({
       ...prev,
       productFamilyMarkups: normalizeProductFamilyMarkupSettings(next),
+    }));
+  }
+
+  function updateAppPreferences(patch: Partial<AppPreferences>) {
+    setForm((prev) => ({
+      ...prev,
+      appPreferences: normalizeAppPreferences({
+        ...prev.appPreferences,
+        ...patch,
+      }),
     }));
   }
 
@@ -448,6 +466,7 @@ export default function ConfiguracionPage() {
   const productFamilyMarkups = normalizeProductFamilyMarkupSettings(
     form.productFamilyMarkups,
   );
+  const appPreferences = normalizeAppPreferences(form.appPreferences);
 
   return (
     <div>
@@ -1191,45 +1210,115 @@ export default function ConfiguracionPage() {
               Preferencias de la app
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Esta zona agrupará cómo quieres usar Facturación Autónomos. En
-              esta fase solo queda ordenada; los controles llegarán en la
-              siguiente fase.
+              Ajusta cómo se ve y se comporta la app. Los cambios se aplican al
+              guardar.
             </p>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {[
-              {
-                title: "Apariencia",
-                description: "Claro, oscuro o según el dispositivo.",
-              },
-              {
-                title: "Vista",
-                description: "Cómoda o compacta para listas y formularios.",
-              },
-              {
-                title: "Pantalla inicial",
-                description: "Elegir qué se abre al entrar.",
-              },
-              {
-                title: "Accesibilidad",
-                description: "Reducir animaciones y mejorar contraste.",
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-              >
-                <p className="font-semibold text-slate-900">{item.title}</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {item.description}
-                </p>
+
+          <div className="space-y-5">
+            <div>
+              <p className="font-semibold text-slate-900">Apariencia</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {APP_THEME_OPTIONS.map((option) => {
+                  const selected = appPreferences.theme === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        updateAppPreferences({ theme: option.value })
+                      }
+                      className={`rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        selected
+                          ? "border-blue-500 bg-blue-50 text-blue-900"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-200 hover:bg-white"
+                      }`}
+                    >
+                      <span className="block font-bold">{option.label}</span>
+                      <span className="mt-1 block text-sm">
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            ))}
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-900">Vista</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {APP_DENSITY_OPTIONS.map((option) => {
+                  const selected = appPreferences.density === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        updateAppPreferences({ density: option.value })
+                      }
+                      className={`rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        selected
+                          ? "border-blue-500 bg-blue-50 text-blue-900"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-200 hover:bg-white"
+                      }`}
+                    >
+                      <span className="block font-bold">{option.label}</span>
+                      <span className="mt-1 block text-sm">
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Field
+              label="Pantalla inicial"
+              hint="La usará el logo de la cabecera cuando tengas sesión iniciada."
+            >
+              <select
+                value={appPreferences.startPage}
+                onChange={(event) =>
+                  updateAppPreferences({
+                    startPage: event.target.value as AppPreferences["startPage"],
+                  })
+                }
+                className="min-h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 shadow-inner outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                {APP_START_PAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} - {option.description}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <input
+                type="checkbox"
+                checked={appPreferences.reduceMotion}
+                onChange={(event) =>
+                  updateAppPreferences({ reduceMotion: event.target.checked })
+                }
+                className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                <span className="font-semibold text-slate-900">
+                  Reducir animaciones
+                </span>
+                <span className="mt-1 block text-sm text-slate-600">
+                  Evita desplazamientos suaves y transiciones largas cuando
+                  prefieres una app más quieta.
+                </span>
+              </span>
+            </label>
           </div>
         </Card>
       </SettingsSection>
 
-      <div className="sticky bottom-24 z-20 mt-6 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur lg:sticky lg:bottom-6 lg:z-20">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button
             fullWidth

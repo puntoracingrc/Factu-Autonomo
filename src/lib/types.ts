@@ -500,6 +500,23 @@ export interface ProductFamilyMarkupSettings {
   rules: ProductFamilyMarkupRule[];
 }
 
+export type AppThemePreference = "system" | "light" | "dark";
+export type AppDensityPreference = "comfortable" | "compact";
+export type AppStartPagePreference =
+  | "panel"
+  | "customers"
+  | "invoices"
+  | "expenses"
+  | "taxes"
+  | "settings";
+
+export interface AppPreferences {
+  theme: AppThemePreference;
+  density: AppDensityPreference;
+  startPage: AppStartPagePreference;
+  reduceMotion: boolean;
+}
+
 export type DocumentSnapshotSource = "issue" | "legacy_backfill";
 
 export interface FiscalContextSnapshot {
@@ -566,6 +583,8 @@ export interface BusinessProfile {
   productFamilyMarkups?: ProductFamilyMarkupSettings;
   /** Autorrelleno opcional de direcciones con Google Places para cuentas Pro */
   googlePlaces?: GooglePlacesSettings;
+  /** Preferencias de apariencia y comodidad de uso de la app */
+  appPreferences?: AppPreferences;
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;
@@ -680,6 +699,12 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   quoteValidityDays: 30,
   googlePlaces: {
     enabled: false,
+  },
+  appPreferences: {
+    theme: "system",
+    density: "comfortable",
+    startPage: "panel",
+    reduceMotion: false,
   },
   productFamilyMarkups: {
     rules: [],

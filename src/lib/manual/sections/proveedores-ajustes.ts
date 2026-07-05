@@ -90,7 +90,15 @@ export const configuracionSection: ManualSection = {
       ],
     },
     {
-      title: "6. Tus datos y copia de seguridad",
+      title: "6. Preferencias de uso",
+      paragraphs: [
+        "En **Preferencias** puedes elegir **Sistema**, **Claro** u **Oscuro** para la apariencia de la app.",
+        "También puedes cambiar entre vista **Cómoda** y **Compacta**, elegir qué pantalla abre el logo cuando tienes sesión iniciada y activar **Reducir animaciones** si prefieres menos movimiento.",
+        "Pulsa **Guardar cambios** al final de Ajustes para aplicar estas preferencias.",
+      ],
+    },
+    {
+      title: "7. Tus datos y copia de seguridad",
       paragraphs: [
         "La tarjeta **Tus datos** explica dónde viven tus facturas y gastos.",
         "Para exportar o importar copias JSON, entra en **Cuenta**. Si usas Drive, la copia extra también se configura allí.",

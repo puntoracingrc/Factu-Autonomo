@@ -80,6 +80,7 @@ import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { normalizeDocumentUnits } from "@/lib/document-units";
+import { normalizeAppPreferences } from "@/lib/app-preferences";
 import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
@@ -369,6 +370,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ),
         documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
         documentUnits: normalizeDocumentUnits(profile.documentUnits),
+        appPreferences: normalizeAppPreferences(profile.appPreferences),
       },
     }));
   }, [setAppData]);

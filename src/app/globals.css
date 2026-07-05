@@ -68,3 +68,153 @@ button:disabled {
 .action-scroll::-webkit-scrollbar {
   display: none;
 }
+
+html[data-app-theme="dark"] {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  color-scheme: dark;
+}
+
+html[data-app-theme="dark"] body,
+html[data-app-theme="dark"] .app-shell,
+html[data-app-theme="dark"] .app-main {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] .app-sidebar,
+html[data-app-theme="dark"] .app-mobile-header,
+html[data-app-theme="dark"] .app-topbar,
+html[data-app-theme="dark"] .app-mobile-nav {
+  background-color: rgb(15 23 42 / 0.96) !important;
+  border-color: #334155 !important;
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] .app-side-nav a:not([aria-current="page"]) {
+  color: #cbd5e1 !important;
+}
+
+html[data-app-theme="dark"] .app-side-nav a:not([aria-current="page"]):hover {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html[data-app-theme="dark"] .app-mobile-nav-fade {
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: rgb(15 23 42 / 0.95) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position) !important;
+}
+
+html[data-app-theme="dark"] .bg-white,
+html[data-app-theme="dark"] .bg-white\/95 {
+  background-color: rgb(15 23 42 / 0.96) !important;
+}
+
+html[data-app-theme="dark"] .bg-slate-50,
+html[data-app-theme="dark"] .bg-slate-50\/60,
+html[data-app-theme="dark"] .bg-slate-100 {
+  background-color: #111827 !important;
+}
+
+html[data-app-theme="dark"] .bg-blue-50,
+html[data-app-theme="dark"] .bg-blue-50\/70 {
+  background-color: rgb(23 37 84 / 0.74) !important;
+}
+
+html[data-app-theme="dark"] .bg-violet-100 {
+  background-color: #3b0764 !important;
+}
+
+html[data-app-theme="dark"] .bg-emerald-50,
+html[data-app-theme="dark"] .bg-emerald-100 {
+  background-color: #064e3b !important;
+}
+
+html[data-app-theme="dark"] .bg-amber-50,
+html[data-app-theme="dark"] .bg-amber-100 {
+  background-color: #451a03 !important;
+}
+
+html[data-app-theme="dark"] .bg-red-50,
+html[data-app-theme="dark"] .bg-red-100 {
+  background-color: #450a0a !important;
+}
+
+html[data-app-theme="dark"] .text-slate-950,
+html[data-app-theme="dark"] .text-slate-900,
+html[data-app-theme="dark"] .text-slate-800,
+html[data-app-theme="dark"] .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+html[data-app-theme="dark"] .text-slate-600,
+html[data-app-theme="dark"] .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+html[data-app-theme="dark"] .text-blue-900,
+html[data-app-theme="dark"] .text-blue-800,
+html[data-app-theme="dark"] .text-blue-700,
+html[data-app-theme="dark"] .text-blue-600 {
+  color: #bfdbfe !important;
+}
+
+html[data-app-theme="dark"] .border-slate-100,
+html[data-app-theme="dark"] .border-slate-200,
+html[data-app-theme="dark"] .border-slate-200\/80,
+html[data-app-theme="dark"] .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+html[data-app-theme="dark"] .border-blue-100,
+html[data-app-theme="dark"] .border-blue-200,
+html[data-app-theme="dark"] .border-blue-500 {
+  border-color: #1d4ed8 !important;
+}
+
+html[data-app-theme="dark"] input,
+html[data-app-theme="dark"] select,
+html[data-app-theme="dark"] textarea {
+  background-color: #020617;
+  color: #f8fafc;
+  border-color: #475569;
+}
+
+html[data-app-theme="dark"] input::placeholder,
+html[data-app-theme="dark"] textarea::placeholder {
+  color: #94a3b8;
+}
+
+html[data-app-density="compact"] .app-main {
+  padding-top: 0.875rem;
+}
+
+html[data-app-density="compact"] .app-main .rounded-2xl {
+  border-radius: 0.875rem !important;
+}
+
+html[data-app-density="compact"] .app-main .p-5 {
+  padding: 1rem !important;
+}
+
+html[data-app-density="compact"] .app-main .p-4 {
+  padding: 0.75rem !important;
+}
+
+html[data-app-density="compact"] .app-main .gap-4 {
+  gap: 0.75rem !important;
+}
+
+html[data-app-density="compact"] .app-main .space-y-5 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem !important;
+}
+
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 1ms !important;
+}
