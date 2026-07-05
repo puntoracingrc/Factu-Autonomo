@@ -6,13 +6,14 @@ export const primerosPasosSection: ManualSection = {
   summary: "Configura tu negocio, entiende la navegación y prepara tus copias.",
   order: 1,
   intro: [
-    "Facturación Autónomos está pensada para usarse desde el móvil o el ordenador sin complicaciones. Puedes mirar una demo ficticia, probar en local o crear una cuenta gratis para empezar con tus datos.",
+    "Facturación Autónomos está pensada para usarse desde el móvil o el ordenador sin complicaciones. Desde Inicio puedes mirar una demo ficticia, trabajar solo en este navegador o crear una cuenta gratis para empezar con tus datos.",
   ],
   steps: [
     {
       title: "1. Elige cómo quieres empezar",
       paragraphs: [
-        "Si solo quieres curiosear, entra en **Demo sin registro**: verás una empresa ficticia y podrás tocar facturas, gastos e impuestos sin afectar a tus datos.",
+        "Desde **Inicio**, pulsa **Empezar gratis** si quieres crear una cuenta real sin tarjeta, o **Demo sin registro** si solo quieres curiosear.",
+        "En **Demo sin registro** verás una empresa ficticia y podrás tocar facturas, gastos e impuestos sin afectar a tus datos.",
         "Si entras en la app sin cuenta, puedes crear datos en este navegador. Verás un aviso de **Estás probando sin cuenta** o **Tienes datos guardados solo en este navegador**.",
         "Para trabajar ya con tus datos, ve a **Cuenta** y pulsa **Crear cuenta**. El plan Gratis es una cuenta real sin tarjeta, con límites de uso y email verificado.",
       ],
@@ -48,6 +49,7 @@ export const primerosPasosSection: ManualSection = {
       paragraphs: [
         "Abajo tienes acceso rápido a **Panel**, **Clientes**, **Facturas**, **Presupuestos**, **Recibos**, **Gastos**, **Productos**, **Proveedores**, **Impuestos** y **Ajustes**.",
         "En móvil puedes deslizar la barra si no ves todos los iconos. Las flechas laterales aparecen solo cuando queda contenido por mover.",
+        "La cabecera se adapta al tamaño de pantalla: en móvil muestra menos texto para dejar espacio a las acciones importantes, y en ordenador enseña más contexto.",
         "Arriba verás el icono de ayuda **?**. Abre la sección del manual correspondiente a la pantalla en la que estés.",
       ],
       screenshot: {
@@ -66,10 +68,10 @@ export const primerosPasosSection: ManualSection = {
       title: "6. Crea tu cuenta y confirma el email",
       paragraphs: [
         "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos pueden sincronizarse entre móvil y PC cuando eliges guardarlos en tu cuenta.",
-        "En **Cuenta** puedes registrarte con email o continuar con Google, cerrar sesión, sincronizar ahora, exportar una copia de seguridad o importar una copia JSON.",
+        "En **Cuenta** tienes bloques separados para **Acceso**, **Plan**, **Sincronización**, **Copias**, **Importación** y **Legal**. Así no tienes que buscar las copias o los documentos legales dentro de Ajustes.",
         "Hasta confirmar el email, la app puede dejarte seguir trabajando en este navegador, pero bloquea nube, Drive, envíos reales y acciones de cuenta.",
         "Si ya habías creado datos sin cuenta, al entrar te preguntará si quieres **Guardar estos datos en mi cuenta**, descargar una copia o **Seguir solo en este navegador**.",
-        "También encontrarás el bloque **Legal y privacidad** con términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
+        "En **Legal** encontrarás términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
         "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
         "Para migrar datos desde programas antiguos, usa **Cuenta → Importar datos** o entra en **Importar datos** desde el menú. La importación de bases de datos externas requiere Pro.",
       ],

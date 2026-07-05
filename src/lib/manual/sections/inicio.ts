@@ -14,7 +14,8 @@ export const inicioSection: ManualSection = {
       title: "1. Accesos rápidos",
       paragraphs: [
         "El primer botón es **Crear recordatorio**. Después tienes **Avisos** (con contador si hay pendientes), **Nuevo cliente**, **Nueva factura**, **Nuevo presupuesto**, **Nuevo recibo**, **Gastos**, **Nuevo producto** y **Ajustes**.",
-        "Los accesos son botones grandes para móvil. Si Factu muestra un consejo abajo y te molesta, pulsa la **X** para cerrarlo durante esa sesión.",
+        "Los accesos son botones grandes y también funcionan bien en móvil. En pantallas estrechas, Factu no flota sobre el contenido para no tapar botones ni formularios.",
+        "En ordenador, Factu queda como un acceso discreto abajo a la derecha. Si aparece una notificación pequeña y no la necesitas, puedes cerrarla con la **X**.",
         "El botón de **Exportar copia** ya no está en Panel: está en **Cuenta**, junto a sincronización y copias.",
       ],
       screenshot: {
