@@ -277,7 +277,7 @@ export function buildRentabilidadRealWizardAnswersFromForm(
     ["hours", "closed_projects", "monthly_retainer"].includes(model),
   );
   const usesTradesModel = chargeModels.some((model) =>
-    ["closed_jobs", "visits_services", "installation_materials"].includes(model),
+    ["closed_jobs", "installation_materials"].includes(model),
   );
 
   if (usesHoursModel && usesTradesModel) {

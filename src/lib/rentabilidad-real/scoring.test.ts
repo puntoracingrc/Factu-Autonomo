@@ -134,6 +134,57 @@ describe("rentabilidad real scoring", () => {
     expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
   });
 
+  it("facturas o presupuestos concretos no fuerzan nivel 2", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["labor_only"],
+      materialStockModes: ["none"],
+      analysisInterests: ["documents"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+      hasStockOrCommerce: false,
+    });
+
+    expect(result.level).toBe(1);
+    expect(result.primaryProfile).toBe("basic");
+    expect(result.recommendedCalculationModes).toEqual([]);
+  });
+
+  it("servicio simple sin materiales ni vehiculo se queda en nivel 1", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["visits_services", "labor_only"],
+      materialStockModes: ["none"],
+      analysisInterests: ["documents", "minimum_price"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+      hasStockOrCommerce: false,
+      hasWorkVehicle: false,
+      hasRelevantToolsOrEquipment: false,
+      hasRelevantPremises: false,
+    });
+
+    expect(result.level).toBe(1);
+    expect(result.primaryProfile).toBe("basic");
+    expect(result.recommendedCalculationModes).toEqual([]);
+    expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
+  });
+
+  it("visitas o servicios con materiales sube a nivel 2", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["visits_services"],
+      materialStockModes: ["job_materials"],
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+      hasStockOrCommerce: false,
+    });
+
+    expect(result.level).toBe(2);
+    expect(result.primaryProfile).toBe("trades_jobs");
+    expect(result.recommendedCalculationModes).toEqual(["RR_TRADES_JOBS"]);
+  });
+
   it("nivel 4 con vehiculo y obras mantiene el modo de obras", () => {
     const result = scoreRentabilidadRealProfile({
       legalForm: "individual",
@@ -165,6 +216,23 @@ describe("rentabilidad real scoring", () => {
     expect(result.level).toBe(4);
     expect(result.primaryProfile).toBe("hours_projects");
     expect(result.recommendedCalculationModes).toContain("RR_HOURS_PROJECTS");
+    expect(result.recommendedAddons).toContain("RR_ASSETS_LIGHT");
+  });
+
+  it("nivel 4 con vehiculo y servicio simple mantiene modo operativo", () => {
+    const result = scoreRentabilidadRealProfile({
+      legalForm: "individual",
+      chargeModels: ["visits_services"],
+      materialStockModes: ["none"],
+      hasWorkVehicle: true,
+      hasPayrollEmployees: false,
+      isInModulesRegime: false,
+      hasStockOrCommerce: false,
+    });
+
+    expect(result.level).toBe(4);
+    expect(result.primaryProfile).toBe("trades_jobs");
+    expect(result.recommendedCalculationModes).toContain("RR_TRADES_JOBS");
     expect(result.recommendedAddons).toContain("RR_ASSETS_LIGHT");
   });
 

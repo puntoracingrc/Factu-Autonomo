@@ -516,22 +516,34 @@ export function scoreRentabilidadRealProfile(
       includesAnyKeyword(answers.profession, HOURS_PROJECTS_KEYWORDS),
   );
 
-  const isTradesOrJobs = Boolean(
+  const hasClosedJobSignal = Boolean(
     answers.workModel === "mixed" ||
       answers.workModel === "trades_jobs" ||
       chargeModels.some((mode) =>
-        [
-          "closed_jobs",
-          "visits_services",
-          "installation_materials",
-        ].includes(mode),
+        ["closed_jobs", "installation_materials"].includes(mode),
       ) ||
-      analysisInterests.some((interest) =>
-        ["jobs", "services_visits"].includes(interest),
-      ) ||
+      analysisInterests.includes("jobs") ||
+      answers.worksByJobs,
+  );
+  const hasOperationalServiceSignal = Boolean(
+    hasClosedJobSignal ||
+      hasLightStructure ||
       safeMaterialModes.length > 0 ||
-      answers.worksByJobs ||
-      answers.worksWithClosedServices ||
+      answers.doesRepairsInstallationsOrTrades ||
+      answers.hasMaterials ||
+      answers.hasTravelCosts ||
+      answers.hasOccasionalSubcontracting ||
+      includesAnyKeyword(answers.profession, TRADE_KEYWORDS),
+  );
+  const hasVisitsOrServicesSignal = Boolean(
+    chargeModels.includes("visits_services") ||
+      analysisInterests.includes("services_visits") ||
+      answers.worksWithClosedServices,
+  );
+  const isTradesOrJobs = Boolean(
+    hasClosedJobSignal ||
+      (hasVisitsOrServicesSignal && hasOperationalServiceSignal) ||
+      safeMaterialModes.length > 0 ||
       answers.doesRepairsInstallationsOrTrades ||
       answers.hasMaterials ||
       answers.hasTravelCosts ||

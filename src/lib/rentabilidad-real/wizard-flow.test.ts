@@ -84,6 +84,62 @@ describe("rentabilidad real wizard scoring integration", () => {
     expect(result.primaryProfile).toBe("basic");
   });
 
+  it("escenario 1 autonomo simple con documento concreto queda en nivel 1", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModels: ["visits_services", "labor_only"],
+      materialStockModes: ["none"],
+      workVehicleTypes: ["none"],
+      hasPayrollEmployees: "no",
+      hasPremises: "no",
+      hasRelevantToolsOrEquipment: "no",
+      isInModulesRegime: "no",
+      appliesNormalVat: "yes",
+      hasProfessionalWithholding: "no",
+      analysisInterests: ["documents", "minimum_price"],
+    });
+
+    expect(result.level).toBe(1);
+    expect(result.primaryProfile).toBe("basic");
+    expect(result.recommendedCalculationModes).toEqual([]);
+    expect(result.recommendedProductIds).toContain("RR_BASE");
+    expect(result.recommendedProductIds).toContain("RR_PRICE_SIMULATOR");
+  });
+
+  it("visitas o servicios sin costes operativos quedan en perfil simple", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModels: ["visits_services"],
+      materialStockModes: ["none"],
+      workVehicleTypes: ["none"],
+      hasPayrollEmployees: "no",
+      hasPremises: "no",
+      hasRelevantToolsOrEquipment: "no",
+      isInModulesRegime: "no",
+      analysisInterests: ["services_visits"],
+    });
+
+    expect(result.level).toBe(1);
+    expect(result.primaryProfile).toBe("basic");
+    expect(result.recommendedCalculationModes).toEqual([]);
+  });
+
+  it("visitas o servicios con vehiculo recomiendan obras y estructura ligera", () => {
+    const result = scoreRentabilidadRealWizardForm({
+      legalForm: "individual",
+      chargeModels: ["visits_services"],
+      materialStockModes: ["none"],
+      workVehicleTypes: ["dedicated_van"],
+      hasPayrollEmployees: "no",
+      isInModulesRegime: "no",
+    });
+
+    expect(result.level).toBe(4);
+    expect(result.primaryProfile).toBe("trades_jobs");
+    expect(result.recommendedCalculationModes).toEqual(["RR_TRADES_JOBS"]);
+    expect(result.recommendedProductIds).toContain("RR_ASSETS_LIGHT");
+  });
+
   it("clientes e informes no rompen scoring", () => {
     const result = scoreRentabilidadRealWizardForm({
       legalForm: "individual",

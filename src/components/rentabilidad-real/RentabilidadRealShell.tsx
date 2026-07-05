@@ -10,10 +10,11 @@ import {
   Clock3,
   ClipboardCheck,
   Euro,
+  RotateCcw,
   Sparkles,
   TestTube2,
 } from "lucide-react";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { PLANS } from "@/lib/billing/plans";
@@ -27,6 +28,10 @@ import {
   getStoredRentabilidadRealLastScoringResult,
   getStoredRentabilidadRealWizardAnswers,
 } from "@/lib/rentabilidad-real/wizard-storage";
+import {
+  RENTABILIDAD_REAL_LOCAL_RESET_CONFIRMATION,
+  resetRentabilidadRealLocalConfiguration,
+} from "@/lib/rentabilidad-real/local-reset";
 import type {
   RentabilidadRealScoringResult,
   RentabilidadRealWizardAnswers,
@@ -56,6 +61,9 @@ export function RentabilidadRealShell() {
     useState<RentabilidadRealScoringResult | null>(null);
   const [validationStatus, setValidationStatus] =
     useState<RentabilidadRealAdvisorValidationStatus>("not_started");
+  const [localResetMessage, setLocalResetMessage] = useState<string | null>(
+    null,
+  );
 
   const activation = useRentabilidadRealActivation({
     planKey: rentabilidadRealAccess.planKey,
@@ -78,6 +86,24 @@ export function RentabilidadRealShell() {
       ? "Pro+ IA (modo desarrollo/preview)"
       : `${PLANS[plan].name} (billing desactivado)`;
   const hasTest = Boolean(storedAnswers && lastScoringResult);
+
+  const handleLocalReset = () => {
+    const confirmed = window.confirm(
+      `Restablecer configuración local de Rentabilidad Real\n\n${RENTABILIDAD_REAL_LOCAL_RESET_CONFIRMATION}`,
+    );
+    if (!confirmed) return;
+
+    const result = resetRentabilidadRealLocalConfiguration();
+    setStoredAnswers(getStoredRentabilidadRealWizardAnswers());
+    setLastScoringResult(getStoredRentabilidadRealLastScoringResult());
+    setValidationStatus(getStoredRentabilidadRealAdvisorValidationStatus());
+    activation.refresh();
+    setLocalResetMessage(
+      result.skipped
+        ? "No se ha podido acceder a la configuración local de este navegador."
+        : "Configuración local de Rentabilidad Real restablecida. No se ha borrado ningún documento.",
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -330,6 +356,40 @@ export function RentabilidadRealShell() {
       <RentabilidadRealActiveModulesPanel
         activeProductIds={activation.activeProductIds}
       />
+
+      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <RotateCcw className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                Configuración local
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
+                Restablece solo respuestas del test, módulos activos, ajustes
+                internos y preferencias locales de Rentabilidad Real en este
+                navegador. No borra facturas, presupuestos, gastos, impuestos
+                ni datos fiscales.
+              </p>
+              {localResetMessage ? (
+                <p className="mt-2 text-sm font-bold text-emerald-700 dark:text-emerald-200">
+                  {localResetMessage}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="shrink-0"
+            onClick={handleLocalReset}
+          >
+            Restablecer configuración local de Rentabilidad Real
+          </Button>
+        </div>
+      </Card>
 
       <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
