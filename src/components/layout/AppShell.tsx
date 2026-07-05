@@ -36,6 +36,7 @@ import {
   appStartPageHref,
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   FileText,
   Home,
@@ -102,6 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data, ready } = useAppStore();
   const { user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
+  const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
@@ -112,7 +114,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
-  const showFactu = !factuDismissed && shouldShowFactuWidget(pathname);
+  const showFactu =
+    !demoMode && !factuDismissed && shouldShowFactuWidget(pathname);
   const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
   const brandHref = user
     ? appStartPageHref(appPreferences.startPage)
@@ -469,7 +472,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <DemoModeBanner />
         <GuestLocalDataBanner />
 
-        <FactuOccasionalHost />
+        {!demoMode ? <FactuOccasionalHost /> : null}
 
         <main
           className={`app-main w-full flex-1 scroll-pb-32 px-4 py-5 sm:px-6 lg:scroll-pb-8 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${

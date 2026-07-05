@@ -13,9 +13,12 @@ describe("factu occasional", () => {
   it("hides widget on forms and edit pages", () => {
     expect(shouldShowFactuWidget("/")).toBe(true);
     expect(shouldShowFactuWidget("/facturas")).toBe(true);
+    expect(shouldShowFactuWidget("/demo")).toBe(false);
     expect(shouldShowFactuWidget("/facturas/nuevo")).toBe(false);
     expect(shouldShowFactuWidget("/facturas/abc-123")).toBe(false);
     expect(shouldShowFactuWidget("/facturas/abc/rectificar")).toBe(false);
+    expect(shouldShowFactuWidget("/cuenta")).toBe(false);
+    expect(shouldShowFactuWidget("/cuenta#inicio-sesion")).toBe(false);
     expect(shouldShowFactuWidget("/legal/terminos")).toBe(false);
   });
 
