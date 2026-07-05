@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { EyeOff, Link2, RotateCcw, Search, Unlink } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  EyeOff,
+  Link2,
+  RotateCcw,
+  Search,
+  Unlink,
+} from "lucide-react";
 import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -58,6 +66,7 @@ function confirmationText(
 }
 
 const EMPTY_EXPENSE_LINK_CANDIDATES: RentabilidadRealExpenseLinkCandidate[] = [];
+const CANDIDATE_PAGE_SIZE = 10;
 
 export function WorkExpenseLinkingPanel({
   profitabilityInput,
@@ -84,6 +93,9 @@ export function WorkExpenseLinkingPanel({
   const [hiddenCandidateIds, setHiddenCandidateIds] = useState<string[]>(() =>
     getHiddenExpenseCandidateIdsForWork(targetDocumentId),
   );
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [visibleCandidateLimit, setVisibleCandidateLimit] =
+    useState(CANDIDATE_PAGE_SIZE);
   const productKeys = useMemo(
     () => purchaseProductCatalogKeys(data.products, data.expenses),
     [data.expenses, data.products],
@@ -108,9 +120,13 @@ export function WorkExpenseLinkingPanel({
       }),
     [candidateSearch, candidateSupplierFilter, candidates, hiddenCandidateIds],
   );
+  const pagedVisibleCandidates = useMemo(
+    () => visibleCandidates.slice(0, visibleCandidateLimit),
+    [visibleCandidates, visibleCandidateLimit],
+  );
   const visibleCandidateGroups = useMemo(
-    () => groupExpenseLinkCandidatesByMonth(visibleCandidates),
-    [visibleCandidates],
+    () => groupExpenseLinkCandidatesByMonth(pagedVisibleCandidates),
+    [pagedVisibleCandidates],
   );
   const supplierOptions = useMemo(
     () =>
@@ -128,16 +144,26 @@ export function WorkExpenseLinkingPanel({
       ),
     [candidates, hiddenCandidateIds],
   );
+  const remainingVisibleCandidateCount = Math.max(
+    visibleCandidates.length - pagedVisibleCandidates.length,
+    0,
+  );
   const visibleCandidateCountLabel =
-    visibleCandidates.length === 1
-      ? "1 gasto visible"
-      : `${visibleCandidates.length} gastos visibles`;
+    visibleCandidates.length === 0
+      ? "Sin gastos visibles"
+      : `Mostrando ${pagedVisibleCandidates.length} de ${visibleCandidates.length}`;
 
   useEffect(() => {
     setHiddenCandidateIds(getHiddenExpenseCandidateIdsForWork(targetDocumentId));
     setCandidateSearch("");
     setCandidateSupplierFilter(null);
+    setPanelCollapsed(false);
+    setVisibleCandidateLimit(CANDIDATE_PAGE_SIZE);
   }, [targetDocumentId]);
+
+  useEffect(() => {
+    setVisibleCandidateLimit(CANDIDATE_PAGE_SIZE);
+  }, [candidateSearch, candidateSupplierFilter]);
 
   function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
     const expense = candidate.expense;
@@ -225,9 +251,24 @@ export function WorkExpenseLinkingPanel({
             ningún gasto nuevo ni se cambian importes, IVA o proveedor.
           </p>
         </div>
-        <span className="inline-flex w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-100">
-          Usa workDocumentId
-        </span>
+        <Button
+          type="button"
+          variant={panelCollapsed ? "secondary" : "ghost"}
+          className="min-h-10 w-full px-3 text-sm sm:w-auto"
+          onClick={() => setPanelCollapsed((current) => !current)}
+        >
+          {panelCollapsed ? (
+            <>
+              <Search className="h-4 w-4" />
+              Revisar gastos
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-4 w-4" />
+              Listo, plegar gastos
+            </>
+          )}
+        </Button>
       </div>
 
       {notice ? (
@@ -236,7 +277,18 @@ export function WorkExpenseLinkingPanel({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
+      {panelCollapsed ? (
+        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/35">
+          <p className="text-sm font-black text-emerald-900 dark:text-emerald-100">
+            Gastos plegados
+          </p>
+          <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-100/90">
+            Hay {sortedLinkedExpenses.length} gasto(s) enlazado(s) a este
+            trabajo. Puedes reabrir la lista si necesitas buscar o añadir más.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <section>
           <h3 className="text-sm font-black text-slate-950 dark:text-slate-50">
             Gastos ya enlazados
@@ -317,10 +369,7 @@ export function WorkExpenseLinkingPanel({
                 </Field>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>
-                  Ordenado por fecha: más recientes primero ·{" "}
-                  {visibleCandidateCountLabel}
-                </span>
+                <span>Más recientes primero · {visibleCandidateCountLabel}</span>
                 {(candidateSearch || candidateSupplierFilter) && (
                   <button
                     type="button"
@@ -387,6 +436,25 @@ export function WorkExpenseLinkingPanel({
               ))
             )}
           </div>
+          {remainingVisibleCandidateCount > 0 ? (
+            <div className="mt-4 flex justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-10 w-full px-4 text-sm sm:w-auto"
+                onClick={() =>
+                  setVisibleCandidateLimit(
+                    (current) => current + CANDIDATE_PAGE_SIZE,
+                  )
+                }
+              >
+                <ChevronDown className="h-4 w-4" />
+                Cargar{" "}
+                {Math.min(CANDIDATE_PAGE_SIZE, remainingVisibleCandidateCount)}{" "}
+                más
+              </Button>
+            </div>
+          ) : null}
           {hiddenCandidates.length > 0 ? (
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -425,7 +493,8 @@ export function WorkExpenseLinkingPanel({
             </div>
           ) : null}
         </section>
-      </div>
+        </div>
+      )}
     </Card>
   );
 }
