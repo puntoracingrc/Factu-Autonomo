@@ -1,0 +1,188 @@
+import type { AppData, Document } from "@/lib/types";
+import type {
+  RentabilidadRealAnalysisUnit,
+  RentabilidadRealAnalysisUnitSourceType,
+} from "./types";
+
+function clientIdForDocument(document: Document): string {
+  if (document.customerId?.trim()) return document.customerId;
+  const name = document.client.name?.trim() || "Cliente sin identificar";
+  return `client_name_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+}
+
+function clientNameForDocument(document: Document): string {
+  return document.client.name?.trim() || "Cliente sin identificar";
+}
+
+function hasLinkedExpenses(appData: AppData, documentIds: readonly string[]) {
+  const ids = new Set(documentIds);
+  return appData.expenses.some(
+    (expense) => expense.workDocumentId && ids.has(expense.workDocumentId),
+  );
+}
+
+function unitId(
+  sourceType: RentabilidadRealAnalysisUnitSourceType,
+  primaryDocumentId: string,
+) {
+  return `${sourceType}:${primaryDocumentId}`;
+}
+
+function invoiceUnit(appData: AppData, invoice: Document): RentabilidadRealAnalysisUnit {
+  const relatedDocumentIds = [invoice.id];
+  return {
+    id: unitId("invoice", invoice.id),
+    primaryDocumentId: invoice.id,
+    sourceType: "invoice",
+    invoiceDocumentId: invoice.id,
+    sourceQuoteDocumentId: invoice.sourceQuoteDocumentId,
+    clientId: clientIdForDocument(invoice),
+    clientName: clientNameForDocument(invoice),
+    date: invoice.date,
+    documentNumber: invoice.number,
+    title: `Factura ${invoice.number}`,
+    status: invoice.status,
+    relatedDocumentIds,
+    hasInvoice: true,
+    hasQuote: false,
+    hasLinkedExpenses: hasLinkedExpenses(appData, relatedDocumentIds),
+    hasInternalAdjustments: false,
+    warnings: [
+      {
+        code: invoice.sourceQuoteDocumentId
+          ? "invoice_source_quote_not_found"
+          : "invoice_without_quote",
+        message: invoice.sourceQuoteDocumentId
+          ? "Esta factura declara un presupuesto origen que no se ha encontrado."
+          : "Esta factura no tiene presupuesto origen y se analizará como independiente.",
+        severity: invoice.sourceQuoteDocumentId ? "risk" : "info",
+      },
+    ],
+  };
+}
+
+function quoteUnit(appData: AppData, quote: Document): RentabilidadRealAnalysisUnit {
+  const relatedDocumentIds = [quote.id];
+  return {
+    id: unitId("quote", quote.id),
+    primaryDocumentId: quote.id,
+    sourceType: "quote",
+    quoteDocumentId: quote.id,
+    clientId: clientIdForDocument(quote),
+    clientName: clientNameForDocument(quote),
+    date: quote.date,
+    documentNumber: quote.number,
+    title: `Presupuesto ${quote.number}`,
+    status: quote.status,
+    relatedDocumentIds,
+    hasInvoice: false,
+    hasQuote: true,
+    hasLinkedExpenses: hasLinkedExpenses(appData, relatedDocumentIds),
+    hasInternalAdjustments: false,
+    warnings: [
+      {
+        code: "quote_without_invoice",
+        message:
+          "Este presupuesto no tiene factura vinculada y se analizará como rentabilidad prevista.",
+        severity: "info",
+      },
+    ],
+  };
+}
+
+function pairUnit(
+  appData: AppData,
+  quote: Document,
+  invoice: Document,
+): RentabilidadRealAnalysisUnit {
+  const relatedDocumentIds = [quote.id, invoice.id];
+  return {
+    id: unitId("quote_invoice_pair", invoice.id),
+    primaryDocumentId: invoice.id,
+    sourceType: "quote_invoice_pair",
+    quoteDocumentId: quote.id,
+    invoiceDocumentId: invoice.id,
+    sourceQuoteDocumentId: quote.id,
+    clientId: clientIdForDocument(invoice),
+    clientName: clientNameForDocument(invoice),
+    date: invoice.date,
+    documentNumber: `${quote.number} -> ${invoice.number}`,
+    title: `Presupuesto ${quote.number} / Factura ${invoice.number}`,
+    status: invoice.status,
+    relatedDocumentIds,
+    hasInvoice: true,
+    hasQuote: true,
+    hasLinkedExpenses: hasLinkedExpenses(appData, relatedDocumentIds),
+    hasInternalAdjustments: false,
+    warnings: [],
+  };
+}
+
+export function dedupeQuoteInvoicePairs(appData: AppData): {
+  units: RentabilidadRealAnalysisUnit[];
+  pairedQuoteIds: Set<string>;
+  pairedInvoiceIds: Set<string>;
+} {
+  const quotesById = new Map(
+    appData.documents
+      .filter((document) => document.type === "presupuesto")
+      .map((quote) => [quote.id, quote]),
+  );
+  const pairedQuoteIds = new Set<string>();
+  const pairedInvoiceIds = new Set<string>();
+  const units: RentabilidadRealAnalysisUnit[] = [];
+
+  for (const invoice of appData.documents.filter(
+    (document) => document.type === "factura",
+  )) {
+    const quote = invoice.sourceQuoteDocumentId
+      ? quotesById.get(invoice.sourceQuoteDocumentId)
+      : undefined;
+
+    if (!quote) continue;
+    pairedQuoteIds.add(quote.id);
+    pairedInvoiceIds.add(invoice.id);
+    units.push(pairUnit(appData, quote, invoice));
+  }
+
+  return {
+    units,
+    pairedQuoteIds,
+    pairedInvoiceIds,
+  };
+}
+
+export function buildRentabilidadRealAnalysisUnits(
+  appData: AppData,
+): RentabilidadRealAnalysisUnit[] {
+  const { units, pairedQuoteIds, pairedInvoiceIds } =
+    dedupeQuoteInvoicePairs(appData);
+  const result = [...units];
+
+  for (const invoice of appData.documents.filter(
+    (document) => document.type === "factura" && !pairedInvoiceIds.has(document.id),
+  )) {
+    result.push(invoiceUnit(appData, invoice));
+  }
+
+  for (const quote of appData.documents.filter(
+    (document) =>
+      document.type === "presupuesto" && !pairedQuoteIds.has(document.id),
+  )) {
+    result.push(quoteUnit(appData, quote));
+  }
+
+  return result.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function getRelatedDocumentIdsForAnalysisUnit(
+  unit: RentabilidadRealAnalysisUnit,
+): string[] {
+  return [...unit.relatedDocumentIds];
+}
+
+export function getAnalysisUnitDisplayName(
+  unit: RentabilidadRealAnalysisUnit,
+): string {
+  return unit.title;
+}
