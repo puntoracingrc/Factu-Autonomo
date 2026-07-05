@@ -173,6 +173,44 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     );
   });
 
+  it("permite aplicar solo parte de un gasto enlazado al trabajo", () => {
+    const invoice = documentFixture({
+      id: "invoice_1",
+      type: "factura",
+    });
+    const linkedExpense = expenseFixture({
+      id: "expense_linked",
+      amount: 200,
+      ivaPercent: 21,
+      workDocumentId: "invoice_1",
+    });
+
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [invoice],
+        expenses: [linkedExpense],
+      }),
+      {
+        sourceDocumentId: "invoice_1",
+        directCostAmountOverrides: {
+          expense_linked: 50,
+        },
+      },
+    );
+
+    expect(input?.directCosts).toHaveLength(1);
+    expect(input?.directCosts[0]).toMatchObject({
+      id: "expense_linked",
+      amount: 50,
+      ivaAmount: 10.5,
+      total: 60.5,
+      originalAmount: 200,
+      originalIvaAmount: 42,
+      originalTotal: 242,
+      appliedAmountOverride: 50,
+    });
+  });
+
   it("incluye gastos enlazados a factura y presupuesto relacionado", () => {
     const quote = documentFixture({
       id: "quote_1",

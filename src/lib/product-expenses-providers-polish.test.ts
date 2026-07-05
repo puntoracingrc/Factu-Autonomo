@@ -77,12 +77,16 @@ describe("product expenses/providers polish wiring", () => {
 
   it("muestra las lineas de compra en el listado de gastos", () => {
     const listPage = source("../app/gastos/page.tsx");
+    const linesPreview = source(
+      "../components/expenses/ExpensePurchaseLinesPreview.tsx",
+    );
 
     expect(listPage).toContain("ExpensePurchaseLinesPreview");
-    expect(listPage).toContain("Líneas detectadas");
     expect(listPage).toContain("purchaseProductCatalogKeys(data.products");
-    expect(listPage).toContain("purchaseLineHasCatalogProduct(line");
-    expect(listPage).toContain("artículo creado");
+    expect(linesPreview).toContain("Líneas detectadas");
+    expect(linesPreview).toContain("purchaseLineHasCatalogProduct(line");
+    expect(linesPreview).toContain("artículo creado");
+    expect(linesPreview).toContain("formatMoney(line.base)");
     expect(listPage).not.toContain("EXPENSE_LINE_PREVIEW_LIMIT");
   });
 

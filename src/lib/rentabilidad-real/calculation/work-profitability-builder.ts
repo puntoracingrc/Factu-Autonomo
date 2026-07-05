@@ -1,4 +1,5 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import { roundMoney } from "@/lib/calculations";
 import {
   getAlreadyLinkedExpensesForWork,
   getExpenseLinkCandidatesForWork,
@@ -35,6 +36,7 @@ export interface BuildRentabilidadRealWorkProfitabilityInputParams {
   monthlyWorkHours?: number;
   selectedFixedCostIds?: string[];
   irpfProvisionPercentage?: number;
+  directCostAmountOverrides?: Record<string, number>;
 }
 
 function uniqueSourceLinks(
@@ -103,6 +105,39 @@ function workCostFromDirectCost(
     origin: cost.origin,
     workDocumentId: cost.workDocumentId,
     sourceLink: cost.sourceLink,
+  };
+}
+
+function applyDirectCostAmountOverride(
+  cost: RentabilidadRealWorkCost,
+  amountOverride: number | undefined,
+): RentabilidadRealWorkCost {
+  if (
+    amountOverride === undefined ||
+    !Number.isFinite(amountOverride) ||
+    cost.amount <= 0
+  ) {
+    return cost;
+  }
+
+  const appliedAmount = Math.min(
+    Math.max(roundMoney(amountOverride), 0),
+    cost.amount,
+  );
+  if (appliedAmount === cost.amount) return cost;
+
+  const ivaRatio = appliedAmount / cost.amount;
+  const appliedIvaAmount = roundMoney(cost.ivaAmount * ivaRatio);
+
+  return {
+    ...cost,
+    amount: appliedAmount,
+    ivaAmount: appliedIvaAmount,
+    total: roundMoney(appliedAmount + appliedIvaAmount),
+    originalAmount: cost.amount,
+    originalIvaAmount: cost.ivaAmount,
+    originalTotal: cost.total,
+    appliedAmountOverride: appliedAmount,
   };
 }
 
@@ -249,7 +284,13 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
       return true;
     })
     .map(mapExistingExpenseToProfitabilityCost)
-    .map(workCostFromDirectCost);
+    .map(workCostFromDirectCost)
+    .map((cost) =>
+      applyDirectCostAmountOverride(
+        cost,
+        params.directCostAmountOverrides?.[cost.id],
+      ),
+    );
   const unlinkedDirectCosts = data.expenses.filter(
     (expense) => !isFixedExpense(expense) && !expense.workDocumentId,
   );

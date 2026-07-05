@@ -78,6 +78,21 @@ describe("rentabilidad real expense linking", () => {
     expect(result.map((item) => item.expense.id)).toEqual(["linked"]);
   });
 
+  it("permite varios gastos enlazados a la misma factura", () => {
+    const first = expenseFixture({ id: "linked_1", workDocumentId: "doc_1" });
+    const second = expenseFixture({ id: "linked_2", workDocumentId: "doc_1" });
+
+    const result = getAlreadyLinkedExpensesForWork(
+      appData({ expenses: [first, second] }),
+      ["doc_1"],
+    );
+
+    expect(result.map((item) => item.expense.id)).toEqual([
+      "linked_1",
+      "linked_2",
+    ]);
+  });
+
   it("detecta candidatos sin enlazar", () => {
     const unlinked = expenseFixture({ id: "candidate" });
     const linked = expenseFixture({ id: "linked", workDocumentId: "doc_1" });

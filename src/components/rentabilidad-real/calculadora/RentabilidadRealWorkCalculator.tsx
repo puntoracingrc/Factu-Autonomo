@@ -17,6 +17,10 @@ import {
   setStoredRentabilidadRealCalculationSettings,
   type RentabilidadRealCalculationSettings,
 } from "@/lib/rentabilidad-real/calculation";
+import {
+  getExpenseCostAllocationsForWork,
+  type ExpenseCostAllocationsByExpenseId,
+} from "@/lib/rentabilidad-real/expense-linking";
 import { getStoredRentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/wizard-storage";
 import { buildRentabilidadRealWorkDocumentOptions } from "@/lib/rentabilidad-real/work-calculator-view-model";
 import type { RentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/types";
@@ -63,6 +67,8 @@ export function RentabilidadRealWorkCalculator() {
   const [storedAnswers, setStoredAnswers] =
     useState<RentabilidadRealWizardAnswers | null>(null);
   const [internalAdjustmentsTotal, setInternalAdjustmentsTotal] = useState(0);
+  const [directCostAmountOverrides, setDirectCostAmountOverrides] =
+    useState<ExpenseCostAllocationsByExpenseId>({});
 
   const quoteDocuments = useMemo(
     () => data.documents.filter((doc) => doc.type === "presupuesto"),
@@ -127,6 +133,9 @@ export function RentabilidadRealWorkCalculator() {
 
   useEffect(() => {
     setInternalAdjustmentsTotal(0);
+    setDirectCostAmountOverrides(
+      getExpenseCostAllocationsForWork(selectedDocumentId),
+    );
   }, [selectedDocumentId]);
 
   const profitabilityInput = useMemo(() => {
@@ -141,8 +150,9 @@ export function RentabilidadRealWorkCalculator() {
       monthlyWorkHours: settings.monthlyWorkHours,
       selectedFixedCostIds: settings.selectedFixedCostIds,
       irpfProvisionPercentage: settings.irpfProvisionPercentage,
+      directCostAmountOverrides,
     });
-  }, [data, selectedDocumentId, settings]);
+  }, [data, directCostAmountOverrides, selectedDocumentId, settings]);
   const result = useMemo(
     () =>
       profitabilityInput
@@ -328,7 +338,11 @@ export function RentabilidadRealWorkCalculator() {
             </div>
           </Card>
 
-          <WorkExpenseLinkingPanel profitabilityInput={profitabilityInput} />
+          <WorkExpenseLinkingPanel
+            profitabilityInput={profitabilityInput}
+            directCostAmountOverrides={directCostAmountOverrides}
+            onDirectCostAmountOverridesChange={setDirectCostAmountOverrides}
+          />
 
           <InternalAdjustmentsPanel
             sourceDocumentId={profitabilityInput.source.sourceDocumentId}
