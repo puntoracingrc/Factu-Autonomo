@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarClock, Pencil, Plus, Trash2, X } from "lucide-react";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
@@ -53,7 +54,34 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+function recurringExpenseForm(item: RecurringExpense) {
+  return {
+    supplierName: item.supplierName,
+    description: item.description,
+    amountText: decimalInputFromNumber(item.amount),
+    ivaPercent: item.ivaPercent,
+    category: item.category,
+    paymentMethod: item.paymentMethod,
+    frequency: item.frequency,
+    dueKind: item.dueTiming.kind,
+    dueDay:
+      item.dueTiming.kind === "day_of_month"
+        ? String(item.dueTiming.day)
+        : "1",
+    dueMonth: String(item.dueMonth ?? 1),
+    durationKind: item.duration.kind,
+    endDate: item.duration.kind === "until_date" ? item.duration.endDate : "",
+    occurrenceCount:
+      item.duration.kind === "occurrences" ? String(item.duration.count) : "12",
+    startDate: item.startDate,
+    notes: item.notes ?? "",
+  };
+}
+
 export default function GastosFijosPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     data,
     addRecurringExpense,
@@ -73,6 +101,19 @@ export default function GastosFijosPage() {
   const templates = [...data.recurringExpenses].sort((a, b) =>
     a.supplierName.localeCompare(b.supplierName, "es"),
   );
+  const requestedEditId = searchParams.get("editar");
+
+  useEffect(() => {
+    if (!requestedEditId || editingId === requestedEditId) return;
+    const requestedTemplate = data.recurringExpenses.find(
+      (item) => item.id === requestedEditId,
+    );
+    if (!requestedTemplate) return;
+
+    setEditingId(requestedTemplate.id);
+    setForm(recurringExpenseForm(requestedTemplate));
+    setFormOpen(true);
+  }, [data.recurringExpenses, editingId, requestedEditId]);
 
   function openNew() {
     setEditingId(null);
@@ -87,31 +128,14 @@ export default function GastosFijosPage() {
   function closeForm() {
     setFormOpen(false);
     setEditingId(null);
+    if (requestedEditId) {
+      router.replace(pathname, { scroll: false });
+    }
   }
 
   function startEdit(item: RecurringExpense) {
     setEditingId(item.id);
-    setForm({
-      supplierName: item.supplierName,
-      description: item.description,
-      amountText: decimalInputFromNumber(item.amount),
-      ivaPercent: item.ivaPercent,
-      category: item.category,
-      paymentMethod: item.paymentMethod,
-      frequency: item.frequency,
-      dueKind: item.dueTiming.kind,
-      dueDay:
-        item.dueTiming.kind === "day_of_month"
-          ? String(item.dueTiming.day)
-          : "1",
-      dueMonth: String(item.dueMonth ?? 1),
-      durationKind: item.duration.kind,
-      endDate: item.duration.kind === "until_date" ? item.duration.endDate : "",
-      occurrenceCount:
-        item.duration.kind === "occurrences" ? String(item.duration.count) : "12",
-      startDate: item.startDate,
-      notes: item.notes ?? "",
-    });
+    setForm(recurringExpenseForm(item));
     setFormOpen(true);
   }
 

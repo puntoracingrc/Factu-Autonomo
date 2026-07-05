@@ -21,11 +21,38 @@ describe("product expenses/providers polish wiring", () => {
     const listPage = source("../app/gastos/page.tsx");
     const formPage = source("../app/gastos/nuevo/page.tsx");
 
-    expect(listPage).toContain("/gastos/nuevo?editar=");
+    expect(listPage).toContain("expenseEditHref(expense");
     expect(listPage).toContain("Editar");
     expect(formPage).toContain("updateExpense");
     expect(formPage).toContain("Editar gasto");
     expect(formPage).toContain("Sin proveedor");
+  });
+
+  it("envia los gastos fijos recurrentes al editor de gastos fijos", async () => {
+    const { expenseEditHref } = await import("./expense-links");
+    const fixedExpense = {
+      id: "expense-1",
+      recurringExpenseId: "recurring-1",
+    };
+    const regularExpense = {
+      id: "expense-2",
+    };
+
+    expect(
+      expenseEditHref(
+        fixedExpense as Parameters<typeof expenseEditHref>[0],
+        new Set(["recurring-1"]),
+      ),
+    ).toBe("/gastos/fijos?editar=recurring-1");
+    expect(
+      expenseEditHref(
+        fixedExpense as Parameters<typeof expenseEditHref>[0],
+        new Set(),
+      ),
+    ).toBe("/gastos/nuevo?editar=expense-1");
+    expect(
+      expenseEditHref(regularExpense as Parameters<typeof expenseEditHref>[0]),
+    ).toBe("/gastos/nuevo?editar=expense-2");
   });
 
   it("mantiene el escaneo conectado al alta/reutilizacion de proveedores", () => {
