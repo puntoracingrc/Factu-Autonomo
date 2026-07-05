@@ -11,20 +11,28 @@ export const EMPTY_DOCUMENT_PHRASES: DocumentPhrasesSettings = {
   defaultPhraseId: {},
 };
 
+interface NormalizeDocumentPhrasesOptions {
+  keepEmpty?: boolean;
+}
+
 function newPhraseId(): string {
   return crypto.randomUUID();
 }
 
 export function normalizeDocumentPhrases(
   settings?: Partial<DocumentPhrasesSettings> | null,
+  options: NormalizeDocumentPhrasesOptions = {},
 ): DocumentPhrasesSettings {
   const phrases = (settings?.phrases ?? [])
-    .map((phrase) => ({
-      id: phrase.id || newPhraseId(),
-      text: phrase.text?.trim() ?? "",
-      documentType: phrase.documentType,
-    }))
-    .filter((phrase) => phrase.text.length > 0);
+    .map((phrase) => {
+      const text = phrase.text ?? "";
+      return {
+        id: phrase.id || newPhraseId(),
+        text: options.keepEmpty ? text : text.trim(),
+        documentType: phrase.documentType,
+      };
+    })
+    .filter((phrase) => options.keepEmpty || phrase.text.length > 0);
 
   const phraseIds = new Set(phrases.map((phrase) => phrase.id));
   const defaultPhraseId: Partial<Record<DocumentType, string>> = {};
@@ -74,7 +82,7 @@ export function addDocumentPhrase(
 ): DocumentPhrasesSettings {
   const phrase: DocumentPhrase = {
     id: newPhraseId(),
-    text: text.trim(),
+    text,
     documentType: type,
   };
   const next = {
@@ -95,7 +103,7 @@ export function updateDocumentPhrase(
   return {
     ...settings,
     phrases: settings.phrases.map((phrase) =>
-      phrase.id === phraseId ? { ...phrase, text: text.trim() } : phrase,
+      phrase.id === phraseId ? { ...phrase, text } : phrase,
     ),
   };
 }

@@ -38,6 +38,7 @@ import {
   CUSTOMER_TYPE_LABELS,
   customerFullName,
   buildCustomerInvoicedTotals,
+  countDocumentsForCustomer,
   customerPayloadFromInput,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
@@ -45,7 +46,6 @@ import {
   getCustomerDisplayName,
   migrateCustomer,
   normalizeCustomerType,
-  pickCanonicalCustomer,
   sortCustomers,
   validateCustomerInput,
   type CustomerSortDirection,
@@ -56,6 +56,7 @@ import type {
   AddressResidenceType,
   Customer,
   CustomerType,
+  Document,
 } from "@/lib/types";
 
 const EMPTY_FORM = {
@@ -95,6 +96,79 @@ function customerEmailHref(email: string): string {
   return `mailto:${email.trim()}`;
 }
 
+function duplicateGroupKey(group: Customer[]): string {
+  return group.map((customer) => customer.id).sort().join(":");
+}
+
+function DuplicateCustomerChoiceCard({
+  customer,
+  documents,
+  invoiced,
+  name,
+  selected,
+  onSelect,
+}: {
+  customer: Customer;
+  documents: Document[];
+  invoiced: number;
+  name: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const migrated = migrateCustomer(customer);
+  const address = formatAddressBlock(migrated);
+  const documentCount = countDocumentsForCustomer(documents, migrated);
+  const details = [
+    ["NIF", migrated.nif || "Sin NIF"],
+    ["Contacto", migrated.contactName || "Sin contacto"],
+    ["Teléfono", migrated.phone || "Sin teléfono"],
+    ["Email", migrated.email || "Sin email"],
+    ["Dirección", address || "Sin dirección"],
+    ["Docs.", `${documentCount}`],
+    ["Facturado", formatMoney(invoiced)],
+  ];
+
+  return (
+    <label
+      className={`block cursor-pointer rounded-2xl border bg-white p-3 transition-colors dark:bg-slate-900 ${
+        selected
+          ? "border-blue-500 ring-2 ring-blue-200 dark:border-blue-400 dark:ring-blue-900/70"
+          : "border-amber-200 hover:border-blue-300 dark:border-slate-700 dark:hover:border-blue-500"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="radio"
+          name={name}
+          checked={selected}
+          onChange={onSelect}
+          className="mt-1 h-5 w-5 shrink-0 border-slate-300 text-blue-600 focus:ring-blue-500"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-black text-slate-950 dark:text-slate-50">
+            {getCustomerDisplayName(migrated)}
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {details.map(([label, value]) => (
+              <div
+                key={label}
+                className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800"
+              >
+                <p className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-0.5 break-words text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </label>
+  );
+}
+
 export default function ClientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -113,6 +187,12 @@ export default function ClientesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [keepId, setKeepId] = useState("");
   const [updateDraftDocuments, setUpdateDraftDocuments] = useState(false);
+  const [duplicateKeepIds, setDuplicateKeepIds] = useState<
+    Record<string, string>
+  >({});
+  const [duplicateUpdateDrafts, setDuplicateUpdateDrafts] = useState<
+    Record<string, boolean>
+  >({});
   const [listFilterId, setListFilterId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<CustomerSortField>("reciente");
   const [sortDirection, setSortDirection] =
@@ -194,11 +274,8 @@ export default function ClientesPage() {
       setKeepId("");
       return;
     }
-    const canonical = pickCanonicalCustomer(selectedCustomers, data.documents);
-    setKeepId((current) =>
-      selectedIds.includes(current) ? current : canonical.id,
-    );
-  }, [selectedCustomers, selectedIds, data.documents]);
+    setKeepId((current) => (selectedIds.includes(current) ? current : ""));
+  }, [selectedCustomers, selectedIds]);
 
   useEffect(() => {
     setVisibleCustomerCount(CUSTOMER_LIST_BATCH_SIZE);
@@ -413,45 +490,108 @@ export default function ClientesPage() {
       {duplicateGroups.length > 0 && (
         <div className="mb-6 space-y-3">
           {duplicateGroups.map((group) => {
-            const canonical = pickCanonicalCustomer(group, data.documents);
-            const others = group.filter(
-              (customer) => customer.id !== canonical.id,
+            const groupKey = duplicateGroupKey(group);
+            const selectedKeepId = duplicateKeepIds[groupKey] ?? "";
+            const selectedKeep = group.find(
+              (customer) => customer.id === selectedKeepId,
             );
+            const updateDrafts = Boolean(duplicateUpdateDrafts[groupKey]);
             return (
               <Card
-                key={canonical.id}
-                className="space-y-3 border-amber-200 bg-amber-50/70"
+                key={groupKey}
+                className="space-y-4 border-amber-200 bg-amber-50/70 dark:border-amber-900/70 dark:bg-amber-950/25"
               >
                 <div>
-                  <p className="font-semibold text-amber-950">
+                  <p className="font-semibold text-amber-950 dark:text-amber-100">
                     Mismo NIF en varios clientes
                   </p>
-                  <p className="mt-1 text-sm text-amber-900">
+                  <p className="mt-1 text-sm text-amber-900 dark:text-amber-100">
                     {group
                       .map((customer) => getCustomerDisplayName(customer))
                       .join(" · ")}
                   </p>
-                  <p className="mt-2 text-sm text-amber-800">
-                    Unifícalos para evitar duplicados al facturar.
+                  <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
+                    Elige cuál conservar. No unificamos automáticamente en uno
+                    de ellos.
                   </p>
                 </div>
-                <PageActionButton
-                  icon={GitMerge}
-                  label={`Unificar en «${getCustomerDisplayName(canonical)}»`}
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {group.map((customer) => (
+                    <DuplicateCustomerChoiceCard
+                      key={customer.id}
+                      customer={customer}
+                      documents={data.documents}
+                      invoiced={customerInvoicedTotals.get(customer.id) ?? 0}
+                      name={`duplicate-customer-${groupKey}`}
+                      selected={selectedKeepId === customer.id}
+                      onSelect={() =>
+                        setDuplicateKeepIds((current) => ({
+                          ...current,
+                          [groupKey]: customer.id,
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
+                <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-white/80 p-3 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-slate-900 dark:text-amber-100">
+                  <input
+                    type="checkbox"
+                    checked={updateDrafts}
+                    onChange={(event) =>
+                      setDuplicateUpdateDrafts((current) => ({
+                        ...current,
+                        [groupKey]: event.target.checked,
+                      }))
+                    }
+                    className="mt-1 h-4 w-4 rounded border-amber-300 text-blue-600"
+                  />
+                  <span>
+                    <span className="font-semibold">
+                      Actualizar también borradores
+                    </span>
+                    <span className="block text-amber-800 dark:text-amber-200">
+                      Los documentos emitidos conservan su cliente histórico; los
+                      borradores pueden adoptar los datos del cliente conservado.
+                    </span>
+                  </span>
+                </label>
+                <Button
+                  type="button"
+                  fullWidth
+                  variant="secondary"
+                  disabled={!selectedKeep}
+                  className="mb-0"
                   onClick={() => {
+                    if (!selectedKeep) return;
+                    const removeIds = group
+                      .filter((customer) => customer.id !== selectedKeep.id)
+                      .map((customer) => customer.id);
                     if (
                       confirm(
-                        `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(canonical)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
+                        `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(selectedKeep)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
                       )
                     ) {
-                      mergeCustomers(
-                        canonical.id,
-                        others.map((customer) => customer.id),
-                      );
+                      mergeCustomers(selectedKeep.id, removeIds, {
+                        updateDraftDocuments: updateDrafts,
+                      });
+                      setDuplicateKeepIds((current) => {
+                        const next = { ...current };
+                        delete next[groupKey];
+                        return next;
+                      });
+                      setDuplicateUpdateDrafts((current) => {
+                        const next = { ...current };
+                        delete next[groupKey];
+                        return next;
+                      });
                     }
                   }}
-                  className="mb-0"
-                />
+                >
+                  <GitMerge className="h-5 w-5" />
+                  {selectedKeep
+                    ? `Unificar en «${getCustomerDisplayName(selectedKeep)}»`
+                    : "Elige qué cliente conservar"}
+                </Button>
               </Card>
             );
           })}
@@ -898,10 +1038,10 @@ export default function ClientesPage() {
         </div>
       ) : null}
 
-      {mergeMode && selectedIds.length >= 2 && keepId && (
-        <Card className="sticky bottom-20 z-10 mt-4 max-h-[calc(100vh-8rem)] space-y-3 overflow-y-auto border-blue-300 bg-white shadow-lg sm:bottom-4">
+      {mergeMode && selectedIds.length >= 2 && (
+        <Card className="sticky bottom-20 z-10 mt-4 max-h-[calc(100vh-8rem)] space-y-3 overflow-y-auto border-blue-300 bg-white shadow-lg dark:border-blue-900/70 dark:bg-slate-900 sm:bottom-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-semibold text-slate-900">
+            <p className="font-semibold text-slate-900 dark:text-slate-50">
               {selectedIds.length} clientes seleccionados
             </p>
             <Button
@@ -916,8 +1056,9 @@ export default function ClientesPage() {
             <select
               value={keepId}
               onChange={(e) => setKeepId(e.target.value)}
-              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             >
+              <option value="">Elige qué cliente conservar...</option>
               {selectedCustomers.map((customer) => (
                 <option key={customer.id} value={customer.id}>
                   {getCustomerDisplayName(customer)}
@@ -925,7 +1066,7 @@ export default function ClientesPage() {
               ))}
             </select>
           </Field>
-          <label className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-950">
+          <label className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-100">
             <input
               type="checkbox"
               checked={updateDraftDocuments}
@@ -938,16 +1079,16 @@ export default function ClientesPage() {
               <span className="font-semibold">
                 Actualizar también borradores
               </span>
-              <span className="block text-blue-800">
+              <span className="block text-blue-800 dark:text-blue-200">
                 Los documentos emitidos conservarán el cliente original y sus
                 snapshots históricos.
               </span>
             </span>
           </label>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button fullWidth onClick={handleManualMerge}>
+            <Button fullWidth onClick={handleManualMerge} disabled={!keepId}>
               <GitMerge className="h-5 w-5" />
-              Unificar en uno
+              {keepId ? "Unificar en uno" : "Elige qué cliente conservar"}
             </Button>
           </div>
         </Card>

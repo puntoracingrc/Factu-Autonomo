@@ -15,20 +15,28 @@ export const EMPTY_DOCUMENT_PAYMENT_METHODS: DocumentPaymentMethodsSettings = {
   defaultMethodId: {},
 };
 
+interface NormalizeDocumentPaymentMethodsOptions {
+  keepEmpty?: boolean;
+}
+
 function newMethodId(): string {
   return crypto.randomUUID();
 }
 
 export function normalizeDocumentPaymentMethods(
   settings?: Partial<DocumentPaymentMethodsSettings> | null,
+  options: NormalizeDocumentPaymentMethodsOptions = {},
 ): DocumentPaymentMethodsSettings {
   const methods = (settings?.methods ?? [])
-    .map((method) => ({
-      id: method.id || newMethodId(),
-      text: method.text?.trim() ?? "",
-      documentType: method.documentType,
-    }))
-    .filter((method) => method.text.length > 0);
+    .map((method) => {
+      const text = method.text ?? "";
+      return {
+        id: method.id || newMethodId(),
+        text: options.keepEmpty ? text : text.trim(),
+        documentType: method.documentType,
+      };
+    })
+    .filter((method) => options.keepEmpty || method.text.length > 0);
 
   const methodIds = new Set(methods.map((method) => method.id));
   const defaultMethodId: Partial<Record<DocumentType, string>> = {};
@@ -78,7 +86,7 @@ export function addDocumentPaymentMethod(
 ): DocumentPaymentMethodsSettings {
   const method: DocumentPaymentMethod = {
     id: newMethodId(),
-    text: text.trim(),
+    text,
     documentType: type,
   };
   const next = {
@@ -99,7 +107,7 @@ export function updateDocumentPaymentMethod(
   return {
     ...settings,
     methods: settings.methods.map((method) =>
-      method.id === methodId ? { ...method, text: text.trim() } : method,
+      method.id === methodId ? { ...method, text } : method,
     ),
   };
 }

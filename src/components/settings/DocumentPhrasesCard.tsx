@@ -26,10 +26,12 @@ export function DocumentPhrasesCard({
   onChange,
 }: DocumentPhrasesCardProps) {
   return (
-    <Card className="mb-6 space-y-5">
+    <Card className="mb-6 space-y-5 dark:border-slate-700 dark:bg-slate-900">
       <div>
-        <h2 className="font-bold text-slate-900">Frases en documentos</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="font-bold text-slate-900 dark:text-slate-50">
+          Frases en documentos
+        </h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           Guarda textos habituales para notas del PDF. Al crear facturas,
           presupuestos o recibos podrás elegir una frase o usar la
           predeterminada.
@@ -43,10 +45,10 @@ export function DocumentPhrasesCard({
         return (
           <div
             key={type}
-            className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+            className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/70"
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-50">
                 {DOCUMENT_PHRASE_TYPE_LABELS[type]}
               </h3>
               <button
@@ -60,7 +62,7 @@ export function DocumentPhrasesCard({
             </div>
 
             {phrases.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Sin frases guardadas para {DOCUMENT_PHRASE_TYPE_LABELS[type].toLowerCase()}.
               </p>
             ) : (
@@ -70,7 +72,7 @@ export function DocumentPhrasesCard({
                   return (
                     <div
                       key={phrase.id}
-                      className="rounded-xl border border-slate-200 bg-white p-3"
+                      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
                     >
                       <Textarea
                         value={phrase.text}
@@ -106,8 +108,8 @@ export function DocumentPhrasesCard({
                           }
                           className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${
                             isDefault
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-600"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                           }`}
                         >
                           <Star
@@ -141,7 +143,7 @@ export function DocumentPhrasesCard({
         );
       })}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         La frase predeterminada se rellena sola al crear un documento nuevo. Siempre
         puedes editarla antes de guardar.
       </p>
