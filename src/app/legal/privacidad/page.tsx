@@ -116,7 +116,7 @@ export default function PrivacidadPage() {
         <h2>Conservación</h2>
         <p>
           Los datos se conservan mientras mantengas la cuenta o los datos en el
-          dispositivo. Puedes exportar una copia desde Configuración. Al borrar
+          dispositivo. Puedes exportar una copia desde Cuenta. Al borrar
           la cuenta se eliminarán los datos asociados en la nube, sin perjuicio
           de obligaciones legales de conservación cuando resulten aplicables.
         </p>

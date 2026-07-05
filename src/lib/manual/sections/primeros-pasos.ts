@@ -23,7 +23,7 @@ export const primerosPasosSection: ManualSection = {
       paragraphs: [
         "Ve a **Ajustes** (icono de engranaje en la barra inferior) y completa al menos tu **nombre** y **NIF/CIF**. Esos datos salen en el PDF de tus facturas.",
         "Si quieres, añade también dirección, teléfono, email e **IBAN**: el IBAN aparece en facturas pendientes de cobro y en los recordatorios de pago.",
-        "Ajustes está organizado por bloques: **Negocio**, **Documentos**, **Impuestos** y **Cuenta**. Usa las pastillas superiores para saltar rápido a cada parte.",
+        "Ajustes está organizado por bloques: **Negocio**, **Facturación**, **Fiscalidad** y **Preferencias**. Usa las pastillas superiores para saltar rápido a cada parte.",
       ],
       screenshot: {
         src: "/ayuda/capturas/ajustes-datos-negocio.png",
@@ -35,7 +35,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "3. Revisa el IVA y el IRPF estimado",
       paragraphs: [
-        "En Ajustes puedes indicar si estás **exento de repercutir IVA** y qué **tipos de IVA** usas habitualmente.",
+        "En **Fiscalidad** dentro de Ajustes puedes indicar si estás **exento de repercutir IVA** y qué **tipos de IVA** usas habitualmente.",
         "El **% IRPF** es orientativo: sirve para calcular el resumen fiscal del trimestre, no sustituye el asesoramiento de tu gestor.",
       ],
       screenshot: {

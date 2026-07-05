@@ -74,7 +74,7 @@ describe("product dashboard home", () => {
     expect(page).toContain("Nueva factura");
     expect(page).toContain("Nuevo presupuesto");
     expect(page).toContain("Gastos");
-    expect(page).toContain("Configuración");
+    expect(page).toContain("Ajustes");
     expect(page).not.toContain("Exportar copia");
   });
 

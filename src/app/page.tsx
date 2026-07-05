@@ -78,7 +78,7 @@ const quickActions = [
   },
   {
     href: "/configuracion",
-    label: "Configuración",
+    label: "Ajustes",
     icon: Settings,
     color: "bg-slate-700 text-white",
   },

@@ -13,7 +13,7 @@ export const presupuestosSection: ManualSection = {
         "Puedes elegir un cliente existente o rellenar sus datos dentro del presupuesto. Si el cliente no existe, se crea su ficha al guardar.",
         "El IVA se elige una vez para todo el presupuesto, no en cada línea.",
         "En las líneas puedes buscar productos detectados en compras. Si hay PVP, se inserta como precio de venta; si la app solo conoce el coste, aparece un aviso para que ajustes el precio antes de enviar.",
-        "La fecha de validez se calcula con los días configurados en **Ajustes → Documentos**. En el formulario verás **Válido hasta**.",
+        "La fecha de validez se calcula con los días configurados en **Ajustes → Facturación**. En el formulario verás **Válido hasta**.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón de descarga guarda el PDF.",
         "En **Datos del cliente** también puedes usar **Rellenar con IA** (plan Pro) para pegar datos recibidos por WhatsApp, email o web. Si el cliente no existe, se crea su ficha al guardar el presupuesto.",
       ],
