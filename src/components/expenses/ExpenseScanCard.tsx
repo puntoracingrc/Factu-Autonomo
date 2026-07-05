@@ -275,10 +275,17 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
           <ScanLine className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Escanear factura o ticket</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Escanear factura o ticket
+          </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Foto, imagen o PDF: la app rellena proveedor, importe e IVA. Siempre revisa antes
-            de guardar.
+            Foto, imagen o PDF: la app rellena proveedor, importe e IVA.
+            Siempre revisa antes de guardar.
+          </p>
+          <p className="mt-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm text-slate-700">
+            Para crear productos desde el escaneo, revisa la factura y deja
+            marcada cada línea que quieras llevar a Productos. En lotes, revisa
+            cada factura antes de guardarla.
           </p>
         </div>
       </div>

@@ -468,6 +468,15 @@ export default function NuevoGastoPage() {
     });
   }
 
+  function negativeAmountReasonForScanPayload(payload: ExpenseScanPayload) {
+    if (payload.expense.amount >= 0) return null;
+    return [
+      "Factura con importe negativo detectada: parece un abono, devolución",
+      "o saldo a tu favor. La app la reconoce, pero no la guardará",
+      "automáticamente como gasto normal.",
+    ].join(" ");
+  }
+
   function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
     const explicit =
       review.payload.document?.isExpenseDocument === false
@@ -531,6 +540,11 @@ export default function NuevoGastoPage() {
     const nonExpenseReason = nonExpenseReasonForScanReview(review);
     if (nonExpenseReason) return nonExpenseReason;
 
+    const negativeAmountReason = negativeAmountReasonForScanPayload(
+      review.payload,
+    );
+    if (negativeAmountReason) return negativeAmountReason;
+
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -556,6 +570,7 @@ export default function NuevoGastoPage() {
 
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
+    if (negativeAmountReasonForScanPayload(review.payload)) return "blocked";
     if (duplicateForScanPayload(review.payload)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
@@ -1265,7 +1280,7 @@ export default function NuevoGastoPage() {
           <FormSection
             variant="fields"
             title="Líneas de compra"
-            hint="Marca solo las líneas que quieres llevar al catálogo de productos."
+            hint="Las líneas marcadas pueden crear o actualizar productos al guardar. Si escaneas varias facturas, revisa cada una antes de confirmar."
           >
             <div className="space-y-3">
               {purchaseLines.length === 0 ? (
@@ -1365,27 +1380,36 @@ export default function NuevoGastoPage() {
                     <p className="mt-3 text-right text-sm font-bold text-slate-700">
                       Base línea: {formatMoney(expensePurchaseLineBaseTotal(line))}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updatePurchaseLine(line.id, {
-                          catalogProduct: line.catalogProduct === false,
-                        })
-                      }
-                      className={`mt-3 rounded-xl border px-3 py-2 text-left text-sm font-bold ${
+                    <label
+                      className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${
                         line.catalogProduct !== false
                           ? "border-green-200 bg-white text-green-800"
                           : "border-slate-200 bg-white text-slate-700"
                       }`}
                     >
-                      {line.catalogProduct !== false
-                        ? "Se usará como producto"
-                        : "No crear producto"}
-                    </button>
+                      <span className="flex items-center gap-2 font-bold">
+                        <input
+                          type="checkbox"
+                          checked={line.catalogProduct !== false}
+                          onChange={(e) =>
+                            updatePurchaseLine(line.id, {
+                              catalogProduct: e.target.checked,
+                            })
+                          }
+                          className="h-5 w-5 rounded"
+                        />
+                        Crear producto desde esta línea al guardar
+                      </span>
+                      <span className="text-xs font-bold">
+                        {line.catalogProduct !== false
+                          ? "Sí, se llevará a Productos"
+                          : "No se llevará a Productos"}
+                      </span>
+                    </label>
                     <p className="mt-2 text-xs text-slate-500">
-                      Actívalo solo si vendes esta línea o quieres seguir su
-                      precio. Herramientas, gastos internos y servicios sueltos
-                      pueden quedarse fuera.
+                      Nada se añade al catálogo solo por escanear. Debes revisar
+                      la factura, dejar marcada esta opción y guardar. Desmarca
+                      herramientas, gastos internos o servicios sueltos.
                     </p>
                   </div>
                 ))
