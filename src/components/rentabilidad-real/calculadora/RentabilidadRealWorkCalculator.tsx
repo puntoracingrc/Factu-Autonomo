@@ -18,6 +18,7 @@ import {
   type RentabilidadRealCalculationSettings,
 } from "@/lib/rentabilidad-real/calculation";
 import { getStoredRentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/wizard-storage";
+import { buildRentabilidadRealWorkDocumentOptions } from "@/lib/rentabilidad-real/work-calculator-view-model";
 import type { RentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/types";
 import { useRentabilidadRealActivation } from "../useRentabilidadRealActivation";
 import { FixedCostAllocationForm } from "./FixedCostAllocationForm";
@@ -71,9 +72,27 @@ export function RentabilidadRealWorkCalculator() {
     () => data.documents.filter((doc) => doc.type === "factura"),
     [data.documents],
   );
-  const availableDocuments =
-    sourceMode === "quote" ? quoteDocuments : invoiceDocuments;
-  const selectedDocument = availableDocuments.find(
+  const quoteDocumentOptions = useMemo(
+    () =>
+      buildRentabilidadRealWorkDocumentOptions({
+        documents: quoteDocuments,
+        allDocuments: data.documents,
+        expenses: data.expenses,
+      }),
+    [data.documents, data.expenses, quoteDocuments],
+  );
+  const invoiceDocumentOptions = useMemo(
+    () =>
+      buildRentabilidadRealWorkDocumentOptions({
+        documents: invoiceDocuments,
+        allDocuments: data.documents,
+        expenses: data.expenses,
+      }),
+    [data.documents, data.expenses, invoiceDocuments],
+  );
+  const availableDocumentOptions =
+    sourceMode === "quote" ? quoteDocumentOptions : invoiceDocumentOptions;
+  const selectedDocument = data.documents.find(
     (doc) => doc.id === selectedDocumentId,
   );
 
@@ -96,15 +115,15 @@ export function RentabilidadRealWorkCalculator() {
 
   useEffect(() => {
     if (
-      availableDocuments.length > 0 &&
-      !availableDocuments.some((doc) => doc.id === selectedDocumentId)
+      availableDocumentOptions.length > 0 &&
+      !availableDocumentOptions.some((doc) => doc.id === selectedDocumentId)
     ) {
-      setSelectedDocumentId(availableDocuments[0].id);
+      setSelectedDocumentId(availableDocumentOptions[0].id);
     }
-    if (availableDocuments.length === 0 && selectedDocumentId) {
+    if (availableDocumentOptions.length === 0 && selectedDocumentId) {
       setSelectedDocumentId("");
     }
-  }, [availableDocuments, selectedDocumentId]);
+  }, [availableDocumentOptions, selectedDocumentId]);
 
   useEffect(() => {
     setInternalAdjustmentsTotal(0);
@@ -239,18 +258,19 @@ export function RentabilidadRealWorkCalculator() {
             </span>
             <div>
               <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Fuente del trabajo
+                Documento del trabajo
               </h2>
               <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Elige un presupuesto o factura ya existente. No se creará ni se
-                modificará ningún documento.
+                Elige el presupuesto o factura que quieres analizar. Si quieres
+                comparar previsto vs real, elige presupuesto; si quieres revisar
+                un trabajo ya facturado, elige factura.
               </p>
             </div>
           </div>
           <WorkSourceSelector
             sourceMode={sourceMode}
             onSourceModeChange={setSourceMode}
-            documents={availableDocuments}
+            documentOptions={availableDocumentOptions}
             selectedDocumentId={selectedDocumentId}
             onSelectedDocumentChange={setSelectedDocumentId}
           />
@@ -260,6 +280,7 @@ export function RentabilidadRealWorkCalculator() {
           <FixedCostAllocationForm
             settings={settings}
             fixedCostCandidates={profitabilityInput?.fixedCostCandidates ?? []}
+            allocatedFixedCosts={result?.allocatedFixedCosts ?? 0}
             fixedCostsAdvancedActive={hasFixedCostsProActive}
             onSettingsChange={setSettings}
           />
