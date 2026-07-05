@@ -169,6 +169,25 @@ describe("rentabilidad real access policy", () => {
     });
   });
 
+  it("detecta preview desde NEXT_PUBLIC_VERCEL_ENV en el cliente", () => {
+    expect(
+      resolveRentabilidadRealBillingAccess({
+        billingEnabled: false,
+        planKey: "pro",
+        env: {
+          NODE_ENV: "production",
+          NEXT_PUBLIC_VERCEL_ENV: "preview",
+          VERCEL_ENV: "production",
+        },
+      }),
+    ).toMatchObject({
+      planKey: "pro_plus",
+      isProPlus: true,
+      localProPlusFallback: true,
+      runtimeEnvironment: "preview",
+    });
+  });
+
   it("mantiene Pro+ real cuando billing está activo", () => {
     expect(
       resolveRentabilidadRealBillingAccess({
