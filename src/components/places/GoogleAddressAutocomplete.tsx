@@ -8,9 +8,8 @@ import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { isProPlan } from "@/lib/billing/plans";
-import type { ScanQuota } from "@/lib/billing/scan-limits";
+import { buildAiUsageMeter, type ScanQuota } from "@/lib/billing/scan-limits";
 import {
-  GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST,
   type GooglePlaceAddressComponent,
   type GooglePlaceAddressSuggestion,
   parseGooglePlaceAddress,
@@ -111,6 +110,15 @@ function loadGooglePlaces(apiKey: string): Promise<void> {
   });
 
   return window.__factuGooglePlacesLoader;
+}
+
+function addressFillAppliedMessage(
+  billingEnabled: boolean,
+  quota?: ScanQuota | null,
+): string {
+  if (!billingEnabled) return "Dirección aplicada.";
+  if (!quota) return "Dirección aplicada. IA actualizada.";
+  return `Dirección aplicada. IA ${buildAiUsageMeter(quota).percentRemaining}% restante.`;
 }
 
 export function GoogleAddressAutocomplete({
@@ -247,11 +255,7 @@ export function GoogleAddressAutocomplete({
         }
         onAddressSelectedRef.current(suggestion);
         setStatusTone("success");
-        setStatus(
-          billingEnabled
-            ? `Dirección aplicada. Se ha descontado ${GOOGLE_PLACES_ADDRESS_FILL_CREDIT_COST} crédito.`
-            : "Dirección aplicada.",
-        );
+        setStatus(addressFillAppliedMessage(billingEnabled, usage.quota));
       } catch {
         setStatusTone("warning");
         setStatus(
@@ -367,7 +371,7 @@ export function GoogleAddressAutocomplete({
 
       {canUsePlaces && !loadError && (
         <p className="text-xs text-slate-400">
-          Google sugiere direcciones. Solo consume crédito al aplicar una.
+          Google sugiere direcciones. Solo descuenta IA al aplicar una.
         </p>
       )}
 

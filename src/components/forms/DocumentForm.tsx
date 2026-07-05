@@ -302,16 +302,16 @@ function lineMarginSummary(
         text: "Línea libre: sin coste de material vinculado",
         tone: "text-slate-500",
         tooltip:
-          "Si no eliges producto, la app trata esta línea como servicio o concepto libre: coste de material 0. El IVA repercutido no se cuenta como beneficio.",
+          "Sin producto vinculado: cuenta como servicio y no suma coste de material. El IVA no se cuenta como beneficio.",
       };
     }
     return {
-      text: `Servicio/línea libre · Margen: ${formatMoney(
+      text: `Servicio libre · Margen ${formatMoney(
         estimate.grossMargin,
-      )} · Tras IRPF ${irpfPercent}%: ${formatMoney(estimate.netMargin)}`,
+      )} · Neto estimado ${formatMoney(estimate.netMargin)}`,
       tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
       tooltip:
-        "Al no haber producto vinculado, se calcula como servicio o concepto libre: venta sin IVA menos 0 € de coste de material. El IVA repercutido no es beneficio; la cifra tras IRPF aplica el porcentaje configurado sobre ese margen.",
+        `Sin producto vinculado: ingreso sin IVA y coste de material 0 €. El IVA no es beneficio; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
     };
   }
 
@@ -323,7 +323,7 @@ function lineMarginSummary(
       )} sin IVA${pricing.markupPercent === -1 ? " · precio manual" : ""}`,
       tone: productPriceSourceTone(pricing.priceSource),
       tooltip:
-        "Todavía no hay coste de material guardado para este producto, así que la app no puede estimar el margen real de esta línea.",
+        "Este producto no tiene coste guardado. Añádelo para que la app calcule el margen real de la línea.",
     };
   }
 
@@ -339,7 +339,7 @@ function lineMarginSummary(
     )}${manualText}`,
     tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
     tooltip:
-      "Margen estimado: precio de venta sin IVA menos coste del material sin IVA. El IVA se muestra aparte porque normalmente el IVA soportado se deduce del IVA repercutido; si estás en régimen sin IVA, no se deduce. La cifra tras IRPF aplica el porcentaje configurado en la app sobre ese margen, como orientación para decidir si el precio compensa.",
+      `Margen estimado: venta sin IVA menos coste del material sin IVA. El IVA va aparte; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
   };
 }
 
