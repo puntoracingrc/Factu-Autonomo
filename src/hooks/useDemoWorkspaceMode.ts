@@ -7,13 +7,14 @@ import {
 } from "@/lib/demo-workspace";
 
 export function useDemoWorkspaceMode(): boolean {
-  const [enabled, setEnabled] = useState(() => isDemoWorkspaceMode());
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     function refresh() {
       setEnabled(isDemoWorkspaceMode());
     }
 
+    refresh();
     window.addEventListener(DEMO_MODE_EVENT, refresh);
     window.addEventListener("storage", refresh);
     return () => {

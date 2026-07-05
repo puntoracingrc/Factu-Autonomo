@@ -130,17 +130,17 @@ export function DemoSandboxPanel() {
   }
 
   return (
-    <Card className="mb-6 border-amber-200 bg-amber-50">
+    <Card className="mb-6 border-blue-200 bg-blue-50">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
-          <p className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-wide text-amber-800">
+          <p className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-wide text-blue-700">
             <ShieldCheck className="h-4 w-4" />
             Sandbox de prueba
           </p>
           <h2 className="mt-2 text-2xl font-black text-slate-950">
             Prueba el producto en 3 minutos
           </h2>
-          <p className="mt-2 text-sm leading-6 text-amber-950">
+          <p className="mt-2 text-sm leading-6 text-slate-700">
             Estás viendo una empresa ficticia. Sigue la ruta recomendada para
             tocar facturas, clientes automáticos, gastos e impuestos sin
             sincronizar nada con la nube.
@@ -149,7 +149,7 @@ export function DemoSandboxPanel() {
             {demoStats.map((stat) => (
               <span
                 key={stat}
-                className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-200 bg-white px-3 text-xs font-bold text-amber-950"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-blue-200 bg-white px-3 text-xs font-bold text-slate-800"
               >
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                 {stat}
@@ -163,7 +163,7 @@ export function DemoSandboxPanel() {
             type="button"
             variant="secondary"
             onClick={resetDemo}
-            className="border-amber-300 text-amber-950 hover:bg-amber-100"
+            className="border-blue-300 text-slate-800 hover:bg-blue-100"
           >
             <RotateCcw className="h-4 w-4" />
             Reiniciar demo
@@ -177,10 +177,10 @@ export function DemoSandboxPanel() {
 
       <div className="mt-6 flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-amber-900">
+          <h3 className="text-sm font-black uppercase tracking-wide text-slate-700">
             Ruta recomendada
           </h3>
-          <p className="mt-1 text-xs font-medium leading-5 text-amber-900">
+          <p className="mt-1 text-xs font-medium leading-5 text-slate-600">
             Puedes saltar a cualquier paso. Todo queda dentro del sandbox.
           </p>
         </div>
@@ -191,13 +191,13 @@ export function DemoSandboxPanel() {
           <Link
             key={label}
             href={href}
-            className="group flex min-h-28 flex-col justify-between rounded-2xl border border-amber-200 bg-white p-4 text-slate-900 shadow-sm transition-colors hover:border-amber-300 hover:bg-amber-100/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+            className="group flex min-h-28 flex-col justify-between rounded-2xl border border-blue-200 bg-white p-4 text-slate-900 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-100/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <span className="flex items-start justify-between gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
                 <Icon className="h-5 w-5" />
               </span>
-              <span className="flex items-center gap-1 text-xs font-black text-amber-800">
+              <span className="flex items-center gap-1 text-xs font-black text-blue-700">
                 {index + 1}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </span>

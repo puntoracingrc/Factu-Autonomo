@@ -11,6 +11,7 @@ export const FACTU_TOAST_EVENT = "factu-toast";
 
 export function shouldShowFactuWidget(pathname: string): boolean {
   if (isFactuWidgetDismissed()) return false;
+  if (pathname.startsWith("/demo")) return false;
   if (pathname.startsWith("/cuenta")) return false;
   if (pathname.startsWith("/legal")) return false;
   if (pathname.includes("/nuevo")) return false;

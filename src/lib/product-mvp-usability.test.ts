@@ -252,6 +252,7 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain('href="/inicio"');
     expect(appShellSource).toContain("Volver al inicio");
     expect(conditionalShellSource).toContain('pathname === "/inicio"');
+    expect(conditionalShellSource).toContain('pathname === "/demo"');
     expect(landingSource).toContain('href="/inicio"');
   });
 
@@ -426,8 +427,16 @@ describe("MVP usability polish", () => {
       new URL("../components/marketing/PublicLanding.tsx", import.meta.url),
       "utf8",
     );
+    const appShellSource = readFileSync(
+      new URL("../components/layout/AppShell.tsx", import.meta.url),
+      "utf8",
+    );
     const demoBannerSource = readFileSync(
       new URL("../components/demo/DemoModeBanner.tsx", import.meta.url),
+      "utf8",
+    );
+    const demoPageSource = readFileSync(
+      new URL("../app/demo/page.tsx", import.meta.url),
       "utf8",
     );
     const demoPanelSource = readFileSync(
@@ -436,6 +445,10 @@ describe("MVP usability polish", () => {
     );
     const demoWorkspaceSource = readFileSync(
       new URL("../lib/demo-workspace.ts", import.meta.url),
+      "utf8",
+    );
+    const demoHookSource = readFileSync(
+      new URL("../hooks/useDemoWorkspaceMode.ts", import.meta.url),
       "utf8",
     );
     const storageSource = readFileSync(
@@ -453,8 +466,16 @@ describe("MVP usability polish", () => {
     expect(demoBannerSource).toContain("Sandbox separado");
     expect(demoBannerSource).toContain("Reiniciar demo");
     expect(demoBannerSource).toContain("Volver al tour");
+    expect(appShellSource).toContain("const demoMode = useDemoWorkspaceMode();");
+    expect(appShellSource).toContain(
+      "!demoMode && !factuDismissed && shouldShowFactuWidget(pathname)",
+    );
+    expect(demoPageSource).toContain("if (!ready) return;");
+    expect(demoPageSource).not.toContain("authReady");
     expect(demoPanelSource).toContain("Sandbox de prueba");
     expect(demoPanelSource).toContain("Prueba el producto en 3 minutos");
+    expect(demoPanelSource).toContain("border-blue-200 bg-blue-50");
+    expect(demoPanelSource).not.toContain("border-amber-200 bg-amber-50");
     expect(demoPanelSource).toContain("Ruta recomendada");
     expect(demoPanelSource).toContain("clientes automáticos");
     expect(demoPanelSource).toContain("Mira una factura pendiente");
@@ -469,6 +490,9 @@ describe("MVP usability polish", () => {
     expect(demoPanelSource).toContain("/impuestos");
     expect(demoWorkspaceSource).toContain("demo-invoice-draft");
     expect(demoWorkspaceSource).toContain("DEMO_WORKSPACE_STORAGE_KEY");
+    expect(demoHookSource).toContain("useState(false)");
+    expect(demoHookSource).toContain("refresh();");
+    expect(demoHookSource).not.toContain("useState(() => isDemoWorkspaceMode())");
     expect(storageSource).toContain("isDemoWorkspaceMode()");
   });
 

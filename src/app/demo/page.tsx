@@ -15,10 +15,10 @@ import { loadData } from "@/lib/storage";
 export default function DemoPage() {
   const router = useRouter();
   const { ready, replaceData } = useAppStore();
-  const { authReady, user } = useCloudSync();
+  const { user } = useCloudSync();
 
   useEffect(() => {
-    if (!ready || !authReady) return;
+    if (!ready) return;
 
     if (user) {
       setDemoWorkspaceMode(false);
@@ -31,7 +31,7 @@ export default function DemoPage() {
     resetDemoWorkspaceData();
     replaceData(createDemoWorkspaceData(), { fromRemote: true });
     router.replace("/");
-  }, [authReady, ready, replaceData, router, user]);
+  }, [ready, replaceData, router, user]);
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md items-center justify-center px-4">

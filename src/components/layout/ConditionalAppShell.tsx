@@ -15,6 +15,7 @@ export function ConditionalAppShell({ children }: { children: React.ReactNode })
   const demoMode = useDemoWorkspaceMode();
   const isAuthRoute = pathname.startsWith("/auth/");
   const isPublicStartRoute = pathname === "/inicio";
+  const isPublicDemoRoute = pathname === "/demo";
   const isPublicHome =
     pathname === "/" &&
     !demoMode &&
@@ -26,7 +27,7 @@ export function ConditionalAppShell({ children }: { children: React.ReactNode })
     );
   }
 
-  if (isPublicStartRoute || isPublicHome) {
+  if (isPublicStartRoute || isPublicDemoRoute || isPublicHome) {
     return <>{children}</>;
   }
 
