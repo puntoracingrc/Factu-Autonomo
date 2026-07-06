@@ -11,6 +11,10 @@ export function mapExistingInvoiceToProfitabilityIncome(
   }
 
   const totals = documentTotals(invoice);
+  const isTotalRectification = invoice.rectification?.type === "anulacion";
+  const subtotal = isTotalRectification ? 0 : roundMoney(totals.subtotal);
+  const iva = isTotalRectification ? 0 : roundMoney(totals.iva);
+  const total = isTotalRectification ? 0 : roundMoney(totals.total);
 
   return {
     id: invoice.id,
@@ -23,9 +27,9 @@ export function mapExistingInvoiceToProfitabilityIncome(
     acceptanceStatus: invoice.acceptanceStatus,
     sourceQuoteDocumentId: invoice.sourceQuoteDocumentId,
     sourceQuoteNumber: invoice.sourceQuoteNumber,
-    subtotal: roundMoney(totals.subtotal),
-    iva: roundMoney(totals.iva),
-    total: roundMoney(totals.total),
+    subtotal,
+    iva,
+    total,
     lineCount: invoice.items.length,
     sourceLink: {
       sourceType: "invoice",

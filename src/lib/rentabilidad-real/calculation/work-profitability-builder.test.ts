@@ -245,6 +245,84 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     ]);
   });
 
+  it("usa la rectificativa vigente y mantiene gastos enlazados a la factura original", () => {
+    const original = documentFixture({
+      id: "invoice_original",
+      type: "factura",
+      number: "F-2026-0001",
+      status: "rectificada",
+      rectifiedById: "invoice_rect",
+    });
+    const rectificativa = documentFixture({
+      id: "invoice_rect",
+      type: "factura",
+      number: "FR-2026-0001",
+      items: [
+        {
+          id: "line_rect",
+          description: "Servicio corregido",
+          quantity: 1,
+          unitPrice: 800,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: "invoice_original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+    const linkedToOriginal = expenseFixture({
+      id: "expense_original",
+      amount: 120,
+      workDocumentId: "invoice_original",
+    });
+
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [original, rectificativa],
+        expenses: [linkedToOriginal],
+      }),
+      { sourceDocumentId: "invoice_rect" },
+    );
+
+    expect(input?.invoiceSummary?.documentId).toBe("invoice_rect");
+    expect(input?.invoiceSummary?.subtotal).toBe(800);
+    expect(input?.directCosts.map((cost) => cost.id)).toEqual([
+      "expense_original",
+    ]);
+  });
+
+  it("no calcula una factura original ya sustituida por rectificativa", () => {
+    const original = documentFixture({
+      id: "invoice_original",
+      type: "factura",
+      status: "rectificada",
+      rectifiedById: "invoice_rect",
+    });
+    const rectificativa = documentFixture({
+      id: "invoice_rect",
+      type: "factura",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: "invoice_original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({ documents: [original, rectificativa] }),
+      { sourceDocumentId: "invoice_original" },
+    );
+
+    expect(input).toBeNull();
+  });
+
   it("evita duplicados en costes directos", () => {
     const invoice = documentFixture({
       id: "invoice_1",

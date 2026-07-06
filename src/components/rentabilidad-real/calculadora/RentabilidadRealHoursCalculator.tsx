@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
+import { isSupersededRentabilidadRealDocument } from "@/lib/rentabilidad-real/document-chain";
 import {
   buildRentabilidadRealHoursProfitabilityInputFromExistingData,
   calculateRentabilidadRealHoursProfitability,
@@ -43,7 +44,9 @@ export function RentabilidadRealHoursCalculator() {
   const documents = useMemo(
     () =>
       data.documents.filter(
-        (doc) => doc.type === "factura" || doc.type === "presupuesto",
+        (doc) =>
+          (doc.type === "factura" || doc.type === "presupuesto") &&
+          !isSupersededRentabilidadRealDocument(doc),
       ),
     [data.documents],
   );

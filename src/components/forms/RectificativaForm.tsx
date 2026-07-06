@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import {
   ClientPicker,
   clientToFormValues,
@@ -30,6 +30,7 @@ import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
+import { openDocumentPdfPreview } from "@/lib/pdf";
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
@@ -65,12 +66,19 @@ interface LineAreaDraft {
 export function RectificativaForm({ original }: RectificativaFormProps) {
   const router = useRouter();
   const { data, addRectificativa, registerVerifactuForDocument } = useAppStore();
-  const { checkCanCreateDocument, recordDocumentCreated } = useBilling();
+  const {
+    billingEnabled,
+    checkCanCreateDocument,
+    isPro,
+    recordDocumentCreated,
+  } = useBilling();
+  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
-  const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
-    "idle",
-  );
+  const [saveAction, setSaveAction] = useState<
+    "idle" | "draft" | "save" | "save-pdf"
+  >("idle");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
@@ -135,19 +143,113 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const finalReason =
     reason === "Otros motivos" ? customReason.trim() : reason;
 
-  async function handleSave(download = false) {
-    if (saving) return;
+  function rectificativaItemsForSave(): LineItem[] {
+    return normalizeLineItemUnits(
+      (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
+        i.description.trim(),
+      ),
+      unitsSettings,
+    );
+  }
 
+  function rectificativaClient() {
+    return {
+      firstName: clientForm.firstName,
+      lastName: clientForm.lastName,
+      name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+      nif: clientForm.nif || undefined,
+      email: clientForm.email || undefined,
+      phone: clientForm.phone || undefined,
+      streetType: clientForm.streetType || undefined,
+      residenceType: clientForm.residenceType,
+      addressExtra:
+        clientForm.residenceType === "house"
+          ? undefined
+          : clientForm.addressExtra || undefined,
+      address:
+        formatAddressBlock({
+          streetType: clientForm.streetType,
+          address: clientForm.address,
+          residenceType: clientForm.residenceType,
+          addressExtra: clientForm.addressExtra,
+          postalCode: clientForm.postalCode,
+          city: clientForm.city,
+        }) ||
+        clientForm.address ||
+        undefined,
+    };
+  }
+
+  function buildRectificativaDraft(status: Document["status"]): Document {
+    const now = new Date().toISOString();
+    return {
+      id: "preview-rectificativa",
+      type: "factura",
+      number: "BORRADOR",
+      date,
+      client: rectificativaClient(),
+      customerId: original.customerId,
+      items: rectificativaItemsForSave(),
+      notes: notes || undefined,
+      paymentTerms: paymentTerms.trim() || undefined,
+      status,
+      sourceQuoteDocumentId: original.sourceQuoteDocumentId,
+      sourceQuoteNumber: original.sourceQuoteNumber,
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: finalReason,
+        type: rectType,
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function validateRectificativaBasics(): boolean {
     if (!finalReason) {
       alert("Indica el motivo de la rectificación");
-      return;
+      return false;
     }
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
-      return;
+      return false;
     }
+    return true;
+  }
 
-    setSaveAction(download ? "save-pdf" : "save");
+  async function handlePreview() {
+    if (saving || previewLoading) return;
+    if (!validateRectificativaBasics()) return;
+
+    setPreviewLoading(true);
+    try {
+      const doc = attachIssuerSnapshot(
+        buildRectificativaDraft("borrador"),
+        data.profile,
+      );
+      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
+    } catch (error) {
+      alert(
+        error instanceof Error && error.message === "popup_blocked"
+          ? "Permite ventanas emergentes para ver la vista previa, o usa la descarga del PDF."
+          : "No se pudo generar la vista previa del PDF.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function handleSave(
+    download = false,
+    statusOverride: Document["status"] = "enviado",
+  ) {
+    if (saving) return;
+    if (!validateRectificativaBasics()) return;
+
+    const isDraft = statusOverride === "borrador";
+    setSaveAction(isDraft ? "draft" : download ? "save-pdf" : "save");
 
     const gate = checkCanCreateDocument(data.customers.length);
     if (!gate.allowed) {
@@ -157,60 +259,36 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       return;
     }
 
-    const emissionCheck = validateDocumentEmission(
-      {
-        type: "factura",
-        status: "enviado",
-        client: {
-          name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+    if (!isDraft) {
+      const emissionCheck = validateDocumentEmission(
+        {
+          type: "factura",
+          status: statusOverride,
+          client: {
+            name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
+          },
+          items,
         },
-        items,
-      },
-      data.profile,
-      "factura",
-    );
-    if (!emissionCheck.ok) {
-      alert(emissionCheck.message);
-      setSaveAction("idle");
-      return;
+        data.profile,
+        "factura",
+      );
+      if (!emissionCheck.ok) {
+        alert(emissionCheck.message);
+        setSaveAction("idle");
+        return;
+      }
     }
 
     let saved = addRectificativa(original.id, {
       date,
-      client: {
-        firstName: clientForm.firstName,
-        lastName: clientForm.lastName,
-        name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
-        nif: clientForm.nif || undefined,
-        email: clientForm.email || undefined,
-        phone: clientForm.phone || undefined,
-        streetType: clientForm.streetType || undefined,
-        residenceType: clientForm.residenceType,
-        addressExtra:
-          clientForm.residenceType === "house"
-            ? undefined
-            : clientForm.addressExtra || undefined,
-        address:
-          formatAddressBlock({
-            streetType: clientForm.streetType,
-            address: clientForm.address,
-            residenceType: clientForm.residenceType,
-            addressExtra: clientForm.addressExtra,
-            postalCode: clientForm.postalCode,
-            city: clientForm.city,
-          }) ||
-          clientForm.address ||
-          undefined,
-      },
-      items: normalizeLineItemUnits(
-        (vatExempt ? zeroIvaItems(items) : items).filter((i) =>
-          i.description.trim(),
-        ),
-        unitsSettings,
-      ),
+      client: rectificativaClient(),
+      customerId: original.customerId,
+      items: rectificativaItemsForSave(),
       notes: notes || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
-      status: "enviado",
+      status: statusOverride,
+      sourceQuoteDocumentId: original.sourceQuoteDocumentId,
+      sourceQuoteNumber: original.sourceQuoteNumber,
       rectification: {
         originalDocumentId: original.id,
         originalNumber: original.number,
@@ -227,6 +305,16 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     }
 
     recordDocumentCreated();
+
+    if (isDraft) {
+      setSaveAction("idle");
+      await finishDocumentSave({
+        type: "factura",
+        number: saved.number,
+        router,
+      });
+      return;
+    }
 
     saved = attachIssuerSnapshot(saved, data.profile);
 
@@ -253,7 +341,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       type: "factura",
       number: saved.number,
       router,
-      download: download ? { doc: saved, profile: data.profile } : undefined,
+      download: download
+        ? { doc: saved, profile: data.profile, pdfOptions }
+        : undefined,
     });
   }
 
@@ -299,9 +389,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                 : "border-slate-200 bg-white"
             }`}
           >
-            <p className="font-bold text-slate-900">Corrección de importes</p>
+            <p className="font-bold text-slate-900">Corrección de datos</p>
             <p className="mt-1 text-sm text-slate-600">
-              Corrige cantidades o conceptos con los valores correctos.
+              Corrige datos, cantidades o conceptos con los valores correctos.
             </p>
           </button>
         </div>
@@ -518,20 +608,43 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         </Field>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button fullWidth onClick={() => void handleSave(false)} disabled={saving}>
-          {saveAction === "save" ? "Guardando…" : "Guardar factura rectificativa"}
-        </Button>
+      <div className="flex flex-col gap-3">
         <Button
           variant="secondary"
           fullWidth
-          onClick={() => void handleSave(true)}
-          disabled={saving}
+          onClick={() => void handlePreview()}
+          disabled={saving || previewLoading}
         >
-          {saveAction === "save-pdf"
-            ? "Guardando y preparando PDF…"
-            : "Guardar y descargar PDF"}
+          <Eye className="h-5 w-5" />
+          {previewLoading ? "Generando vista previa…" : "Vista previa PDF"}
         </Button>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => void handleSave(false, "borrador")}
+            disabled={saving || previewLoading}
+          >
+            {saveAction === "draft" ? "Guardando…" : "Guardar borrador"}
+          </Button>
+          <Button
+            fullWidth
+            onClick={() => void handleSave(false, "enviado")}
+            disabled={saving || previewLoading}
+          >
+            {saveAction === "save" ? "Guardando…" : "Emitir rectificativa"}
+          </Button>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => void handleSave(true, "enviado")}
+            disabled={saving || previewLoading}
+          >
+            {saveAction === "save-pdf"
+              ? "Guardando y preparando PDF…"
+              : "Emitir y descargar PDF"}
+          </Button>
+        </div>
       </div>
 
       <UpgradeModal

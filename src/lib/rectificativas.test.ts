@@ -58,6 +58,22 @@ describe("facturas rectificativas", () => {
     ).toBe(false);
   });
 
+  it("permite rectificar una rectificativa emitida si todavía no fue sustituida", () => {
+    expect(
+      canRectifyInvoice(
+        invoice("2", "FR-2026-0001", "enviado", {
+          rectification: {
+            originalDocumentId: "1",
+            originalNumber: "F-2026-0001",
+            originalDate: "2026-06-01",
+            reason: "Error en datos",
+            type: "correccion",
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("anulación genera importes negativos", () => {
     const original = invoice("1", "F-2026-0001", "pagado");
     const negated = itemsForAnulacion(original.items);

@@ -596,7 +596,6 @@ function openPdfWindow(title: string): Window {
     throw new Error("popup_blocked");
   }
 
-  opened.opener = null;
   opened.document.open();
   opened.document.write(`<!doctype html>
 <html lang="es">
@@ -676,6 +675,11 @@ function renderPdfWindow(
   </body>
 </html>`);
   opened.document.close();
+  try {
+    opened.opener = null;
+  } catch {
+    // Algunos navegadores no permiten modificar opener después de renderizar.
+  }
 }
 
 /** Descarga fiable en móvil (Safari bloquea jsPDF.save tras async largos). */
@@ -721,6 +725,16 @@ export async function openDocumentPdfPreview(
     const blob = await buildDocumentPdfBlob(doc, profile, options);
     const url = URL.createObjectURL(blob);
     renderPdfWindow(opened, url, pdfFilename(doc));
+    window.setTimeout(() => {
+      try {
+        const bodyHasContent = Boolean(opened.document.body?.childElementCount);
+        if (!opened.closed && !bodyHasContent) {
+          opened.location.href = url;
+        }
+      } catch {
+        if (!opened.closed) opened.location.href = url;
+      }
+    }, 250);
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     opened.close();

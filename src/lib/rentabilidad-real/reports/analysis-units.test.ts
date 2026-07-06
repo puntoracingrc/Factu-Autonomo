@@ -26,6 +26,8 @@ function document(
     ],
     status: overrides.status ?? "enviado",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
+    rectification: overrides.rectification,
+    rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
   };
@@ -148,6 +150,39 @@ describe("buildRentabilidadRealAnalysisUnits", () => {
     expect(units[0]).toMatchObject({
       clientId: "client_unassigned",
       clientName: "Cliente sin asignar",
+    });
+  });
+
+  it("usa la rectificativa vigente y excluye la factura sustituida", () => {
+    const original = document({
+      id: "i1",
+      type: "factura",
+      number: "F-1",
+      status: "rectificada",
+      rectifiedById: "r1",
+    });
+    const rectificativa = document({
+      id: "r1",
+      type: "factura",
+      number: "FR-1",
+      date: "2026-07-02",
+      rectification: {
+        originalDocumentId: "i1",
+        originalNumber: "F-1",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const units = buildRentabilidadRealAnalysisUnits(
+      appData([original, rectificativa]),
+    );
+
+    expect(units).toHaveLength(1);
+    expect(units[0]).toMatchObject({
+      invoiceDocumentId: "r1",
+      relatedDocumentIds: ["r1", "i1"],
     });
   });
 });
