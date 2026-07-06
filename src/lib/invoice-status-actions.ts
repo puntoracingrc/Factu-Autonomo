@@ -43,6 +43,10 @@ export function documentStatusLabel(
   if (type === "presupuesto" && isAcceptedQuote(doc)) return "Aceptado";
   if (type === "presupuesto" && isRejectedQuote(doc)) return "Rechazado";
 
+  if (type === "factura" && doc.rectifiedById) {
+    return doc.status === "anulada" ? "Anulada" : "Rectificada";
+  }
+
   if (type === "factura" && isCollectedDocument(doc)) return "Cobrada";
   if (type === "recibo" && isCollectedDocument(doc)) return "Cobrado";
 
@@ -64,6 +68,11 @@ export function documentStatusLabel(
 }
 
 export function documentStatusColor(doc: Document): string {
+  if (doc.type === "factura" && doc.rectifiedById) {
+    return doc.status === "anulada"
+      ? STATUS_COLORS.anulada
+      : STATUS_COLORS.rectificada;
+  }
   if (doc.type === "presupuesto" && isQuoteExpired(doc)) {
     return "bg-slate-200 text-slate-700";
   }

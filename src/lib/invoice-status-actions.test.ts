@@ -3,6 +3,7 @@ import {
   PAYMENT_REMINDER_COPY,
   RECTIFICATION_ACTION_COPY,
   collectionActionCopy,
+  documentStatusColor,
   documentStatusHint,
   documentStatusLabel,
 } from "./invoice-status-actions";
@@ -87,6 +88,17 @@ describe("invoice status action copy", () => {
     expect(documentStatusHint(issuedInvoice({ status: "vencido" }))).toContain(
       "preparar un recordatorio",
     );
+  });
+
+  it("muestra como rectificada una factura original con rectificativa asociada", () => {
+    const rectified = issuedInvoice({
+      status: "pagado",
+      rectifiedById: "rect-1",
+    });
+
+    expect(documentStatusLabel(rectified)).toBe("Rectificada");
+    expect(documentStatusColor(rectified)).toContain("orange");
+    expect(documentStatusHint(rectified)).toContain("original rectificada");
   });
 
   it("diferencia estados comerciales locales de presupuestos", () => {

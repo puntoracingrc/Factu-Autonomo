@@ -4,9 +4,10 @@ import {
   decodeDocumentIdFromPath,
   documentDetailPath,
   encodeDocumentIdForPath,
+  getDocumentChainItems,
   getDocumentLinkBadges,
 } from "./document-links";
-import type { Document, DocumentType } from "./types";
+import type { Document, DocumentType, Expense } from "./types";
 
 function document(overrides: Partial<Document> & { id: string; type: DocumentType }): Document {
   return {
@@ -134,5 +135,71 @@ describe("document links", () => {
     expect(encodeDocumentIdForPath(invoice.id)).toBe("Factura%252F2940%252F");
     expect(decodeDocumentIdFromPath("Factura%2F2940%2F")).toBe("Factura/2940/");
     expect(documentDetailPath(invoice)).toBe("/facturas/Factura%252F2940%252F");
+  });
+
+  it("ordena la cadena como factura, rectificativa, presupuesto, recibo y gastos", () => {
+    const quote = document({ id: "quote-1", type: "presupuesto" });
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      status: "rectificada",
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+      rectifiedById: "rect-1",
+    });
+    const rectification = document({
+      id: "rect-1",
+      type: "factura",
+      number: "FR-2026-0001",
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+      rectification: {
+        originalDocumentId: invoice.id,
+        originalNumber: invoice.number,
+        originalDate: invoice.date,
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+    const receipt = document({
+      id: "receipt-1",
+      type: "recibo",
+      sourceDocumentId: rectification.id,
+    });
+    const expense: Expense = {
+      id: "expense-1",
+      date: "2026-06-30",
+      supplierName: "Proveedor",
+      description: "Material",
+      amount: 50,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: invoice.id,
+      createdAt: "2026-06-30T08:00:00.000Z",
+    };
+
+    const chain = getDocumentChainItems(
+      invoice,
+      [quote, invoice, rectification, receipt],
+      [expense],
+    );
+
+    expect(chain.map((item) => item.role)).toEqual([
+      "factura",
+      "rectificativa",
+      "presupuesto",
+      "recibo",
+      "gastos",
+    ]);
+    expect(chain.map((item) => item.value)).toEqual([
+      invoice.number,
+      rectification.number,
+      quote.number,
+      receipt.number,
+      "1 gasto",
+    ]);
+    expect(chain[0]).toMatchObject({ current: true });
+    expect(chain[1]?.href).toBe(documentDetailPath(rectification));
   });
 });

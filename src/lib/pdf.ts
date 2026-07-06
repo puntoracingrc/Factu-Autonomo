@@ -54,6 +54,36 @@ function formatIssuerLocationLines(
   );
 }
 
+function compactPdfTextLine(parts: Array<string | undefined>): string | null {
+  const line = parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
+  return line || null;
+}
+
+function formatIssuerDetailLines(
+  issuer: DocumentPdfViewModel["issuer"],
+): string[] {
+  return [
+    compactPdfTextLine([
+      hasDistinctFiscalName(issuer)
+        ? `Titular fiscal: ${issuer.name.trim()}`
+        : undefined,
+      issuer.nif ? `NIF: ${issuer.nif}` : undefined,
+      issuer.vatId && issuer.vatId !== issuer.nif
+        ? `VAT/VIES: ${issuer.vatId}`
+        : undefined,
+    ]),
+    compactPdfTextLine([issuer.address, ...formatIssuerLocationLines(issuer)]),
+    compactPdfTextLine([
+      issuer.phone ? `Tel: ${issuer.phone}` : undefined,
+      issuer.email,
+      issuer.website,
+    ]),
+  ].filter((line): line is string => Boolean(line));
+}
+
 const FREE_PLAN_BRANDING_TEXT =
   "Factura realizada con facturacion-autonomos.app";
 
@@ -306,20 +336,9 @@ export function buildDocumentPdfFromViewModel(
   );
   pdf.setFont(pdfFont, "normal");
   pdf.setFontSize(bodyFontSize);
-  const issuerDetailLines = [
-    ...(hasDistinctFiscalName(issuer)
-      ? [`Titular fiscal: ${issuer.name.trim()}`]
-      : []),
-    ...(issuer.nif ? [`NIF: ${issuer.nif}`] : []),
-    ...(issuer.vatId && issuer.vatId !== issuer.nif
-      ? [`VAT/VIES: ${issuer.vatId}`]
-      : []),
-    ...(issuer.address ? [issuer.address] : []),
-    ...formatIssuerLocationLines(issuer),
-    ...(issuer.phone ? [`Tel: ${issuer.phone}`] : []),
-    ...(issuer.email ? [issuer.email] : []),
-    ...(issuer.website ? [issuer.website] : []),
-  ].flatMap((line) => pdf.splitTextToSize(line, issuerMaxWidth));
+  const issuerDetailLines = formatIssuerDetailLines(issuer).flatMap((line) =>
+    pdf.splitTextToSize(line, issuerMaxWidth),
+  );
   const issuerWarningLines = issuerWarning
     ? pdf.splitTextToSize(issuerWarning, issuerMaxWidth)
     : [];

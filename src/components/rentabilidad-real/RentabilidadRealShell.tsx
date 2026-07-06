@@ -78,13 +78,24 @@ export function RentabilidadRealShell() {
   });
 
   useEffect(() => {
-    setStoredAnswers(getStoredRentabilidadRealWizardAnswers());
-    setLastScoringResult(getStoredRentabilidadRealLastScoringResult());
-    setValidationStatus(getStoredRentabilidadRealAdvisorValidationStatus());
+    const refreshStoredConfiguration = () => {
+      setStoredAnswers(getStoredRentabilidadRealWizardAnswers());
+      setLastScoringResult(getStoredRentabilidadRealLastScoringResult());
+      setValidationStatus(getStoredRentabilidadRealAdvisorValidationStatus());
+    };
+
+    refreshStoredConfiguration();
     const advisorNotice = consumeRentabilidadRealAdvisorValidationNotice();
     if (advisorNotice) {
       setValidationNotice(advisorNotice);
     }
+
+    window.addEventListener("focus", refreshStoredConfiguration);
+    window.addEventListener("pageshow", refreshStoredConfiguration);
+    return () => {
+      window.removeEventListener("focus", refreshStoredConfiguration);
+      window.removeEventListener("pageshow", refreshStoredConfiguration);
+    };
   }, []);
 
   useEffect(() => {
@@ -136,38 +147,38 @@ export function RentabilidadRealShell() {
         </p>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/80 p-5 dark:border-blue-900/60 dark:bg-blue-950/30">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-bold text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-200">
-              <Sparkles className="h-4 w-4" />
-              Incluido en Pro+ para autónomos hasta nivel 4
+      {showAdvisorValidationAction ? (
+        <section className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/80 p-5 dark:border-blue-900/60 dark:bg-blue-950/30">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-bold text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-200">
+                <Sparkles className="h-4 w-4" />
+                Incluido en Pro+ para autónomos hasta nivel 4
+              </div>
+              <p className="mt-4 text-base leading-7 text-slate-700 dark:text-slate-200">
+                Los módulos de autónomos persona física hasta nivel 4 están
+                incluidos en Pro+. Tu plan actual en esta sesión es {planName}.
+              </p>
             </div>
-            <p className="mt-4 text-base leading-7 text-slate-700 dark:text-slate-200">
-              Los módulos de autónomos persona física hasta nivel 4 están
-              incluidos en Pro+. Tu plan actual en esta sesión es {planName}.
-            </p>
-          </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <Link
-              href="/rentabilidad-real/test"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Hacer test guiado
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            {showAdvisorValidationAction ? (
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <Link
+                href="/rentabilidad-real/test"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Hacer test guiado
+                <ArrowRight className="h-5 w-5" />
+              </Link>
               <Link
                 href="/rentabilidad-real/validar-configuracion"
                 className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 transition-colors hover:bg-blue-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               >
                 Validar configuración
               </Link>
-            ) : null}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {validationNotice === "validated" ? (
         <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
@@ -230,67 +241,72 @@ export function RentabilidadRealShell() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/45 dark:text-blue-200">
-              <BadgeCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
-                Acceso
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {rentabilidadRealAccess.isProPlus
-                  ? "Puedes activar módulos incluidos sin coste adicional."
-                  : "Los módulos incluidos requieren Pro+ para activarse."}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              <TestTube2 className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
-                Test guiado
-              </h2>
-              {lastScoringResult ? (
+      {showAdvisorValidationAction ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/45 dark:text-blue-200">
+                <BadgeCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
+                  Acceso
+                </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Nivel {lastScoringResult.level}:{" "}
-                  {lastScoringResult.profileLabel}
+                  {rentabilidadRealAccess.isProPlus
+                    ? "Puedes activar módulos incluidos sin coste adicional."
+                    : "Los módulos incluidos requieren Pro+ para activarse."}
                 </p>
-              ) : (
+              </div>
+            </div>
+          </Card>
+
+          <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                <TestTube2 className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
+                  Test guiado
+                </h2>
+                {lastScoringResult ? (
+                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    Nivel {lastScoringResult.level}:{" "}
+                    {lastScoringResult.profileLabel}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    Todavía no hay test guardado.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
+                <ClipboardCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
+                  Gestor
+                </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Todavía no hay test guardado.
+                  {VALIDATION_LABELS[validationStatus]}
                 </p>
-              )}
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
+      ) : null}
 
-        <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
-              <ClipboardCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
-                Gestor
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {VALIDATION_LABELS[validationStatus]}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-2xl border border-slate-200/80 bg-slate-100/60 p-4 dark:border-slate-700 dark:bg-slate-950/35">
+        <h2 className="text-base font-black text-slate-950 dark:text-slate-50">
+          Herramientas
+        </h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Card className="h-full border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
             <div className="flex h-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
@@ -342,7 +358,7 @@ export function RentabilidadRealShell() {
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <Card className="h-full border-violet-200 bg-violet-50 dark:border-violet-900/60 dark:bg-violet-950/35">
             <div className="flex h-full flex-col gap-4">
               <div className="flex items-start gap-3">
@@ -410,7 +426,7 @@ export function RentabilidadRealShell() {
             </div>
           </Card>
         </div>
-      </div>
+      </section>
 
       {!hasTest ? (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35">
