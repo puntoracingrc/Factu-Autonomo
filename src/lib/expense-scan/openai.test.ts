@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MAX_IMAGE_BYTES } from "./limits";
+import { resolveScanMimeType, validateScanFile } from "./file-validation";
 import {
   resolveExpenseScanMaxTokens,
-  resolveScanMimeType,
-  validateScanFile,
 } from "./openai";
 
 function mockFile(name: string, type: string, size = 1000): File {

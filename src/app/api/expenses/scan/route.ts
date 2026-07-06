@@ -14,9 +14,11 @@ import { currentMonthKey } from "@/lib/billing/usage";
 import {
   extractExpenseFromImage,
   fileToBase64,
+} from "@/lib/expense-scan/openai";
+import {
   resolveScanMimeType,
   validateScanFile,
-} from "@/lib/expense-scan/openai";
+} from "@/lib/expense-scan/file-validation";
 
 function buildAiLearningTestQuota() {
   return buildScanQuota(
