@@ -164,6 +164,43 @@ describe("expense scan schema", () => {
     });
   });
 
+  it("mantiene líneas repetidas y limita el resultado a 50 filas", () => {
+    const result = normalizeExpenseScanPayload({
+      supplier: { name: "Stil Condal", nif: "B12345678" },
+      expense: {
+        date: "2026-07-06",
+        description: "Factura con varias líneas de material",
+        amount: 500,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+        purchaseLines: Array.from({ length: 52 }, (_, index) => ({
+          supplierReference: "AUTC45",
+          description: "AUTOBLOCANTE C-45 con medida repetida",
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 10 + index,
+          ivaPercent: 21,
+          total: 10 + index,
+        })),
+      },
+      confidence: 0.9,
+      warnings: [],
+    });
+
+    expect(result?.expense.purchaseLines).toHaveLength(50);
+    expect(result?.expense.purchaseLines?.[0]).toMatchObject({
+      supplierReference: "AUTC45",
+      description: "AUTOBLOCANTE C-45 con medida repetida",
+      total: 10,
+    });
+    expect(result?.expense.purchaseLines?.[49]).toMatchObject({
+      supplierReference: "AUTC45",
+      description: "AUTOBLOCANTE C-45 con medida repetida",
+      total: 59,
+    });
+  });
+
   it("normaliza datos estructurados de factura de proveedor", () => {
     const result = normalizeExpenseScanPayload({
       supplier: { name: "Proveedor SL", nif: "B87654321" },
