@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_IMAGE_BYTES } from "./limits";
 import { resolveScanMimeType, validateScanFile } from "./file-validation";
 import {
+  filterWarningsAfterPdfLineExtraction,
   resolveExpenseScanMaxTokens,
 } from "./openai";
 
@@ -47,5 +48,31 @@ describe("resolveExpenseScanMaxTokens", () => {
     expect(resolveExpenseScanMaxTokens("4200")).toBe(4200);
     expect(resolveExpenseScanMaxTokens("1200")).toBe(2000);
     expect(resolveExpenseScanMaxTokens("15000")).toBe(12000);
+  });
+});
+
+describe("filterWarningsAfterPdfLineExtraction", () => {
+  it("elimina avisos obsoletos cuando el lector del PDF recupera todas las líneas", () => {
+    expect(
+      filterWarningsAfterPdfLineExtraction(
+        [
+          "Documento contiene múltiples líneas de productos, se han extraído las primeras 5.",
+          "Revisar si conviene configurar como gasto fijo.",
+          "Revisa el NIF del proveedor.",
+        ],
+        40,
+        "purchase_invoice",
+      ),
+    ).toEqual(["Revisa el NIF del proveedor."]);
+  });
+
+  it("mantiene sugerencias de gasto fijo cuando el gasto realmente es fijo", () => {
+    expect(
+      filterWarningsAfterPdfLineExtraction(
+        ["Revisar si conviene configurar como gasto fijo."],
+        2,
+        "fixed",
+      ),
+    ).toEqual(["Revisar si conviene configurar como gasto fijo."]);
   });
 });

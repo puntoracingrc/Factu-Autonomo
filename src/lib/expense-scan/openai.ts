@@ -24,6 +24,37 @@ export function resolveExpenseScanMaxTokens(
   );
 }
 
+function normalizeWarningText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function filterWarningsAfterPdfLineExtraction(
+  warnings: string[],
+  pdfLineCount: number,
+  businessKind?: string,
+): string[] {
+  if (pdfLineCount <= 0) return warnings;
+
+  return warnings.filter((warning) => {
+    const normalized = normalizeWarningText(warning);
+    const looksLikeTruncatedLineWarning =
+      /(primeras?\s+\d+|extraid[oa]s?\s+las?\s+primeras?)/.test(normalized) &&
+      /(lineas?|productos?)/.test(normalized);
+    if (looksLikeTruncatedLineWarning) return false;
+
+    const looksLikeGenericFixedExpenseSuggestion =
+      pdfLineCount > 1 &&
+      businessKind !== "fixed" &&
+      normalized.includes("gasto fijo");
+    if (looksLikeGenericFixedExpenseSuggestion) return false;
+
+    return true;
+  });
+}
+
 function buildPdfTextHint(textRows: string): string {
   if (!textRows.trim()) return "";
   return `\n\nTexto seleccionable extraído del PDF por el servidor. Úsalo para no perder líneas de tablas largas o repetidas. Si el PDF visual y este texto difieren, prioriza el PDF visual para datos generales, pero conserva las filas de compra que aparezcan aquí:\n${textRows}`;
@@ -144,6 +175,11 @@ export async function extractExpenseFromImage(
     const currentLineCount = data.expense.purchaseLines?.length ?? 0;
     if (pdfLines.lines.length > currentLineCount) {
       data.expense.purchaseLines = pdfLines.lines;
+      data.warnings = filterWarningsAfterPdfLineExtraction(
+        data.warnings,
+        pdfLines.lines.length,
+        data.expense.businessKind,
+      );
       data.warnings.push(...pdfLines.warnings);
     }
   }
