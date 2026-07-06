@@ -1,0 +1,158 @@
+{
+  "invoice_id": "synthetic_es_0169",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2025-00169",
+  "date": "2025-01-30",
+  "due_date": "2025-02-06",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100169",
+    "address": "Calle Roble, 146 - Málaga",
+    "email": "ferreteria.modelo.sl.169@example.test",
+    "phone": "+34 900 169 549"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100469",
+    "address": "Calle de la Técnica, 147 - A Coruña",
+    "email": "empresa.receptora.fictic.469@example.test",
+    "phone": "+34 900 469 188"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-1126-1",
+      "description": "Transporte y manipulación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 130.16,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1301.6,
+      "vat_amount": 130.16,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1431.76,
+      "line_total_with_taxes": 1431.76,
+      "period": null
+    },
+    {
+      "reference": "REF-4031-2",
+      "description": "Servicio urgente 24h",
+      "unit": "kg",
+      "quantity": 7.24,
+      "unit_price": 339.11,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2455.16,
+      "vat_amount": 515.58,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2970.74,
+      "line_total_with_taxes": 2970.74,
+      "period": null
+    },
+    {
+      "reference": "REF-5569-3",
+      "description": "Servicio de instalación",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 13.17,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 65.85,
+      "vat_amount": 13.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 79.68,
+      "line_total_with_taxes": 79.68,
+      "period": null
+    },
+    {
+      "reference": "REF-1980-4",
+      "description": "Libro técnico",
+      "unit": "servicio",
+      "quantity": 12.0,
+      "unit_price": 275.86,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3310.32,
+      "vat_amount": 695.17,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4005.49,
+      "line_total_with_taxes": 4005.49,
+      "period": null
+    },
+    {
+      "reference": "REF-1233-5",
+      "description": "Mano de obra especializada",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 111.83,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 111.83,
+      "vat_amount": 23.48,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 135.31,
+      "line_total_with_taxes": 135.31,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7244.76,
+    "global_discount_rate": 3.0,
+    "global_discount_amount": 217.34,
+    "taxable_base": 7027.42,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1262.55,
+        "vat_amount": 126.26,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 5764.87,
+        "vat_amount": 1210.62,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1336.88,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 8364.3,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

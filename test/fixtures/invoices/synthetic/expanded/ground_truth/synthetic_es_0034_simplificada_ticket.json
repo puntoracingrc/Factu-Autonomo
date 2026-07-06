@@ -1,0 +1,157 @@
+{
+  "invoice_id": "synthetic_es_0034",
+  "document_title": "FACTURA SIMPLIFICADA",
+  "invoice_type": "simplificada",
+  "layout_id": "simplificada_ticket",
+  "source_inspiration": [
+    "Factura simplificada",
+    "Declarando / Holded"
+  ],
+  "invoice_number": "F-2024-00034",
+  "date": "2024-08-31",
+  "due_date": "2024-09-15",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100034",
+    "address": "Avenida del Puerto, 59 - Barcelona",
+    "email": "recambios.delta.demo.sl.34@example.test",
+    "phone": "+34 900 034 860"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100334",
+    "address": "Calle de la Técnica, 135 - Zaragoza",
+    "email": "distribuidor.beta.sl.334@example.test",
+    "phone": "+34 900 334 384"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-4882-1",
+      "description": "Servicio de instalación",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 40.26,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 161.04,
+      "vat_amount": 33.82,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 194.86,
+      "line_total_with_taxes": 194.86,
+      "period": null
+    },
+    {
+      "reference": "REF-7684-2",
+      "description": "Pintura base agua",
+      "unit": "pack",
+      "quantity": 12.0,
+      "unit_price": 434.56,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 5214.72,
+      "vat_amount": 1095.09,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 6309.81,
+      "line_total_with_taxes": 6309.81,
+      "period": null
+    },
+    {
+      "reference": "REF-1660-3",
+      "description": "Mantenimiento preventivo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 4.94,
+      "unit_price": 201.87,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 997.24,
+      "vat_amount": 39.89,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1037.13,
+      "line_total_with_taxes": 1037.13,
+      "period": null
+    },
+    {
+      "reference": "REF-5212-4",
+      "description": "Revisión técnica",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 393.18,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1965.9,
+      "vat_amount": 78.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2044.54,
+      "line_total_with_taxes": 2044.54,
+      "period": null
+    },
+    {
+      "reference": "REF-1018-5",
+      "description": "Rodamiento industrial",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 248.8,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2985.6,
+      "vat_amount": 626.98,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3612.58,
+      "line_total_with_taxes": 3612.58,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 11324.5,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 11324.5,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 8361.36,
+        "vat_amount": 1755.89,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 2963.14,
+        "vat_amount": 118.53,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1874.42,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 13198.92,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Ud.": "quantity",
+    "P. Unit": "unit_price",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

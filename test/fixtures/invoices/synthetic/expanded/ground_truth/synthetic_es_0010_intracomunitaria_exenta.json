@@ -1,0 +1,119 @@
+{
+  "invoice_id": "synthetic_es_0010",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2024-00010",
+  "date": "2024-03-26",
+  "due_date": "2024-04-02",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100010",
+    "address": "Avenida del Puerto, 91 - Bilbao",
+    "email": "ferreteria.modelo.sl.10@example.test",
+    "phone": "+34 900 010 965"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100310",
+    "address": "Calle de la Técnica, 7 - A Coruña",
+    "email": "startup.ejemplo.sl.310@example.test",
+    "phone": "+34 900 310 732"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-4526-1",
+      "description": "Kit de fijación",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 365.4,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 2192.4,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2192.4,
+      "line_total_with_taxes": 2192.4,
+      "period": null
+    },
+    {
+      "reference": "REF-4894-2",
+      "description": "Transporte y manipulación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 1.68,
+      "unit_price": 283.58,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 476.41,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 476.41,
+      "line_total_with_taxes": 476.41,
+      "period": null
+    },
+    {
+      "reference": "REF-2828-3",
+      "description": "Soporte premium",
+      "unit": "kg",
+      "quantity": 4.35,
+      "unit_price": 58.61,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 254.95,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 254.95,
+      "line_total_with_taxes": 254.95,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2923.76,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2923.76,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 2923.76,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2923.76,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

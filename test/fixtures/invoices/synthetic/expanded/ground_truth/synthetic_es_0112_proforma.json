@@ -1,0 +1,197 @@
+{
+  "invoice_id": "synthetic_es_0112",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00112",
+  "date": "2024-01-03",
+  "due_date": "2024-02-17",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100112",
+    "address": "Calle Mayor, 44 - Valencia",
+    "email": "maderas.prueba.sa.112@example.test",
+    "phone": "+34 900 112 775"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200412J",
+    "address": "Calle Gran Vía, 29 - Valencia",
+    "email": "comunidad.simulada.412@example.test",
+    "phone": "+34 900 412 311"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-3820-1",
+      "description": "Pantalla LED",
+      "unit": "h",
+      "quantity": 2.0,
+      "unit_price": 23.76,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": 45.14,
+      "vat_amount": 9.48,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 54.62,
+      "line_total_with_taxes": 54.62,
+      "period": null
+    },
+    {
+      "reference": "REF-4562-2",
+      "description": "Pack de consumibles - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 8.18,
+      "unit_price": 258.82,
+      "discount_rate": 10.0,
+      "vat_rate": 10.0,
+      "line_base": 1905.43,
+      "vat_amount": 190.54,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2095.97,
+      "line_total_with_taxes": 2095.97,
+      "period": null
+    },
+    {
+      "reference": "REF-4415-3",
+      "description": "Pantalla LED",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 422.93,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1268.79,
+      "vat_amount": 50.75,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1319.54,
+      "line_total_with_taxes": 1319.54,
+      "period": null
+    },
+    {
+      "reference": "REF-1854-4",
+      "description": "Pack de consumibles",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 357.65,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": 3397.68,
+      "vat_amount": 713.51,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4111.19,
+      "line_total_with_taxes": 4111.19,
+      "period": null
+    },
+    {
+      "reference": "REF-8719-5",
+      "description": "Tornillería inoxidable",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 102.44,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1024.4,
+      "vat_amount": 102.44,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1126.84,
+      "line_total_with_taxes": 1126.84,
+      "period": null
+    },
+    {
+      "reference": "REF-9400-6",
+      "description": "Soporte premium",
+      "unit": "h",
+      "quantity": 7.35,
+      "unit_price": 141.08,
+      "discount_rate": 15.0,
+      "vat_rate": 10.0,
+      "line_base": 881.4,
+      "vat_amount": 88.14,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 969.54,
+      "line_total_with_taxes": 969.54,
+      "period": null
+    },
+    {
+      "reference": "REF-2948-7",
+      "description": "Kit de fijación",
+      "unit": "h",
+      "quantity": 2.14,
+      "unit_price": 184.63,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": 355.6,
+      "vat_amount": 74.68,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 430.28,
+      "line_total_with_taxes": 430.28,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 8878.44,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 8878.44,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3798.42,
+        "vat_amount": 797.67,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 3811.23,
+        "vat_amount": 381.12,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1268.79,
+        "vat_amount": 50.75,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1229.54,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 10107.98,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

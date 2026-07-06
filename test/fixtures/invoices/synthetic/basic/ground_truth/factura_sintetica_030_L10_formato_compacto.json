@@ -1,0 +1,38 @@
+{
+  "layoutId": "L10_formato_compacto",
+  "supplierName": "Suministros Delta SL",
+  "supplierNif": "B12345678",
+  "supplierAddress": "Calle Mayor 12, 28013 Madrid",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0030",
+  "date": "2026-03-28",
+  "lines": [
+    {
+      "ref": "R03001",
+      "description": "Revision anual",
+      "quantity": 1,
+      "unitPrice": 140.47,
+      "discountRate": 0,
+      "base": 140.47,
+      "vatRate": 21,
+      "vatAmount": 29.5,
+      "lineTotal": 169.97
+    }
+  ],
+  "subtotal": 140.47,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 140.47,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 140.47,
+      "vatAmount": 29.5
+    }
+  ],
+  "vatAmount": 29.5,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 169.97
+}

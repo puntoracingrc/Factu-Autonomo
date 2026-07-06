@@ -1,0 +1,190 @@
+{
+  "invoice_id": "synthetic_es_0167",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "long_description",
+  "source_inspiration": [
+    "Casos con descripción larga",
+    "Datasets OCR multi-layout"
+  ],
+  "invoice_number": "F-2025-00167",
+  "date": "2025-01-02",
+  "due_date": "2025-01-09",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100167",
+    "address": "Paseo de la Industria, 6 - Alicante",
+    "email": "maderas.prueba.sa.167@example.test",
+    "phone": "+34 900 167 626"
+  },
+  "customer": {
+    "name": "Academia Ejemplo SCP",
+    "tax_id": "B-00100467",
+    "address": "Paseo de la Industria, 33 - Valencia",
+    "email": "academia.ejemplo.scp.467@example.test",
+    "phone": "+34 900 467 877"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-8052-1",
+      "description": "Equipo informático - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 4.8,
+      "unit_price": 152.86,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 733.73,
+      "vat_amount": 154.08,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 887.81,
+      "line_total_with_taxes": 887.81,
+      "period": null
+    },
+    {
+      "reference": "REF-5478-2",
+      "description": "Tornillería inoxidable - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 372.74,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2236.44,
+      "vat_amount": 469.65,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2706.09,
+      "line_total_with_taxes": 2706.09,
+      "period": null
+    },
+    {
+      "reference": "REF-1924-3",
+      "description": "Desplazamiento - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 4.0,
+      "unit_price": 447.13,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1788.52,
+      "vat_amount": 375.59,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2164.11,
+      "line_total_with_taxes": 2164.11,
+      "period": null
+    },
+    {
+      "reference": "REF-8132-4",
+      "description": "Cable eléctrico 2,5 mm - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 443.01,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1329.03,
+      "vat_amount": 279.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1608.13,
+      "line_total_with_taxes": 1608.13,
+      "period": null
+    },
+    {
+      "reference": "REF-8942-5",
+      "description": "Base de datos anual - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.28,
+      "unit_price": 400.17,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2513.07,
+      "vat_amount": 527.74,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3040.81,
+      "line_total_with_taxes": 3040.81,
+      "period": null
+    },
+    {
+      "reference": "REF-5331-6",
+      "description": "Motor tubular demo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 360.37,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2162.22,
+      "vat_amount": 454.07,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2616.29,
+      "line_total_with_taxes": 2616.29,
+      "period": null
+    },
+    {
+      "reference": "REF-7725-7",
+      "description": "Mantenimiento preventivo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 5.11,
+      "unit_price": 264.14,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1349.76,
+      "vat_amount": 134.98,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1484.74,
+      "line_total_with_taxes": 1484.74,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 12112.77,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 12112.77,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 10763.01,
+        "vat_amount": 2260.23,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1349.76,
+        "vat_amount": 134.98,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 2395.21,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 14507.98,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto detallado": "description",
+    "Unid.": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

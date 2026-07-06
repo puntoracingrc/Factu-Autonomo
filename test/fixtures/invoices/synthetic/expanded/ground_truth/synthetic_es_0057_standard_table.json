@@ -1,0 +1,126 @@
+{
+  "invoice_id": "synthetic_es_0057",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2025-00057",
+  "date": "2025-04-25",
+  "due_date": "2025-05-10",
+  "supplier": {
+    "name": "Talleres Vega Sintéticos SL",
+    "tax_id": "B-00100057",
+    "address": "Calle de la Técnica, 74 - Murcia",
+    "email": "talleres.vega.sinteticos.57@example.test",
+    "phone": "+34 900 057 370"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100357",
+    "address": "Ronda Fiscal, 135 - Palma",
+    "email": "empresa.receptora.fictic.357@example.test",
+    "phone": "+34 900 357 278"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-9094-1",
+      "description": "Base de datos anual - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 8.26,
+      "unit_price": 382.57,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3160.03,
+      "vat_amount": 663.61,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3823.64,
+      "line_total_with_taxes": 3823.64,
+      "period": null
+    },
+    {
+      "reference": "REF-8205-2",
+      "description": "Equipo informático",
+      "unit": "m",
+      "quantity": 10.0,
+      "unit_price": 127.68,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1276.8,
+      "vat_amount": 268.13,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1544.93,
+      "line_total_with_taxes": 1544.93,
+      "period": null
+    },
+    {
+      "reference": "REF-5859-3",
+      "description": "Licencia mensual software",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 278.63,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 278.63,
+      "vat_amount": 11.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 289.78,
+      "line_total_with_taxes": 289.78,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4715.46,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4715.46,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4436.83,
+        "vat_amount": 931.74,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 278.63,
+        "vat_amount": 11.15,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 942.89,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5658.35,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

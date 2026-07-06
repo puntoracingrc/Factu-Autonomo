@@ -1,0 +1,125 @@
+{
+  "invoice_id": "synthetic_es_0048",
+  "document_title": "FACTURA SIMPLIFICADA",
+  "invoice_type": "simplificada",
+  "layout_id": "simplificada_ticket",
+  "source_inspiration": [
+    "Factura simplificada",
+    "Declarando / Holded"
+  ],
+  "invoice_number": "F-2025-00048",
+  "date": "2025-01-28",
+  "due_date": "2025-02-12",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100048",
+    "address": "Calle de la Técnica, 133 - A Coruña",
+    "email": "electro.hogar.simulado.s.48@example.test",
+    "phone": "+34 900 048 140"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200348H",
+    "address": "Calle Roble, 38 - Bilbao",
+    "email": "particular.sintetico.348@example.test",
+    "phone": "+34 900 348 606"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-3912-1",
+      "description": "Desplazamiento",
+      "unit": "servicio",
+      "quantity": 10.0,
+      "unit_price": 373.86,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3738.6,
+      "vat_amount": 785.11,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4523.71,
+      "line_total_with_taxes": 4523.71,
+      "period": null
+    },
+    {
+      "reference": "REF-8318-2",
+      "description": "Auditoría técnica",
+      "unit": "h",
+      "quantity": 12.0,
+      "unit_price": 411.11,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 4933.32,
+      "vat_amount": 197.33,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5130.65,
+      "line_total_with_taxes": 5130.65,
+      "period": null
+    },
+    {
+      "reference": "REF-3842-3",
+      "description": "Soporte premium",
+      "unit": "ud",
+      "quantity": 3.0,
+      "unit_price": 69.97,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 209.91,
+      "vat_amount": 44.08,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 253.99,
+      "line_total_with_taxes": 253.99,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 8881.83,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 8881.83,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3948.51,
+        "vat_amount": 829.19,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 4933.32,
+        "vat_amount": 197.33,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1026.52,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 9908.35,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Ud.": "quantity",
+    "P. Unit": "unit_price",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

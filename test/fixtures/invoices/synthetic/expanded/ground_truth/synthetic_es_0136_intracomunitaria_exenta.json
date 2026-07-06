@@ -1,0 +1,151 @@
+{
+  "invoice_id": "synthetic_es_0136",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2024-00136",
+  "date": "2024-07-04",
+  "due_date": "2024-08-03",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100136",
+    "address": "Camino del Almacén, 116 - Málaga",
+    "email": "papeleria.fiscal.demo.sl.136@example.test",
+    "phone": "+34 900 136 695"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200436Z",
+    "address": "Plaza del Mercado, 38 - Valladolid",
+    "email": "comunidad.simulada.436@example.test",
+    "phone": "+34 900 436 555"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-9460-1",
+      "description": "Libro técnico",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 390.25,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 4683.0,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4683.0,
+      "line_total_with_taxes": 4683.0,
+      "period": null
+    },
+    {
+      "reference": "REF-4593-2",
+      "description": "Mantenimiento preventivo",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 224.28,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 2691.36,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2691.36,
+      "line_total_with_taxes": 2691.36,
+      "period": null
+    },
+    {
+      "reference": "REF-1695-3",
+      "description": "Base de datos anual",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 138.04,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 138.04,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 138.04,
+      "line_total_with_taxes": 138.04,
+      "period": null
+    },
+    {
+      "reference": "REF-4462-4",
+      "description": "Kit de fijación",
+      "unit": "ud",
+      "quantity": 5.0,
+      "unit_price": 31.19,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 155.95,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 155.95,
+      "line_total_with_taxes": 155.95,
+      "period": null
+    },
+    {
+      "reference": "REF-3974-5",
+      "description": "Soporte premium",
+      "unit": "ud",
+      "quantity": 6.56,
+      "unit_price": 256.22,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1680.8,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1680.8,
+      "line_total_with_taxes": 1680.8,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 9349.15,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 9349.15,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 9349.15,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 9349.15,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

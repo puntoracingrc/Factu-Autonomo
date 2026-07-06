@@ -1,0 +1,60 @@
+{
+  "layoutId": "L06_lineas_sin_ref",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0026",
+  "date": "2026-04-30",
+  "lines": [
+    {
+      "ref": "R02601",
+      "description": "Servicio tecnico",
+      "quantity": 5,
+      "unitPrice": 115.76,
+      "discountRate": 0,
+      "base": 578.8,
+      "vatRate": 21,
+      "vatAmount": 121.55,
+      "lineTotal": 700.35
+    },
+    {
+      "ref": "R02602",
+      "description": "Revision anual",
+      "quantity": 2,
+      "unitPrice": 129.74,
+      "discountRate": 0,
+      "base": 259.48,
+      "vatRate": 21,
+      "vatAmount": 54.49,
+      "lineTotal": 313.97
+    },
+    {
+      "ref": "R02603",
+      "description": "Kit instalacion",
+      "quantity": 5,
+      "unitPrice": 175.67,
+      "discountRate": 0,
+      "base": 878.35,
+      "vatRate": 21,
+      "vatAmount": 184.45,
+      "lineTotal": 1062.8
+    }
+  ],
+  "subtotal": 1716.63,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1716.63,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1716.63,
+      "vatAmount": 360.49
+    }
+  ],
+  "vatAmount": 360.49,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2077.12
+}

@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0165",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2025-00165",
+  "date": "2025-01-30",
+  "due_date": "2025-03-16",
+  "supplier": {
+    "name": "Instalaciones Trama SL",
+    "tax_id": "B-00100165",
+    "address": "Camino del Almacén, 88 - A Coruña",
+    "email": "instalaciones.trama.sl.165@example.test",
+    "phone": "+34 900 165 295"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100465",
+    "address": "Calle Mayor, 67 - Murcia",
+    "email": "tienda.piloto.sl.465@example.test",
+    "phone": "+34 900 465 150"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-2542-1",
+      "description": "Sensor de presencia",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 95.7,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -95.7,
+      "vat_amount": -20.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -115.8,
+      "line_total_with_taxes": -115.8,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -95.7,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -95.7,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -95.7,
+        "vat_amount": -20.1,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -20.1,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -115.8,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2025-00046"
+}

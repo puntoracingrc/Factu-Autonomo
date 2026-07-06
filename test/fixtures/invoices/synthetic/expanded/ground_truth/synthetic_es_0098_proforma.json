@@ -1,0 +1,213 @@
+{
+  "invoice_id": "synthetic_es_0098",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00098",
+  "date": "2025-12-28",
+  "due_date": "2025-12-28",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100098",
+    "address": "Avenida del Puerto, 26 - Barcelona",
+    "email": "oficina.tecnica.aurora.s.98@example.test",
+    "phone": "+34 900 098 538"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100398",
+    "address": "Paseo de la Industria, 85 - Bilbao",
+    "email": "empresa.receptora.fictic.398@example.test",
+    "phone": "+34 900 398 664"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-4037-1",
+      "description": "Servicio urgente 24h - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 287.09,
+      "discount_rate": 15.0,
+      "vat_rate": 4.0,
+      "line_base": 1464.16,
+      "vat_amount": 58.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1522.73,
+      "line_total_with_taxes": 1522.73,
+      "period": null
+    },
+    {
+      "reference": "REF-7482-2",
+      "description": "Servicio de instalación",
+      "unit": "servicio",
+      "quantity": 10.0,
+      "unit_price": 226.85,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2268.5,
+      "vat_amount": 476.39,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2744.89,
+      "line_total_with_taxes": 2744.89,
+      "period": null
+    },
+    {
+      "reference": "REF-3103-3",
+      "description": "Pintura base agua",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 138.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 829.44,
+      "vat_amount": 174.18,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1003.62,
+      "line_total_with_taxes": 1003.62,
+      "period": null
+    },
+    {
+      "reference": "REF-9552-4",
+      "description": "Cable eléctrico 2,5 mm - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 12.0,
+      "unit_price": 308.52,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3702.24,
+      "vat_amount": 777.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4479.71,
+      "line_total_with_taxes": 4479.71,
+      "period": null
+    },
+    {
+      "reference": "REF-7066-5",
+      "description": "Conjunto persiana",
+      "unit": "kg",
+      "quantity": 3.01,
+      "unit_price": 354.64,
+      "discount_rate": 15.0,
+      "vat_rate": 10.0,
+      "line_base": 907.35,
+      "vat_amount": 90.74,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 998.09,
+      "line_total_with_taxes": 998.09,
+      "period": null
+    },
+    {
+      "reference": "REF-8220-6",
+      "description": "Bolsa de recambios variados",
+      "unit": "kg",
+      "quantity": 5.0,
+      "unit_price": 396.31,
+      "discount_rate": 15.0,
+      "vat_rate": 4.0,
+      "line_base": 1684.32,
+      "vat_amount": 67.37,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1751.69,
+      "line_total_with_taxes": 1751.69,
+      "period": null
+    },
+    {
+      "reference": "REF-3138-7",
+      "description": "Revisión técnica",
+      "unit": "servicio",
+      "quantity": 10.0,
+      "unit_price": 166.6,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 1416.1,
+      "vat_amount": 297.38,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1713.48,
+      "line_total_with_taxes": 1713.48,
+      "period": null
+    },
+    {
+      "reference": "REF-1238-8",
+      "description": "Libro técnico - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 1.95,
+      "unit_price": 110.23,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 214.95,
+      "vat_amount": 45.14,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 260.09,
+      "line_total_with_taxes": 260.09,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 12487.06,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 12487.06,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 3148.48,
+        "vat_amount": 125.94,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 8431.23,
+        "vat_amount": 1770.56,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 907.35,
+        "vat_amount": 90.74,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1987.24,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 14474.3,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,49 @@
+{
+  "layoutId": "L01_desc_cant_precio_importe",
+  "supplierName": "Servicios Litoral SL",
+  "supplierNif": "B44556677",
+  "supplierAddress": "C/ Marina 7, 46011 Valencia",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0021",
+  "date": "2026-05-31",
+  "lines": [
+    {
+      "ref": "R02101",
+      "description": "Servicio tecnico",
+      "quantity": 1,
+      "unitPrice": 117.51,
+      "discountRate": 0,
+      "base": 117.51,
+      "vatRate": 21,
+      "vatAmount": 24.68,
+      "lineTotal": 142.19
+    },
+    {
+      "ref": "R02102",
+      "description": "Recambio especial",
+      "quantity": 5,
+      "unitPrice": 175.09,
+      "discountRate": 0,
+      "base": 875.45,
+      "vatRate": 21,
+      "vatAmount": 183.84,
+      "lineTotal": 1059.29
+    }
+  ],
+  "subtotal": 992.96,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 992.96,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 992.96,
+      "vatAmount": 208.52
+    }
+  ],
+  "vatAmount": 208.52,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1201.48
+}

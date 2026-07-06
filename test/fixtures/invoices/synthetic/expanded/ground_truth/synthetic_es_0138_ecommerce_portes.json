@@ -1,0 +1,198 @@
+{
+  "invoice_id": "synthetic_es_0138",
+  "document_title": "FACTURA DE VENTA ONLINE",
+  "invoice_type": "ordinaria",
+  "layout_id": "ecommerce_portes",
+  "source_inspiration": [
+    "Factura ecommerce con portes",
+    "Plantillas y datasets OCR"
+  ],
+  "invoice_number": "F-2024-00138",
+  "date": "2024-06-24",
+  "due_date": "2024-06-24",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100138",
+    "address": "Calle Gran Vía, 103 - Málaga",
+    "email": "logistica.ficticia.sl.138@example.test",
+    "phone": "+34 900 138 364"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100438",
+    "address": "Calle Roble, 67 - Madrid",
+    "email": "taller.cliente.ficticio..438@example.test",
+    "phone": "+34 900 438 919"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-4892-1",
+      "description": "Producto alimentario demo",
+      "unit": "ud",
+      "quantity": 4.37,
+      "unit_price": 298.33,
+      "discount_rate": 5.0,
+      "vat_rate": 10.0,
+      "line_base": 1238.52,
+      "vat_amount": 123.85,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1362.37,
+      "line_total_with_taxes": 1362.37,
+      "period": null
+    },
+    {
+      "reference": "REF-7201-2",
+      "description": "Mano de obra especializada - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 139.17,
+      "discount_rate": 15.0,
+      "vat_rate": 4.0,
+      "line_base": 118.29,
+      "vat_amount": 4.73,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 123.02,
+      "line_total_with_taxes": 123.02,
+      "period": null
+    },
+    {
+      "reference": "REF-6875-3",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 407.38,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": 3666.42,
+      "vat_amount": 769.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4436.37,
+      "line_total_with_taxes": 4436.37,
+      "period": null
+    },
+    {
+      "reference": "REF-3756-4",
+      "description": "Perfil de aluminio",
+      "unit": "h",
+      "quantity": 6.0,
+      "unit_price": 23.85,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 143.1,
+      "vat_amount": 14.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 157.41,
+      "line_total_with_taxes": 157.41,
+      "period": null
+    },
+    {
+      "reference": "REF-8696-5",
+      "description": "Conjunto persiana",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 352.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 704.48,
+      "vat_amount": 147.94,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 852.42,
+      "line_total_with_taxes": 852.42,
+      "period": null
+    },
+    {
+      "reference": "REF-3606-6",
+      "description": "Horas de consultoría",
+      "unit": "pack",
+      "quantity": 2.96,
+      "unit_price": 211.41,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 531.91,
+      "vat_amount": 111.7,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 643.61,
+      "line_total_with_taxes": 643.61,
+      "period": null
+    },
+    {
+      "reference": "SHIP-207",
+      "description": "Portes y preparación de pedido",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 4.95,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4.95,
+      "vat_amount": 1.04,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5.99,
+      "line_total_with_taxes": 5.99,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6407.67,
+    "global_discount_rate": 3.0,
+    "global_discount_amount": 192.23,
+    "taxable_base": 6215.44,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1340.17,
+        "vat_amount": 134.02,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 114.74,
+        "vat_amount": 4.59,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4760.53,
+        "vat_amount": 999.71,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1138.32,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 7353.76,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "SKU": "reference",
+    "Producto": "description",
+    "Qty": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

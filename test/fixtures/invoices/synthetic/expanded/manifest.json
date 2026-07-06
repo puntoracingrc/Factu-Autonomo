@@ -1,0 +1,2409 @@
+{
+  "created_at": "2026-07-06",
+  "generator_seed": 20260706,
+  "count": 200,
+  "description": "Pack ampliado de facturas sintéticas españolas, inspirado en fuentes públicas y datasets, con PDF text-selectable y JSON ground truth.",
+  "privacy": "No contiene facturas reales ni datos reales. Todos los datos son ficticios.",
+  "files": [
+    {
+      "invoice_id": "synthetic_es_0001",
+      "pdf": "pdf/synthetic_es_0001_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0001_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 20809.16
+    },
+    {
+      "invoice_id": "synthetic_es_0002",
+      "pdf": "pdf/synthetic_es_0002_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0002_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 6537.03
+    },
+    {
+      "invoice_id": "synthetic_es_0003",
+      "pdf": "pdf/synthetic_es_0003_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0003_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 12112.31
+    },
+    {
+      "invoice_id": "synthetic_es_0004",
+      "pdf": "pdf/synthetic_es_0004_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0004_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 163.45
+    },
+    {
+      "invoice_id": "synthetic_es_0005",
+      "pdf": "pdf/synthetic_es_0005_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0005_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 4432.51
+    },
+    {
+      "invoice_id": "synthetic_es_0006",
+      "pdf": "pdf/synthetic_es_0006_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0006_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 1185.8
+    },
+    {
+      "invoice_id": "synthetic_es_0007",
+      "pdf": "pdf/synthetic_es_0007_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0007_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 77.08
+    },
+    {
+      "invoice_id": "synthetic_es_0008",
+      "pdf": "pdf/synthetic_es_0008_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0008_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 16896.61
+    },
+    {
+      "invoice_id": "synthetic_es_0009",
+      "pdf": "pdf/synthetic_es_0009_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0009_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 6244.11
+    },
+    {
+      "invoice_id": "synthetic_es_0010",
+      "pdf": "pdf/synthetic_es_0010_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0010_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 2923.76
+    },
+    {
+      "invoice_id": "synthetic_es_0011",
+      "pdf": "pdf/synthetic_es_0011_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0011_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -4846.12
+    },
+    {
+      "invoice_id": "synthetic_es_0012",
+      "pdf": "pdf/synthetic_es_0012_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0012_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 7543.46
+    },
+    {
+      "invoice_id": "synthetic_es_0013",
+      "pdf": "pdf/synthetic_es_0013_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0013_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 8061.12
+    },
+    {
+      "invoice_id": "synthetic_es_0014",
+      "pdf": "pdf/synthetic_es_0014_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0014_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 5495.75
+    },
+    {
+      "invoice_id": "synthetic_es_0015",
+      "pdf": "pdf/synthetic_es_0015_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0015_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 4910.71
+    },
+    {
+      "invoice_id": "synthetic_es_0016",
+      "pdf": "pdf/synthetic_es_0016_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0016_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 9123.34
+    },
+    {
+      "invoice_id": "synthetic_es_0017",
+      "pdf": "pdf/synthetic_es_0017_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0017_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 9189.53
+    },
+    {
+      "invoice_id": "synthetic_es_0018",
+      "pdf": "pdf/synthetic_es_0018_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0018_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 10455.21
+    },
+    {
+      "invoice_id": "synthetic_es_0019",
+      "pdf": "pdf/synthetic_es_0019_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0019_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 8986.17
+    },
+    {
+      "invoice_id": "synthetic_es_0020",
+      "pdf": "pdf/synthetic_es_0020_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0020_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 7455.37
+    },
+    {
+      "invoice_id": "synthetic_es_0021",
+      "pdf": "pdf/synthetic_es_0021_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0021_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 150.42
+    },
+    {
+      "invoice_id": "synthetic_es_0022",
+      "pdf": "pdf/synthetic_es_0022_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0022_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 3549.1
+    },
+    {
+      "invoice_id": "synthetic_es_0023",
+      "pdf": "pdf/synthetic_es_0023_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0023_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 14430.21
+    },
+    {
+      "invoice_id": "synthetic_es_0024",
+      "pdf": "pdf/synthetic_es_0024_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0024_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 2825.93
+    },
+    {
+      "invoice_id": "synthetic_es_0025",
+      "pdf": "pdf/synthetic_es_0025_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0025_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -624.92
+    },
+    {
+      "invoice_id": "synthetic_es_0026",
+      "pdf": "pdf/synthetic_es_0026_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0026_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 3710.94
+    },
+    {
+      "invoice_id": "synthetic_es_0027",
+      "pdf": "pdf/synthetic_es_0027_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0027_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 10887.32
+    },
+    {
+      "invoice_id": "synthetic_es_0028",
+      "pdf": "pdf/synthetic_es_0028_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0028_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 6735.47
+    },
+    {
+      "invoice_id": "synthetic_es_0029",
+      "pdf": "pdf/synthetic_es_0029_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0029_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 10300.4
+    },
+    {
+      "invoice_id": "synthetic_es_0030",
+      "pdf": "pdf/synthetic_es_0030_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0030_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 12167.18
+    },
+    {
+      "invoice_id": "synthetic_es_0031",
+      "pdf": "pdf/synthetic_es_0031_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0031_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 1724.75
+    },
+    {
+      "invoice_id": "synthetic_es_0032",
+      "pdf": "pdf/synthetic_es_0032_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0032_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 4500.49
+    },
+    {
+      "invoice_id": "synthetic_es_0033",
+      "pdf": "pdf/synthetic_es_0033_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0033_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 5235.19
+    },
+    {
+      "invoice_id": "synthetic_es_0034",
+      "pdf": "pdf/synthetic_es_0034_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0034_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 13198.92
+    },
+    {
+      "invoice_id": "synthetic_es_0035",
+      "pdf": "pdf/synthetic_es_0035_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0035_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 5.96
+    },
+    {
+      "invoice_id": "synthetic_es_0036",
+      "pdf": "pdf/synthetic_es_0036_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0036_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 13702.8
+    },
+    {
+      "invoice_id": "synthetic_es_0037",
+      "pdf": "pdf/synthetic_es_0037_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0037_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 8034.85
+    },
+    {
+      "invoice_id": "synthetic_es_0038",
+      "pdf": "pdf/synthetic_es_0038_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0038_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 5629.34
+    },
+    {
+      "invoice_id": "synthetic_es_0039",
+      "pdf": "pdf/synthetic_es_0039_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0039_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -2961.58
+    },
+    {
+      "invoice_id": "synthetic_es_0040",
+      "pdf": "pdf/synthetic_es_0040_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0040_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 229.32
+    },
+    {
+      "invoice_id": "synthetic_es_0041",
+      "pdf": "pdf/synthetic_es_0041_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0041_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 18158.96
+    },
+    {
+      "invoice_id": "synthetic_es_0042",
+      "pdf": "pdf/synthetic_es_0042_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0042_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 5063.92
+    },
+    {
+      "invoice_id": "synthetic_es_0043",
+      "pdf": "pdf/synthetic_es_0043_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0043_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 1282.39
+    },
+    {
+      "invoice_id": "synthetic_es_0044",
+      "pdf": "pdf/synthetic_es_0044_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0044_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 167.46
+    },
+    {
+      "invoice_id": "synthetic_es_0045",
+      "pdf": "pdf/synthetic_es_0045_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0045_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 4181.1
+    },
+    {
+      "invoice_id": "synthetic_es_0046",
+      "pdf": "pdf/synthetic_es_0046_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0046_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 2496.47
+    },
+    {
+      "invoice_id": "synthetic_es_0047",
+      "pdf": "pdf/synthetic_es_0047_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0047_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 1999.92
+    },
+    {
+      "invoice_id": "synthetic_es_0048",
+      "pdf": "pdf/synthetic_es_0048_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0048_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 9908.35
+    },
+    {
+      "invoice_id": "synthetic_es_0049",
+      "pdf": "pdf/synthetic_es_0049_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0049_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 180.78
+    },
+    {
+      "invoice_id": "synthetic_es_0050",
+      "pdf": "pdf/synthetic_es_0050_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0050_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 15649.58
+    },
+    {
+      "invoice_id": "synthetic_es_0051",
+      "pdf": "pdf/synthetic_es_0051_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0051_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 1922.86
+    },
+    {
+      "invoice_id": "synthetic_es_0052",
+      "pdf": "pdf/synthetic_es_0052_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0052_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 2152.11
+    },
+    {
+      "invoice_id": "synthetic_es_0053",
+      "pdf": "pdf/synthetic_es_0053_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0053_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -1484.73
+    },
+    {
+      "invoice_id": "synthetic_es_0054",
+      "pdf": "pdf/synthetic_es_0054_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0054_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 12018.97
+    },
+    {
+      "invoice_id": "synthetic_es_0055",
+      "pdf": "pdf/synthetic_es_0055_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0055_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 17470.31
+    },
+    {
+      "invoice_id": "synthetic_es_0056",
+      "pdf": "pdf/synthetic_es_0056_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0056_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 4778.41
+    },
+    {
+      "invoice_id": "synthetic_es_0057",
+      "pdf": "pdf/synthetic_es_0057_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0057_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 5658.35
+    },
+    {
+      "invoice_id": "synthetic_es_0058",
+      "pdf": "pdf/synthetic_es_0058_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0058_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 6906.33
+    },
+    {
+      "invoice_id": "synthetic_es_0059",
+      "pdf": "pdf/synthetic_es_0059_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0059_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 6812.09
+    },
+    {
+      "invoice_id": "synthetic_es_0060",
+      "pdf": "pdf/synthetic_es_0060_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0060_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 4924.73
+    },
+    {
+      "invoice_id": "synthetic_es_0061",
+      "pdf": "pdf/synthetic_es_0061_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0061_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 3087.79
+    },
+    {
+      "invoice_id": "synthetic_es_0062",
+      "pdf": "pdf/synthetic_es_0062_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0062_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 4517.68
+    },
+    {
+      "invoice_id": "synthetic_es_0063",
+      "pdf": "pdf/synthetic_es_0063_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0063_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 173.06
+    },
+    {
+      "invoice_id": "synthetic_es_0064",
+      "pdf": "pdf/synthetic_es_0064_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0064_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 7000.37
+    },
+    {
+      "invoice_id": "synthetic_es_0065",
+      "pdf": "pdf/synthetic_es_0065_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0065_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 11392.96
+    },
+    {
+      "invoice_id": "synthetic_es_0066",
+      "pdf": "pdf/synthetic_es_0066_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0066_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 3245.2
+    },
+    {
+      "invoice_id": "synthetic_es_0067",
+      "pdf": "pdf/synthetic_es_0067_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0067_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -135.76
+    },
+    {
+      "invoice_id": "synthetic_es_0068",
+      "pdf": "pdf/synthetic_es_0068_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0068_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 13594.43
+    },
+    {
+      "invoice_id": "synthetic_es_0069",
+      "pdf": "pdf/synthetic_es_0069_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0069_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 3233.94
+    },
+    {
+      "invoice_id": "synthetic_es_0070",
+      "pdf": "pdf/synthetic_es_0070_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0070_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 11538.74
+    },
+    {
+      "invoice_id": "synthetic_es_0071",
+      "pdf": "pdf/synthetic_es_0071_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0071_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 3884.31
+    },
+    {
+      "invoice_id": "synthetic_es_0072",
+      "pdf": "pdf/synthetic_es_0072_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0072_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 1410.12
+    },
+    {
+      "invoice_id": "synthetic_es_0073",
+      "pdf": "pdf/synthetic_es_0073_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0073_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 3025.86
+    },
+    {
+      "invoice_id": "synthetic_es_0074",
+      "pdf": "pdf/synthetic_es_0074_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0074_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 409.43
+    },
+    {
+      "invoice_id": "synthetic_es_0075",
+      "pdf": "pdf/synthetic_es_0075_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0075_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 8450.75
+    },
+    {
+      "invoice_id": "synthetic_es_0076",
+      "pdf": "pdf/synthetic_es_0076_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0076_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 6428.89
+    },
+    {
+      "invoice_id": "synthetic_es_0077",
+      "pdf": "pdf/synthetic_es_0077_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0077_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 86.42
+    },
+    {
+      "invoice_id": "synthetic_es_0078",
+      "pdf": "pdf/synthetic_es_0078_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0078_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 4925.79
+    },
+    {
+      "invoice_id": "synthetic_es_0079",
+      "pdf": "pdf/synthetic_es_0079_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0079_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 7255.62
+    },
+    {
+      "invoice_id": "synthetic_es_0080",
+      "pdf": "pdf/synthetic_es_0080_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0080_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 7456.67
+    },
+    {
+      "invoice_id": "synthetic_es_0081",
+      "pdf": "pdf/synthetic_es_0081_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0081_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -1181.54
+    },
+    {
+      "invoice_id": "synthetic_es_0082",
+      "pdf": "pdf/synthetic_es_0082_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0082_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 2255.44
+    },
+    {
+      "invoice_id": "synthetic_es_0083",
+      "pdf": "pdf/synthetic_es_0083_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0083_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 19994.21
+    },
+    {
+      "invoice_id": "synthetic_es_0084",
+      "pdf": "pdf/synthetic_es_0084_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0084_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 1107.24
+    },
+    {
+      "invoice_id": "synthetic_es_0085",
+      "pdf": "pdf/synthetic_es_0085_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0085_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 4050.52
+    },
+    {
+      "invoice_id": "synthetic_es_0086",
+      "pdf": "pdf/synthetic_es_0086_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0086_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 10010.31
+    },
+    {
+      "invoice_id": "synthetic_es_0087",
+      "pdf": "pdf/synthetic_es_0087_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0087_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 4243.66
+    },
+    {
+      "invoice_id": "synthetic_es_0088",
+      "pdf": "pdf/synthetic_es_0088_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0088_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 1130.68
+    },
+    {
+      "invoice_id": "synthetic_es_0089",
+      "pdf": "pdf/synthetic_es_0089_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0089_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 3338.7
+    },
+    {
+      "invoice_id": "synthetic_es_0090",
+      "pdf": "pdf/synthetic_es_0090_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0090_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 4505.93
+    },
+    {
+      "invoice_id": "synthetic_es_0091",
+      "pdf": "pdf/synthetic_es_0091_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0091_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 79.75
+    },
+    {
+      "invoice_id": "synthetic_es_0092",
+      "pdf": "pdf/synthetic_es_0092_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0092_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 7184.23
+    },
+    {
+      "invoice_id": "synthetic_es_0093",
+      "pdf": "pdf/synthetic_es_0093_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0093_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 693.32
+    },
+    {
+      "invoice_id": "synthetic_es_0094",
+      "pdf": "pdf/synthetic_es_0094_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0094_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 2651.74
+    },
+    {
+      "invoice_id": "synthetic_es_0095",
+      "pdf": "pdf/synthetic_es_0095_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0095_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -5109.09
+    },
+    {
+      "invoice_id": "synthetic_es_0096",
+      "pdf": "pdf/synthetic_es_0096_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0096_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 4889.24
+    },
+    {
+      "invoice_id": "synthetic_es_0097",
+      "pdf": "pdf/synthetic_es_0097_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0097_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 10853.95
+    },
+    {
+      "invoice_id": "synthetic_es_0098",
+      "pdf": "pdf/synthetic_es_0098_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0098_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 14474.3
+    },
+    {
+      "invoice_id": "synthetic_es_0099",
+      "pdf": "pdf/synthetic_es_0099_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0099_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 4659.55
+    },
+    {
+      "invoice_id": "synthetic_es_0100",
+      "pdf": "pdf/synthetic_es_0100_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0100_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 12781.14
+    },
+    {
+      "invoice_id": "synthetic_es_0101",
+      "pdf": "pdf/synthetic_es_0101_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0101_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 8546.34
+    },
+    {
+      "invoice_id": "synthetic_es_0102",
+      "pdf": "pdf/synthetic_es_0102_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0102_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 600.68
+    },
+    {
+      "invoice_id": "synthetic_es_0103",
+      "pdf": "pdf/synthetic_es_0103_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0103_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 5861.21
+    },
+    {
+      "invoice_id": "synthetic_es_0104",
+      "pdf": "pdf/synthetic_es_0104_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0104_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 7924.06
+    },
+    {
+      "invoice_id": "synthetic_es_0105",
+      "pdf": "pdf/synthetic_es_0105_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0105_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 135.87
+    },
+    {
+      "invoice_id": "synthetic_es_0106",
+      "pdf": "pdf/synthetic_es_0106_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0106_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 10115.77
+    },
+    {
+      "invoice_id": "synthetic_es_0107",
+      "pdf": "pdf/synthetic_es_0107_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0107_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 4647.36
+    },
+    {
+      "invoice_id": "synthetic_es_0108",
+      "pdf": "pdf/synthetic_es_0108_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0108_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 6455.55
+    },
+    {
+      "invoice_id": "synthetic_es_0109",
+      "pdf": "pdf/synthetic_es_0109_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0109_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -4062.52
+    },
+    {
+      "invoice_id": "synthetic_es_0110",
+      "pdf": "pdf/synthetic_es_0110_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0110_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 8898.98
+    },
+    {
+      "invoice_id": "synthetic_es_0111",
+      "pdf": "pdf/synthetic_es_0111_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0111_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 6635.34
+    },
+    {
+      "invoice_id": "synthetic_es_0112",
+      "pdf": "pdf/synthetic_es_0112_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0112_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 10107.98
+    },
+    {
+      "invoice_id": "synthetic_es_0113",
+      "pdf": "pdf/synthetic_es_0113_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0113_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 4900.84
+    },
+    {
+      "invoice_id": "synthetic_es_0114",
+      "pdf": "pdf/synthetic_es_0114_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0114_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 7114.91
+    },
+    {
+      "invoice_id": "synthetic_es_0115",
+      "pdf": "pdf/synthetic_es_0115_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0115_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 2497.28
+    },
+    {
+      "invoice_id": "synthetic_es_0116",
+      "pdf": "pdf/synthetic_es_0116_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0116_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 1145.08
+    },
+    {
+      "invoice_id": "synthetic_es_0117",
+      "pdf": "pdf/synthetic_es_0117_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0117_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 592.88
+    },
+    {
+      "invoice_id": "synthetic_es_0118",
+      "pdf": "pdf/synthetic_es_0118_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0118_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 11113.84
+    },
+    {
+      "invoice_id": "synthetic_es_0119",
+      "pdf": "pdf/synthetic_es_0119_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0119_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 74.14
+    },
+    {
+      "invoice_id": "synthetic_es_0120",
+      "pdf": "pdf/synthetic_es_0120_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0120_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 7480.06
+    },
+    {
+      "invoice_id": "synthetic_es_0121",
+      "pdf": "pdf/synthetic_es_0121_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0121_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 4657.48
+    },
+    {
+      "invoice_id": "synthetic_es_0122",
+      "pdf": "pdf/synthetic_es_0122_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0122_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 10398.1
+    },
+    {
+      "invoice_id": "synthetic_es_0123",
+      "pdf": "pdf/synthetic_es_0123_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0123_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -1042.13
+    },
+    {
+      "invoice_id": "synthetic_es_0124",
+      "pdf": "pdf/synthetic_es_0124_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0124_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 3007.75
+    },
+    {
+      "invoice_id": "synthetic_es_0125",
+      "pdf": "pdf/synthetic_es_0125_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0125_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 10224.98
+    },
+    {
+      "invoice_id": "synthetic_es_0126",
+      "pdf": "pdf/synthetic_es_0126_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0126_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 1851.31
+    },
+    {
+      "invoice_id": "synthetic_es_0127",
+      "pdf": "pdf/synthetic_es_0127_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0127_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 4004.89
+    },
+    {
+      "invoice_id": "synthetic_es_0128",
+      "pdf": "pdf/synthetic_es_0128_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0128_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 5703.31
+    },
+    {
+      "invoice_id": "synthetic_es_0129",
+      "pdf": "pdf/synthetic_es_0129_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0129_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 10718.92
+    },
+    {
+      "invoice_id": "synthetic_es_0130",
+      "pdf": "pdf/synthetic_es_0130_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0130_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 6692.65
+    },
+    {
+      "invoice_id": "synthetic_es_0131",
+      "pdf": "pdf/synthetic_es_0131_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0131_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 4376.96
+    },
+    {
+      "invoice_id": "synthetic_es_0132",
+      "pdf": "pdf/synthetic_es_0132_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0132_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 8818.61
+    },
+    {
+      "invoice_id": "synthetic_es_0133",
+      "pdf": "pdf/synthetic_es_0133_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0133_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 92.28
+    },
+    {
+      "invoice_id": "synthetic_es_0134",
+      "pdf": "pdf/synthetic_es_0134_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0134_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 8568.28
+    },
+    {
+      "invoice_id": "synthetic_es_0135",
+      "pdf": "pdf/synthetic_es_0135_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0135_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 2449.9
+    },
+    {
+      "invoice_id": "synthetic_es_0136",
+      "pdf": "pdf/synthetic_es_0136_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0136_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 9349.15
+    },
+    {
+      "invoice_id": "synthetic_es_0137",
+      "pdf": "pdf/synthetic_es_0137_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0137_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -3109.18
+    },
+    {
+      "invoice_id": "synthetic_es_0138",
+      "pdf": "pdf/synthetic_es_0138_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0138_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 7353.76
+    },
+    {
+      "invoice_id": "synthetic_es_0139",
+      "pdf": "pdf/synthetic_es_0139_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0139_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 8055.57
+    },
+    {
+      "invoice_id": "synthetic_es_0140",
+      "pdf": "pdf/synthetic_es_0140_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0140_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 8441.79
+    },
+    {
+      "invoice_id": "synthetic_es_0141",
+      "pdf": "pdf/synthetic_es_0141_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0141_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 7624.17
+    },
+    {
+      "invoice_id": "synthetic_es_0142",
+      "pdf": "pdf/synthetic_es_0142_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0142_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 10129.77
+    },
+    {
+      "invoice_id": "synthetic_es_0143",
+      "pdf": "pdf/synthetic_es_0143_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0143_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 9619.39
+    },
+    {
+      "invoice_id": "synthetic_es_0144",
+      "pdf": "pdf/synthetic_es_0144_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0144_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 2689.79
+    },
+    {
+      "invoice_id": "synthetic_es_0145",
+      "pdf": "pdf/synthetic_es_0145_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0145_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 3877.99
+    },
+    {
+      "invoice_id": "synthetic_es_0146",
+      "pdf": "pdf/synthetic_es_0146_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0146_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 912.3
+    },
+    {
+      "invoice_id": "synthetic_es_0147",
+      "pdf": "pdf/synthetic_es_0147_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0147_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 117.37
+    },
+    {
+      "invoice_id": "synthetic_es_0148",
+      "pdf": "pdf/synthetic_es_0148_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0148_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 10358.81
+    },
+    {
+      "invoice_id": "synthetic_es_0149",
+      "pdf": "pdf/synthetic_es_0149_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0149_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 15341.0
+    },
+    {
+      "invoice_id": "synthetic_es_0150",
+      "pdf": "pdf/synthetic_es_0150_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0150_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 9050.06
+    },
+    {
+      "invoice_id": "synthetic_es_0151",
+      "pdf": "pdf/synthetic_es_0151_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0151_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -103.42
+    },
+    {
+      "invoice_id": "synthetic_es_0152",
+      "pdf": "pdf/synthetic_es_0152_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0152_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 5890.56
+    },
+    {
+      "invoice_id": "synthetic_es_0153",
+      "pdf": "pdf/synthetic_es_0153_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0153_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 3136.84
+    },
+    {
+      "invoice_id": "synthetic_es_0154",
+      "pdf": "pdf/synthetic_es_0154_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0154_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 4277.58
+    },
+    {
+      "invoice_id": "synthetic_es_0155",
+      "pdf": "pdf/synthetic_es_0155_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0155_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 2251.27
+    },
+    {
+      "invoice_id": "synthetic_es_0156",
+      "pdf": "pdf/synthetic_es_0156_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0156_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 13083.1
+    },
+    {
+      "invoice_id": "synthetic_es_0157",
+      "pdf": "pdf/synthetic_es_0157_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0157_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 404.16
+    },
+    {
+      "invoice_id": "synthetic_es_0158",
+      "pdf": "pdf/synthetic_es_0158_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0158_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 4047.55
+    },
+    {
+      "invoice_id": "synthetic_es_0159",
+      "pdf": "pdf/synthetic_es_0159_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0159_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 6658.45
+    },
+    {
+      "invoice_id": "synthetic_es_0160",
+      "pdf": "pdf/synthetic_es_0160_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0160_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 2370.96
+    },
+    {
+      "invoice_id": "synthetic_es_0161",
+      "pdf": "pdf/synthetic_es_0161_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0161_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 93.53
+    },
+    {
+      "invoice_id": "synthetic_es_0162",
+      "pdf": "pdf/synthetic_es_0162_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0162_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 12883.15
+    },
+    {
+      "invoice_id": "synthetic_es_0163",
+      "pdf": "pdf/synthetic_es_0163_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0163_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 2959.34
+    },
+    {
+      "invoice_id": "synthetic_es_0164",
+      "pdf": "pdf/synthetic_es_0164_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0164_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 3543.36
+    },
+    {
+      "invoice_id": "synthetic_es_0165",
+      "pdf": "pdf/synthetic_es_0165_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0165_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -115.8
+    },
+    {
+      "invoice_id": "synthetic_es_0166",
+      "pdf": "pdf/synthetic_es_0166_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0166_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 456.87
+    },
+    {
+      "invoice_id": "synthetic_es_0167",
+      "pdf": "pdf/synthetic_es_0167_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0167_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 14507.98
+    },
+    {
+      "invoice_id": "synthetic_es_0168",
+      "pdf": "pdf/synthetic_es_0168_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0168_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 5864.22
+    },
+    {
+      "invoice_id": "synthetic_es_0169",
+      "pdf": "pdf/synthetic_es_0169_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0169_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 8364.3
+    },
+    {
+      "invoice_id": "synthetic_es_0170",
+      "pdf": "pdf/synthetic_es_0170_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0170_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 10639.87
+    },
+    {
+      "invoice_id": "synthetic_es_0171",
+      "pdf": "pdf/synthetic_es_0171_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0171_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 3312.02
+    },
+    {
+      "invoice_id": "synthetic_es_0172",
+      "pdf": "pdf/synthetic_es_0172_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0172_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 4744.22
+    },
+    {
+      "invoice_id": "synthetic_es_0173",
+      "pdf": "pdf/synthetic_es_0173_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0173_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 2637.32
+    },
+    {
+      "invoice_id": "synthetic_es_0174",
+      "pdf": "pdf/synthetic_es_0174_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0174_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 3627.56
+    },
+    {
+      "invoice_id": "synthetic_es_0175",
+      "pdf": "pdf/synthetic_es_0175_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0175_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 164.37
+    },
+    {
+      "invoice_id": "synthetic_es_0176",
+      "pdf": "pdf/synthetic_es_0176_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0176_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 4645.52
+    },
+    {
+      "invoice_id": "synthetic_es_0177",
+      "pdf": "pdf/synthetic_es_0177_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0177_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 2511.69
+    },
+    {
+      "invoice_id": "synthetic_es_0178",
+      "pdf": "pdf/synthetic_es_0178_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0178_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 6424.66
+    },
+    {
+      "invoice_id": "synthetic_es_0179",
+      "pdf": "pdf/synthetic_es_0179_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0179_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -228.29
+    },
+    {
+      "invoice_id": "synthetic_es_0180",
+      "pdf": "pdf/synthetic_es_0180_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0180_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 3120.49
+    },
+    {
+      "invoice_id": "synthetic_es_0181",
+      "pdf": "pdf/synthetic_es_0181_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0181_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 14693.27
+    },
+    {
+      "invoice_id": "synthetic_es_0182",
+      "pdf": "pdf/synthetic_es_0182_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0182_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 12961.6
+    },
+    {
+      "invoice_id": "synthetic_es_0183",
+      "pdf": "pdf/synthetic_es_0183_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0183_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 5211.5
+    },
+    {
+      "invoice_id": "synthetic_es_0184",
+      "pdf": "pdf/synthetic_es_0184_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0184_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 298.99
+    },
+    {
+      "invoice_id": "synthetic_es_0185",
+      "pdf": "pdf/synthetic_es_0185_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0185_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 12852.69
+    },
+    {
+      "invoice_id": "synthetic_es_0186",
+      "pdf": "pdf/synthetic_es_0186_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0186_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 6608.99
+    },
+    {
+      "invoice_id": "synthetic_es_0187",
+      "pdf": "pdf/synthetic_es_0187_resumen_fiscal_por_linea.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0187_resumen_fiscal_por_linea.json",
+      "layout_id": "resumen_fiscal_por_linea",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Factura con resumen fiscal por línea",
+        "Facturae / B2Brouter"
+      ],
+      "total": 3363.66
+    },
+    {
+      "invoice_id": "synthetic_es_0188",
+      "pdf": "pdf/synthetic_es_0188_simplificada_ticket.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0188_simplificada_ticket.json",
+      "layout_id": "simplificada_ticket",
+      "invoice_type": "simplificada",
+      "source_inspiration": [
+        "Factura simplificada",
+        "Declarando / Holded"
+      ],
+      "total": 2498.72
+    },
+    {
+      "invoice_id": "synthetic_es_0189",
+      "pdf": "pdf/synthetic_es_0189_electricity_style.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0189_electricity_style.json",
+      "layout_id": "electricity_style",
+      "invoice_type": "electricidad",
+      "source_inspiration": [
+        "Factura eléctrica española sintética",
+        "IDSEM"
+      ],
+      "total": 43.1
+    },
+    {
+      "invoice_id": "synthetic_es_0190",
+      "pdf": "pdf/synthetic_es_0190_facturae_render.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0190_facturae_render.json",
+      "layout_id": "facturae_render",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Estructura Facturae renderizada",
+        "Facturae oficial"
+      ],
+      "total": 8301.4
+    },
+    {
+      "invoice_id": "synthetic_es_0191",
+      "pdf": "pdf/synthetic_es_0191_recargo_equivalencia.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0191_recargo_equivalencia.json",
+      "layout_id": "recargo_equivalencia",
+      "invoice_type": "recargo_equivalencia",
+      "source_inspiration": [
+        "Factura con recargo de equivalencia",
+        "Declarando / AEAT"
+      ],
+      "total": 5805.61
+    },
+    {
+      "invoice_id": "synthetic_es_0192",
+      "pdf": "pdf/synthetic_es_0192_intracomunitaria_exenta.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0192_intracomunitaria_exenta.json",
+      "layout_id": "intracomunitaria_exenta",
+      "invoice_type": "exenta",
+      "source_inspiration": [
+        "Factura intracomunitaria/exenta",
+        "Declarando"
+      ],
+      "total": 104.34
+    },
+    {
+      "invoice_id": "synthetic_es_0193",
+      "pdf": "pdf/synthetic_es_0193_rectificativa.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0193_rectificativa.json",
+      "layout_id": "rectificativa",
+      "invoice_type": "rectificativa",
+      "source_inspiration": [
+        "Factura rectificativa",
+        "Declarando / INV24"
+      ],
+      "total": -1169.5
+    },
+    {
+      "invoice_id": "synthetic_es_0194",
+      "pdf": "pdf/synthetic_es_0194_ecommerce_portes.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0194_ecommerce_portes.json",
+      "layout_id": "ecommerce_portes",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Factura ecommerce con portes",
+        "Plantillas y datasets OCR"
+      ],
+      "total": 2017.9
+    },
+    {
+      "invoice_id": "synthetic_es_0195",
+      "pdf": "pdf/synthetic_es_0195_long_description.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0195_long_description.json",
+      "layout_id": "long_description",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Casos con descripción larga",
+        "Datasets OCR multi-layout"
+      ],
+      "total": 6205.71
+    },
+    {
+      "invoice_id": "synthetic_es_0196",
+      "pdf": "pdf/synthetic_es_0196_proforma.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0196_proforma.json",
+      "layout_id": "proforma",
+      "invoice_type": "proforma",
+      "source_inspiration": [
+        "Factura proforma / presupuesto",
+        "INV24 / Declarando"
+      ],
+      "total": 5081.94
+    },
+    {
+      "invoice_id": "synthetic_es_0197",
+      "pdf": "pdf/synthetic_es_0197_standard_table.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0197_standard_table.json",
+      "layout_id": "standard_table",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas genéricas de factura",
+        "INV24 / Wise / Holded / Quipu"
+      ],
+      "total": 1575.33
+    },
+    {
+      "invoice_id": "synthetic_es_0198",
+      "pdf": "pdf/synthetic_es_0198_ref_desc_uds_pvp_dto_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0198_ref_desc_uds_pvp_dto_total.json",
+      "layout_id": "ref_desc_uds_pvp_dto_total",
+      "invoice_type": "ordinaria",
+      "source_inspiration": [
+        "Plantillas comerciales españolas",
+        "INV24 / Holded"
+      ],
+      "total": 2974.57
+    },
+    {
+      "invoice_id": "synthetic_es_0199",
+      "pdf": "pdf/synthetic_es_0199_articulo_base_iva_total.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0199_articulo_base_iva_total.json",
+      "layout_id": "articulo_base_iva_total",
+      "invoice_type": "mixed_vat",
+      "source_inspiration": [
+        "Ejemplos con base e IVA por línea",
+        "Declarando / Facturae"
+      ],
+      "total": 2323.08
+    },
+    {
+      "invoice_id": "synthetic_es_0200",
+      "pdf": "pdf/synthetic_es_0200_servicios_irpf.pdf",
+      "ground_truth": "ground_truth/synthetic_es_0200_servicios_irpf.json",
+      "layout_id": "servicios_irpf",
+      "invoice_type": "irpf",
+      "source_inspiration": [
+        "Factura autónomo profesional con IRPF",
+        "Declarando / Wise / Quipu"
+      ],
+      "total": 3578.39
+    }
+  ]
+}

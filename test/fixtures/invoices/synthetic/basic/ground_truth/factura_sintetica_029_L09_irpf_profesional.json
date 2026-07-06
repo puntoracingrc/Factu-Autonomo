@@ -1,0 +1,71 @@
+{
+  "layoutId": "L09_irpf_profesional",
+  "supplierName": "Materiales Vega SL",
+  "supplierNif": "B99887766",
+  "supplierAddress": "Pol. La Estrella nave 3, 41016 Sevilla",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0029",
+  "date": "2026-03-04",
+  "lines": [
+    {
+      "ref": "R02901",
+      "description": "Guia lateral",
+      "quantity": 3,
+      "unitPrice": 180.69,
+      "discountRate": 0,
+      "base": 542.07,
+      "vatRate": 21,
+      "vatAmount": 113.83,
+      "lineTotal": 655.9
+    },
+    {
+      "ref": "R02902",
+      "description": "Soporte mensual",
+      "quantity": 8,
+      "unitPrice": 65.31,
+      "discountRate": 0,
+      "base": 522.48,
+      "vatRate": 21,
+      "vatAmount": 109.72,
+      "lineTotal": 632.2
+    },
+    {
+      "ref": "R02903",
+      "description": "Kit instalacion",
+      "quantity": 2,
+      "unitPrice": 165.62,
+      "discountRate": 0,
+      "base": 331.24,
+      "vatRate": 21,
+      "vatAmount": 69.56,
+      "lineTotal": 400.8
+    },
+    {
+      "ref": "R02904",
+      "description": "Persiana aluminio",
+      "quantity": 1,
+      "unitPrice": 183.04,
+      "discountRate": 0,
+      "base": 183.04,
+      "vatRate": 21,
+      "vatAmount": 38.44,
+      "lineTotal": 221.48
+    }
+  ],
+  "subtotal": 1578.83,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1578.83,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1578.83,
+      "vatAmount": 331.55
+    }
+  ],
+  "vatAmount": 331.55,
+  "irpfRate": 15,
+  "irpfAmount": 236.82,
+  "total": 1673.56
+}

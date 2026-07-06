@@ -1,0 +1,127 @@
+{
+  "invoice_id": "synthetic_es_0037",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2024-00037",
+  "date": "2024-10-03",
+  "due_date": "2024-11-17",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100037",
+    "address": "Calle Roble, 37 - Sevilla",
+    "email": "recambios.delta.demo.sl.37@example.test",
+    "phone": "+34 900 037 215"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100337",
+    "address": "Calle Roble, 135 - Bilbao",
+    "email": "taller.cliente.ficticio..337@example.test",
+    "phone": "+34 900 337 254"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9163-1",
+      "description": "Servicio de instalación",
+      "unit": "pack",
+      "quantity": 12.0,
+      "unit_price": 250.67,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3008.04,
+      "vat_amount": 631.69,
+      "recargo_rate": 5.2,
+      "recargo_amount": 156.42,
+      "line_total_with_vat": 3639.73,
+      "line_total_with_taxes": 3796.15,
+      "period": null
+    },
+    {
+      "reference": "REF-5110-2",
+      "description": "Transporte y manipulación",
+      "unit": "servicio",
+      "quantity": 6.0,
+      "unit_price": 405.84,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 2435.04,
+      "vat_amount": 97.4,
+      "recargo_rate": 0.5,
+      "recargo_amount": 12.18,
+      "line_total_with_vat": 2532.44,
+      "line_total_with_taxes": 2544.62,
+      "period": null
+    },
+    {
+      "reference": "REF-9337-3",
+      "description": "Licencia mensual software",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 447.46,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1342.38,
+      "vat_amount": 281.9,
+      "recargo_rate": 5.2,
+      "recargo_amount": 69.8,
+      "line_total_with_vat": 1624.28,
+      "line_total_with_taxes": 1694.08,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6785.46,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6785.46,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4350.42,
+        "vat_amount": 913.59,
+        "recargo_rate": 5.2,
+        "recargo_amount": 226.22
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 2435.04,
+        "vat_amount": 97.4,
+        "recargo_rate": 0.5,
+        "recargo_amount": 12.18
+      }
+    ],
+    "vat_total": 1010.99,
+    "recargo_total": 238.4,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 8034.85,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

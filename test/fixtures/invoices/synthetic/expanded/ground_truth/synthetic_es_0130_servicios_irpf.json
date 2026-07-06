@@ -1,0 +1,164 @@
+{
+  "invoice_id": "synthetic_es_0130",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00130",
+  "date": "2024-04-26",
+  "due_date": "2024-05-26",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100130",
+    "address": "Ronda Fiscal, 11 - Valladolid",
+    "email": "electro.hogar.simulado.s.130@example.test",
+    "phone": "+34 900 130 429"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100430",
+    "address": "Ronda Fiscal, 51 - Sevilla",
+    "email": "proyecto.alfa.demo.sl.430@example.test",
+    "phone": "+34 900 430 161"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-6840-1",
+      "description": "Pantalla LED",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 267.85,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1339.25,
+      "vat_amount": 281.24,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1620.49,
+      "line_total_with_taxes": 1620.49,
+      "period": null
+    },
+    {
+      "reference": "REF-7273-2",
+      "description": "Transporte y manipulación",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 16.62,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 16.62,
+      "vat_amount": 3.49,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 20.11,
+      "line_total_with_taxes": 20.11,
+      "period": null
+    },
+    {
+      "reference": "REF-4951-3",
+      "description": "Sensor de presencia",
+      "unit": "h",
+      "quantity": 10.0,
+      "unit_price": 434.7,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 4347.0,
+      "vat_amount": 434.7,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4781.7,
+      "line_total_with_taxes": 4781.7,
+      "period": null
+    },
+    {
+      "reference": "REF-9171-4",
+      "description": "Servicio urgente 24h - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 3.43,
+      "unit_price": 84.37,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 289.39,
+      "vat_amount": 60.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 350.16,
+      "line_total_with_taxes": 350.16,
+      "period": null
+    },
+    {
+      "reference": "REF-8627-5",
+      "description": "Soporte premium",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 350.15,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 350.15,
+      "vat_amount": 14.01,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 364.16,
+      "line_total_with_taxes": 364.16,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6342.41,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6342.41,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1645.26,
+        "vat_amount": 345.5,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 4347.0,
+        "vat_amount": 434.7,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 350.15,
+        "vat_amount": 14.01,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 794.21,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 443.97,
+    "total": 6692.65,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

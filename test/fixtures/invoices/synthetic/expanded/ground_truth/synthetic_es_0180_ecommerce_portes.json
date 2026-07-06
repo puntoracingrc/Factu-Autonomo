@@ -1,0 +1,104 @@
+{
+  "invoice_id": "synthetic_es_0180",
+  "document_title": "FACTURA DE VENTA ONLINE",
+  "invoice_type": "ordinaria",
+  "layout_id": "ecommerce_portes",
+  "source_inspiration": [
+    "Factura ecommerce con portes",
+    "Plantillas y datasets OCR"
+  ],
+  "invoice_number": "F-2025-00180",
+  "date": "2025-04-04",
+  "due_date": "2025-05-19",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100180",
+    "address": "Camino del Almacén, 65 - Bilbao",
+    "email": "recambios.delta.demo.sl.180@example.test",
+    "phone": "+34 900 180 341"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200480N",
+    "address": "Ronda Fiscal, 4 - Zaragoza",
+    "email": "comunidad.simulada.480@example.test",
+    "phone": "+34 900 480 846"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-6308-1",
+      "description": "Kit de fijación",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 213.91,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2566.92,
+      "vat_amount": 539.05,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3105.97,
+      "line_total_with_taxes": 3105.97,
+      "period": null
+    },
+    {
+      "reference": "SHIP-764",
+      "description": "Portes y preparación de pedido",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 12.0,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 12.0,
+      "vat_amount": 2.52,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 14.52,
+      "line_total_with_taxes": 14.52,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2578.92,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2578.92,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2578.92,
+        "vat_amount": 541.57,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 541.57,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3120.49,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "SKU": "reference",
+    "Producto": "description",
+    "Qty": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

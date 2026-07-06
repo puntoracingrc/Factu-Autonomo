@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0045",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2025-00045",
+  "date": "2025-01-16",
+  "due_date": "2025-02-15",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100045",
+    "address": "Camino del Almacén, 8 - Valencia",
+    "email": "distribuciones.iberia.te.45@example.test",
+    "phone": "+34 900 045 966"
+  },
+  "customer": {
+    "name": "Academia Ejemplo SCP",
+    "tax_id": "B-00100345",
+    "address": "Plaza del Mercado, 106 - Bilbao",
+    "email": "academia.ejemplo.scp.345@example.test",
+    "phone": "+34 900 345 163"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9845-1",
+      "description": "Conjunto persiana",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 380.1,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 3801.0,
+      "vat_amount": 380.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4181.1,
+      "line_total_with_taxes": 4181.1,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3801.0,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3801.0,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 3801.0,
+        "vat_amount": 380.1,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 380.1,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 4181.1,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

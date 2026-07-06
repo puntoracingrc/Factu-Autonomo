@@ -1,0 +1,213 @@
+{
+  "invoice_id": "synthetic_es_0028",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00028",
+  "date": "2024-08-20",
+  "due_date": "2024-09-04",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100028",
+    "address": "Calle Roble, 142 - Valladolid",
+    "email": "suministros.norte.demo.s.28@example.test",
+    "phone": "+34 900 028 902"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200328K",
+    "address": "Camino del Almacén, 16 - Valladolid",
+    "email": "particular.sintetico.328@example.test",
+    "phone": "+34 900 328 880"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-5171-1",
+      "description": "Pantalla LED",
+      "unit": "h",
+      "quantity": 5.23,
+      "unit_price": 18.39,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 96.18,
+      "vat_amount": 9.62,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 105.8,
+      "line_total_with_taxes": 105.8,
+      "period": null
+    },
+    {
+      "reference": "REF-1201-2",
+      "description": "Tornillería inoxidable",
+      "unit": "h",
+      "quantity": 5.0,
+      "unit_price": 226.28,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1131.4,
+      "vat_amount": 45.26,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1176.66,
+      "line_total_with_taxes": 1176.66,
+      "period": null
+    },
+    {
+      "reference": "REF-4624-3",
+      "description": "Equipo informático",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 193.4,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 193.4,
+      "vat_amount": 40.61,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 234.01,
+      "line_total_with_taxes": 234.01,
+      "period": null
+    },
+    {
+      "reference": "REF-6916-4",
+      "description": "Conjunto persiana",
+      "unit": "kg",
+      "quantity": 4.0,
+      "unit_price": 419.33,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1677.32,
+      "vat_amount": 167.73,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1845.05,
+      "line_total_with_taxes": 1845.05,
+      "period": null
+    },
+    {
+      "reference": "REF-4319-5",
+      "description": "Perfil de aluminio",
+      "unit": "pack",
+      "quantity": 1.97,
+      "unit_price": 100.5,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 197.99,
+      "vat_amount": 19.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 217.79,
+      "line_total_with_taxes": 217.79,
+      "period": null
+    },
+    {
+      "reference": "REF-3482-6",
+      "description": "Sensor de presencia - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 6.0,
+      "unit_price": 168.76,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1012.56,
+      "vat_amount": 212.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1225.2,
+      "line_total_with_taxes": 1225.2,
+      "period": null
+    },
+    {
+      "reference": "REF-5747-7",
+      "description": "Horas de consultoría - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 5.74,
+      "unit_price": 259.78,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1491.14,
+      "vat_amount": 313.14,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1804.28,
+      "line_total_with_taxes": 1804.28,
+      "period": null
+    },
+    {
+      "reference": "REF-7319-8",
+      "description": "Repuesto mecánico",
+      "unit": "ud",
+      "quantity": 5.0,
+      "unit_price": 28.66,
+      "discount_rate": 15.0,
+      "vat_rate": 4.0,
+      "line_base": 121.81,
+      "vat_amount": 4.87,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 126.68,
+      "line_total_with_taxes": 126.68,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 5921.8,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 5921.8,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1971.49,
+        "vat_amount": 197.15,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1253.21,
+        "vat_amount": 50.13,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2697.1,
+        "vat_amount": 566.39,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 813.67,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6735.47,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

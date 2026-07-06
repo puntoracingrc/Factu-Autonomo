@@ -1,0 +1,54 @@
+{
+  "layoutId": "L08_varios_tipos_iva",
+  "supplierName": "Servicios Litoral SL",
+  "supplierNif": "B44556677",
+  "supplierAddress": "C/ Marina 7, 46011 Valencia",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0018",
+  "date": "2026-05-12",
+  "lines": [
+    {
+      "ref": "R01801",
+      "description": "Tubo octogonal",
+      "quantity": 1,
+      "unitPrice": 107.39,
+      "discountRate": 0,
+      "base": 107.39,
+      "vatRate": 4,
+      "vatAmount": 4.3,
+      "lineTotal": 111.69
+    },
+    {
+      "ref": "R01802",
+      "description": "Mando a distancia",
+      "quantity": 5,
+      "unitPrice": 67.25,
+      "discountRate": 0,
+      "base": 336.25,
+      "vatRate": 21,
+      "vatAmount": 70.61,
+      "lineTotal": 406.86
+    }
+  ],
+  "subtotal": 443.64,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 443.64,
+  "vatBreakdown": [
+    {
+      "vatRate": 4,
+      "base": 107.39,
+      "vatAmount": 4.3
+    },
+    {
+      "vatRate": 21,
+      "base": 336.25,
+      "vatAmount": 70.61
+    }
+  ],
+  "vatAmount": 74.91,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 518.55
+}

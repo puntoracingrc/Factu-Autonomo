@@ -1,0 +1,104 @@
+{
+  "invoice_id": "synthetic_es_0123",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2024-00123",
+  "date": "2024-04-14",
+  "due_date": "2024-05-14",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100123",
+    "address": "Calle Mayor, 56 - Valladolid",
+    "email": "maderas.prueba.sa.123@example.test",
+    "phone": "+34 900 123 950"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200423R",
+    "address": "Calle Mayor, 16 - Barcelona",
+    "email": "particular.sintetico.423@example.test",
+    "phone": "+34 900 423 916"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-6195-1",
+      "description": "Licencia mensual software",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 101.79,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": -458.06,
+      "vat_amount": -96.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -554.25,
+      "line_total_with_taxes": -554.25,
+      "period": null
+    },
+    {
+      "reference": "REF-1327-2",
+      "description": "Licencia mensual software",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 158.12,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": -403.21,
+      "vat_amount": -84.67,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -487.88,
+      "line_total_with_taxes": -487.88,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -861.27,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -861.27,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -861.27,
+        "vat_amount": -180.86,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -180.86,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -1042.13,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2024-00048"
+}

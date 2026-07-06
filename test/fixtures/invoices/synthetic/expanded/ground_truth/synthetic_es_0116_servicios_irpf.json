@@ -1,0 +1,157 @@
+{
+  "invoice_id": "synthetic_es_0116",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00116",
+  "date": "2024-02-24",
+  "due_date": "2024-03-02",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100116",
+    "address": "Paseo de la Industria, 116 - Sevilla",
+    "email": "distribuciones.iberia.te.116@example.test",
+    "phone": "+34 900 116 893"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100416",
+    "address": "Calle Roble, 66 - Murcia",
+    "email": "startup.ejemplo.sl.416@example.test",
+    "phone": "+34 900 416 585"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-7866-1",
+      "description": "Pantalla LED",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 40.44,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 40.44,
+      "vat_amount": 8.49,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 48.93,
+      "line_total_with_taxes": 48.93,
+      "period": null
+    },
+    {
+      "reference": "REF-1068-2",
+      "description": "Base de datos anual",
+      "unit": "h",
+      "quantity": 5.52,
+      "unit_price": 137.33,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 758.06,
+      "vat_amount": 159.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 917.25,
+      "line_total_with_taxes": 917.25,
+      "period": null
+    },
+    {
+      "reference": "REF-3866-3",
+      "description": "Kit de fijación",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 124.69,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 124.69,
+      "vat_amount": 26.18,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 150.87,
+      "line_total_with_taxes": 150.87,
+      "period": null
+    },
+    {
+      "reference": "REF-8785-4",
+      "description": "Material de embalaje",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 140.38,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 140.38,
+      "vat_amount": 14.04,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 154.42,
+      "line_total_with_taxes": 154.42,
+      "period": null
+    },
+    {
+      "reference": "REF-4055-5",
+      "description": "Horas de consultoría",
+      "unit": "ud",
+      "quantity": 0.9,
+      "unit_price": 34.74,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 31.27,
+      "vat_amount": 6.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 37.84,
+      "line_total_with_taxes": 37.84,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1094.84,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1094.84,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 954.46,
+        "vat_amount": 200.43,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 140.38,
+        "vat_amount": 14.04,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 214.47,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 164.23,
+    "total": 1145.08,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

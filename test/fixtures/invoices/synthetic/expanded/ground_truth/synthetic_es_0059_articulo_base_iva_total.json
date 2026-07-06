@@ -1,0 +1,198 @@
+{
+  "invoice_id": "synthetic_es_0059",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2025-00059",
+  "date": "2025-04-24",
+  "due_date": "2025-04-24",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100059",
+    "address": "Camino del Almacén, 107 - Alicante",
+    "email": "comercial.mediterranea.s.59@example.test",
+    "phone": "+34 900 059 822"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100359",
+    "address": "Avenida del Puerto, 36 - Murcia",
+    "email": "startup.ejemplo.sl.359@example.test",
+    "phone": "+34 900 359 392"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-6294-1",
+      "description": "Material de embalaje",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 286.97,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 286.97,
+      "vat_amount": 11.48,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 298.45,
+      "line_total_with_taxes": 298.45,
+      "period": null
+    },
+    {
+      "reference": "REF-5298-2",
+      "description": "Licencia mensual software",
+      "unit": "kg",
+      "quantity": 4.0,
+      "unit_price": 113.44,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 453.76,
+      "vat_amount": 95.29,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 549.05,
+      "line_total_with_taxes": 549.05,
+      "period": null
+    },
+    {
+      "reference": "REF-4122-3",
+      "description": "Bolsa de recambios variados - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 6.0,
+      "unit_price": 130.13,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 780.78,
+      "vat_amount": 163.96,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 944.74,
+      "line_total_with_taxes": 944.74,
+      "period": null
+    },
+    {
+      "reference": "REF-5535-4",
+      "description": "Repuesto mecánico",
+      "unit": "m",
+      "quantity": 2.0,
+      "unit_price": 383.23,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 766.46,
+      "vat_amount": 76.65,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 843.11,
+      "line_total_with_taxes": 843.11,
+      "period": null
+    },
+    {
+      "reference": "REF-3676-5",
+      "description": "Material de embalaje",
+      "unit": "servicio",
+      "quantity": 3.0,
+      "unit_price": 29.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 89.61,
+      "vat_amount": 18.82,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 108.43,
+      "line_total_with_taxes": 108.43,
+      "period": null
+    },
+    {
+      "reference": "REF-7671-6",
+      "description": "Mantenimiento preventivo",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 122.95,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1229.5,
+      "vat_amount": 258.2,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1487.7,
+      "line_total_with_taxes": 1487.7,
+      "period": null
+    },
+    {
+      "reference": "REF-7214-7",
+      "description": "Bolsa de recambios variados",
+      "unit": "h",
+      "quantity": 6.0,
+      "unit_price": 413.56,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 2481.36,
+      "vat_amount": 99.25,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2580.61,
+      "line_total_with_taxes": 2580.61,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6088.44,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6088.44,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 2768.33,
+        "vat_amount": 110.73,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2553.65,
+        "vat_amount": 536.27,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 766.46,
+        "vat_amount": 76.65,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 723.65,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6812.09,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0157",
+  "document_title": "FACTURA",
+  "invoice_type": "irpf",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2024-00157",
+  "date": "2024-12-04",
+  "due_date": "2025-01-03",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100157",
+    "address": "Calle Gran Vía, 70 - Valladolid",
+    "email": "logistica.ficticia.sl.157@example.test",
+    "phone": "+34 900 157 728"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100457",
+    "address": "Calle de la Técnica, 128 - Zaragoza",
+    "email": "empresa.receptora.fictic.457@example.test",
+    "phone": "+34 900 457 677"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-6077-1",
+      "description": "Base de datos anual",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 354.53,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 354.53,
+      "vat_amount": 74.45,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 428.98,
+      "line_total_with_taxes": 428.98,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 354.53,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 354.53,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 354.53,
+        "vat_amount": 74.45,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 74.45,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 24.82,
+    "total": 404.16,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

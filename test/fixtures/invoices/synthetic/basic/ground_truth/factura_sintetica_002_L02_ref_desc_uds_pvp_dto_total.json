@@ -1,0 +1,82 @@
+{
+  "layoutId": "L02_ref_desc_uds_pvp_dto_total",
+  "supplierName": "Servicios Litoral SL",
+  "supplierNif": "B44556677",
+  "supplierAddress": "C/ Marina 7, 46011 Valencia",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0002",
+  "date": "2026-03-17",
+  "lines": [
+    {
+      "ref": "R00201",
+      "description": "Revision anual",
+      "quantity": 1,
+      "unitPrice": 81.02,
+      "discountRate": 0,
+      "base": 81.02,
+      "vatRate": 21,
+      "vatAmount": 17.01,
+      "lineTotal": 98.03
+    },
+    {
+      "ref": "R00202",
+      "description": "Servicio tecnico",
+      "quantity": 4,
+      "unitPrice": 78.13,
+      "discountRate": 5,
+      "base": 296.89,
+      "vatRate": 21,
+      "vatAmount": 62.35,
+      "lineTotal": 359.24
+    },
+    {
+      "ref": "R00203",
+      "description": "Guia lateral",
+      "quantity": 8,
+      "unitPrice": 71.54,
+      "discountRate": 0,
+      "base": 572.32,
+      "vatRate": 21,
+      "vatAmount": 120.19,
+      "lineTotal": 692.51
+    },
+    {
+      "ref": "R00204",
+      "description": "Persiana aluminio",
+      "quantity": 2,
+      "unitPrice": 130.53,
+      "discountRate": 0,
+      "base": 261.06,
+      "vatRate": 21,
+      "vatAmount": 54.82,
+      "lineTotal": 315.88
+    },
+    {
+      "ref": "R00205",
+      "description": "Guia lateral",
+      "quantity": 1,
+      "unitPrice": 89.04,
+      "discountRate": 0,
+      "base": 89.04,
+      "vatRate": 21,
+      "vatAmount": 18.7,
+      "lineTotal": 107.74
+    }
+  ],
+  "subtotal": 1300.33,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1300.33,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1300.33,
+      "vatAmount": 273.07
+    }
+  ],
+  "vatAmount": 273.07,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1573.4
+}

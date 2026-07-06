@@ -1,0 +1,87 @@
+{
+  "invoice_id": "synthetic_es_0043",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2024-00043",
+  "date": "2024-10-21",
+  "due_date": "2024-12-05",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100043",
+    "address": "Calle Roble, 138 - Madrid",
+    "email": "maderas.prueba.sa.43@example.test",
+    "phone": "+34 900 043 522"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200343J",
+    "address": "Ronda Fiscal, 108 - Madrid",
+    "email": "particular.sintetico.343@example.test",
+    "phone": "+34 900 343 719"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-7424-1",
+      "description": "Pantalla LED",
+      "unit": "ud",
+      "quantity": 2.59,
+      "unit_price": 409.2,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1059.83,
+      "vat_amount": 222.56,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1282.39,
+      "line_total_with_taxes": 1282.39,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1059.83,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1059.83,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1059.83,
+        "vat_amount": 222.56,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 222.56,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1282.39,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

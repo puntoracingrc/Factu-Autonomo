@@ -1,0 +1,82 @@
+{
+  "layoutId": "L03_art_cant_unit_base_iva_total",
+  "supplierName": "Comercial Brisa SA",
+  "supplierNif": "A11223344",
+  "supplierAddress": "Ronda Sur 91, 50021 Zaragoza",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0003",
+  "date": "2026-02-24",
+  "lines": [
+    {
+      "ref": "R00301",
+      "description": "Servicio tecnico",
+      "quantity": 5,
+      "unitPrice": 74.48,
+      "discountRate": 0,
+      "base": 372.4,
+      "vatRate": 10,
+      "vatAmount": 37.24,
+      "lineTotal": 409.64
+    },
+    {
+      "ref": "R00302",
+      "description": "Servicio tecnico",
+      "quantity": 2,
+      "unitPrice": 21.41,
+      "discountRate": 0,
+      "base": 42.82,
+      "vatRate": 10,
+      "vatAmount": 4.28,
+      "lineTotal": 47.1
+    },
+    {
+      "ref": "R00303",
+      "description": "Soporte mensual",
+      "quantity": 8,
+      "unitPrice": 68.95,
+      "discountRate": 0,
+      "base": 551.6,
+      "vatRate": 10,
+      "vatAmount": 55.16,
+      "lineTotal": 606.76
+    },
+    {
+      "ref": "R00304",
+      "description": "Mando a distancia",
+      "quantity": 1,
+      "unitPrice": 98.89,
+      "discountRate": 0,
+      "base": 98.89,
+      "vatRate": 10,
+      "vatAmount": 9.89,
+      "lineTotal": 108.78
+    },
+    {
+      "ref": "R00305",
+      "description": "Tubo octogonal",
+      "quantity": 8,
+      "unitPrice": 177.19,
+      "discountRate": 0,
+      "base": 1417.52,
+      "vatRate": 10,
+      "vatAmount": 141.75,
+      "lineTotal": 1559.27
+    }
+  ],
+  "subtotal": 2483.23,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 2483.23,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 2483.23,
+      "vatAmount": 248.32
+    }
+  ],
+  "vatAmount": 248.32,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2731.55
+}

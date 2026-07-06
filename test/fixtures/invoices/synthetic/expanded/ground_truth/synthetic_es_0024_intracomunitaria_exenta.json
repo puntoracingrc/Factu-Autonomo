@@ -1,0 +1,103 @@
+{
+  "invoice_id": "synthetic_es_0024",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2024-00024",
+  "date": "2024-07-12",
+  "due_date": "2024-08-26",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100024",
+    "address": "Calle Mayor, 96 - Sevilla",
+    "email": "consultoria.alameda.demo.24@example.test",
+    "phone": "+34 900 024 644"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200324V",
+    "address": "Camino del Almacén, 10 - Barcelona",
+    "email": "autonomo.de.prueba.324@example.test",
+    "phone": "+34 900 324 797"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9372-1",
+      "description": "Desplazamiento",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 366.17,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 366.17,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 366.17,
+      "line_total_with_taxes": 366.17,
+      "period": null
+    },
+    {
+      "reference": "REF-2926-2",
+      "description": "Sensor de presencia",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 409.96,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 2459.76,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2459.76,
+      "line_total_with_taxes": 2459.76,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2825.93,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2825.93,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 2825.93,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2825.93,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

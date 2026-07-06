@@ -1,0 +1,190 @@
+{
+  "invoice_id": "synthetic_es_0070",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00070",
+  "date": "2025-05-02",
+  "due_date": "2025-05-09",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100070",
+    "address": "Plaza del Mercado, 71 - Bilbao",
+    "email": "logistica.ficticia.sl.70@example.test",
+    "phone": "+34 900 070 573"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100370",
+    "address": "Paseo de la Industria, 64 - Madrid",
+    "email": "cliente.demo.sl.370@example.test",
+    "phone": "+34 900 370 965"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-2280-1",
+      "description": "Mantenimiento preventivo",
+      "unit": "kg",
+      "quantity": 12.0,
+      "unit_price": 333.08,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": 3197.57,
+      "vat_amount": 671.49,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3869.06,
+      "line_total_with_taxes": 3869.06,
+      "period": null
+    },
+    {
+      "reference": "REF-1583-2",
+      "description": "Rodamiento industrial",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 93.5,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 238.43,
+      "vat_amount": 50.07,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 288.5,
+      "line_total_with_taxes": 288.5,
+      "period": null
+    },
+    {
+      "reference": "REF-8419-3",
+      "description": "Horas de consultoría",
+      "unit": "ud",
+      "quantity": 7.07,
+      "unit_price": 221.48,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1565.86,
+      "vat_amount": 328.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1894.69,
+      "line_total_with_taxes": 1894.69,
+      "period": null
+    },
+    {
+      "reference": "REF-4732-4",
+      "description": "Servicio de instalación",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 115.48,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 346.44,
+      "vat_amount": 34.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 381.08,
+      "line_total_with_taxes": 381.08,
+      "period": null
+    },
+    {
+      "reference": "REF-3383-5",
+      "description": "Licencia mensual software",
+      "unit": "h",
+      "quantity": 7.14,
+      "unit_price": 80.08,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 571.77,
+      "vat_amount": 120.07,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 691.84,
+      "line_total_with_taxes": 691.84,
+      "period": null
+    },
+    {
+      "reference": "REF-8802-6",
+      "description": "Soporte premium - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 135.46,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 406.38,
+      "vat_amount": 85.34,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 491.72,
+      "line_total_with_taxes": 491.72,
+      "period": null
+    },
+    {
+      "reference": "REF-4190-7",
+      "description": "Asesoría documental",
+      "unit": "pack",
+      "quantity": 12.0,
+      "unit_price": 270.1,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3241.2,
+      "vat_amount": 680.65,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3921.85,
+      "line_total_with_taxes": 3921.85,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 9567.65,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 9567.65,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 9221.21,
+        "vat_amount": 1936.45,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 346.44,
+        "vat_amount": 34.64,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1971.09,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 11538.74,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

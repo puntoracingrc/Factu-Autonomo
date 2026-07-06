@@ -1,0 +1,158 @@
+{
+  "invoice_id": "synthetic_es_0014",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00014",
+  "date": "2024-06-11",
+  "due_date": "2024-06-18",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100014",
+    "address": "Avenida del Puerto, 79 - Valladolid",
+    "email": "distribuciones.iberia.te.14@example.test",
+    "phone": "+34 900 014 836"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100314",
+    "address": "Plaza del Mercado, 50 - Valladolid",
+    "email": "obras.y.reformas.test.sl.314@example.test",
+    "phone": "+34 900 314 509"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-7127-1",
+      "description": "Rodamiento industrial",
+      "unit": "kg",
+      "quantity": 5.86,
+      "unit_price": 439.83,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2577.4,
+      "vat_amount": 541.25,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3118.65,
+      "line_total_with_taxes": 3118.65,
+      "period": null
+    },
+    {
+      "reference": "REF-1904-2",
+      "description": "Desplazamiento",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 266.55,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1599.3,
+      "vat_amount": 159.93,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1759.23,
+      "line_total_with_taxes": 1759.23,
+      "period": null
+    },
+    {
+      "reference": "REF-7893-3",
+      "description": "Tornillería inoxidable",
+      "unit": "pack",
+      "quantity": 4.0,
+      "unit_price": 69.14,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 276.56,
+      "vat_amount": 27.66,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 304.22,
+      "line_total_with_taxes": 304.22,
+      "period": null
+    },
+    {
+      "reference": "REF-8873-4",
+      "description": "Servicio urgente 24h",
+      "unit": "servicio",
+      "quantity": 1.12,
+      "unit_price": 8.24,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": 8.31,
+      "vat_amount": 1.75,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 10.06,
+      "line_total_with_taxes": 10.06,
+      "period": null
+    },
+    {
+      "reference": "REF-9910-5",
+      "description": "Equipo informático",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 264.1,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": 250.9,
+      "vat_amount": 52.69,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 303.59,
+      "line_total_with_taxes": 303.59,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4712.47,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4712.47,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2836.61,
+        "vat_amount": 595.69,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1875.86,
+        "vat_amount": 187.59,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 783.28,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5495.75,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

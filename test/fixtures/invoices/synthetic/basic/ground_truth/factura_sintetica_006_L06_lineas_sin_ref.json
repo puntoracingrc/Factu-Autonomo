@@ -1,0 +1,93 @@
+{
+  "layoutId": "L06_lineas_sin_ref",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0006",
+  "date": "2026-04-20",
+  "lines": [
+    {
+      "ref": "R00601",
+      "description": "Caja registradora",
+      "quantity": 1,
+      "unitPrice": 8.1,
+      "discountRate": 0,
+      "base": 8.1,
+      "vatRate": 21,
+      "vatAmount": 1.7,
+      "lineTotal": 9.8
+    },
+    {
+      "ref": "R00602",
+      "description": "Soporte mensual",
+      "quantity": 5,
+      "unitPrice": 21.85,
+      "discountRate": 0,
+      "base": 109.25,
+      "vatRate": 21,
+      "vatAmount": 22.94,
+      "lineTotal": 132.19
+    },
+    {
+      "ref": "R00603",
+      "description": "Mando a distancia",
+      "quantity": 4,
+      "unitPrice": 40.63,
+      "discountRate": 0,
+      "base": 162.52,
+      "vatRate": 21,
+      "vatAmount": 34.13,
+      "lineTotal": 196.65
+    },
+    {
+      "ref": "R00604",
+      "description": "Kit instalacion",
+      "quantity": 5,
+      "unitPrice": 72.79,
+      "discountRate": 0,
+      "base": 363.95,
+      "vatRate": 21,
+      "vatAmount": 76.43,
+      "lineTotal": 440.38
+    },
+    {
+      "ref": "R00605",
+      "description": "Revision anual",
+      "quantity": 2,
+      "unitPrice": 178.88,
+      "discountRate": 0,
+      "base": 357.76,
+      "vatRate": 21,
+      "vatAmount": 75.13,
+      "lineTotal": 432.89
+    },
+    {
+      "ref": "R00606",
+      "description": "Guia lateral",
+      "quantity": 8,
+      "unitPrice": 37.1,
+      "discountRate": 0,
+      "base": 296.8,
+      "vatRate": 21,
+      "vatAmount": 62.33,
+      "lineTotal": 359.13
+    }
+  ],
+  "subtotal": 1298.38,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1298.38,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1298.38,
+      "vatAmount": 272.66
+    }
+  ],
+  "vatAmount": 272.66,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1571.04
+}

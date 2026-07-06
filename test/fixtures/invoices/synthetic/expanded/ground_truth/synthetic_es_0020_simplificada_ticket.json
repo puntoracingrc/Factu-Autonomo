@@ -1,0 +1,157 @@
+{
+  "invoice_id": "synthetic_es_0020",
+  "document_title": "FACTURA SIMPLIFICADA",
+  "invoice_type": "simplificada",
+  "layout_id": "simplificada_ticket",
+  "source_inspiration": [
+    "Factura simplificada",
+    "Declarando / Holded"
+  ],
+  "invoice_number": "F-2024-00020",
+  "date": "2024-06-13",
+  "due_date": "2024-06-28",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100020",
+    "address": "Plaza del Mercado, 112 - A Coruña",
+    "email": "distribuciones.iberia.te.20@example.test",
+    "phone": "+34 900 020 973"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100320",
+    "address": "Calle Mayor, 63 - Sevilla",
+    "email": "tienda.piloto.sl.320@example.test",
+    "phone": "+34 900 320 107"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-4325-1",
+      "description": "Tornillería inoxidable",
+      "unit": "m",
+      "quantity": 8.35,
+      "unit_price": 237.22,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1980.79,
+      "vat_amount": 415.97,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2396.76,
+      "line_total_with_taxes": 2396.76,
+      "period": null
+    },
+    {
+      "reference": "REF-1771-2",
+      "description": "Horas de consultoría",
+      "unit": "m",
+      "quantity": 2.0,
+      "unit_price": 240.84,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 481.68,
+      "vat_amount": 19.27,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 500.95,
+      "line_total_with_taxes": 500.95,
+      "period": null
+    },
+    {
+      "reference": "REF-3882-3",
+      "description": "Repuesto mecánico",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 348.71,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1046.13,
+      "vat_amount": 219.69,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1265.82,
+      "line_total_with_taxes": 1265.82,
+      "period": null
+    },
+    {
+      "reference": "REF-3566-4",
+      "description": "Licencia mensual software",
+      "unit": "kg",
+      "quantity": 3.59,
+      "unit_price": 339.73,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1219.63,
+      "vat_amount": 256.12,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1475.75,
+      "line_total_with_taxes": 1475.75,
+      "period": null
+    },
+    {
+      "reference": "REF-6388-5",
+      "description": "Servicio de instalación",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 250.15,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1500.9,
+      "vat_amount": 315.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1816.09,
+      "line_total_with_taxes": 1816.09,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6229.13,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6229.13,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 5747.45,
+        "vat_amount": 1206.97,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 481.68,
+        "vat_amount": 19.27,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1226.24,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 7455.37,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Ud.": "quantity",
+    "P. Unit": "unit_price",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

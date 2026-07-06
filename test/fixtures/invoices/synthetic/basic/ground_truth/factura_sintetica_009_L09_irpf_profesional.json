@@ -1,0 +1,82 @@
+{
+  "layoutId": "L09_irpf_profesional",
+  "supplierName": "Tecno Oficina SL",
+  "supplierNif": "B66778899",
+  "supplierAddress": "C/ Olivo 18, 29005 Malaga",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0009",
+  "date": "2026-04-23",
+  "lines": [
+    {
+      "ref": "R00901",
+      "description": "Revision anual",
+      "quantity": 1,
+      "unitPrice": 26.02,
+      "discountRate": 0,
+      "base": 26.02,
+      "vatRate": 10,
+      "vatAmount": 2.6,
+      "lineTotal": 28.62
+    },
+    {
+      "ref": "R00902",
+      "description": "Persiana aluminio",
+      "quantity": 2,
+      "unitPrice": 198.19,
+      "discountRate": 0,
+      "base": 396.38,
+      "vatRate": 10,
+      "vatAmount": 39.64,
+      "lineTotal": 436.02
+    },
+    {
+      "ref": "R00903",
+      "description": "Licencia software",
+      "quantity": 1,
+      "unitPrice": 87.83,
+      "discountRate": 0,
+      "base": 87.83,
+      "vatRate": 10,
+      "vatAmount": 8.78,
+      "lineTotal": 96.61
+    },
+    {
+      "ref": "R00904",
+      "description": "Revision anual",
+      "quantity": 3,
+      "unitPrice": 22.27,
+      "discountRate": 0,
+      "base": 66.81,
+      "vatRate": 10,
+      "vatAmount": 6.68,
+      "lineTotal": 73.49
+    },
+    {
+      "ref": "R00905",
+      "description": "Soporte mensual",
+      "quantity": 3,
+      "unitPrice": 218.91,
+      "discountRate": 0,
+      "base": 656.73,
+      "vatRate": 10,
+      "vatAmount": 65.67,
+      "lineTotal": 722.4
+    }
+  ],
+  "subtotal": 1233.77,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1233.77,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 1233.77,
+      "vatAmount": 123.38
+    }
+  ],
+  "vatAmount": 123.38,
+  "irpfRate": 15,
+  "irpfAmount": 185.07,
+  "total": 1172.08
+}

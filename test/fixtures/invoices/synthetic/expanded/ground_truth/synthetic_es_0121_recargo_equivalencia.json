@@ -1,0 +1,182 @@
+{
+  "invoice_id": "synthetic_es_0121",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2024-00121",
+  "date": "2024-05-07",
+  "due_date": "2024-05-22",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100121",
+    "address": "Calle Gran Vía, 145 - A Coruña",
+    "email": "oficina.tecnica.aurora.s.121@example.test",
+    "phone": "+34 900 121 390"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100421",
+    "address": "Calle Roble, 89 - Barcelona",
+    "email": "proyecto.alfa.demo.sl.421@example.test",
+    "phone": "+34 900 421 661"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-7853-1",
+      "description": "Libro técnico",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 234.66,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1173.3,
+      "vat_amount": 246.39,
+      "recargo_rate": 5.2,
+      "recargo_amount": 61.01,
+      "line_total_with_vat": 1419.69,
+      "line_total_with_taxes": 1480.7,
+      "period": null
+    },
+    {
+      "reference": "REF-6291-2",
+      "description": "Motor tubular demo",
+      "unit": "ud",
+      "quantity": 4.11,
+      "unit_price": 302.73,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1244.22,
+      "vat_amount": 49.77,
+      "recargo_rate": 0.5,
+      "recargo_amount": 6.22,
+      "line_total_with_vat": 1293.99,
+      "line_total_with_taxes": 1300.21,
+      "period": null
+    },
+    {
+      "reference": "REF-8506-3",
+      "description": "Pack de consumibles",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 200.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 200.87,
+      "vat_amount": 42.18,
+      "recargo_rate": 5.2,
+      "recargo_amount": 10.45,
+      "line_total_with_vat": 243.05,
+      "line_total_with_taxes": 253.5,
+      "period": null
+    },
+    {
+      "reference": "REF-7060-4",
+      "description": "Repuesto mecánico",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 55.65,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 55.65,
+      "vat_amount": 5.57,
+      "recargo_rate": 1.4,
+      "recargo_amount": 0.78,
+      "line_total_with_vat": 61.22,
+      "line_total_with_taxes": 62.0,
+      "period": null
+    },
+    {
+      "reference": "REF-4506-5",
+      "description": "Revisión técnica",
+      "unit": "kg",
+      "quantity": 4.0,
+      "unit_price": 290.49,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1161.96,
+      "vat_amount": 116.2,
+      "recargo_rate": 1.4,
+      "recargo_amount": 16.27,
+      "line_total_with_vat": 1278.16,
+      "line_total_with_taxes": 1294.43,
+      "period": null
+    },
+    {
+      "reference": "REF-7101-6",
+      "description": "Auditoría técnica - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 85.05,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 255.15,
+      "vat_amount": 10.21,
+      "recargo_rate": 0.5,
+      "recargo_amount": 1.28,
+      "line_total_with_vat": 265.36,
+      "line_total_with_taxes": 266.64,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4091.15,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4091.15,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1374.17,
+        "vat_amount": 288.57,
+        "recargo_rate": 5.2,
+        "recargo_amount": 71.46
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1499.37,
+        "vat_amount": 59.98,
+        "recargo_rate": 0.5,
+        "recargo_amount": 7.5
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1217.61,
+        "vat_amount": 121.77,
+        "recargo_rate": 1.4,
+        "recargo_amount": 17.05
+      }
+    ],
+    "vat_total": 470.32,
+    "recargo_total": 96.01,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 4657.48,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

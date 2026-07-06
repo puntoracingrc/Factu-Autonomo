@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0151",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2024-00151",
+  "date": "2024-10-01",
+  "due_date": "2024-10-08",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100151",
+    "address": "Calle Mayor, 58 - Barcelona",
+    "email": "distribuciones.iberia.te.151@example.test",
+    "phone": "+34 900 151 623"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200451Y",
+    "address": "Camino del Almacén, 4 - Palma",
+    "email": "autonomo.de.prueba.451@example.test",
+    "phone": "+34 900 451 340"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-2229-1",
+      "description": "Bolsa de recambios variados",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 85.47,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -85.47,
+      "vat_amount": -17.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -103.42,
+      "line_total_with_taxes": -103.42,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -85.47,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -85.47,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -85.47,
+        "vat_amount": -17.95,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -17.95,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -103.42,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2024-00093"
+}

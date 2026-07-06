@@ -1,0 +1,87 @@
+{
+  "invoice_id": "synthetic_es_0056",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00056",
+  "date": "2025-04-01",
+  "due_date": "2025-05-16",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100056",
+    "address": "Calle Roble, 25 - Palma",
+    "email": "distribuciones.iberia.te.56@example.test",
+    "phone": "+34 900 056 535"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100356",
+    "address": "Ronda Fiscal, 60 - Bilbao",
+    "email": "tienda.piloto.sl.356@example.test",
+    "phone": "+34 900 356 423"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-5384-1",
+      "description": "Base de datos anual",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 394.91,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3949.1,
+      "vat_amount": 829.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4778.41,
+      "line_total_with_taxes": 4778.41,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3949.1,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3949.1,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3949.1,
+        "vat_amount": 829.31,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 829.31,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 4778.41,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

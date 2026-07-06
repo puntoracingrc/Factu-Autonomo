@@ -1,0 +1,126 @@
+{
+  "invoice_id": "synthetic_es_0084",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00084",
+  "date": "2025-10-26",
+  "due_date": "2025-12-10",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100084",
+    "address": "Calle Mayor, 59 - Valladolid",
+    "email": "consultoria.alameda.demo.84@example.test",
+    "phone": "+34 900 084 147"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200384P",
+    "address": "Ronda Fiscal, 62 - Málaga",
+    "email": "particular.sintetico.384@example.test",
+    "phone": "+34 900 384 139"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-9445-1",
+      "description": "Licencia mensual software",
+      "unit": "pack",
+      "quantity": 2.3,
+      "unit_price": 21.33,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 49.06,
+      "vat_amount": 10.3,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 59.36,
+      "line_total_with_taxes": 59.36,
+      "period": null
+    },
+    {
+      "reference": "REF-9573-2",
+      "description": "Auditoría técnica",
+      "unit": "h",
+      "quantity": 2.0,
+      "unit_price": 85.02,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 144.53,
+      "vat_amount": 30.35,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 174.88,
+      "line_total_with_taxes": 174.88,
+      "period": null
+    },
+    {
+      "reference": "REF-8516-3",
+      "description": "Revisión técnica - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 2.0,
+      "unit_price": 441.8,
+      "discount_rate": 5.0,
+      "vat_rate": 4.0,
+      "line_base": 839.42,
+      "vat_amount": 33.58,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 873.0,
+      "line_total_with_taxes": 873.0,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1033.01,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1033.01,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 193.59,
+        "vat_amount": 40.65,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 839.42,
+        "vat_amount": 33.58,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 74.23,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1107.24,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

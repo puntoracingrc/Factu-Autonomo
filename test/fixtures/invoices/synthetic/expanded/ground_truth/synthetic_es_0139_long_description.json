@@ -1,0 +1,213 @@
+{
+  "invoice_id": "synthetic_es_0139",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "long_description",
+  "source_inspiration": [
+    "Casos con descripción larga",
+    "Datasets OCR multi-layout"
+  ],
+  "invoice_number": "F-2024-00139",
+  "date": "2024-08-31",
+  "due_date": "2024-09-30",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100139",
+    "address": "Calle Gran Vía, 32 - Valladolid",
+    "email": "electro.hogar.simulado.s.139@example.test",
+    "phone": "+34 900 139 807"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100439",
+    "address": "Paseo de la Industria, 14 - A Coruña",
+    "email": "taller.cliente.ficticio..439@example.test",
+    "phone": "+34 900 439 513"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-2598-1",
+      "description": "Conjunto persiana - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 413.97,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 413.97,
+      "vat_amount": 86.93,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 500.9,
+      "line_total_with_taxes": 500.9,
+      "period": null
+    },
+    {
+      "reference": "REF-2979-2",
+      "description": "Tornillería inoxidable - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 6.85,
+      "unit_price": 322.69,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2210.43,
+      "vat_amount": 221.04,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2431.47,
+      "line_total_with_taxes": 2431.47,
+      "period": null
+    },
+    {
+      "reference": "REF-3830-3",
+      "description": "Equipo informático - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 2.0,
+      "unit_price": 291.33,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 582.66,
+      "vat_amount": 122.36,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 705.02,
+      "line_total_with_taxes": 705.02,
+      "period": null
+    },
+    {
+      "reference": "REF-9908-4",
+      "description": "Pantalla LED - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 4.0,
+      "unit_price": 193.23,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 772.92,
+      "vat_amount": 30.92,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 803.84,
+      "line_total_with_taxes": 803.84,
+      "period": null
+    },
+    {
+      "reference": "REF-7496-5",
+      "description": "Bolsa de recambios variados - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 75.42,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 226.26,
+      "vat_amount": 22.63,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 248.89,
+      "line_total_with_taxes": 248.89,
+      "period": null
+    },
+    {
+      "reference": "REF-1481-6",
+      "description": "Mantenimiento preventivo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 10.0,
+      "unit_price": 35.4,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 354.0,
+      "vat_amount": 74.34,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 428.34,
+      "line_total_with_taxes": 428.34,
+      "period": null
+    },
+    {
+      "reference": "REF-7368-7",
+      "description": "Transporte y manipulación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 411.02,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2055.1,
+      "vat_amount": 431.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2486.67,
+      "line_total_with_taxes": 2486.67,
+      "period": null
+    },
+    {
+      "reference": "REF-9617-8",
+      "description": "Tornillería inoxidable - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 409.49,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 409.49,
+      "vat_amount": 40.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 450.44,
+      "line_total_with_taxes": 450.44,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7024.83,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 7024.83,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3405.73,
+        "vat_amount": 715.2,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2846.18,
+        "vat_amount": 284.62,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 772.92,
+        "vat_amount": 30.92,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1030.74,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 8055.57,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto detallado": "description",
+    "Unid.": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

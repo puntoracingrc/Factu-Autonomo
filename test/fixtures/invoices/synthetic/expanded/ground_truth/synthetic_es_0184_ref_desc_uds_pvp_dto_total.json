@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0184",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2025-00184",
+  "date": "2025-06-28",
+  "due_date": "2025-06-28",
+  "supplier": {
+    "name": "Soluciones Nube Ficticias SL",
+    "tax_id": "B-00100184",
+    "address": "Paseo de la Industria, 25 - Madrid",
+    "email": "soluciones.nube.ficticia.184@example.test",
+    "phone": "+34 900 184 358"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200484Q",
+    "address": "Ronda Fiscal, 5 - Valladolid",
+    "email": "comunidad.simulada.484@example.test",
+    "phone": "+34 900 484 373"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-2509-1",
+      "description": "Base de datos anual",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 123.55,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 247.1,
+      "vat_amount": 51.89,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 298.99,
+      "line_total_with_taxes": 298.99,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 247.1,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 247.1,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 247.1,
+        "vat_amount": 51.89,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 51.89,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 298.99,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

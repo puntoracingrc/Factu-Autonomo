@@ -1,0 +1,110 @@
+{
+  "invoice_id": "synthetic_es_0155",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2024-00155",
+  "date": "2024-11-16",
+  "due_date": "2024-12-16",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100155",
+    "address": "Calle Mayor, 84 - Valladolid",
+    "email": "suministros.norte.demo.s.155@example.test",
+    "phone": "+34 900 155 441"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200455X",
+    "address": "Avenida del Puerto, 97 - A Coruña",
+    "email": "comunidad.simulada.455@example.test",
+    "phone": "+34 900 455 885"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9732-1",
+      "description": "Bolsa de recambios variados",
+      "unit": "ud",
+      "quantity": 5.0,
+      "unit_price": 242.72,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1213.6,
+      "vat_amount": 48.54,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1262.14,
+      "line_total_with_taxes": 1262.14,
+      "period": null
+    },
+    {
+      "reference": "REF-9120-2",
+      "description": "Producto alimentario demo",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 96.25,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 962.5,
+      "vat_amount": 96.25,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1058.75,
+      "line_total_with_taxes": 1058.75,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2176.1,
+    "global_discount_rate": 3.0,
+    "global_discount_amount": 65.28,
+    "taxable_base": 2110.82,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1177.19,
+        "vat_amount": 47.09,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 933.63,
+        "vat_amount": 93.36,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 140.45,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2251.27,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

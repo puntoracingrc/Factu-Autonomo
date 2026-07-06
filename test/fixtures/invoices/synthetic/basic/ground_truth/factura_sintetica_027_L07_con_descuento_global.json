@@ -1,0 +1,71 @@
+{
+  "layoutId": "L07_con_descuento_global",
+  "supplierName": "Suministros Delta SL",
+  "supplierNif": "B12345678",
+  "supplierAddress": "Calle Mayor 12, 28013 Madrid",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0027",
+  "date": "2026-06-14",
+  "lines": [
+    {
+      "ref": "R02701",
+      "description": "Material electrico",
+      "quantity": 1,
+      "unitPrice": 117.79,
+      "discountRate": 0,
+      "base": 117.79,
+      "vatRate": 10,
+      "vatAmount": 11.78,
+      "lineTotal": 129.57
+    },
+    {
+      "ref": "R02702",
+      "description": "Mano de obra",
+      "quantity": 8,
+      "unitPrice": 175.55,
+      "discountRate": 0,
+      "base": 1404.4,
+      "vatRate": 10,
+      "vatAmount": 140.44,
+      "lineTotal": 1544.84
+    },
+    {
+      "ref": "R02703",
+      "description": "Kit instalacion",
+      "quantity": 1,
+      "unitPrice": 169.73,
+      "discountRate": 0,
+      "base": 169.73,
+      "vatRate": 10,
+      "vatAmount": 16.97,
+      "lineTotal": 186.7
+    },
+    {
+      "ref": "R02704",
+      "description": "Material electrico",
+      "quantity": 3,
+      "unitPrice": 53.82,
+      "discountRate": 0,
+      "base": 161.46,
+      "vatRate": 10,
+      "vatAmount": 16.15,
+      "lineTotal": 177.61
+    }
+  ],
+  "subtotal": 1853.38,
+  "globalDiscountRate": 5,
+  "globalDiscountAmount": 92.67,
+  "taxBase": 1760.71,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 1760.71,
+      "vatAmount": 176.07
+    }
+  ],
+  "vatAmount": 176.07,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1936.78
+}

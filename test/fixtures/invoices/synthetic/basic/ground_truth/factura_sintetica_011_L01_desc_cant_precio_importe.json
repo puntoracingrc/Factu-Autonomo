@@ -1,0 +1,49 @@
+{
+  "layoutId": "L01_desc_cant_precio_importe",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0011",
+  "date": "2026-06-27",
+  "lines": [
+    {
+      "ref": "R01101",
+      "description": "Mando a distancia",
+      "quantity": 4,
+      "unitPrice": 74.31,
+      "discountRate": 0,
+      "base": 297.24,
+      "vatRate": 10,
+      "vatAmount": 29.72,
+      "lineTotal": 326.96
+    },
+    {
+      "ref": "R01102",
+      "description": "Soporte mensual",
+      "quantity": 3,
+      "unitPrice": 214.15,
+      "discountRate": 0,
+      "base": 642.45,
+      "vatRate": 10,
+      "vatAmount": 64.25,
+      "lineTotal": 706.7
+    }
+  ],
+  "subtotal": 939.69,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 939.69,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 939.69,
+      "vatAmount": 93.97
+    }
+  ],
+  "vatAmount": 93.97,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1033.66
+}

@@ -1,0 +1,49 @@
+{
+  "layoutId": "L09_irpf_profesional",
+  "supplierName": "Materiales Vega SL",
+  "supplierNif": "B99887766",
+  "supplierAddress": "Pol. La Estrella nave 3, 41016 Sevilla",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0019",
+  "date": "2026-05-14",
+  "lines": [
+    {
+      "ref": "R01901",
+      "description": "Mano de obra",
+      "quantity": 2,
+      "unitPrice": 151.95,
+      "discountRate": 0,
+      "base": 303.9,
+      "vatRate": 10,
+      "vatAmount": 30.39,
+      "lineTotal": 334.29
+    },
+    {
+      "ref": "R01902",
+      "description": "Recambio especial",
+      "quantity": 1,
+      "unitPrice": 127.42,
+      "discountRate": 0,
+      "base": 127.42,
+      "vatRate": 10,
+      "vatAmount": 12.74,
+      "lineTotal": 140.16
+    }
+  ],
+  "subtotal": 431.32,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 431.32,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 431.32,
+      "vatAmount": 43.13
+    }
+  ],
+  "vatAmount": 43.13,
+  "irpfRate": 15,
+  "irpfAmount": 64.7,
+  "total": 409.75
+}

@@ -1,0 +1,82 @@
+{
+  "layoutId": "L04_concepto_base_iva_total",
+  "supplierName": "Servicios Litoral SL",
+  "supplierNif": "B44556677",
+  "supplierAddress": "C/ Marina 7, 46011 Valencia",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0014",
+  "date": "2026-04-23",
+  "lines": [
+    {
+      "ref": "R01401",
+      "description": "Mando a distancia",
+      "quantity": 1,
+      "unitPrice": 141.85,
+      "discountRate": 0,
+      "base": 141.85,
+      "vatRate": 10,
+      "vatAmount": 14.19,
+      "lineTotal": 156.04
+    },
+    {
+      "ref": "R01402",
+      "description": "Persiana aluminio",
+      "quantity": 3,
+      "unitPrice": 82.01,
+      "discountRate": 0,
+      "base": 246.03,
+      "vatRate": 10,
+      "vatAmount": 24.6,
+      "lineTotal": 270.63
+    },
+    {
+      "ref": "R01403",
+      "description": "Mando a distancia",
+      "quantity": 4,
+      "unitPrice": 61.54,
+      "discountRate": 0,
+      "base": 246.16,
+      "vatRate": 10,
+      "vatAmount": 24.62,
+      "lineTotal": 270.78
+    },
+    {
+      "ref": "R01404",
+      "description": "Tubo octogonal",
+      "quantity": 5,
+      "unitPrice": 68.74,
+      "discountRate": 0,
+      "base": 343.7,
+      "vatRate": 10,
+      "vatAmount": 34.37,
+      "lineTotal": 378.07
+    },
+    {
+      "ref": "R01405",
+      "description": "Material electrico",
+      "quantity": 1,
+      "unitPrice": 71.44,
+      "discountRate": 0,
+      "base": 71.44,
+      "vatRate": 10,
+      "vatAmount": 7.14,
+      "lineTotal": 78.58
+    }
+  ],
+  "subtotal": 1049.18,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1049.18,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 1049.18,
+      "vatAmount": 104.92
+    }
+  ],
+  "vatAmount": 104.92,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1154.1
+}

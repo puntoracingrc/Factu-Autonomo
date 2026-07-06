@@ -1,0 +1,213 @@
+{
+  "invoice_id": "synthetic_es_0041",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "long_description",
+  "source_inspiration": [
+    "Casos con descripción larga",
+    "Datasets OCR multi-layout"
+  ],
+  "invoice_number": "F-2025-00041",
+  "date": "2025-01-02",
+  "due_date": "2025-02-01",
+  "supplier": {
+    "name": "Talleres Vega Sintéticos SL",
+    "tax_id": "B-00100041",
+    "address": "Calle Mayor, 94 - Madrid",
+    "email": "talleres.vega.sinteticos.41@example.test",
+    "phone": "+34 900 041 604"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100341",
+    "address": "Paseo de la Industria, 112 - Alicante",
+    "email": "proyecto.alfa.demo.sl.341@example.test",
+    "phone": "+34 900 341 790"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-8676-1",
+      "description": "Rodamiento industrial - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 2.0,
+      "unit_price": 402.17,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 804.34,
+      "vat_amount": 168.91,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 973.25,
+      "line_total_with_taxes": 973.25,
+      "period": null
+    },
+    {
+      "reference": "REF-2539-2",
+      "description": "Horas de consultoría - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 194.69,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 584.07,
+      "vat_amount": 23.36,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 607.43,
+      "line_total_with_taxes": 607.43,
+      "period": null
+    },
+    {
+      "reference": "REF-3038-3",
+      "description": "Asesoría documental - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 6.47,
+      "unit_price": 389.9,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2522.65,
+      "vat_amount": 529.76,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3052.41,
+      "line_total_with_taxes": 3052.41,
+      "period": null
+    },
+    {
+      "reference": "REF-7565-4",
+      "description": "Servicio de instalación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 243.72,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 243.72,
+      "vat_amount": 24.37,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 268.09,
+      "line_total_with_taxes": 268.09,
+      "period": null
+    },
+    {
+      "reference": "REF-5438-5",
+      "description": "Bolsa de recambios variados - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 350.75,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2104.5,
+      "vat_amount": 441.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2546.45,
+      "line_total_with_taxes": 2546.45,
+      "period": null
+    },
+    {
+      "reference": "REF-5503-6",
+      "description": "Sensor de presencia - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 7.92,
+      "unit_price": 231.09,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1830.23,
+      "vat_amount": 384.35,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2214.58,
+      "line_total_with_taxes": 2214.58,
+      "period": null
+    },
+    {
+      "reference": "REF-3613-7",
+      "description": "Sensor de presencia - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 394.65,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3946.5,
+      "vat_amount": 828.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4775.27,
+      "line_total_with_taxes": 4775.27,
+      "period": null
+    },
+    {
+      "reference": "REF-6779-8",
+      "description": "Transporte y manipulación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 307.56,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3075.6,
+      "vat_amount": 645.88,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3721.48,
+      "line_total_with_taxes": 3721.48,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 15111.61,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 15111.61,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 14283.82,
+        "vat_amount": 2999.62,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 584.07,
+        "vat_amount": 23.36,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 243.72,
+        "vat_amount": 24.37,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 3047.35,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 18158.96,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto detallado": "description",
+    "Unid.": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

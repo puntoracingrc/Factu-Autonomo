@@ -1,0 +1,111 @@
+{
+  "invoice_id": "synthetic_es_0115",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2024-00115",
+  "date": "2024-02-03",
+  "due_date": "2024-03-04",
+  "supplier": {
+    "name": "Soluciones Nube Ficticias SL",
+    "tax_id": "B-00100115",
+    "address": "Avenida del Puerto, 106 - Zaragoza",
+    "email": "soluciones.nube.ficticia.115@example.test",
+    "phone": "+34 900 115 476"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100415",
+    "address": "Ronda Fiscal, 81 - Barcelona",
+    "email": "obras.y.reformas.test.sl.415@example.test",
+    "phone": "+34 900 415 485"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-1978-1",
+      "description": "Soporte premium",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 288.85,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 288.85,
+      "vat_amount": 28.89,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 317.74,
+      "line_total_with_taxes": 317.74,
+      "period": null
+    },
+    {
+      "reference": "REF-6608-2",
+      "description": "Desplazamiento",
+      "unit": "h",
+      "quantity": 4.96,
+      "unit_price": 363.16,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1801.27,
+      "vat_amount": 378.27,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2179.54,
+      "line_total_with_taxes": 2179.54,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2090.12,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2090.12,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 288.85,
+        "vat_amount": 28.89,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1801.27,
+        "vat_amount": 378.27,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 407.16,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2497.28,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

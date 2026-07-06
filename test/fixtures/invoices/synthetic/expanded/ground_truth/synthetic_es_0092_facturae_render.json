@@ -1,0 +1,143 @@
+{
+  "invoice_id": "synthetic_es_0092",
+  "document_title": "FACTURA ELECTRÓNICA - VISTA PDF",
+  "invoice_type": "irpf",
+  "layout_id": "facturae_render",
+  "source_inspiration": [
+    "Estructura Facturae renderizada",
+    "Facturae oficial"
+  ],
+  "invoice_number": "F-2025-00092",
+  "date": "2025-11-16",
+  "due_date": "2025-12-01",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100092",
+    "address": "Camino del Almacén, 126 - A Coruña",
+    "email": "suministros.norte.demo.s.92@example.test",
+    "phone": "+34 900 092 778"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200392Q",
+    "address": "Plaza del Mercado, 85 - Sevilla",
+    "email": "particular.sintetico.392@example.test",
+    "phone": "+34 900 392 380"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-5327-1",
+      "description": "Pack de consumibles",
+      "unit": "ud",
+      "quantity": 8.32,
+      "unit_price": 293.95,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2445.66,
+      "vat_amount": 244.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2690.23,
+      "line_total_with_taxes": 2690.23,
+      "period": null
+    },
+    {
+      "reference": "REF-5675-2",
+      "description": "Licencia mensual software",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 212.62,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 212.62,
+      "vat_amount": 44.65,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 257.27,
+      "line_total_with_taxes": 257.27,
+      "period": null
+    },
+    {
+      "reference": "REF-1744-3",
+      "description": "Pack de consumibles",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 294.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1769.22,
+      "vat_amount": 371.54,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2140.76,
+      "line_total_with_taxes": 2140.76,
+      "period": null
+    },
+    {
+      "reference": "REF-1142-4",
+      "description": "Motor tubular demo",
+      "unit": "servicio",
+      "quantity": 12.0,
+      "unit_price": 175.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2110.44,
+      "vat_amount": 443.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2553.63,
+      "line_total_with_taxes": 2553.63,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6537.94,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6537.94,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2445.66,
+        "vat_amount": 244.57,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4092.28,
+        "vat_amount": 859.38,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1103.95,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 457.66,
+    "total": 7184.23,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Código": "reference",
+    "Descripción": "description",
+    "Unidades": "quantity",
+    "Precio sin IVA": "unit_price",
+    "Tipo IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

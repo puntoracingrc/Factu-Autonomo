@@ -1,0 +1,182 @@
+{
+  "invoice_id": "synthetic_es_0026",
+  "document_title": "FACTURA DE VENTA ONLINE",
+  "invoice_type": "ordinaria",
+  "layout_id": "ecommerce_portes",
+  "source_inspiration": [
+    "Factura ecommerce con portes",
+    "Plantillas y datasets OCR"
+  ],
+  "invoice_number": "F-2024-00026",
+  "date": "2024-09-09",
+  "due_date": "2024-09-24",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100026",
+    "address": "Calle de la Técnica, 118 - Madrid",
+    "email": "suministros.norte.demo.s.26@example.test",
+    "phone": "+34 900 026 560"
+  },
+  "customer": {
+    "name": "Academia Ejemplo SCP",
+    "tax_id": "B-00100326",
+    "address": "Avenida del Puerto, 126 - Bilbao",
+    "email": "academia.ejemplo.scp.326@example.test",
+    "phone": "+34 900 326 231"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-8037-1",
+      "description": "Repuesto mecánico",
+      "unit": "ud",
+      "quantity": 2.12,
+      "unit_price": 303.99,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 644.46,
+      "vat_amount": 64.45,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 708.91,
+      "line_total_with_taxes": 708.91,
+      "period": null
+    },
+    {
+      "reference": "REF-4637-2",
+      "description": "Pintura base agua",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 64.98,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 389.88,
+      "vat_amount": 38.99,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 428.87,
+      "line_total_with_taxes": 428.87,
+      "period": null
+    },
+    {
+      "reference": "REF-3248-3",
+      "description": "Kit de fijación",
+      "unit": "kg",
+      "quantity": 4.0,
+      "unit_price": 314.35,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1257.4,
+      "vat_amount": 264.05,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1521.45,
+      "line_total_with_taxes": 1521.45,
+      "period": null
+    },
+    {
+      "reference": "REF-5858-4",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "servicio",
+      "quantity": 2.0,
+      "unit_price": 226.87,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 453.74,
+      "vat_amount": 18.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 471.89,
+      "line_total_with_taxes": 471.89,
+      "period": null
+    },
+    {
+      "reference": "REF-3432-5",
+      "description": "Kit de fijación - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 2.0,
+      "unit_price": 317.83,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 635.66,
+      "vat_amount": 133.49,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 769.15,
+      "line_total_with_taxes": 769.15,
+      "period": null
+    },
+    {
+      "reference": "SHIP-679",
+      "description": "Portes y preparación de pedido",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 4.95,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4.95,
+      "vat_amount": 1.04,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5.99,
+      "line_total_with_taxes": 5.99,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3386.09,
+    "global_discount_rate": 5.0,
+    "global_discount_amount": 169.3,
+    "taxable_base": 3216.79,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 982.63,
+        "vat_amount": 98.26,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1803.11,
+        "vat_amount": 378.65,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 431.05,
+        "vat_amount": 17.24,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 494.15,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3710.94,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "SKU": "reference",
+    "Producto": "description",
+    "Qty": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

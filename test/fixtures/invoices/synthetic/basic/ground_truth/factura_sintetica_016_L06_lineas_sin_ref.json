@@ -1,0 +1,71 @@
+{
+  "layoutId": "L06_lineas_sin_ref",
+  "supplierName": "Comercial Brisa SA",
+  "supplierNif": "A11223344",
+  "supplierAddress": "Ronda Sur 91, 50021 Zaragoza",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0016",
+  "date": "2026-04-15",
+  "lines": [
+    {
+      "ref": "R01601",
+      "description": "Persiana aluminio",
+      "quantity": 8,
+      "unitPrice": 18.94,
+      "discountRate": 0,
+      "base": 151.52,
+      "vatRate": 21,
+      "vatAmount": 31.82,
+      "lineTotal": 183.34
+    },
+    {
+      "ref": "R01602",
+      "description": "Kit instalacion",
+      "quantity": 1,
+      "unitPrice": 118.16,
+      "discountRate": 0,
+      "base": 118.16,
+      "vatRate": 21,
+      "vatAmount": 24.81,
+      "lineTotal": 142.97
+    },
+    {
+      "ref": "R01603",
+      "description": "Persiana aluminio",
+      "quantity": 1,
+      "unitPrice": 57.94,
+      "discountRate": 0,
+      "base": 57.94,
+      "vatRate": 21,
+      "vatAmount": 12.17,
+      "lineTotal": 70.11
+    },
+    {
+      "ref": "R01604",
+      "description": "Kit instalacion",
+      "quantity": 1,
+      "unitPrice": 187.09,
+      "discountRate": 0,
+      "base": 187.09,
+      "vatRate": 21,
+      "vatAmount": 39.29,
+      "lineTotal": 226.38
+    }
+  ],
+  "subtotal": 514.71,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 514.71,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 514.71,
+      "vatAmount": 108.09
+    }
+  ],
+  "vatAmount": 108.09,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 622.8
+}

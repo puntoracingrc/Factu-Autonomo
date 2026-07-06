@@ -1,0 +1,198 @@
+{
+  "invoice_id": "synthetic_es_0016",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2024-00016",
+  "date": "2024-05-29",
+  "due_date": "2024-07-13",
+  "supplier": {
+    "name": "Soluciones Nube Ficticias SL",
+    "tax_id": "B-00100016",
+    "address": "Paseo de la Industria, 3 - Alicante",
+    "email": "soluciones.nube.ficticia.16@example.test",
+    "phone": "+34 900 016 307"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100316",
+    "address": "Plaza del Mercado, 107 - Málaga",
+    "email": "obras.y.reformas.test.sl.316@example.test",
+    "phone": "+34 900 316 690"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-5738-1",
+      "description": "Transporte y manipulación",
+      "unit": "pack",
+      "quantity": 2.0,
+      "unit_price": 58.17,
+      "discount_rate": 10.0,
+      "vat_rate": 4.0,
+      "line_base": 104.71,
+      "vat_amount": 4.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 108.9,
+      "line_total_with_taxes": 108.9,
+      "period": null
+    },
+    {
+      "reference": "REF-1878-2",
+      "description": "Pantalla LED",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 304.53,
+      "discount_rate": 10.0,
+      "vat_rate": 10.0,
+      "line_base": 1644.46,
+      "vat_amount": 164.45,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1808.91,
+      "line_total_with_taxes": 1808.91,
+      "period": null
+    },
+    {
+      "reference": "REF-9908-3",
+      "description": "Desplazamiento",
+      "unit": "kg",
+      "quantity": 5.32,
+      "unit_price": 116.76,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 621.16,
+      "vat_amount": 130.44,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 751.6,
+      "line_total_with_taxes": 751.6,
+      "period": null
+    },
+    {
+      "reference": "REF-1907-4",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 433.05,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1299.15,
+      "vat_amount": 272.82,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1571.97,
+      "line_total_with_taxes": 1571.97,
+      "period": null
+    },
+    {
+      "reference": "REF-1848-5",
+      "description": "Servicio de instalación",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 280.04,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 280.04,
+      "vat_amount": 28.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 308.04,
+      "line_total_with_taxes": 308.04,
+      "period": null
+    },
+    {
+      "reference": "REF-2365-6",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "ud",
+      "quantity": 5.46,
+      "unit_price": 289.87,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 1345.29,
+      "vat_amount": 282.51,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1627.8,
+      "line_total_with_taxes": 1627.8,
+      "period": null
+    },
+    {
+      "reference": "REF-1013-7",
+      "description": "Transporte y manipulación",
+      "unit": "ud",
+      "quantity": 8.02,
+      "unit_price": 379.49,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": 2434.81,
+      "vat_amount": 511.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2946.12,
+      "line_total_with_taxes": 2946.12,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7729.62,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 7729.62,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 104.71,
+        "vat_amount": 4.19,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1924.5,
+        "vat_amount": 192.45,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 5700.41,
+        "vat_amount": 1197.08,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1393.72,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 9123.34,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

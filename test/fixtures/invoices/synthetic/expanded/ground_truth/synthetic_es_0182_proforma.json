@@ -1,0 +1,181 @@
+{
+  "invoice_id": "synthetic_es_0182",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00182",
+  "date": "2025-05-13",
+  "due_date": "2025-05-28",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100182",
+    "address": "Camino del Almacén, 109 - Murcia",
+    "email": "recambios.delta.demo.sl.182@example.test",
+    "phone": "+34 900 182 794"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100482",
+    "address": "Calle Roble, 73 - Bilbao",
+    "email": "proyecto.alfa.demo.sl.482@example.test",
+    "phone": "+34 900 482 518"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-2115-1",
+      "description": "Mano de obra especializada",
+      "unit": "servicio",
+      "quantity": 12.0,
+      "unit_price": 424.74,
+      "discount_rate": 20.0,
+      "vat_rate": 10.0,
+      "line_base": 4077.5,
+      "vat_amount": 407.75,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4485.25,
+      "line_total_with_taxes": 4485.25,
+      "period": null
+    },
+    {
+      "reference": "REF-8335-2",
+      "description": "Producto alimentario demo",
+      "unit": "h",
+      "quantity": 12.0,
+      "unit_price": 331.56,
+      "discount_rate": 10.0,
+      "vat_rate": 4.0,
+      "line_base": 3580.85,
+      "vat_amount": 143.23,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3724.08,
+      "line_total_with_taxes": 3724.08,
+      "period": null
+    },
+    {
+      "reference": "REF-3479-3",
+      "description": "Repuesto mecánico",
+      "unit": "ud",
+      "quantity": 2.16,
+      "unit_price": 119.47,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 258.06,
+      "vat_amount": 25.81,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 283.87,
+      "line_total_with_taxes": 283.87,
+      "period": null
+    },
+    {
+      "reference": "REF-1138-4",
+      "description": "Sensor de presencia - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 3.0,
+      "unit_price": 341.05,
+      "discount_rate": 5.0,
+      "vat_rate": 10.0,
+      "line_base": 971.99,
+      "vat_amount": 97.2,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1069.19,
+      "line_total_with_taxes": 1069.19,
+      "period": null
+    },
+    {
+      "reference": "REF-7316-5",
+      "description": "Horas de consultoría",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 179.27,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 761.9,
+      "vat_amount": 160.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 921.9,
+      "line_total_with_taxes": 921.9,
+      "period": null
+    },
+    {
+      "reference": "REF-4354-6",
+      "description": "Pack de consumibles",
+      "unit": "h",
+      "quantity": 7.99,
+      "unit_price": 256.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2047.36,
+      "vat_amount": 429.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2477.31,
+      "line_total_with_taxes": 2477.31,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 11697.66,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 11697.66,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 5307.55,
+        "vat_amount": 530.76,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 3580.85,
+        "vat_amount": 143.23,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2809.26,
+        "vat_amount": 589.95,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1263.94,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 12961.6,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

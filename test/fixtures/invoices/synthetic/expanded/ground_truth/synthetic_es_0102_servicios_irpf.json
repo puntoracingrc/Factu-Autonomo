@@ -1,0 +1,86 @@
+{
+  "invoice_id": "synthetic_es_0102",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2026-00102",
+  "date": "2026-02-07",
+  "due_date": "2026-03-24",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100102",
+    "address": "Calle Roble, 16 - A Coruña",
+    "email": "ferreteria.modelo.sl.102@example.test",
+    "phone": "+34 900 102 795"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100402",
+    "address": "Calle Gran Vía, 25 - Valladolid",
+    "email": "empresa.receptora.fictic.402@example.test",
+    "phone": "+34 900 402 671"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-4762-1",
+      "description": "Soporte premium",
+      "unit": "pack",
+      "quantity": 6.56,
+      "unit_price": 94.4,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 619.26,
+      "vat_amount": 24.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 644.03,
+      "line_total_with_taxes": 644.03,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 619.26,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 619.26,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 619.26,
+        "vat_amount": 24.77,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 24.77,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 43.35,
+    "total": 600.68,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

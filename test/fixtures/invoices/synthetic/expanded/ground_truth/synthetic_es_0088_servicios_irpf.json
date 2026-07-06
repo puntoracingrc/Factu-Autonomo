@@ -1,0 +1,86 @@
+{
+  "invoice_id": "synthetic_es_0088",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2025-00088",
+  "date": "2025-10-20",
+  "due_date": "2025-10-20",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100088",
+    "address": "Paseo de la Industria, 75 - Madrid",
+    "email": "comercial.mediterranea.s.88@example.test",
+    "phone": "+34 900 088 340"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200388N",
+    "address": "Camino del Almacén, 33 - Valencia",
+    "email": "autonomo.de.prueba.388@example.test",
+    "phone": "+34 900 388 688"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-4672-1",
+      "description": "Rodamiento industrial",
+      "unit": "servicio",
+      "quantity": 6.0,
+      "unit_price": 177.78,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1066.68,
+      "vat_amount": 224.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1290.68,
+      "line_total_with_taxes": 1290.68,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1066.68,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1066.68,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1066.68,
+        "vat_amount": 224.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 224.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 160.0,
+    "total": 1130.68,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

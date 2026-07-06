@@ -1,0 +1,104 @@
+{
+  "invoice_id": "synthetic_es_0093",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2025-00093",
+  "date": "2025-12-05",
+  "due_date": "2025-12-05",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100093",
+    "address": "Calle Gran Vía, 104 - Alicante",
+    "email": "suministros.norte.demo.s.93@example.test",
+    "phone": "+34 900 093 846"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100393",
+    "address": "Calle Mayor, 34 - Bilbao",
+    "email": "cliente.demo.sl.393@example.test",
+    "phone": "+34 900 393 830"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-5617-1",
+      "description": "Mano de obra especializada",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 393.39,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 393.39,
+      "vat_amount": 15.74,
+      "recargo_rate": 0.5,
+      "recargo_amount": 1.97,
+      "line_total_with_vat": 409.13,
+      "line_total_with_taxes": 411.1,
+      "period": null
+    },
+    {
+      "reference": "REF-6588-2",
+      "description": "Pintura base agua",
+      "unit": "servicio",
+      "quantity": 1.41,
+      "unit_price": 191.54,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 270.07,
+      "vat_amount": 10.8,
+      "recargo_rate": 0.5,
+      "recargo_amount": 1.35,
+      "line_total_with_vat": 280.87,
+      "line_total_with_taxes": 282.22,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 663.46,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 663.46,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 663.46,
+        "vat_amount": 26.54,
+        "recargo_rate": 0.5,
+        "recargo_amount": 3.32
+      }
+    ],
+    "vat_total": 26.54,
+    "recargo_total": 3.32,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 693.32,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

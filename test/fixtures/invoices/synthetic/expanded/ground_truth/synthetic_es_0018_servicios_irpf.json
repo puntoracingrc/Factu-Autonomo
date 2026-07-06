@@ -1,0 +1,180 @@
+{
+  "invoice_id": "synthetic_es_0018",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00018",
+  "date": "2024-06-06",
+  "due_date": "2024-06-21",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100018",
+    "address": "Camino del Almacén, 52 - Zaragoza",
+    "email": "electro.hogar.simulado.s.18@example.test",
+    "phone": "+34 900 018 420"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100318",
+    "address": "Plaza del Mercado, 107 - Bilbao",
+    "email": "startup.ejemplo.sl.318@example.test",
+    "phone": "+34 900 318 559"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-6925-1",
+      "description": "Perfil de aluminio",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 444.96,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 889.92,
+      "vat_amount": 35.6,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 925.52,
+      "line_total_with_taxes": 925.52,
+      "period": null
+    },
+    {
+      "reference": "REF-5669-2",
+      "description": "Motor tubular demo",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 374.35,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3743.5,
+      "vat_amount": 786.14,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4529.64,
+      "line_total_with_taxes": 4529.64,
+      "period": null
+    },
+    {
+      "reference": "REF-9338-3",
+      "description": "Rodamiento industrial - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 4.0,
+      "unit_price": 251.63,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1006.52,
+      "vat_amount": 40.26,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1046.78,
+      "line_total_with_taxes": 1046.78,
+      "period": null
+    },
+    {
+      "reference": "REF-8332-4",
+      "description": "Libro técnico",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 415.52,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 2077.6,
+      "vat_amount": 83.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2160.7,
+      "line_total_with_taxes": 2160.7,
+      "period": null
+    },
+    {
+      "reference": "REF-8588-5",
+      "description": "Mano de obra especializada",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 343.88,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2063.28,
+      "vat_amount": 206.33,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2269.61,
+      "line_total_with_taxes": 2269.61,
+      "period": null
+    },
+    {
+      "reference": "REF-9788-6",
+      "description": "Licencia mensual software",
+      "unit": "h",
+      "quantity": 1.75,
+      "unit_price": 104.07,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 182.12,
+      "vat_amount": 38.25,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 220.37,
+      "line_total_with_taxes": 220.37,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 9962.94,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 9962.94,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 3974.04,
+        "vat_amount": 158.96,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3925.62,
+        "vat_amount": 824.39,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2063.28,
+        "vat_amount": 206.33,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1189.68,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 697.41,
+    "total": 10455.21,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,120 @@
+{
+  "invoice_id": "synthetic_es_0039",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2024-00039",
+  "date": "2024-10-16",
+  "due_date": "2024-10-31",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100039",
+    "address": "Calle Mayor, 39 - Zaragoza",
+    "email": "oficina.tecnica.aurora.s.39@example.test",
+    "phone": "+34 900 039 785"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200339D",
+    "address": "Avenida del Puerto, 59 - Murcia",
+    "email": "autonomo.de.prueba.339@example.test",
+    "phone": "+34 900 339 368"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-1400-1",
+      "description": "Motor tubular demo",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 29.14,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -29.14,
+      "vat_amount": -6.12,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -35.26,
+      "line_total_with_taxes": -35.26,
+      "period": null
+    },
+    {
+      "reference": "REF-8386-2",
+      "description": "Repuesto mecánico",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 246.1,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -246.1,
+      "vat_amount": -51.68,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -297.78,
+      "line_total_with_taxes": -297.78,
+      "period": null
+    },
+    {
+      "reference": "REF-3222-3",
+      "description": "Conjunto persiana - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 434.47,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -2172.35,
+      "vat_amount": -456.19,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -2628.54,
+      "line_total_with_taxes": -2628.54,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -2447.59,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -2447.59,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -2447.59,
+        "vat_amount": -513.99,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -513.99,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -2961.58,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2024-00014"
+}

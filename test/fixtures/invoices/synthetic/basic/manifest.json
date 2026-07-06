@@ -1,0 +1,212 @@
+[
+  {
+    "pdf": "pdf/factura_sintetica_001_L01_desc_cant_precio_importe.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_001_L01_desc_cant_precio_importe.json",
+    "layoutId": "L01_desc_cant_precio_importe",
+    "total": 998.53,
+    "date": "2026-07-07"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_002_L02_ref_desc_uds_pvp_dto_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_002_L02_ref_desc_uds_pvp_dto_total.json",
+    "layoutId": "L02_ref_desc_uds_pvp_dto_total",
+    "total": 1573.4,
+    "date": "2026-03-17"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_003_L03_art_cant_unit_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_003_L03_art_cant_unit_base_iva_total.json",
+    "layoutId": "L03_art_cant_unit_base_iva_total",
+    "total": 2731.55,
+    "date": "2026-02-24"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_004_L04_concepto_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_004_L04_concepto_base_iva_total.json",
+    "layoutId": "L04_concepto_base_iva_total",
+    "total": 1048.29,
+    "date": "2026-01-28"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_005_L05_codigo_desc_unidades_neto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_005_L05_codigo_desc_unidades_neto.json",
+    "layoutId": "L05_codigo_desc_unidades_neto",
+    "total": 1650.28,
+    "date": "2026-06-03"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_006_L06_lineas_sin_ref.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_006_L06_lineas_sin_ref.json",
+    "layoutId": "L06_lineas_sin_ref",
+    "total": 1571.04,
+    "date": "2026-04-20"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_007_L07_con_descuento_global.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_007_L07_con_descuento_global.json",
+    "layoutId": "L07_con_descuento_global",
+    "total": 2268.53,
+    "date": "2026-03-23"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_008_L08_varios_tipos_iva.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_008_L08_varios_tipos_iva.json",
+    "layoutId": "L08_varios_tipos_iva",
+    "total": 2765.78,
+    "date": "2026-05-06"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_009_L09_irpf_profesional.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_009_L09_irpf_profesional.json",
+    "layoutId": "L09_irpf_profesional",
+    "total": 1172.08,
+    "date": "2026-04-23"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_010_L10_formato_compacto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_010_L10_formato_compacto.json",
+    "layoutId": "L10_formato_compacto",
+    "total": 33.75,
+    "date": "2026-05-23"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_011_L01_desc_cant_precio_importe.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_011_L01_desc_cant_precio_importe.json",
+    "layoutId": "L01_desc_cant_precio_importe",
+    "total": 1033.66,
+    "date": "2026-06-27"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_012_L02_ref_desc_uds_pvp_dto_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_012_L02_ref_desc_uds_pvp_dto_total.json",
+    "layoutId": "L02_ref_desc_uds_pvp_dto_total",
+    "total": 1586.16,
+    "date": "2026-05-01"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_013_L03_art_cant_unit_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_013_L03_art_cant_unit_base_iva_total.json",
+    "layoutId": "L03_art_cant_unit_base_iva_total",
+    "total": 2190.25,
+    "date": "2026-05-29"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_014_L04_concepto_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_014_L04_concepto_base_iva_total.json",
+    "layoutId": "L04_concepto_base_iva_total",
+    "total": 1154.1,
+    "date": "2026-04-23"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_015_L05_codigo_desc_unidades_neto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_015_L05_codigo_desc_unidades_neto.json",
+    "layoutId": "L05_codigo_desc_unidades_neto",
+    "total": 1354.4,
+    "date": "2026-06-13"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_016_L06_lineas_sin_ref.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_016_L06_lineas_sin_ref.json",
+    "layoutId": "L06_lineas_sin_ref",
+    "total": 622.8,
+    "date": "2026-04-15"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_017_L07_con_descuento_global.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_017_L07_con_descuento_global.json",
+    "layoutId": "L07_con_descuento_global",
+    "total": 2432.22,
+    "date": "2026-03-05"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_018_L08_varios_tipos_iva.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_018_L08_varios_tipos_iva.json",
+    "layoutId": "L08_varios_tipos_iva",
+    "total": 518.55,
+    "date": "2026-05-12"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_019_L09_irpf_profesional.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_019_L09_irpf_profesional.json",
+    "layoutId": "L09_irpf_profesional",
+    "total": 409.75,
+    "date": "2026-05-14"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_020_L10_formato_compacto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_020_L10_formato_compacto.json",
+    "layoutId": "L10_formato_compacto",
+    "total": 16.7,
+    "date": "2026-06-03"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_021_L01_desc_cant_precio_importe.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_021_L01_desc_cant_precio_importe.json",
+    "layoutId": "L01_desc_cant_precio_importe",
+    "total": 1201.48,
+    "date": "2026-05-31"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_022_L02_ref_desc_uds_pvp_dto_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_022_L02_ref_desc_uds_pvp_dto_total.json",
+    "layoutId": "L02_ref_desc_uds_pvp_dto_total",
+    "total": 1351.05,
+    "date": "2026-07-27"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_023_L03_art_cant_unit_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_023_L03_art_cant_unit_base_iva_total.json",
+    "layoutId": "L03_art_cant_unit_base_iva_total",
+    "total": 1735.53,
+    "date": "2026-04-10"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_024_L04_concepto_base_iva_total.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_024_L04_concepto_base_iva_total.json",
+    "layoutId": "L04_concepto_base_iva_total",
+    "total": 936.32,
+    "date": "2026-02-23"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_025_L05_codigo_desc_unidades_neto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_025_L05_codigo_desc_unidades_neto.json",
+    "layoutId": "L05_codigo_desc_unidades_neto",
+    "total": 2641.97,
+    "date": "2026-05-16"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_026_L06_lineas_sin_ref.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_026_L06_lineas_sin_ref.json",
+    "layoutId": "L06_lineas_sin_ref",
+    "total": 2077.12,
+    "date": "2026-04-30"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_027_L07_con_descuento_global.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_027_L07_con_descuento_global.json",
+    "layoutId": "L07_con_descuento_global",
+    "total": 1936.78,
+    "date": "2026-06-14"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_028_L08_varios_tipos_iva.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_028_L08_varios_tipos_iva.json",
+    "layoutId": "L08_varios_tipos_iva",
+    "total": 2327.17,
+    "date": "2026-05-16"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_029_L09_irpf_profesional.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_029_L09_irpf_profesional.json",
+    "layoutId": "L09_irpf_profesional",
+    "total": 1673.56,
+    "date": "2026-03-04"
+  },
+  {
+    "pdf": "pdf/factura_sintetica_030_L10_formato_compacto.pdf",
+    "groundTruth": "ground_truth/factura_sintetica_030_L10_formato_compacto.json",
+    "layoutId": "L10_formato_compacto",
+    "total": 169.97,
+    "date": "2026-03-28"
+  }
+]

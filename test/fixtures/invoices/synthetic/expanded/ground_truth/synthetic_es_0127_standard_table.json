@@ -1,0 +1,181 @@
+{
+  "invoice_id": "synthetic_es_0127",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2024-00127",
+  "date": "2024-05-21",
+  "due_date": "2024-06-20",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100127",
+    "address": "Plaza del Mercado, 130 - Palma",
+    "email": "logistica.ficticia.sl.127@example.test",
+    "phone": "+34 900 127 276"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100427",
+    "address": "Calle de la Técnica, 18 - Alicante",
+    "email": "proyecto.alfa.demo.sl.427@example.test",
+    "phone": "+34 900 427 343"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9972-1",
+      "description": "Mano de obra especializada",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 88.05,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 264.15,
+      "vat_amount": 55.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 319.62,
+      "line_total_with_taxes": 319.62,
+      "period": null
+    },
+    {
+      "reference": "REF-3801-2",
+      "description": "Sensor de presencia",
+      "unit": "kg",
+      "quantity": 7.15,
+      "unit_price": 18.22,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 130.27,
+      "vat_amount": 5.21,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 135.48,
+      "line_total_with_taxes": 135.48,
+      "period": null
+    },
+    {
+      "reference": "REF-4741-3",
+      "description": "Rodamiento industrial",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 326.42,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 652.84,
+      "vat_amount": 26.11,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 678.95,
+      "line_total_with_taxes": 678.95,
+      "period": null
+    },
+    {
+      "reference": "REF-5413-4",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "h",
+      "quantity": 2.9,
+      "unit_price": 388.21,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1125.81,
+      "vat_amount": 112.58,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1238.39,
+      "line_total_with_taxes": 1238.39,
+      "period": null
+    },
+    {
+      "reference": "REF-8544-5",
+      "description": "Mano de obra especializada",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 361.17,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 361.17,
+      "vat_amount": 14.45,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 375.62,
+      "line_total_with_taxes": 375.62,
+      "period": null
+    },
+    {
+      "reference": "REF-1993-6",
+      "description": "Motor tubular demo",
+      "unit": "kg",
+      "quantity": 5.94,
+      "unit_price": 203.45,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1208.49,
+      "vat_amount": 48.34,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1256.83,
+      "line_total_with_taxes": 1256.83,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3742.73,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3742.73,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 264.15,
+        "vat_amount": 55.47,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 2352.77,
+        "vat_amount": 94.11,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1125.81,
+        "vat_amount": 112.58,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 262.16,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 4004.89,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

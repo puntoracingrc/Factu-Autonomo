@@ -1,0 +1,126 @@
+{
+  "invoice_id": "synthetic_es_0187",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2025-00187",
+  "date": "2025-07-14",
+  "due_date": "2025-08-13",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100187",
+    "address": "Camino del Almacén, 39 - Valladolid",
+    "email": "recambios.delta.demo.sl.187@example.test",
+    "phone": "+34 900 187 680"
+  },
+  "customer": {
+    "name": "Academia Ejemplo SCP",
+    "tax_id": "B-00100487",
+    "address": "Camino del Almacén, 125 - Bilbao",
+    "email": "academia.ejemplo.scp.487@example.test",
+    "phone": "+34 900 487 579"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-1418-1",
+      "description": "Perfil de aluminio",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 212.83,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2128.3,
+      "vat_amount": 212.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2341.13,
+      "line_total_with_taxes": 2341.13,
+      "period": null
+    },
+    {
+      "reference": "REF-4308-2",
+      "description": "Asesoría documental",
+      "unit": "h",
+      "quantity": 4.7,
+      "unit_price": 181.69,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 853.94,
+      "vat_amount": 85.39,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 939.33,
+      "line_total_with_taxes": 939.33,
+      "period": null
+    },
+    {
+      "reference": "REF-9656-3",
+      "description": "Horas de consultoría",
+      "unit": "m",
+      "quantity": 4.0,
+      "unit_price": 17.19,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 68.76,
+      "vat_amount": 14.44,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 83.2,
+      "line_total_with_taxes": 83.2,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3051.0,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3051.0,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2982.24,
+        "vat_amount": 298.22,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 68.76,
+        "vat_amount": 14.44,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 312.66,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3363.66,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

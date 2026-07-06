@@ -1,0 +1,173 @@
+{
+  "invoice_id": "synthetic_es_0060",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2025-00060",
+  "date": "2025-02-17",
+  "due_date": "2025-03-19",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100060",
+    "address": "Camino del Almacén, 37 - Valencia",
+    "email": "suministros.norte.demo.s.60@example.test",
+    "phone": "+34 900 060 990"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200360F",
+    "address": "Calle Gran Vía, 129 - Murcia",
+    "email": "particular.sintetico.360@example.test",
+    "phone": "+34 900 360 782"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-7781-1",
+      "description": "Horas de consultoría",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 364.82,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1094.46,
+      "vat_amount": 229.84,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1324.3,
+      "line_total_with_taxes": 1324.3,
+      "period": null
+    },
+    {
+      "reference": "REF-2407-2",
+      "description": "Soporte premium",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 21.05,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 105.25,
+      "vat_amount": 22.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 127.35,
+      "line_total_with_taxes": 127.35,
+      "period": null
+    },
+    {
+      "reference": "REF-7415-3",
+      "description": "Bolsa de recambios variados",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 32.06,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 64.12,
+      "vat_amount": 13.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 77.59,
+      "line_total_with_taxes": 77.59,
+      "period": null
+    },
+    {
+      "reference": "REF-2954-4",
+      "description": "Servicio de instalación",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 214.42,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 643.26,
+      "vat_amount": 135.08,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 778.34,
+      "line_total_with_taxes": 778.34,
+      "period": null
+    },
+    {
+      "reference": "REF-9237-5",
+      "description": "Equipo informático - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 2.0,
+      "unit_price": 223.93,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 447.86,
+      "vat_amount": 94.05,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 541.91,
+      "line_total_with_taxes": 541.91,
+      "period": null
+    },
+    {
+      "reference": "REF-4088-6",
+      "description": "Tornillería inoxidable",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 255.63,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2556.3,
+      "vat_amount": 255.63,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2811.93,
+      "line_total_with_taxes": 2811.93,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4911.25,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4911.25,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2354.95,
+        "vat_amount": 494.54,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2556.3,
+        "vat_amount": 255.63,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 750.17,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 736.69,
+    "total": 4924.73,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}
