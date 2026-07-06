@@ -74,6 +74,15 @@ export async function extractExpenseFromImage(
       ? await extractPdfScanHintsFromPdfBase64(base64)
       : null;
 
+  if (pdfHints) {
+    console.info("[expense-scan] PDF text extraction result", {
+      items: pdfHints.debug.itemCount,
+      rows: pdfHints.debug.rowCount,
+      stilCondalLines: pdfHints.stilCondal.lines.length,
+      hasError: Boolean(pdfHints.debug.error),
+    });
+  }
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {

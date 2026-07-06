@@ -20,6 +20,8 @@ import {
   validateScanFile,
 } from "@/lib/expense-scan/file-validation";
 
+export const runtime = "nodejs";
+
 function buildAiLearningTestQuota() {
   return buildScanQuota(
     "pro_plus",
