@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, Clipboard, ClipboardCheck, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
   buildRentabilidadRealAdvisorValidationSummary,
   getStoredRentabilidadRealAdvisorValidationStatus,
+  markRentabilidadRealAdvisorValidationNotice,
   setStoredRentabilidadRealAdvisorValidationStatus,
   type RentabilidadRealAdvisorValidationStatus,
 } from "@/lib/rentabilidad-real/advisor-validation";
@@ -28,6 +30,7 @@ const STATUS_LABELS: Record<RentabilidadRealAdvisorValidationStatus, string> = {
 };
 
 export function RentabilidadRealAdvisorValidation() {
+  const router = useRouter();
   const [answers, setAnswers] = useState<RentabilidadRealWizardAnswers | null>(
     null,
   );
@@ -55,6 +58,10 @@ export function RentabilidadRealAdvisorValidation() {
   function updateStatus(nextStatus: RentabilidadRealAdvisorValidationStatus) {
     setStoredRentabilidadRealAdvisorValidationStatus(nextStatus);
     setStatus(nextStatus);
+    if (nextStatus === "validated" || nextStatus === "corrected") {
+      markRentabilidadRealAdvisorValidationNotice(nextStatus);
+      router.push("/rentabilidad-real");
+    }
   }
 
   async function copySummary() {

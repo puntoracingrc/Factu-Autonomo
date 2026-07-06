@@ -32,7 +32,8 @@ import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
   formatAddressBlock,
-  RESIDENCE_TYPE_LABELS,
+  RESIDENCE_TYPES,
+  residenceTypeAllowsAddressExtra,
 } from "@/lib/customer-address";
 import {
   CUSTOMER_TYPE_LABELS,
@@ -68,7 +69,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   streetType: "",
-  residenceType: "flat" as AddressResidenceType,
+  residenceType: "" as AddressResidenceType,
   address: "",
   addressExtra: "",
   city: "",
@@ -318,7 +319,7 @@ export default function ClientesPage() {
       email: migrated.email ?? "",
       phone: migrated.phone ?? "",
       streetType: migrated.streetType ?? "",
-      residenceType: migrated.residenceType ?? "flat",
+      residenceType: migrated.residenceType ?? "",
       address: migrated.address ?? "",
       addressExtra: migrated.addressExtra ?? "",
       city: migrated.city ?? "",
@@ -468,7 +469,7 @@ export default function ClientesPage() {
     ? "Ej: Persianas Almar S.L."
     : "Ej: María";
   const formNifLabel = formIsCompany ? "CIF" : "NIF / CIF";
-  const formIsFlat = form.residenceType !== "house";
+  const showAddressExtra = residenceTypeAllowsAddressExtra(form.residenceType);
 
   return (
     <div>
@@ -756,7 +757,7 @@ export default function ClientesPage() {
                   placeholder="Ej: Valencia 546 7/1"
                 />
               </Field>
-              <Field label="Vivienda">
+              <Field label="Tipo de inmueble">
                 <Select
                   value={form.residenceType}
                   onChange={(e) =>
@@ -766,12 +767,15 @@ export default function ClientesPage() {
                     )
                   }
                 >
-                  <option value="flat">{RESIDENCE_TYPE_LABELS.flat}</option>
-                  <option value="house">{RESIDENCE_TYPE_LABELS.house}</option>
+                  {RESIDENCE_TYPES.map((type) => (
+                    <option key={type.id || "blank"} value={type.id}>
+                      {type.label}
+                    </option>
+                  ))}
                 </Select>
               </Field>
-              {formIsFlat && (
-                <Field label="Piso / puerta">
+              {showAddressExtra && (
+                <Field label="Piso / puerta / local">
                   <Input
                     value={form.addressExtra}
                     onChange={(e) =>

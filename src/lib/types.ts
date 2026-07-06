@@ -63,7 +63,24 @@ export interface DocumentUnitsSettings {
 }
 
 export type CustomerType = "person" | "company";
-export type AddressResidenceType = "flat" | "house";
+export type AddressResidenceType =
+  | ""
+  | "flat"
+  | "house"
+  | "chalet"
+  | "duplex"
+  | "attic"
+  | "ground_floor"
+  | "local"
+  | "shop"
+  | "office"
+  | "warehouse"
+  | "workshop"
+  | "storage"
+  | "garage"
+  | "storage_room"
+  | "plot"
+  | "farm";
 
 export interface Client {
   customerType?: CustomerType;
@@ -78,7 +95,7 @@ export interface Client {
   streetType?: string;
   /** Piso/puerta/escalera, cuando aplica. */
   addressExtra?: string;
-  /** Distingue si la dirección es piso o casa para mostrar campos útiles. */
+  /** Tipo de inmueble cuando ayuda a entender la dirección. */
   residenceType?: AddressResidenceType;
   address?: string;
 }

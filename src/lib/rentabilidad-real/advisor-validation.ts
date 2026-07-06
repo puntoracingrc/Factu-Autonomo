@@ -7,6 +7,8 @@ import type {
 
 const ADVISOR_VALIDATION_STATUS_STORAGE_KEY =
   "fa_rentabilidad_real_advisor_validation_status";
+const ADVISOR_VALIDATION_NOTICE_STORAGE_KEY =
+  "fa_rentabilidad_real_advisor_validation_notice";
 
 export type RentabilidadRealAdvisorValidationStatus =
   | "not_started"
@@ -21,6 +23,10 @@ export interface RentabilidadRealAdvisorValidationSummaryInput {
 
 function storageAvailable(): boolean {
   return typeof localStorage !== "undefined";
+}
+
+function sessionStorageAvailable(): boolean {
+  return typeof sessionStorage !== "undefined";
 }
 
 export function getStoredRentabilidadRealAdvisorValidationStatus(): RentabilidadRealAdvisorValidationStatus {
@@ -47,9 +53,35 @@ export function setStoredRentabilidadRealAdvisorValidationStatus(
   localStorage.setItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY, status);
 }
 
+export function shouldShowAdvisorValidationAction(
+  status: RentabilidadRealAdvisorValidationStatus,
+): boolean {
+  return status !== "validated" && status !== "corrected";
+}
+
+export function markRentabilidadRealAdvisorValidationNotice(
+  status: RentabilidadRealAdvisorValidationStatus,
+): void {
+  if (!sessionStorageAvailable()) return;
+  if (status !== "validated" && status !== "corrected") return;
+  sessionStorage.setItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY, status);
+}
+
+export function consumeRentabilidadRealAdvisorValidationNotice():
+  | RentabilidadRealAdvisorValidationStatus
+  | null {
+  if (!sessionStorageAvailable()) return null;
+  const value = sessionStorage.getItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
+  sessionStorage.removeItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
+  return value === "validated" || value === "corrected" ? value : null;
+}
+
 export function clearRentabilidadRealAdvisorValidationForTests(): void {
   if (!storageAvailable()) return;
   localStorage.removeItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY);
+  if (sessionStorageAvailable()) {
+    sessionStorage.removeItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
+  }
 }
 
 function yesNo(value: boolean | undefined): string {

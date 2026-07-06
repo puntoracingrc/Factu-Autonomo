@@ -14,7 +14,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
-import { RESIDENCE_TYPE_LABELS } from "@/lib/customer-address";
+import { RESIDENCE_TYPES, residenceTypeAllowsAddressExtra } from "@/lib/customer-address";
 import {
   CUSTOMER_TYPE_LABELS,
   customerFullName,
@@ -34,7 +34,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   streetType: "",
-  residenceType: "flat" as AddressResidenceType,
+  residenceType: "" as AddressResidenceType,
   address: "",
   addressExtra: "",
   city: "",
@@ -150,7 +150,7 @@ export default function NuevoClientePage() {
     ? "Ej: Persianas Almar S.L."
     : "Ej: María";
   const formNifLabel = formIsCompany ? "CIF" : "NIF / CIF";
-  const formIsFlat = form.residenceType !== "house";
+  const showAddressExtra = residenceTypeAllowsAddressExtra(form.residenceType);
 
   return (
     <div>
@@ -280,7 +280,7 @@ export default function NuevoClientePage() {
               placeholder="Ej: Valencia 546 7/1"
             />
           </Field>
-          <Field label="Vivienda">
+          <Field label="Tipo de inmueble">
             <Select
               value={form.residenceType}
               onChange={(e) =>
@@ -290,12 +290,15 @@ export default function NuevoClientePage() {
                 )
               }
             >
-              <option value="flat">{RESIDENCE_TYPE_LABELS.flat}</option>
-              <option value="house">{RESIDENCE_TYPE_LABELS.house}</option>
+              {RESIDENCE_TYPES.map((type) => (
+                <option key={type.id || "blank"} value={type.id}>
+                  {type.label}
+                </option>
+              ))}
             </Select>
           </Field>
-          {formIsFlat && (
-            <Field label="Piso / puerta">
+          {showAddressExtra && (
+            <Field label="Piso / puerta / local">
               <Input
                 value={form.addressExtra}
                 onChange={(e) =>

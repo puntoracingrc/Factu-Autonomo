@@ -119,15 +119,72 @@ export const STREET_TYPES = [
 
 export type StreetTypeId = (typeof STREET_TYPES)[number]["id"];
 
-export const RESIDENCE_TYPE_LABELS: Record<AddressResidenceType, string> = {
-  flat: "Piso",
-  house: "Casa",
+export const RESIDENCE_TYPES: ReadonlyArray<{
+  id: AddressResidenceType;
+  label: string;
+}> = [
+  { id: "", label: "Sin indicar" },
+  { id: "flat", label: "Piso" },
+  { id: "house", label: "Casa" },
+  { id: "chalet", label: "Chalet" },
+  { id: "duplex", label: "Dúplex" },
+  { id: "attic", label: "Ático" },
+  { id: "ground_floor", label: "Bajo" },
+  { id: "local", label: "Local" },
+  { id: "shop", label: "Tienda" },
+  { id: "office", label: "Oficina" },
+  { id: "warehouse", label: "Nave" },
+  { id: "workshop", label: "Taller" },
+  { id: "storage", label: "Almacén" },
+  { id: "garage", label: "Garaje" },
+  { id: "storage_room", label: "Trastero" },
+  { id: "plot", label: "Terreno / solar" },
+  { id: "farm", label: "Finca" },
+];
+
+export const RESIDENCE_TYPE_LABELS = Object.fromEntries(
+  RESIDENCE_TYPES.map((type) => [type.id, type.label]),
+) as Record<AddressResidenceType, string>;
+
+const RESIDENCE_TYPE_ALIASES: Record<Exclude<AddressResidenceType, "">, string[]> = {
+  flat: ["flat", "piso", "apartamento", "apartment", "vivienda"],
+  house: ["house", "casa"],
+  chalet: ["chalet", "xalet", "casa unifamiliar"],
+  duplex: ["duplex", "dúplex"],
+  attic: ["attic", "atico", "ático"],
+  ground_floor: ["ground_floor", "bajo", "bajos", "planta baja"],
+  local: ["local", "local comercial"],
+  shop: ["shop", "tienda", "comercio"],
+  office: ["office", "oficina", "despacho"],
+  warehouse: ["warehouse", "nave", "nave industrial", "poligono", "polígono"],
+  workshop: ["workshop", "taller"],
+  storage: ["storage", "almacen", "almacén"],
+  garage: ["garage", "garaje", "parking", "párking"],
+  storage_room: ["storage_room", "trastero"],
+  plot: ["plot", "solar", "terreno", "parcela"],
+  farm: ["farm", "finca", "masia", "masía"],
 };
+
+const RESIDENCE_TYPES_WITHOUT_ADDRESS_EXTRA = new Set<AddressResidenceType>([
+  "house",
+  "chalet",
+  "plot",
+  "farm",
+]);
 
 export function normalizeResidenceType(
   value?: AddressResidenceType | string | null,
 ): AddressResidenceType {
-  return value === "house" ? "house" : "flat";
+  const cleaned = value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+  if (!cleaned) return "";
+  const direct = RESIDENCE_TYPES.find((type) => type.id === cleaned);
+  if (direct) return direct.id;
+
+  for (const [id, aliases] of Object.entries(RESIDENCE_TYPE_ALIASES)) {
+    if (aliases.includes(cleaned)) return id as AddressResidenceType;
+  }
+
+  return "";
 }
 
 export function normalizeAddressExtra(value?: string | null): string {
@@ -183,8 +240,16 @@ export function formatAddressExtra(
   residenceType?: AddressResidenceType | string | null,
   addressExtra?: string | null,
 ): string {
-  if (normalizeResidenceType(residenceType) === "house") return "";
+  if (!residenceTypeAllowsAddressExtra(residenceType)) return "";
   return normalizeAddressExtra(addressExtra);
+}
+
+export function residenceTypeAllowsAddressExtra(
+  residenceType?: AddressResidenceType | string | null,
+): boolean {
+  return !RESIDENCE_TYPES_WITHOUT_ADDRESS_EXTRA.has(
+    normalizeResidenceType(residenceType),
+  );
 }
 
 export function formatAddressBlock(entity: StreetAddressFields): string {

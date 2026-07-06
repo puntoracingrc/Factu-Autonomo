@@ -14,7 +14,8 @@ import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import {
   clientAddressToFormFields,
-  RESIDENCE_TYPE_LABELS,
+  RESIDENCE_TYPES,
+  residenceTypeAllowsAddressExtra,
 } from "@/lib/customer-address";
 import {
   CUSTOMER_TYPE_LABELS,
@@ -189,7 +190,7 @@ export function ClientPicker({
   const nameLabel = isCompany ? "Razón social" : "Nombre";
   const namePlaceholder = isCompany ? "Ej: Persianas Almar S.L." : "Ej: María";
   const nifLabel = isCompany ? "CIF" : "NIF / CIF";
-  const isFlat = values.residenceType !== "house";
+  const showAddressExtra = residenceTypeAllowsAddressExtra(values.residenceType);
 
   return (
     <div className="space-y-5">
@@ -392,7 +393,7 @@ export function ClientPicker({
             </Field>
           </div>
           <div className="xl:col-span-2">
-            <Field label="Vivienda">
+            <Field label="Tipo de inmueble">
               <Select
                 value={values.residenceType}
                 onChange={(e) =>
@@ -402,14 +403,17 @@ export function ClientPicker({
                   )
                 }
               >
-                <option value="flat">{RESIDENCE_TYPE_LABELS.flat}</option>
-                <option value="house">{RESIDENCE_TYPE_LABELS.house}</option>
+                {RESIDENCE_TYPES.map((type) => (
+                  <option key={type.id || "blank"} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
               </Select>
             </Field>
           </div>
-          {isFlat && (
+          {showAddressExtra && (
             <div className="xl:col-span-2">
-              <Field label="Piso / puerta">
+              <Field label="Piso / puerta / local">
                 <Input
                   value={values.addressExtra}
                   onChange={(e) =>

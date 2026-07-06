@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildRentabilidadRealAdvisorValidationSummary,
   clearRentabilidadRealAdvisorValidationForTests,
+  consumeRentabilidadRealAdvisorValidationNotice,
   getStoredRentabilidadRealAdvisorValidationStatus,
+  markRentabilidadRealAdvisorValidationNotice,
   setStoredRentabilidadRealAdvisorValidationStatus,
+  shouldShowAdvisorValidationAction,
 } from "./advisor-validation";
 import { scoreRentabilidadRealProfile } from "./scoring";
 
@@ -18,6 +21,17 @@ function mockLocalStorage() {
       store.delete(key);
     },
     clear: () => store.clear(),
+  });
+  const sessionStore = new Map<string, string>();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => sessionStore.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      sessionStore.set(key, value);
+    },
+    removeItem: (key: string) => {
+      sessionStore.delete(key);
+    },
+    clear: () => sessionStore.clear(),
   });
 }
 
@@ -49,6 +63,20 @@ describe("rentabilidad real advisor validation", () => {
     setStoredRentabilidadRealAdvisorValidationStatus("corrected");
 
     expect(getStoredRentabilidadRealAdvisorValidationStatus()).toBe("corrected");
+  });
+
+  it("oculta la acción principal cuando ya está validado o corregido", () => {
+    expect(shouldShowAdvisorValidationAction("not_started")).toBe(true);
+    expect(shouldShowAdvisorValidationAction("pending_review")).toBe(true);
+    expect(shouldShowAdvisorValidationAction("validated")).toBe(false);
+    expect(shouldShowAdvisorValidationAction("corrected")).toBe(false);
+  });
+
+  it("consume aviso temporal de validación una sola vez", () => {
+    markRentabilidadRealAdvisorValidationNotice("validated");
+
+    expect(consumeRentabilidadRealAdvisorValidationNotice()).toBe("validated");
+    expect(consumeRentabilidadRealAdvisorValidationNotice()).toBeNull();
   });
 
   it("genera resumen con productos recomendados", () => {
