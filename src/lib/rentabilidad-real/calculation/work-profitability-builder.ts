@@ -6,6 +6,11 @@ import {
   getIgnoredExpensesForWork,
 } from "@/lib/rentabilidad-real/expense-linking";
 import {
+  isSupersededRentabilidadRealDocument,
+  rectificationChainDocumentIds,
+  sourceQuoteDocumentIdForRentabilidadInvoice,
+} from "@/lib/rentabilidad-real/document-chain";
+import {
   mapExistingExpenseToProfitabilityCost,
   mapExistingExpenseToProfitabilityFixedCost,
   mapExistingInvoiceToProfitabilityIncome,
@@ -169,11 +174,15 @@ function findLinkedInvoice(
   documents: Document[],
   quote: Document,
 ): Document | undefined {
-  return documents.find(
-    (doc) =>
-      doc.type === "factura" &&
-      doc.sourceQuoteDocumentId === quote.id,
-  );
+  return documents
+    .filter(
+      (doc) =>
+        doc.type === "factura" &&
+        !isSupersededRentabilidadRealDocument(doc) &&
+        sourceQuoteDocumentIdForRentabilidadInvoice(doc, documents) ===
+          quote.id,
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
 function selectedFixedCostTotal(
@@ -204,16 +213,24 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
       (doc.type === "factura" || doc.type === "presupuesto"),
   );
   if (!selectedDocument) return null;
+  if (isSupersededRentabilidadRealDocument(selectedDocument)) return null;
 
   const warnings: RentabilidadRealCalculationWarning[] = [];
+  const selectedSourceQuoteDocumentId =
+    selectedDocument.type === "factura"
+      ? sourceQuoteDocumentIdForRentabilidadInvoice(
+          selectedDocument,
+          data.documents,
+        )
+      : undefined;
   const quote =
     selectedDocument.type === "presupuesto"
       ? selectedDocument
-      : selectedDocument.sourceQuoteDocumentId
+      : selectedSourceQuoteDocumentId
         ? data.documents.find(
             (doc) =>
               doc.type === "presupuesto" &&
-              doc.id === selectedDocument.sourceQuoteDocumentId,
+              doc.id === selectedSourceQuoteDocumentId,
           )
         : undefined;
   const invoice =
@@ -221,7 +238,11 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
       ? selectedDocument
       : findLinkedInvoice(data.documents, selectedDocument);
   const relatedDocumentIds = new Set(
-    [selectedDocument.id, quote?.id, invoice?.id].filter(
+    [
+      ...rectificationChainDocumentIds(selectedDocument, data.documents),
+      ...(invoice ? rectificationChainDocumentIds(invoice, data.documents) : []),
+      quote?.id,
+    ].filter(
       (id): id is string => Boolean(id),
     ),
   );
@@ -244,13 +265,13 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
 
   if (selectedDocument.type === "factura" && !quote) {
     warnings.push({
-      code: selectedDocument.sourceQuoteDocumentId
+      code: selectedSourceQuoteDocumentId
         ? "invoice_source_quote_not_found"
         : "invoice_without_quote",
-      message: selectedDocument.sourceQuoteDocumentId
+      message: selectedSourceQuoteDocumentId
         ? "Esta factura declara un presupuesto origen que no se ha encontrado."
         : "Esta factura no tiene presupuesto vinculado; el cálculo usará solo ingreso real.",
-      severity: selectedDocument.sourceQuoteDocumentId ? "risk" : "info",
+      severity: selectedSourceQuoteDocumentId ? "risk" : "info",
       sourceLink: {
         sourceType: "invoice",
         sourceId: selectedDocument.id,
@@ -402,7 +423,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     source: {
       sourceType: sourceTypeForDocument(selectedDocument),
       sourceDocumentId: selectedDocument.id,
-      sourceQuoteDocumentId: quote?.id ?? selectedDocument.sourceQuoteDocumentId,
+      sourceQuoteDocumentId: quote?.id ?? selectedSourceQuoteDocumentId,
     },
     quoteSummary,
     invoiceSummary,

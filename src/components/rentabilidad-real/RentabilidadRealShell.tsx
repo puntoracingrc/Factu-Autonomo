@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Sparkles,
   TestTube2,
+  TrendingUp,
 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -306,6 +307,28 @@ export function RentabilidadRealShell() {
         </div>
       </Card>
 
+      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
+              <TrendingUp className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                Ver evolución mensual/trimestral
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
+                Comprueba cómo cambian ingresos, costes, margen y caja prudente
+                por periodos sin guardar snapshots contables.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="/rentabilidad-real/evolucion" className="shrink-0">
+            Ver evolución
+          </ButtonLink>
+        </div>
+      </Card>
+
       {!hasTest ? (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -437,6 +460,12 @@ export function RentabilidadRealShell() {
             className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             Ver informes de rentabilidad
+          </Link>
+          <Link
+            href="/rentabilidad-real/evolucion"
+            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            Ver evolución mensual/trimestral
           </Link>
         </div>
       </Card>

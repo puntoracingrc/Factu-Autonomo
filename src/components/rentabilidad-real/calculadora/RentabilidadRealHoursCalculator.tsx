@@ -8,6 +8,12 @@ import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
+import { isSupersededRentabilidadRealDocument } from "@/lib/rentabilidad-real/document-chain";
+import {
+  getDocumentAnalysisMode,
+  setDocumentAnalysisMode,
+  type RentabilidadRealDocumentAnalysisMode,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import {
   buildRentabilidadRealHoursProfitabilityInputFromExistingData,
   calculateRentabilidadRealHoursProfitability,
@@ -17,6 +23,7 @@ import {
   type RentabilidadRealHoursCalculationSettings,
 } from "@/lib/rentabilidad-real/calculation";
 import { useRentabilidadRealActivation } from "../useRentabilidadRealActivation";
+import { DocumentAnalysisModeField } from "../DocumentAnalysisModeField";
 import { HoursInputForm } from "./HoursInputForm";
 import { HoursProfitabilityResultCards } from "./HoursProfitabilityResultCards";
 import { HoursProfitabilityWarnings } from "./HoursProfitabilityWarnings";
@@ -40,10 +47,14 @@ export function RentabilidadRealHoursCalculator() {
       DEFAULT_RENTABILIDAD_REAL_HOURS_SETTINGS,
     );
   const [internalAdjustmentsTotal, setInternalAdjustmentsTotal] = useState(0);
+  const [selectedAnalysisMode, setSelectedAnalysisMode] =
+    useState<RentabilidadRealDocumentAnalysisMode>("unknown");
   const documents = useMemo(
     () =>
       data.documents.filter(
-        (doc) => doc.type === "factura" || doc.type === "presupuesto",
+        (doc) =>
+          (doc.type === "factura" || doc.type === "presupuesto") &&
+          !isSupersededRentabilidadRealDocument(doc),
       ),
     [data.documents],
   );
@@ -74,6 +85,28 @@ export function RentabilidadRealHoursCalculator() {
   useEffect(() => {
     setInternalAdjustmentsTotal(0);
   }, [settings.manualProjectId, settings.selectedDocumentId, settings.sourceType]);
+
+  useEffect(() => {
+    if (settings.sourceType !== "document" || !settings.selectedDocumentId) {
+      setSelectedAnalysisMode("unknown");
+      return;
+    }
+
+    const storedMode = getDocumentAnalysisMode(settings.selectedDocumentId);
+    const defaultMode =
+      storedMode === "unknown" ? "hours_project" : storedMode;
+    setSelectedAnalysisMode(defaultMode);
+    if (storedMode === "unknown") {
+      setDocumentAnalysisMode(settings.selectedDocumentId, defaultMode);
+    }
+  }, [settings.selectedDocumentId, settings.sourceType]);
+
+  function handleAnalysisModeChange(mode: RentabilidadRealDocumentAnalysisMode) {
+    setSelectedAnalysisMode(mode);
+    if (settings.sourceType === "document" && settings.selectedDocumentId) {
+      setDocumentAnalysisMode(settings.selectedDocumentId, mode);
+    }
+  }
 
   const input = useMemo(
     () =>
@@ -249,6 +282,19 @@ export function RentabilidadRealHoursCalculator() {
               setSettings((current) => ({ ...current, selectedDocumentId }))
             }
           />
+          {settings.sourceType === "document" && settings.selectedDocumentId ? (
+            <div className="mt-4">
+              <DocumentAnalysisModeField
+                value={selectedAnalysisMode}
+                onChange={handleAnalysisModeChange}
+                options={[
+                  { value: "hours_project" },
+                  { value: "retainer" },
+                  { value: "simple_document" },
+                ]}
+              />
+            </div>
+          ) : null}
         </Card>
 
         <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">

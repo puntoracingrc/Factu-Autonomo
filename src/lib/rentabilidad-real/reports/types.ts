@@ -1,6 +1,11 @@
 import type { ProfitabilitySourceLink } from "@/lib/rentabilidad-real/integrations";
 import type { RentabilidadRealCalculationSettings } from "@/lib/rentabilidad-real/calculation";
 import type {
+  RentabilidadRealDocumentAnalysisMode,
+  RentabilidadRealDocumentAnalysisModeFilter,
+  RentabilidadRealDocumentAnalysisModesById,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
+import type {
   RentabilidadRealCalculationWarning,
   RentabilidadRealWorkSourceType,
 } from "@/lib/rentabilidad-real/calculation";
@@ -50,6 +55,7 @@ export interface RentabilidadRealReportSettings {
   includeQuotesWithoutInvoice: boolean;
   includeInternalAdjustments: boolean;
   fixedCostAllocationMode: RentabilidadRealReportFixedCostAllocationMode;
+  analysisModeFilter: RentabilidadRealDocumentAnalysisModeFilter;
   irpfProvisionPercentage: number;
   lowMarginThresholdPercentage: number;
   customStartDate?: string;
@@ -60,6 +66,7 @@ export interface RentabilidadRealDocumentReportSettings
   extends RentabilidadRealReportSettings {
   savedWorkCalculationSettings?: RentabilidadRealCalculationSettings;
   reportRevenueWithoutIndirectTax?: number;
+  documentAnalysisModes?: RentabilidadRealDocumentAnalysisModesById;
 }
 
 export type RentabilidadRealDocumentReportQualityFlag =
@@ -79,6 +86,7 @@ export interface RentabilidadRealDocumentReportRow {
   primaryDocumentId: string;
   sourceType: RentabilidadRealAnalysisUnitSourceType;
   workSourceType: RentabilidadRealWorkSourceType;
+  analysisMode: RentabilidadRealDocumentAnalysisMode;
   documentLabel: string;
   clientId: string;
   clientName: string;
@@ -194,5 +202,6 @@ export interface RentabilidadRealDataQualityReport {
   fixedCostsWithoutAllocationRule: number;
   scannedExpensesPossiblyUnreviewed: number;
   documentsMissingTaxData: number;
+  documentsWithoutAnalysisMode: number;
   recommendations: string[];
 }

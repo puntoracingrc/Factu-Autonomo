@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  getDocumentAnalysisModeLabel,
+  type RentabilidadRealDocumentAnalysisModeFilter,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import type {
   RentabilidadRealReportFixedCostAllocationMode,
   RentabilidadRealReportPeriod,
@@ -42,6 +46,23 @@ const FIXED_COST_MODES: Array<{
   { value: "revenue_share_report", label: "Por facturación del periodo" },
 ];
 
+const ANALYSIS_MODE_FILTERS: Array<{
+  value: RentabilidadRealDocumentAnalysisModeFilter;
+  label: string;
+}> = [
+  { value: "all", label: "Todos" },
+  { value: "fixed_price_work", label: getDocumentAnalysisModeLabel("fixed_price_work") },
+  { value: "hours_project", label: getDocumentAnalysisModeLabel("hours_project") },
+  {
+    value: "installation_with_materials",
+    label: getDocumentAnalysisModeLabel("installation_with_materials"),
+  },
+  { value: "service_visit", label: getDocumentAnalysisModeLabel("service_visit") },
+  { value: "retainer", label: getDocumentAnalysisModeLabel("retainer") },
+  { value: "simple_document", label: getDocumentAnalysisModeLabel("simple_document") },
+  { value: "unknown", label: getDocumentAnalysisModeLabel("unknown") },
+];
+
 export function ReportsFiltersPanel({
   settings,
   onSettingsChange,
@@ -55,7 +76,7 @@ export function ReportsFiltersPanel({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SelectField
           label="Periodo"
           value={settings.period}
@@ -80,6 +101,17 @@ export function ReportsFiltersPanel({
             patch({
               fixedCostAllocationMode:
                 value as RentabilidadRealReportFixedCostAllocationMode,
+            })
+          }
+        />
+        <SelectField
+          label="Modo de análisis"
+          value={settings.analysisModeFilter}
+          options={ANALYSIS_MODE_FILTERS}
+          onChange={(value) =>
+            patch({
+              analysisModeFilter:
+                value as RentabilidadRealDocumentAnalysisModeFilter,
             })
           }
         />

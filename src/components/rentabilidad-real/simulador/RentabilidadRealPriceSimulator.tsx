@@ -9,6 +9,7 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { roundMoney } from "@/lib/calculations";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
+import { isSupersededRentabilidadRealDocument } from "@/lib/rentabilidad-real/document-chain";
 import {
   mapExistingExpenseToProfitabilityFixedCost,
   mapExistingRecurringExpenseToProfitabilityFixedCost,
@@ -76,7 +77,9 @@ export function RentabilidadRealPriceSimulator() {
   const documents = useMemo(
     () =>
       data.documents.filter(
-        (doc) => doc.type === "factura" || doc.type === "presupuesto",
+        (doc) =>
+          (doc.type === "factura" || doc.type === "presupuesto") &&
+          !isSupersededRentabilidadRealDocument(doc),
       ),
     [data.documents],
   );

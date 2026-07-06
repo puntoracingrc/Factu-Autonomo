@@ -146,4 +146,35 @@ describe("work calculator view model", () => {
 
     expect(options[0].customerName).toBe("Cliente sin asignar");
   });
+
+  it("oculta facturas sustituidas por rectificativa y conserva la vigente", () => {
+    const original = documentFixture({
+      id: "invoice-original",
+      number: "F-2026-0001",
+      date: "2026-07-01",
+      status: "rectificada",
+      rectifiedById: "invoice-rect",
+    });
+    const rectificativa = documentFixture({
+      id: "invoice-rect",
+      number: "FR-2026-0001",
+      date: "2026-07-02",
+      status: "enviado",
+      rectification: {
+        originalDocumentId: "invoice-original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const options = buildRentabilidadRealWorkDocumentOptions({
+      documents: [original, rectificativa],
+      allDocuments: [original, rectificativa],
+      expenses: [],
+    });
+
+    expect(options.map((option) => option.id)).toEqual(["invoice-rect"]);
+  });
 });

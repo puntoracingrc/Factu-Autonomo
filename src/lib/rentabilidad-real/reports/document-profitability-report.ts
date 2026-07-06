@@ -1,6 +1,12 @@
 import { documentTotals, roundMoney } from "@/lib/calculations";
 import { isFixedExpense } from "@/lib/expense-classification";
 import {
+  type RentabilidadRealDocumentAnalysisMode,
+  type RentabilidadRealDocumentAnalysisModeFilter,
+  type RentabilidadRealDocumentAnalysisModesById,
+  normalizeDocumentAnalysisMode,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
+import {
   buildRentabilidadRealWorkProfitabilityInputFromExistingData,
   calculateRentabilidadRealWorkProfitability,
   type RentabilidadRealCalculationWarning,
@@ -33,6 +39,7 @@ function cloneSettings(
     includeQuotesWithoutInvoice: settings.includeQuotesWithoutInvoice,
     includeInternalAdjustments: settings.includeInternalAdjustments,
     fixedCostAllocationMode: settings.fixedCostAllocationMode,
+    analysisModeFilter: settings.analysisModeFilter,
     irpfProvisionPercentage: settings.irpfProvisionPercentage,
     lowMarginThresholdPercentage: settings.lowMarginThresholdPercentage,
     customStartDate: settings.customStartDate,
@@ -94,6 +101,43 @@ function includeUnitBySource(
     return unit.sourceType === "invoice" || unit.sourceType === "quote_invoice_pair";
   }
   return unit.sourceType === "quote";
+}
+
+function documentIdsForAnalysisModeLookup(
+  unit: RentabilidadRealAnalysisUnit,
+): string[] {
+  const ids = [
+    unit.primaryDocumentId,
+    unit.invoiceDocumentId,
+    unit.quoteDocumentId,
+    unit.sourceQuoteDocumentId,
+    ...unit.relatedDocumentIds,
+  ].filter((id): id is string => Boolean(id));
+
+  return Array.from(new Set(ids));
+}
+
+function analysisModeForUnit(
+  unit: RentabilidadRealAnalysisUnit,
+  modes: RentabilidadRealDocumentAnalysisModesById | undefined,
+): RentabilidadRealDocumentAnalysisMode {
+  if (!modes) return "unknown";
+
+  for (const documentId of documentIdsForAnalysisModeLookup(unit)) {
+    const mode = normalizeDocumentAnalysisMode(modes[documentId]);
+    if (mode !== "unknown") return mode;
+  }
+
+  return "unknown";
+}
+
+function includeUnitByAnalysisMode(
+  unit: RentabilidadRealAnalysisUnit,
+  filter: RentabilidadRealDocumentAnalysisModeFilter,
+  modes: RentabilidadRealDocumentAnalysisModesById | undefined,
+): boolean {
+  if (filter === "all") return true;
+  return analysisModeForUnit(unit, modes) === filter;
 }
 
 function isDateInPeriod(
@@ -243,6 +287,7 @@ export function calculateDocumentReportRow(
     primaryDocumentId: unit.primaryDocumentId,
     sourceType: unit.sourceType,
     workSourceType: result.sourceType,
+    analysisMode: analysisModeForUnit(unit, settings.documentAnalysisModes),
     documentLabel: unit.title,
     clientId: unit.clientId,
     clientName: unit.clientName,
@@ -338,7 +383,13 @@ export function buildDocumentProfitabilityReport(
 ): RentabilidadRealDocumentProfitabilityReport {
   const units = buildRentabilidadRealAnalysisUnits(appData).filter(
     (unit) =>
-      includeUnitBySource(unit, settings) && isDateInPeriod(unit.date, settings),
+      includeUnitBySource(unit, settings) &&
+      isDateInPeriod(unit.date, settings) &&
+      includeUnitByAnalysisMode(
+        unit,
+        settings.analysisModeFilter,
+        settings.documentAnalysisModes,
+      ),
   );
   const reportRevenueWithoutIndirectTax = roundMoney(
     units.reduce((total, unit) => total + incomeForUnit(appData, unit), 0),

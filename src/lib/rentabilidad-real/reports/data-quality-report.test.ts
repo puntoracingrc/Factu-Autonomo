@@ -13,6 +13,7 @@ function row(
     primaryDocumentId: "doc_1",
     sourceType: "invoice",
     workSourceType: "invoice",
+    analysisMode: "fixed_price_work",
     documentLabel: "Factura F-1",
     clientId: "client_1",
     clientName: "Cliente",
@@ -99,5 +100,16 @@ describe("buildDataQualityReport", () => {
     expect(report.scannedExpensesPossiblyUnreviewed).toBe(1);
     expect(report.documentsMissingTaxData).toBe(1);
     expect(report.recommendations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("detecta documentos sin modo de analisis", () => {
+    const report = buildDataQualityReport(
+      EMPTY_DATA,
+      [row([], { analysisMode: "unknown" })],
+      DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS,
+    );
+
+    expect(report.documentsWithoutAnalysisMode).toBe(1);
+    expect(report.recommendations.join(" ")).toContain("modo de análisis");
   });
 });

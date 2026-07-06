@@ -1,3 +1,4 @@
+import type { RentabilidadRealDocumentAnalysisModeFilter } from "@/lib/rentabilidad-real/document-analysis-modes";
 import type {
   RentabilidadRealReportFixedCostAllocationMode,
   RentabilidadRealReportPeriod,
@@ -14,6 +15,7 @@ export const DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS: RentabilidadRealReportSe
     includeQuotesWithoutInvoice: true,
     includeInternalAdjustments: true,
     fixedCostAllocationMode: "none",
+    analysisModeFilter: "all",
     irpfProvisionPercentage: 20,
     lowMarginThresholdPercentage: 15,
   };
@@ -51,6 +53,21 @@ function normalizeFixedCostMode(
     : DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS.fixedCostAllocationMode;
 }
 
+function normalizeAnalysisModeFilter(
+  value: unknown,
+): RentabilidadRealDocumentAnalysisModeFilter {
+  return value === "all" ||
+    value === "simple_document" ||
+    value === "fixed_price_work" ||
+    value === "hours_project" ||
+    value === "installation_with_materials" ||
+    value === "service_visit" ||
+    value === "retainer" ||
+    value === "unknown"
+    ? value
+    : DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS.analysisModeFilter;
+}
+
 function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
@@ -72,6 +89,7 @@ function normalizeSettings(
     fixedCostAllocationMode: normalizeFixedCostMode(
       settings?.fixedCostAllocationMode,
     ),
+    analysisModeFilter: normalizeAnalysisModeFilter(settings?.analysisModeFilter),
     irpfProvisionPercentage: numberOrDefault(
       settings?.irpfProvisionPercentage,
       DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS.irpfProvisionPercentage,

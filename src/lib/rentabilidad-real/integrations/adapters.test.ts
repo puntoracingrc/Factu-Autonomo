@@ -97,6 +97,37 @@ describe("rentabilidad real read-only adapters", () => {
     });
   });
 
+  it("mapExistingInvoiceToProfitabilityIncome treats total annulment as final income zero", () => {
+    const rectificativa = baseDocument({
+      id: "rect_1",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: "doc_1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-07-01",
+        reason: "Anulación total",
+        type: "anulacion",
+      },
+      items: [
+        {
+          id: "line_1",
+          description: "Servicio",
+          quantity: 2,
+          unitPrice: -100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const mapped = mapExistingInvoiceToProfitabilityIncome(rectificativa);
+
+    expect(mapped).toMatchObject({
+      subtotal: 0,
+      iva: 0,
+      total: 0,
+    });
+  });
+
   it("mapExistingQuoteToProfitabilityQuote does not mutate input", () => {
     const quote = baseDocument({
       id: "quote_1",

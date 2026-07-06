@@ -16,6 +16,7 @@ const METRICS: Array<{
   { key: "fixedCostsWithoutAllocationRule", label: "Sin regla de fijos" },
   { key: "scannedExpensesPossiblyUnreviewed", label: "Escaneos revisables" },
   { key: "documentsMissingTaxData", label: "IVA incompleto" },
+  { key: "documentsWithoutAnalysisMode", label: "Sin modo" },
 ];
 
 export function DataQualityPanel({

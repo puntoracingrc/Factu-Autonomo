@@ -116,7 +116,82 @@ describe("buildDocumentProfitabilityReport", () => {
       primaryDocumentId: "i1",
       incomeWithoutIndirectTax: 100,
       operatingProfit: 100,
+      analysisMode: "unknown",
     });
+  });
+
+  it("usa el modo guardado del documento", () => {
+    const invoice = document({ id: "i1", type: "factura", number: "F-1" });
+
+    const report = buildDocumentProfitabilityReport(data({ documents: [invoice] }), {
+      ...settings(),
+      documentAnalysisModes: {
+        i1: "fixed_price_work",
+      },
+    });
+
+    expect(report.rows[0].analysisMode).toBe("fixed_price_work");
+  });
+
+  it("usa el modo guardado del presupuesto en un par presupuesto/factura", () => {
+    const quote = document({ id: "q1", type: "presupuesto", number: "P-1" });
+    const invoice = document({
+      id: "i1",
+      type: "factura",
+      number: "F-1",
+      sourceQuoteDocumentId: "q1",
+    });
+
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [quote, invoice] }),
+      {
+        ...settings(),
+        documentAnalysisModes: {
+          q1: "installation_with_materials",
+        },
+      },
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0].analysisMode).toBe("installation_with_materials");
+  });
+
+  it("filtra por modo de analisis antes de calcular resumen", () => {
+    const invoiceA = document({ id: "i1", type: "factura", number: "F-1" });
+    const invoiceB = document({
+      id: "i2",
+      type: "factura",
+      number: "F-2",
+      items: [
+        {
+          id: "line_2",
+          description: "Servicio horas",
+          quantity: 1,
+          unitPrice: 200,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoiceA, invoiceB] }),
+      {
+        ...settings({ analysisModeFilter: "hours_project" }),
+        documentAnalysisModes: {
+          i1: "fixed_price_work",
+          i2: "hours_project",
+        },
+      },
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      primaryDocumentId: "i2",
+      incomeWithoutIndirectTax: 200,
+      analysisMode: "hours_project",
+    });
+    expect(report.summary.rowCount).toBe(1);
+    expect(report.summary.incomeWithoutIndirectTax).toBe(200);
   });
 
   it("usa factura real sobre presupuesto cuando existe vínculo", () => {
