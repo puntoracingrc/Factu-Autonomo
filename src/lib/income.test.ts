@@ -75,6 +75,42 @@ describe("income helpers", () => {
     expect(pendingCollection(docs)).toBeCloseTo(100, 0);
   });
 
+  it("incluye rectificativas vigentes positivas pendientes de cobro", () => {
+    const original = invoice("rectificada", 121, {
+      id: "original",
+      rectifiedById: "rect-1",
+    });
+    const rectificativa = invoice("enviado", 60.5, {
+      id: "rect-1",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+    });
+
+    expect(pendingCollection([original, rectificativa])).toBeCloseTo(60.5, 2);
+  });
+
+  it("no trata una rectificativa negativa como pendiente de cobro", () => {
+    const rectificativaNegativa = invoice("enviado", -121, {
+      id: "rect-1",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: "original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-09",
+        reason: "Anulación total",
+        type: "anulacion",
+      },
+    });
+
+    expect(pendingCollection([rectificativaNegativa])).toBe(0);
+  });
+
   it("vuelve a enviado al desmarcar cobro", () => {
     expect(statusAfterUnmarkingCollection(invoice("pagado"))).toBe("enviado");
   });

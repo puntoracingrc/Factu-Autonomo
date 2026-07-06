@@ -112,7 +112,7 @@ const DOCUMENT_STATUS_OPTIONS: Record<
     { value: "draft", label: "Borrador" },
     { value: "issued", label: "Emitida" },
     { value: "collected", label: "Cobrada" },
-    { value: "pending", label: "Pendiente" },
+    { value: "pending", label: "Pendiente de cobro" },
     { value: "rectified", label: "Rectificada" },
   ],
   presupuesto: [
