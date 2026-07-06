@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { calculateTaxSummary, isTaxableSaleDocument } from "./taxes";
 import type { Document, Expense } from "./types";
 
-function invoice(status: Document["status"], subtotal = 100): Document {
+function invoice(
+  status: Document["status"],
+  subtotal = 100,
+  overrides: Partial<Document> = {},
+): Document {
   return {
     id: "1",
     type: "factura",
@@ -21,6 +25,7 @@ function invoice(status: Document["status"], subtotal = 100): Document {
     status,
     createdAt: "2026-06-09",
     updatedAt: "2026-06-09",
+    ...overrides,
   };
 }
 
@@ -52,6 +57,29 @@ describe("isTaxableSaleDocument", () => {
       sourceDocumentId: "inv-1",
     };
     expect(isTaxableSaleDocument(autoReceipt)).toBe(false);
+  });
+
+  it("excluye la factura original cuando ya tiene rectificativa", () => {
+    expect(
+      isTaxableSaleDocument(
+        invoice("rectificada", 100, { rectifiedById: "rect-1" }),
+      ),
+    ).toBe(false);
+    expect(
+      isTaxableSaleDocument(
+        invoice("enviado", 80, {
+          id: "rect-1",
+          number: "FR-2026-0001",
+          rectification: {
+            originalDocumentId: "1",
+            originalNumber: "F-2026-0001",
+            originalDate: "2026-06-09",
+            reason: "Corrección de datos",
+            type: "correccion",
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -89,5 +117,28 @@ describe("calculateTaxSummary", () => {
     expect(summary.ivaCredit).toBeGreaterThan(0);
     expect(summary.ivaToPay).toBe(0);
     expect(summary.irpfEstimate).toBe(0);
+  });
+
+  it("usa la rectificativa vigente y deja fuera la factura original rectificada", () => {
+    const original = invoice("rectificada", 1000, { rectifiedById: "rect-1" });
+    const rectification = invoice("enviado", 700, {
+      id: "rect-1",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+    });
+
+    const summary = calculateTaxSummary([original, rectification], [], {
+      irpfPercent: 20,
+    });
+
+    expect(summary.salesBase).toBe(700);
+    expect(summary.salesIva).toBe(147);
+    expect(summary.grossProfit).toBe(700);
   });
 });

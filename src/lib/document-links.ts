@@ -1,7 +1,8 @@
 import { isDraftInvoiceNumber, sortDocumentsByNewest } from "./documents";
 import { findInvoiceCreatedFromQuote } from "./quote-to-invoice";
+import { isRectificativa } from "./rectificativas";
 import { findReceiptForInvoice } from "./receipts";
-import type { Document, DocumentType } from "./types";
+import type { Document, DocumentType, Expense } from "./types";
 
 export type DocumentLinkRelation = "quote_invoice" | "invoice_receipt";
 
@@ -24,6 +25,24 @@ export interface DocumentLinkBadge {
   label: string;
   href?: string;
   tone: "blue" | "green";
+}
+
+export type DocumentChainRole =
+  | "factura"
+  | "rectificativa"
+  | "presupuesto"
+  | "recibo"
+  | "gastos";
+
+export interface DocumentChainItem {
+  id: string;
+  role: DocumentChainRole;
+  title: string;
+  value: string;
+  href?: string;
+  document?: Document;
+  expenseCount?: number;
+  current: boolean;
 }
 
 const TYPE_PATHS: Record<DocumentType, string> = {
@@ -51,6 +70,149 @@ export function documentDetailPath(document: Pick<Document, "id" | "type">): str
 export function documentShortNumber(document: Pick<Document, "type" | "number" | "id">): string {
   if (isDraftInvoiceNumber(document)) return "borrador";
   return document.number || document.id.slice(0, 8);
+}
+
+function findRectificationForInvoice(
+  documents: Document[],
+  invoice: Document | undefined,
+): Document | undefined {
+  if (!invoice?.rectifiedById) return undefined;
+  return documents.find(
+    (document) =>
+      document.id === invoice.rectifiedById && document.type === "factura",
+  );
+}
+
+function findOriginalForRectification(
+  documents: Document[],
+  rectification: Document,
+): Document | undefined {
+  const originalId = rectification.rectification?.originalDocumentId;
+  if (!originalId) return undefined;
+  return documents.find(
+    (document) => document.id === originalId && document.type === "factura",
+  );
+}
+
+function linkedReceiptForInvoice(
+  documents: Document[],
+  invoice: Document | undefined,
+): Document | undefined {
+  if (!invoice) return undefined;
+  return findReceiptForInvoice(documents, invoice.id, invoice.receiptDocumentId);
+}
+
+function pushDocumentChainItem(
+  items: DocumentChainItem[],
+  document: Document | undefined,
+  role: Exclude<DocumentChainRole, "gastos">,
+  title: string,
+  currentDocumentId: string,
+) {
+  if (!document) return;
+  if (items.some((item) => item.document?.id === document.id)) return;
+
+  items.push({
+    id: `${role}-${document.id}`,
+    role,
+    title,
+    value: documentShortNumber(document),
+    href: documentDetailPath(document),
+    document,
+    current: document.id === currentDocumentId,
+  });
+}
+
+export function getDocumentChainItems(
+  document: Document,
+  documents: Document[],
+  expenses: Expense[] = [],
+): DocumentChainItem[] {
+  let invoice: Document | undefined;
+  let rectification: Document | undefined;
+  let quote: Document | undefined;
+  let receipt: Document | undefined;
+
+  if (document.type === "factura") {
+    if (isRectificativa(document)) {
+      rectification = document;
+      invoice = findOriginalForRectification(documents, document);
+      quote =
+        findQuoteLinkedToInvoice(documents, document) ??
+        (invoice ? findQuoteLinkedToInvoice(documents, invoice) : undefined);
+    } else {
+      invoice = document;
+      rectification = findRectificationForInvoice(documents, document);
+      quote = findQuoteLinkedToInvoice(documents, document);
+    }
+
+    receipt =
+      linkedReceiptForInvoice(documents, rectification) ??
+      linkedReceiptForInvoice(documents, invoice);
+  } else if (document.type === "presupuesto") {
+    quote = document;
+    invoice = findInvoiceCreatedFromQuote(documents, document.id);
+    rectification = findRectificationForInvoice(documents, invoice);
+    receipt =
+      linkedReceiptForInvoice(documents, rectification) ??
+      linkedReceiptForInvoice(documents, invoice);
+  } else {
+    receipt = document;
+    const linkedInvoice = findInvoiceLinkedToReceipt(documents, document);
+    if (linkedInvoice && isRectificativa(linkedInvoice)) {
+      rectification = linkedInvoice;
+      invoice = findOriginalForRectification(documents, linkedInvoice);
+    } else {
+      invoice = linkedInvoice;
+      rectification = findRectificationForInvoice(documents, linkedInvoice);
+    }
+    quote =
+      (rectification
+        ? findQuoteLinkedToInvoice(documents, rectification)
+        : undefined) ??
+      (invoice ? findQuoteLinkedToInvoice(documents, invoice) : undefined);
+  }
+
+  const items: DocumentChainItem[] = [];
+  pushDocumentChainItem(items, invoice, "factura", "Factura", document.id);
+  pushDocumentChainItem(
+    items,
+    rectification,
+    "rectificativa",
+    "Rectificativa",
+    document.id,
+  );
+  pushDocumentChainItem(
+    items,
+    quote,
+    "presupuesto",
+    "Presupuesto",
+    document.id,
+  );
+  pushDocumentChainItem(items, receipt, "recibo", "Recibo", document.id);
+
+  const workDocumentIds = new Set(
+    [invoice, rectification, quote].map((item) => item?.id).filter(Boolean),
+  );
+  const linkedExpenses = expenses.filter(
+    (expense) =>
+      expense.workDocumentId && workDocumentIds.has(expense.workDocumentId),
+  );
+  if (linkedExpenses.length > 0) {
+    items.push({
+      id: `gastos-${[...workDocumentIds].join("-")}`,
+      role: "gastos",
+      title: "Gastos",
+      value: `${linkedExpenses.length} gasto${
+        linkedExpenses.length === 1 ? "" : "s"
+      }`,
+      href: "/gastos",
+      expenseCount: linkedExpenses.length,
+      current: false,
+    });
+  }
+
+  return items;
 }
 
 function clearQuoteLink(document: Document, updatedAt: string): Document {

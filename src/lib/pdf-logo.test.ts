@@ -120,6 +120,47 @@ describe("buildDocumentPdf", () => {
     expect(pdf.getNumberOfPages()).toBe(1);
   });
 
+  it("compacta los datos del emisor en menos líneas", () => {
+    const pdf = buildDocumentPdf(
+      {
+        ...baseDoc,
+        items: [
+          {
+            id: "l1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      {
+        ...DEFAULT_PROFILE,
+        commercialName: "Persianas Almar",
+        name: "Alberto Miguel Ibanez de Ocapua Munoz",
+        nif: "46402457A",
+        address: "Carrer de Valencia, 542",
+        postalCode: "08013",
+        city: "Barcelona",
+        province: "Barcelona",
+        country: "Espana",
+        phone: "671127258",
+        email: "persianasalmar@gmail.com",
+        website: "https://www.persialmar.es",
+      },
+    );
+    const output = pdf.output();
+
+    expect(output).toContain(
+      "Titular fiscal: Alberto Miguel Ibanez de Ocapua",
+    );
+    expect(output).toContain("Munoz · NIF: 46402457A");
+    expect(output).toContain("Carrer de Valencia, 542 · 08013 Barcelona,");
+    expect(output).toContain("Barcelona · Espana");
+    expect(output).toContain("Tel: 671127258 · persianasalmar@gmail.com ·");
+    expect(output).toContain("https://www.persialmar.es");
+  });
+
   it("genera rectificativa con cliente largo, pago y notas", () => {
     const pdf = buildDocumentPdf(
       {
