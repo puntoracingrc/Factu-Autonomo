@@ -97,10 +97,10 @@ export function getRentabilidadRealExistingDataStatus(
     },
     {
       key: "quote_invoice_relation",
-      label: "Relación presupuesto → factura",
+      label: "Presupuesto → factura",
       status: quoteInvoiceRelationStatus(documents),
       detail:
-        "La relación existente sourceQuoteDocumentId será la unión principal entre trabajo previsto e ingreso real.",
+        "Se usará el vínculo ya guardado entre presupuesto y factura cuando exista.",
       sourceLink: {
         sourceType: "quote",
         label: "Relación presupuesto → factura",
@@ -213,7 +213,7 @@ export function getRentabilidadRealExistingDataStatus(
     },
     {
       key: "document_autofill",
-      label: "Documentos/autorrelleno",
+      label: "Autorrelleno",
       status: "detected",
       detail:
         "El autorrelleno desde texto crea documentos en el flujo actual; Rentabilidad Real leerá el resultado final.",
@@ -225,7 +225,7 @@ export function getRentabilidadRealExistingDataStatus(
     },
     {
       key: "admin_diagnostics",
-      label: "/admin diagnóstico",
+      label: "Admin",
       status: "detected",
       detail:
         "La zona admin sirve para diagnóstico de salud, usuarios e IA; no debe ser una fuente editable de Rentabilidad Real.",
