@@ -30,28 +30,19 @@ const STATUS_CLASSES: Record<ProfitabilityExistingDataStatus, string> = {
 
 const STATUS_GROUPS: {
   title: string;
-  description: string;
   statuses: ProfitabilityExistingDataStatus[];
 }[] = [
   {
     title: "Leyendo ahora",
-    description: "Datos que ya entran en los cálculos.",
     statuses: ["read_only_connected"],
   },
   {
     title: "Preparado",
-    description: "Flujos localizados; se usarán cuando haya datos.",
     statuses: ["detected"],
   },
   {
     title: "Revisar",
-    description: "Solo si hay algo pendiente o raro.",
     statuses: ["pending_mapping", "risk_detected"],
-  },
-  {
-    title: "No activo",
-    description: "No afecta al cálculo actual.",
-    statuses: ["not_found"],
   },
 ];
 
@@ -65,6 +56,9 @@ export function RentabilidadRealExistingDataPanel() {
     ...group,
     items: statusItems.filter((item) => group.statuses.includes(item.status)),
   })).filter((group) => group.items.length > 0);
+  const hiddenNotActiveCount = statusItems.filter(
+    (item) => item.status === "not_found",
+  ).length;
 
   return (
     <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -75,11 +69,10 @@ export function RentabilidadRealExistingDataPanel() {
           </span>
           <div>
             <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-              Datos conectados
+              Datos existentes
             </h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Rentabilidad Real lee tus datos actuales en modo consulta. No crea
-              otra contabilidad.
+              Lectura local, sin duplicar facturas, gastos ni impuestos.
             </p>
           </div>
         </div>
@@ -92,7 +85,7 @@ export function RentabilidadRealExistingDataPanel() {
         {groupedItems.map((group) => (
           <section
             key={group.title}
-            className="grid gap-2 sm:grid-cols-[11rem_1fr] sm:items-start"
+            className="grid gap-2 sm:grid-cols-[9rem_1fr] sm:items-start"
           >
             <div className="flex items-baseline gap-2">
               <div>
@@ -104,9 +97,6 @@ export function RentabilidadRealExistingDataPanel() {
                     {group.items.length}
                   </span>
                 </div>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
-                  {group.description}
-                </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -122,6 +112,12 @@ export function RentabilidadRealExistingDataPanel() {
             </div>
           </section>
         ))}
+        {hiddenNotActiveCount > 0 ? (
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {hiddenNotActiveCount} conexión(es) futura(s) ocultas porque no
+            afectan al cálculo actual.
+          </p>
+        ) : null}
       </div>
     </Card>
   );

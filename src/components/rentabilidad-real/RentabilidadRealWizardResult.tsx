@@ -18,6 +18,7 @@ import { buildTestResultViewModel } from "@/lib/rentabilidad-real/view-model";
 import type {
   RentabilidadRealPrimaryProfile,
   RentabilidadRealScoringResult,
+  RentabilidadRealVehicleUse,
   RentabilidadRealWizardAnswers,
 } from "@/lib/rentabilidad-real/types";
 import { useRentabilidadRealActivation } from "./useRentabilidadRealActivation";
@@ -33,6 +34,15 @@ const PRIMARY_PROFILE_LABELS: Record<RentabilidadRealPrimaryProfile, string> = {
   simple_sl: "S.L. simple",
   sl_employees_partners: "S.L. con empleados o socios",
   advanced_company: "Empresa avanzada",
+};
+
+const VEHICLE_USE_LABELS: Record<RentabilidadRealVehicleUse, string> = {
+  dedicated_van: "Furgoneta dedicada",
+  private_car: "Coche particular",
+  private_motorbike: "Moto particular",
+  renting_leasing: "Renting/leasing",
+  industrial_truck: "Vehículo industrial",
+  taxi_vtc_transport: "Taxi/VTC/transporte",
 };
 
 export function RentabilidadRealWizardResult({
@@ -69,6 +79,7 @@ export function RentabilidadRealWizardResult({
     normalizedAnswers.workVehicleUses?.length || normalizedAnswers.hasWorkVehicle,
   );
   const hasPrivateVehicle = Boolean(normalizedAnswers.usesPrivateVehicleForWork);
+  const selectedVehicles = normalizedAnswers.workVehicleUses ?? [];
   const hasSafeMaterials = Boolean(
     normalizedAnswers.materialStockModes?.some((mode) =>
       [
@@ -212,6 +223,14 @@ export function RentabilidadRealWizardResult({
 
       {hasVehicleStructure ? (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
+          {selectedVehicles.length > 0 ? (
+            <p className="mb-2 font-black">
+              Vehículo indicado:{" "}
+              {selectedVehicles
+                .map((vehicle) => VEHICLE_USE_LABELS[vehicle])
+                .join(", ")}
+            </p>
+          ) : null}
           Añadimos Vehículo, Herramientas, Local y Equipos porque has indicado
           que usas vehículo o estructura ligera. Esto ayuda a calcular
           rentabilidad interna, pero no implica deducibilidad fiscal automática

@@ -374,7 +374,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     slug: "stock-comercio",
     name: "Stock y Comercio",
     shortDescription:
-      "Para negocios con inventario, compras para reventa y margen por producto.",
+      "Producto futuro aparte para inventario, tienda, e-commerce y reventa.",
     longDescription:
       "Fase futura para autónomos y pequeños negocios con stock, comercio, rotación de productos o control avanzado de margen por artículo.",
     status: "coming_soon",
@@ -389,6 +389,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     ],
     covers: ["Stock", "Margen por producto", "Compras para reventa"],
     doesNotCover: [
+      "Materiales comprados para un trabajo concreto",
       "Disponible en primera fase",
       "Inventario avanzado en tiempo real",
     ],
@@ -397,7 +398,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     capabilities: ["stock_commerce"],
     includedInProPlus: false,
     commercialAccessNote:
-      "Reservado para una fase futura; no incluido en Pro+ IA en esta fase.",
+      "Producto extra futuro. No está incluido todavía en Pro+ niveles 1 a 4 y no afecta a tus datos actuales.",
     recommendedAddons: [],
   },
   {
@@ -428,7 +429,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     capabilities: ["modules_special_regimes"],
     includedInProPlus: false,
     commercialAccessNote:
-      "Reservado para una fase futura; no incluido en Pro+ IA en esta fase.",
+      "Producto fiscal futuro. No está incluido todavía en Pro+ niveles 1 a 4 y no afecta a tus datos actuales.",
     recommendedAddons: [],
   },
   {
@@ -459,7 +460,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     capabilities: ["simple_sl"],
     includedInProPlus: false,
     commercialAccessNote:
-      "Reservado para una fase futura; no incluido en Pro+ IA en esta fase.",
+      "Producto futuro para sociedades. No está incluido todavía en Pro+ niveles 1 a 4 y no afecta a tus datos actuales.",
     recommendedAddons: [],
   },
   {
@@ -467,7 +468,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     slug: "sl-empleados-socios",
     name: "S.L. con Empleados y Socios",
     shortDescription:
-      "Para sociedades con nóminas, socios, reparto de costes y estructura laboral.",
+      "Producto futuro para nóminas, empleados, socios y estructura laboral.",
     longDescription:
       "Fase futura para empresas que necesitan incorporar empleados en nómina, socios, costes laborales y escenarios societarios más amplios.",
     status: "coming_soon",
@@ -485,13 +486,18 @@ const RENTABILIDAD_REAL_PRODUCTS = [
       "Rentabilidad con nóminas",
     ],
     covers: ["Nominas", "Socios", "Costes laborales"],
-    doesNotCover: ["Disponible en primera fase", "Empresa avanzada multiunidad"],
+    doesNotCover: [
+      "Autónomo externo con factura como coste directo",
+      "Ayuda puntual no fiscal como ajuste interno",
+      "Disponible en primera fase",
+      "Empresa avanzada multiunidad",
+    ],
     includedModules: ["payroll_costs", "company_profit"],
     productKind: "future",
     capabilities: ["sl_employees_partners"],
     includedInProPlus: false,
     commercialAccessNote:
-      "Reservado para una fase futura; no incluido en Pro+ IA en esta fase.",
+      "Producto laboral/societario futuro. No está incluido todavía en Pro+ niveles 1 a 4 y no afecta a tus datos actuales.",
     recommendedAddons: [],
   },
   {
@@ -523,7 +529,7 @@ const RENTABILIDAD_REAL_PRODUCTS = [
     capabilities: ["advanced_company"],
     includedInProPlus: false,
     commercialAccessNote:
-      "Reservado para una fase futura; no incluido en Pro+ IA en esta fase.",
+      "Producto avanzado futuro. No está incluido todavía en Pro+ niveles 1 a 4 y no afecta a tus datos actuales.",
     recommendedAddons: [],
   },
 ] as const satisfies readonly RentabilidadRealProduct[];
