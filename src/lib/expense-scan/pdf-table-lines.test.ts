@@ -79,6 +79,83 @@ describe("extractStilCondalPurchaseLinesFromPdfItems", () => {
     });
   });
 
+  it("clasifica M2, ML y UD según las columnas de medidas", () => {
+    const items = [
+      item(1, 2, 2, "STIL CONDAL, S.A."),
+      item(1, 2, 7, "Factura n° :"),
+      item(1, 1, 12, "Artículo"),
+      item(1, 35, 12, "Importe"),
+
+      item(1, 0.87, 16, "AUTC45"),
+      item(1, 4.35, 16, "AUTOBLOCANTE C-45 SOLO LAMAS Blan"),
+      item(1, 20.84, 16, "1"),
+      item(1, 22.58, 16, "230,2"),
+      item(1, 24.22, 16, "256,0"),
+      item(1, 26.24, 16, "6,11"),
+      item(1, 28.04, 16, "159,00"),
+      item(1, 30.13, 16, "25,00"),
+      item(1, 32.11, 16, "119,25"),
+      item(1, 34.47, 16, "728,62"),
+
+      item(1, 0.87, 18, "005099004"),
+      item(1, 4.35, 18, "GUIA X-25 + C/GOMA BLAN"),
+      item(1, 20.84, 18, "2"),
+      item(1, 24.22, 18, "251,0"),
+      item(1, 26.24, 18, "5,10"),
+      item(1, 28.04, 18, "3,96"),
+      item(1, 30.13, 18, "25,00"),
+      item(1, 32.11, 18, "2,97"),
+      item(1, 34.47, 18, "15,15"),
+
+      item(1, 0.87, 20, "007002009"),
+      item(1, 4.35, 20, "CAPSULA REG. ALUMINIO 60 OCT. (ZAMAK)"),
+      item(1, 20.84, 20, "1"),
+      item(1, 26.24, 20, "1,00"),
+      item(1, 28.04, 20, "8,83"),
+      item(1, 32.11, 20, "8,83"),
+      item(1, 34.47, 20, "8,83"),
+
+      item(1, 0.87, 22, "004001012"),
+      item(1, 4.35, 22, "EJE METALICO 60 X 0,8 OCTOGONAL"),
+      item(1, 20.84, 22, "1"),
+      item(1, 24.22, 22, "252,7"),
+      item(1, 26.24, 22, "2,55"),
+      item(1, 28.04, 22, "8,00"),
+      item(1, 30.13, 22, "25,00"),
+      item(1, 32.11, 22, "6,00"),
+      item(1, 34.47, 22, "15,30"),
+      item(1, 1, 41, "TOTAL FACTURA"),
+    ];
+
+    const result = extractStilCondalPurchaseLinesFromPdfItems(items);
+
+    expect(result.lines).toHaveLength(4);
+    expect(result.lines[0]).toMatchObject({ quantity: 6.11, unit: "M2" });
+    expect(result.lines[1]).toMatchObject({
+      supplierReference: "005099004",
+      quantity: 5.1,
+      unit: "ML",
+      unitPrice: 3.96,
+      discountPercent: 25,
+      total: 15.15,
+    });
+    expect(result.lines[2]).toMatchObject({
+      supplierReference: "007002009",
+      quantity: 1,
+      unit: "UD",
+      unitPrice: 8.83,
+      total: 8.83,
+    });
+    expect(result.lines[3]).toMatchObject({
+      supplierReference: "004001012",
+      quantity: 2.55,
+      unit: "ML",
+      unitPrice: 8,
+      discountPercent: 25,
+      total: 15.3,
+    });
+  });
+
   it("une continuaciones de descripción sin crear líneas falsas", () => {
     const items = [
       item(1, 2, 2, "STIL CONDAL, S.A."),
