@@ -4,11 +4,17 @@ import type {
   RentabilidadRealDocumentReportSettings,
 } from "@/lib/rentabilidad-real/reports";
 
-export type RentabilidadRealEvolutionGrouping = "monthly" | "quarterly";
+export type RentabilidadRealEvolutionGrouping =
+  | "monthly"
+  | "quarterly"
+  | "client"
+  | "analysis_mode";
 
 export interface RentabilidadRealEvolutionReportSettings {
   grouping: RentabilidadRealEvolutionGrouping;
   documentReportSettings: RentabilidadRealDocumentReportSettings;
+  clientId?: string;
+  lowMarginOnly?: boolean;
 }
 
 export interface RentabilidadRealEvolutionModeBreakdownRow {

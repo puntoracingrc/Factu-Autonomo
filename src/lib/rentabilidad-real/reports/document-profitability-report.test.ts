@@ -43,6 +43,8 @@ function document(
     ],
     status: overrides.status ?? "enviado",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
+    rectification: overrides.rectification,
+    rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
   };
@@ -332,6 +334,87 @@ describe("buildDocumentProfitabilityReport", () => {
     expect(report.rows[0]).toMatchObject({
       clientId: "client_unassigned",
       clientName: "Cliente sin asignar",
+    });
+  });
+
+  it("excluye borrador de rectificativa y mantiene la factura vigente", () => {
+    const invoice = document({ id: "i1", type: "factura", number: "F-1" });
+    const draftRectification = document({
+      id: "r1",
+      type: "factura",
+      number: "FR-1",
+      status: "borrador",
+      rectification: {
+        originalDocumentId: "i1",
+        originalNumber: "F-1",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoice, draftRectification] }),
+      settings(),
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      primaryDocumentId: "i1",
+      incomeWithoutIndirectTax: 100,
+    });
+  });
+
+  it("usa rectificativa vigente sin duplicar la factura original", () => {
+    const original = document({
+      id: "i1",
+      type: "factura",
+      number: "F-1",
+      status: "rectificada",
+      rectifiedById: "r1",
+    });
+    const rectification = document({
+      id: "r1",
+      type: "factura",
+      number: "FR-1",
+      date: "2026-07-02",
+      items: [
+        {
+          id: "line_rect",
+          description: "Servicio corregido",
+          quantity: 1,
+          unitPrice: 80,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: "i1",
+        originalNumber: "F-1",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const report = buildDocumentProfitabilityReport(
+      data({
+        documents: [original, rectification],
+        expenses: [expense({ id: "e1", amount: 20, workDocumentId: "i1" })],
+      }),
+      settings(),
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      primaryDocumentId: "r1",
+      incomeWithoutIndirectTax: 80,
+      totalDirectCosts: 20,
+      operatingProfit: 60,
+    });
+    expect(report.summary).toMatchObject({
+      rowCount: 1,
+      incomeWithoutIndirectTax: 80,
+      operatingProfit: 60,
     });
   });
 });

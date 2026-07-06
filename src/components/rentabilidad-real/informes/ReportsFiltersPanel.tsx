@@ -46,6 +46,17 @@ const FIXED_COST_MODES: Array<{
   { value: "revenue_share_report", label: "Por facturación del periodo" },
 ];
 
+const FIXED_COST_MODE_HELP: Record<
+  RentabilidadRealReportFixedCostAllocationMode,
+  string
+> = {
+  none: "Los gastos fijos detectados no se aplican al informe.",
+  use_saved_settings:
+    "Usa la regla local guardada en la calculadora de trabajo.",
+  revenue_share_report:
+    "Reparte los fijos por peso de facturación dentro del informe.",
+};
+
 const ANALYSIS_MODE_FILTERS: Array<{
   value: RentabilidadRealDocumentAnalysisModeFilter;
   label: string;
@@ -115,6 +126,10 @@ export function ReportsFiltersPanel({
             })
           }
         />
+      </div>
+
+      <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-100">
+        Gastos fijos: {FIXED_COST_MODE_HELP[settings.fixedCostAllocationMode]}
       </div>
 
       {settings.period === "custom" ? (

@@ -192,16 +192,42 @@ export interface RentabilidadRealClientProfitabilityReport {
   clientsWithInternalProfitLowerThanDocumented: RentabilidadRealClientReportRow[];
 }
 
+export type RentabilidadRealDataQualityActionId =
+  | "assign_analysis_mode"
+  | "review_unlinked_expenses"
+  | "review_missing_expenses"
+  | "configure_fixed_costs"
+  | "review_quote_without_invoice"
+  | "review_invoice_without_quote"
+  | "review_low_margin"
+  | "review_negative_profit"
+  | "review_internal_adjustments"
+  | "review_stock_future_module";
+
+export interface RentabilidadRealDataQualityAction {
+  id: RentabilidadRealDataQualityActionId;
+  title: string;
+  description: string;
+  count: number;
+  ctaLabel: string;
+  href: string;
+  severity: "info" | "warning" | "risk";
+}
+
 export interface RentabilidadRealDataQualityReport {
   totalAnalysisUnits: number;
   unitsWithoutLinkedExpenses: number;
   unitsWithUnlinkedExpenseCandidates: number;
   quotesWithoutInvoice: number;
   invoicesWithoutQuote: number;
+  lowMarginDocuments: number;
+  negativeProfitDocuments: number;
   unitsWithInternalAdjustments: number;
   fixedCostsWithoutAllocationRule: number;
   scannedExpensesPossiblyUnreviewed: number;
   documentsMissingTaxData: number;
   documentsWithoutAnalysisMode: number;
+  possibleStockOrCommerceSignals: number;
   recommendations: string[];
+  actionItems: RentabilidadRealDataQualityAction[];
 }

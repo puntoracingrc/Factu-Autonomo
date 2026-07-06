@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { formatMoney } from "@/lib/calculations";
 import {
+  RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES,
   getDocumentAnalysisModeLabel,
   type RentabilidadRealDocumentAnalysisMode,
 } from "@/lib/rentabilidad-real/document-analysis-modes";
@@ -24,6 +26,10 @@ const FLAG_LABELS: Record<RentabilidadRealDocumentReportQualityFlag, string> = {
   missing_tax_data: "IVA incompleto",
   scanned_expense_review_needed: "Revisar escaneo",
 };
+
+const ANALYSIS_MODE_OPTIONS = RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES.filter(
+  (mode) => mode !== "unknown",
+);
 
 function formatPercent(value: number): string {
   return `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%`;
@@ -50,12 +56,71 @@ function analysisModeBadgeClass(mode: RentabilidadRealDocumentAnalysisMode): str
 
 export function DocumentProfitabilityTable({
   rows,
+  onAnalysisModeChange,
+  onBulkAnalysisModeChange,
 }: {
   rows: RentabilidadRealDocumentReportRow[];
+  onAnalysisModeChange: (
+    documentId: string,
+    mode: RentabilidadRealDocumentAnalysisMode,
+  ) => void;
+  onBulkAnalysisModeChange: (
+    documentIds: string[],
+    mode: RentabilidadRealDocumentAnalysisMode,
+  ) => void;
 }) {
+  const [bulkMode, setBulkMode] =
+    useState<RentabilidadRealDocumentAnalysisMode>("fixed_price_work");
+  const documentsWithoutMode = Array.from(
+    new Set(
+      rows
+        .filter((row) => row.analysisMode === "unknown")
+        .map((row) => row.primaryDocumentId),
+    ),
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-left text-sm">
+    <div className="space-y-4">
+      {documentsWithoutMode.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/35 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-amber-950 dark:text-amber-100">
+              {documentsWithoutMode.length} documento(s) visibles sin modo.
+            </p>
+            <p className="mt-1 text-sm text-amber-900 dark:text-amber-100">
+              Puedes asignar un modo común ahora. Solo se guarda en este navegador.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              aria-label="Modo para documentos visibles sin definir"
+              value={bulkMode}
+              onChange={(event) =>
+                setBulkMode(event.target.value as RentabilidadRealDocumentAnalysisMode)
+              }
+              className="min-h-11 rounded-lg border border-amber-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-amber-900/60 dark:bg-slate-950 dark:text-slate-100"
+            >
+              {ANALYSIS_MODE_OPTIONS.map((mode) => (
+                <option key={mode} value={mode}>
+                  {getDocumentAnalysisModeLabel(mode)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                onBulkAnalysisModeChange(documentsWithoutMode, bulkMode)
+              }
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-black text-white transition-colors hover:bg-blue-700"
+            >
+              Asignar a visibles
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto">
+        <table className="min-w-[1120px] w-full border-separate border-spacing-0 text-left text-sm">
         <thead>
           <tr className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">
             <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
@@ -105,13 +170,33 @@ export function DocumentProfitabilityTable({
                   {row.documentLabel}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${analysisModeBadgeClass(
-                      row.analysisMode,
-                    )}`}
-                  >
-                    {getDocumentAnalysisModeLabel(row.analysisMode)}
-                  </span>
+                  <div className="space-y-2">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${analysisModeBadgeClass(
+                        row.analysisMode,
+                      )}`}
+                    >
+                      {getDocumentAnalysisModeLabel(row.analysisMode)}
+                    </span>
+                    <select
+                      aria-label={`Modo de análisis para ${row.documentLabel}`}
+                      value={row.analysisMode}
+                      onChange={(event) =>
+                        onAnalysisModeChange(
+                          row.primaryDocumentId,
+                          event.target.value as RentabilidadRealDocumentAnalysisMode,
+                        )
+                      }
+                      className="block min-h-9 w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    >
+                      <option value="unknown">No definido</option>
+                      {ANALYSIS_MODE_OPTIONS.map((mode) => (
+                        <option key={mode} value={mode}>
+                          {getDocumentAnalysisModeLabel(mode)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </td>
                 <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
                   {row.clientName}
@@ -189,6 +274,7 @@ export function DocumentProfitabilityTable({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

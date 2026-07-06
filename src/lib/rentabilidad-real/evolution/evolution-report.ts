@@ -1,6 +1,9 @@
 import { roundMoney } from "@/lib/calculations";
 import type { AppData } from "@/lib/types";
-import { RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES } from "@/lib/rentabilidad-real/document-analysis-modes";
+import {
+  RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES,
+  getDocumentAnalysisModeLabel,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import {
   buildDocumentProfitabilityReport,
   type RentabilidadRealDocumentReportRow,
@@ -68,7 +71,7 @@ function lastDayOfMonth(year: number, month: number): number {
 
 function periodForDate(
   date: string,
-  grouping: RentabilidadRealEvolutionGrouping,
+  grouping: "monthly" | "quarterly",
 ): {
   periodId: string;
   periodLabel: string;
@@ -113,12 +116,42 @@ function periodForDate(
   };
 }
 
+function groupForRow(
+  row: RentabilidadRealDocumentReportRow,
+  grouping: RentabilidadRealEvolutionGrouping,
+): {
+  periodId: string;
+  periodLabel: string;
+  periodStartDate: string;
+  periodEndDate: string;
+} {
+  if (grouping === "client") {
+    return {
+      periodId: row.clientId || "client_unassigned",
+      periodLabel: row.clientName || "Cliente sin asignar",
+      periodStartDate: row.date,
+      periodEndDate: row.date,
+    };
+  }
+
+  if (grouping === "analysis_mode") {
+    return {
+      periodId: row.analysisMode,
+      periodLabel: getDocumentAnalysisModeLabel(row.analysisMode),
+      periodStartDate: row.date,
+      periodEndDate: row.date,
+    };
+  }
+
+  return periodForDate(row.date, grouping);
+}
+
 function emptyPeriodRow(
   row: RentabilidadRealDocumentReportRow,
   grouping: RentabilidadRealEvolutionGrouping,
 ): RentabilidadRealEvolutionPeriodRow {
   return {
-    ...periodForDate(row.date, grouping),
+    ...groupForRow(row, grouping),
     documentCount: 0,
     incomeWithoutIndirectTax: 0,
     totalDirectCosts: 0,
@@ -180,6 +213,8 @@ function addDocumentRowToPeriod(
     : 0;
   period.unlinkedCandidatesCount += row.unlinkedCandidatesCount;
   period.documentsWithoutAnalysisMode += row.analysisMode === "unknown" ? 1 : 0;
+  if (row.date < period.periodStartDate) period.periodStartDate = row.date;
+  if (row.date > period.periodEndDate) period.periodEndDate = row.date;
 }
 
 function modeBreakdownForRows(
@@ -289,6 +324,12 @@ export function buildRentabilidadRealEvolutionReport(
     appData,
     settings.documentReportSettings,
   );
+  const reportRows = documentReport.rows
+    .filter((row) => !settings.clientId || row.clientId === settings.clientId)
+    .filter(
+      (row) =>
+        !settings.lowMarginOnly || row.qualityFlags.includes("low_margin"),
+    );
   const grouped = new Map<
     string,
     {
@@ -297,8 +338,8 @@ export function buildRentabilidadRealEvolutionReport(
     }
   >();
 
-  for (const row of documentReport.rows) {
-    const period = periodForDate(row.date, settings.grouping);
+  for (const row of reportRows) {
+    const period = groupForRow(row, settings.grouping);
     const current =
       grouped.get(period.periodId) ??
       {
@@ -312,7 +353,22 @@ export function buildRentabilidadRealEvolutionReport(
 
   const rows = Array.from(grouped.values())
     .map((item) => finalizePeriodRow(item.period, item.rows))
-    .sort((a, b) => b.periodStartDate.localeCompare(a.periodStartDate));
+    .sort((a, b) => {
+      if (settings.grouping === "analysis_mode") {
+        return (
+          RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES.indexOf(
+            a.periodId as (typeof RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES)[number],
+          ) -
+          RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES.indexOf(
+            b.periodId as (typeof RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES)[number],
+          )
+        );
+      }
+
+      return settings.grouping === "client"
+        ? a.periodLabel.localeCompare(b.periodLabel)
+        : b.periodStartDate.localeCompare(a.periodStartDate);
+    });
 
   return {
     rows,

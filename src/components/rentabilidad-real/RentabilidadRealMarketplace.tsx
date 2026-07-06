@@ -44,7 +44,8 @@ export function RentabilidadRealMarketplace({
             Próximamente
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Casos detectables desde el test, pero reservados para fases futuras.
+            Productos extra futuros. No se activan todavía, no están incluidos
+            en Pro+ niveles 1 a 4 y no cambian tus datos actuales.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

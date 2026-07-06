@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import type { RentabilidadRealDocumentAnalysisModesById } from "@/lib/rentabilidad-real/document-analysis-modes";
 import { DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS } from "@/lib/rentabilidad-real/reports";
 import { buildRentabilidadRealEvolutionReport } from "./evolution-report";
 import type { RentabilidadRealEvolutionGrouping } from "./types";
@@ -25,6 +26,8 @@ function document(
     ],
     status: overrides.status ?? "enviado",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
+    rectification: overrides.rectification,
+    rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
   };
@@ -62,12 +65,24 @@ function data(input: {
 function report(input: {
   appData: AppData;
   grouping?: RentabilidadRealEvolutionGrouping;
-  documentAnalysisModes?: Record<string, "fixed_price_work" | "hours_project">;
+  documentAnalysisModes?: RentabilidadRealDocumentAnalysisModesById;
+  clientId?: string;
+  lowMarginOnly?: boolean;
+  includeQuotesWithoutInvoice?: boolean;
+  includeInternalAdjustments?: boolean;
 }) {
   return buildRentabilidadRealEvolutionReport(input.appData, {
     grouping: input.grouping ?? "monthly",
+    clientId: input.clientId,
+    lowMarginOnly: input.lowMarginOnly,
     documentReportSettings: {
       ...DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS,
+      includeQuotesWithoutInvoice:
+        input.includeQuotesWithoutInvoice ??
+        DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS.includeQuotesWithoutInvoice,
+      includeInternalAdjustments:
+        input.includeInternalAdjustments ??
+        DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS.includeInternalAdjustments,
       documentAnalysisModes: input.documentAnalysisModes,
     },
   });
@@ -143,6 +158,101 @@ describe("buildRentabilidadRealEvolutionReport", () => {
     });
   });
 
+  it("agrupa por cliente", () => {
+    const result = report({
+      grouping: "client",
+      appData: data({
+        documents: [
+          document({
+            id: "c1",
+            type: "factura",
+            number: "F-1",
+            customerId: "client_a",
+            client: { name: "Cliente A" },
+          }),
+          document({
+            id: "c2",
+            type: "factura",
+            number: "F-2",
+            customerId: "client_b",
+            client: { name: "Cliente B" },
+          }),
+          document({
+            id: "c3",
+            type: "factura",
+            number: "F-3",
+            customerId: "client_a",
+            client: { name: "Cliente A" },
+          }),
+        ],
+      }),
+    });
+
+    expect(result.rows.map((row) => row.periodLabel)).toEqual([
+      "Cliente A",
+      "Cliente B",
+    ]);
+    expect(result.rows[0]).toMatchObject({
+      documentCount: 2,
+      incomeWithoutIndirectTax: 200,
+    });
+  });
+
+  it("agrupa por modo de analisis", () => {
+    const result = report({
+      grouping: "analysis_mode",
+      appData: data({
+        documents: [
+          document({ id: "work", type: "factura", number: "F-1" }),
+          document({ id: "hours", type: "factura", number: "F-2" }),
+        ],
+      }),
+      documentAnalysisModes: {
+        work: "fixed_price_work",
+        hours: "hours_project",
+      },
+    });
+
+    expect(result.rows.map((row) => row.periodId)).toEqual([
+      "fixed_price_work",
+      "hours_project",
+    ]);
+    expect(result.rows.every((row) => row.documentCount === 1)).toBe(true);
+  });
+
+  it("filtra por cliente y margen bajo", () => {
+    const result = report({
+      grouping: "client",
+      clientId: "client_a",
+      lowMarginOnly: true,
+      appData: data({
+        documents: [
+          document({
+            id: "low",
+            type: "factura",
+            number: "F-1",
+            customerId: "client_a",
+            client: { name: "Cliente A" },
+          }),
+          document({
+            id: "ok",
+            type: "factura",
+            number: "F-2",
+            customerId: "client_b",
+            client: { name: "Cliente B" },
+          }),
+        ],
+        expenses: [expense({ id: "e1", amount: 120, workDocumentId: "low" })],
+      }),
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      periodId: "client_a",
+      lowMarginDocumentsCount: 1,
+    });
+  });
+
   it("no duplica presupuesto y factura vinculados", () => {
     const quote = document({ id: "q1", type: "presupuesto", number: "P-1" });
     const invoice = document({
@@ -164,6 +274,53 @@ describe("buildRentabilidadRealEvolutionReport", () => {
         documentCount: 1,
       },
     ]);
+  });
+
+  it("usa rectificativa vigente sin duplicar ingresos en evolucion", () => {
+    const original = document({
+      id: "i1",
+      type: "factura",
+      number: "F-1",
+      status: "rectificada",
+      rectifiedById: "r1",
+    });
+    const rectification = document({
+      id: "r1",
+      type: "factura",
+      number: "FR-1",
+      date: "2026-07-02",
+      items: [
+        {
+          id: "line_rect",
+          description: "Servicio corregido",
+          quantity: 1,
+          unitPrice: 80,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: "i1",
+        originalNumber: "F-1",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    });
+
+    const result = report({
+      appData: data({
+        documents: [original, rectification],
+        expenses: [expense({ id: "e1", amount: 20, workDocumentId: "i1" })],
+      }),
+    });
+
+    expect(result.summary).toMatchObject({
+      documentCount: 1,
+      incomeWithoutIndirectTax: 80,
+      totalDirectCosts: 20,
+      operatingProfit: 60,
+    });
+    expect(result.rows).toHaveLength(1);
   });
 
   it("soporta documentos sin cliente y sin modo de analisis", () => {

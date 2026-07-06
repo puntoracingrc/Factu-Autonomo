@@ -10,6 +10,9 @@ import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
 import {
   getStoredDocumentAnalysisModes,
+  setDocumentAnalysisMode,
+  setStoredDocumentAnalysisModes,
+  type RentabilidadRealDocumentAnalysisMode,
   type RentabilidadRealDocumentAnalysisModesById,
 } from "@/lib/rentabilidad-real/document-analysis-modes";
 import {
@@ -117,6 +120,24 @@ export function RentabilidadRealReportsDashboard() {
         .join(" "),
     ),
   );
+
+  function handleAnalysisModeChange(
+    documentId: string,
+    mode: RentabilidadRealDocumentAnalysisMode,
+  ) {
+    setDocumentAnalysisModes(setDocumentAnalysisMode(documentId, mode));
+  }
+
+  function handleBulkAnalysisModeChange(
+    documentIds: string[],
+    mode: RentabilidadRealDocumentAnalysisMode,
+  ) {
+    const nextModes = {
+      ...getStoredDocumentAnalysisModes(),
+      ...Object.fromEntries(documentIds.map((documentId) => [documentId, mode])),
+    };
+    setDocumentAnalysisModes(setStoredDocumentAnalysisModes(nextModes));
+  }
 
   if (!ready) {
     return (
@@ -256,7 +277,10 @@ export function RentabilidadRealReportsDashboard() {
           <ReportsWarnings warnings={documentReport.warnings} />
           <ReportsSummaryCards summary={documentReport.summary} />
 
-          <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+          <Card
+            id="informe-documentos"
+            className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900"
+          >
             <div className="mb-4 flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
                 <ClipboardList className="h-5 w-5" />
@@ -271,7 +295,11 @@ export function RentabilidadRealReportsDashboard() {
                 </p>
               </div>
             </div>
-            <DocumentProfitabilityTable rows={documentReport.rows} />
+            <DocumentProfitabilityTable
+              rows={documentReport.rows}
+              onAnalysisModeChange={handleAnalysisModeChange}
+              onBulkAnalysisModeChange={handleBulkAnalysisModeChange}
+            />
           </Card>
 
           <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
