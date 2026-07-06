@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -194,6 +194,7 @@ function selectedValues(
 }
 
 export function RentabilidadRealWizard() {
+  const resultRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<RentabilidadRealWizardFormState>({});
   const [result, setResult] = useState<{
     answers: RentabilidadRealWizardAnswers;
@@ -206,6 +207,25 @@ export function RentabilidadRealWizard() {
         .length,
     [form],
   );
+
+  useEffect(() => {
+    if (!result) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const resultElement = resultRef.current;
+      if (!resultElement) return;
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      resultElement.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      resultElement.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [result]);
 
   function answerQuestion(question: Question, value: string) {
     setForm((current) => {
@@ -306,10 +326,12 @@ export function RentabilidadRealWizard() {
       </div>
 
       {result ? (
-        <RentabilidadRealWizardResult
-          answers={result.answers}
-          scoringResult={result.scoringResult}
-        />
+        <div ref={resultRef} tabIndex={-1} className="scroll-mt-6 outline-none">
+          <RentabilidadRealWizardResult
+            answers={result.answers}
+            scoringResult={result.scoringResult}
+          />
+        </div>
       ) : null}
     </div>
   );
