@@ -23,8 +23,14 @@ import {
 } from "@/lib/rentabilidad-real/expense-linking";
 import { getStoredRentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/wizard-storage";
 import { buildRentabilidadRealWorkDocumentOptions } from "@/lib/rentabilidad-real/work-calculator-view-model";
+import {
+  getDocumentAnalysisMode,
+  setDocumentAnalysisMode,
+  type RentabilidadRealDocumentAnalysisMode,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import type { RentabilidadRealWizardAnswers } from "@/lib/rentabilidad-real/types";
 import { useRentabilidadRealActivation } from "../useRentabilidadRealActivation";
+import { DocumentAnalysisModeField } from "../DocumentAnalysisModeField";
 import { FixedCostAllocationForm } from "./FixedCostAllocationForm";
 import { InternalAdjustmentsPanel } from "./InternalAdjustmentsPanel";
 import { WorkExpenseLinkingPanel } from "./WorkExpenseLinkingPanel";
@@ -69,6 +75,15 @@ export function RentabilidadRealWorkCalculator() {
   const [internalAdjustmentsTotal, setInternalAdjustmentsTotal] = useState(0);
   const [directCostAmountOverrides, setDirectCostAmountOverrides] =
     useState<ExpenseCostAllocationsByExpenseId>({});
+  const [selectedAnalysisMode, setSelectedAnalysisMode] =
+    useState<RentabilidadRealDocumentAnalysisMode>("unknown");
+  const hasBaseActive = activation.activeProductIds.includes("RR_BASE");
+  const hasTradesActive =
+    activation.activeProductIds.includes("RR_TRADES_JOBS");
+  const hasFixedCostsProActive =
+    activation.activeProductIds.includes("RR_FIXED_COSTS_PRO");
+  const hasAssetsActive =
+    activation.activeProductIds.includes("RR_ASSETS_LIGHT");
 
   const quoteDocuments = useMemo(
     () => data.documents.filter((doc) => doc.type === "presupuesto"),
@@ -101,6 +116,16 @@ export function RentabilidadRealWorkCalculator() {
   const selectedDocument = data.documents.find(
     (doc) => doc.id === selectedDocumentId,
   );
+  const selectedDocumentLooksLikeMaterials = useMemo(() => {
+    if (!selectedDocument) return false;
+    const text = selectedDocument.items
+      .map((item) => item.description)
+      .join(" ")
+      .toLowerCase();
+    return ["material", "producto", "instalacion", "instalación"].some((word) =>
+      text.includes(word),
+    );
+  }, [selectedDocument]);
 
   useEffect(() => {
     setSettings(getStoredRentabilidadRealCalculationSettings());
@@ -138,6 +163,32 @@ export function RentabilidadRealWorkCalculator() {
     );
   }, [selectedDocumentId]);
 
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      setSelectedAnalysisMode("unknown");
+      return;
+    }
+
+    const storedMode = getDocumentAnalysisMode(selectedDocumentId);
+    if (storedMode !== "unknown") {
+      setSelectedAnalysisMode(storedMode);
+      return;
+    }
+
+    const defaultMode = selectedDocumentLooksLikeMaterials
+      ? "installation_with_materials"
+      : hasTradesActive
+        ? "fixed_price_work"
+        : "simple_document";
+    setSelectedAnalysisMode(defaultMode);
+    setDocumentAnalysisMode(selectedDocumentId, defaultMode);
+  }, [hasTradesActive, selectedDocumentId, selectedDocumentLooksLikeMaterials]);
+
+  function handleAnalysisModeChange(mode: RentabilidadRealDocumentAnalysisMode) {
+    setSelectedAnalysisMode(mode);
+    if (selectedDocumentId) setDocumentAnalysisMode(selectedDocumentId, mode);
+  }
+
   const profitabilityInput = useMemo(() => {
     if (!selectedDocumentId) return null;
     return buildRentabilidadRealWorkProfitabilityInputFromExistingData(data, {
@@ -169,14 +220,6 @@ export function RentabilidadRealWorkCalculator() {
     },
     [],
   );
-  const hasBaseActive = activation.activeProductIds.includes("RR_BASE");
-  const hasTradesActive =
-    activation.activeProductIds.includes("RR_TRADES_JOBS");
-  const hasFixedCostsProActive =
-    activation.activeProductIds.includes("RR_FIXED_COSTS_PRO");
-  const hasAssetsActive =
-    activation.activeProductIds.includes("RR_ASSETS_LIGHT");
-
   if (!ready) {
     return (
       <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -277,13 +320,25 @@ export function RentabilidadRealWorkCalculator() {
               </p>
             </div>
           </div>
-          <WorkSourceSelector
-            sourceMode={sourceMode}
-            onSourceModeChange={setSourceMode}
-            documentOptions={availableDocumentOptions}
-            selectedDocumentId={selectedDocumentId}
-            onSelectedDocumentChange={setSelectedDocumentId}
-          />
+            <WorkSourceSelector
+              sourceMode={sourceMode}
+              onSourceModeChange={setSourceMode}
+              documentOptions={availableDocumentOptions}
+              selectedDocumentId={selectedDocumentId}
+              onSelectedDocumentChange={setSelectedDocumentId}
+            />
+            {selectedDocumentId ? (
+              <DocumentAnalysisModeField
+                value={selectedAnalysisMode}
+                onChange={handleAnalysisModeChange}
+                options={[
+                  { value: "fixed_price_work" },
+                  { value: "installation_with_materials" },
+                  { value: "service_visit" },
+                  { value: "simple_document" },
+                ]}
+              />
+            ) : null}
         </Card>
 
         <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">

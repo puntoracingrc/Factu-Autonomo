@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { formatMoney } from "@/lib/calculations";
+import {
+  getDocumentAnalysisModeLabel,
+  type RentabilidadRealDocumentAnalysisMode,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import type {
   RentabilidadRealDocumentReportQualityFlag,
   RentabilidadRealDocumentReportRow,
@@ -31,6 +35,19 @@ function documentHref(row: RentabilidadRealDocumentReportRow): string | undefine
   )?.href;
 }
 
+function analysisModeBadgeClass(mode: RentabilidadRealDocumentAnalysisMode): string {
+  if (mode === "unknown") {
+    return "bg-amber-50 text-amber-800 dark:bg-amber-950/45 dark:text-amber-100";
+  }
+  if (mode === "hours_project" || mode === "retainer") {
+    return "bg-sky-50 text-sky-800 dark:bg-sky-950/45 dark:text-sky-100";
+  }
+  if (mode === "installation_with_materials") {
+    return "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-100";
+  }
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+}
+
 export function DocumentProfitabilityTable({
   rows,
 }: {
@@ -38,11 +55,14 @@ export function DocumentProfitabilityTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[980px] w-full border-separate border-spacing-0 text-left text-sm">
+      <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-left text-sm">
         <thead>
           <tr className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">
             <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
               Documento
+            </th>
+            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
+              Modo
             </th>
             <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
               Cliente
@@ -83,6 +103,15 @@ export function DocumentProfitabilityTable({
               <tr key={row.unitId} className="align-top">
                 <td className="border-b border-slate-100 px-3 py-4 font-black text-slate-950 dark:border-slate-800 dark:text-slate-50">
                   {row.documentLabel}
+                </td>
+                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${analysisModeBadgeClass(
+                      row.analysisMode,
+                    )}`}
+                  >
+                    {getDocumentAnalysisModeLabel(row.analysisMode)}
+                  </span>
                 </td>
                 <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
                   {row.clientName}

@@ -10,6 +10,7 @@ function row(
     primaryDocumentId: overrides.primaryDocumentId ?? "doc_1",
     sourceType: overrides.sourceType ?? "invoice",
     workSourceType: overrides.workSourceType ?? "invoice",
+    analysisMode: overrides.analysisMode ?? "fixed_price_work",
     documentLabel: overrides.documentLabel ?? "Factura F-1",
     clientId: overrides.clientId ?? "client_1",
     clientName: overrides.clientName ?? "Cliente Demo",

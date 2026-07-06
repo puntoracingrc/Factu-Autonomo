@@ -50,6 +50,11 @@ export function getDataQualityRecommendations(
       "Hay documentos con datos fiscales incompletos. Revisa IVA y gastos antes de tomar decisiones.",
     );
   }
+  if (report.documentsWithoutAnalysisMode > 0) {
+    recommendations.push(
+      "Hay documentos sin modo de análisis. Asignar un modo ayuda a interpretar mejor los informes.",
+    );
+  }
 
   return recommendations;
 }
@@ -84,6 +89,9 @@ export function buildDataQualityReport(
     ).length,
     documentsMissingTaxData: documentRows.filter((row) =>
       row.qualityFlags.includes("missing_tax_data"),
+    ).length,
+    documentsWithoutAnalysisMode: documentRows.filter(
+      (row) => row.analysisMode === "unknown",
     ).length,
   };
 

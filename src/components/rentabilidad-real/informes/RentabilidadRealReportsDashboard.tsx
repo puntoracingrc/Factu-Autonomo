@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BarChart3, ClipboardList, Users } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
+import {
+  getStoredDocumentAnalysisModes,
+  type RentabilidadRealDocumentAnalysisModesById,
+} from "@/lib/rentabilidad-real/document-analysis-modes";
 import {
   buildClientProfitabilityReport,
   buildDataQualityReport,
@@ -61,10 +65,13 @@ export function RentabilidadRealReportsDashboard() {
   );
   const [savedWorkSettings, setSavedWorkSettings] =
     useState<RentabilidadRealCalculationSettings | undefined>();
+  const [documentAnalysisModes, setDocumentAnalysisModes] =
+    useState<RentabilidadRealDocumentAnalysisModesById>({});
 
   useEffect(() => {
     setSettings(getStoredRentabilidadRealReportSettings());
     setSavedWorkSettings(getStoredRentabilidadRealCalculationSettings());
+    setDocumentAnalysisModes(getStoredDocumentAnalysisModes());
     setSettingsLoaded(true);
   }, []);
 
@@ -78,8 +85,9 @@ export function RentabilidadRealReportsDashboard() {
       buildDocumentProfitabilityReport(data, {
         ...settings,
         savedWorkCalculationSettings: savedWorkSettings,
+        documentAnalysisModes,
       }),
-    [data, savedWorkSettings, settings],
+    [data, documentAnalysisModes, savedWorkSettings, settings],
   );
   const clientReport = useMemo(
     () => buildClientProfitabilityReport(documentReport.rows),
@@ -130,13 +138,20 @@ export function RentabilidadRealReportsDashboard() {
           <ArrowLeft className="h-4 w-4" />
           Volver a Rentabilidad Real
         </Link>
-        <h1 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-slate-50">
-          Informes de Rentabilidad Real
-        </h1>
-        <p className="mt-1 max-w-4xl text-base leading-7 text-slate-500 dark:text-slate-400">
-          Analiza tus facturas, presupuestos, gastos enlazados, gastos fijos y
-          ajustes internos sin duplicar tu contabilidad.
-        </p>
+        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-slate-50">
+              Informes de Rentabilidad Real
+            </h1>
+            <p className="mt-1 max-w-4xl text-base leading-7 text-slate-500 dark:text-slate-400">
+              Analiza tus facturas, presupuestos, gastos enlazados, gastos fijos
+              y ajustes internos sin duplicar tu contabilidad.
+            </p>
+          </div>
+          <ButtonLink href="/rentabilidad-real/evolucion" variant="secondary">
+            Ver evolución
+          </ButtonLink>
+        </div>
       </div>
 
       {!hasBaseActive ? (

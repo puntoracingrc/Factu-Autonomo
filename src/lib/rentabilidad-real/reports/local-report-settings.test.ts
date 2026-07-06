@@ -36,6 +36,7 @@ describe("rentabilidad real report local settings", () => {
       includeQuotesWithoutInvoice: false,
       includeInternalAdjustments: false,
       fixedCostAllocationMode: "revenue_share_report",
+      analysisModeFilter: "hours_project",
       irpfProvisionPercentage: 18,
       lowMarginThresholdPercentage: 12,
     });
@@ -46,6 +47,7 @@ describe("rentabilidad real report local settings", () => {
       includeQuotesWithoutInvoice: false,
       includeInternalAdjustments: false,
       fixedCostAllocationMode: "revenue_share_report",
+      analysisModeFilter: "hours_project",
       irpfProvisionPercentage: 18,
       lowMarginThresholdPercentage: 12,
     });
@@ -58,6 +60,7 @@ describe("rentabilidad real report local settings", () => {
       period: "all",
       sourceTypes: "both",
       includeInternalAdjustments: true,
+      analysisModeFilter: "all",
     });
   });
 
@@ -72,6 +75,17 @@ describe("rentabilidad real report local settings", () => {
     expect(getStoredRentabilidadRealReportSettings()).toMatchObject({
       period: "all",
       sourceTypes: "both",
+      analysisModeFilter: "all",
+    });
+  });
+
+  it("normaliza filtros de modo no validos", () => {
+    setStoredRentabilidadRealReportSettings({
+      analysisModeFilter: "no_existe" as never,
+    });
+
+    expect(getStoredRentabilidadRealReportSettings()).toMatchObject({
+      analysisModeFilter: "all",
     });
   });
 });
