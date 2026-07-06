@@ -28,6 +28,10 @@ const MAX_TEXT_HINT_CHARS = 18000;
 const PDFJS_X_SCALE = 20.6;
 const PDFJS_Y_SCALE = 16.1;
 
+type PdfjsWorkerGlobal = typeof globalThis & {
+  pdfjsWorker?: unknown;
+};
+
 function cleanText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -303,6 +307,8 @@ export async function extractPdfScanHintsFromPdfBase64(
 
   try {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjsWorker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    (globalThis as PdfjsWorkerGlobal).pdfjsWorker ??= pdfjsWorker;
     const data = new Uint8Array(Buffer.from(base64, "base64"));
     const document = await pdfjs.getDocument({
       data,
