@@ -240,6 +240,31 @@ export interface RecurringExpense {
 export type ExpenseBusinessKind =
   "purchase" | "purchase_invoice" | "quick_ticket" | "fixed";
 
+export type ExpenseLineCalculationBasis =
+  | "m2"
+  | "ml"
+  | "unit"
+  | "kg"
+  | "hour"
+  | "fixed"
+  | "unknown";
+
+export type ExpenseLineCalculationFormula =
+  | "m2*netPrice"
+  | "ml*netPrice"
+  | "units*netPrice"
+  | "quantity*unitPrice"
+  | "fixed"
+  | "unknown";
+
+export type ExpenseLineProductRole =
+  | "main_product"
+  | "component"
+  | "service"
+  | "shipping"
+  | "discount"
+  | "unknown";
+
 export interface ExpensePurchaseLine {
   id: string;
   /** Referencia/código del proveedor leído en columnas tipo REF., Código o Artículo. */
@@ -247,15 +272,31 @@ export interface ExpensePurchaseLine {
   description: string;
   /** Si esta línea alimenta el catálogo de productos y sus históricos de coste. */
   catalogProduct?: boolean;
+  /** Cantidad original de la columna Cant./Uds.; puede ser distinta de la cantidad cobrada. */
+  sourceQuantity?: number;
   quantity: number;
+  /** Cantidad que realmente multiplica el precio neto: m2, ml o unidades. */
+  chargeQuantity?: number;
+  calculationBasis?: ExpenseLineCalculationBasis;
   /** Unidad leída o introducida: ud, m, h, kg... */
   unit?: string;
+  dimensionUnit?: "mm" | "cm" | "m" | "unknown";
+  width?: number;
+  height?: number;
+  length?: number;
   /** Precio unitario sin IVA, antes de descuento si existe. */
   unitPrice: number;
   discountPercent?: number;
+  /** Precio neto tras descuento cuando el proveedor lo muestra separado. */
+  netUnitPrice?: number;
   ivaPercent?: number;
   /** Base de la línea sin IVA tras descuento, si viene del documento. */
   total?: number;
+  calculationFormula?: ExpenseLineCalculationFormula;
+  calculationExpectedTotal?: number;
+  calculationDifference?: number;
+  productGroupIndex?: number;
+  productRole?: ExpenseLineProductRole;
 }
 
 export interface ExpensePurchaseDocument {

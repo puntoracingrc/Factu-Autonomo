@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test/fixtures/invoices/private_real/pdf/
+/test/fixtures/invoices/reports/
 
 # next.js
 /.next/

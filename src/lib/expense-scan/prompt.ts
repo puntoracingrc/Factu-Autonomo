@@ -35,9 +35,12 @@ Reglas:
 - No agrupes, resumas, fusiones ni deduzcas líneas repetidas. Cada fila visible de la tabla con su propio código, referencia, medidas, cantidad, precio o importe debe ser una entrada independiente en purchaseLines, aunque el producto o referencia se repita.
 - Extrae tantas líneas como aparezcan, hasta 50. Si hay más de 50, devuelve las 50 primeras en el mismo orden y añade un warning indicando que hay más líneas.
 - Si una línea tiene columna REF., Código, Artículo, Referencia o similar, pon ese valor en purchaseLines[].supplierReference. Ejemplo: REF. "SM-502" no es descripción; es supplierReference.
-- En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece.
-- Si una línea tiene una columna de unidades/piezas y otra de TOTAL en m2/m², usa como quantity el TOTAL m2/m² y unit "M2"; no uses el número de piezas como quantity.
-- En facturas tipo Crystal Reports/Stil Condal con columnas "Artículo", "Cant.", "Ancho", "Alto", "M2", "Precio", "%Dto.", "Precio Neto" e "Importe", conserva el orden de la tabla y trata filas como AUTC45, 005099004, 007002009, 022003027 o 004001012 como líneas separadas.
+- En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece. Si hay columna "Precio Neto", ponla en netUnitPrice.
+- Distingue cantidad original y cantidad cobrada: sourceQuantity es Cant./Uds./Piezas; quantity y chargeQuantity son lo que multiplica el precio neto.
+- Si una línea tiene ancho y alto, se calcula por m2: unit "M2", calculationBasis "m2", quantity/chargeQuantity = M2 y sourceQuantity = Cant.
+- Si una línea tiene solo una medida de largo/alto/ancho útil, se calcula por metro lineal: unit "ML", calculationBasis "ml", quantity/chargeQuantity = ML y sourceQuantity = Cant.
+- Si no hay ancho/alto/largo, se calcula por unidad: unit "UD", calculationBasis "unit", quantity/chargeQuantity = unidades.
+- En facturas tipo Crystal Reports/Stil Condal con columnas "Artículo", "Cant.", "Ancho", "Alto", "M2/ML/UN", "Precio", "%Dto.", "Precio Neto" e "Importe", conserva el orden de la tabla y trata filas como AUTC45, 005099004, 007002009, 022003027 o 004001012 como líneas separadas.
 - Si la descripción de una línea continúa en la fila siguiente sin nuevo precio ni importe, une ese texto a la descripción de la misma línea.
 - Si el documento solo tiene resumen total y no muestra líneas claras, deja purchaseLines vacío u omitido.
 - Rellena purchaseDocument con número de factura del proveedor, vencimiento, NIF, dirección y condiciones de pago si aparecen.

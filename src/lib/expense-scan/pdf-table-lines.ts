@@ -195,17 +195,81 @@ function parseLineRow(row: PdfTextItem[]): ExpenseScanPurchaseLine | null {
     total !== undefined && effectiveQuantity !== 0
       ? roundMoney(total / effectiveQuantity)
       : 0;
+  const calculationBasis = hasAreaDimensions
+    ? "m2"
+    : hasLinearDimension
+      ? "ml"
+      : "unit";
+  const grossUnitPrice = unitPrice ?? netPrice ?? fallbackUnitPrice;
+  const normalizedDiscount =
+    discountPercent !== undefined
+      ? Math.min(Math.max(discountPercent, 0), 100)
+      : undefined;
+  const resolvedNetUnitPrice =
+    netPrice ??
+    (grossUnitPrice !== undefined && normalizedDiscount !== undefined
+      ? roundMoney(grossUnitPrice * (1 - normalizedDiscount / 100))
+      : grossUnitPrice);
+  const calculationExpectedTotal =
+    resolvedNetUnitPrice !== undefined
+      ? roundMoney(effectiveQuantity * resolvedNetUnitPrice)
+      : undefined;
   const description = descriptionFromRow(row, firstNumericX);
 
   return {
     supplierReference,
     description: description || supplierReference,
+    sourceQuantity: quantity,
     quantity: effectiveQuantity,
+    chargeQuantity: effectiveQuantity,
+    calculationBasis,
     unit: hasAreaDimensions ? "M2" : hasLinearDimension ? "ML" : "UD",
-    unitPrice: unitPrice ?? netPrice ?? fallbackUnitPrice,
+    dimensionUnit:
+      hasAreaDimensions || hasLinearDimension ? "cm" : undefined,
+    width: hasAreaDimensions ? width : undefined,
+    height: hasAreaDimensions ? height : undefined,
+    length: hasLinearDimension ? width : undefined,
+    unitPrice: grossUnitPrice,
     discountPercent,
+    netUnitPrice: resolvedNetUnitPrice,
     total,
+    calculationFormula:
+      calculationBasis === "m2"
+        ? "m2*netPrice"
+        : calculationBasis === "ml"
+          ? "ml*netPrice"
+          : "units*netPrice",
+    calculationExpectedTotal,
+    calculationDifference:
+      total !== undefined && calculationExpectedTotal !== undefined
+        ? roundMoney(total - calculationExpectedTotal)
+        : undefined,
   };
+}
+
+function lineLooksLikeMainStilProduct(line: ExpenseScanPurchaseLine): boolean {
+  const text = `${line.supplierReference ?? ""} ${line.description}`;
+  return /\bAUTC45\b|AUTOBLOCANTE/i.test(text);
+}
+
+function applyStilProductGroups(
+  lines: ExpenseScanPurchaseLine[],
+): ExpenseScanPurchaseLine[] {
+  let productGroupIndex = 0;
+
+  return lines.map((line, index) => {
+    const isMainProduct = lineLooksLikeMainStilProduct(line);
+    if (isMainProduct || productGroupIndex === 0) productGroupIndex += 1;
+
+    return {
+      ...line,
+      productGroupIndex,
+      productRole:
+        isMainProduct || (index === 0 && productGroupIndex === 1)
+          ? "main_product"
+          : "component",
+    };
+  });
 }
 
 function isContinuationRow(row: PdfTextItem[]): boolean {
@@ -278,7 +342,10 @@ export function extractStilCondalPurchaseLinesFromPdfItems(
     );
   }
 
-  return { lines: lines.slice(0, MAX_EXTRACTED_LINES), warnings };
+  return {
+    lines: applyStilProductGroups(lines).slice(0, MAX_EXTRACTED_LINES),
+    warnings,
+  };
 }
 
 export function extractPdfScanHintsFromPdfItems(
