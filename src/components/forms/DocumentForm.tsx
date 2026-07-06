@@ -849,6 +849,12 @@ export function DocumentForm({
     notes,
     paymentTerms: paymentTerms || undefined,
     status,
+    rectification: existing?.rectification,
+    rectifiedById: existing?.rectifiedById,
+    sourceQuoteDocumentId: existing?.sourceQuoteDocumentId,
+    sourceQuoteNumber: existing?.sourceQuoteNumber,
+    sourceDocumentId: existing?.sourceDocumentId,
+    receiptDocumentId: existing?.receiptDocumentId,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -902,12 +908,19 @@ export function DocumentForm({
   const finalStatusOverride: Document["status"] = isDraftStatus
     ? "enviado"
     : status;
+  const isRectificationDraft = Boolean(existing?.rectification) && isDraftStatus;
   const previewButtonLabel = "Vista previa PDF";
   const primarySaveButtonLabel =
-    type === "factura" && isDraftStatus ? "Emitir factura" : `Guardar ${label}`;
+    type === "factura" && isDraftStatus
+      ? isRectificationDraft
+        ? "Emitir rectificativa"
+        : "Emitir factura"
+      : `Guardar ${label}`;
   const downloadButtonLabel =
     type === "factura" && isDraftStatus
-      ? "Emitir y descargar PDF"
+      ? isRectificationDraft
+        ? "Emitir rectificativa y descargar PDF"
+        : "Emitir y descargar PDF"
       : `Guardar ${label} y descargar PDF`;
 
   const shareDoc: Document | null = existing
@@ -1274,17 +1287,27 @@ export function DocumentForm({
       notes: notes || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
       status: resolvedStatus,
+      rectification: existing?.rectification,
+      rectifiedById: existing?.rectifiedById,
+      sourceQuoteDocumentId: existing?.sourceQuoteDocumentId,
+      sourceQuoteNumber: existing?.sourceQuoteNumber,
+      sourceDocumentId: existing?.sourceDocumentId,
+      receiptDocumentId: existing?.receiptDocumentId,
     };
 
-    const emissionCheck = validateDocumentEmission(
-      { ...payload, type },
-      data.profile,
-      type,
-    );
-    if (!emissionCheck.ok) {
-      setFormError(emissionCheck.message ?? "Revisa los datos del documento.");
-      setSaveAction("idle");
-      return;
+    if (resolvedStatus !== "borrador") {
+      const emissionCheck = validateDocumentEmission(
+        { ...payload, type },
+        data.profile,
+        type,
+      );
+      if (!emissionCheck.ok) {
+        setFormError(
+          emissionCheck.message ?? "Revisa los datos del documento.",
+        );
+        setSaveAction("idle");
+        return;
+      }
     }
 
     let saved: Document;

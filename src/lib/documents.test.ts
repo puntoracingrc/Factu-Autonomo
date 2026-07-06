@@ -582,6 +582,28 @@ describe("isDocumentEditable", () => {
     expect(isDocumentEditable(invoiceFromQuote)).toBe(true);
   });
 
+  it("permite editar una rectificativa en borrador y bloquea la emitida", () => {
+    const draftRectificativa = {
+      ...doc("6", "factura", "BORRADOR", "Ana"),
+      status: "borrador" as const,
+      rectification: {
+        originalDocumentId: "1",
+        originalNumber: "F-1",
+        originalDate: "2026-07-01",
+        reason: "Error en datos",
+        type: "correccion" as const,
+      },
+    };
+    const issuedRectificativa = {
+      ...draftRectificativa,
+      number: "FR-2026-0001",
+      status: "enviado" as const,
+    };
+
+    expect(isDocumentEditable(draftRectificativa)).toBe(true);
+    expect(isDocumentEditable(issuedRectificativa)).toBe(false);
+  });
+
   it("permite editar presupuestos enviados y bloquea recibos emitidos", () => {
     const sent = { ...doc("3", "presupuesto", "P-2", "Ana"), status: "enviado" as const };
     const receipt = { ...doc("4", "recibo", "R-2", "Ana"), status: "pagado" as const };

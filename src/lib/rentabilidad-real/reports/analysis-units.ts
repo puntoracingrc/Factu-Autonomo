@@ -3,6 +3,11 @@ import {
   rentabilidadRealDocumentClientId,
   rentabilidadRealDocumentClientName,
 } from "@/lib/rentabilidad-real/document-client";
+import {
+  isSupersededRentabilidadRealDocument,
+  rectificationChainDocumentIds,
+  sourceQuoteDocumentIdForRentabilidadInvoice,
+} from "@/lib/rentabilidad-real/document-chain";
 import type {
   RentabilidadRealAnalysisUnit,
   RentabilidadRealAnalysisUnitSourceType,
@@ -31,13 +36,20 @@ function unitId(
 }
 
 function invoiceUnit(appData: AppData, invoice: Document): RentabilidadRealAnalysisUnit {
-  const relatedDocumentIds = [invoice.id];
+  const relatedDocumentIds = rectificationChainDocumentIds(
+    invoice,
+    appData.documents,
+  );
+  const sourceQuoteDocumentId = sourceQuoteDocumentIdForRentabilidadInvoice(
+    invoice,
+    appData.documents,
+  );
   return {
     id: unitId("invoice", invoice.id),
     primaryDocumentId: invoice.id,
     sourceType: "invoice",
     invoiceDocumentId: invoice.id,
-    sourceQuoteDocumentId: invoice.sourceQuoteDocumentId,
+    sourceQuoteDocumentId,
     clientId: clientIdForDocument(invoice),
     clientName: clientNameForDocument(invoice),
     date: invoice.date,
@@ -51,13 +63,13 @@ function invoiceUnit(appData: AppData, invoice: Document): RentabilidadRealAnaly
     hasInternalAdjustments: false,
     warnings: [
       {
-        code: invoice.sourceQuoteDocumentId
+        code: sourceQuoteDocumentId
           ? "invoice_source_quote_not_found"
           : "invoice_without_quote",
-        message: invoice.sourceQuoteDocumentId
+        message: sourceQuoteDocumentId
           ? "Esta factura declara un presupuesto origen que no se ha encontrado."
           : "Esta factura no tiene presupuesto origen y se analizará como independiente.",
-        severity: invoice.sourceQuoteDocumentId ? "risk" : "info",
+        severity: sourceQuoteDocumentId ? "risk" : "info",
       },
     ],
   };
@@ -97,7 +109,10 @@ function pairUnit(
   quote: Document,
   invoice: Document,
 ): RentabilidadRealAnalysisUnit {
-  const relatedDocumentIds = [quote.id, invoice.id];
+  const relatedDocumentIds = [
+    quote.id,
+    ...rectificationChainDocumentIds(invoice, appData.documents),
+  ];
   return {
     id: unitId("quote_invoice_pair", invoice.id),
     primaryDocumentId: invoice.id,
@@ -135,10 +150,16 @@ export function dedupeQuoteInvoicePairs(appData: AppData): {
   const units: RentabilidadRealAnalysisUnit[] = [];
 
   for (const invoice of appData.documents.filter(
-    (document) => document.type === "factura",
+    (document) =>
+      document.type === "factura" &&
+      !isSupersededRentabilidadRealDocument(document),
   )) {
-    const quote = invoice.sourceQuoteDocumentId
-      ? quotesById.get(invoice.sourceQuoteDocumentId)
+    const sourceQuoteDocumentId = sourceQuoteDocumentIdForRentabilidadInvoice(
+      invoice,
+      appData.documents,
+    );
+    const quote = sourceQuoteDocumentId
+      ? quotesById.get(sourceQuoteDocumentId)
       : undefined;
 
     if (!quote) continue;
@@ -162,7 +183,10 @@ export function buildRentabilidadRealAnalysisUnits(
   const result = [...units];
 
   for (const invoice of appData.documents.filter(
-    (document) => document.type === "factura" && !pairedInvoiceIds.has(document.id),
+    (document) =>
+      document.type === "factura" &&
+      !isSupersededRentabilidadRealDocument(document) &&
+      !pairedInvoiceIds.has(document.id),
   )) {
     result.push(invoiceUnit(appData, invoice));
   }

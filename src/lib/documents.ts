@@ -474,14 +474,17 @@ export function getFacturasIncludingRectificativas(
 }
 
 export function isDocumentEditable(doc: Document): boolean {
-  if (isRectificativa(doc) || doc.rectifiedById) return false;
+  if (isRectificativa(doc)) {
+    return doc.status === "borrador" && doc.integrityLock !== "locked";
+  }
+  if (doc.rectifiedById) return false;
   if (doc.type === "presupuesto") return doc.status !== "anulada";
   return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
 }
 
 export function getDocumentReadOnlyMessage(doc: Document): string {
   if (doc.rectification) {
-    return "Las facturas rectificativas no se editan. Compártela por email o WhatsApp, o descárgala en PDF.";
+    return "Las facturas rectificativas emitidas no se editan. Compártela por email o WhatsApp, descárgala en PDF o rectifícala si hay otro error.";
   }
   if (doc.rectifiedById) {
     return "Esta factura ya fue rectificada o anulada y no se puede modificar.";

@@ -216,10 +216,12 @@ function assignFinalInvoiceIdentityIfNeeded(
 
   const issueDate = todayISO();
   const year = new Date(issueDate).getFullYear();
-  const kind: DocumentKind = "factura";
-  const { number, sequence } = assignNextDocumentNumberByType(
+  const kind: DocumentKind = doc.rectification
+    ? "factura_rectificativa"
+    : "factura";
+  const { number, sequence } = assignNextDocumentNumber(
     documents.filter((item) => item.id !== doc.id),
-    "factura",
+    kind,
     year,
     configuredLastForKind(numbering, kind, year),
     numbering,
@@ -233,6 +235,32 @@ function assignFinalInvoiceIdentityIfNeeded(
     },
     assignment: { kind, year, sequence },
   };
+}
+
+function applyEmittedRectificationToOriginal(
+  documents: Document[],
+  rectificativa: Document,
+  updatedAt: string,
+): Document[] {
+  if (!rectificativa.rectification || rectificativa.status === "borrador") {
+    return documents;
+  }
+
+  const originalId = rectificativa.rectification.originalDocumentId;
+  return documents.map((doc) => {
+    if (doc.id !== originalId) return doc;
+    if (doc.rectifiedById && doc.rectifiedById !== rectificativa.id) {
+      return doc;
+    }
+    return {
+      ...doc,
+      status: originalStatusAfterRectification(
+        rectificativa.rectification!.type,
+      ),
+      rectifiedById: rectificativa.id,
+      updatedAt,
+    };
+  });
 }
 
 function editableQuoteWithLocalStatus(
@@ -457,6 +485,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       : { doc };
     const saved = saveEditableDocument(current, prepared.doc, data.profile, now);
     setAppData((prev) => {
+      const nextDocuments = applyEmittedRectificationToOriginal(
+        prev.documents.map((d) => (d.id === doc.id ? saved : d)),
+        saved,
+        now,
+      );
       return {
         ...prev,
         profile: prepared.assignment
@@ -470,9 +503,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               ),
             }
           : prev.profile,
-        documents: prev.documents.map((d) =>
-          d.id === doc.id ? saved : d,
-        ),
+        documents: nextDocuments,
       };
     });
     return saved;
@@ -491,6 +522,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const issueDocument = useCallback(
     (id: string): Document => {
       let issued: Document | null = null;
+      const now = new Date().toISOString();
       setAppData((prev) => {
         const current = prev.documents.find((doc) => doc.id === id);
         if (!current) return prev;
@@ -500,7 +532,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           prev.documents,
           prev.profile.numbering,
         );
-        issued = issueDocumentWithIntegrity(prepared.doc, prev.profile);
+        issued = issueDocumentWithIntegrity(prepared.doc, prev.profile, now);
+        const nextDocuments = applyEmittedRectificationToOriginal(
+          prev.documents.map((doc) => (doc.id === id ? issued! : doc)),
+          issued,
+          now,
+        );
 
         return {
           ...prev,
@@ -513,11 +550,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                   prepared.assignment.year,
                   prepared.assignment.sequence,
                 ),
-              }
-            : prev.profile,
-          documents: prev.documents.map((doc) =>
-            doc.id === id ? issued! : doc,
-          ),
+            }
+          : prev.profile,
+          documents: nextDocuments,
         };
       });
 
@@ -885,51 +920,53 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
         const year = new Date(doc.date).getFullYear();
         const numbering = prev.profile.numbering;
-        const { number, sequence } = assignNextDocumentNumber(
-          prev.documents,
-          "factura_rectificativa",
-          year,
-          configuredLastForKind(
-            numbering,
-            "factura_rectificativa",
-            year,
-          ),
-          numbering,
-        );
+        const isDraft = doc.status === "borrador";
+        const assigned = isDraft
+          ? { number: DRAFT_INVOICE_NUMBER, sequence: null }
+          : {
+              ...assignNextDocumentNumber(
+                prev.documents,
+                "factura_rectificativa",
+                year,
+                configuredLastForKind(
+                  numbering,
+                  "factura_rectificativa",
+                  year,
+                ),
+                numbering,
+              ),
+            };
         const now = new Date().toISOString();
         const rectificativa: Document = {
           ...doc,
           type: "factura",
           id: newId(),
-          number,
+          number: assigned.number,
           createdAt: now,
           updatedAt: now,
         };
 
-        const nextDocuments = prev.documents.map((d) =>
-          d.id === originalId
-            ? {
-                ...d,
-                status: originalStatusAfterRectification(doc.rectification.type),
-                rectifiedById: rectificativa.id,
-                updatedAt: now,
-              }
-            : d,
+        const nextDocuments = applyEmittedRectificationToOriginal(
+          [...prev.documents, rectificativa],
+          rectificativa,
+          now,
         );
-        nextDocuments.push(rectificativa);
         created = rectificativa;
 
         return {
           ...prev,
-          profile: {
-            ...prev.profile,
-            numbering: bumpNumberingAfterAssign(
-              prev.profile.numbering,
-              "factura_rectificativa",
-              year,
-              sequence,
-            ),
-          },
+          profile:
+            assigned.sequence === null
+              ? prev.profile
+              : {
+                  ...prev.profile,
+                  numbering: bumpNumberingAfterAssign(
+                    prev.profile.numbering,
+                    "factura_rectificativa",
+                    year,
+                    assigned.sequence,
+                  ),
+                },
           documents: nextDocuments,
           counters: countersFromDocuments(nextDocuments, year, numbering),
         };

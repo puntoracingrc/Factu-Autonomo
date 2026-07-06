@@ -2,6 +2,11 @@ import { documentTotals } from "@/lib/calculations";
 import { isFixedExpense } from "@/lib/expense-classification";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
+import {
+  isSupersededRentabilidadRealDocument,
+  rectificationChainDocumentIds,
+  sourceQuoteDocumentIdForRentabilidadInvoice,
+} from "@/lib/rentabilidad-real/document-chain";
 import type { RentabilidadRealFixedCostAllocationMethod } from "./calculation";
 import type { Document, Expense } from "@/lib/types";
 
@@ -46,17 +51,24 @@ function linkedDocumentLabel(
   if (document.type === "presupuesto") {
     const invoice = allDocuments.find(
       (item) =>
-        item.type === "factura" && item.sourceQuoteDocumentId === document.id,
+        item.type === "factura" &&
+        !isSupersededRentabilidadRealDocument(item) &&
+        sourceQuoteDocumentIdForRentabilidadInvoice(item, allDocuments) ===
+          document.id,
     );
     return invoice ? `Factura vinculada ${invoice.number}` : undefined;
   }
 
   if (document.type === "factura") {
-    const quote = document.sourceQuoteDocumentId
+    const sourceQuoteDocumentId = sourceQuoteDocumentIdForRentabilidadInvoice(
+      document,
+      allDocuments,
+    );
+    const quote = sourceQuoteDocumentId
       ? allDocuments.find(
           (item) =>
             item.type === "presupuesto" &&
-            item.id === document.sourceQuoteDocumentId,
+            item.id === sourceQuoteDocumentId,
         )
       : undefined;
     if (quote) return `Presupuesto origen ${quote.number}`;
@@ -69,19 +81,29 @@ function linkedDocumentLabel(
 }
 
 function relatedDocumentIds(document: Document, allDocuments: Document[]) {
-  const ids = new Set<string>([document.id]);
+  const ids = new Set<string>(
+    rectificationChainDocumentIds(document, allDocuments),
+  );
   if (document.type === "presupuesto") {
     for (const invoice of allDocuments) {
       if (
         invoice.type === "factura" &&
-        invoice.sourceQuoteDocumentId === document.id
+        !isSupersededRentabilidadRealDocument(invoice) &&
+        sourceQuoteDocumentIdForRentabilidadInvoice(invoice, allDocuments) ===
+          document.id
       ) {
-        ids.add(invoice.id);
+        for (const id of rectificationChainDocumentIds(invoice, allDocuments)) {
+          ids.add(id);
+        }
       }
     }
   }
-  if (document.type === "factura" && document.sourceQuoteDocumentId) {
-    ids.add(document.sourceQuoteDocumentId);
+  if (document.type === "factura") {
+    const sourceQuoteDocumentId = sourceQuoteDocumentIdForRentabilidadInvoice(
+      document,
+      allDocuments,
+    );
+    if (sourceQuoteDocumentId) ids.add(sourceQuoteDocumentId);
   }
   return ids;
 }
@@ -106,6 +128,7 @@ export function buildRentabilidadRealWorkDocumentOptions({
   expenses,
 }: BuildRentabilidadRealWorkDocumentOptionsInput): RentabilidadRealWorkDocumentOption[] {
   return documents
+    .filter((document) => !isSupersededRentabilidadRealDocument(document))
     .map((document) => {
       const totals = documentTotals(document);
       return {

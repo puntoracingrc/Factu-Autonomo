@@ -20,16 +20,16 @@ export function isRectificativa(doc: Document): boolean {
 export function canRectifyInvoice(doc: Document): boolean {
   return (
     doc.type === "factura" &&
-    !doc.rectification &&
     !doc.rectifiedById &&
     doc.status !== "borrador" &&
+    doc.status !== "rectificada" &&
     doc.status !== "anulada"
   );
 }
 
 const RECTIFICAR_EN_LUGAR_DE_BORRAR = `Las facturas emitidas deben conservarse (mínimo 4 años) y no se pueden eliminar.
 
-Ante un error, la vía correcta según Hacienda es emitir una factura rectificativa: anulación total (R1) o corrección de importes (R4). Usa el botón «Rectificar» en el listado.`;
+Ante un error, la vía correcta según Hacienda es emitir una factura rectificativa: anulación total (R1) o corrección de datos/importes (R4). Usa el botón «Rectificar» en el listado.`;
 
 export function getDeletePolicy(doc: Document): DeletePolicy {
   if (!canPhysicallyDeleteDocument(doc)) {
@@ -56,7 +56,6 @@ export function getDeletePolicy(doc: Document): DeletePolicy {
 
   if (
     doc.status === "borrador" &&
-    !doc.rectification &&
     !doc.rectifiedById
   ) {
     return {
@@ -119,7 +118,7 @@ export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
 }
 
 export function rectificationTypeLabel(type: RectificationType): string {
-  return type === "anulacion" ? "Anulación total" : "Corrección de importes";
+  return type === "anulacion" ? "Anulación total" : "Corrección de datos";
 }
 
 export function originalStatusAfterRectification(
