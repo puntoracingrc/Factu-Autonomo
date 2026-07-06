@@ -4,7 +4,7 @@ import {
   MAX_IMAGE_DIMENSION,
   TARGET_IMAGE_BYTES,
 } from "./limits";
-import { resolveScanMimeType } from "./openai";
+import { resolveScanMimeType } from "./file-validation";
 
 const COMPRESSIBLE_IMAGE_TYPES = new Set([
   "image/jpeg",

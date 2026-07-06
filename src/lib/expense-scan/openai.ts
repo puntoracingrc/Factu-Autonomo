@@ -1,4 +1,4 @@
-import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "./limits";
+import { extractPdfScanHintsFromPdfBase64 } from "./pdf-table-lines";
 import { buildExpenseScanPrompt } from "./prompt";
 import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
 
@@ -7,23 +7,6 @@ const EXPENSE_SCAN_MODEL =
 const DEFAULT_EXPENSE_SCAN_MAX_TOKENS = 6000;
 const MIN_EXPENSE_SCAN_MAX_TOKENS = 2000;
 const MAX_EXPENSE_SCAN_MAX_TOKENS = 12000;
-
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
-
-export function resolveScanMimeType(file: File): string {
-  if (file.type) return file.type;
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".pdf")) return "application/pdf";
-  if (name.endsWith(".png")) return "image/png";
-  if (name.endsWith(".webp")) return "image/webp";
-  if (name.endsWith(".gif")) return "image/gif";
-  return "image/jpeg";
-}
 
 export function isOpenAiConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -41,27 +24,16 @@ export function resolveExpenseScanMaxTokens(
   );
 }
 
-export function validateScanFile(file: File): string | null {
-  const mimeType = resolveScanMimeType(file);
-  const isPdf = mimeType === "application/pdf";
-  const isImage = ALLOWED_IMAGE_TYPES.has(mimeType);
-
-  if (!isPdf && !isImage) {
-    return "Formato no soportado. Usa una foto (JPG, PNG, WebP) o un PDF de la factura.";
-  }
-
-  const maxBytes = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
-  if (file.size > maxBytes) {
-    return isPdf
-      ? "El PDF es demasiado grande (máx. 8 MB)."
-      : "La imagen es demasiado grande (máx. 4 MB). Si es una foto del móvil, debería optimizarse sola; inténtalo de nuevo.";
-  }
-
-  return null;
+function buildPdfTextHint(textRows: string): string {
+  if (!textRows.trim()) return "";
+  return `\n\nTexto seleccionable extraído del PDF por el servidor. Úsalo para no perder líneas de tablas largas o repetidas. Si el PDF visual y este texto difieren, prioriza el PDF visual para datos generales, pero conserva las filas de compra que aparezcan aquí:\n${textRows}`;
 }
 
-function buildScanContent(base64: string, mimeType: string) {
-  const prompt = { type: "text" as const, text: buildExpenseScanPrompt() };
+function buildScanContent(base64: string, mimeType: string, pdfTextRows = "") {
+  const prompt = {
+    type: "text" as const,
+    text: `${buildExpenseScanPrompt()}${buildPdfTextHint(pdfTextRows)}`,
+  };
 
   if (mimeType === "application/pdf") {
     return [
@@ -97,6 +69,11 @@ export async function extractExpenseFromImage(
     return { error: "Escaneo no configurado en el servidor (falta OPENAI_API_KEY)." };
   }
 
+  const pdfHints =
+    mimeType === "application/pdf"
+      ? await extractPdfScanHintsFromPdfBase64(base64)
+      : null;
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -111,7 +88,7 @@ export async function extractExpenseFromImage(
       messages: [
         {
           role: "user",
-          content: buildScanContent(base64, mimeType),
+          content: buildScanContent(base64, mimeType, pdfHints?.textRows),
         },
       ],
     }),
@@ -151,6 +128,15 @@ export async function extractExpenseFromImage(
       error:
         "No se encontraron datos suficientes (proveedor, descripción o importe). Revisa el archivo.",
     };
+  }
+
+  if (pdfHints?.stilCondal.lines.length) {
+    const pdfLines = pdfHints.stilCondal;
+    const currentLineCount = data.expense.purchaseLines?.length ?? 0;
+    if (pdfLines.lines.length > currentLineCount) {
+      data.expense.purchaseLines = pdfLines.lines;
+      data.warnings.push(...pdfLines.warnings);
+    }
   }
 
   return { data };

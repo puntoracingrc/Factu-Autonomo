@@ -15,6 +15,9 @@ vi.mock("@/lib/billing/scan-usage-server", () => ({
 vi.mock("@/lib/expense-scan/openai", () => ({
   extractExpenseFromImage: vi.fn(),
   fileToBase64: vi.fn(),
+}));
+
+vi.mock("@/lib/expense-scan/file-validation", () => ({
   resolveScanMimeType: vi.fn(),
   validateScanFile: vi.fn(),
 }));
