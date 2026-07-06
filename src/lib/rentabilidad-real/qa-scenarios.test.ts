@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { RENTABILIDAD_REAL_V1_QA_SCENARIOS } from "./qa-scenarios";
+import {
+  RENTABILIDAD_REAL_V1_QA_SCENARIOS,
+  RENTABILIDAD_REAL_V1_STABILITY_STATUS,
+} from "./qa-scenarios";
 
 describe("Rentabilidad Real v1 QA scenarios", () => {
   it("mantiene la matriz completa de escenarios 1 a 12", () => {
@@ -34,9 +37,24 @@ describe("Rentabilidad Real v1 QA scenarios", () => {
   });
 
   it("no contiene datos personales ni secretos", () => {
-    const serialized = JSON.stringify(RENTABILIDAD_REAL_V1_QA_SCENARIOS);
+    const serialized = JSON.stringify({
+      scenarios: RENTABILIDAD_REAL_V1_QA_SCENARIOS,
+      stability: RENTABILIDAD_REAL_V1_STABILITY_STATUS,
+    });
 
     expect(serialized).not.toMatch(/@/);
     expect(serialized).not.toMatch(/password|contrase[a-z]*\\s*[:=]|service_role_key/i);
+  });
+
+  it("marca v1 como estable con QA Free/Pro pendiente si no hay entorno seguro", () => {
+    expect(RENTABILIDAD_REAL_V1_STABILITY_STATUS.status).toBe(
+      "stable_with_pending_access_qa",
+    );
+    expect(RENTABILIDAD_REAL_V1_STABILITY_STATUS.note).toContain(
+      "Rentabilidad Real v1 validado",
+    );
+    expect(RENTABILIDAD_REAL_V1_STABILITY_STATUS.note).toContain(
+      "Escenarios 11/12",
+    );
   });
 });

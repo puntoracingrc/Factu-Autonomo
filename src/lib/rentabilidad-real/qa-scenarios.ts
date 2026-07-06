@@ -10,6 +10,12 @@ export interface RentabilidadRealQaScenario {
   notes: string;
 }
 
+export const RENTABILIDAD_REAL_V1_STABILITY_STATUS = {
+  status: "stable_with_pending_access_qa",
+  note:
+    "Rentabilidad Real v1 validado para autonomos Pro+ niveles 1-4. Stock, S.L., modulos fiscales y empleados quedan como modulos futuros. Escenarios 11/12 siguen pendientes si no existe entorno QA seguro para Free/Pro no Pro+.",
+} as const;
+
 export const RENTABILIDAD_REAL_V1_QA_SCENARIOS: RentabilidadRealQaScenario[] = [
   {
     id: "scenario_01_simple_autonomo",
