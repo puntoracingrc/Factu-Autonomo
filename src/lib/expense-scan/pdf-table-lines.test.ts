@@ -105,4 +105,30 @@ describe("extractStilCondalPurchaseLinesFromPdfItems", () => {
       "EMISOR A-OK 6 CANALES PREMIUM BLANCO (AC123-06 WHITE)",
     );
   });
+
+  it("no pega el pie de página del PDF a la última línea", () => {
+    const items = [
+      item(1, 2, 2, "STIL CONDAL, S.A."),
+      item(1, 2, 7, "Factura n° :"),
+      item(1, 1, 12, "Artículo"),
+      item(1, 35, 12, "Importe"),
+      item(1, 0.87, 15.95, "004001012"),
+      item(1, 3.72, 15.95, "EJE"),
+      item(1, 4.75, 15.95, "METALICO 60 X 0,8 OCTOGONAL"),
+      item(1, 20.84, 15.95, "1"),
+      item(1, 28.49, 15.95, "8,00"),
+      item(1, 30.13, 15.95, "25,00"),
+      item(1, 32.42, 15.95, "6,00"),
+      item(1, 34.69, 15.95, "6,00"),
+      item(1, 1.4, 22.5, "Av. la Ferreria, 2 08110 MONTCADA I REIXAC"),
+      item(1, 1, 41, "TOTAL FACTURA"),
+    ];
+
+    const result = extractStilCondalPurchaseLinesFromPdfItems(items);
+
+    expect(result.lines).toHaveLength(1);
+    expect(result.lines[0].description).toBe(
+      "EJE METALICO 60 X 0,8 OCTOGONAL",
+    );
+  });
 });

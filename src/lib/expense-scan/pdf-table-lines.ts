@@ -15,6 +15,11 @@ interface ExtractedPdfLines {
 interface PdfScanHints {
   textRows: string;
   stilCondal: ExtractedPdfLines;
+  debug: {
+    itemCount: number;
+    rowCount: number;
+    error?: string;
+  };
 }
 
 const ROW_Y_TOLERANCE = 0.18;
@@ -79,6 +84,15 @@ function groupRows(items: PdfTextItem[]): PdfTextItem[][] {
 
 function rowText(row: PdfTextItem[]): string {
   return cleanText(row.map((item) => item.text).join(" "));
+}
+
+function rowY(row: PdfTextItem[]): number {
+  if (row.length === 0) return 0;
+  return row.reduce((sum, item) => sum + item.y, 0) / row.length;
+}
+
+function rowPage(row: PdfTextItem[]): number | undefined {
+  return row[0]?.page;
 }
 
 function looksLikeNumberFragment(value: string): boolean {
@@ -194,6 +208,17 @@ function isContinuationRow(row: PdfTextItem[]): boolean {
   return row.every((item) => item.x < 20);
 }
 
+function canAttachContinuation(
+  previousRow: PdfTextItem[] | null,
+  continuationRow: PdfTextItem[],
+): boolean {
+  if (!previousRow) return false;
+  if (rowPage(previousRow) !== rowPage(continuationRow)) return false;
+
+  const distance = rowY(continuationRow) - rowY(previousRow);
+  return distance > 0 && distance <= 1.2;
+}
+
 export function extractStilCondalPurchaseLinesFromPdfItems(
   items: PdfTextItem[],
 ): ExtractedPdfLines {
@@ -203,28 +228,37 @@ export function extractStilCondalPurchaseLinesFromPdfItems(
   const lines: ExpenseScanPurchaseLine[] = [];
   const warnings: string[] = [];
   let inTable = false;
+  let previousLineRow: PdfTextItem[] | null = null;
 
   for (const row of rows) {
     const text = rowText(row);
     if (/Artículo/i.test(text) && /Importe/i.test(text)) {
       inTable = true;
+      previousLineRow = null;
       continue;
     }
     if (!inTable) continue;
     if (/^(IMPORTE|TOTAL FACTURA)/i.test(text)) {
       inTable = false;
+      previousLineRow = null;
       continue;
     }
 
     const line = parseLineRow(row);
     if (line) {
       lines.push(line);
+      previousLineRow = row;
       continue;
     }
 
     const previous = lines.at(-1);
-    if (previous && isContinuationRow(row)) {
+    if (
+      previous &&
+      isContinuationRow(row) &&
+      canAttachContinuation(previousLineRow, row)
+    ) {
       previous.description = cleanText(`${previous.description} ${text}`);
+      previousLineRow = row;
     }
   }
 
@@ -250,6 +284,10 @@ export function extractPdfScanHintsFromPdfItems(
   return {
     textRows,
     stilCondal: extractStilCondalPurchaseLinesFromPdfItems(items),
+    debug: {
+      itemCount: items.length,
+      rowCount: rows.length,
+    },
   };
 }
 
@@ -259,6 +297,7 @@ export async function extractPdfScanHintsFromPdfBase64(
   const empty: PdfScanHints = {
     textRows: "",
     stilCondal: { lines: [], warnings: [] },
+    debug: { itemCount: 0, rowCount: 0 },
   };
   const items: PdfTextItem[] = [];
 
@@ -289,8 +328,13 @@ export async function extractPdfScanHintsFromPdfBase64(
         });
       }
     }
-  } catch {
-    return empty;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[expense-scan] PDF text extraction failed", message);
+    return {
+      ...empty,
+      debug: { ...empty.debug, error: message },
+    };
   }
 
   return extractPdfScanHintsFromPdfItems(items);
