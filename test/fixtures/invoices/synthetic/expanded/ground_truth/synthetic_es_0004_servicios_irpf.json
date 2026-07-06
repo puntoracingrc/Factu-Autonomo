@@ -1,0 +1,86 @@
+{
+  "invoice_id": "synthetic_es_0004",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00004",
+  "date": "2024-01-30",
+  "due_date": "2024-02-29",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100004",
+    "address": "Calle Roble, 14 - Bilbao",
+    "email": "suministros.norte.demo.s.4@example.test",
+    "phone": "+34 900 004 670"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100304",
+    "address": "Plaza del Mercado, 22 - Barcelona",
+    "email": "tienda.piloto.sl.304@example.test",
+    "phone": "+34 900 304 757"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-9974-1",
+      "description": "Conjunto persiana",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 15.42,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 154.2,
+      "vat_amount": 32.38,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 186.58,
+      "line_total_with_taxes": 186.58,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 154.2,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 154.2,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 154.2,
+        "vat_amount": 32.38,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 32.38,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 23.13,
+    "total": 163.45,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -14,6 +14,7 @@
 /coverage
 /test/fixtures/invoices/private_real/pdf/
 /test/fixtures/invoices/reports/
+/artifacts/invoice-benchmarks/
 
 # next.js
 /.next/

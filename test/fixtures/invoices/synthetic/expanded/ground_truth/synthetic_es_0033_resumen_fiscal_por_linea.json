@@ -1,0 +1,110 @@
+{
+  "invoice_id": "synthetic_es_0033",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2024-00033",
+  "date": "2024-09-05",
+  "due_date": "2024-10-05",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100033",
+    "address": "Calle Roble, 52 - Alicante",
+    "email": "consultoria.alameda.demo.33@example.test",
+    "phone": "+34 900 033 687"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100333",
+    "address": "Plaza del Mercado, 39 - Barcelona",
+    "email": "startup.ejemplo.sl.333@example.test",
+    "phone": "+34 900 333 455"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-5116-1",
+      "description": "Bolsa de recambios variados",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 440.29,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 2641.74,
+      "vat_amount": 105.67,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2747.41,
+      "line_total_with_taxes": 2747.41,
+      "period": null
+    },
+    {
+      "reference": "REF-3047-2",
+      "description": "Horas de consultoría",
+      "unit": "h",
+      "quantity": 6.22,
+      "unit_price": 330.55,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2056.02,
+      "vat_amount": 431.76,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2487.78,
+      "line_total_with_taxes": 2487.78,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4697.76,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4697.76,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 2641.74,
+        "vat_amount": 105.67,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2056.02,
+        "vat_amount": 431.76,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 537.43,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5235.19,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

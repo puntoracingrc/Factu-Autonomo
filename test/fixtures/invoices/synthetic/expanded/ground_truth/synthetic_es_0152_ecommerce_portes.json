@@ -1,0 +1,191 @@
+{
+  "invoice_id": "synthetic_es_0152",
+  "document_title": "FACTURA DE VENTA ONLINE",
+  "invoice_type": "ordinaria",
+  "layout_id": "ecommerce_portes",
+  "source_inspiration": [
+    "Factura ecommerce con portes",
+    "Plantillas y datasets OCR"
+  ],
+  "invoice_number": "F-2024-00152",
+  "date": "2024-11-20",
+  "due_date": "2025-01-04",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100152",
+    "address": "Camino del Almacén, 98 - Valladolid",
+    "email": "distribuciones.iberia.te.152@example.test",
+    "phone": "+34 900 152 890"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200452F",
+    "address": "Calle de la Técnica, 93 - Bilbao",
+    "email": "particular.sintetico.452@example.test",
+    "phone": "+34 900 452 768"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-2479-1",
+      "description": "Auditoría técnica - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 261.92,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": 1257.22,
+      "vat_amount": 264.02,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1521.24,
+      "line_total_with_taxes": 1521.24,
+      "period": null
+    },
+    {
+      "reference": "REF-4842-2",
+      "description": "Asesoría documental",
+      "unit": "servicio",
+      "quantity": 2.83,
+      "unit_price": 415.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1176.91,
+      "vat_amount": 247.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1424.06,
+      "line_total_with_taxes": 1424.06,
+      "period": null
+    },
+    {
+      "reference": "REF-2413-3",
+      "description": "Horas de consultoría",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 265.14,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1060.56,
+      "vat_amount": 222.72,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1283.28,
+      "line_total_with_taxes": 1283.28,
+      "period": null
+    },
+    {
+      "reference": "REF-3947-4",
+      "description": "Equipo informático",
+      "unit": "ud",
+      "quantity": 8.48,
+      "unit_price": 64.55,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 547.38,
+      "vat_amount": 114.95,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 662.33,
+      "line_total_with_taxes": 662.33,
+      "period": null
+    },
+    {
+      "reference": "REF-6218-5",
+      "description": "Repuesto mecánico",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 340.65,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 340.65,
+      "vat_amount": 71.54,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 412.19,
+      "line_total_with_taxes": 412.19,
+      "period": null
+    },
+    {
+      "reference": "REF-2609-6",
+      "description": "Horas de consultoría",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 104.17,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 520.85,
+      "vat_amount": 52.09,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 572.94,
+      "line_total_with_taxes": 572.94,
+      "period": null
+    },
+    {
+      "reference": "SHIP-994",
+      "description": "Portes y preparación de pedido",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 12.0,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 12.0,
+      "vat_amount": 2.52,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 14.52,
+      "line_total_with_taxes": 14.52,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4915.57,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4915.57,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4394.72,
+        "vat_amount": 922.9,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 520.85,
+        "vat_amount": 52.09,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 974.99,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5890.56,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "SKU": "reference",
+    "Producto": "description",
+    "Qty": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

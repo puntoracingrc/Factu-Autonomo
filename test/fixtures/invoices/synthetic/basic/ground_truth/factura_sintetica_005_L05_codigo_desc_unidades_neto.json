@@ -1,0 +1,60 @@
+{
+  "layoutId": "L05_codigo_desc_unidades_neto",
+  "supplierName": "Servicios Litoral SL",
+  "supplierNif": "B44556677",
+  "supplierAddress": "C/ Marina 7, 46011 Valencia",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0005",
+  "date": "2026-06-03",
+  "lines": [
+    {
+      "ref": "R00501",
+      "description": "Persiana aluminio",
+      "quantity": 1,
+      "unitPrice": 172.85,
+      "discountRate": 0,
+      "base": 172.85,
+      "vatRate": 21,
+      "vatAmount": 36.3,
+      "lineTotal": 209.15
+    },
+    {
+      "ref": "R00502",
+      "description": "Motor tubular",
+      "quantity": 3,
+      "unitPrice": 163.14,
+      "discountRate": 0,
+      "base": 489.42,
+      "vatRate": 21,
+      "vatAmount": 102.78,
+      "lineTotal": 592.2
+    },
+    {
+      "ref": "R00503",
+      "description": "Caja registradora",
+      "quantity": 5,
+      "unitPrice": 140.32,
+      "discountRate": 0,
+      "base": 701.6,
+      "vatRate": 21,
+      "vatAmount": 147.34,
+      "lineTotal": 848.94
+    }
+  ],
+  "subtotal": 1363.87,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1363.87,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1363.87,
+      "vatAmount": 286.41
+    }
+  ],
+  "vatAmount": 286.41,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1650.28
+}

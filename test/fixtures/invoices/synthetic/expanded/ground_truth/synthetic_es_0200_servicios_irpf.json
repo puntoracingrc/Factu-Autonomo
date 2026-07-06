@@ -1,0 +1,125 @@
+{
+  "invoice_id": "synthetic_es_0200",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2025-00200",
+  "date": "2025-10-08",
+  "due_date": "2025-10-08",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100200",
+    "address": "Plaza del Mercado, 108 - Murcia",
+    "email": "distribuciones.iberia.te.200@example.test",
+    "phone": "+34 900 200 402"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100500",
+    "address": "Avenida del Puerto, 33 - Palma",
+    "email": "cliente.demo.sl.500@example.test",
+    "phone": "+34 900 500 157"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-7024-1",
+      "description": "Material de embalaje",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 363.68,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2182.08,
+      "vat_amount": 218.21,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2400.29,
+      "line_total_with_taxes": 2400.29,
+      "period": null
+    },
+    {
+      "reference": "REF-3434-2",
+      "description": "Kit de fijación",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 34.87,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 104.61,
+      "vat_amount": 10.46,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 115.07,
+      "line_total_with_taxes": 115.07,
+      "period": null
+    },
+    {
+      "reference": "REF-2868-3",
+      "description": "Mano de obra especializada - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 357.63,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1072.89,
+      "vat_amount": 225.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1298.2,
+      "line_total_with_taxes": 1298.2,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3359.58,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3359.58,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2286.69,
+        "vat_amount": 228.67,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1072.89,
+        "vat_amount": 225.31,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 453.98,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 235.17,
+    "total": 3578.39,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

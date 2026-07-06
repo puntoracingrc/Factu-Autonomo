@@ -1,0 +1,111 @@
+{
+  "invoice_id": "synthetic_es_0053",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2025-00053",
+  "date": "2025-03-25",
+  "due_date": "2025-05-09",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100053",
+    "address": "Calle de la Técnica, 126 - Zaragoza",
+    "email": "papeleria.fiscal.demo.sl.53@example.test",
+    "phone": "+34 900 053 636"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200353T",
+    "address": "Paseo de la Industria, 10 - Madrid",
+    "email": "comunidad.simulada.353@example.test",
+    "phone": "+34 900 353 615"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-4173-1",
+      "description": "Transporte y manipulación",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 105.32,
+      "discount_rate": 20.0,
+      "vat_rate": 4.0,
+      "line_base": -421.28,
+      "vat_amount": -16.85,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -438.13,
+      "line_total_with_taxes": -438.13,
+      "period": null
+    },
+    {
+      "reference": "REF-8516-2",
+      "description": "Desplazamiento",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 190.29,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": -951.45,
+      "vat_amount": -95.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -1046.6,
+      "line_total_with_taxes": -1046.6,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -1372.73,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -1372.73,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": -421.28,
+        "vat_amount": -16.85,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -951.45,
+        "vat_amount": -95.15,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -112.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -1484.73,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2025-00035"
+}

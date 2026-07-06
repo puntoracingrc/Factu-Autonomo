@@ -1,0 +1,190 @@
+{
+  "invoice_id": "synthetic_es_0159",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2024-00159",
+  "date": "2024-12-19",
+  "due_date": "2024-12-26",
+  "supplier": {
+    "name": "Instalaciones Trama SL",
+    "tax_id": "B-00100159",
+    "address": "Calle de la Técnica, 146 - Alicante",
+    "email": "instalaciones.trama.sl.159@example.test",
+    "phone": "+34 900 159 187"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100459",
+    "address": "Ronda Fiscal, 119 - Bilbao",
+    "email": "distribuidor.beta.sl.459@example.test",
+    "phone": "+34 900 459 681"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-6769-1",
+      "description": "Equipo informático",
+      "unit": "kg",
+      "quantity": 5.0,
+      "unit_price": 209.65,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1048.25,
+      "vat_amount": 104.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1153.08,
+      "line_total_with_taxes": 1153.08,
+      "period": null
+    },
+    {
+      "reference": "REF-3956-2",
+      "description": "Perfil de aluminio",
+      "unit": "servicio",
+      "quantity": 6.86,
+      "unit_price": 45.44,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 311.72,
+      "vat_amount": 12.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 324.19,
+      "line_total_with_taxes": 324.19,
+      "period": null
+    },
+    {
+      "reference": "REF-7323-3",
+      "description": "Kit de fijación",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 417.21,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2503.26,
+      "vat_amount": 250.33,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2753.59,
+      "line_total_with_taxes": 2753.59,
+      "period": null
+    },
+    {
+      "reference": "REF-9162-4",
+      "description": "Base de datos anual",
+      "unit": "m",
+      "quantity": 4.0,
+      "unit_price": 61.9,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 247.6,
+      "vat_amount": 24.76,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 272.36,
+      "line_total_with_taxes": 272.36,
+      "period": null
+    },
+    {
+      "reference": "REF-1967-5",
+      "description": "Transporte y manipulación",
+      "unit": "h",
+      "quantity": 5.0,
+      "unit_price": 328.46,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1642.3,
+      "vat_amount": 164.23,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1806.53,
+      "line_total_with_taxes": 1806.53,
+      "period": null
+    },
+    {
+      "reference": "REF-4413-6",
+      "description": "Kit de fijación",
+      "unit": "kg",
+      "quantity": 1.88,
+      "unit_price": 68.03,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 127.9,
+      "vat_amount": 5.12,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 133.02,
+      "line_total_with_taxes": 133.02,
+      "period": null
+    },
+    {
+      "reference": "REF-2752-7",
+      "description": "Soporte premium",
+      "unit": "kg",
+      "quantity": 2.0,
+      "unit_price": 103.69,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 207.38,
+      "vat_amount": 8.3,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 215.68,
+      "line_total_with_taxes": 215.68,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6088.41,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6088.41,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 5441.41,
+        "vat_amount": 544.15,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 647.0,
+        "vat_amount": 25.89,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 570.04,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6658.45,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

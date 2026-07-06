@@ -1,0 +1,71 @@
+{
+  "layoutId": "L02_ref_desc_uds_pvp_dto_total",
+  "supplierName": "Materiales Vega SL",
+  "supplierNif": "B99887766",
+  "supplierAddress": "Pol. La Estrella nave 3, 41016 Sevilla",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0012",
+  "date": "2026-05-01",
+  "lines": [
+    {
+      "ref": "R01201",
+      "description": "Servicio tecnico",
+      "quantity": 4,
+      "unitPrice": 51.77,
+      "discountRate": 5,
+      "base": 196.73,
+      "vatRate": 21,
+      "vatAmount": 41.31,
+      "lineTotal": 238.04
+    },
+    {
+      "ref": "R01202",
+      "description": "Caja registradora",
+      "quantity": 3,
+      "unitPrice": 219.1,
+      "discountRate": 10,
+      "base": 591.57,
+      "vatRate": 21,
+      "vatAmount": 124.23,
+      "lineTotal": 715.8
+    },
+    {
+      "ref": "R01203",
+      "description": "Servicio tecnico",
+      "quantity": 4,
+      "unitPrice": 136.39,
+      "discountRate": 10,
+      "base": 491.0,
+      "vatRate": 21,
+      "vatAmount": 103.11,
+      "lineTotal": 594.11
+    },
+    {
+      "ref": "R01204",
+      "description": "Caja registradora",
+      "quantity": 1,
+      "unitPrice": 31.58,
+      "discountRate": 0,
+      "base": 31.58,
+      "vatRate": 21,
+      "vatAmount": 6.63,
+      "lineTotal": 38.21
+    }
+  ],
+  "subtotal": 1310.88,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1310.88,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1310.88,
+      "vatAmount": 275.28
+    }
+  ],
+  "vatAmount": 275.28,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1586.16
+}

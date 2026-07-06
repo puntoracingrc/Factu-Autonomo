@@ -1,0 +1,151 @@
+{
+  "invoice_id": "synthetic_es_0069",
+  "document_title": "FACTURA",
+  "invoice_type": "exenta",
+  "layout_id": "long_description",
+  "source_inspiration": [
+    "Casos con descripción larga",
+    "Datasets OCR multi-layout"
+  ],
+  "invoice_number": "F-2025-00069",
+  "date": "2025-05-23",
+  "due_date": "2025-06-22",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100069",
+    "address": "Plaza del Mercado, 23 - Palma",
+    "email": "electro.hogar.simulado.s.69@example.test",
+    "phone": "+34 900 069 438"
+  },
+  "customer": {
+    "name": "Comunidad Simulada",
+    "tax_id": "00200369Q",
+    "address": "Calle de la Técnica, 29 - Bilbao",
+    "email": "comunidad.simulada.369@example.test",
+    "phone": "+34 900 369 121"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-2973-1",
+      "description": "Horas de consultoría - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 105.55,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 105.55,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 105.55,
+      "line_total_with_taxes": 105.55,
+      "period": null
+    },
+    {
+      "reference": "REF-5810-2",
+      "description": "Pintura base agua - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 35.81,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 35.81,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 35.81,
+      "line_total_with_taxes": 35.81,
+      "period": null
+    },
+    {
+      "reference": "REF-4409-3",
+      "description": "Soporte premium - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 405.09,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1620.36,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1620.36,
+      "line_total_with_taxes": 1620.36,
+      "period": null
+    },
+    {
+      "reference": "REF-6902-4",
+      "description": "Bolsa de recambios variados - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 18.62,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 111.72,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 111.72,
+      "line_total_with_taxes": 111.72,
+      "period": null
+    },
+    {
+      "reference": "REF-8370-5",
+      "description": "Producto alimentario demo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 10.0,
+      "unit_price": 136.05,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1360.5,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1360.5,
+      "line_total_with_taxes": 1360.5,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3233.94,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3233.94,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 3233.94,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3233.94,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto detallado": "description",
+    "Unid.": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

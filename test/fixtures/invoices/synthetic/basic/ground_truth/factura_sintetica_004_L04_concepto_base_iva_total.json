@@ -1,0 +1,93 @@
+{
+  "layoutId": "L04_concepto_base_iva_total",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0004",
+  "date": "2026-01-28",
+  "lines": [
+    {
+      "ref": "R00401",
+      "description": "Kit instalacion",
+      "quantity": 1,
+      "unitPrice": 117.0,
+      "discountRate": 0,
+      "base": 117.0,
+      "vatRate": 10,
+      "vatAmount": 11.7,
+      "lineTotal": 128.7
+    },
+    {
+      "ref": "R00402",
+      "description": "Soporte mensual",
+      "quantity": 1,
+      "unitPrice": 98.82,
+      "discountRate": 0,
+      "base": 98.82,
+      "vatRate": 10,
+      "vatAmount": 9.88,
+      "lineTotal": 108.7
+    },
+    {
+      "ref": "R00403",
+      "description": "Tubo octogonal",
+      "quantity": 1,
+      "unitPrice": 29.56,
+      "discountRate": 0,
+      "base": 29.56,
+      "vatRate": 10,
+      "vatAmount": 2.96,
+      "lineTotal": 32.52
+    },
+    {
+      "ref": "R00404",
+      "description": "Guia lateral",
+      "quantity": 3,
+      "unitPrice": 114.5,
+      "discountRate": 0,
+      "base": 343.5,
+      "vatRate": 10,
+      "vatAmount": 34.35,
+      "lineTotal": 377.85
+    },
+    {
+      "ref": "R00405",
+      "description": "Soporte mensual",
+      "quantity": 1,
+      "unitPrice": 55.36,
+      "discountRate": 0,
+      "base": 55.36,
+      "vatRate": 10,
+      "vatAmount": 5.54,
+      "lineTotal": 60.9
+    },
+    {
+      "ref": "R00406",
+      "description": "Motor tubular",
+      "quantity": 5,
+      "unitPrice": 61.75,
+      "discountRate": 0,
+      "base": 308.75,
+      "vatRate": 10,
+      "vatAmount": 30.88,
+      "lineTotal": 339.63
+    }
+  ],
+  "subtotal": 952.99,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 952.99,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 952.99,
+      "vatAmount": 95.3
+    }
+  ],
+  "vatAmount": 95.3,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1048.29
+}

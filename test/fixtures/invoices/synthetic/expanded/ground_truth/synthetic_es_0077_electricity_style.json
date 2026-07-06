@@ -1,0 +1,158 @@
+{
+  "invoice_id": "synthetic_es_0077",
+  "document_title": "FACTURA ELECTRICIDAD - DEMO",
+  "invoice_type": "electricidad",
+  "layout_id": "electricity_style",
+  "source_inspiration": [
+    "Factura eléctrica española sintética",
+    "IDSEM"
+  ],
+  "invoice_number": "F-2025-00077",
+  "date": "2025-07-03",
+  "due_date": "2025-08-17",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100077",
+    "address": "Calle Mayor, 72 - Sevilla",
+    "email": "recambios.delta.demo.sl.77@example.test",
+    "phone": "+34 900 077 548"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100377",
+    "address": "Camino del Almacén, 125 - Málaga",
+    "email": "proyecto.alfa.demo.sl.377@example.test",
+    "phone": "+34 900 377 267"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-9149-1",
+      "description": "Impuesto eléctrico demo",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 2.1,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2.1,
+      "vat_amount": 0.21,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2.31,
+      "line_total_with_taxes": 2.31,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-2133-2",
+      "description": "Energía consumida P1",
+      "unit": "ud",
+      "quantity": 101.0,
+      "unit_price": 0.138,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 13.94,
+      "vat_amount": 1.39,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 15.33,
+      "line_total_with_taxes": 15.33,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-7787-3",
+      "description": "Energía consumida P1",
+      "unit": "h",
+      "quantity": 281.0,
+      "unit_price": 0.151,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 42.43,
+      "vat_amount": 8.91,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 51.34,
+      "line_total_with_taxes": 51.34,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-6350-4",
+      "description": "Energía consumida P1",
+      "unit": "pack",
+      "quantity": 88.0,
+      "unit_price": 0.151,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 13.29,
+      "vat_amount": 2.79,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 16.08,
+      "line_total_with_taxes": 16.08,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-1915-5",
+      "description": "Alquiler equipo medida",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 1.12,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1.12,
+      "vat_amount": 0.24,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1.36,
+      "line_total_with_taxes": 1.36,
+      "period": "01/01-31/01"
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 72.88,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 72.88,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 16.04,
+        "vat_amount": 1.6,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 56.84,
+        "vat_amount": 11.94,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 13.54,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 86.42,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Periodo": "period",
+    "Concepto": "description",
+    "Consumo": "quantity",
+    "Precio": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

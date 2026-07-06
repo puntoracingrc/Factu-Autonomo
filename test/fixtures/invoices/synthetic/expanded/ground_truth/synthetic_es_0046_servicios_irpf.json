@@ -1,0 +1,148 @@
+{
+  "invoice_id": "synthetic_es_0046",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00046",
+  "date": "2024-11-27",
+  "due_date": "2024-12-04",
+  "supplier": {
+    "name": "Soluciones Nube Ficticias SL",
+    "tax_id": "B-00100046",
+    "address": "Camino del Almacén, 48 - Alicante",
+    "email": "soluciones.nube.ficticia.46@example.test",
+    "phone": "+34 900 046 378"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100346",
+    "address": "Plaza del Mercado, 116 - Barcelona",
+    "email": "cliente.demo.sl.346@example.test",
+    "phone": "+34 900 346 551"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-8282-1",
+      "description": "Transporte y manipulación",
+      "unit": "kg",
+      "quantity": 4.0,
+      "unit_price": 181.14,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 724.56,
+      "vat_amount": 72.46,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 797.02,
+      "line_total_with_taxes": 797.02,
+      "period": null
+    },
+    {
+      "reference": "REF-1401-2",
+      "description": "Pintura base agua",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 285.3,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 855.9,
+      "vat_amount": 85.59,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 941.49,
+      "line_total_with_taxes": 941.49,
+      "period": null
+    },
+    {
+      "reference": "REF-8592-3",
+      "description": "Tornillería inoxidable",
+      "unit": "servicio",
+      "quantity": 10.0,
+      "unit_price": 78.98,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 789.8,
+      "vat_amount": 31.59,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 821.39,
+      "line_total_with_taxes": 821.39,
+      "period": null
+    },
+    {
+      "reference": "REF-5016-4",
+      "description": "Pack de consumibles - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "h",
+      "quantity": 0.8,
+      "unit_price": 344.48,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 275.58,
+      "vat_amount": 57.87,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 333.45,
+      "line_total_with_taxes": 333.45,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2645.84,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2645.84,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1580.46,
+        "vat_amount": 158.05,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 789.8,
+        "vat_amount": 31.59,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 275.58,
+        "vat_amount": 57.87,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 247.51,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 396.88,
+    "total": 2496.47,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

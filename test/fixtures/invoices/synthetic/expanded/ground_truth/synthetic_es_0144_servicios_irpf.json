@@ -1,0 +1,118 @@
+{
+  "invoice_id": "synthetic_es_0144",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2024-00144",
+  "date": "2024-08-17",
+  "due_date": "2024-09-16",
+  "supplier": {
+    "name": "Talleres Vega Sintéticos SL",
+    "tax_id": "B-00100144",
+    "address": "Paseo de la Industria, 4 - Málaga",
+    "email": "talleres.vega.sinteticos.144@example.test",
+    "phone": "+34 900 144 594"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100444",
+    "address": "Paseo de la Industria, 147 - Murcia",
+    "email": "proyecto.alfa.demo.sl.444@example.test",
+    "phone": "+34 900 444 147"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-8510-1",
+      "description": "Material de embalaje",
+      "unit": "m",
+      "quantity": 12.0,
+      "unit_price": 60.15,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 721.8,
+      "vat_amount": 151.58,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 873.38,
+      "line_total_with_taxes": 873.38,
+      "period": null
+    },
+    {
+      "reference": "REF-1296-2",
+      "description": "Sensor de presencia",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 46.82,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 46.82,
+      "vat_amount": 9.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 56.65,
+      "line_total_with_taxes": 56.65,
+      "period": null
+    },
+    {
+      "reference": "REF-6105-3",
+      "description": "Producto alimentario demo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 147.41,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1768.92,
+      "vat_amount": 371.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2140.39,
+      "line_total_with_taxes": 2140.39,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2537.54,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2537.54,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2537.54,
+        "vat_amount": 532.88,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 532.88,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 380.63,
+    "total": 2689.79,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

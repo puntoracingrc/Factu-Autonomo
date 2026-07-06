@@ -1,0 +1,104 @@
+{
+  "invoice_id": "synthetic_es_0163",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2025-00163",
+  "date": "2025-02-27",
+  "due_date": "2025-04-13",
+  "supplier": {
+    "name": "Talleres Vega Sintéticos SL",
+    "tax_id": "B-00100163",
+    "address": "Camino del Almacén, 149 - Bilbao",
+    "email": "talleres.vega.sinteticos.163@example.test",
+    "phone": "+34 900 163 502"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100463",
+    "address": "Ronda Fiscal, 118 - Sevilla",
+    "email": "proyecto.alfa.demo.sl.463@example.test",
+    "phone": "+34 900 463 533"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-4234-1",
+      "description": "Horas de consultoría",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 403.68,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2018.4,
+      "vat_amount": 423.86,
+      "recargo_rate": 5.2,
+      "recargo_amount": 104.96,
+      "line_total_with_vat": 2442.26,
+      "line_total_with_taxes": 2547.22,
+      "period": null
+    },
+    {
+      "reference": "REF-7368-2",
+      "description": "Kit de fijación",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 326.56,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 326.56,
+      "vat_amount": 68.58,
+      "recargo_rate": 5.2,
+      "recargo_amount": 16.98,
+      "line_total_with_vat": 395.14,
+      "line_total_with_taxes": 412.12,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2344.96,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2344.96,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2344.96,
+        "vat_amount": 492.44,
+        "recargo_rate": 5.2,
+        "recargo_amount": 121.94
+      }
+    ],
+    "vat_total": 492.44,
+    "recargo_total": 121.94,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2959.34,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

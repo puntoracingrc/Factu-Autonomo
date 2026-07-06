@@ -1,0 +1,142 @@
+{
+  "invoice_id": "synthetic_es_0126",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00126",
+  "date": "2024-05-25",
+  "due_date": "2024-06-01",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100126",
+    "address": "Calle Roble, 122 - A Coruña",
+    "email": "maderas.prueba.sa.126@example.test",
+    "phone": "+34 900 126 780"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100426",
+    "address": "Camino del Almacén, 106 - Valencia",
+    "email": "cliente.demo.sl.426@example.test",
+    "phone": "+34 900 426 407"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-5355-1",
+      "description": "Rodamiento industrial",
+      "unit": "servicio",
+      "quantity": 3.97,
+      "unit_price": 331.01,
+      "discount_rate": 15.0,
+      "vat_rate": 21.0,
+      "line_base": 1116.99,
+      "vat_amount": 234.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1351.56,
+      "line_total_with_taxes": 1351.56,
+      "period": null
+    },
+    {
+      "reference": "REF-9327-2",
+      "description": "Rodamiento industrial - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 6.0,
+      "unit_price": 29.1,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 174.6,
+      "vat_amount": 6.98,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 181.58,
+      "line_total_with_taxes": 181.58,
+      "period": null
+    },
+    {
+      "reference": "REF-9160-3",
+      "description": "Conjunto persiana",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 119.34,
+      "discount_rate": 20.0,
+      "vat_rate": 4.0,
+      "line_base": 95.47,
+      "vat_amount": 3.82,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 99.29,
+      "line_total_with_taxes": 99.29,
+      "period": null
+    },
+    {
+      "reference": "REF-4545-4",
+      "description": "Equipo informático",
+      "unit": "pack",
+      "quantity": 2.11,
+      "unit_price": 107.16,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": 180.89,
+      "vat_amount": 37.99,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 218.88,
+      "line_total_with_taxes": 218.88,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1567.95,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1567.95,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1297.88,
+        "vat_amount": 272.56,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 270.07,
+        "vat_amount": 10.8,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 283.36,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1851.31,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

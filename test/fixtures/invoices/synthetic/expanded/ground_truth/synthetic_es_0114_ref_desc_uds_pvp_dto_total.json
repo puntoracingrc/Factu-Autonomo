@@ -1,0 +1,134 @@
+{
+  "invoice_id": "synthetic_es_0114",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2024-00114",
+  "date": "2024-03-02",
+  "due_date": "2024-03-09",
+  "supplier": {
+    "name": "Instalaciones Trama SL",
+    "tax_id": "B-00100114",
+    "address": "Paseo de la Industria, 86 - Madrid",
+    "email": "instalaciones.trama.sl.114@example.test",
+    "phone": "+34 900 114 238"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100414",
+    "address": "Avenida del Puerto, 77 - A Coruña",
+    "email": "distribuidor.beta.sl.414@example.test",
+    "phone": "+34 900 414 112"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-4744-1",
+      "description": "Mano de obra especializada",
+      "unit": "ud",
+      "quantity": 2.0,
+      "unit_price": 394.23,
+      "discount_rate": 20.0,
+      "vat_rate": 4.0,
+      "line_base": 630.77,
+      "vat_amount": 25.23,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 656.0,
+      "line_total_with_taxes": 656.0,
+      "period": null
+    },
+    {
+      "reference": "REF-7509-2",
+      "description": "Licencia mensual software",
+      "unit": "m",
+      "quantity": 10.0,
+      "unit_price": 418.55,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4185.5,
+      "vat_amount": 878.96,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5064.46,
+      "line_total_with_taxes": 5064.46,
+      "period": null
+    },
+    {
+      "reference": "REF-3736-3",
+      "description": "Pantalla LED",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 158.46,
+      "discount_rate": 20.0,
+      "vat_rate": 10.0,
+      "line_base": 1267.68,
+      "vat_amount": 126.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1394.45,
+      "line_total_with_taxes": 1394.45,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6083.95,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6083.95,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 630.77,
+        "vat_amount": 25.23,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4185.5,
+        "vat_amount": 878.96,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1267.68,
+        "vat_amount": 126.77,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1030.96,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 7114.91,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

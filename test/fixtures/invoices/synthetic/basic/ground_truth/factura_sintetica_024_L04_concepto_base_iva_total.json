@@ -1,0 +1,60 @@
+{
+  "layoutId": "L04_concepto_base_iva_total",
+  "supplierName": "Tecno Oficina SL",
+  "supplierNif": "B66778899",
+  "supplierAddress": "C/ Olivo 18, 29005 Malaga",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0024",
+  "date": "2026-02-23",
+  "lines": [
+    {
+      "ref": "R02401",
+      "description": "Motor tubular",
+      "quantity": 3,
+      "unitPrice": 125.37,
+      "discountRate": 0,
+      "base": 376.11,
+      "vatRate": 21,
+      "vatAmount": 78.98,
+      "lineTotal": 455.09
+    },
+    {
+      "ref": "R02402",
+      "description": "Tubo octogonal",
+      "quantity": 3,
+      "unitPrice": 55.89,
+      "discountRate": 0,
+      "base": 167.67,
+      "vatRate": 21,
+      "vatAmount": 35.21,
+      "lineTotal": 202.88
+    },
+    {
+      "ref": "R02403",
+      "description": "Transporte",
+      "quantity": 3,
+      "unitPrice": 76.68,
+      "discountRate": 0,
+      "base": 230.04,
+      "vatRate": 21,
+      "vatAmount": 48.31,
+      "lineTotal": 278.35
+    }
+  ],
+  "subtotal": 773.82,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 773.82,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 773.82,
+      "vatAmount": 162.5
+    }
+  ],
+  "vatAmount": 162.5,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 936.32
+}

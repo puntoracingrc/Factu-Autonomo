@@ -1,0 +1,38 @@
+{
+  "layoutId": "L10_formato_compacto",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Usuario Sintetico",
+  "clientNif": "87654321X",
+  "invoiceNumber": "FS-2026-0020",
+  "date": "2026-06-03",
+  "lines": [
+    {
+      "ref": "R02001",
+      "description": "Mano de obra",
+      "quantity": 1,
+      "unitPrice": 15.18,
+      "discountRate": 0,
+      "base": 15.18,
+      "vatRate": 10,
+      "vatAmount": 1.52,
+      "lineTotal": 16.7
+    }
+  ],
+  "subtotal": 15.18,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 15.18,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 15.18,
+      "vatAmount": 1.52
+    }
+  ],
+  "vatAmount": 1.52,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 16.7
+}

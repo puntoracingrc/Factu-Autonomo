@@ -1,0 +1,86 @@
+{
+  "invoice_id": "synthetic_es_0006",
+  "document_title": "FACTURA SIMPLIFICADA",
+  "invoice_type": "simplificada",
+  "layout_id": "simplificada_ticket",
+  "source_inspiration": [
+    "Factura simplificada",
+    "Declarando / Holded"
+  ],
+  "invoice_number": "F-2024-00006",
+  "date": "2024-04-18",
+  "due_date": "2024-04-18",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100006",
+    "address": "Calle de la Técnica, 13 - Valencia",
+    "email": "papeleria.fiscal.demo.sl.6@example.test",
+    "phone": "+34 900 006 578"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100306",
+    "address": "Calle Roble, 140 - Alicante",
+    "email": "taller.cliente.ficticio..306@example.test",
+    "phone": "+34 900 306 717"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-3247-1",
+      "description": "Producto alimentario demo",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 107.8,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1078.0,
+      "vat_amount": 107.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1185.8,
+      "line_total_with_taxes": 1185.8,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1078.0,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1078.0,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1078.0,
+        "vat_amount": 107.8,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 107.8,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1185.8,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Ud.": "quantity",
+    "P. Unit": "unit_price",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

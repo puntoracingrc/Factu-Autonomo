@@ -1,0 +1,142 @@
+{
+  "invoice_id": "synthetic_es_0007",
+  "document_title": "FACTURA ELECTRICIDAD - DEMO",
+  "invoice_type": "electricidad",
+  "layout_id": "electricity_style",
+  "source_inspiration": [
+    "Factura eléctrica española sintética",
+    "IDSEM"
+  ],
+  "invoice_number": "F-2024-00007",
+  "date": "2024-04-07",
+  "due_date": "2024-05-07",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100007",
+    "address": "Calle de la Técnica, 47 - Murcia",
+    "email": "consultoria.alameda.demo.7@example.test",
+    "phone": "+34 900 007 570"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100307",
+    "address": "Calle de la Técnica, 146 - Zaragoza",
+    "email": "obras.y.reformas.test.sl.307@example.test",
+    "phone": "+34 900 307 122"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-8147-1",
+      "description": "Energía consumida P1",
+      "unit": "pack",
+      "quantity": 358.0,
+      "unit_price": 0.189,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 67.66,
+      "vat_amount": 6.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 74.43,
+      "line_total_with_taxes": 74.43,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-2505-2",
+      "description": "Alquiler equipo medida",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 0.81,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 0.81,
+      "vat_amount": 0.17,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 0.98,
+      "line_total_with_taxes": 0.98,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-5597-3",
+      "description": "Potencia contratada P1",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 0.0921,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 0.28,
+      "vat_amount": 0.03,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 0.31,
+      "line_total_with_taxes": 0.31,
+      "period": "01/01-31/01"
+    },
+    {
+      "reference": "REF-8747-4",
+      "description": "Alquiler equipo medida",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 1.12,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1.12,
+      "vat_amount": 0.24,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1.36,
+      "line_total_with_taxes": 1.36,
+      "period": "01/01-31/01"
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 69.87,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 69.87,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 67.94,
+        "vat_amount": 6.8,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1.93,
+        "vat_amount": 0.41,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 7.21,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 77.08,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Periodo": "period",
+    "Concepto": "description",
+    "Consumo": "quantity",
+    "Precio": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,38 @@
+{
+  "layoutId": "L10_formato_compacto",
+  "supplierName": "Materiales Vega SL",
+  "supplierNif": "B99887766",
+  "supplierAddress": "Pol. La Estrella nave 3, 41016 Sevilla",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0010",
+  "date": "2026-05-23",
+  "lines": [
+    {
+      "ref": "R01001",
+      "description": "Mano de obra",
+      "quantity": 1,
+      "unitPrice": 27.89,
+      "discountRate": 0,
+      "base": 27.89,
+      "vatRate": 21,
+      "vatAmount": 5.86,
+      "lineTotal": 33.75
+    }
+  ],
+  "subtotal": 27.89,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 27.89,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 27.89,
+      "vatAmount": 5.86
+    }
+  ],
+  "vatAmount": 5.86,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 33.75
+}

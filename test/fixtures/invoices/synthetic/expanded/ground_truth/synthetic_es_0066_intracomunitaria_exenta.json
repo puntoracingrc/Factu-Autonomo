@@ -1,0 +1,135 @@
+{
+  "invoice_id": "synthetic_es_0066",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2025-00066",
+  "date": "2025-04-01",
+  "due_date": "2025-04-08",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100066",
+    "address": "Plaza del Mercado, 67 - Barcelona",
+    "email": "comercial.mediterranea.s.66@example.test",
+    "phone": "+34 900 066 689"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200366J",
+    "address": "Calle Mayor, 34 - Palma",
+    "email": "autonomo.de.prueba.366@example.test",
+    "phone": "+34 900 366 990"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-5877-1",
+      "description": "Kit de fijación",
+      "unit": "servicio",
+      "quantity": 2.0,
+      "unit_price": 449.77,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 899.54,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 899.54,
+      "line_total_with_taxes": 899.54,
+      "period": null
+    },
+    {
+      "reference": "REF-4455-2",
+      "description": "Horas de consultoría",
+      "unit": "m",
+      "quantity": 2.48,
+      "unit_price": 130.61,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 323.91,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 323.91,
+      "line_total_with_taxes": 323.91,
+      "period": null
+    },
+    {
+      "reference": "REF-2334-3",
+      "description": "Repuesto mecánico",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 354.87,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 354.87,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 354.87,
+      "line_total_with_taxes": 354.87,
+      "period": null
+    },
+    {
+      "reference": "REF-4414-4",
+      "description": "Perfil de aluminio",
+      "unit": "servicio",
+      "quantity": 4.0,
+      "unit_price": 416.72,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1666.88,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1666.88,
+      "line_total_with_taxes": 1666.88,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3245.2,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3245.2,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 3245.2,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3245.2,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

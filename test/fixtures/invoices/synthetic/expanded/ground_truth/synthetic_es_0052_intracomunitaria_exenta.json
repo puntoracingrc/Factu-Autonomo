@@ -1,0 +1,151 @@
+{
+  "invoice_id": "synthetic_es_0052",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2025-00052",
+  "date": "2025-03-10",
+  "due_date": "2025-04-09",
+  "supplier": {
+    "name": "Instalaciones Trama SL",
+    "tax_id": "B-00100052",
+    "address": "Calle Gran Vía, 120 - Bilbao",
+    "email": "instalaciones.trama.sl.52@example.test",
+    "phone": "+34 900 052 746"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100352",
+    "address": "Paseo de la Industria, 60 - Valencia",
+    "email": "empresa.receptora.fictic.352@example.test",
+    "phone": "+34 900 352 179"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-6655-1",
+      "description": "Rodamiento industrial",
+      "unit": "kg",
+      "quantity": 0.53,
+      "unit_price": 314.98,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 166.94,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 166.94,
+      "line_total_with_taxes": 166.94,
+      "period": null
+    },
+    {
+      "reference": "REF-3708-2",
+      "description": "Conjunto persiana - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 189.02,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 945.1,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 945.1,
+      "line_total_with_taxes": 945.1,
+      "period": null
+    },
+    {
+      "reference": "REF-7823-3",
+      "description": "Revisión técnica",
+      "unit": "servicio",
+      "quantity": 3.0,
+      "unit_price": 66.1,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 198.3,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 198.3,
+      "line_total_with_taxes": 198.3,
+      "period": null
+    },
+    {
+      "reference": "REF-3056-4",
+      "description": "Producto alimentario demo",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 444.04,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 444.04,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 444.04,
+      "line_total_with_taxes": 444.04,
+      "period": null
+    },
+    {
+      "reference": "REF-7017-5",
+      "description": "Mantenimiento preventivo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 397.73,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 397.73,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 397.73,
+      "line_total_with_taxes": 397.73,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2152.11,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2152.11,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 2152.11,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 2152.11,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,71 @@
+{
+  "layoutId": "L07_con_descuento_global",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0007",
+  "date": "2026-03-23",
+  "lines": [
+    {
+      "ref": "R00701",
+      "description": "Revision anual",
+      "quantity": 2,
+      "unitPrice": 14.71,
+      "discountRate": 0,
+      "base": 29.42,
+      "vatRate": 21,
+      "vatAmount": 6.18,
+      "lineTotal": 35.6
+    },
+    {
+      "ref": "R00702",
+      "description": "Mano de obra",
+      "quantity": 8,
+      "unitPrice": 195.62,
+      "discountRate": 0,
+      "base": 1564.96,
+      "vatRate": 21,
+      "vatAmount": 328.64,
+      "lineTotal": 1893.6
+    },
+    {
+      "ref": "R00703",
+      "description": "Mando a distancia",
+      "quantity": 3,
+      "unitPrice": 55.25,
+      "discountRate": 0,
+      "base": 165.75,
+      "vatRate": 21,
+      "vatAmount": 34.81,
+      "lineTotal": 200.56
+    },
+    {
+      "ref": "R00704",
+      "description": "Material electrico",
+      "quantity": 4,
+      "unitPrice": 53.34,
+      "discountRate": 0,
+      "base": 213.36,
+      "vatRate": 21,
+      "vatAmount": 44.81,
+      "lineTotal": 258.17
+    }
+  ],
+  "subtotal": 1973.49,
+  "globalDiscountRate": 5,
+  "globalDiscountAmount": 98.67,
+  "taxBase": 1874.82,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1874.82,
+      "vatAmount": 393.71
+    }
+  ],
+  "vatAmount": 393.71,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2268.53
+}

@@ -1,0 +1,127 @@
+{
+  "invoice_id": "synthetic_es_0095",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2025-00095",
+  "date": "2025-10-23",
+  "due_date": "2025-11-22",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100095",
+    "address": "Camino del Almacén, 22 - A Coruña",
+    "email": "electro.hogar.simulado.s.95@example.test",
+    "phone": "+34 900 095 551"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100395",
+    "address": "Calle Gran Vía, 103 - Zaragoza",
+    "email": "obras.y.reformas.test.sl.395@example.test",
+    "phone": "+34 900 395 270"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-6785-1",
+      "description": "Tornillería inoxidable",
+      "unit": "h",
+      "quantity": 12.0,
+      "unit_price": 353.14,
+      "discount_rate": 5.0,
+      "vat_rate": 10.0,
+      "line_base": -4025.8,
+      "vat_amount": -402.58,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -4428.38,
+      "line_total_with_taxes": -4428.38,
+      "period": null
+    },
+    {
+      "reference": "REF-1498-2",
+      "description": "Servicio urgente 24h",
+      "unit": "servicio",
+      "quantity": 4.0,
+      "unit_price": 61.65,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -246.6,
+      "vat_amount": -51.79,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -298.39,
+      "line_total_with_taxes": -298.39,
+      "period": null
+    },
+    {
+      "reference": "REF-2181-3",
+      "description": "Servicio de instalación",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 315.97,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -315.97,
+      "vat_amount": -66.35,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -382.32,
+      "line_total_with_taxes": -382.32,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -4588.37,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -4588.37,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -4025.8,
+        "vat_amount": -402.58,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -562.57,
+        "vat_amount": -118.14,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -520.72,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -5109.09,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2025-00046"
+}

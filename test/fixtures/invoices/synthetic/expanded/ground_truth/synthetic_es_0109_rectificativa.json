@@ -1,0 +1,127 @@
+{
+  "invoice_id": "synthetic_es_0109",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2026-00109",
+  "date": "2026-02-08",
+  "due_date": "2026-03-25",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100109",
+    "address": "Camino del Almacén, 109 - Madrid",
+    "email": "ferreteria.modelo.sl.109@example.test",
+    "phone": "+34 900 109 292"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100409",
+    "address": "Calle Roble, 40 - Sevilla",
+    "email": "empresa.receptora.fictic.409@example.test",
+    "phone": "+34 900 409 764"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-5089-1",
+      "description": "Pintura base agua",
+      "unit": "servicio",
+      "quantity": 2.02,
+      "unit_price": 388.18,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": -784.12,
+      "vat_amount": -78.41,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -862.53,
+      "line_total_with_taxes": -862.53,
+      "period": null
+    },
+    {
+      "reference": "REF-1455-2",
+      "description": "Rodamiento industrial",
+      "unit": "kg",
+      "quantity": 12.0,
+      "unit_price": 208.29,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": -1999.58,
+      "vat_amount": -419.91,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -2419.49,
+      "line_total_with_taxes": -2419.49,
+      "period": null
+    },
+    {
+      "reference": "REF-6314-3",
+      "description": "Material de embalaje",
+      "unit": "servicio",
+      "quantity": 3.0,
+      "unit_price": 226.33,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": -645.04,
+      "vat_amount": -135.46,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -780.5,
+      "line_total_with_taxes": -780.5,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -3428.74,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -3428.74,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -784.12,
+        "vat_amount": -78.41,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -2644.62,
+        "vat_amount": -555.37,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -633.78,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -4062.52,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2026-00063"
+}

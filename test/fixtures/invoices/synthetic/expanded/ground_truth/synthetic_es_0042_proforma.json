@@ -1,0 +1,149 @@
+{
+  "invoice_id": "synthetic_es_0042",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2025-00042",
+  "date": "2025-01-05",
+  "due_date": "2025-02-04",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100042",
+    "address": "Camino del Almacén, 103 - Alicante",
+    "email": "papeleria.fiscal.demo.sl.42@example.test",
+    "phone": "+34 900 042 720"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100342",
+    "address": "Camino del Almacén, 24 - Bilbao",
+    "email": "obras.y.reformas.test.sl.342@example.test",
+    "phone": "+34 900 342 110"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-4604-1",
+      "description": "Pantalla LED",
+      "unit": "ud",
+      "quantity": 1.0,
+      "unit_price": 8.25,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 8.25,
+      "vat_amount": 1.73,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 9.98,
+      "line_total_with_taxes": 9.98,
+      "period": null
+    },
+    {
+      "reference": "REF-6288-2",
+      "description": "Revisión técnica",
+      "unit": "h",
+      "quantity": 10.0,
+      "unit_price": 301.64,
+      "discount_rate": 20.0,
+      "vat_rate": 10.0,
+      "line_base": 2413.12,
+      "vat_amount": 241.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2654.43,
+      "line_total_with_taxes": 2654.43,
+      "period": null
+    },
+    {
+      "reference": "REF-4502-3",
+      "description": "Asesoría documental",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 147.44,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1474.4,
+      "vat_amount": 58.98,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1533.38,
+      "line_total_with_taxes": 1533.38,
+      "period": null
+    },
+    {
+      "reference": "REF-2962-4",
+      "description": "Motor tubular demo",
+      "unit": "m",
+      "quantity": 8.22,
+      "unit_price": 95.79,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 787.39,
+      "vat_amount": 78.74,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 866.13,
+      "line_total_with_taxes": 866.13,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4683.16,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4683.16,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 8.25,
+        "vat_amount": 1.73,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 3200.51,
+        "vat_amount": 320.05,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1474.4,
+        "vat_amount": 58.98,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 380.76,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5063.92,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

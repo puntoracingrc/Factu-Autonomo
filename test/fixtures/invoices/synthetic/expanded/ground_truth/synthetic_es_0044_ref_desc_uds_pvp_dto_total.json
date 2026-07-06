@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0044",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2025-00044",
+  "date": "2025-01-26",
+  "due_date": "2025-02-10",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100044",
+    "address": "Avenida del Puerto, 20 - Zaragoza",
+    "email": "oficina.tecnica.aurora.s.44@example.test",
+    "phone": "+34 900 044 171"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100344",
+    "address": "Calle Mayor, 130 - Valladolid",
+    "email": "cliente.demo.sl.344@example.test",
+    "phone": "+34 900 344 987"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-2061-1",
+      "description": "Producto alimentario demo",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 34.6,
+      "discount_rate": 20.0,
+      "vat_rate": 21.0,
+      "line_base": 138.4,
+      "vat_amount": 29.06,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 167.46,
+      "line_total_with_taxes": 167.46,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 138.4,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 138.4,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 138.4,
+        "vat_amount": 29.06,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 29.06,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 167.46,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

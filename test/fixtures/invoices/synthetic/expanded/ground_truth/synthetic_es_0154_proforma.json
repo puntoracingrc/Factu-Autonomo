@@ -1,0 +1,110 @@
+{
+  "invoice_id": "synthetic_es_0154",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00154",
+  "date": "2024-10-24",
+  "due_date": "2024-12-08",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100154",
+    "address": "Calle Mayor, 19 - Zaragoza",
+    "email": "logistica.ficticia.sl.154@example.test",
+    "phone": "+34 900 154 377"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100454",
+    "address": "Plaza del Mercado, 80 - Valladolid",
+    "email": "obras.y.reformas.test.sl.454@example.test",
+    "phone": "+34 900 454 881"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-8587-1",
+      "description": "Producto alimentario demo",
+      "unit": "pack",
+      "quantity": 12.0,
+      "unit_price": 304.79,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 3657.48,
+      "vat_amount": 768.07,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4425.55,
+      "line_total_with_taxes": 4425.55,
+      "period": null
+    },
+    {
+      "reference": "REF-7826-2",
+      "description": "Equipo informático",
+      "unit": "servicio",
+      "quantity": 4.09,
+      "unit_price": 76.95,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 314.73,
+      "vat_amount": 12.59,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 327.32,
+      "line_total_with_taxes": 327.32,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3972.21,
+    "global_discount_rate": 10.0,
+    "global_discount_amount": 397.22,
+    "taxable_base": 3574.99,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3291.73,
+        "vat_amount": 691.26,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 283.26,
+        "vat_amount": 11.33,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 702.59,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 4277.58,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

@@ -1,0 +1,49 @@
+{
+  "layoutId": "L03_art_cant_unit_base_iva_total",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0013",
+  "date": "2026-05-29",
+  "lines": [
+    {
+      "ref": "R01301",
+      "description": "Guia lateral",
+      "quantity": 4,
+      "unitPrice": 39.49,
+      "discountRate": 0,
+      "base": 157.96,
+      "vatRate": 21,
+      "vatAmount": 33.17,
+      "lineTotal": 191.13
+    },
+    {
+      "ref": "R01302",
+      "description": "Material electrico",
+      "quantity": 8,
+      "unitPrice": 206.52,
+      "discountRate": 0,
+      "base": 1652.16,
+      "vatRate": 21,
+      "vatAmount": 346.95,
+      "lineTotal": 1999.11
+    }
+  ],
+  "subtotal": 1810.12,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1810.12,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1810.12,
+      "vatAmount": 380.13
+    }
+  ],
+  "vatAmount": 380.13,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2190.25
+}

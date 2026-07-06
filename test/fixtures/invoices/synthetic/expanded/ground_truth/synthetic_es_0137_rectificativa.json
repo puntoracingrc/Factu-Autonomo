@@ -1,0 +1,134 @@
+{
+  "invoice_id": "synthetic_es_0137",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2024-00137",
+  "date": "2024-08-19",
+  "due_date": "2024-09-18",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100137",
+    "address": "Calle Mayor, 141 - Bilbao",
+    "email": "consultoria.alameda.demo.137@example.test",
+    "phone": "+34 900 137 697"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200437S",
+    "address": "Paseo de la Industria, 17 - Alicante",
+    "email": "particular.sintetico.437@example.test",
+    "phone": "+34 900 437 657"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-8134-1",
+      "description": "Rodamiento industrial - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 12.0,
+      "unit_price": 113.27,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": -1223.32,
+      "vat_amount": -256.9,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -1480.22,
+      "line_total_with_taxes": -1480.22,
+      "period": null
+    },
+    {
+      "reference": "REF-6024-2",
+      "description": "Material de embalaje",
+      "unit": "pack",
+      "quantity": 0.57,
+      "unit_price": 356.59,
+      "discount_rate": 5.0,
+      "vat_rate": 4.0,
+      "line_base": -193.09,
+      "vat_amount": -7.72,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -200.81,
+      "line_total_with_taxes": -200.81,
+      "period": null
+    },
+    {
+      "reference": "REF-9454-3",
+      "description": "Bolsa de recambios variados",
+      "unit": "m",
+      "quantity": 4.11,
+      "unit_price": 332.52,
+      "discount_rate": 5.0,
+      "vat_rate": 10.0,
+      "line_base": -1298.32,
+      "vat_amount": -129.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -1428.15,
+      "line_total_with_taxes": -1428.15,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -2714.73,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -2714.73,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -1223.32,
+        "vat_amount": -256.9,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": -193.09,
+        "vat_amount": -7.72,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -1298.32,
+        "vat_amount": -129.83,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -394.45,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -3109.18,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2024-00092"
+}

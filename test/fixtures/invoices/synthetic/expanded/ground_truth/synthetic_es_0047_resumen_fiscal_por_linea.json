@@ -1,0 +1,133 @@
+{
+  "invoice_id": "synthetic_es_0047",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2024-00047",
+  "date": "2024-12-20",
+  "due_date": "2025-01-04",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100047",
+    "address": "Ronda Fiscal, 79 - Valladolid",
+    "email": "maderas.prueba.sa.47@example.test",
+    "phone": "+34 900 047 388"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100347",
+    "address": "Paseo de la Industria, 120 - Palma",
+    "email": "startup.ejemplo.sl.347@example.test",
+    "phone": "+34 900 347 783"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-1732-1",
+      "description": "Asesoría documental - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 141.7,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 141.7,
+      "vat_amount": 14.17,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 155.87,
+      "line_total_with_taxes": 155.87,
+      "period": null
+    },
+    {
+      "reference": "REF-8986-2",
+      "description": "Licencia mensual software",
+      "unit": "kg",
+      "quantity": 4.84,
+      "unit_price": 289.28,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1400.12,
+      "vat_amount": 294.03,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1694.15,
+      "line_total_with_taxes": 1694.15,
+      "period": null
+    },
+    {
+      "reference": "REF-2060-3",
+      "description": "Licencia mensual software",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 144.13,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 144.13,
+      "vat_amount": 5.77,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 149.9,
+      "line_total_with_taxes": 149.9,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1685.95,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1685.95,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 141.7,
+        "vat_amount": 14.17,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1400.12,
+        "vat_amount": 294.03,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 144.13,
+        "vat_amount": 5.77,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 313.97,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1999.92,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

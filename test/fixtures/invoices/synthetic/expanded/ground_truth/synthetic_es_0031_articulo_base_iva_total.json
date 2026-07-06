@@ -1,0 +1,134 @@
+{
+  "invoice_id": "synthetic_es_0031",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2024-00031",
+  "date": "2024-09-05",
+  "due_date": "2024-10-05",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100031",
+    "address": "Camino del Almacén, 89 - Zaragoza",
+    "email": "papeleria.fiscal.demo.sl.31@example.test",
+    "phone": "+34 900 031 157"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100331",
+    "address": "Avenida del Puerto, 22 - Alicante",
+    "email": "distribuidor.beta.sl.331@example.test",
+    "phone": "+34 900 331 498"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-5690-1",
+      "description": "Pintura base agua",
+      "unit": "pack",
+      "quantity": 2.0,
+      "unit_price": 308.48,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 616.96,
+      "vat_amount": 24.68,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 641.64,
+      "line_total_with_taxes": 641.64,
+      "period": null
+    },
+    {
+      "reference": "REF-9055-2",
+      "description": "Pack de consumibles",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 154.76,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 619.04,
+      "vat_amount": 61.9,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 680.94,
+      "line_total_with_taxes": 680.94,
+      "period": null
+    },
+    {
+      "reference": "REF-4302-3",
+      "description": "Soporte premium",
+      "unit": "servicio",
+      "quantity": 2.34,
+      "unit_price": 142.04,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 332.37,
+      "vat_amount": 69.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 402.17,
+      "line_total_with_taxes": 402.17,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1568.37,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1568.37,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 616.96,
+        "vat_amount": 24.68,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 619.04,
+        "vat_amount": 61.9,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 332.37,
+        "vat_amount": 69.8,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 156.38,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1724.75,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

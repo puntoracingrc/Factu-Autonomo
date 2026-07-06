@@ -1,0 +1,111 @@
+{
+  "invoice_id": "synthetic_es_0051",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2025-00051",
+  "date": "2025-02-11",
+  "due_date": "2025-02-18",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100051",
+    "address": "Camino del Almacén, 57 - Bilbao",
+    "email": "distribuciones.iberia.te.51@example.test",
+    "phone": "+34 900 051 366"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100351",
+    "address": "Avenida del Puerto, 76 - Valencia",
+    "email": "taller.cliente.ficticio..351@example.test",
+    "phone": "+34 900 351 427"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-3292-1",
+      "description": "Servicio urgente 24h",
+      "unit": "servicio",
+      "quantity": 3.88,
+      "unit_price": 140.08,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 543.51,
+      "vat_amount": 21.74,
+      "recargo_rate": 0.5,
+      "recargo_amount": 2.72,
+      "line_total_with_vat": 565.25,
+      "line_total_with_taxes": 567.97,
+      "period": null
+    },
+    {
+      "reference": "REF-5560-2",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 214.72,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1073.6,
+      "vat_amount": 225.46,
+      "recargo_rate": 5.2,
+      "recargo_amount": 55.83,
+      "line_total_with_vat": 1299.06,
+      "line_total_with_taxes": 1354.89,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 1617.11,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 1617.11,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 543.51,
+        "vat_amount": 21.74,
+        "recargo_rate": 0.5,
+        "recargo_amount": 2.72
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1073.6,
+        "vat_amount": 225.46,
+        "recargo_rate": 5.2,
+        "recargo_amount": 55.83
+      }
+    ],
+    "vat_total": 247.2,
+    "recargo_total": 58.55,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 1922.86,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

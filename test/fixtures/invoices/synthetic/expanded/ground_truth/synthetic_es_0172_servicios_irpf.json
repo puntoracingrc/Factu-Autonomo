@@ -1,0 +1,148 @@
+{
+  "invoice_id": "synthetic_es_0172",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2025-00172",
+  "date": "2025-03-16",
+  "due_date": "2025-03-23",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100172",
+    "address": "Paseo de la Industria, 16 - A Coruña",
+    "email": "papeleria.fiscal.demo.sl.172@example.test",
+    "phone": "+34 900 172 426"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100472",
+    "address": "Camino del Almacén, 43 - Sevilla",
+    "email": "tienda.piloto.sl.472@example.test",
+    "phone": "+34 900 472 900"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-3751-1",
+      "description": "Desplazamiento",
+      "unit": "pack",
+      "quantity": 1.0,
+      "unit_price": 403.01,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 403.01,
+      "vat_amount": 84.63,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 487.64,
+      "line_total_with_taxes": 487.64,
+      "period": null
+    },
+    {
+      "reference": "REF-5525-2",
+      "description": "Mano de obra especializada",
+      "unit": "kg",
+      "quantity": 7.16,
+      "unit_price": 347.03,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2484.73,
+      "vat_amount": 248.47,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2733.2,
+      "line_total_with_taxes": 2733.2,
+      "period": null
+    },
+    {
+      "reference": "REF-6695-3",
+      "description": "Pintura base agua - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 2.93,
+      "unit_price": 379.03,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1110.56,
+      "vat_amount": 44.42,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1154.98,
+      "line_total_with_taxes": 1154.98,
+      "period": null
+    },
+    {
+      "reference": "REF-8383-4",
+      "description": "Servicio urgente 24h",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 182.67,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 913.35,
+      "vat_amount": 191.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1105.15,
+      "line_total_with_taxes": 1105.15,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4911.65,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4911.65,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1316.36,
+        "vat_amount": 276.43,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2484.73,
+        "vat_amount": 248.47,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1110.56,
+        "vat_amount": 44.42,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 569.32,
+    "recargo_total": 0.0,
+    "irpf_rate": 15.0,
+    "irpf_amount": 736.75,
+    "total": 4744.22,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

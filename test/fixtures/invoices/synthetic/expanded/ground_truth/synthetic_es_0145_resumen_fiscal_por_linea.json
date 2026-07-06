@@ -1,0 +1,165 @@
+{
+  "invoice_id": "synthetic_es_0145",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2024-00145",
+  "date": "2024-09-15",
+  "due_date": "2024-09-15",
+  "supplier": {
+    "name": "Suministros Norte Demo SL",
+    "tax_id": "B-00100145",
+    "address": "Paseo de la Industria, 140 - Madrid",
+    "email": "suministros.norte.demo.s.145@example.test",
+    "phone": "+34 900 145 764"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100445",
+    "address": "Paseo de la Industria, 79 - Palma",
+    "email": "cliente.demo.sl.445@example.test",
+    "phone": "+34 900 445 152"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-5899-1",
+      "description": "Pantalla LED",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 363.69,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1091.07,
+      "vat_amount": 43.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1134.71,
+      "line_total_with_taxes": 1134.71,
+      "period": null
+    },
+    {
+      "reference": "REF-2515-2",
+      "description": "Rodamiento industrial",
+      "unit": "m",
+      "quantity": 1.0,
+      "unit_price": 393.0,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 393.0,
+      "vat_amount": 82.53,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 475.53,
+      "line_total_with_taxes": 475.53,
+      "period": null
+    },
+    {
+      "reference": "REF-5463-3",
+      "description": "Libro técnico",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 55.35,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 166.05,
+      "vat_amount": 6.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 172.69,
+      "line_total_with_taxes": 172.69,
+      "period": null
+    },
+    {
+      "reference": "REF-9694-4",
+      "description": "Tornillería inoxidable",
+      "unit": "m",
+      "quantity": 4.0,
+      "unit_price": 196.09,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 784.36,
+      "vat_amount": 164.72,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 949.08,
+      "line_total_with_taxes": 949.08,
+      "period": null
+    },
+    {
+      "reference": "REF-1646-5",
+      "description": "Libro técnico",
+      "unit": "m",
+      "quantity": 5.0,
+      "unit_price": 208.36,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1041.8,
+      "vat_amount": 104.18,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1145.98,
+      "line_total_with_taxes": 1145.98,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3476.28,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3476.28,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1257.12,
+        "vat_amount": 50.28,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1177.36,
+        "vat_amount": 247.25,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1041.8,
+        "vat_amount": 104.18,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 401.71,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3877.99,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

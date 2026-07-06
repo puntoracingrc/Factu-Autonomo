@@ -1,0 +1,142 @@
+{
+  "invoice_id": "synthetic_es_0195",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "long_description",
+  "source_inspiration": [
+    "Casos con descripción larga",
+    "Datasets OCR multi-layout"
+  ],
+  "invoice_number": "F-2025-00195",
+  "date": "2025-07-30",
+  "due_date": "2025-08-06",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100195",
+    "address": "Paseo de la Industria, 34 - Valladolid",
+    "email": "recambios.delta.demo.sl.195@example.test",
+    "phone": "+34 900 195 231"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100495",
+    "address": "Plaza del Mercado, 140 - Madrid",
+    "email": "empresa.receptora.fictic.495@example.test",
+    "phone": "+34 900 495 274"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-7430-1",
+      "description": "Conjunto persiana - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 10.0,
+      "unit_price": 283.63,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2836.3,
+      "vat_amount": 595.62,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3431.92,
+      "line_total_with_taxes": 3431.92,
+      "period": null
+    },
+    {
+      "reference": "REF-6935-2",
+      "description": "Licencia mensual software - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 5.0,
+      "unit_price": 221.56,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1107.8,
+      "vat_amount": 232.64,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1340.44,
+      "line_total_with_taxes": 1340.44,
+      "period": null
+    },
+    {
+      "reference": "REF-5074-3",
+      "description": "Mano de obra especializada - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 3.0,
+      "unit_price": 353.32,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1059.96,
+      "vat_amount": 106.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1165.96,
+      "line_total_with_taxes": 1165.96,
+      "period": null
+    },
+    {
+      "reference": "REF-9907-4",
+      "description": "Perfil de aluminio - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 73.66,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 220.98,
+      "vat_amount": 46.41,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 267.39,
+      "line_total_with_taxes": 267.39,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 5225.04,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 5225.04,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4165.08,
+        "vat_amount": 874.67,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1059.96,
+        "vat_amount": 106.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 980.67,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6205.71,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto detallado": "description",
+    "Unid.": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

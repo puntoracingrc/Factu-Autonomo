@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0081",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2025-00081",
+  "date": "2025-09-07",
+  "due_date": "2025-09-07",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100081",
+    "address": "Calle Roble, 28 - Valladolid",
+    "email": "oficina.tecnica.aurora.s.81@example.test",
+    "phone": "+34 900 081 120"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100381",
+    "address": "Calle Mayor, 14 - Málaga",
+    "email": "cliente.demo.sl.381@example.test",
+    "phone": "+34 900 381 325"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-8817-1",
+      "description": "Conjunto persiana",
+      "unit": "ud",
+      "quantity": 3.0,
+      "unit_price": 378.7,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": -1136.1,
+      "vat_amount": -45.44,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -1181.54,
+      "line_total_with_taxes": -1181.54,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -1136.1,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -1136.1,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": -1136.1,
+        "vat_amount": -45.44,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -45.44,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -1181.54,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2025-00031"
+}

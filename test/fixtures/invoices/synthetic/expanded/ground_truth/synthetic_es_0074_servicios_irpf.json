@@ -1,0 +1,86 @@
+{
+  "invoice_id": "synthetic_es_0074",
+  "document_title": "FACTURA PROFESIONAL",
+  "invoice_type": "irpf",
+  "layout_id": "servicios_irpf",
+  "source_inspiration": [
+    "Factura autónomo profesional con IRPF",
+    "Declarando / Wise / Quipu"
+  ],
+  "invoice_number": "F-2025-00074",
+  "date": "2025-06-29",
+  "due_date": "2025-07-29",
+  "supplier": {
+    "name": "Consultoría Alameda Demo SCP",
+    "tax_id": "B-00100074",
+    "address": "Calle Gran Vía, 61 - Palma",
+    "email": "consultoria.alameda.demo.74@example.test",
+    "phone": "+34 900 074 487"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100374",
+    "address": "Calle Gran Vía, 64 - A Coruña",
+    "email": "obras.y.reformas.test.sl.374@example.test",
+    "phone": "+34 900 374 428"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-3941-1",
+      "description": "Mano de obra especializada",
+      "unit": "servicio",
+      "quantity": 5.0,
+      "unit_price": 84.42,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 422.1,
+      "vat_amount": 16.88,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 438.98,
+      "line_total_with_taxes": 438.98,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 422.1,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 422.1,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 422.1,
+        "vat_amount": 16.88,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 16.88,
+    "recargo_total": 0.0,
+    "irpf_rate": 7.0,
+    "irpf_amount": 29.55,
+    "total": 409.43,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Horas": "quantity",
+    "Tarifa": "unit_price",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

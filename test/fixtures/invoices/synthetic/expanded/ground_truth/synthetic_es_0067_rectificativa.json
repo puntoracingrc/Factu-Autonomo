@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0067",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2025-00067",
+  "date": "2025-06-09",
+  "due_date": "2025-07-09",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100067",
+    "address": "Paseo de la Industria, 78 - Valladolid",
+    "email": "electro.hogar.simulado.s.67@example.test",
+    "phone": "+34 900 067 713"
+  },
+  "customer": {
+    "name": "Empresa Receptora Ficticia SA",
+    "tax_id": "B-00100367",
+    "address": "Calle Mayor, 33 - Murcia",
+    "email": "empresa.receptora.fictic.367@example.test",
+    "phone": "+34 900 367 493"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-7748-1",
+      "description": "Licencia mensual software",
+      "unit": "servicio",
+      "quantity": 2.0,
+      "unit_price": 61.71,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": -123.42,
+      "vat_amount": -12.34,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -135.76,
+      "line_total_with_taxes": -135.76,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -123.42,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -123.42,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -123.42,
+        "vat_amount": -12.34,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -12.34,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -135.76,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2025-00028"
+}

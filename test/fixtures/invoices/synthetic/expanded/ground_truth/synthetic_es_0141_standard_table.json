@@ -1,0 +1,174 @@
+{
+  "invoice_id": "synthetic_es_0141",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "standard_table",
+  "source_inspiration": [
+    "Plantillas genéricas de factura",
+    "INV24 / Wise / Holded / Quipu"
+  ],
+  "invoice_number": "F-2024-00141",
+  "date": "2024-07-30",
+  "due_date": "2024-07-30",
+  "supplier": {
+    "name": "Oficina Técnica Aurora SL",
+    "tax_id": "B-00100141",
+    "address": "Calle Gran Vía, 134 - Murcia",
+    "email": "oficina.tecnica.aurora.s.141@example.test",
+    "phone": "+34 900 141 633"
+  },
+  "customer": {
+    "name": "Tienda Piloto SL",
+    "tax_id": "B-00100441",
+    "address": "Plaza del Mercado, 29 - A Coruña",
+    "email": "tienda.piloto.sl.441@example.test",
+    "phone": "+34 900 441 788"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-1719-1",
+      "description": "Licencia mensual software",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 210.22,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 210.22,
+      "vat_amount": 44.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 254.37,
+      "line_total_with_taxes": 254.37,
+      "period": null
+    },
+    {
+      "reference": "REF-5441-2",
+      "description": "Pack de consumibles",
+      "unit": "kg",
+      "quantity": 12.0,
+      "unit_price": 363.83,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4365.96,
+      "vat_amount": 916.85,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5282.81,
+      "line_total_with_taxes": 5282.81,
+      "period": null
+    },
+    {
+      "reference": "REF-6412-3",
+      "description": "Bolsa de recambios variados",
+      "unit": "h",
+      "quantity": 2.64,
+      "unit_price": 400.48,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1057.27,
+      "vat_amount": 222.03,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1279.3,
+      "line_total_with_taxes": 1279.3,
+      "period": null
+    },
+    {
+      "reference": "REF-5399-4",
+      "description": "Pintura base agua",
+      "unit": "kg",
+      "quantity": 1.0,
+      "unit_price": 112.46,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 112.46,
+      "vat_amount": 23.62,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 136.08,
+      "line_total_with_taxes": 136.08,
+      "period": null
+    },
+    {
+      "reference": "REF-4616-5",
+      "description": "Asesoría documental - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "servicio",
+      "quantity": 1.42,
+      "unit_price": 160.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 227.54,
+      "vat_amount": 47.78,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 275.32,
+      "line_total_with_taxes": 275.32,
+      "period": null
+    },
+    {
+      "reference": "REF-1369-6",
+      "description": "Equipo informático",
+      "unit": "h",
+      "quantity": 1.07,
+      "unit_price": 356.12,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 381.05,
+      "vat_amount": 15.24,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 396.29,
+      "line_total_with_taxes": 396.29,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6354.5,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6354.5,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 5973.45,
+        "vat_amount": 1254.43,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 381.05,
+        "vat_amount": 15.24,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1269.67,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 7624.17,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

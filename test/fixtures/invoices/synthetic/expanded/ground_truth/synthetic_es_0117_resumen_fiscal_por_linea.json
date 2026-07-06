@@ -1,0 +1,87 @@
+{
+  "invoice_id": "synthetic_es_0117",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2024-00117",
+  "date": "2024-03-27",
+  "due_date": "2024-04-26",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100117",
+    "address": "Calle de la Técnica, 26 - Madrid",
+    "email": "comercial.mediterranea.s.117@example.test",
+    "phone": "+34 900 117 272"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100417",
+    "address": "Plaza del Mercado, 30 - A Coruña",
+    "email": "distribuidor.beta.sl.417@example.test",
+    "phone": "+34 900 417 633"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-2374-1",
+      "description": "Pintura base agua",
+      "unit": "ud",
+      "quantity": 2.0,
+      "unit_price": 244.99,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 489.98,
+      "vat_amount": 102.9,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 592.88,
+      "line_total_with_taxes": 592.88,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 489.98,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 489.98,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 489.98,
+        "vat_amount": 102.9,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 102.9,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 592.88,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

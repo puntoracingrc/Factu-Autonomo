@@ -1,0 +1,49 @@
+{
+  "layoutId": "L07_con_descuento_global",
+  "supplierName": "Tecno Oficina SL",
+  "supplierNif": "B66778899",
+  "supplierAddress": "C/ Olivo 18, 29005 Malaga",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0017",
+  "date": "2026-03-05",
+  "lines": [
+    {
+      "ref": "R01701",
+      "description": "Guia lateral",
+      "quantity": 4,
+      "unitPrice": 143.39,
+      "discountRate": 0,
+      "base": 573.56,
+      "vatRate": 10,
+      "vatAmount": 57.36,
+      "lineTotal": 630.92
+    },
+    {
+      "ref": "R01702",
+      "description": "Revision anual",
+      "quantity": 8,
+      "unitPrice": 219.24,
+      "discountRate": 0,
+      "base": 1753.92,
+      "vatRate": 10,
+      "vatAmount": 175.39,
+      "lineTotal": 1929.31
+    }
+  ],
+  "subtotal": 2327.48,
+  "globalDiscountRate": 5,
+  "globalDiscountAmount": 116.37,
+  "taxBase": 2211.11,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 2211.11,
+      "vatAmount": 221.11
+    }
+  ],
+  "vatAmount": 221.11,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2432.22
+}

@@ -1,0 +1,175 @@
+{
+  "invoice_id": "synthetic_es_0149",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2024-00149",
+  "date": "2024-11-05",
+  "due_date": "2024-11-20",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100149",
+    "address": "Calle de la Técnica, 89 - Barcelona",
+    "email": "comercial.mediterranea.s.149@example.test",
+    "phone": "+34 900 149 893"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100449",
+    "address": "Paseo de la Industria, 61 - Murcia",
+    "email": "startup.ejemplo.sl.449@example.test",
+    "phone": "+34 900 449 798"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-3845-1",
+      "description": "Mantenimiento preventivo",
+      "unit": "m",
+      "quantity": 10.0,
+      "unit_price": 430.26,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 4302.6,
+      "vat_amount": 430.26,
+      "recargo_rate": 1.4,
+      "recargo_amount": 60.24,
+      "line_total_with_vat": 4732.86,
+      "line_total_with_taxes": 4793.1,
+      "period": null
+    },
+    {
+      "reference": "REF-2532-2",
+      "description": "Licencia mensual software",
+      "unit": "ud",
+      "quantity": 6.0,
+      "unit_price": 201.78,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1210.68,
+      "vat_amount": 254.24,
+      "recargo_rate": 5.2,
+      "recargo_amount": 62.96,
+      "line_total_with_vat": 1464.92,
+      "line_total_with_taxes": 1527.88,
+      "period": null
+    },
+    {
+      "reference": "REF-4102-3",
+      "description": "Sensor de presencia",
+      "unit": "m",
+      "quantity": 12.0,
+      "unit_price": 128.04,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1536.48,
+      "vat_amount": 322.66,
+      "recargo_rate": 5.2,
+      "recargo_amount": 79.9,
+      "line_total_with_vat": 1859.14,
+      "line_total_with_taxes": 1939.04,
+      "period": null
+    },
+    {
+      "reference": "REF-8219-4",
+      "description": "Kit de fijación",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 402.14,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4021.4,
+      "vat_amount": 844.49,
+      "recargo_rate": 5.2,
+      "recargo_amount": 209.11,
+      "line_total_with_vat": 4865.89,
+      "line_total_with_taxes": 5075.0,
+      "period": null
+    },
+    {
+      "reference": "REF-2832-5",
+      "description": "Kit de fijación",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 386.3,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1158.9,
+      "vat_amount": 115.89,
+      "recargo_rate": 1.4,
+      "recargo_amount": 16.22,
+      "line_total_with_vat": 1274.79,
+      "line_total_with_taxes": 1291.01,
+      "period": null
+    },
+    {
+      "reference": "REF-9235-6",
+      "description": "Rodamiento industrial",
+      "unit": "servicio",
+      "quantity": 10.0,
+      "unit_price": 64.18,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 641.8,
+      "vat_amount": 64.18,
+      "recargo_rate": 1.4,
+      "recargo_amount": 8.99,
+      "line_total_with_vat": 705.98,
+      "line_total_with_taxes": 714.97,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 12871.86,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 12871.86,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 6103.3,
+        "vat_amount": 610.33,
+        "recargo_rate": 1.4,
+        "recargo_amount": 85.45
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 6768.56,
+        "vat_amount": 1421.39,
+        "recargo_rate": 5.2,
+        "recargo_amount": 351.97
+      }
+    ],
+    "vat_total": 2031.72,
+    "recargo_total": 437.42,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 15341.0,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

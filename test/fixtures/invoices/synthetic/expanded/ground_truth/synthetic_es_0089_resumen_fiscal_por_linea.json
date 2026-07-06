@@ -1,0 +1,103 @@
+{
+  "invoice_id": "synthetic_es_0089",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2025-00089",
+  "date": "2025-09-28",
+  "due_date": "2025-10-13",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100089",
+    "address": "Calle de la Técnica, 26 - Zaragoza",
+    "email": "ferreteria.modelo.sl.89@example.test",
+    "phone": "+34 900 089 186"
+  },
+  "customer": {
+    "name": "Particular Sintético",
+    "tax_id": "00200389J",
+    "address": "Paseo de la Industria, 83 - Sevilla",
+    "email": "particular.sintetico.389@example.test",
+    "phone": "+34 900 389 527"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-7947-1",
+      "description": "Desplazamiento",
+      "unit": "ud",
+      "quantity": 5.51,
+      "unit_price": 348.62,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1920.9,
+      "vat_amount": 192.09,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2112.99,
+      "line_total_with_taxes": 2112.99,
+      "period": null
+    },
+    {
+      "reference": "REF-3002-2",
+      "description": "Licencia mensual software - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 4.0,
+      "unit_price": 278.57,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1114.28,
+      "vat_amount": 111.43,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1225.71,
+      "line_total_with_taxes": 1225.71,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 3035.18,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 3035.18,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 3035.18,
+        "vat_amount": 303.52,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 303.52,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3338.7,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

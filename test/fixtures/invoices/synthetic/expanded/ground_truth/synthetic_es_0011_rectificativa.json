@@ -1,0 +1,111 @@
+{
+  "invoice_id": "synthetic_es_0011",
+  "document_title": "FACTURA RECTIFICATIVA",
+  "invoice_type": "rectificativa",
+  "layout_id": "rectificativa",
+  "source_inspiration": [
+    "Factura rectificativa",
+    "Declarando / INV24"
+  ],
+  "invoice_number": "R-2024-00011",
+  "date": "2024-04-08",
+  "due_date": "2024-05-08",
+  "supplier": {
+    "name": "Comercial Mediterránea Sample SL",
+    "tax_id": "B-00100011",
+    "address": "Plaza del Mercado, 147 - Madrid",
+    "email": "comercial.mediterranea.s.11@example.test",
+    "phone": "+34 900 011 852"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200311G",
+    "address": "Calle de la Técnica, 134 - Madrid",
+    "email": "autonomo.de.prueba.311@example.test",
+    "phone": "+34 900 311 799"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-1560-1",
+      "description": "Asesoría documental",
+      "unit": "kg",
+      "quantity": 5.0,
+      "unit_price": 218.3,
+      "discount_rate": 5.0,
+      "vat_rate": 10.0,
+      "line_base": -1036.93,
+      "vat_amount": -103.69,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -1140.62,
+      "line_total_with_taxes": -1140.62,
+      "period": null
+    },
+    {
+      "reference": "REF-6438-2",
+      "description": "Rodamiento industrial",
+      "unit": "h",
+      "quantity": 10.0,
+      "unit_price": 306.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": -3062.4,
+      "vat_amount": -643.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": -0.0,
+      "line_total_with_vat": -3705.5,
+      "line_total_with_taxes": -3705.5,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": -4099.33,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": -0.0,
+    "taxable_base": -4099.33,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": -1036.93,
+        "vat_amount": -103.69,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": -3062.4,
+        "vat_amount": -643.1,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": -746.79,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": -0.0,
+    "total": -4846.12,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto rectificado": "description",
+    "Cantidad": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real.",
+  "rectifies_invoice_number": "F-2024-00001"
+}

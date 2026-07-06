@@ -1,0 +1,165 @@
+{
+  "invoice_id": "synthetic_es_0075",
+  "document_title": "FACTURA",
+  "invoice_type": "mixed_vat",
+  "layout_id": "resumen_fiscal_por_linea",
+  "source_inspiration": [
+    "Factura con resumen fiscal por línea",
+    "Facturae / B2Brouter"
+  ],
+  "invoice_number": "F-2025-00075",
+  "date": "2025-08-20",
+  "due_date": "2025-09-19",
+  "supplier": {
+    "name": "Distribuciones Iberia Test SL",
+    "tax_id": "B-00100075",
+    "address": "Avenida del Puerto, 48 - Sevilla",
+    "email": "distribuciones.iberia.te.75@example.test",
+    "phone": "+34 900 075 763"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100375",
+    "address": "Paseo de la Industria, 31 - A Coruña",
+    "email": "distribuidor.beta.sl.375@example.test",
+    "phone": "+34 900 375 759"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-2122-1",
+      "description": "Mano de obra especializada - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 305.71,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 3057.1,
+      "vat_amount": 305.71,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3362.81,
+      "line_total_with_taxes": 3362.81,
+      "period": null
+    },
+    {
+      "reference": "REF-2681-2",
+      "description": "Kit de fijación",
+      "unit": "h",
+      "quantity": 5.0,
+      "unit_price": 85.69,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 428.45,
+      "vat_amount": 89.97,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 518.42,
+      "line_total_with_taxes": 518.42,
+      "period": null
+    },
+    {
+      "reference": "REF-8974-3",
+      "description": "Soporte premium",
+      "unit": "h",
+      "quantity": 3.0,
+      "unit_price": 77.92,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 233.76,
+      "vat_amount": 49.09,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 282.85,
+      "line_total_with_taxes": 282.85,
+      "period": null
+    },
+    {
+      "reference": "REF-5363-4",
+      "description": "Mantenimiento preventivo - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 326.53,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 1306.12,
+      "vat_amount": 52.24,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1358.36,
+      "line_total_with_taxes": 1358.36,
+      "period": null
+    },
+    {
+      "reference": "REF-6066-5",
+      "description": "Producto alimentario demo",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 266.21,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2662.1,
+      "vat_amount": 266.21,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2928.31,
+      "line_total_with_taxes": 2928.31,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7687.53,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 7687.53,
+    "tax_summary": [
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 5719.2,
+        "vat_amount": 571.92,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 662.21,
+        "vat_amount": 139.06,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1306.12,
+        "vat_amount": 52.24,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 763.22,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 8450.75,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Concepto": "description",
+    "Base": "line_base",
+    "IVA %": "vat_rate",
+    "Cuota IVA": "vat_amount",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

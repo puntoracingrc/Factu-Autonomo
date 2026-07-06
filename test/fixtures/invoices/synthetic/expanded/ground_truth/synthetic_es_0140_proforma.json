@@ -1,0 +1,142 @@
+{
+  "invoice_id": "synthetic_es_0140",
+  "document_title": "FACTURA PROFORMA",
+  "invoice_type": "proforma",
+  "layout_id": "proforma",
+  "source_inspiration": [
+    "Factura proforma / presupuesto",
+    "INV24 / Declarando"
+  ],
+  "invoice_number": "PF-2024-00140",
+  "date": "2024-07-09",
+  "due_date": "2024-08-23",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100140",
+    "address": "Calle Gran Vía, 117 - A Coruña",
+    "email": "ferreteria.modelo.sl.140@example.test",
+    "phone": "+34 900 140 906"
+  },
+  "customer": {
+    "name": "Cliente Demo SL",
+    "tax_id": "B-00100440",
+    "address": "Ronda Fiscal, 109 - Palma",
+    "email": "cliente.demo.sl.440@example.test",
+    "phone": "+34 900 440 321"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-9569-1",
+      "description": "Servicio de instalación",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 366.59,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1466.36,
+      "vat_amount": 307.94,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1774.3,
+      "line_total_with_taxes": 1774.3,
+      "period": null
+    },
+    {
+      "reference": "REF-5413-2",
+      "description": "Perfil de aluminio",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 151.75,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 455.25,
+      "vat_amount": 18.21,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 473.46,
+      "line_total_with_taxes": 473.46,
+      "period": null
+    },
+    {
+      "reference": "REF-8124-3",
+      "description": "Cable eléctrico 2,5 mm - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 160.7,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 964.2,
+      "vat_amount": 38.57,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1002.77,
+      "line_total_with_taxes": 1002.77,
+      "period": null
+    },
+    {
+      "reference": "REF-1260-4",
+      "description": "Equipo informático",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 429.03,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4290.3,
+      "vat_amount": 900.96,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5191.26,
+      "line_total_with_taxes": 5191.26,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7176.11,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 7176.11,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 5756.66,
+        "vat_amount": 1208.9,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1419.45,
+        "vat_amount": 56.78,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1265.68,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 8441.79,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cant.": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

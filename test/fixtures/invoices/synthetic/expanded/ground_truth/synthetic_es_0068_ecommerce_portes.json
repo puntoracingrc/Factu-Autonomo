@@ -1,0 +1,191 @@
+{
+  "invoice_id": "synthetic_es_0068",
+  "document_title": "FACTURA DE VENTA ONLINE",
+  "invoice_type": "ordinaria",
+  "layout_id": "ecommerce_portes",
+  "source_inspiration": [
+    "Factura ecommerce con portes",
+    "Plantillas y datasets OCR"
+  ],
+  "invoice_number": "F-2025-00068",
+  "date": "2025-05-19",
+  "due_date": "2025-05-26",
+  "supplier": {
+    "name": "Servicios Pixelados CB",
+    "tax_id": "B-00100068",
+    "address": "Avenida del Puerto, 46 - Alicante",
+    "email": "servicios.pixelados.cb.68@example.test",
+    "phone": "+34 900 068 377"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100368",
+    "address": "Calle Gran Vía, 30 - Málaga",
+    "email": "startup.ejemplo.sl.368@example.test",
+    "phone": "+34 900 368 784"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-4096-1",
+      "description": "Pack de consumibles",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 292.64,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 2926.4,
+      "vat_amount": 614.54,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3540.94,
+      "line_total_with_taxes": 3540.94,
+      "period": null
+    },
+    {
+      "reference": "REF-5508-2",
+      "description": "Rodamiento industrial - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "pack",
+      "quantity": 3.0,
+      "unit_price": 441.36,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": 1257.88,
+      "vat_amount": 264.15,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1522.03,
+      "line_total_with_taxes": 1522.03,
+      "period": null
+    },
+    {
+      "reference": "REF-9416-3",
+      "description": "Servicio urgente 24h",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 407.76,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 4077.6,
+      "vat_amount": 163.1,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 4240.7,
+      "line_total_with_taxes": 4240.7,
+      "period": null
+    },
+    {
+      "reference": "REF-6105-4",
+      "description": "Desplazamiento",
+      "unit": "kg",
+      "quantity": 12.0,
+      "unit_price": 124.92,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1499.04,
+      "vat_amount": 314.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1813.84,
+      "line_total_with_taxes": 1813.84,
+      "period": null
+    },
+    {
+      "reference": "REF-9304-5",
+      "description": "Rodamiento industrial",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 445.29,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 445.29,
+      "vat_amount": 93.51,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 538.8,
+      "line_total_with_taxes": 538.8,
+      "period": null
+    },
+    {
+      "reference": "REF-7659-6",
+      "description": "Revisión técnica",
+      "unit": "pack",
+      "quantity": 5.0,
+      "unit_price": 391.12,
+      "discount_rate": 5.0,
+      "vat_rate": 4.0,
+      "line_base": 1857.82,
+      "vat_amount": 74.31,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1932.13,
+      "line_total_with_taxes": 1932.13,
+      "period": null
+    },
+    {
+      "reference": "SHIP-840",
+      "description": "Portes y preparación de pedido",
+      "unit": "servicio",
+      "quantity": 1.0,
+      "unit_price": 4.95,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4.95,
+      "vat_amount": 1.04,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5.99,
+      "line_total_with_taxes": 5.99,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 12068.98,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 12068.98,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 6133.56,
+        "vat_amount": 1288.04,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 5935.42,
+        "vat_amount": 237.41,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 1525.45,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 13594.43,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "SKU": "reference",
+    "Producto": "description",
+    "Qty": "quantity",
+    "Precio": "unit_price",
+    "Dto.": "discount_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

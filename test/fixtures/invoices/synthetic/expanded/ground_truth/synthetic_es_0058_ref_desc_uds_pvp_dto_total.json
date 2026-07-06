@@ -1,0 +1,150 @@
+{
+  "invoice_id": "synthetic_es_0058",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2025-00058",
+  "date": "2025-04-04",
+  "due_date": "2025-04-04",
+  "supplier": {
+    "name": "Ferretería Modelo SL",
+    "tax_id": "B-00100058",
+    "address": "Camino del Almacén, 45 - A Coruña",
+    "email": "ferreteria.modelo.sl.58@example.test",
+    "phone": "+34 900 058 691"
+  },
+  "customer": {
+    "name": "Obras y Reformas Test SL",
+    "tax_id": "B-00100358",
+    "address": "Calle Roble, 2 - Zaragoza",
+    "email": "obras.y.reformas.test.sl.358@example.test",
+    "phone": "+34 900 358 274"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-5308-1",
+      "description": "Repuesto mecánico",
+      "unit": "pack",
+      "quantity": 6.0,
+      "unit_price": 186.93,
+      "discount_rate": 10.0,
+      "vat_rate": 21.0,
+      "line_base": 1009.42,
+      "vat_amount": 211.98,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1221.4,
+      "line_total_with_taxes": 1221.4,
+      "period": null
+    },
+    {
+      "reference": "REF-1958-2",
+      "description": "Rodamiento industrial",
+      "unit": "pack",
+      "quantity": 5.82,
+      "unit_price": 370.69,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 2157.42,
+      "vat_amount": 215.74,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2373.16,
+      "line_total_with_taxes": 2373.16,
+      "period": null
+    },
+    {
+      "reference": "REF-8864-3",
+      "description": "Revisión técnica",
+      "unit": "servicio",
+      "quantity": 7.43,
+      "unit_price": 122.65,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 911.29,
+      "vat_amount": 36.45,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 947.74,
+      "line_total_with_taxes": 947.74,
+      "period": null
+    },
+    {
+      "reference": "REF-3220-4",
+      "description": "Tornillería inoxidable",
+      "unit": "kg",
+      "quantity": 6.36,
+      "unit_price": 323.36,
+      "discount_rate": 5.0,
+      "vat_rate": 21.0,
+      "line_base": 1953.74,
+      "vat_amount": 410.29,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2364.03,
+      "line_total_with_taxes": 2364.03,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6031.87,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6031.87,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 2963.16,
+        "vat_amount": 622.27,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 2157.42,
+        "vat_amount": 215.74,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 911.29,
+        "vat_amount": 36.45,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 874.46,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6906.33,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

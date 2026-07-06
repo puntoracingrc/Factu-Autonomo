@@ -1,0 +1,71 @@
+{
+  "layoutId": "L01_desc_cant_precio_importe",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0001",
+  "date": "2026-07-07",
+  "lines": [
+    {
+      "ref": "R00101",
+      "description": "Guia lateral",
+      "quantity": 1,
+      "unitPrice": 72.74,
+      "discountRate": 0,
+      "base": 72.74,
+      "vatRate": 21,
+      "vatAmount": 15.28,
+      "lineTotal": 88.02
+    },
+    {
+      "ref": "R00102",
+      "description": "Soporte mensual",
+      "quantity": 1,
+      "unitPrice": 138.46,
+      "discountRate": 0,
+      "base": 138.46,
+      "vatRate": 21,
+      "vatAmount": 29.08,
+      "lineTotal": 167.54
+    },
+    {
+      "ref": "R00103",
+      "description": "Transporte",
+      "quantity": 2,
+      "unitPrice": 184.18,
+      "discountRate": 0,
+      "base": 368.36,
+      "vatRate": 21,
+      "vatAmount": 77.36,
+      "lineTotal": 445.72
+    },
+    {
+      "ref": "R00104",
+      "description": "Licencia software",
+      "quantity": 3,
+      "unitPrice": 81.89,
+      "discountRate": 0,
+      "base": 245.67,
+      "vatRate": 21,
+      "vatAmount": 51.59,
+      "lineTotal": 297.26
+    }
+  ],
+  "subtotal": 825.23,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 825.23,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 825.23,
+      "vatAmount": 173.3
+    }
+  ],
+  "vatAmount": 173.3,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 998.53
+}

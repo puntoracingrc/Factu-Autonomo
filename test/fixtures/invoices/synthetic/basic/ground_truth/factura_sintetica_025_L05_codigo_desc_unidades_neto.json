@@ -1,0 +1,71 @@
+{
+  "layoutId": "L05_codigo_desc_unidades_neto",
+  "supplierName": "Talleres Norte CB",
+  "supplierNif": "E87654321",
+  "supplierAddress": "Av. Industria 45, 08027 Barcelona",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0025",
+  "date": "2026-05-16",
+  "lines": [
+    {
+      "ref": "R02501",
+      "description": "Transporte",
+      "quantity": 8,
+      "unitPrice": 32.76,
+      "discountRate": 0,
+      "base": 262.08,
+      "vatRate": 10,
+      "vatAmount": 26.21,
+      "lineTotal": 288.29
+    },
+    {
+      "ref": "R02502",
+      "description": "Caja registradora",
+      "quantity": 5,
+      "unitPrice": 110.83,
+      "discountRate": 0,
+      "base": 554.15,
+      "vatRate": 10,
+      "vatAmount": 55.42,
+      "lineTotal": 609.57
+    },
+    {
+      "ref": "R02503",
+      "description": "Caja registradora",
+      "quantity": 4,
+      "unitPrice": 179.13,
+      "discountRate": 0,
+      "base": 716.52,
+      "vatRate": 10,
+      "vatAmount": 71.65,
+      "lineTotal": 788.17
+    },
+    {
+      "ref": "R02504",
+      "description": "Servicio tecnico",
+      "quantity": 4,
+      "unitPrice": 217.26,
+      "discountRate": 0,
+      "base": 869.04,
+      "vatRate": 10,
+      "vatAmount": 86.9,
+      "lineTotal": 955.94
+    }
+  ],
+  "subtotal": 2401.79,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 2401.79,
+  "vatBreakdown": [
+    {
+      "vatRate": 10,
+      "base": 2401.79,
+      "vatAmount": 240.18
+    }
+  ],
+  "vatAmount": 240.18,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2641.97
+}

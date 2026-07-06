@@ -1,0 +1,71 @@
+{
+  "layoutId": "L03_art_cant_unit_base_iva_total",
+  "supplierName": "Tecno Oficina SL",
+  "supplierNif": "B66778899",
+  "supplierAddress": "C/ Olivo 18, 29005 Malaga",
+  "clientName": "Empresa Ejemplo SL",
+  "clientNif": "B10203040",
+  "invoiceNumber": "FS-2026-0023",
+  "date": "2026-04-10",
+  "lines": [
+    {
+      "ref": "R02301",
+      "description": "Motor tubular",
+      "quantity": 5,
+      "unitPrice": 150.51,
+      "discountRate": 0,
+      "base": 752.55,
+      "vatRate": 21,
+      "vatAmount": 158.04,
+      "lineTotal": 910.59
+    },
+    {
+      "ref": "R02302",
+      "description": "Licencia software",
+      "quantity": 1,
+      "unitPrice": 166.08,
+      "discountRate": 0,
+      "base": 166.08,
+      "vatRate": 21,
+      "vatAmount": 34.88,
+      "lineTotal": 200.96
+    },
+    {
+      "ref": "R02303",
+      "description": "Caja registradora",
+      "quantity": 5,
+      "unitPrice": 67.48,
+      "discountRate": 0,
+      "base": 337.4,
+      "vatRate": 21,
+      "vatAmount": 70.85,
+      "lineTotal": 408.25
+    },
+    {
+      "ref": "R02304",
+      "description": "Kit instalacion",
+      "quantity": 1,
+      "unitPrice": 178.29,
+      "discountRate": 0,
+      "base": 178.29,
+      "vatRate": 21,
+      "vatAmount": 37.44,
+      "lineTotal": 215.73
+    }
+  ],
+  "subtotal": 1434.32,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 1434.32,
+  "vatBreakdown": [
+    {
+      "vatRate": 21,
+      "base": 1434.32,
+      "vatAmount": 301.21
+    }
+  ],
+  "vatAmount": 301.21,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 1735.53
+}

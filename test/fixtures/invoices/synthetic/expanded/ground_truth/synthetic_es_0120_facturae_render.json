@@ -1,0 +1,152 @@
+{
+  "invoice_id": "synthetic_es_0120",
+  "document_title": "FACTURA ELECTRÓNICA - VISTA PDF",
+  "invoice_type": "exenta",
+  "layout_id": "facturae_render",
+  "source_inspiration": [
+    "Estructura Facturae renderizada",
+    "Facturae oficial"
+  ],
+  "invoice_number": "F-2024-00120",
+  "date": "2024-02-14",
+  "due_date": "2024-02-29",
+  "supplier": {
+    "name": "Maderas Prueba SA",
+    "tax_id": "B-00100120",
+    "address": "Camino del Almacén, 125 - Alicante",
+    "email": "maderas.prueba.sa.120@example.test",
+    "phone": "+34 900 120 450"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100420",
+    "address": "Calle Roble, 139 - Zaragoza",
+    "email": "taller.cliente.ficticio..420@example.test",
+    "phone": "+34 900 420 283"
+  },
+  "payment_method": "Recibo a 30 días",
+  "lines": [
+    {
+      "reference": "REF-5176-1",
+      "description": "Producto alimentario demo",
+      "unit": "servicio",
+      "quantity": 6.0,
+      "unit_price": 387.91,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 2327.46,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 2327.46,
+      "line_total_with_taxes": 2327.46,
+      "period": null
+    },
+    {
+      "reference": "REF-8136-2",
+      "description": "Motor tubular demo",
+      "unit": "h",
+      "quantity": 10.0,
+      "unit_price": 360.51,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 3605.1,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 3605.1,
+      "line_total_with_taxes": 3605.1,
+      "period": null
+    },
+    {
+      "reference": "REF-1839-3",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "m",
+      "quantity": 3.0,
+      "unit_price": 238.42,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 715.26,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 715.26,
+      "line_total_with_taxes": 715.26,
+      "period": null
+    },
+    {
+      "reference": "REF-5953-4",
+      "description": "Auditoría técnica",
+      "unit": "ud",
+      "quantity": 3.0,
+      "unit_price": 43.28,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 129.84,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 129.84,
+      "line_total_with_taxes": 129.84,
+      "period": null
+    },
+    {
+      "reference": "REF-3603-5",
+      "description": "Repuesto mecánico",
+      "unit": "ud",
+      "quantity": 4.0,
+      "unit_price": 175.6,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 702.4,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 702.4,
+      "line_total_with_taxes": 702.4,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 7480.06,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 7480.06,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 7480.06,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 7480.06,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Código": "reference",
+    "Descripción": "description",
+    "Unidades": "quantity",
+    "Precio sin IVA": "unit_price",
+    "Tipo IVA": "vat_rate",
+    "Importe": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

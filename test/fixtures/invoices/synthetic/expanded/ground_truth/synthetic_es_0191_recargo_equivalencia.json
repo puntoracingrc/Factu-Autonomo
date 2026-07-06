@@ -1,0 +1,152 @@
+{
+  "invoice_id": "synthetic_es_0191",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2025-00191",
+  "date": "2025-08-18",
+  "due_date": "2025-08-18",
+  "supplier": {
+    "name": "Electro Hogar Simulado SL",
+    "tax_id": "B-00100191",
+    "address": "Avenida del Puerto, 69 - A Coruña",
+    "email": "electro.hogar.simulado.s.191@example.test",
+    "phone": "+34 900 191 640"
+  },
+  "customer": {
+    "name": "Distribuidor Beta SL",
+    "tax_id": "B-00100491",
+    "address": "Plaza del Mercado, 60 - Barcelona",
+    "email": "distribuidor.beta.sl.491@example.test",
+    "phone": "+34 900 491 453"
+  },
+  "payment_method": "Domiciliación SEPA",
+  "lines": [
+    {
+      "reference": "REF-4972-1",
+      "description": "Mano de obra especializada",
+      "unit": "pack",
+      "quantity": 5.41,
+      "unit_price": 315.37,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1706.15,
+      "vat_amount": 358.29,
+      "recargo_rate": 5.2,
+      "recargo_amount": 88.72,
+      "line_total_with_vat": 2064.44,
+      "line_total_with_taxes": 2153.16,
+      "period": null
+    },
+    {
+      "reference": "REF-2382-2",
+      "description": "Servicio de instalación",
+      "unit": "h",
+      "quantity": 1.0,
+      "unit_price": 77.8,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 77.8,
+      "vat_amount": 16.34,
+      "recargo_rate": 5.2,
+      "recargo_amount": 4.05,
+      "line_total_with_vat": 94.14,
+      "line_total_with_taxes": 98.19,
+      "period": null
+    },
+    {
+      "reference": "REF-2063-3",
+      "description": "Material de embalaje",
+      "unit": "ud",
+      "quantity": 12.0,
+      "unit_price": 39.26,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 471.12,
+      "vat_amount": 98.94,
+      "recargo_rate": 5.2,
+      "recargo_amount": 24.5,
+      "line_total_with_vat": 570.06,
+      "line_total_with_taxes": 594.56,
+      "period": null
+    },
+    {
+      "reference": "REF-8552-4",
+      "description": "Licencia mensual software",
+      "unit": "m",
+      "quantity": 4.0,
+      "unit_price": 254.78,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1019.12,
+      "vat_amount": 214.02,
+      "recargo_rate": 5.2,
+      "recargo_amount": 52.99,
+      "line_total_with_vat": 1233.14,
+      "line_total_with_taxes": 1286.13,
+      "period": null
+    },
+    {
+      "reference": "REF-9511-5",
+      "description": "Rodamiento industrial",
+      "unit": "kg",
+      "quantity": 3.0,
+      "unit_price": 442.04,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1326.12,
+      "vat_amount": 278.49,
+      "recargo_rate": 5.2,
+      "recargo_amount": 68.96,
+      "line_total_with_vat": 1604.61,
+      "line_total_with_taxes": 1673.57,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4600.31,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4600.31,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4600.31,
+        "vat_amount": 966.08,
+        "recargo_rate": 5.2,
+        "recargo_amount": 239.22
+      }
+    ],
+    "vat_total": 966.08,
+    "recargo_total": 239.22,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5805.61,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

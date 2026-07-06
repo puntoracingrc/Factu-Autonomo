@@ -1,0 +1,167 @@
+{
+  "invoice_id": "synthetic_es_0178",
+  "document_title": "FACTURA INTRACOMUNITARIA",
+  "invoice_type": "exenta",
+  "layout_id": "intracomunitaria_exenta",
+  "source_inspiration": [
+    "Factura intracomunitaria/exenta",
+    "Declarando"
+  ],
+  "invoice_number": "F-2025-00178",
+  "date": "2025-05-01",
+  "due_date": "2025-05-16",
+  "supplier": {
+    "name": "Logística Ficticia SL",
+    "tax_id": "B-00100178",
+    "address": "Avenida del Puerto, 22 - Zaragoza",
+    "email": "logistica.ficticia.sl.178@example.test",
+    "phone": "+34 900 178 813"
+  },
+  "customer": {
+    "name": "StartUp Ejemplo SL",
+    "tax_id": "B-00100478",
+    "address": "Paseo de la Industria, 70 - Málaga",
+    "email": "startup.ejemplo.sl.478@example.test",
+    "phone": "+34 900 478 108"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-6529-1",
+      "description": "Asesoría documental",
+      "unit": "kg",
+      "quantity": 1.74,
+      "unit_price": 310.68,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 540.58,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 540.58,
+      "line_total_with_taxes": 540.58,
+      "period": null
+    },
+    {
+      "reference": "REF-3135-2",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "servicio",
+      "quantity": 6.0,
+      "unit_price": 136.15,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 816.9,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 816.9,
+      "line_total_with_taxes": 816.9,
+      "period": null
+    },
+    {
+      "reference": "REF-7565-3",
+      "description": "Pantalla LED",
+      "unit": "ud",
+      "quantity": 7.69,
+      "unit_price": 239.54,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1842.06,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1842.06,
+      "line_total_with_taxes": 1842.06,
+      "period": null
+    },
+    {
+      "reference": "REF-8246-4",
+      "description": "Desplazamiento",
+      "unit": "servicio",
+      "quantity": 4.37,
+      "unit_price": 156.82,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 685.3,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 685.3,
+      "line_total_with_taxes": 685.3,
+      "period": null
+    },
+    {
+      "reference": "REF-8223-5",
+      "description": "Revisión técnica - suministro, revisión y documentación técnica asociada al pedido de prueba",
+      "unit": "m",
+      "quantity": 6.0,
+      "unit_price": 118.17,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 709.02,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 709.02,
+      "line_total_with_taxes": 709.02,
+      "period": null
+    },
+    {
+      "reference": "REF-3377-6",
+      "description": "Cable eléctrico 2,5 mm",
+      "unit": "m",
+      "quantity": 10.0,
+      "unit_price": 183.08,
+      "discount_rate": 0.0,
+      "vat_rate": 0.0,
+      "line_base": 1830.8,
+      "vat_amount": 0.0,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1830.8,
+      "line_total_with_taxes": 1830.8,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 6424.66,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 6424.66,
+    "tax_summary": [
+      {
+        "vat_rate": 0.0,
+        "taxable_base": 6424.66,
+        "vat_amount": 0.0,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 0.0,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6424.66,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Descripción": "description",
+    "Cantidad": "quantity",
+    "Precio unitario": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

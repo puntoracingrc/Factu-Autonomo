@@ -1,0 +1,127 @@
+{
+  "invoice_id": "synthetic_es_0073",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "articulo_base_iva_total",
+  "source_inspiration": [
+    "Ejemplos con base e IVA por línea",
+    "Declarando / Facturae"
+  ],
+  "invoice_number": "F-2025-00073",
+  "date": "2025-06-09",
+  "due_date": "2025-06-16",
+  "supplier": {
+    "name": "Recambios Delta Demo SL",
+    "tax_id": "B-00100073",
+    "address": "Calle Gran Vía, 109 - Bilbao",
+    "email": "recambios.delta.demo.sl.73@example.test",
+    "phone": "+34 900 073 509"
+  },
+  "customer": {
+    "name": "Taller Cliente Ficticio SL",
+    "tax_id": "B-00100373",
+    "address": "Calle Gran Vía, 96 - Valladolid",
+    "email": "taller.cliente.ficticio..373@example.test",
+    "phone": "+34 900 373 246"
+  },
+  "payment_method": "Contado",
+  "lines": [
+    {
+      "reference": "REF-7285-1",
+      "description": "Servicio urgente 24h",
+      "unit": "m",
+      "quantity": 3.73,
+      "unit_price": 201.96,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 753.31,
+      "vat_amount": 30.13,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 783.44,
+      "line_total_with_taxes": 783.44,
+      "period": null
+    },
+    {
+      "reference": "REF-1848-2",
+      "description": "Tornillería inoxidable",
+      "unit": "pack",
+      "quantity": 10.0,
+      "unit_price": 103.24,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1032.4,
+      "vat_amount": 216.8,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 1249.2,
+      "line_total_with_taxes": 1249.2,
+      "period": null
+    },
+    {
+      "reference": "REF-3378-3",
+      "description": "Desplazamiento",
+      "unit": "kg",
+      "quantity": 2.28,
+      "unit_price": 418.87,
+      "discount_rate": 0.0,
+      "vat_rate": 4.0,
+      "line_base": 955.02,
+      "vat_amount": 38.2,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 993.22,
+      "line_total_with_taxes": 993.22,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 2740.73,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 2740.73,
+    "tax_summary": [
+      {
+        "vat_rate": 4.0,
+        "taxable_base": 1708.33,
+        "vat_amount": 68.33,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      },
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 1032.4,
+        "vat_amount": 216.8,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 285.13,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 3025.86,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cant.": "quantity",
+    "Precio unit.": "unit_price",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "Total": "line_total_with_vat"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

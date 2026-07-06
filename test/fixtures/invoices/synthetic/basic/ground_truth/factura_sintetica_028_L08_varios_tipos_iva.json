@@ -1,0 +1,92 @@
+{
+  "layoutId": "L08_varios_tipos_iva",
+  "supplierName": "Materiales Vega SL",
+  "supplierNif": "B99887766",
+  "supplierAddress": "Pol. La Estrella nave 3, 41016 Sevilla",
+  "clientName": "Cliente Demo Autonomo",
+  "clientNif": "12345678Z",
+  "invoiceNumber": "FS-2026-0028",
+  "date": "2026-05-16",
+  "lines": [
+    {
+      "ref": "R02801",
+      "description": "Caja registradora",
+      "quantity": 1,
+      "unitPrice": 8.76,
+      "discountRate": 0,
+      "base": 8.76,
+      "vatRate": 4,
+      "vatAmount": 0.35,
+      "lineTotal": 9.11
+    },
+    {
+      "ref": "R02802",
+      "description": "Soporte mensual",
+      "quantity": 4,
+      "unitPrice": 203.39,
+      "discountRate": 0,
+      "base": 813.56,
+      "vatRate": 4,
+      "vatAmount": 32.54,
+      "lineTotal": 846.1
+    },
+    {
+      "ref": "R02803",
+      "description": "Persiana aluminio",
+      "quantity": 2,
+      "unitPrice": 204.54,
+      "discountRate": 0,
+      "base": 409.08,
+      "vatRate": 10,
+      "vatAmount": 40.91,
+      "lineTotal": 449.99
+    },
+    {
+      "ref": "R02804",
+      "description": "Revision anual",
+      "quantity": 5,
+      "unitPrice": 119.24,
+      "discountRate": 0,
+      "base": 596.2,
+      "vatRate": 10,
+      "vatAmount": 59.62,
+      "lineTotal": 655.82
+    },
+    {
+      "ref": "R02805",
+      "description": "Guia lateral",
+      "quantity": 2,
+      "unitPrice": 151.3,
+      "discountRate": 0,
+      "base": 302.6,
+      "vatRate": 21,
+      "vatAmount": 63.55,
+      "lineTotal": 366.15
+    }
+  ],
+  "subtotal": 2130.2,
+  "globalDiscountRate": 0,
+  "globalDiscountAmount": 0.0,
+  "taxBase": 2130.2,
+  "vatBreakdown": [
+    {
+      "vatRate": 4,
+      "base": 822.32,
+      "vatAmount": 32.89
+    },
+    {
+      "vatRate": 10,
+      "base": 1005.28,
+      "vatAmount": 100.53
+    },
+    {
+      "vatRate": 21,
+      "base": 302.6,
+      "vatAmount": 63.55
+    }
+  ],
+  "vatAmount": 196.97,
+  "irpfRate": 0,
+  "irpfAmount": 0.0,
+  "total": 2327.17
+}

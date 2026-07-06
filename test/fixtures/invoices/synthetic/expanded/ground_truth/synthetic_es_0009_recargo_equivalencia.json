@@ -1,0 +1,175 @@
+{
+  "invoice_id": "synthetic_es_0009",
+  "document_title": "FACTURA CON RECARGO DE EQUIVALENCIA",
+  "invoice_type": "recargo_equivalencia",
+  "layout_id": "recargo_equivalencia",
+  "source_inspiration": [
+    "Factura con recargo de equivalencia",
+    "Declarando / AEAT"
+  ],
+  "invoice_number": "F-2024-00009",
+  "date": "2024-03-04",
+  "due_date": "2024-04-18",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100009",
+    "address": "Calle Mayor, 22 - Alicante",
+    "email": "papeleria.fiscal.demo.sl.9@example.test",
+    "phone": "+34 900 009 127"
+  },
+  "customer": {
+    "name": "Autónomo de Prueba",
+    "tax_id": "00200309W",
+    "address": "Paseo de la Industria, 103 - Madrid",
+    "email": "autonomo.de.prueba.309@example.test",
+    "phone": "+34 900 309 905"
+  },
+  "payment_method": "Transferencia bancaria",
+  "lines": [
+    {
+      "reference": "REF-2566-1",
+      "description": "Servicio urgente 24h",
+      "unit": "ud",
+      "quantity": 5.0,
+      "unit_price": 383.87,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1919.35,
+      "vat_amount": 403.06,
+      "recargo_rate": 5.2,
+      "recargo_amount": 99.81,
+      "line_total_with_vat": 2322.41,
+      "line_total_with_taxes": 2422.22,
+      "period": null
+    },
+    {
+      "reference": "REF-3264-2",
+      "description": "Transporte y manipulación",
+      "unit": "kg",
+      "quantity": 12.0,
+      "unit_price": 107.39,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 1288.68,
+      "vat_amount": 128.87,
+      "recargo_rate": 1.4,
+      "recargo_amount": 18.04,
+      "line_total_with_vat": 1417.55,
+      "line_total_with_taxes": 1435.59,
+      "period": null
+    },
+    {
+      "reference": "REF-3619-3",
+      "description": "Motor tubular demo",
+      "unit": "kg",
+      "quantity": 5.0,
+      "unit_price": 207.61,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 1038.05,
+      "vat_amount": 217.99,
+      "recargo_rate": 5.2,
+      "recargo_amount": 53.98,
+      "line_total_with_vat": 1256.04,
+      "line_total_with_taxes": 1310.02,
+      "period": null
+    },
+    {
+      "reference": "REF-5782-4",
+      "description": "Desplazamiento",
+      "unit": "ud",
+      "quantity": 5.0,
+      "unit_price": 49.4,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 247.0,
+      "vat_amount": 24.7,
+      "recargo_rate": 1.4,
+      "recargo_amount": 3.46,
+      "line_total_with_vat": 271.7,
+      "line_total_with_taxes": 275.16,
+      "period": null
+    },
+    {
+      "reference": "REF-3583-5",
+      "description": "Producto alimentario demo",
+      "unit": "kg",
+      "quantity": 10.0,
+      "unit_price": 58.27,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 582.7,
+      "vat_amount": 122.37,
+      "recargo_rate": 5.2,
+      "recargo_amount": 30.3,
+      "line_total_with_vat": 705.07,
+      "line_total_with_taxes": 735.37,
+      "period": null
+    },
+    {
+      "reference": "REF-7404-6",
+      "description": "Pantalla LED",
+      "unit": "pack",
+      "quantity": 0.81,
+      "unit_price": 72.86,
+      "discount_rate": 0.0,
+      "vat_rate": 10.0,
+      "line_base": 59.02,
+      "vat_amount": 5.9,
+      "recargo_rate": 1.4,
+      "recargo_amount": 0.83,
+      "line_total_with_vat": 64.92,
+      "line_total_with_taxes": 65.75,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 5134.8,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 5134.8,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 3540.1,
+        "vat_amount": 743.42,
+        "recargo_rate": 5.2,
+        "recargo_amount": 184.09
+      },
+      {
+        "vat_rate": 10.0,
+        "taxable_base": 1594.7,
+        "vat_amount": 159.47,
+        "recargo_rate": 1.4,
+        "recargo_amount": 22.33
+      }
+    ],
+    "vat_total": 902.89,
+    "recargo_total": 206.42,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 6244.11,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Artículo": "description",
+    "Cantidad": "quantity",
+    "Base": "line_base",
+    "IVA": "vat_rate",
+    "R.E.": "recargo_rate",
+    "Total": "line_total_with_taxes"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}

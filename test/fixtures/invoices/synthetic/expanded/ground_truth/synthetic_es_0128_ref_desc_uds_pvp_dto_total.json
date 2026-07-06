@@ -1,0 +1,88 @@
+{
+  "invoice_id": "synthetic_es_0128",
+  "document_title": "FACTURA",
+  "invoice_type": "ordinaria",
+  "layout_id": "ref_desc_uds_pvp_dto_total",
+  "source_inspiration": [
+    "Plantillas comerciales españolas",
+    "INV24 / Holded"
+  ],
+  "invoice_number": "F-2024-00128",
+  "date": "2024-05-21",
+  "due_date": "2024-05-21",
+  "supplier": {
+    "name": "Papelería Fiscal Demo SL",
+    "tax_id": "B-00100128",
+    "address": "Calle Roble, 122 - Zaragoza",
+    "email": "papeleria.fiscal.demo.sl.128@example.test",
+    "phone": "+34 900 128 967"
+  },
+  "customer": {
+    "name": "Proyecto Alfa Demo SL",
+    "tax_id": "B-00100428",
+    "address": "Camino del Almacén, 47 - Bilbao",
+    "email": "proyecto.alfa.demo.sl.428@example.test",
+    "phone": "+34 900 428 405"
+  },
+  "payment_method": "Tarjeta",
+  "lines": [
+    {
+      "reference": "REF-8138-1",
+      "description": "Desplazamiento",
+      "unit": "h",
+      "quantity": 12.0,
+      "unit_price": 392.79,
+      "discount_rate": 0.0,
+      "vat_rate": 21.0,
+      "line_base": 4713.48,
+      "vat_amount": 989.83,
+      "recargo_rate": 0.0,
+      "recargo_amount": 0.0,
+      "line_total_with_vat": 5703.31,
+      "line_total_with_taxes": 5703.31,
+      "period": null
+    }
+  ],
+  "totals": {
+    "base_before_global_discount": 4713.48,
+    "global_discount_rate": 0.0,
+    "global_discount_amount": 0.0,
+    "taxable_base": 4713.48,
+    "tax_summary": [
+      {
+        "vat_rate": 21.0,
+        "taxable_base": 4713.48,
+        "vat_amount": 989.83,
+        "recargo_rate": 0.0,
+        "recargo_amount": 0.0
+      }
+    ],
+    "vat_total": 989.83,
+    "recargo_total": 0.0,
+    "irpf_rate": 0.0,
+    "irpf_amount": 0.0,
+    "total": 5703.31,
+    "currency": "EUR"
+  },
+  "column_map_expected": {
+    "Ref.": "reference",
+    "Descripción": "description",
+    "Uds.": "quantity",
+    "PVP": "unit_price",
+    "Dto.": "discount_rate",
+    "Total": "line_base"
+  },
+  "extraction_targets": [
+    "supplier.name",
+    "supplier.tax_id",
+    "invoice_number",
+    "date",
+    "due_date",
+    "lines",
+    "totals.taxable_base",
+    "totals.vat_total",
+    "totals.irpf_amount",
+    "totals.total"
+  ],
+  "synthetic_notice": "Datos ficticios. Documento generado para entrenamiento/pruebas. No usar como factura real."
+}
