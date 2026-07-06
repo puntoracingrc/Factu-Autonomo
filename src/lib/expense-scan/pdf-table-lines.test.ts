@@ -66,16 +66,30 @@ describe("extractStilCondalPurchaseLinesFromPdfItems", () => {
     expect(result.lines[0]).toMatchObject({
       supplierReference: "AUTC45",
       description: "AU TOBLOCANTE C-45 SOLO LAMAS Blan",
+      sourceQuantity: 1,
       quantity: 6.11,
+      chargeQuantity: 6.11,
+      calculationBasis: "m2",
       unit: "M2",
+      width: 230.2,
+      height: 256,
       unitPrice: 159,
       discountPercent: 25,
+      netUnitPrice: 119.25,
       total: 728.62,
+      calculationFormula: "m2*netPrice",
+      calculationExpectedTotal: 728.62,
+      productGroupIndex: 1,
+      productRole: "main_product",
     });
     expect(result.lines[1]).toMatchObject({
       supplierReference: "AUTC45",
+      sourceQuantity: 1,
       quantity: 5.5,
+      calculationBasis: "m2",
       total: 655.88,
+      productGroupIndex: 2,
+      productRole: "main_product",
     });
   });
 
@@ -130,29 +144,64 @@ describe("extractStilCondalPurchaseLinesFromPdfItems", () => {
     const result = extractStilCondalPurchaseLinesFromPdfItems(items);
 
     expect(result.lines).toHaveLength(4);
-    expect(result.lines[0]).toMatchObject({ quantity: 6.11, unit: "M2" });
+    expect(result.lines[0]).toMatchObject({
+      sourceQuantity: 1,
+      quantity: 6.11,
+      chargeQuantity: 6.11,
+      calculationBasis: "m2",
+      unit: "M2",
+      width: 230.2,
+      height: 256,
+      netUnitPrice: 119.25,
+      calculationFormula: "m2*netPrice",
+    });
     expect(result.lines[1]).toMatchObject({
       supplierReference: "005099004",
+      sourceQuantity: 2,
       quantity: 5.1,
+      chargeQuantity: 5.1,
+      calculationBasis: "ml",
       unit: "ML",
+      length: 251,
       unitPrice: 3.96,
       discountPercent: 25,
+      netUnitPrice: 2.97,
       total: 15.15,
+      calculationFormula: "ml*netPrice",
+      calculationExpectedTotal: 15.15,
+      productGroupIndex: 1,
+      productRole: "component",
     });
     expect(result.lines[2]).toMatchObject({
       supplierReference: "007002009",
+      sourceQuantity: 1,
       quantity: 1,
+      chargeQuantity: 1,
+      calculationBasis: "unit",
       unit: "UD",
       unitPrice: 8.83,
+      netUnitPrice: 8.83,
       total: 8.83,
+      calculationFormula: "units*netPrice",
+      productGroupIndex: 1,
+      productRole: "component",
     });
     expect(result.lines[3]).toMatchObject({
       supplierReference: "004001012",
+      sourceQuantity: 1,
       quantity: 2.55,
+      chargeQuantity: 2.55,
+      calculationBasis: "ml",
       unit: "ML",
+      length: 252.7,
       unitPrice: 8,
       discountPercent: 25,
+      netUnitPrice: 6,
       total: 15.3,
+      calculationFormula: "ml*netPrice",
+      calculationExpectedTotal: 15.3,
+      productGroupIndex: 1,
+      productRole: "component",
     });
   });
 

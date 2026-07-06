@@ -6,6 +6,9 @@ import {
 import { roundMoney } from "../calculations";
 import type {
   ExpenseBusinessKind,
+  ExpenseLineCalculationBasis,
+  ExpenseLineCalculationFormula,
+  ExpenseLineProductRole,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
 } from "../types";
@@ -147,6 +150,14 @@ function parseNonNegativeNumber(value: unknown): number | undefined {
   return number !== undefined && number >= 0 ? number : undefined;
 }
 
+function pickKnownValue<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): T | undefined {
+  const text = cleanText(value);
+  return allowed.includes(text as T) ? (text as T) : undefined;
+}
+
 function isAreaUnit(unit: string): boolean {
   const normalized = unit
     .toLowerCase()
@@ -195,25 +206,72 @@ function normalizePurchaseLine(raw: unknown): ExpenseScanPurchaseLine | null {
 
   const discountPercent = parseNonNegativeNumber(line.discountPercent);
   const ivaPercent = parseNonNegativeNumber(line.ivaPercent);
+  const normalizedQuantity = inferAreaQuantity({
+    quantity,
+    unit: unit ?? "",
+    unitPrice,
+    discountPercent,
+    total,
+  });
+  const sourceQuantity = parseNonNegativeNumber(line.sourceQuantity);
+  const chargeQuantity =
+    parseNonNegativeNumber(line.chargeQuantity) ?? normalizedQuantity;
+  const calculationBasis = pickKnownValue<ExpenseLineCalculationBasis>(
+    line.calculationBasis,
+    ["m2", "ml", "unit", "kg", "hour", "fixed", "unknown"],
+  );
+  const calculationFormula = pickKnownValue<ExpenseLineCalculationFormula>(
+    line.calculationFormula,
+    [
+      "m2*netPrice",
+      "ml*netPrice",
+      "units*netPrice",
+      "quantity*unitPrice",
+      "fixed",
+      "unknown",
+    ],
+  );
+  const productRole = pickKnownValue<ExpenseLineProductRole>(line.productRole, [
+    "main_product",
+    "component",
+    "service",
+    "shipping",
+    "discount",
+    "unknown",
+  ]);
 
   return {
     supplierReference,
     description,
-    quantity: inferAreaQuantity({
-      quantity,
-      unit: unit ?? "",
-      unitPrice,
-      discountPercent,
-      total,
-    }),
+    sourceQuantity,
+    quantity: chargeQuantity,
+    chargeQuantity,
+    calculationBasis,
     unit,
+    dimensionUnit: pickKnownValue(line.dimensionUnit, [
+      "mm",
+      "cm",
+      "m",
+      "unknown",
+    ]),
+    width: parseNonNegativeNumber(line.width),
+    height: parseNonNegativeNumber(line.height),
+    length: parseNonNegativeNumber(line.length),
     unitPrice: roundMoney(unitPrice ?? (total ? total / quantity : 0)),
     discountPercent:
       discountPercent === undefined
         ? undefined
         : Math.min(Math.max(discountPercent, 0), 100),
+    netUnitPrice: parseNonNegativeNumber(line.netUnitPrice),
     ivaPercent,
     total: total ? roundMoney(total) : undefined,
+    calculationFormula,
+    calculationExpectedTotal: parseNonNegativeNumber(
+      line.calculationExpectedTotal,
+    ),
+    calculationDifference: parseFiniteNumber(line.calculationDifference),
+    productGroupIndex: parseNonNegativeNumber(line.productGroupIndex),
+    productRole,
   };
 }
 
@@ -426,12 +484,36 @@ export const EXPENSE_SCAN_JSON_SCHEMA = {
         supplierReference:
           "string opcional — referencia/código del proveedor si hay columna REF., Código, Artículo o similar",
         description: "string — producto, material o servicio si aparece",
-        quantity: "number — cantidad; 1 si no aparece",
-        unit: "string opcional — ud, m, h, kg...",
+        sourceQuantity:
+          "number opcional — cantidad original de la columna Cant./Uds./Piezas",
+        quantity:
+          "number — cantidad cobrada que multiplica el precio neto; si hay M2/ML usa esa medida, no solo Cant.",
+        chargeQuantity:
+          "number opcional — igual que quantity cuando la línea se calcula por m2, ml, kg, hora o unidad",
+        calculationBasis:
+          "m2 | ml | unit | kg | hour | fixed | unknown — base real del cálculo de la línea",
+        unit: "string opcional — ud, m2, ml, h, kg...",
+        dimensionUnit:
+          "mm | cm | m | unknown opcional — unidad de ancho/alto/largo si aparecen medidas",
+        width: "number opcional — ancho leído si aparece",
+        height: "number opcional — alto leído si aparece",
+        length: "number opcional — largo/alto usado para metro lineal si aparece",
         unitPrice: "number — precio unitario SIN IVA antes de descuento",
         discountPercent: "number opcional — descuento de línea en %",
+        netUnitPrice:
+          "number opcional — precio neto SIN IVA tras descuento si aparece",
         ivaPercent: "number opcional — IVA de la línea si aparece",
         total: "number opcional — base de línea SIN IVA tras descuento",
+        calculationFormula:
+          "m2*netPrice | ml*netPrice | units*netPrice | quantity*unitPrice | fixed | unknown",
+        calculationExpectedTotal:
+          "number opcional — resultado matemático esperado antes de redondeo final",
+        calculationDifference:
+          "number opcional — diferencia entre total leído y cálculo esperado",
+        productGroupIndex:
+          "number opcional — grupo de producto si una línea principal arrastra componentes",
+        productRole:
+          "main_product | component | service | shipping | discount | unknown opcional",
       },
     ],
   },
