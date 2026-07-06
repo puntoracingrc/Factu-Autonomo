@@ -184,7 +184,13 @@ function parseLineRow(row: PdfTextItem[]): ExpenseScanPurchaseLine | null {
 
   const hasAreaDimensions =
     width !== undefined && height !== undefined && area !== undefined;
-  const effectiveQuantity = hasAreaDimensions ? area : quantity;
+  const hasLinearDimension =
+    !hasAreaDimensions &&
+    width !== undefined &&
+    area !== undefined &&
+    numbers.length >= 7;
+  const effectiveQuantity =
+    hasAreaDimensions || hasLinearDimension ? area : quantity;
   const fallbackUnitPrice =
     total !== undefined && effectiveQuantity !== 0
       ? roundMoney(total / effectiveQuantity)
@@ -195,7 +201,7 @@ function parseLineRow(row: PdfTextItem[]): ExpenseScanPurchaseLine | null {
     supplierReference,
     description: description || supplierReference,
     quantity: effectiveQuantity,
-    unit: hasAreaDimensions ? "M2" : "ud",
+    unit: hasAreaDimensions ? "M2" : hasLinearDimension ? "ML" : "UD",
     unitPrice: unitPrice ?? netPrice ?? fallbackUnitPrice,
     discountPercent,
     total,
