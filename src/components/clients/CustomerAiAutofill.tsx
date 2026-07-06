@@ -13,6 +13,7 @@ import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import type { AiUsageMeter, ScanQuota } from "@/lib/billing/scan-limits";
+import type { AddressResidenceType } from "@/lib/types";
 
 export interface CustomerAiAutofillValues {
   customerType: "person" | "company";
@@ -23,7 +24,7 @@ export interface CustomerAiAutofillValues {
   email: string;
   phone: string;
   streetType: string;
-  residenceType: "flat" | "house";
+  residenceType: AddressResidenceType;
   address: string;
   addressExtra: string;
   city: string;

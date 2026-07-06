@@ -1,5 +1,9 @@
 import { normalizeCustomerNif } from "../customers";
-import { STREET_TYPES } from "../customer-address";
+import {
+  RESIDENCE_TYPES,
+  STREET_TYPES,
+  normalizeResidenceType as normalizeAddressResidenceType,
+} from "../customer-address";
 import type { AddressResidenceType, CustomerType } from "../types";
 
 export interface CustomerTextExtractPayload {
@@ -63,8 +67,16 @@ function normalizeCustomerType(value: unknown): CustomerType {
   return value === "company" ? "company" : "person";
 }
 
-function normalizeResidenceType(value: unknown): AddressResidenceType {
-  return value === "house" ? "house" : "flat";
+function inferResidenceTypeFromAddressExtra(value: string | null): AddressResidenceType {
+  const cleaned = value?.toLowerCase() ?? "";
+  if (!cleaned) return "";
+  if (/\blocal\b/.test(cleaned)) return "local";
+  if (/\btienda\b|\bcomercio\b/.test(cleaned)) return "shop";
+  if (/\boficina\b|\bdespacho\b/.test(cleaned)) return "office";
+  if (/\bnave\b/.test(cleaned)) return "warehouse";
+  if (/\btaller\b/.test(cleaned)) return "workshop";
+  if (/\bbajo\b|\bbajos\b|\bplanta baja\b/.test(cleaned)) return "ground_floor";
+  return "flat";
 }
 
 export function normalizeCustomerTextExtractPayload(
@@ -104,9 +116,11 @@ export function normalizeCustomerTextExtractPayload(
 
   const nif = optionalString(customer.nif);
   const addressExtra = optionalString(customer.addressExtra);
-  const residenceType = addressExtra
-    ? "flat"
-    : normalizeResidenceType(customer.residenceType);
+  const explicitResidenceType = normalizeAddressResidenceType(
+    optionalString(customer.residenceType),
+  );
+  const residenceType =
+    explicitResidenceType || inferResidenceTypeFromAddressExtra(addressExtra);
 
   return {
     customer: {
@@ -146,7 +160,7 @@ export const CUSTOMER_TEXT_EXTRACT_JSON_SCHEMA = {
     phone: "string opcional",
     streetType: `opcional, uno de: ${STREET_TYPES.map((type) => type.id).join(", ")}`,
     residenceType:
-      'string — "flat" si es piso/apartamento/local con piso/puerta/escalera; "house" si es casa/chalet y no hay piso/puerta',
+      `string opcional — uno de: ${RESIDENCE_TYPES.map((type) => type.id || "(vacío)").join(", ")}. Usa vacío si no se sabe`,
     address: "string opcional — calle y número sin prefijo de tipo de vía",
     addressExtra:
       "string opcional — piso, puerta, escalera, bajos, local o cualquier detalle separado de la calle y número",

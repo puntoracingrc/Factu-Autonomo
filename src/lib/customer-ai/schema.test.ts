@@ -27,11 +27,37 @@ describe("customer text extract schema", () => {
       contactName: "Ana Ferrer",
       nif: "B60896362",
       streetType: "calle",
-      residenceType: "flat",
+      residenceType: "ground_floor",
       addressExtra: "Bajos Primera",
       postalCode: "08017",
       city: "Barcelona",
     });
+  });
+
+  it("acepta inmueble comercial y deja vacío si no se detecta", () => {
+    const nave = normalizeCustomerTextExtractPayload({
+      customer: {
+        customerType: "company",
+        firstName: "DOSARTEC OBRAS Y SERVICIOS S.L.",
+        residenceType: "nave",
+        address: "Andorra 6",
+      },
+      confidence: 0.8,
+      warnings: [],
+    });
+    const unknown = normalizeCustomerTextExtractPayload({
+      customer: {
+        customerType: "company",
+        firstName: "CLIENTE SIN TIPO S.L.",
+        residenceType: "",
+        address: "Mayor 1",
+      },
+      confidence: 0.8,
+      warnings: [],
+    });
+
+    expect(nave?.customer.residenceType).toBe("warehouse");
+    expect(unknown?.customer.residenceType).toBe("");
   });
 
   it("rechaza respuestas sin nombre suficiente", () => {

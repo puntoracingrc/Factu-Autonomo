@@ -120,6 +120,45 @@ describe("buildDocumentPdf", () => {
     expect(pdf.getNumberOfPages()).toBe(1);
   });
 
+  it("genera rectificativa con cliente largo, pago y notas", () => {
+    const pdf = buildDocumentPdf(
+      {
+        ...baseDoc,
+        number: "FR-2026-0001",
+        client: {
+          name: "DOSARTEC OBRAS Y SERVICIOS, S.L. OBRAS Y SERVICIOS",
+          nif: "B67023176",
+          address: "Avda. d'Andorra nº 6, 08830 Sant Boi Llobregat",
+        },
+        rectification: {
+          originalDocumentId: "1",
+          originalNumber: "F-2026-2951",
+          originalDate: "2026-07-06",
+          reason: "Error en los datos del cliente",
+          type: "correccion",
+        },
+        paymentTerms: "Transferencia bancaria a 30 días",
+        notes: "Texto escrito a mano en la factura original",
+        items: [
+          {
+            id: "l1",
+            description: "Reparación de Persianas Supergradheremetic",
+            quantity: 3,
+            unitPrice: 80,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      DEFAULT_PROFILE,
+    );
+    const output = pdf.output();
+
+    expect(pdf.getNumberOfPages()).toBe(1);
+    expect(output).toContain("DOSARTEC OBRAS Y SERVICIOS");
+    expect(output).toContain("Transferencia bancaria");
+    expect(output).toContain("Texto escrito a mano");
+  });
+
   it("añade la marca de plan gratis solo cuando se solicita", () => {
     const doc: Document = {
       ...baseDoc,

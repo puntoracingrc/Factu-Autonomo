@@ -10,6 +10,7 @@ import {
   Clock3,
   ClipboardCheck,
   Euro,
+  Info,
   RotateCcw,
   Sparkles,
   TestTube2,
@@ -21,7 +22,9 @@ import { useBilling } from "@/context/BillingContext";
 import { PLANS } from "@/lib/billing/plans";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
 import {
+  consumeRentabilidadRealAdvisorValidationNotice,
   getStoredRentabilidadRealAdvisorValidationStatus,
+  shouldShowAdvisorValidationAction,
   type RentabilidadRealAdvisorValidationStatus,
 } from "@/lib/rentabilidad-real/advisor-validation";
 import { buildMarketplaceViewModel } from "@/lib/rentabilidad-real/view-model";
@@ -65,6 +68,9 @@ export function RentabilidadRealShell() {
   const [localResetMessage, setLocalResetMessage] = useState<string | null>(
     null,
   );
+  const [localResetInfoOpen, setLocalResetInfoOpen] = useState(false);
+  const [validationNotice, setValidationNotice] =
+    useState<RentabilidadRealAdvisorValidationStatus | null>(null);
 
   const activation = useRentabilidadRealActivation({
     planKey: rentabilidadRealAccess.planKey,
@@ -75,7 +81,17 @@ export function RentabilidadRealShell() {
     setStoredAnswers(getStoredRentabilidadRealWizardAnswers());
     setLastScoringResult(getStoredRentabilidadRealLastScoringResult());
     setValidationStatus(getStoredRentabilidadRealAdvisorValidationStatus());
+    const advisorNotice = consumeRentabilidadRealAdvisorValidationNotice();
+    if (advisorNotice) {
+      setValidationNotice(advisorNotice);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!validationNotice) return;
+    const timeout = window.setTimeout(() => setValidationNotice(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [validationNotice]);
 
   const marketplace = useMemo(
     () => buildMarketplaceViewModel(activation.accessContext),
@@ -87,6 +103,8 @@ export function RentabilidadRealShell() {
       ? "Pro+ IA (modo desarrollo/preview)"
       : `${PLANS[plan].name} (billing desactivado)`;
   const hasTest = Boolean(storedAnswers && lastScoringResult);
+  const showAdvisorValidationAction =
+    shouldShowAdvisorValidationAction(validationStatus);
 
   const handleLocalReset = () => {
     const confirmed = window.confirm(
@@ -139,15 +157,78 @@ export function RentabilidadRealShell() {
               Hacer test guiado
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <Link
-              href="/rentabilidad-real/validar-configuracion"
-              className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 transition-colors hover:bg-blue-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            >
-              Validar configuración
-            </Link>
+            {showAdvisorValidationAction ? (
+              <Link
+                href="/rentabilidad-real/validar-configuracion"
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 transition-colors hover:bg-blue-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              >
+                Validar configuración
+              </Link>
+            ) : null}
           </div>
         </div>
       </section>
+
+      {validationNotice === "validated" ? (
+        <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
+          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+            Configuración validada.
+          </p>
+        </Card>
+      ) : null}
+
+      {validationNotice === "corrected" ? (
+        <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
+          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+            Configuración corregida por tu gestor.
+          </p>
+        </Card>
+      ) : null}
+
+      <RentabilidadRealActiveModulesPanel
+        activeProductIds={activation.activeProductIds}
+        actions={
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => setLocalResetInfoOpen((open) => !open)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+              aria-label="Ver qué restablece la configuración local"
+              title="Ver qué restablece"
+            >
+              <Info className="h-5 w-5" />
+            </button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 px-4 text-sm"
+              onClick={handleLocalReset}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restablecer configuración
+            </Button>
+          </div>
+        }
+        details={
+          localResetInfoOpen || localResetMessage ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              {localResetInfoOpen ? (
+                <p>
+                  Restablece solo respuestas del test, módulos activos, ajustes
+                  internos y preferencias locales de Rentabilidad Real en este
+                  navegador. No borra facturas, presupuestos, gastos, impuestos
+                  ni datos fiscales.
+                </p>
+              ) : null}
+              {localResetMessage ? (
+                <p className="font-bold text-emerald-700 dark:text-emerald-200">
+                  {localResetMessage}
+                </p>
+              ) : null}
+            </div>
+          ) : null
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -208,126 +289,128 @@ export function RentabilidadRealShell() {
         </Card>
       </div>
 
-      <RentabilidadRealExistingDataPanel />
-
-      <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700 dark:bg-slate-950 dark:text-emerald-200">
-              <Calculator className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Calcular rentabilidad de un trabajo
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Usa tus presupuestos, facturas, gastos y gastos fijos existentes
-                para saber cuánto deja realmente una obra o servicio.
-              </p>
+      <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="h-full border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
+            <div className="flex h-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700 dark:bg-slate-950 dark:text-emerald-200">
+                  <Calculator className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                    Calcular rentabilidad de un trabajo
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    Usa presupuestos, facturas, gastos y gastos fijos para ver
+                    cuánto deja una obra o servicio.
+                  </p>
+                </div>
+              </div>
+              <ButtonLink
+                href="/rentabilidad-real/calculadora/trabajo"
+                className="shrink-0"
+              >
+                Ir a calculadora
+              </ButtonLink>
             </div>
-          </div>
-          <ButtonLink
-            href="/rentabilidad-real/calculadora/trabajo"
-            className="shrink-0"
-          >
-            Ir a calculadora
-          </ButtonLink>
-        </div>
-      </Card>
+          </Card>
 
-      <Card className="border-sky-200 bg-sky-50 dark:border-sky-900/60 dark:bg-sky-950/35">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 dark:bg-slate-950 dark:text-sky-200">
-              <Clock3 className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Calcular rentabilidad por horas/proyecto
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Descubre cuánto ganas realmente por hora real trabajada, no
-                solo por hora facturada.
-              </p>
+          <Card className="h-full border-sky-200 bg-sky-50 dark:border-sky-900/60 dark:bg-sky-950/35">
+            <div className="flex h-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 dark:bg-slate-950 dark:text-sky-200">
+                  <Clock3 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                    Calcular rentabilidad por horas/proyecto
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    Comprueba cuánto ganas por hora real trabajada, no solo por
+                    hora facturada.
+                  </p>
+                </div>
+              </div>
+              <ButtonLink
+                href="/rentabilidad-real/calculadora/horas"
+                className="shrink-0"
+              >
+                Ir a horas/proyecto
+              </ButtonLink>
             </div>
-          </div>
-          <ButtonLink
-            href="/rentabilidad-real/calculadora/horas"
-            className="shrink-0"
-          >
-            Ir a horas/proyecto
-          </ButtonLink>
+          </Card>
         </div>
-      </Card>
 
-      <Card className="border-violet-200 bg-violet-50 dark:border-violet-900/60 dark:bg-violet-950/35">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-violet-700 dark:bg-slate-950 dark:text-violet-200">
-              <Euro className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Simular precio mínimo
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Calcula cuánto deberías cobrar por hora, trabajo, proyecto o
-                mes para cubrir costes, provisión IRPF y margen.
-              </p>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="h-full border-violet-200 bg-violet-50 dark:border-violet-900/60 dark:bg-violet-950/35">
+            <div className="flex h-full flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-violet-700 dark:bg-slate-950 dark:text-violet-200">
+                  <Euro className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                    Simular precio mínimo
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    Calcula cuánto deberías cobrar para cubrir costes, IRPF y
+                    margen.
+                  </p>
+                </div>
+              </div>
+              <ButtonLink
+                href="/rentabilidad-real/simulador-precio-minimo"
+                className="mt-auto"
+              >
+                Abrir simulador
+              </ButtonLink>
             </div>
-          </div>
-          <ButtonLink
-            href="/rentabilidad-real/simulador-precio-minimo"
-            className="shrink-0"
-          >
-            Abrir simulador
-          </ButtonLink>
-        </div>
-      </Card>
+          </Card>
 
-      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              <BarChart3 className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Ver informes de rentabilidad
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Descubre qué clientes, documentos o trabajos dejan más margen y
-                qué datos faltan para calcular mejor.
-              </p>
+          <Card className="h-full border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex h-full flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                  <BarChart3 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                    Ver informes de rentabilidad
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    Mira qué clientes, documentos o trabajos dejan más margen.
+                  </p>
+                </div>
+              </div>
+              <ButtonLink href="/rentabilidad-real/informes" className="mt-auto">
+                Ver informes
+              </ButtonLink>
             </div>
-          </div>
-          <ButtonLink href="/rentabilidad-real/informes" className="shrink-0">
-            Ver informes
-          </ButtonLink>
-        </div>
-      </Card>
+          </Card>
 
-      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
-              <TrendingUp className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Ver evolución mensual/trimestral
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Comprueba cómo cambian ingresos, costes, margen y caja prudente
-                por periodos sin guardar snapshots contables.
-              </p>
+          <Card className="h-full border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex h-full flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
+                  <TrendingUp className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
+                    Ver evolución mensual/trimestral
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    Comprueba ingresos, costes, margen y caja por periodos.
+                  </p>
+                </div>
+              </div>
+              <ButtonLink href="/rentabilidad-real/evolucion" className="mt-auto">
+                Ver evolución
+              </ButtonLink>
             </div>
-          </div>
-          <ButtonLink href="/rentabilidad-real/evolucion" className="shrink-0">
-            Ver evolución
-          </ButtonLink>
+          </Card>
         </div>
-      </Card>
+      </div>
 
       {!hasTest ? (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35">
@@ -353,14 +436,6 @@ export function RentabilidadRealShell() {
         </Card>
       ) : null}
 
-      {validationStatus === "validated" ? (
-        <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/35">
-          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-            Configuración validada.
-          </p>
-        </Card>
-      ) : null}
-
       {activation.notice ? (
         <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -376,106 +451,14 @@ export function RentabilidadRealShell() {
         </Card>
       ) : null}
 
-      <RentabilidadRealActiveModulesPanel
-        activeProductIds={activation.activeProductIds}
-      />
-
-      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              <RotateCcw className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-                Configuración local
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-                Restablece solo respuestas del test, módulos activos, ajustes
-                internos y preferencias locales de Rentabilidad Real en este
-                navegador. No borra facturas, presupuestos, gastos, impuestos
-                ni datos fiscales.
-              </p>
-              {localResetMessage ? (
-                <p className="mt-2 text-sm font-bold text-emerald-700 dark:text-emerald-200">
-                  {localResetMessage}
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            className="shrink-0"
-            onClick={handleLocalReset}
-          >
-            Restablecer configuración local de Rentabilidad Real
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="text-lg font-black text-slate-950 dark:text-slate-50">
-          Próximos pasos
-        </h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Link
-            href="/rentabilidad-real/test"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Hacer test guiado
-          </Link>
-          <a
-            href="#modulos-disponibles"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Activar módulos recomendados
-          </a>
-          <Link
-            href="/rentabilidad-real/validar-configuracion"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Validar configuración con mi gestor
-          </Link>
-          <Link
-            href="/rentabilidad-real/calculadora/trabajo"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Calcular rentabilidad de un trabajo
-          </Link>
-          <Link
-            href="/rentabilidad-real/calculadora/horas"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Calcular por horas/proyecto
-          </Link>
-          <Link
-            href="/rentabilidad-real/simulador-precio-minimo"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Simular precio mínimo
-          </Link>
-          <Link
-            href="/rentabilidad-real/informes"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Ver informes de rentabilidad
-          </Link>
-          <Link
-            href="/rentabilidad-real/evolucion"
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            Ver evolución mensual/trimestral
-          </Link>
-        </div>
-      </Card>
-
       <RentabilidadRealMarketplace
         availableProducts={marketplace.availableProducts}
         comingSoonProducts={marketplace.comingSoonProducts}
         onActivate={activation.activate}
         onDeactivate={activation.deactivate}
       />
+
+      <RentabilidadRealExistingDataPanel />
     </div>
   );
 }

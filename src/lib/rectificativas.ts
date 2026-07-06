@@ -117,6 +117,18 @@ export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
   }));
 }
 
+export function rectificationTextDefaults(
+  original: Pick<Document, "notes" | "paymentTerms">,
+  fallbackPaymentTerms = "",
+): { notes: string; paymentTerms: string } {
+  return {
+    notes: original.notes ?? "",
+    paymentTerms: original.paymentTerms?.trim()
+      ? original.paymentTerms
+      : fallbackPaymentTerms.trim(),
+  };
+}
+
 export function rectificationTypeLabel(type: RectificationType): string {
   return type === "anulacion" ? "Anulación total" : "Corrección de datos";
 }

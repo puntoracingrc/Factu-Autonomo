@@ -8,6 +8,7 @@ import {
   getDeletePolicy,
   itemsForAnulacion,
   originalStatusAfterRectification,
+  rectificationTextDefaults,
 } from "./rectificativas";
 import { issueDocument } from "./document-integrity";
 import { EMPTY_DATA, type Document } from "./types";
@@ -78,6 +79,26 @@ describe("facturas rectificativas", () => {
     const original = invoice("1", "F-2026-0001", "pagado");
     const negated = itemsForAnulacion(original.items);
     expect(negated[0].unitPrice).toBe(-100);
+  });
+
+  it("mantiene forma de pago y notas de la factura original", () => {
+    const original = invoice("1", "F-2026-0001", "pagado", {
+      paymentTerms: "Transferencia a 30 días",
+      notes: "Texto escrito a mano en la factura original",
+    });
+
+    expect(rectificationTextDefaults(original, "Bizum")).toEqual({
+      paymentTerms: "Transferencia a 30 días",
+      notes: "Texto escrito a mano en la factura original",
+    });
+  });
+
+  it("usa forma de pago por defecto solo si la original no tenía", () => {
+    expect(rectificationTextDefaults(invoice("1", "F-1", "pagado"), "Bizum"))
+      .toEqual({
+        paymentTerms: "Bizum",
+        notes: "",
+      });
   });
 
   it("marca original como anulada o rectificada", () => {

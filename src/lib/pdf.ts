@@ -388,17 +388,15 @@ export function buildDocumentPdfFromViewModel(
   if (isRect && doc.rectification) {
     pdf.setFontSize(Math.max(8, bodyFontSize - 0.2));
     pdf.setTextColor(120, 53, 15);
-    pdf.text(
+    const rectificationLines = [
       `Rectifica factura: ${doc.rectification.originalNumber} (${formatShortDate(doc.rectification.originalDate)})`,
-      14,
-      clientBoxY,
-    );
-    pdf.text(
       `Tipo: ${rectificationTypeLabel(doc.rectification.type)} · Motivo: ${doc.rectification.reason}`,
-      14,
-      clientBoxY + 6,
-    );
-    clientBoxY += 14;
+    ].flatMap((line) => pdf.splitTextToSize(line, 180));
+    for (const line of rectificationLines) {
+      pdf.text(line, 14, clientBoxY);
+      clientBoxY += 5.5;
+    }
+    clientBoxY += 3;
   }
 
   const clientLeftLines = [
@@ -407,15 +405,20 @@ export function buildDocumentPdfFromViewModel(
     doc.client.customerType === "company" && doc.client.contactName
       ? `Contacto: ${doc.client.contactName}`
       : "",
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .flatMap((line) => pdf.splitTextToSize(line, 76));
   const clientRightLines = [
     doc.client.address ?? "",
     doc.client.email ?? "",
     doc.client.phone ? `Tel: ${doc.client.phone}` : "",
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .flatMap((line) => pdf.splitTextToSize(line, 86));
+  const clientLineHeight = Math.max(5.5, bodyFontSize * 0.5);
   const clientBoxHeight = Math.max(
     28,
-    14 + Math.max(clientLeftLines.length, clientRightLines.length) * 6,
+    14 + Math.max(clientLeftLines.length, clientRightLines.length) * clientLineHeight,
   );
 
   pdf.setFillColor(
@@ -436,17 +439,17 @@ export function buildDocumentPdfFromViewModel(
   clientLeftLines.forEach((line, index) => {
     pdf.text(line, 18, clientLeftY);
     if (index === 0) pdf.setFontSize(bodyFontSize);
-    clientLeftY += 6;
+    clientLeftY += clientLineHeight;
   });
   pdf.setFontSize(bodyFontSize);
   let clientRightY = clientBoxY + 16;
   clientRightLines.forEach((line) => {
-    pdf.text(line, 100, clientRightY);
-    clientRightY += 6;
+    pdf.text(line, 106, clientRightY);
+    clientRightY += clientLineHeight;
   });
 
   autoTable(pdf, {
-    startY: clientBoxY + 34,
+    startY: clientBoxY + clientBoxHeight + 8,
     head: vatExempt
       ? [["Concepto", "Cant.", "Precio", "Total"]]
       : [["Concepto", "Cant.", "Precio", "IVA", "Total"]],
@@ -534,19 +537,38 @@ export function buildDocumentPdfFromViewModel(
   if (doc.paymentTerms && template.showPaymentBox) {
     pdf.setFont(pdfFont, "normal");
     pdf.setFontSize(bodyFontSize);
+    const paymentLines = pdf.splitTextToSize(
+      `Forma de pago: ${doc.paymentTerms}`,
+      88,
+    );
     if (template.style !== "clasico") {
       pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(12, footerY - 3, 90, 9, 2, 2, "F");
+      pdf.roundedRect(
+        12,
+        footerY - 3,
+        90,
+        4 + paymentLines.length * 5.5,
+        2,
+        2,
+        "F",
+      );
     }
-    pdf.text(`Forma de pago: ${doc.paymentTerms}`, 14, footerY);
-    footerY += 8;
+    for (const line of paymentLines) {
+      pdf.text(line, 14, footerY);
+      footerY += 5.5;
+    }
+    footerY += 3;
   }
 
   if (doc.notes) {
     pdf.setFont(pdfFont, "normal");
     pdf.setFontSize(bodyFontSize);
-    pdf.text(`Notas: ${doc.notes}`, 14, footerY + 4);
-    footerY += 10;
+    const noteLines = pdf.splitTextToSize(`Notas: ${doc.notes}`, 180);
+    for (const line of noteLines) {
+      pdf.text(line, 14, footerY + 4);
+      footerY += 5.5;
+    }
+    footerY += 5;
   }
 
   if (issuer.iban && doc.type === "factura" && !isRect) {

@@ -157,7 +157,7 @@ const EMPTY_CLIENT: ClientFormValues = {
   email: "",
   phone: "",
   streetType: "",
-  residenceType: "flat",
+  residenceType: "",
   address: "",
   addressExtra: "",
   city: "",

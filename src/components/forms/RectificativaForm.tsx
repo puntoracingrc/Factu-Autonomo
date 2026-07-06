@@ -13,7 +13,10 @@ import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
-import { formatAddressBlock } from "@/lib/customer-address";
+import {
+  formatAddressBlock,
+  residenceTypeAllowsAddressExtra,
+} from "@/lib/customer-address";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -48,6 +51,7 @@ import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
+  rectificationTextDefaults,
   rectificationTypeLabel,
 } from "@/lib/rectificativas";
 import { lineItemFormTotal } from "@/lib/document-form-flow";
@@ -89,8 +93,11 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   const [reason, setReason] = useState<string>(RECTIFICATION_REASONS[0]);
   const [customReason, setCustomReason] = useState("");
   const [date, setDate] = useState(todayISO());
-  const [notes, setNotes] = useState("");
-  const [paymentTerms, setPaymentTerms] = useState("");
+  const initialTextDefaults = rectificationTextDefaults(original);
+  const [notes, setNotes] = useState(initialTextDefaults.notes);
+  const [paymentTerms, setPaymentTerms] = useState(
+    initialTextDefaults.paymentTerms,
+  );
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     clientToFormValues(original.client),
   );
@@ -106,8 +113,11 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       normalizeDocumentPaymentMethods(data.profile.documentPaymentMethods),
       "factura",
     );
-    if (method) setPaymentTerms(method.text);
-  }, [data.profile.documentPaymentMethods]);
+    if (method) {
+      const defaults = rectificationTextDefaults(original, method.text);
+      setPaymentTerms((current) => current || defaults.paymentTerms);
+    }
+  }, [data.profile.documentPaymentMethods, original]);
 
   function handleTypeChange(type: RectificationType) {
     setRectType(type);
@@ -162,10 +172,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       phone: clientForm.phone || undefined,
       streetType: clientForm.streetType || undefined,
       residenceType: clientForm.residenceType,
-      addressExtra:
-        clientForm.residenceType === "house"
-          ? undefined
-          : clientForm.addressExtra || undefined,
+      addressExtra: residenceTypeAllowsAddressExtra(clientForm.residenceType)
+        ? clientForm.addressExtra || undefined
+        : undefined,
       address:
         formatAddressBlock({
           streetType: clientForm.streetType,

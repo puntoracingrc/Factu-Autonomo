@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   clientAddressToFormFields,
   formatAddressBlock,
+  formatAddressExtra,
+  normalizeResidenceType,
   formatStreetLine,
   normalizeCustomerStreetFields,
+  RESIDENCE_TYPES,
   splitLegacyStreetAddress,
 } from "./customer-address";
 import type { Customer } from "./types";
@@ -91,6 +94,16 @@ describe("formatStreetLine", () => {
 });
 
 describe("formatAddressBlock", () => {
+  it("normaliza tipos habituales de inmueble", () => {
+    expect(RESIDENCE_TYPES.map((type) => type.id)).toEqual(
+      expect.arrayContaining(["", "flat", "house", "local", "shop", "warehouse"]),
+    );
+    expect(normalizeResidenceType("nave")).toBe("warehouse");
+    expect(normalizeResidenceType("tienda")).toBe("shop");
+    expect(normalizeResidenceType("local comercial")).toBe("local");
+    expect(normalizeResidenceType("")).toBe("");
+  });
+
   it("incluye piso y puerta en pisos", () => {
     expect(
       formatAddressBlock({
@@ -115,6 +128,12 @@ describe("formatAddressBlock", () => {
         city: "Barcelona",
       }),
     ).toBe("C/ Nena Casas 52, 08017 Barcelona");
+  });
+
+  it("permite detalle interior en locales y oficinas", () => {
+    expect(formatAddressExtra("local", "Local 3")).toBe("Local 3");
+    expect(formatAddressExtra("office", "Despacho B")).toBe("Despacho B");
+    expect(formatAddressExtra("chalet", "Puerta 1")).toBe("");
   });
 });
 
@@ -149,7 +168,7 @@ describe("clientAddressToFormFields", () => {
       streetType: "calle",
       streetLine: "Mayor 1",
       addressExtra: "",
-      residenceType: "flat",
+      residenceType: "",
     });
   });
 
