@@ -4,6 +4,9 @@ import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
 
 const EXPENSE_SCAN_MODEL =
   process.env.OPENAI_EXPENSE_SCAN_MODEL?.trim() || "gpt-4o";
+const DEFAULT_EXPENSE_SCAN_MAX_TOKENS = 6000;
+const MIN_EXPENSE_SCAN_MAX_TOKENS = 2000;
+const MAX_EXPENSE_SCAN_MAX_TOKENS = 12000;
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -24,6 +27,18 @@ export function resolveScanMimeType(file: File): string {
 
 export function isOpenAiConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
+}
+
+export function resolveExpenseScanMaxTokens(
+  value = process.env.OPENAI_EXPENSE_SCAN_MAX_TOKENS,
+): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_EXPENSE_SCAN_MAX_TOKENS;
+
+  return Math.min(
+    Math.max(parsed, MIN_EXPENSE_SCAN_MAX_TOKENS),
+    MAX_EXPENSE_SCAN_MAX_TOKENS,
+  );
 }
 
 export function validateScanFile(file: File): string | null {
@@ -91,7 +106,7 @@ export async function extractExpenseFromImage(
     body: JSON.stringify({
       model: EXPENSE_SCAN_MODEL,
       temperature: 0.1,
-      max_tokens: 1800,
+      max_tokens: resolveExpenseScanMaxTokens(),
       response_format: { type: "json_object" },
       messages: [
         {
