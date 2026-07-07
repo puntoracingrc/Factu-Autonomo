@@ -107,6 +107,7 @@ import {
   applyDocumentLinkUpdate,
   type DocumentLinkUpdate,
 } from "@/lib/document-links";
+import { repairDocumentCustomerSnapshot } from "@/lib/document-customer-repair";
 import { normalizeProductCatalogItem, purchaseProductKey } from "@/lib/purchase-products";
 
 interface ReplaceDataOptions {
@@ -129,6 +130,10 @@ interface AppStoreValue {
     > & { rectification: RectificationInfo },
   ) => Document | null;
   updateDocument: (doc: Document) => Document;
+  repairDocumentCustomer: (
+    documentId: string,
+    customerId: string,
+  ) => Document | null;
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
@@ -508,6 +513,35 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     });
     return saved;
   }, [data.documents, data.profile, setAppData]);
+
+  const repairDocumentCustomer = useCallback(
+    (documentId: string, customerId: string): Document | null => {
+      let repaired: Document | null = null;
+      const now = new Date().toISOString();
+      setAppData((prev) => {
+        const document = prev.documents.find((item) => item.id === documentId);
+        const customer = prev.customers.find((item) => item.id === customerId);
+        if (!document || !customer) return prev;
+
+        repaired = repairDocumentCustomerSnapshot(
+          document,
+          customer,
+          prev.profile,
+          now,
+        );
+
+        return {
+          ...prev,
+          documents: prev.documents.map((item) =>
+            item.id === documentId ? repaired! : item,
+          ),
+        };
+      });
+
+      return repaired;
+    },
+    [setAppData],
+  );
 
   const updateDocumentLink = useCallback(
     (update: DocumentLinkUpdate) => {
@@ -1532,6 +1566,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      repairDocumentCustomer,
       updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,
@@ -1579,6 +1614,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      repairDocumentCustomer,
       updateDocumentLink,
       markAsCollected,
       unmarkAsCollected,

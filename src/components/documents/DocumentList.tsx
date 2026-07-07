@@ -68,6 +68,7 @@ import {
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
+import { getCustomerDisplayName } from "@/lib/customers";
 import type { Document, DocumentType } from "@/lib/types";
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
@@ -144,7 +145,7 @@ export function DocumentList({
   type,
   basePath,
 }: DocumentListProps) {
-  const { data, getDocumentsByType } = useAppStore();
+  const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
   const vatExempt = isVatExempt(data.profile);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
@@ -403,6 +404,9 @@ export function DocumentList({
               : null;
             const hasLinkedCustomerNameMismatch =
               documentHasLinkedCustomerNameMismatch(doc, data.customers);
+            const linkedCustomerName = linkedCustomer
+              ? getCustomerDisplayName(linkedCustomer)
+              : "";
             const missingShareContact =
               !hasClientEmail(contactDoc) && !hasClientPhone(contactDoc);
             const displayNumber = isDraftInvoiceNumber(doc)
@@ -461,12 +465,32 @@ export function DocumentList({
                           <p className="text-slate-700">{doc.client.name}</p>
                         )}
                         {hasLinkedCustomerNameMismatch && (
-                          <span
-                            className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
-                            title="La factura conserva un nombre distinto al de la ficha actual. Revisa si la unificación fue correcta."
-                          >
-                            Revisar cliente
-                          </span>
+                          <>
+                            <span
+                              className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
+                              title="La factura conserva un nombre distinto al de la ficha actual. Revisa si la unificación fue correcta."
+                            >
+                              Revisar cliente
+                            </span>
+                            {linkedCustomer && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ok = window.confirm(
+                                    `¿Cambiar el titular congelado de ${doc.number} a ${linkedCustomerName}? No cambia importe, fecha, número ni líneas.`,
+                                  );
+                                  if (!ok) return;
+                                  repairDocumentCustomer(
+                                    doc.id,
+                                    linkedCustomer.id,
+                                  );
+                                }}
+                                className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-800 transition-colors hover:bg-amber-50"
+                              >
+                                Usar ficha actual
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                       <p className="text-sm text-slate-500">

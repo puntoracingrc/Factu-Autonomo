@@ -600,7 +600,10 @@ export interface AppPreferences {
   documentWhatsAppMethod: DocumentWhatsAppSendPreference;
 }
 
-export type DocumentSnapshotSource = "issue" | "legacy_backfill";
+export type DocumentSnapshotSource =
+  | "issue"
+  | "legacy_backfill"
+  | "customer_repair";
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;
