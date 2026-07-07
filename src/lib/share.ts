@@ -93,9 +93,6 @@ export function buildShareMessage(
     doc.status !== "anulada";
 
   if (pendingPayment && issuer.iban) {
-    lines.push(
-      "En ella encontrará los datos para realizar el pago si no lo ha hecho ya.",
-    );
     lines.push(`IBAN: ${issuer.iban}`);
   }
 
@@ -196,6 +193,46 @@ function openExternalUrl(url: string): void {
   if (!opened) window.location.href = url;
 }
 
+function externalAttachmentBody(message: string): string {
+  return `${message}\n\n(Adjunta el PDF.)`;
+}
+
+export function openDocumentEmailMessage(
+  doc: Document,
+  profile: BusinessProfile,
+  method: Extract<DocumentEmailSendPreference, "gmail" | "mailto">,
+): boolean {
+  const email = doc.client.email?.trim();
+  if (!email) return false;
+
+  const message = buildShareMessage(doc, profile);
+  const subject = shareSubject(doc);
+  const body = externalAttachmentBody(message);
+
+  if (method === "gmail") {
+    openExternalUrl(buildGmailComposeUrl(email, subject, body));
+    return true;
+  }
+
+  window.location.href = buildMailtoUrl(email, subject, body);
+  return true;
+}
+
+export function openWhatsAppDocumentMessage(
+  doc: Document,
+  profile: BusinessProfile,
+): boolean {
+  const phone = doc.client.phone?.trim();
+  if (!phone) return false;
+
+  const message = `${buildShareMessage(doc, profile)}\n\n(Adjunto el PDF.)`;
+  const url = buildWhatsAppUrl(phone, message);
+  if (!url) return false;
+
+  openExternalUrl(url);
+  return true;
+}
+
 export async function shareDocumentByEmail(
   doc: Document,
   profile: BusinessProfile,
@@ -213,7 +250,7 @@ export async function shareDocumentByEmail(
     if (shared) return;
   }
 
-  const body = `${message}\n\n(Adjunta el PDF descargado.)`;
+  const body = externalAttachmentBody(message);
 
   if (method === "gmail") {
     openExternalUrl(buildGmailComposeUrl(email, subject, body));
@@ -235,15 +272,13 @@ export async function shareDocumentByWhatsApp(
   if (!phone) return;
 
   const message = `${buildShareMessage(doc, profile)}\n\n(Adjunto el PDF.)`;
-  const url = buildWhatsAppUrl(phone, message);
-  if (!url) return;
 
   if (method === "native") {
     const shared = await sharePdfNative(doc, profile, message, pdfOptions);
     if (shared) return;
   }
 
-  openExternalUrl(url);
+  if (!openWhatsAppDocumentMessage(doc, profile)) return;
   await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
 }
 
