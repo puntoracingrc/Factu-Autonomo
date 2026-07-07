@@ -1,0 +1,2948 @@
+{
+  "created_at": "2026-07-07",
+  "generator_seed": 20260707,
+  "count": 150,
+  "description": "Facturas sinteticas adversariales para romper el invoice engine determinista antes que clientes reales.",
+  "privacy": "No contiene facturas reales ni datos reales.",
+  "files": [
+    {
+      "invoice_id": "synthetic_adv_0001",
+      "pdf": "pdf/synthetic_adv_0001_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0001_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "IRPF",
+        "recargo",
+        "descuento global",
+        "anticipos",
+        "intracomunitaria",
+        "rectificativa",
+        "suplidos"
+      ],
+      "total": 659.58
+    },
+    {
+      "invoice_id": "synthetic_adv_0002",
+      "pdf": "pdf/synthetic_adv_0002_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0002_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 970.83
+    },
+    {
+      "invoice_id": "synthetic_adv_0003",
+      "pdf": "pdf/synthetic_adv_0003_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0003_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 971.51
+    },
+    {
+      "invoice_id": "synthetic_adv_0004",
+      "pdf": "pdf/synthetic_adv_0004_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0004_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1110.1
+    },
+    {
+      "invoice_id": "synthetic_adv_0005",
+      "pdf": "pdf/synthetic_adv_0005_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0005_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21"
+      ],
+      "total": 18756
+    },
+    {
+      "invoice_id": "synthetic_adv_0006",
+      "pdf": "pdf/synthetic_adv_0006_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0006_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1092.59
+    },
+    {
+      "invoice_id": "synthetic_adv_0007",
+      "pdf": "pdf/synthetic_adv_0007_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0007_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 1303.58
+    },
+    {
+      "invoice_id": "synthetic_adv_0008",
+      "pdf": "pdf/synthetic_adv_0008_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0008_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "suplidos"
+      ],
+      "total": 1197.44
+    },
+    {
+      "invoice_id": "synthetic_adv_0009",
+      "pdf": "pdf/synthetic_adv_0009_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0009_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 915.81
+    },
+    {
+      "invoice_id": "synthetic_adv_0010",
+      "pdf": "pdf/synthetic_adv_0010_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0010_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta"
+      ],
+      "total": 26676.43
+    },
+    {
+      "invoice_id": "synthetic_adv_0011",
+      "pdf": "pdf/synthetic_adv_0011_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0011_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 979.37
+    },
+    {
+      "invoice_id": "synthetic_adv_0012",
+      "pdf": "pdf/synthetic_adv_0012_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0012_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "recargo"
+      ],
+      "total": 962
+    },
+    {
+      "invoice_id": "synthetic_adv_0013",
+      "pdf": "pdf/synthetic_adv_0013_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0013_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 841.03
+    },
+    {
+      "invoice_id": "synthetic_adv_0014",
+      "pdf": "pdf/synthetic_adv_0014_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0014_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IRPF"
+      ],
+      "total": 960.62
+    },
+    {
+      "invoice_id": "synthetic_adv_0015",
+      "pdf": "pdf/synthetic_adv_0015_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0015_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "suplidos"
+      ],
+      "total": 25349.01
+    },
+    {
+      "invoice_id": "synthetic_adv_0016",
+      "pdf": "pdf/synthetic_adv_0016_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0016_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1256.39
+    },
+    {
+      "invoice_id": "synthetic_adv_0017",
+      "pdf": "pdf/synthetic_adv_0017_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0017_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 923.14
+    },
+    {
+      "invoice_id": "synthetic_adv_0018",
+      "pdf": "pdf/synthetic_adv_0018_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0018_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IRPF"
+      ],
+      "total": 1143.81
+    },
+    {
+      "invoice_id": "synthetic_adv_0019",
+      "pdf": "pdf/synthetic_adv_0019_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0019_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global"
+      ],
+      "total": 1004.98
+    },
+    {
+      "invoice_id": "synthetic_adv_0020",
+      "pdf": "pdf/synthetic_adv_0020_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0020_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "intracomunitaria"
+      ],
+      "total": 21514.23
+    },
+    {
+      "invoice_id": "synthetic_adv_0021",
+      "pdf": "pdf/synthetic_adv_0021_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0021_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21"
+      ],
+      "total": 705.27
+    },
+    {
+      "invoice_id": "synthetic_adv_0022",
+      "pdf": "pdf/synthetic_adv_0022_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0022_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 1162.35
+    },
+    {
+      "invoice_id": "synthetic_adv_0023",
+      "pdf": "pdf/synthetic_adv_0023_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0023_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": -1174.56
+    },
+    {
+      "invoice_id": "synthetic_adv_0024",
+      "pdf": "pdf/synthetic_adv_0024_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0024_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "rectificativa"
+      ],
+      "total": 1051.25
+    },
+    {
+      "invoice_id": "synthetic_adv_0025",
+      "pdf": "pdf/synthetic_adv_0025_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0025_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 25721.54
+    },
+    {
+      "invoice_id": "synthetic_adv_0026",
+      "pdf": "pdf/synthetic_adv_0026_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0026_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1242.55
+    },
+    {
+      "invoice_id": "synthetic_adv_0027",
+      "pdf": "pdf/synthetic_adv_0027_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0027_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IRPF"
+      ],
+      "total": 1052.36
+    },
+    {
+      "invoice_id": "synthetic_adv_0028",
+      "pdf": "pdf/synthetic_adv_0028_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0028_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta"
+      ],
+      "total": 956.26
+    },
+    {
+      "invoice_id": "synthetic_adv_0029",
+      "pdf": "pdf/synthetic_adv_0029_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0029_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 730.42
+    },
+    {
+      "invoice_id": "synthetic_adv_0030",
+      "pdf": "pdf/synthetic_adv_0030_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0030_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 22174.9
+    },
+    {
+      "invoice_id": "synthetic_adv_0031",
+      "pdf": "pdf/synthetic_adv_0031_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0031_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 1150.5
+    },
+    {
+      "invoice_id": "synthetic_adv_0032",
+      "pdf": "pdf/synthetic_adv_0032_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0032_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1056.89
+    },
+    {
+      "invoice_id": "synthetic_adv_0033",
+      "pdf": "pdf/synthetic_adv_0033_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0033_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 813.42
+    },
+    {
+      "invoice_id": "synthetic_adv_0034",
+      "pdf": "pdf/synthetic_adv_0034_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0034_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "recargo"
+      ],
+      "total": 1373.18
+    },
+    {
+      "invoice_id": "synthetic_adv_0035",
+      "pdf": "pdf/synthetic_adv_0035_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0035_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IRPF"
+      ],
+      "total": 27191.17
+    },
+    {
+      "invoice_id": "synthetic_adv_0036",
+      "pdf": "pdf/synthetic_adv_0036_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0036_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "suplidos"
+      ],
+      "total": 1175.65
+    },
+    {
+      "invoice_id": "synthetic_adv_0037",
+      "pdf": "pdf/synthetic_adv_0037_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0037_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global"
+      ],
+      "total": 723.27
+    },
+    {
+      "invoice_id": "synthetic_adv_0038",
+      "pdf": "pdf/synthetic_adv_0038_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0038_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 973.07
+    },
+    {
+      "invoice_id": "synthetic_adv_0039",
+      "pdf": "pdf/synthetic_adv_0039_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0039_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "intracomunitaria"
+      ],
+      "total": 973.63
+    },
+    {
+      "invoice_id": "synthetic_adv_0040",
+      "pdf": "pdf/synthetic_adv_0040_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0040_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "IRPF"
+      ],
+      "total": 26346.31
+    },
+    {
+      "invoice_id": "synthetic_adv_0041",
+      "pdf": "pdf/synthetic_adv_0041_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0041_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 815.05
+    },
+    {
+      "invoice_id": "synthetic_adv_0042",
+      "pdf": "pdf/synthetic_adv_0042_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0042_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1094.71
+    },
+    {
+      "invoice_id": "synthetic_adv_0043",
+      "pdf": "pdf/synthetic_adv_0043_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0043_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "suplidos"
+      ],
+      "total": 1305.41
+    },
+    {
+      "invoice_id": "synthetic_adv_0044",
+      "pdf": "pdf/synthetic_adv_0044_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0044_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1199.75
+    },
+    {
+      "invoice_id": "synthetic_adv_0045",
+      "pdf": "pdf/synthetic_adv_0045_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0045_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "recargo"
+      ],
+      "total": 21827.91
+    },
+    {
+      "invoice_id": "synthetic_adv_0046",
+      "pdf": "pdf/synthetic_adv_0046_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0046_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta"
+      ],
+      "total": -1010.08
+    },
+    {
+      "invoice_id": "synthetic_adv_0047",
+      "pdf": "pdf/synthetic_adv_0047_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0047_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "rectificativa"
+      ],
+      "total": 981.62
+    },
+    {
+      "invoice_id": "synthetic_adv_0048",
+      "pdf": "pdf/synthetic_adv_0048_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0048_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 918.31
+    },
+    {
+      "invoice_id": "synthetic_adv_0049",
+      "pdf": "pdf/synthetic_adv_0049_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0049_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 846.55
+    },
+    {
+      "invoice_id": "synthetic_adv_0050",
+      "pdf": "pdf/synthetic_adv_0050_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0050_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "suplidos"
+      ],
+      "total": 25567.3
+    },
+    {
+      "invoice_id": "synthetic_adv_0051",
+      "pdf": "pdf/synthetic_adv_0051_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0051_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1097.43
+    },
+    {
+      "invoice_id": "synthetic_adv_0052",
+      "pdf": "pdf/synthetic_adv_0052_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0052_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "IRPF"
+      ],
+      "total": 1185.49
+    },
+    {
+      "invoice_id": "synthetic_adv_0053",
+      "pdf": "pdf/synthetic_adv_0053_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0053_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "IRPF"
+      ],
+      "total": 802.7
+    },
+    {
+      "invoice_id": "synthetic_adv_0054",
+      "pdf": "pdf/synthetic_adv_0054_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0054_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1228.47
+    },
+    {
+      "invoice_id": "synthetic_adv_0055",
+      "pdf": "pdf/synthetic_adv_0055_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0055_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global"
+      ],
+      "total": 26731.01
+    },
+    {
+      "invoice_id": "synthetic_adv_0056",
+      "pdf": "pdf/synthetic_adv_0056_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0056_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "recargo"
+      ],
+      "total": 959.59
+    },
+    {
+      "invoice_id": "synthetic_adv_0057",
+      "pdf": "pdf/synthetic_adv_0057_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0057_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "anticipos",
+        "suplidos"
+      ],
+      "total": 710.99
+    },
+    {
+      "invoice_id": "synthetic_adv_0058",
+      "pdf": "pdf/synthetic_adv_0058_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0058_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "intracomunitaria"
+      ],
+      "total": 1164.29
+    },
+    {
+      "invoice_id": "synthetic_adv_0059",
+      "pdf": "pdf/synthetic_adv_0059_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0059_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1123.78
+    },
+    {
+      "invoice_id": "synthetic_adv_0060",
+      "pdf": "pdf/synthetic_adv_0060_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0060_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 24565.33
+    },
+    {
+      "invoice_id": "synthetic_adv_0061",
+      "pdf": "pdf/synthetic_adv_0061_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0061_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 942.25
+    },
+    {
+      "invoice_id": "synthetic_adv_0062",
+      "pdf": "pdf/synthetic_adv_0062_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0062_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1244.79
+    },
+    {
+      "invoice_id": "synthetic_adv_0063",
+      "pdf": "pdf/synthetic_adv_0063_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0063_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1231.84
+    },
+    {
+      "invoice_id": "synthetic_adv_0064",
+      "pdf": "pdf/synthetic_adv_0064_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0064_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "suplidos"
+      ],
+      "total": 958.08
+    },
+    {
+      "invoice_id": "synthetic_adv_0065",
+      "pdf": "pdf/synthetic_adv_0065_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0065_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 16307.12
+    },
+    {
+      "invoice_id": "synthetic_adv_0066",
+      "pdf": "pdf/synthetic_adv_0066_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0066_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IRPF"
+      ],
+      "total": 824.17
+    },
+    {
+      "invoice_id": "synthetic_adv_0067",
+      "pdf": "pdf/synthetic_adv_0067_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0067_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "recargo",
+        "descuento global"
+      ],
+      "total": 1201.91
+    },
+    {
+      "invoice_id": "synthetic_adv_0068",
+      "pdf": "pdf/synthetic_adv_0068_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0068_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1059.14
+    },
+    {
+      "invoice_id": "synthetic_adv_0069",
+      "pdf": "pdf/synthetic_adv_0069_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0069_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21"
+      ],
+      "total": -764.34
+    },
+    {
+      "invoice_id": "synthetic_adv_0070",
+      "pdf": "pdf/synthetic_adv_0070_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0070_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "rectificativa"
+      ],
+      "total": 35092.73
+    },
+    {
+      "invoice_id": "synthetic_adv_0071",
+      "pdf": "pdf/synthetic_adv_0071_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0071_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "suplidos"
+      ],
+      "total": 1254.67
+    },
+    {
+      "invoice_id": "synthetic_adv_0072",
+      "pdf": "pdf/synthetic_adv_0072_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0072_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1177.83
+    },
+    {
+      "invoice_id": "synthetic_adv_0073",
+      "pdf": "pdf/synthetic_adv_0073_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0073_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 728.78
+    },
+    {
+      "invoice_id": "synthetic_adv_0074",
+      "pdf": "pdf/synthetic_adv_0074_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0074_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 975.32
+    },
+    {
+      "invoice_id": "synthetic_adv_0075",
+      "pdf": "pdf/synthetic_adv_0075_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0075_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 22241.79
+    },
+    {
+      "invoice_id": "synthetic_adv_0076",
+      "pdf": "pdf/synthetic_adv_0076_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0076_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1104.44
+    },
+    {
+      "invoice_id": "synthetic_adv_0077",
+      "pdf": "pdf/synthetic_adv_0077_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0077_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "intracomunitaria"
+      ],
+      "total": 820.92
+    },
+    {
+      "invoice_id": "synthetic_adv_0078",
+      "pdf": "pdf/synthetic_adv_0078_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0078_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "recargo",
+        "suplidos"
+      ],
+      "total": 1151.63
+    },
+    {
+      "invoice_id": "synthetic_adv_0079",
+      "pdf": "pdf/synthetic_adv_0079_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0079_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "IRPF",
+        "descuento global"
+      ],
+      "total": 1145.29
+    },
+    {
+      "invoice_id": "synthetic_adv_0080",
+      "pdf": "pdf/synthetic_adv_0080_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0080_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 28111.13
+    },
+    {
+      "invoice_id": "synthetic_adv_0081",
+      "pdf": "pdf/synthetic_adv_0081_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0081_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 898.55
+    },
+    {
+      "invoice_id": "synthetic_adv_0082",
+      "pdf": "pdf/synthetic_adv_0082_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0082_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta"
+      ],
+      "total": 1011.97
+    },
+    {
+      "invoice_id": "synthetic_adv_0083",
+      "pdf": "pdf/synthetic_adv_0083_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0083_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 983.86
+    },
+    {
+      "invoice_id": "synthetic_adv_0084",
+      "pdf": "pdf/synthetic_adv_0084_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0084_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 920.43
+    },
+    {
+      "invoice_id": "synthetic_adv_0085",
+      "pdf": "pdf/synthetic_adv_0085_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0085_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "suplidos"
+      ],
+      "total": 22573.98
+    },
+    {
+      "invoice_id": "synthetic_adv_0086",
+      "pdf": "pdf/synthetic_adv_0086_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0086_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IRPF"
+      ],
+      "total": 1035.22
+    },
+    {
+      "invoice_id": "synthetic_adv_0087",
+      "pdf": "pdf/synthetic_adv_0087_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0087_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1099.55
+    },
+    {
+      "invoice_id": "synthetic_adv_0088",
+      "pdf": "pdf/synthetic_adv_0088_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0088_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1260.17
+    },
+    {
+      "invoice_id": "synthetic_adv_0089",
+      "pdf": "pdf/synthetic_adv_0089_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0089_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "recargo",
+        "anticipos"
+      ],
+      "total": 978.94
+    },
+    {
+      "invoice_id": "synthetic_adv_0090",
+      "pdf": "pdf/synthetic_adv_0090_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0090_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 28370.04
+    },
+    {
+      "invoice_id": "synthetic_adv_0091",
+      "pdf": "pdf/synthetic_adv_0091_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0091_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global"
+      ],
+      "total": 999.31
+    },
+    {
+      "invoice_id": "synthetic_adv_0092",
+      "pdf": "pdf/synthetic_adv_0092_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0092_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "suplidos"
+      ],
+      "total": -793.22
+    },
+    {
+      "invoice_id": "synthetic_adv_0093",
+      "pdf": "pdf/synthetic_adv_0093_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0093_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "rectificativa"
+      ],
+      "total": 716.77
+    },
+    {
+      "invoice_id": "synthetic_adv_0094",
+      "pdf": "pdf/synthetic_adv_0094_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0094_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1166.17
+    },
+    {
+      "invoice_id": "synthetic_adv_0095",
+      "pdf": "pdf/synthetic_adv_0095_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0095_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 25751.75
+    },
+    {
+      "invoice_id": "synthetic_adv_0096",
+      "pdf": "pdf/synthetic_adv_0096_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0096_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "intracomunitaria"
+      ],
+      "total": 1044.89
+    },
+    {
+      "invoice_id": "synthetic_adv_0097",
+      "pdf": "pdf/synthetic_adv_0097_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0097_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 947.77
+    },
+    {
+      "invoice_id": "synthetic_adv_0098",
+      "pdf": "pdf/synthetic_adv_0098_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0098_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1247.04
+    },
+    {
+      "invoice_id": "synthetic_adv_0099",
+      "pdf": "pdf/synthetic_adv_0099_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0099_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "suplidos"
+      ],
+      "total": 1233.91
+    },
+    {
+      "invoice_id": "synthetic_adv_0100",
+      "pdf": "pdf/synthetic_adv_0100_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0100_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "recargo"
+      ],
+      "total": 26952.59
+    },
+    {
+      "invoice_id": "synthetic_adv_0101",
+      "pdf": "pdf/synthetic_adv_0101_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0101_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21"
+      ],
+      "total": 712.83
+    },
+    {
+      "invoice_id": "synthetic_adv_0102",
+      "pdf": "pdf/synthetic_adv_0102_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0102_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 965.2
+    },
+    {
+      "invoice_id": "synthetic_adv_0103",
+      "pdf": "pdf/synthetic_adv_0103_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0103_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "IRPF",
+        "descuento global"
+      ],
+      "total": 1087.5
+    },
+    {
+      "invoice_id": "synthetic_adv_0104",
+      "pdf": "pdf/synthetic_adv_0104_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0104_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1061.38
+    },
+    {
+      "invoice_id": "synthetic_adv_0105",
+      "pdf": "pdf/synthetic_adv_0105_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0105_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "IRPF",
+        "anticipos"
+      ],
+      "total": 15809.71
+    },
+    {
+      "invoice_id": "synthetic_adv_0106",
+      "pdf": "pdf/synthetic_adv_0106_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0106_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 1310.89
+    },
+    {
+      "invoice_id": "synthetic_adv_0107",
+      "pdf": "pdf/synthetic_adv_0107_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0107_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1256.97
+    },
+    {
+      "invoice_id": "synthetic_adv_0108",
+      "pdf": "pdf/synthetic_adv_0108_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0108_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1179.95
+    },
+    {
+      "invoice_id": "synthetic_adv_0109",
+      "pdf": "pdf/synthetic_adv_0109_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0109_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global"
+      ],
+      "total": 734.3
+    },
+    {
+      "invoice_id": "synthetic_adv_0110",
+      "pdf": "pdf/synthetic_adv_0110_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0110_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 22291.73
+    },
+    {
+      "invoice_id": "synthetic_adv_0111",
+      "pdf": "pdf/synthetic_adv_0111_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0111_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "recargo"
+      ],
+      "total": 1015.62
+    },
+    {
+      "invoice_id": "synthetic_adv_0112",
+      "pdf": "pdf/synthetic_adv_0112_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0112_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1106.33
+    },
+    {
+      "invoice_id": "synthetic_adv_0113",
+      "pdf": "pdf/synthetic_adv_0113_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0113_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "anticipos",
+        "suplidos"
+      ],
+      "total": 826.76
+    },
+    {
+      "invoice_id": "synthetic_adv_0114",
+      "pdf": "pdf/synthetic_adv_0114_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0114_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1098.96
+    },
+    {
+      "invoice_id": "synthetic_adv_0115",
+      "pdf": "pdf/synthetic_adv_0115_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0115_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "intracomunitaria"
+      ],
+      "total": -35201.95
+    },
+    {
+      "invoice_id": "synthetic_adv_0116",
+      "pdf": "pdf/synthetic_adv_0116_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0116_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "rectificativa"
+      ],
+      "total": 1193.02
+    },
+    {
+      "invoice_id": "synthetic_adv_0117",
+      "pdf": "pdf/synthetic_adv_0117_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0117_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21"
+      ],
+      "total": 904.3
+    },
+    {
+      "invoice_id": "synthetic_adv_0118",
+      "pdf": "pdf/synthetic_adv_0118_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0118_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "IRPF"
+      ],
+      "total": 888.18
+    },
+    {
+      "invoice_id": "synthetic_adv_0119",
+      "pdf": "pdf/synthetic_adv_0119_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0119_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 986.11
+    },
+    {
+      "invoice_id": "synthetic_adv_0120",
+      "pdf": "pdf/synthetic_adv_0120_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0120_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IRPF",
+        "suplidos"
+      ],
+      "total": 20002.33
+    },
+    {
+      "invoice_id": "synthetic_adv_0121",
+      "pdf": "pdf/synthetic_adv_0121_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0121_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 830
+    },
+    {
+      "invoice_id": "synthetic_adv_0122",
+      "pdf": "pdf/synthetic_adv_0122_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0122_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "recargo"
+      ],
+      "total": 1160.18
+    },
+    {
+      "invoice_id": "synthetic_adv_0123",
+      "pdf": "pdf/synthetic_adv_0123_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0123_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1101.67
+    },
+    {
+      "invoice_id": "synthetic_adv_0124",
+      "pdf": "pdf/synthetic_adv_0124_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0124_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1262.05
+    },
+    {
+      "invoice_id": "synthetic_adv_0125",
+      "pdf": "pdf/synthetic_adv_0125_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0125_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21"
+      ],
+      "total": 21204.91
+    },
+    {
+      "invoice_id": "synthetic_adv_0126",
+      "pdf": "pdf/synthetic_adv_0126_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0126_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1222.1
+    },
+    {
+      "invoice_id": "synthetic_adv_0127",
+      "pdf": "pdf/synthetic_adv_0127_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0127_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global",
+        "suplidos"
+      ],
+      "total": 1001.14
+    },
+    {
+      "invoice_id": "synthetic_adv_0128",
+      "pdf": "pdf/synthetic_adv_0128_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0128_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 920.77
+    },
+    {
+      "invoice_id": "synthetic_adv_0129",
+      "pdf": "pdf/synthetic_adv_0129_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0129_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 722.52
+    },
+    {
+      "invoice_id": "synthetic_adv_0130",
+      "pdf": "pdf/synthetic_adv_0130_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0130_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 30884.58
+    },
+    {
+      "invoice_id": "synthetic_adv_0131",
+      "pdf": "pdf/synthetic_adv_0131_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0131_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IRPF"
+      ],
+      "total": 964.73
+    },
+    {
+      "invoice_id": "synthetic_adv_0132",
+      "pdf": "pdf/synthetic_adv_0132_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0132_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 1047.01
+    },
+    {
+      "invoice_id": "synthetic_adv_0133",
+      "pdf": "pdf/synthetic_adv_0133_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0133_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "recargo",
+        "descuento global"
+      ],
+      "total": 994.26
+    },
+    {
+      "invoice_id": "synthetic_adv_0134",
+      "pdf": "pdf/synthetic_adv_0134_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0134_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "intracomunitaria",
+        "suplidos"
+      ],
+      "total": 1249.24
+    },
+    {
+      "invoice_id": "synthetic_adv_0135",
+      "pdf": "pdf/synthetic_adv_0135_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0135_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 28457.89
+    },
+    {
+      "invoice_id": "synthetic_adv_0136",
+      "pdf": "pdf/synthetic_adv_0136_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0136_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida",
+        "ancho_alto_cm",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta"
+      ],
+      "total": 952.49
+    },
+    {
+      "invoice_id": "synthetic_adv_0137",
+      "pdf": "pdf/synthetic_adv_0137_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0137_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21",
+        "IRPF",
+        "anticipos"
+      ],
+      "total": 673.12
+    },
+    {
+      "invoice_id": "synthetic_adv_0138",
+      "pdf": "pdf/synthetic_adv_0138_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0138_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": -967.32
+    },
+    {
+      "invoice_id": "synthetic_adv_0139",
+      "pdf": "pdf/synthetic_adv_0139_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0139_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "linea_negativa"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "descuento global",
+        "rectificativa"
+      ],
+      "total": 1156.17
+    },
+    {
+      "invoice_id": "synthetic_adv_0140",
+      "pdf": "pdf/synthetic_adv_0140_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0140_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 24812.68
+    },
+    {
+      "invoice_id": "synthetic_adv_0141",
+      "pdf": "pdf/synthetic_adv_0141_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0141_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_no_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 801.88
+    },
+    {
+      "invoice_id": "synthetic_adv_0142",
+      "pdf": "pdf/synthetic_adv_0142_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0142_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21"
+      ],
+      "total": 1312.83
+    },
+    {
+      "invoice_id": "synthetic_adv_0143",
+      "pdf": "pdf/synthetic_adv_0143_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0143_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 1259.21
+    },
+    {
+      "invoice_id": "synthetic_adv_0144",
+      "pdf": "pdf/synthetic_adv_0144_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0144_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4",
+        "IRPF",
+        "recargo"
+      ],
+      "total": 1070.68
+    },
+    {
+      "invoice_id": "synthetic_adv_0145",
+      "pdf": "pdf/synthetic_adv_0145_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0145_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "ancho_alto_cm",
+        "totales_enganosos",
+        "linea_negativa",
+        "linea_importe_cero"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "exenta",
+        "descuento global",
+        "anticipos"
+      ],
+      "total": 19427.57
+    },
+    {
+      "invoice_id": "synthetic_adv_0146",
+      "pdf": "pdf/synthetic_adv_0146_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0146_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "multipage_table",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 10"
+      ],
+      "total": 968.58
+    },
+    {
+      "invoice_id": "synthetic_adv_0147",
+      "pdf": "pdf/synthetic_adv_0147_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0147_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_no_repetida",
+        "descripcion_larga"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 969.38
+    },
+    {
+      "invoice_id": "synthetic_adv_0148",
+      "pdf": "pdf/synthetic_adv_0148_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0148_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "ancho_alto_cm"
+      ],
+      "fiscal_cases": [
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 1108.14
+    },
+    {
+      "invoice_id": "synthetic_adv_0149",
+      "pdf": "pdf/synthetic_adv_0149_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0149_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida",
+        "descripcion_larga",
+        "totales_enganosos"
+      ],
+      "fiscal_cases": [
+        "IVA 10",
+        "IVA 21"
+      ],
+      "total": 832.67
+    },
+    {
+      "invoice_id": "synthetic_adv_0150",
+      "pdf": "pdf/synthetic_adv_0150_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_0150_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "columnas_cambiadas",
+        "calculo_m2_ml_unidad",
+        "formatos_numericos",
+        "producto_con_componentes",
+        "cabecera_repetida"
+      ],
+      "fiscal_cases": [
+        "IVA 4"
+      ],
+      "total": 25272.47
+    }
+  ]
+}

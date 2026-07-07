@@ -21,30 +21,36 @@ let expenseScanPdfTableLinesModulePromise;
 
 export const FAILURE_CATEGORIES = [
   "pdf_text_extraction_failed",
-  "page_count_wrong",
-  "table_region_not_found",
-  "header_row_not_found",
+  "table_region_failed",
+  "header_detection_failed",
   "column_mapping_failed",
-  "column_boundary_wrong",
   "row_segmentation_failed",
-  "continued_description_failed",
-  "line_count_mismatch",
-  "duplicate_lines",
-  "missing_lines",
-  "metadata_field_wrong",
-  "total_not_found",
-  "tax_base_mismatch",
-  "vat_mismatch",
-  "total_mismatch",
-  "source_quantity_wrong",
-  "charge_quantity_wrong",
+  "wrapped_description_failed",
+  "numeric_parsing_failed",
   "calculation_basis_wrong",
+  "charge_quantity_wrong",
   "unit_price_wrong",
   "discount_wrong",
-  "net_unit_price_wrong",
   "line_amount_mismatch",
-  "formula_wrong",
+  "totals_mismatch",
+  "vat_breakdown_wrong",
+  "irpf_wrong",
   "product_grouping_wrong",
+  "metadata_wrong",
+  "false_positive_line",
+  "missed_line",
+  "ai_needed",
+  "unknown",
+  "page_count_wrong",
+  "duplicate_lines",
+  "net_unit_price_wrong",
+  "formula_wrong",
+  "source_quantity_wrong",
+  "vat_rate_wrong",
+  "recargo_wrong",
+  "discount_total_wrong",
+  "due_amount_wrong",
+  "paid_amount_wrong",
   "ai_fallback_unnecessary",
   "ai_fallback_needed_but_not_used",
   "low_confidence_without_reason",
@@ -78,18 +84,26 @@ export function normalizeMoney(value) {
     .replace(/\s+/g, "")
     .trim();
   if (!raw) return undefined;
-  const sign = raw.startsWith("-") ? -1 : 1;
-  const unsigned = raw.replace(/^-/, "");
-  const normalized =
-    unsigned.includes(",") || /\.\d{3}(?:\D|$)/.test(unsigned)
-      ? unsigned.replace(/\./g, "").replace(",", ".")
-      : unsigned;
+  const parenthesized = raw.startsWith("(") && raw.endsWith(")");
+  const sign = raw.startsWith("-") || parenthesized ? -1 : 1;
+  const unsigned = raw.replace(/^-/, "").replace(/[()]/g, "");
+  if (!/\d/.test(unsigned)) return undefined;
+  let normalized;
+  if (/^\d{1,3}(,\d{3})+\.\d+$/.test(unsigned)) {
+    normalized = unsigned.replace(/,/g, "");
+  } else if (unsigned.includes(",") || /\.\d{3}(?:\D|$)/.test(unsigned)) {
+    normalized = unsigned.replace(/\./g, "").replace(",", ".");
+  } else {
+    normalized = unsigned;
+  }
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? roundMoney(sign * parsed) : undefined;
 }
 
 export function normalizeQuantity(value) {
-  const parsed = normalizeMoney(value);
+  const text = String(value ?? "");
+  const numericPart = text.match(/\(?-?\d[\d.,\s]*\)?/)?.[0];
+  const parsed = normalizeMoney(numericPart ?? value);
   return parsed === undefined ? undefined : Math.round(parsed * 1000) / 1000;
 }
 
@@ -130,7 +144,7 @@ export function calculationBasisFromUnit(unit, fallback = "unit") {
   if (["m2", "m²", "m^2", "metro cuadrado", "metros cuadrados"].includes(normalized)) {
     return "m2";
   }
-  if (["ml", "m.l", "metro lineal", "metros lineales"].includes(normalized)) {
+  if (["ml", "m.l", "metro lineal", "metros lineales", "metros", "m lineal"].includes(normalized)) {
     return "ml";
   }
   if (["kg", "kilo", "kilos", "kilogramo", "kilogramos"].includes(normalized)) {
@@ -141,7 +155,9 @@ export function calculationBasisFromUnit(unit, fallback = "unit") {
     return "day";
   }
   if (["pack", "paq", "paquete", "lote"].includes(normalized)) return "package";
-  if (["ud", "uds", "un", "unidad", "unidades", "servicio"].includes(normalized)) {
+  if (["fijo", "fixed", "importe fijo"].includes(normalized)) return "fixed";
+  if (["mixto", "mixed"].includes(normalized)) return "mixed";
+  if (["ud", "uds", "un", "unidad", "unidades", "servicio", "piezas"].includes(normalized)) {
     return "unit";
   }
   return fallback;
@@ -155,10 +171,15 @@ export function formulaForBasis(basis) {
   if (basis === "day") return "days * netPrice";
   if (basis === "package") return "packages * netPrice";
   if (basis === "fixed") return "fixed";
+  if (basis === "mixed") return "mixed rule";
+  if (basis === "unknown") return "unknown but justified";
   return "units * netPrice";
 }
 
 export function normalizeExpectedInvoice(raw, fixture) {
+  if (raw.engine_contract_version || fixture.suite === "synthetic_adversarial") {
+    return normalizeAdversarialGroundTruth(raw, fixture);
+  }
   if (raw.expected?.lines && raw.expected?.totals) {
     return normalizePrivateRealGroundTruth(raw, fixture);
   }
@@ -166,6 +187,100 @@ export function normalizeExpectedInvoice(raw, fixture) {
     return normalizeExpandedGroundTruth(raw, fixture);
   }
   return normalizeBasicGroundTruth(raw, fixture);
+}
+
+function normalizeAdversarialGroundTruth(raw, fixture) {
+  const tableColumns = raw.table_columns ?? [];
+  const hasSourceQuantityColumn = tableColumns.some((column) =>
+    /^(cant\.?|cantidad|ctdad\.?|qty|uds\.?|unidades?)$/i.test(String(column).trim()),
+  );
+  const lines = (raw.lines ?? []).map((line, index) => {
+    const sourceQuantity = normalizeQuantity(line.sourceQuantity ?? line.quantity);
+    const chargeQuantity = normalizeQuantity(
+      line.chargeQuantity ?? line.billingQuantity ?? sourceQuantity,
+    );
+    const calculationBasis =
+      line.calculationBasis ?? calculationBasisFromUnit(line.unit, "unit");
+    const unitPrice = normalizeMoney(line.unitPrice);
+    const discountPct = normalizeMoney(line.discountPct) ?? 0;
+    const netUnitPrice =
+      normalizeMoney(line.netUnitPrice) ??
+      (unitPrice !== undefined ? roundMoney(unitPrice * (1 - discountPct / 100)) : undefined);
+    return {
+      id: line.id ?? `L${index + 1}`,
+      index: index + 1,
+      page: line.page,
+      reference: line.articleCode ?? line.reference,
+      articleCode: line.articleCode ?? line.reference,
+      rawText: line.rawText,
+      description: line.description,
+      lineType: line.lineType ?? "material",
+      productRole: line.roleInGroup ?? line.productRole,
+      sourceQuantity: hasSourceQuantityColumn ? sourceQuantity : undefined,
+      quantity: hasSourceQuantityColumn ? sourceQuantity : undefined,
+      width: normalizeQuantity(line.width),
+      height: normalizeQuantity(line.height),
+      length: normalizeQuantity(line.length),
+      unit: line.unit,
+      chargeQuantity,
+      calculationBasis,
+      unitPrice,
+      discountPct,
+      netUnitPrice,
+      amount: normalizeMoney(line.amount),
+      vatRate: normalizeMoney(line.vatRate),
+      formula: line.expectedFormula ?? line.formula ?? formulaForBasis(calculationBasis),
+      expectedFormula: line.expectedFormula ?? line.formula ?? formulaForBasis(calculationBasis),
+      actualFormula: line.expectedFormula ?? line.formula ?? formulaForBasis(calculationBasis),
+      calculationDifference: normalizeMoney(line.calculationDifference) ?? 0,
+      tolerance: normalizeMoney(line.tolerance) ?? MONEY_TOLERANCE,
+      reason: line.reason,
+      productGroupId: line.productGroupId,
+      productGroupIndex: line.productGroupIndex,
+      roleInGroup: line.roleInGroup,
+      confidence: line.confidence ?? 0.92,
+      warnings: line.warnings ?? [],
+    };
+  });
+  return {
+    invoiceId: raw.invoice_id ?? fixture.invoiceId,
+    suite: fixture.suite,
+    layoutId: raw.layout_id ?? fixture.layoutId,
+    metadata: {
+      supplierName: raw.supplier?.name,
+      supplierTaxId: raw.supplier?.tax_id,
+      customerName: raw.customer?.name,
+      customerTaxId: raw.customer?.tax_id,
+      invoiceNumber: raw.invoice_number,
+      date: normalizeDate(raw.date),
+    },
+    totals: {
+      taxBase: normalizeMoney(raw.totals?.taxable_base),
+      vatAmount: normalizeMoney(raw.totals?.vat_total),
+      irpfAmount: normalizeMoney(raw.totals?.irpf_amount) ?? 0,
+      recargoAmount: normalizeMoney(raw.totals?.recargo_amount) ?? 0,
+      globalDiscountAmount: normalizeMoney(raw.totals?.global_discount_amount) ?? 0,
+      total: normalizeMoney(raw.totals?.total),
+      paidAmount: normalizeMoney(raw.totals?.paid_amount),
+      dueAmount: normalizeMoney(raw.totals?.due_amount),
+      advancePaid: normalizeMoney(raw.totals?.advance_paid),
+      grossAmount: normalizeMoney(raw.totals?.gross_amount),
+    },
+    lines,
+    informationalLines: raw.informational_lines ?? [],
+    groups: (raw.product_groups ?? raw.groups ?? []).map((group, index) => ({
+      id: group.id ?? `G${index + 1}`,
+      productGroupIndex: group.productGroupIndex ?? index + 1,
+      title: group.title,
+      mainLineId: group.mainLineId,
+      componentLineIds: group.componentLineIds ?? [],
+      totalAmount: normalizeMoney(group.totalAmount),
+      calculationSummary: group.calculationSummary,
+      confidence: group.confidence ?? 0.9,
+    })),
+    coverage: raw.coverage ?? {},
+    tableColumns,
+  };
 }
 
 function normalizeBasicGroundTruth(raw, fixture) {
@@ -196,7 +311,7 @@ function normalizeBasicGroundTruth(raw, fixture) {
       discountPct,
       netUnitPrice,
       amount,
-      vatRate: normalizeMoney(line.vatRate),
+      vatRate: visible.vatRate ? normalizeMoney(line.vatRate) : undefined,
       formula: visible.quantity ? formulaForBasis(basis) : undefined,
     };
   });
@@ -244,6 +359,11 @@ function visibleBasicFields(layoutId) {
       "L02_ref_desc_uds_pvp_dto_total",
       "L07_con_descuento_global",
     ].includes(layoutId),
+    vatRate: [
+      "L03_art_cant_unit_base_iva_total",
+      "L04_concepto_base_iva_total",
+      "L08_varios_tipos_iva",
+    ].includes(layoutId),
   };
 }
 
@@ -279,8 +399,8 @@ function normalizeExpandedGroundTruth(raw, fixture) {
       discountPct,
       netUnitPrice,
       amount,
-      vatRate: normalizeMoney(line.vat_rate),
-      formula: formulaForBasis(basis),
+      vatRate: visible.vatRate ? normalizeMoney(line.vat_rate) : undefined,
+      formula: visible.formula === false ? undefined : formulaForBasis(basis),
     };
   });
   return {
@@ -315,16 +435,24 @@ function visibleExpandedFields(layoutId) {
     unitPrice: true,
     discountPct: false,
     unit: false,
+    vatRate: false,
     calculationBasis: "unit",
+    formula: false,
   };
   const byLayout = {
-    standard_table: genericQuantity,
+    standard_table: {
+      ...genericQuantity,
+      vatRate: true,
+    },
     ref_desc_uds_pvp_dto_total: {
       ...genericQuantity,
       reference: true,
       discountPct: true,
     },
-    articulo_base_iva_total: genericQuantity,
+    articulo_base_iva_total: {
+      ...genericQuantity,
+      vatRate: true,
+    },
     servicios_irpf: {
       ...genericQuantity,
       calculationBasis: "hour",
@@ -335,7 +463,9 @@ function visibleExpandedFields(layoutId) {
       unitPrice: false,
       discountPct: false,
       unit: false,
+      vatRate: true,
       calculationBasis: undefined,
+      formula: false,
     },
     simplificada_ticket: genericQuantity,
     electricity_style: {
@@ -345,10 +475,12 @@ function visibleExpandedFields(layoutId) {
     facturae_render: {
       ...genericQuantity,
       reference: true,
+      vatRate: true,
     },
     recargo_equivalencia: {
       ...genericQuantity,
       unitPrice: false,
+      vatRate: true,
     },
     intracomunitaria_exenta: genericQuantity,
     rectificativa: {
@@ -360,7 +492,10 @@ function visibleExpandedFields(layoutId) {
       reference: true,
       discountPct: true,
     },
-    long_description: genericQuantity,
+    long_description: {
+      ...genericQuantity,
+      vatRate: true,
+    },
     proforma: {
       ...genericQuantity,
       discountPct: true,
@@ -434,6 +569,12 @@ export function discoverInvoiceFixtures(root = INVOICE_FIXTURES_ROOT) {
   );
   fixtures.push(
     ...discoverSyntheticSuite(path.join(root, "synthetic/expanded"), "synthetic_expanded"),
+  );
+  fixtures.push(
+    ...discoverSyntheticSuite(
+      path.join(root, "synthetic/adversarial"),
+      "synthetic_adversarial",
+    ),
   );
   fixtures.push(...discoverPrivateFixtures(path.join(root, "private_real")));
   return fixtures.sort((a, b) => a.invoiceId.localeCompare(b.invoiceId));
@@ -741,7 +882,7 @@ function parseMetadata(rows) {
   const supplierName =
     firstNonEmpty(
       rows.find((row) => /\|\s*Factura:/i.test(row.text))?.cells?.[0],
-      rows[0]?.text.includes("SINTÉTICA") ? rows[1]?.text : undefined,
+      /SINT[EÉ]TICA/i.test(rows[0]?.text ?? "") ? rows[1]?.text : undefined,
     ) ?? undefined;
   const invoiceNumber =
     findMatch(texts, /Factura:\s*\|\s*([A-Z0-9/-]+)/i) ??
@@ -756,12 +897,56 @@ function parseMetadata(rows) {
       .flatMap((row) => row.cells)
       .map(normalizeTaxId)
       .find(looksLikeSpanishTaxId);
+  const customerRowIndex = rows.findIndex((row) => /Cliente/i.test(row.text) || /Receptor/i.test(row.text));
+  const customerRow = rows[customerRowIndex];
+  const customerWindow =
+    customerRowIndex >= 0
+      ? rows.slice(customerRowIndex, Math.min(rows.length, customerRowIndex + 6))
+      : [];
+  const customerCells = splitRow(customerRow?.text ?? "");
+  const customerSearchCells = customerWindow.flatMap((row) => splitRow(row.text));
+  const customerTaxId =
+    normalizeTaxId(
+      findMatch(texts, /Cliente.*?NIF\/CIF:\s*(?:\|\s*)?([A-Z0-9-]+)/i) ??
+        findMatch(texts, /Receptor.*?NIF\/CIF:\s*(?:\|\s*)?([A-Z0-9-]+)/i),
+    ) ??
+    customerSearchCells
+      .map(normalizeTaxId)
+      .find(looksLikeSpanishTaxId);
+  const findCustomerName = (cells) =>
+    cells
+      .find(
+        (cell) =>
+          !isLikelyInvoiceHeader(cell) &&
+          !isHeaderCell(cell) &&
+          !isMetadataNoiseCell(cell) &&
+          !/^[/:-]+$/.test(cell.trim()) &&
+          !looksLikeSpanishTaxId(cell),
+      );
+  const customerName =
+    findCustomerName(customerCells) ??
+    findCustomerName(customerSearchCells) ??
+    findMatch(texts, /Cliente\s*:?\s*(?:\|\s*)?([^|]+)/i);
   return {
     supplierName,
     supplierTaxId,
+    customerName,
+    customerTaxId,
     invoiceNumber,
     date,
   };
+}
+
+function isMetadataNoiseCell(value) {
+  const normalized = normalizeText(value);
+  return (
+    /^cliente\s*\/?$/.test(normalized) ||
+    /^receptor\s*\/?$/.test(normalized) ||
+    /^sint[eé]tica/.test(normalized) ||
+    /sin validez fiscal|documento ficticio|layout|nif|cif|calle|avenida|plaza|vencimiento|fecha/.test(normalized) ||
+    /^adv_[a-z0-9_]+$/.test(normalized) ||
+    /^l\d+_[a-z0-9_]+$/.test(normalized)
+  );
 }
 
 function firstNonEmpty(...values) {
@@ -842,51 +1027,103 @@ function isLikelyInvoiceHeader(text) {
     normalized.includes("patron de") ||
     /\bL\d+_[a-z0-9_]+\b/i.test(text)
   ) {
-    return false;
+      return false;
   }
-  const headerHits = [
-    "descripcion",
+  const cells = splitRow(text);
+  const headerHits = cells.filter(isHeaderCell).length;
+  const hasDescriptionColumn = cells.some((cell) =>
+    ["descripcion", "descripción", "detalle", "concepto", "producto"].includes(normalizeText(cell)),
+  );
+  const hasAmountColumn = cells.some((cell) =>
+    ["importe", "base", "total", "subtotal"].includes(normalizeText(cell)),
+  );
+  return headerHits >= 3 || (headerHits >= 2 && hasDescriptionColumn && hasAmountColumn);
+}
+
+function isHeaderCell(value) {
+  const normalized = normalizeText(value)
+    .replace(/[.:]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return [
+    "articulo",
+    "articulo descripcion",
+    "codigo",
+    "cod",
+    "sku",
+    "ref",
     "descripcion",
     "detalle",
     "concepto",
     "producto",
-    "articulo",
-    "codigo",
-    "ref.",
+    "cant",
     "cantidad",
-    "cant.",
-    "uds.",
-    "ud.",
-    "unid.",
-    "horas",
+    "ctdad",
+    "qty",
+    "uds",
+    "ud",
+    "unid",
+    "unidad",
+    "unidades",
+    "ancho",
+    "alto",
+    "largo",
+    "longitud",
+    "m2",
+    "m2/ml/un",
+    "m2 ml un",
+    "m²",
+    "ml",
+    "metros",
+    "metros lineales",
+    "cantidad cobro",
     "precio",
+    "precio neto",
+    "p neto",
+    "p unit",
     "tarifa",
     "pvp",
+    "dto",
+    "dto %",
+    "descuento",
+    "iva",
+    "iva %",
+    "tipo iva",
     "base",
     "importe",
     "importe unidad",
     "importe linea",
+    "subtotal",
     "total",
-    "iva",
-  ].filter((token) => normalized.includes(token)).length;
-  return headerHits >= 3;
+  ].includes(normalized);
 }
 
 function mapColumns(headers) {
   const mapped = {};
   headers.forEach((header, index) => {
     const h = normalizeText(header);
-    if (/\b(ref|codigo|sku)\b/.test(h)) mapped.reference ??= index;
-    if (h.includes("articulo") && !h.includes("base")) mapped.reference ??= index;
-    if (h.includes("descripcion") || h.includes("detalle") || h.includes("producto") || h.includes("concepto")) {
+    if (/\b(ref|codigo|sku|cod)\b/.test(h)) mapped.reference ??= index;
+    if (h.includes("articulo") && !h.includes("base") && !h.includes("descripcion")) {
+      mapped.reference ??= index;
+    }
+    if (
+      h.includes("descripcion") ||
+      h.includes("detalle") ||
+      h.includes("producto") ||
+      h.includes("concepto") ||
+      h === "articulo / descripcion" ||
+      h === "articulo descripcion"
+    ) {
       mapped.description ??= index;
     }
     if (
       h.includes("cantidad") ||
       h.includes("cant") ||
+      h.includes("ctdad") ||
       h.includes("uds") ||
       /^ud\.?$/.test(h) ||
       h.includes("unid") ||
+      h.includes("piezas") ||
       h.includes("qty")
     ) {
       mapped.quantity ??= index;
@@ -899,13 +1136,47 @@ function mapColumns(headers) {
       mapped.quantity ??= index;
       mapped.quantityBasis = "unknown";
     }
+    if (
+      h === "ud" ||
+      h === "uds" ||
+      h === "unidad" ||
+      h === "unidades" ||
+      h === "un" ||
+      h === "unidad facturacion" ||
+      h === "unidad facturacion"
+    ) {
+      mapped.unit ??= index;
+    }
+    if (h.includes("ancho")) mapped.width ??= index;
+    if (h.includes("alto")) mapped.height ??= index;
+    if (h.includes("largo") || h.includes("longitud")) mapped.length ??= index;
+    if (
+      h === "m2" ||
+      h === "m²" ||
+      h === "m^2" ||
+      h === "ml" ||
+      h.includes("m2/ml") ||
+      h.includes("m2 ml") ||
+      h.includes("metros lineales") ||
+      h.includes("metro lineal") ||
+      h === "metros" ||
+      h === "un" ||
+      h === "unidad cobro" ||
+      h.includes("cantidad cobro")
+    ) {
+      mapped.chargeQuantity ??= index;
+      mapped.chargeBasis = calculationBasisFromUnit(header, "unit");
+    }
+    if (h.includes("precio neto") || h === "neto" || h.includes("p. neto")) {
+      mapped.netUnitPrice ??= index;
+    }
     if (h.includes("pvp") || h.includes("tarifa") || h.includes("p. unit") || h.includes("precio unit") || h.includes("precio sin iva") || h === "precio" || h.includes("importe unidad")) {
       mapped.unitPrice ??= index;
       if (h.includes("p. unit")) mapped.amountMayIncludeVat = true;
     }
-    if (h.includes("dto")) mapped.discountPct ??= index;
+    if (h.includes("dto") || h.includes("descuento")) mapped.discountPct ??= index;
     if (h.includes("tipo iva") || h === "iva" || h.includes("iva %")) mapped.vatRate ??= index;
-    if (h.includes("base") || h === "neto") mapped.amount ??= index;
+    if (h.includes("base") && !h.includes("base calculo")) mapped.amount ??= index;
     if (
       (h.includes("importe linea") || h.includes("importe línea") || h.includes("subtotal")) &&
       mapped.amount === undefined
@@ -920,22 +1191,38 @@ function mapColumns(headers) {
   if (mapped.description === undefined && mapped.reference !== undefined) {
     mapped.description = mapped.reference;
   }
+  if (
+    mapped.amount === undefined &&
+    mapped.netUnitPrice !== undefined &&
+    mapped.unitPrice === undefined
+  ) {
+    mapped.amount = mapped.netUnitPrice;
+    delete mapped.netUnitPrice;
+  }
   return mapped;
 }
 
 function parseLineFromCells(cells, columnMap, index) {
   const description = cells[columnMap.description]?.trim();
-  if (!description || isTotalsRow(description)) return null;
+  if (!description || isTotalsRow(description) || isLikelyInvoiceHeader(cells.join(" | "))) {
+    return null;
+  }
   const sourceQuantity = normalizeQuantity(cells[columnMap.quantity]) ?? 1;
+  const chargeCell = cells[columnMap.chargeQuantity];
+  const chargeQuantity =
+    normalizeQuantity(chargeCell) ?? normalizeQuantity(cells[columnMap.quantity]) ?? 1;
+  const inferredChargeBasis = basisFromChargeCell(chargeCell) ?? columnMap.chargeBasis;
   const discountPct = normalizeMoney(cells[columnMap.discountPct]) ?? 0;
   const unitPrice = normalizeMoney(cells[columnMap.unitPrice]);
+  const explicitNetUnitPrice = normalizeMoney(cells[columnMap.netUnitPrice]);
   let amount =
     normalizeMoney(cells[columnMap.amount]) ??
     normalizeFirstMoneyAmount(cells[columnMap.amount]);
   const netUnitPrice =
-    unitPrice !== undefined ? roundMoney(unitPrice * (1 - discountPct / 100)) : undefined;
+    explicitNetUnitPrice ??
+    (unitPrice !== undefined ? roundMoney(unitPrice * (1 - discountPct / 100)) : undefined);
   const calculatedBase =
-    netUnitPrice !== undefined ? roundMoney(sourceQuantity * netUnitPrice) : undefined;
+    netUnitPrice !== undefined ? roundMoney(chargeQuantity * netUnitPrice) : undefined;
   const signedCalculatedBase =
     calculatedBase !== undefined && amount !== undefined && amount < 0
       ? -calculatedBase
@@ -950,24 +1237,92 @@ function parseLineFromCells(cells, columnMap, index) {
   ) {
     amount = signedCalculatedBase;
   }
-  const basis = columnMap.quantityBasis ?? "unit";
+  const basis =
+    inferredChargeBasis ??
+    columnMap.quantityBasis ??
+    calculationBasisFromUnit(cells[columnMap.unit], "unit");
+  const formula = formulaForBasis(basis);
+  const calculationDifference =
+    amount !== undefined && signedCalculatedBase !== undefined
+      ? roundMoney(amount - signedCalculatedBase)
+      : undefined;
+  const reference =
+    columnMap.reference !== undefined && columnMap.reference !== columnMap.description
+      ? cells[columnMap.reference]
+      : undefined;
+  const productRole = productRoleFromLine({ reference, description, amount });
   return {
+    id: `L${index}`,
     index,
-    reference:
-      columnMap.reference !== undefined && columnMap.reference !== columnMap.description
-        ? cells[columnMap.reference]
-        : undefined,
+    reference,
+    articleCode: reference,
     description,
+    rawText: cells.join(" | "),
     sourceQuantity,
-    chargeQuantity: sourceQuantity,
+    quantity: sourceQuantity,
+    width: normalizeQuantity(cells[columnMap.width]),
+    height: normalizeQuantity(cells[columnMap.height]),
+    length: normalizeQuantity(cells[columnMap.length]),
+    unit: cells[columnMap.unit],
+    chargeQuantity,
     calculationBasis: basis,
     unitPrice,
     discountPct,
     netUnitPrice,
     amount,
     vatRate: normalizeMoney(cells[columnMap.vatRate]),
-    formula: formulaForBasis(basis),
+    formula,
+    expectedFormula: formula,
+    actualFormula: formula,
+    calculationDifference,
+    productRole,
+    roleInGroup: productRole,
+    lineType: lineTypeFromLine({ reference, description, amount }),
+    confidence: 0.84,
+    warnings: [],
   };
+}
+
+function basisFromChargeCell(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return undefined;
+  if (/\bm2\b|m²|m\^2/.test(normalized)) return "m2";
+  if (/\bml\b|metro lineal|metros lineales/.test(normalized)) return "ml";
+  if (/\bkg\b|kilo/.test(normalized)) return "kg";
+  if (/\bh\b|hora|hour/.test(normalized)) return "hour";
+  if (/fijo|fixed/.test(normalized)) return "fixed";
+  if (/mixto|mixed/.test(normalized)) return "mixed";
+  if (/\bun\b|\bud\b|uds|unidad/.test(normalized)) return "unit";
+  return undefined;
+}
+
+function productRoleFromLine({ reference, description, amount }) {
+  const ref = normalizeText(reference);
+  const text = normalizeText(description);
+  if (ref.startsWith("main") || text.includes("producto principal")) return "main_product";
+  if (ref.startsWith("comp") || text.includes("guia") || text.includes("capsula") || text.includes("soporte") || text.includes("eje") || text.includes("marco") || text.includes("cristal") || text.includes("herraje") || text.includes("motor") || text.includes("mando")) {
+    return "component";
+  }
+  if (ref.startsWith("serv") || text.includes("mano de obra") || text.includes("instalacion")) {
+    return "service";
+  }
+  if (ref.startsWith("ship") || text.includes("porte") || text.includes("transporte") || text.includes("desplazamiento")) {
+    return "transport";
+  }
+  if (ref.startsWith("disc") || amount < 0 || text.includes("descuento")) return "discount";
+  if (ref.startsWith("info") || amount === 0 || text.includes("informativo")) return "comment";
+  return "material";
+}
+
+function lineTypeFromLine(input) {
+  const role = productRoleFromLine(input);
+  if (role === "main_product") return "producto principal";
+  if (role === "component") return "componente";
+  if (role === "service") return "servicio";
+  if (role === "transport") return "transporte";
+  if (role === "discount") return "descuento";
+  if (role === "comment") return "comentario/no facturable";
+  return "material";
 }
 
 function normalizeFirstMoneyAmount(value) {
@@ -977,25 +1332,36 @@ function normalizeFirstMoneyAmount(value) {
 }
 
 function isTotalsRow(text) {
-  return /^(Subtotal|Base imponible|Base IVA|IVA\s|TOTAL|TOTAL FACTURA|Retenci[oó]n|IRPF|Forma de|Notas)\b/i.test(
+  return /^(Subtotal|Base imponible|Base IVA|IVA\s|TOTAL|TOTAL FACTURA|Total pendiente|Pendiente|Anticipo|A cuenta|Pagado|Retenci[oó]n|IRPF|Recargo|Descuento global|Forma de|Notas)\b/i.test(
     text.trim(),
   );
 }
 
 function isIgnorableRow(text) {
-  return !text.trim() || /Documento sint[eé]tico|Sin valor fiscal|No usar/i.test(text);
+  return (
+    !text.trim() ||
+    /Documento sint[eé]tico|Sin valor fiscal|No usar|Suma y sigue|Contin[uú]a|Texto comercial|Observaci[oó]n|Nota interna|No facturable/i.test(
+      text,
+    )
+  );
 }
 
 function looksLikeContinuation(text) {
   const value = text.trim();
-  return !value.includes("|") && !isTotalsRow(value) && value.length > 2 && !/^\d+$/.test(value);
+  return (
+    !value.includes("|") &&
+    !isTotalsRow(value) &&
+    !isIgnorableRow(value) &&
+    value.length > 2 &&
+    !/^\d+$/.test(value)
+  );
 }
 
 function parseTotals(rows) {
   const totals = {};
   for (const row of rows) {
     const text = row.text;
-    const value = normalizeMoney(text.match(/(-?\d[\d.,]*\s*€?)\s*$/)?.[1]);
+    const value = normalizeMoney(text.match(/(\(?-?\d[\d.,\s]*\)?\s*€?)\s*$/)?.[1]);
     if (value === undefined) continue;
     if (/^Base IVA/i.test(text)) {
       totals.taxBase = roundMoney((totals.taxBase ?? 0) + value);
@@ -1004,7 +1370,16 @@ function parseTotals(rows) {
     } else if (/^IVA\b/i.test(text)) {
       totals.vatAmount = roundMoney((totals.vatAmount ?? 0) + value);
     } else if (/IRPF|Retenci[oó]n/i.test(text)) {
-      totals.irpfAmount = Math.abs(value);
+      totals.irpfAmount = -value;
+    } else if (/Recargo/i.test(text)) {
+      totals.recargoAmount = roundMoney((totals.recargoAmount ?? 0) + value);
+    } else if (/Descuento global/i.test(text)) {
+      totals.globalDiscountAmount = Math.abs(value);
+    } else if (/Anticipo|A cuenta|Pagado/i.test(text)) {
+      totals.paidAmount = Math.abs(value);
+      totals.advancePaid = Math.abs(value);
+    } else if (/Pendiente|Total pendiente/i.test(text)) {
+      totals.dueAmount = value;
     } else if (/TOTAL FACTURA|^TOTAL\b/i.test(text)) {
       totals.total = value;
     }
@@ -1014,14 +1389,29 @@ function parseTotals(rows) {
 
 function groupProductLines(lines) {
   const groups = [];
+  let currentGroup = null;
   for (const line of lines) {
-    groups.push({
-      productGroupIndex: groups.length + 1,
-      anchorLineIndex: line.index,
-      title: line.description,
-      subtotal: line.amount ?? 0,
-      confidence: 0.5,
-    });
+    const role = line.productRole ?? productRoleFromLine(line);
+    if (role === "comment") continue;
+    if (role === "main_product" || !currentGroup) {
+      currentGroup = {
+        id: `G${groups.length + 1}`,
+        productGroupIndex: groups.length + 1,
+        anchorLineIndex: line.index,
+        mainLineId: line.id ?? `L${line.index}`,
+        componentLineIds: [],
+        title: line.description,
+        subtotal: 0,
+        totalAmount: 0,
+        calculationSummary: line.formula,
+        confidence: role === "main_product" ? 0.88 : 0.55,
+      };
+      groups.push(currentGroup);
+    } else if (["component", "service", "transport", "discount", "material"].includes(role)) {
+      currentGroup.componentLineIds.push(line.id ?? `L${line.index}`);
+    }
+    currentGroup.subtotal = roundMoney(currentGroup.subtotal + (line.amount ?? 0));
+    currentGroup.totalAmount = currentGroup.subtotal;
   }
   return groups;
 }
@@ -1041,14 +1431,20 @@ export function compareInvoices(expected, actual) {
 function failure(input) {
   return {
     parserConfidence: input.parserConfidence ?? 0.8,
+    severity: input.severity ?? "high",
+    page: input.page,
+    lineApprox: input.lineApprox,
+    columnsDetected: input.columnsDetected ?? [],
+    tokensRelevant: input.tokensRelevant ?? [],
+    candidateRule: input.candidateRule ?? input.hint,
     ...input,
   };
 }
 
 function compareMetadata(expected, actual, failures) {
-  for (const field of ["supplierName", "supplierTaxId", "invoiceNumber", "date"]) {
+  for (const field of ["supplierName", "supplierTaxId", "customerName", "customerTaxId", "invoiceNumber", "date"]) {
     const expectedValue = expected.metadata?.[field];
-    if (!expectedValue) continue;
+    if (!isComparableMetadataValue(expectedValue)) continue;
     const actualValue = actual.metadata?.[field];
     const matches =
       field === "date"
@@ -1060,7 +1456,7 @@ function compareMetadata(expected, actual, failures) {
       failures.push(
         failure({
           field: `metadata.${field}`,
-          category: "metadata_field_wrong",
+          category: "metadata_wrong",
           expected: expectedValue,
           actual: actualValue,
           hint: "Metadata visible in invoice header was not mapped correctly.",
@@ -1070,25 +1466,38 @@ function compareMetadata(expected, actual, failures) {
   }
 }
 
+function isComparableMetadataValue(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text) && !/^<REDACTED/i.test(text);
+}
+
 function compareTotals(expected, actual, failures) {
   const totalFields = [
-    ["taxBase", "tax_base_mismatch"],
-    ["vatAmount", "vat_mismatch"],
-    ["irpfAmount", "total_mismatch"],
-    ["total", "total_mismatch"],
+    ["taxBase", "totals_mismatch"],
+    ["vatAmount", "vat_breakdown_wrong"],
+    ["irpfAmount", "irpf_wrong"],
+    ["recargoAmount", "recargo_wrong"],
+    ["globalDiscountAmount", "discount_total_wrong"],
+    ["paidAmount", "paid_amount_wrong"],
+    ["dueAmount", "due_amount_wrong"],
+    ["total", "totals_mismatch"],
   ];
   for (const [field, category] of totalFields) {
     const expectedValue = expected.totals?.[field];
     if (expectedValue === undefined) continue;
     const actualValue = actual.totals?.[field];
-    if (expectedValue === 0 && actualValue === undefined && ["irpfAmount", "dueAmount"].includes(field)) {
+    if (
+      expectedValue === 0 &&
+      actualValue === undefined &&
+      ["irpfAmount", "dueAmount", "recargoAmount", "globalDiscountAmount", "paidAmount"].includes(field)
+    ) {
       continue;
     }
     if (actualValue === undefined) {
       failures.push(
         failure({
           field: `totals.${field}`,
-          category: "total_not_found",
+          category,
           expected: expectedValue,
           actual: actualValue,
           hint: "Total row was not found or not classified.",
@@ -1117,7 +1526,10 @@ function compareLines(expected, actual, failures) {
     failures.push(
       failure({
         field: "lines.count",
-        category: "line_count_mismatch",
+        category:
+          (actual.lines?.length ?? 0) > (expected.lines?.length ?? 0)
+            ? "false_positive_line"
+            : "missed_line",
         expected: expected.lines?.length ?? 0,
         actual: actual.lines?.length ?? 0,
         hint: "Row segmentation changed the number of commercial lines.",
@@ -1136,6 +1548,8 @@ function compareLines(expected, actual, failures) {
     compareLineNumber(index, "discountPct", "discount_wrong", expectedLine, actualLine, failures, MONEY_TOLERANCE);
     compareLineNumber(index, "netUnitPrice", "net_unit_price_wrong", expectedLine, actualLine, failures, MONEY_TOLERANCE);
     compareLineNumber(index, "amount", "line_amount_mismatch", expectedLine, actualLine, failures, MONEY_TOLERANCE);
+    compareLineNumber(index, "vatRate", "vat_rate_wrong", expectedLine, actualLine, failures, MONEY_TOLERANCE);
+    compareLineFormula(index, expectedLine, actualLine, failures);
   }
 }
 
@@ -1155,7 +1569,11 @@ function compareLineText(index, expectedLine, actualLine, failures) {
     failures.push(
       failure({
         field: `lines[${index}].description`,
-        category: "row_segmentation_failed",
+        category:
+          normalizeText(actualLine.description).includes(normalizeText(expectedLine.description)) ||
+          normalizeText(expectedLine.description).includes(normalizeText(actualLine.description))
+            ? "wrapped_description_failed"
+            : "row_segmentation_failed",
         expected: expectedLine.description,
         actual: actualLine.description,
         hint: "Description differs after row segmentation or continuation merge.",
@@ -1190,6 +1608,8 @@ function compareLineNumber(index, field, category, expectedLine, actualLine, fai
         category,
         expected: expectedValue,
         actual: actualValue,
+        page: expectedLine.page,
+        lineApprox: expectedLine.index ?? index + 1,
         hint: "Expected numeric line field was not extracted.",
       }),
     );
@@ -1204,10 +1624,57 @@ function compareLineNumber(index, field, category, expectedLine, actualLine, fai
         expected: expectedValue,
         actual: actualValue,
         delta,
+        page: expectedLine.page,
+        lineApprox: expectedLine.index ?? index + 1,
         hint: "Line numeric field differs from ground truth beyond tolerance.",
       }),
     );
   }
+}
+
+function compareLineFormula(index, expectedLine, actualLine, failures) {
+  const expectedFormula = expectedLine.expectedFormula ?? expectedLine.formula;
+  if (!expectedFormula) return;
+  const actualFormula = actualLine.actualFormula ?? actualLine.formula;
+  if (normalizeText(expectedFormula) !== normalizeText(actualFormula)) {
+    failures.push(
+      failure({
+        field: `lines[${index}].formula`,
+        category: "formula_wrong",
+        expected: expectedFormula,
+        actual: actualFormula,
+        page: expectedLine.page,
+        lineApprox: expectedLine.index ?? index + 1,
+        hint: "Line formula should follow chargeQuantity and calculationBasis.",
+      }),
+    );
+  }
+  const recalculated = recalculateLineAmount(actualLine);
+  if (recalculated === undefined || actualLine.amount === undefined) return;
+  const signedRecalculated =
+    actualLine.amount < 0 && recalculated > 0 ? -recalculated : recalculated;
+  const delta = roundMoney(actualLine.amount - signedRecalculated);
+  const tolerance = expectedLine.tolerance ?? MONEY_TOLERANCE;
+  if (Math.abs(delta) > tolerance) {
+    failures.push(
+      failure({
+        field: `lines[${index}].calculationDifference`,
+        category: "line_amount_mismatch",
+        expected: 0,
+        actual: delta,
+        delta,
+        page: expectedLine.page,
+        lineApprox: expectedLine.index ?? index + 1,
+        hint: "Line amount does not match its deterministic formula.",
+      }),
+    );
+  }
+}
+
+function recalculateLineAmount(line) {
+  if (line.calculationBasis === "fixed") return line.amount;
+  if (line.netUnitPrice === undefined || line.chargeQuantity === undefined) return undefined;
+  return roundMoney(line.chargeQuantity * line.netUnitPrice);
 }
 
 function compareGroups(expected, actual, failures) {
@@ -1222,6 +1689,52 @@ function compareGroups(expected, actual, failures) {
         hint: "Product grouping did not create the expected number of groups.",
       }),
     );
+  }
+  const count = Math.min(expected.groups.length, actual.groups?.length ?? 0);
+  for (let index = 0; index < count; index += 1) {
+    const expectedGroup = expected.groups[index];
+    const actualGroup = actual.groups[index];
+    if (expectedGroup.mainLineId && expectedGroup.mainLineId !== actualGroup.mainLineId) {
+      failures.push(
+        failure({
+          field: `groups[${index}].mainLineId`,
+          category: "product_grouping_wrong",
+          expected: expectedGroup.mainLineId,
+          actual: actualGroup.mainLineId,
+          hint: "Product group should start at the expected main product line.",
+        }),
+      );
+    }
+    if (expectedGroup.componentLineIds?.length) {
+      const expectedIds = expectedGroup.componentLineIds.join(",");
+      const actualIds = (actualGroup.componentLineIds ?? []).join(",");
+      if (expectedIds !== actualIds) {
+        failures.push(
+          failure({
+            field: `groups[${index}].componentLineIds`,
+            category: "product_grouping_wrong",
+            expected: expectedIds,
+            actual: actualIds,
+            hint: "Product group components differ from ground truth.",
+          }),
+        );
+      }
+    }
+    if (expectedGroup.totalAmount !== undefined) {
+      const delta = roundMoney((actualGroup.totalAmount ?? actualGroup.subtotal ?? 0) - expectedGroup.totalAmount);
+      if (Math.abs(delta) > MONEY_TOLERANCE) {
+        failures.push(
+          failure({
+            field: `groups[${index}].totalAmount`,
+            category: "product_grouping_wrong",
+            expected: expectedGroup.totalAmount,
+            actual: actualGroup.totalAmount ?? actualGroup.subtotal,
+            delta,
+            hint: "Product group total should sum its included lines.",
+          }),
+        );
+      }
+    }
   }
 }
 
@@ -1243,17 +1756,20 @@ export function summarizeBenchmark(results) {
     0,
   );
   const fieldAccuracy = {
-    metadata: accuracyRatio(runnable.length * 4, failureCount(["metadata_field_wrong"])),
+    metadata: accuracyRatio(runnable.length * 6, failureCount(["metadata_wrong"])),
     totals: accuracyRatio(
-      runnable.length * 4,
+      runnable.length * 8,
       failureCount([
-        "total_not_found",
-        "tax_base_mismatch",
-        "vat_mismatch",
-        "total_mismatch",
+        "totals_mismatch",
+        "vat_breakdown_wrong",
+        "irpf_wrong",
+        "recargo_wrong",
+        "discount_total_wrong",
+        "paid_amount_wrong",
+        "due_amount_wrong",
       ]),
     ),
-    lineCount: accuracyRatio(runnable.length, failureCount(["line_count_mismatch"])),
+    lineCount: accuracyRatio(runnable.length, failureCount(["missed_line", "false_positive_line"])),
     lineAmounts: accuracyRatio(expectedLines, failureCount(["line_amount_mismatch"])),
     calculationBasis: accuracyRatio(
       expectedLines,
@@ -1272,6 +1788,7 @@ export function summarizeBenchmark(results) {
     if (result.status === "failed") bySuite[result.suite].failed += 1;
     if (result.status === "skipped_missing_private_pdf") bySuite[result.suite].skipped += 1;
   }
+  const coverage = summarizeCoverage(results);
   return {
     invoiceCount: results.length,
     run: runnable.length,
@@ -1281,10 +1798,72 @@ export function summarizeBenchmark(results) {
     passRate: runnable.length ? roundMoney((passed / runnable.length) * 100) : 0,
     fieldAccuracy,
     aiUsageRate: 0,
+    coverage,
     bySuite,
     topFailureCategories: Object.entries(byCategory)
       .sort((a, b) => b[1] - a[1])
       .map(([category, count]) => ({ category, count })),
+  };
+}
+
+function summarizeCoverage(results) {
+  const basisDistribution = {};
+  const fiscalCases = {};
+  const adversarialCases = {};
+  const productGrouping = {};
+  const layouts = new Set();
+  const columnSignatures = new Set();
+  let multipage = 0;
+  let deterministicOk = 0;
+  let aiFallback = 0;
+  let aiNeededButDisabled = 0;
+
+  for (const result of results) {
+    if (result.expectedLayoutId || result.layoutId) {
+      layouts.add(result.expectedLayoutId ?? result.layoutId);
+    }
+    if (result.expectedColumns?.length) {
+      columnSignatures.add(result.expectedColumns.join(" | "));
+    }
+    if (
+      result.expectedAdversarialCases?.includes("multipage_table") ||
+      (result.expectedPageCount ?? 1) > 1
+    ) {
+      multipage += 1;
+    }
+    for (const [basis, count] of Object.entries(result.expectedBasisCounts ?? {})) {
+      basisDistribution[basis] = (basisDistribution[basis] ?? 0) + count;
+    }
+    for (const fiscalCase of result.expectedFiscalCases ?? []) {
+      fiscalCases[fiscalCase] = (fiscalCases[fiscalCase] ?? 0) + 1;
+    }
+    for (const adversarialCase of result.expectedAdversarialCases ?? []) {
+      adversarialCases[adversarialCase] = (adversarialCases[adversarialCase] ?? 0) + 1;
+    }
+    const grouping = result.expectedGroupingMode ?? "sin grupos";
+    productGrouping[grouping] = (productGrouping[grouping] ?? 0) + 1;
+    if (result.usedAi) aiFallback += 1;
+    if ((result.failures ?? []).some((item) => item.category === "ai_needed")) {
+      aiNeededButDisabled += 1;
+    }
+    if (!result.usedAi && result.status === "passed") deterministicOk += 1;
+  }
+
+  return {
+    totalFixtures: results.length,
+    multipageFixtures: multipage,
+    distinctLayouts: layouts.size,
+    distinctColumnSignatures: columnSignatures.size,
+    basisDistribution,
+    fiscalCases,
+    adversarialCases,
+    productGrouping,
+    aiUsage: {
+      deterministicOk,
+      aiFallback,
+      aiAvoided: results.length - aiFallback,
+      aiNeededButDisabled,
+    },
   };
 }
 
@@ -1317,6 +1896,11 @@ export function renderSummaryMarkdown(summary, outputDir) {
           .map((item, index) => `${index + 1}. ${item.category}: ${item.count}`)
           .join("\n")
       : "Sin fallos.";
+  const coverage = summary.coverage ?? {};
+  const basisLines = renderCountMap(coverage.basisDistribution);
+  const fiscalLines = renderCountMap(coverage.fiscalCases);
+  const adversarialLines = renderCountMap(coverage.adversarialCases);
+  const groupingLines = renderCountMap(coverage.productGrouping);
   return `# Invoice benchmark summary
 
 - Output: ${path.relative(REPO_ROOT, outputDir)}
@@ -1342,10 +1926,46 @@ export function renderSummaryMarkdown(summary, outputDir) {
 
 ${suiteLines}
 
+## Coverage report
+
+- Fixtures totales: ${coverage.totalFixtures ?? summary.invoiceCount}
+- Fixtures multipágina: ${coverage.multipageFixtures ?? 0}
+- Layouts distintos: ${coverage.distinctLayouts ?? 0}
+- Firmas de columnas distintas: ${coverage.distinctColumnSignatures ?? 0}
+
+### Calculation basis distribution
+
+${basisLines}
+
+### Fiscal cases
+
+${fiscalLines}
+
+### Adversarial cases
+
+${adversarialLines}
+
+### Product grouping
+
+${groupingLines}
+
+### AI usage
+
+- Deterministic OK: ${coverage.aiUsage?.deterministicOk ?? summary.passed}
+- AI fallback: ${coverage.aiUsage?.aiFallback ?? 0}
+- AI avoided: ${coverage.aiUsage?.aiAvoided ?? summary.invoiceCount}
+- AI needed but disabled: ${coverage.aiUsage?.aiNeededButDisabled ?? 0}
+
 ## Fallos principales
 
 ${topLines}
 `;
+}
+
+function renderCountMap(map = {}) {
+  const entries = Object.entries(map).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (!entries.length) return "- Sin datos";
+  return entries.map(([key, count]) => `- ${key}: ${count}`).join("\n");
 }
 
 export function renderFailuresMarkdown(results) {
@@ -1362,7 +1982,7 @@ export function renderFailuresMarkdown(results) {
         .slice(0, 8)
         .map(
           (item) =>
-            `- ${item.category} en \`${item.field}\`: esperado \`${String(item.expected)}\`, actual \`${String(item.actual)}\`. ${item.hint ?? ""}`,
+            `- ${item.category} en \`${item.field}\`: esperado \`${String(item.expected)}\`, actual \`${String(item.actual)}\`. Severidad: ${item.severity ?? "n/a"}. Página: ${item.page ?? "n/a"}. Línea: ${item.lineApprox ?? "n/a"}. Regla candidata: ${item.candidateRule ?? item.hint ?? "n/a"}. Columnas: ${(item.columnsDetected ?? []).join(" | ") || "n/a"}. Tokens: ${(item.tokensRelevant ?? []).join(" | ") || "n/a"}.`,
         )
         .join("\n");
       return `## ${result.invoiceId}

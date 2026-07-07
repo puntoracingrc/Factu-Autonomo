@@ -74,6 +74,13 @@ for (const fixture of fixtures) {
       })),
       expectedLineCount: expected.lines?.length ?? 0,
       expectedGroupCount: expected.groups?.length ?? 0,
+      expectedBasisCounts: countBy(expected.lines ?? [], (line) => line.calculationBasis ?? "unknown"),
+      expectedFiscalCases: expected.coverage?.fiscalCases ?? [],
+      expectedAdversarialCases: expected.coverage?.adversarialCases ?? [],
+      expectedLayoutId: expected.layoutId ?? fixture.layoutId,
+      expectedColumns: expected.tableColumns ?? [],
+      expectedPageCount: actual.pageCount,
+      expectedGroupingMode: inferGroupingMode(expected),
       parserConfidence: actual.confidence,
       usedAi: false,
     };
@@ -100,10 +107,35 @@ for (const fixture of fixtures) {
       ],
       expectedLineCount: expected.lines?.length ?? 0,
       expectedGroupCount: expected.groups?.length ?? 0,
+      expectedBasisCounts: countBy(expected.lines ?? [], (line) => line.calculationBasis ?? "unknown"),
+      expectedFiscalCases: expected.coverage?.fiscalCases ?? [],
+      expectedAdversarialCases: expected.coverage?.adversarialCases ?? [],
+      expectedLayoutId: expected.layoutId ?? fixture.layoutId,
+      expectedColumns: expected.tableColumns ?? [],
+      expectedGroupingMode: inferGroupingMode(expected),
       parserConfidence: 0,
       usedAi: false,
     });
   }
+}
+
+function countBy(items, keyFn) {
+  const counts = {};
+  for (const item of items) {
+    const key = keyFn(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function inferGroupingMode(expected) {
+  if (!expected.groups?.length) return "sin grupos";
+  if (expected.groups.some((group) => group.componentLineIds?.length)) {
+    return expected.coverage?.adversarialCases?.includes("multipage_table")
+      ? "grupos multipagina"
+      : "grupos con componentes";
+  }
+  return "grupos simples";
 }
 
 const summary = summarizeBenchmark(results);

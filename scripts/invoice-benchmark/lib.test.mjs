@@ -22,6 +22,8 @@ describe("invoice benchmark helpers", () => {
   it("normalizes Spanish money and dates", () => {
     expect(normalizeMoney("1.234,56 €")).toBe(1234.56);
     expect(normalizeMoney("-185,07 €")).toBe(-185.07);
+    expect(normalizeMoney("(185,07 €)")).toBe(-185.07);
+    expect(normalizeMoney("1,234.56 €")).toBe(1234.56);
     expect(normalizeDate("07/06/2026")).toBe("2026-06-07");
   });
 
@@ -36,7 +38,8 @@ describe("invoice benchmark helpers", () => {
 
   it("discovers the imported synthetic and private fixtures", () => {
     const fixtures = discoverInvoiceFixtures();
-    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(230);
+    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(380);
+    expect(fixtures.filter((fixture) => fixture.suite === "synthetic_adversarial")).toHaveLength(150);
     expect(fixtures.some((fixture) => fixture.suite === "private_real")).toBe(true);
   });
 
@@ -57,6 +60,30 @@ describe("invoice benchmark helpers", () => {
       sourceQuantity: 1,
       calculationBasis: "unit",
       amount: 72.74,
+    });
+    expect(comparison.failures).toEqual([]);
+  });
+
+  it("parses an adversarial multipage table with product groups and explicit billing units", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const fixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0005");
+    expect(fixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(readJson(fixture.groundTruthPath), fixture);
+    const actual = await parseInvoicePdf(fixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+
+    expect(actual.pageCount).toBeGreaterThan(1);
+    expect(actual.lines).toHaveLength(81);
+    expect(actual.groups).toHaveLength(16);
+    expect(actual.lines[0]).toMatchObject({
+      reference: "MAIN-PER-5-1",
+      calculationBasis: "m2",
+      chargeQuantity: 5.9,
+    });
+    expect(actual.lines[1]).toMatchObject({
+      reference: "COMP-GUIA-5-1",
+      calculationBasis: "ml",
     });
     expect(comparison.failures).toEqual([]);
   });
