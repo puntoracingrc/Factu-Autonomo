@@ -24,7 +24,11 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
-import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
+import {
+  documentHasLinkedCustomerNameMismatch,
+  documentWithCurrentCustomerContact,
+  findLinkedCustomerForDocument,
+} from "@/lib/document-client-contact";
 import {
   filterDocumentsByQuery,
   isDocumentEditable,
@@ -102,10 +106,6 @@ type DocumentStatusFilter =
   | "collected"
   | "pending"
   | "rectified";
-
-function customerHref(doc: Document): string | null {
-  return doc.customerId ? `/clientes?cliente=${encodeURIComponent(doc.customerId)}` : null;
-}
 
 const DOCUMENT_STATUS_OPTIONS: Record<
   DocumentType,
@@ -394,6 +394,15 @@ export function DocumentList({
               doc,
               data.customers,
             );
+            const linkedCustomer = findLinkedCustomerForDocument(
+              doc,
+              data.customers,
+            );
+            const clientHref = linkedCustomer
+              ? `/clientes?cliente=${encodeURIComponent(linkedCustomer.id)}`
+              : null;
+            const hasLinkedCustomerNameMismatch =
+              documentHasLinkedCustomerNameMismatch(doc, data.customers);
             const missingShareContact =
               !hasClientEmail(contactDoc) && !hasClientPhone(contactDoc);
             const displayNumber = isDraftInvoiceNumber(doc)
@@ -440,16 +449,26 @@ export function DocumentList({
                           </span>
                         )}
                       </div>
-                      {customerHref(doc) ? (
-                        <Link
-                          href={customerHref(doc)!}
-                          className="mt-1 inline-flex max-w-full rounded-md text-slate-700 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                        >
-                          <span className="truncate">{doc.client.name}</span>
-                        </Link>
-                      ) : (
-                        <p className="mt-1 text-slate-700">{doc.client.name}</p>
-                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {clientHref ? (
+                          <Link
+                            href={clientHref}
+                            className="inline-flex max-w-full rounded-md text-slate-700 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                          >
+                            <span className="truncate">{doc.client.name}</span>
+                          </Link>
+                        ) : (
+                          <p className="text-slate-700">{doc.client.name}</p>
+                        )}
+                        {hasLinkedCustomerNameMismatch && (
+                          <span
+                            className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
+                            title="La factura conserva un nombre distinto al de la ficha actual. Revisa si la unificación fue correcta."
+                          >
+                            Revisar cliente
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-500">
                         {formatShortDate(doc.date)} · {formatMoney(total)}
                       </p>

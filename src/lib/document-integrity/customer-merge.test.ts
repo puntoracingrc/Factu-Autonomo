@@ -244,6 +244,43 @@ describe("safe customer merge", () => {
     expect(found.map((doc) => doc.id).sort()).toEqual(["current", "historical"]);
   });
 
+  it("no reclama documentos sin customerId solo por NIF compartido si el titular no coincide", () => {
+    const personWithSharedNif: Customer = {
+      ...removed,
+      firstName: "Carmen",
+      lastName: "Camí",
+      name: "Carmen Camí",
+      nif: "B60422417",
+    };
+    const companyKeep: Customer = {
+      ...keep,
+      customerType: "company",
+      firstName: "Llefisa SL",
+      lastName: "",
+      name: "Llefisa SL",
+      nif: "B60422417",
+    };
+    const companyInvoice = issuedDocument({
+      id: "company-invoice",
+      customerId: undefined,
+      client: {
+        customerType: "company",
+        name: "Llefisa SL",
+        nif: "B60422417",
+      },
+    });
+
+    const merged = applyCustomerMergeToDocument(
+      companyInvoice,
+      companyKeep,
+      [personWithSharedNif],
+    );
+
+    expect(merged).toBe(companyInvoice);
+    expect(merged.customerId).toBeUndefined();
+    expect(merged.client.name).toBe("Llefisa SL");
+  });
+
   it("no modifica documentos de clientes no relacionados", () => {
     const other = draftDocument({
       id: "other",

@@ -43,6 +43,7 @@ import {
   customerPayloadFromInput,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
+  findCustomerByIdOrMergedId,
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
   migrateCustomer,
@@ -294,7 +295,7 @@ export default function ClientesPage() {
   useEffect(() => {
     const customerId = searchParams.get("cliente") ?? searchParams.get("id");
     if (!customerId) return;
-    const customer = data.customers.find((item) => item.id === customerId);
+    const customer = findCustomerByIdOrMergedId(data.customers, customerId);
     if (!customer) return;
     setListFilterId(customer.id);
     startEdit(customer);
