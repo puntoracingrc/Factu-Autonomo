@@ -10,6 +10,8 @@ import {
   hasClientEmail,
   hasClientPhone,
   normalizePhoneForWhatsApp,
+  openDocumentEmailMessage,
+  openWhatsAppDocumentMessage,
   shareDocumentByWhatsApp,
 } from "./share";
 
@@ -115,6 +117,38 @@ describe("buildGmailComposeUrl", () => {
     expect(url).toContain("to=a%40b.com");
     expect(url).toContain("su=Factura+F-1");
     expect(url).toContain("body=Hola");
+  });
+});
+
+describe("openDocumentEmailMessage", () => {
+  it("no mete instrucciones internas de adjuntar en el cuerpo", () => {
+    const open = vi.fn(() => ({}));
+    vi.stubGlobal("window", { open });
+
+    expect(openDocumentEmailMessage(sampleDoc, profile, "gmail")).toBe(true);
+
+    const rawUrl = (open.mock.calls[0] as unknown as [string])[0];
+    const url = new URL(rawUrl);
+    const body = url.searchParams.get("body") ?? "";
+    expect(body).toContain("Le adjuntamos la factura F-2025-001");
+    expect(body).not.toContain("Adjunta el PDF");
+    expect(body).not.toContain("Adjunto el PDF");
+  });
+});
+
+describe("openWhatsAppDocumentMessage", () => {
+  it("no mete instrucciones internas de adjuntar en el mensaje", () => {
+    const open = vi.fn(() => ({}));
+    vi.stubGlobal("window", { open });
+
+    expect(openWhatsAppDocumentMessage(sampleDoc, profile)).toBe(true);
+
+    const rawUrl = (open.mock.calls[0] as unknown as [string])[0];
+    const url = new URL(rawUrl);
+    const text = url.searchParams.get("text") ?? "";
+    expect(text).toContain("Le adjuntamos la factura F-2025-001");
+    expect(text).not.toContain("Adjunta el PDF");
+    expect(text).not.toContain("Adjunto el PDF");
   });
 });
 

@@ -133,7 +133,6 @@ export async function sendPaymentReminderByEmail(
   }
 
   const subject = paymentReminderSubject(input.doc);
-  const mailtoBody = `${message}\n\n(Adjunta el PDF de la factura descargado.)`;
 
   const sharedNative = await shareReminderPdfNative(
     input.doc,
@@ -154,7 +153,7 @@ export async function sendPaymentReminderByEmail(
     };
   }
 
-  window.location.href = buildMailtoUrl(email, subject, mailtoBody);
+  window.location.href = buildMailtoUrl(email, subject, message);
   showFactuToast(
     "Se abrió tu correo con el mensaje. Adjunta el PDF descargado y envíalo.",
     5000,
@@ -175,7 +174,7 @@ export async function sendPaymentReminderByWhatsApp(
   }
 
   const phone = input.doc.client.phone!.trim();
-  const message = `${input.message.trim()}\n\n(Adjunto el PDF de la factura.)`;
+  const message = input.message.trim();
   const url = buildWhatsAppUrl(phone, message);
   if (!url) {
     return { ok: false, error: "Teléfono no válido para WhatsApp." };

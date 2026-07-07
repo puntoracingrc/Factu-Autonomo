@@ -193,10 +193,6 @@ function openExternalUrl(url: string): void {
   if (!opened) window.location.href = url;
 }
 
-function externalAttachmentBody(message: string): string {
-  return `${message}\n\n(Adjunta el PDF.)`;
-}
-
 export function openDocumentEmailMessage(
   doc: Document,
   profile: BusinessProfile,
@@ -207,14 +203,13 @@ export function openDocumentEmailMessage(
 
   const message = buildShareMessage(doc, profile);
   const subject = shareSubject(doc);
-  const body = externalAttachmentBody(message);
 
   if (method === "gmail") {
-    openExternalUrl(buildGmailComposeUrl(email, subject, body));
+    openExternalUrl(buildGmailComposeUrl(email, subject, message));
     return true;
   }
 
-  window.location.href = buildMailtoUrl(email, subject, body);
+  window.location.href = buildMailtoUrl(email, subject, message);
   return true;
 }
 
@@ -225,7 +220,7 @@ export function openWhatsAppDocumentMessage(
   const phone = doc.client.phone?.trim();
   if (!phone) return false;
 
-  const message = `${buildShareMessage(doc, profile)}\n\n(Adjunto el PDF.)`;
+  const message = buildShareMessage(doc, profile);
   const url = buildWhatsAppUrl(phone, message);
   if (!url) return false;
 
@@ -250,16 +245,14 @@ export async function shareDocumentByEmail(
     if (shared) return;
   }
 
-  const body = externalAttachmentBody(message);
-
   if (method === "gmail") {
-    openExternalUrl(buildGmailComposeUrl(email, subject, body));
+    openExternalUrl(buildGmailComposeUrl(email, subject, message));
     await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
     return;
   }
 
   await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
-  window.location.href = buildMailtoUrl(email, subject, body);
+  window.location.href = buildMailtoUrl(email, subject, message);
 }
 
 export async function shareDocumentByWhatsApp(
@@ -271,7 +264,7 @@ export async function shareDocumentByWhatsApp(
   const phone = doc.client.phone?.trim();
   if (!phone) return;
 
-  const message = `${buildShareMessage(doc, profile)}\n\n(Adjunto el PDF.)`;
+  const message = buildShareMessage(doc, profile);
 
   if (method === "native") {
     const shared = await sharePdfNative(doc, profile, message, pdfOptions);
