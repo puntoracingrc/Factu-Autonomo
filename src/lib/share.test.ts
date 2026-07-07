@@ -12,6 +12,7 @@ import {
   normalizePhoneForWhatsApp,
   openDocumentEmailMessage,
   openWhatsAppDocumentMessage,
+  reserveExternalShareWindow,
   shareDocumentByWhatsApp,
 } from "./share";
 
@@ -73,8 +74,9 @@ describe("normalizePhoneForWhatsApp", () => {
 describe("buildWhatsAppUrl", () => {
   it("genera enlace wa.me con mensaje", () => {
     const url = buildWhatsAppUrl("612345678", "Hola");
-    expect(url).toContain("https://wa.me/34612345678");
-    expect(url).toContain(encodeURIComponent("Hola"));
+    expect(url).toContain("https://web.whatsapp.com/send?");
+    expect(url).toContain("phone=34612345678");
+    expect(url).toContain("text=Hola");
   });
 });
 
@@ -134,6 +136,23 @@ describe("openDocumentEmailMessage", () => {
     expect(body).not.toContain("Adjunta el PDF");
     expect(body).not.toContain("Adjunto el PDF");
   });
+
+  it("usa una ventana reservada si se pasa para no sustituir la app", () => {
+    const open = vi.fn();
+    const target = {
+      closed: false,
+      focus: vi.fn(),
+      location: { href: "" },
+    } as unknown as Window;
+    vi.stubGlobal("window", { open });
+
+    expect(openDocumentEmailMessage(sampleDoc, profile, "gmail", target)).toBe(
+      true,
+    );
+
+    expect(open).not.toHaveBeenCalled();
+    expect(target.location.href).toContain("https://mail.google.com/mail/");
+  });
 });
 
 describe("openWhatsAppDocumentMessage", () => {
@@ -149,6 +168,37 @@ describe("openWhatsAppDocumentMessage", () => {
     expect(text).toContain("Le adjuntamos la factura F-2025-001");
     expect(text).not.toContain("Adjunta el PDF");
     expect(text).not.toContain("Adjunto el PDF");
+  });
+
+  it("usa una ventana reservada si se pasa para no sustituir la app", () => {
+    const open = vi.fn();
+    const target = {
+      closed: false,
+      focus: vi.fn(),
+      location: { href: "" },
+    } as unknown as Window;
+    vi.stubGlobal("window", { open });
+
+    expect(openWhatsAppDocumentMessage(sampleDoc, profile, target)).toBe(true);
+
+    expect(open).not.toHaveBeenCalled();
+    expect(target.location.href).toContain("https://web.whatsapp.com/send");
+  });
+});
+
+describe("reserveExternalShareWindow", () => {
+  it("reserva una pestaña temporal durante el gesto del usuario", () => {
+    const opened = {
+      document: { title: "", body: { innerHTML: "" } },
+      opener: {},
+    };
+    const open = vi.fn(() => opened);
+    vi.stubGlobal("window", { open });
+
+    expect(reserveExternalShareWindow()).toBe(opened);
+    expect(open).toHaveBeenCalledWith("about:blank", "_blank");
+    expect(opened.opener).toBeNull();
+    expect(opened.document.title).toBe("Preparando envío");
   });
 });
 

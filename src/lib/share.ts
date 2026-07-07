@@ -115,7 +115,11 @@ export function normalizePhoneForWhatsApp(
 export function buildWhatsAppUrl(phone: string, message: string): string | null {
   const normalized = normalizePhoneForWhatsApp(phone);
   if (!normalized) return null;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  const params = new URLSearchParams({
+    phone: normalized,
+    text: message,
+  });
+  return `https://web.whatsapp.com/send?${params.toString()}`;
 }
 
 export function buildMailtoUrl(
@@ -188,15 +192,40 @@ async function downloadPdfBeforeExternalClient(
   await downloadDocumentPdf(doc, profile, pdfOptions);
 }
 
-function openExternalUrl(url: string): void {
+export function reserveExternalShareWindow(): Window | null {
+  if (typeof window === "undefined") return null;
+
+  const opened = window.open("about:blank", "_blank");
+  if (!opened) return null;
+
+  try {
+    opened.opener = null;
+    opened.document.title = "Preparando envío";
+    opened.document.body.innerHTML =
+      '<div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; padding: 24px; color: #0f172a;"><strong>Preparando el envío...</strong><p>Esta pestaña se abrirá en unos segundos.</p></div>';
+  } catch {
+    // Algunos navegadores no permiten escribir en la ventana reservada.
+  }
+
+  return opened;
+}
+
+function openExternalUrl(url: string, reservedWindow?: Window | null): boolean {
+  if (reservedWindow && !reservedWindow.closed) {
+    reservedWindow.location.href = url;
+    reservedWindow.focus();
+    return true;
+  }
+
   const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (!opened) window.location.href = url;
+  return Boolean(opened);
 }
 
 export function openDocumentEmailMessage(
   doc: Document,
   profile: BusinessProfile,
   method: Extract<DocumentEmailSendPreference, "gmail" | "mailto">,
+  reservedWindow?: Window | null,
 ): boolean {
   const email = doc.client.email?.trim();
   if (!email) return false;
@@ -205,17 +234,19 @@ export function openDocumentEmailMessage(
   const subject = shareSubject(doc);
 
   if (method === "gmail") {
-    openExternalUrl(buildGmailComposeUrl(email, subject, message));
-    return true;
+    return openExternalUrl(
+      buildGmailComposeUrl(email, subject, message),
+      reservedWindow,
+    );
   }
 
-  window.location.href = buildMailtoUrl(email, subject, message);
-  return true;
+  return openExternalUrl(buildMailtoUrl(email, subject, message), reservedWindow);
 }
 
 export function openWhatsAppDocumentMessage(
   doc: Document,
   profile: BusinessProfile,
+  reservedWindow?: Window | null,
 ): boolean {
   const phone = doc.client.phone?.trim();
   if (!phone) return false;
@@ -224,8 +255,7 @@ export function openWhatsAppDocumentMessage(
   const url = buildWhatsAppUrl(phone, message);
   if (!url) return false;
 
-  openExternalUrl(url);
-  return true;
+  return openExternalUrl(url, reservedWindow);
 }
 
 export async function shareDocumentByEmail(
@@ -252,7 +282,7 @@ export async function shareDocumentByEmail(
   }
 
   await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
-  window.location.href = buildMailtoUrl(email, subject, message);
+  openExternalUrl(buildMailtoUrl(email, subject, message));
 }
 
 export async function shareDocumentByWhatsApp(
