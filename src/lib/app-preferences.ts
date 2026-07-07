@@ -3,6 +3,8 @@ import type {
   AppPreferences,
   AppStartPagePreference,
   AppThemePreference,
+  DocumentEmailSendPreference,
+  DocumentWhatsAppSendPreference,
 } from "./types";
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
@@ -10,6 +12,8 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   density: "comfortable",
   startPage: "panel",
   reduceMotion: false,
+  documentEmailMethod: "ask",
+  documentWhatsAppMethod: "ask",
 };
 
 export const APP_THEME_OPTIONS: Array<{
@@ -95,6 +99,55 @@ export const APP_START_PAGE_OPTIONS: Array<{
   },
 ];
 
+export const DOCUMENT_EMAIL_METHOD_OPTIONS: Array<{
+  value: DocumentEmailSendPreference;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "ask",
+    label: "Preguntar",
+    description: "Elegir método al pulsar el icono de email.",
+  },
+  {
+    value: "gmail",
+    label: "Gmail",
+    description: "Abrir Gmail con destinatario, asunto y mensaje.",
+  },
+  {
+    value: "mailto",
+    label: "Correo del dispositivo",
+    description: "Abrir la app de correo configurada en el equipo.",
+  },
+  {
+    value: "native",
+    label: "Compartir del dispositivo",
+    description: "Usar el menú de compartir de macOS, iOS, Android o navegador.",
+  },
+];
+
+export const DOCUMENT_WHATSAPP_METHOD_OPTIONS: Array<{
+  value: DocumentWhatsAppSendPreference;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "ask",
+    label: "Preguntar",
+    description: "Elegir método al pulsar el icono de WhatsApp.",
+  },
+  {
+    value: "direct",
+    label: "WhatsApp directo",
+    description: "Abrir WhatsApp o WhatsApp Web con el mensaje preparado.",
+  },
+  {
+    value: "native",
+    label: "Compartir del dispositivo",
+    description: "Usar el menú de compartir del sistema.",
+  },
+];
+
 function isTheme(value: unknown): value is AppThemePreference {
   return value === "system" || value === "light" || value === "dark";
 }
@@ -105,6 +158,20 @@ function isDensity(value: unknown): value is AppDensityPreference {
 
 function isStartPage(value: unknown): value is AppStartPagePreference {
   return APP_START_PAGE_OPTIONS.some((option) => option.value === value);
+}
+
+function isDocumentEmailMethod(
+  value: unknown,
+): value is DocumentEmailSendPreference {
+  return DOCUMENT_EMAIL_METHOD_OPTIONS.some((option) => option.value === value);
+}
+
+function isDocumentWhatsAppMethod(
+  value: unknown,
+): value is DocumentWhatsAppSendPreference {
+  return DOCUMENT_WHATSAPP_METHOD_OPTIONS.some(
+    (option) => option.value === value,
+  );
 }
 
 export function normalizeAppPreferences(
@@ -124,6 +191,14 @@ export function normalizeAppPreferences(
       typeof input?.reduceMotion === "boolean"
         ? input.reduceMotion
         : DEFAULT_APP_PREFERENCES.reduceMotion,
+    documentEmailMethod: isDocumentEmailMethod(input?.documentEmailMethod)
+      ? input.documentEmailMethod
+      : DEFAULT_APP_PREFERENCES.documentEmailMethod,
+    documentWhatsAppMethod: isDocumentWhatsAppMethod(
+      input?.documentWhatsAppMethod,
+    )
+      ? input.documentWhatsAppMethod
+      : DEFAULT_APP_PREFERENCES.documentWhatsAppMethod,
   };
 }
 

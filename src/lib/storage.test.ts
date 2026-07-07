@@ -97,6 +97,8 @@ describe("storage", () => {
       density: "comfortable",
       startPage: "panel",
       reduceMotion: false,
+      documentEmailMethod: "ask",
+      documentWhatsAppMethod: "ask",
     });
 
     expect(
@@ -107,6 +109,8 @@ describe("storage", () => {
             density: "compact",
             startPage: "settings",
             reduceMotion: true,
+            documentEmailMethod: "gmail",
+            documentWhatsAppMethod: "direct",
           },
         },
       } as Partial<AppData>).profile.appPreferences,
@@ -115,6 +119,8 @@ describe("storage", () => {
       density: "compact",
       startPage: "settings",
       reduceMotion: true,
+      documentEmailMethod: "gmail",
+      documentWhatsAppMethod: "direct",
     });
   });
 

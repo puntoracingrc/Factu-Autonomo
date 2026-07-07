@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PROFILE, type Document } from "./types";
 import { issueDocument } from "./document-integrity";
 import {
+  buildGmailComposeUrl,
   buildMailtoUrl,
   buildShareMessage,
   buildWhatsAppUrl,
@@ -103,6 +104,17 @@ describe("buildMailtoUrl", () => {
     expect(url.startsWith("mailto:a@b.com?")).toBe(true);
     expect(url).toContain("subject=");
     expect(url).toContain("body=");
+  });
+});
+
+describe("buildGmailComposeUrl", () => {
+  it("genera enlace directo a Gmail con destinatario, asunto y cuerpo", () => {
+    const url = buildGmailComposeUrl("a@b.com", "Factura F-1", "Hola");
+    expect(url.startsWith("https://mail.google.com/mail/?")).toBe(true);
+    expect(url).toContain("view=cm");
+    expect(url).toContain("to=a%40b.com");
+    expect(url).toContain("su=Factura+F-1");
+    expect(url).toContain("body=Hola");
   });
 });
 

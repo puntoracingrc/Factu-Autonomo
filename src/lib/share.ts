@@ -1,4 +1,9 @@
-import type { BusinessProfile, Document } from "./types";
+import type {
+  BusinessProfile,
+  Document,
+  DocumentEmailSendPreference,
+  DocumentWhatsAppSendPreference,
+} from "./types";
 import { documentTotals, formatMoney, formatShortDate } from "./calculations";
 import {
   buildPdfViewModelForDocument,
@@ -128,6 +133,21 @@ export function buildMailtoUrl(
   return `mailto:${email.trim()}?${params.toString()}`;
 }
 
+export function buildGmailComposeUrl(
+  email: string,
+  subject: string,
+  body: string,
+): string {
+  const params = new URLSearchParams({
+    view: "cm",
+    fs: "1",
+    to: email.trim(),
+    su: subject,
+    body,
+  });
+  return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
 async function pdfFile(
   doc: Document,
   profile: BusinessProfile,
@@ -159,29 +179,57 @@ async function sharePdfNative(
   }
 }
 
+function shareSubject(doc: Document): string {
+  return `${documentTypeLabel(doc).replace(/^./, (c) => c.toUpperCase())} ${doc.number}`;
+}
+
+async function downloadPdfBeforeExternalClient(
+  doc: Document,
+  profile: BusinessProfile,
+  pdfOptions?: DocumentPdfOptions,
+): Promise<void> {
+  await downloadDocumentPdf(doc, profile, pdfOptions);
+}
+
+function openExternalUrl(url: string): void {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
+}
+
 export async function shareDocumentByEmail(
   doc: Document,
   profile: BusinessProfile,
   pdfOptions?: DocumentPdfOptions,
+  method: Exclude<DocumentEmailSendPreference, "ask"> = "native",
 ): Promise<void> {
   const email = doc.client.email?.trim();
   if (!email) return;
 
   const message = buildShareMessage(doc, profile);
-  const subject = `${documentTypeLabel(doc).replace(/^./, (c) => c.toUpperCase())} ${doc.number}`;
+  const subject = shareSubject(doc);
 
-  const shared = await sharePdfNative(doc, profile, message, pdfOptions);
-  if (shared) return;
+  if (method === "native") {
+    const shared = await sharePdfNative(doc, profile, message, pdfOptions);
+    if (shared) return;
+  }
 
-  const mailto = buildMailtoUrl(email, subject, `${message}\n\n(Adjunta el PDF descargado.)`);
-  await downloadDocumentPdf(doc, profile, pdfOptions);
-  window.location.href = mailto;
+  const body = `${message}\n\n(Adjunta el PDF descargado.)`;
+
+  if (method === "gmail") {
+    openExternalUrl(buildGmailComposeUrl(email, subject, body));
+    await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
+    return;
+  }
+
+  await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
+  window.location.href = buildMailtoUrl(email, subject, body);
 }
 
 export async function shareDocumentByWhatsApp(
   doc: Document,
   profile: BusinessProfile,
   pdfOptions?: DocumentPdfOptions,
+  method: Exclude<DocumentWhatsAppSendPreference, "ask"> = "native",
 ): Promise<void> {
   const phone = doc.client.phone?.trim();
   if (!phone) return;
@@ -190,11 +238,13 @@ export async function shareDocumentByWhatsApp(
   const url = buildWhatsAppUrl(phone, message);
   if (!url) return;
 
-  const shared = await sharePdfNative(doc, profile, message, pdfOptions);
-  if (shared) return;
+  if (method === "native") {
+    const shared = await sharePdfNative(doc, profile, message, pdfOptions);
+    if (shared) return;
+  }
 
-  await downloadDocumentPdf(doc, profile, pdfOptions);
-  window.open(url, "_blank", "noopener,noreferrer");
+  openExternalUrl(url);
+  await downloadPdfBeforeExternalClient(doc, profile, pdfOptions);
 }
 
 export function hasClientEmail(doc: Document): boolean {

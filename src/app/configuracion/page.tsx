@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { DocumentPaymentMethodsCard } from "@/components/settings/DocumentPaymentMethodsCard";
 import { DocumentUnitsCard } from "@/components/settings/DocumentUnitsCard";
 import { DocumentPhrasesCard } from "@/components/settings/DocumentPhrasesCard";
@@ -55,6 +55,8 @@ import {
   APP_DENSITY_OPTIONS,
   APP_START_PAGE_OPTIONS,
   APP_THEME_OPTIONS,
+  DOCUMENT_EMAIL_METHOD_OPTIONS,
+  DOCUMENT_WHATSAPP_METHOD_OPTIONS,
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
 import {
@@ -1298,6 +1300,50 @@ export default function ConfiguracionPage() {
                 ))}
               </select>
             </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Enviar documentos por email"
+                hint="El PDF se descarga para que puedas adjuntarlo si usas Gmail o correo externo."
+              >
+                <Select
+                  value={appPreferences.documentEmailMethod}
+                  onChange={(event) =>
+                    updateAppPreferences({
+                      documentEmailMethod: event.target
+                        .value as AppPreferences["documentEmailMethod"],
+                    })
+                  }
+                >
+                  {DOCUMENT_EMAIL_METHOD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} - {option.description}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field
+                label="Enviar documentos por WhatsApp"
+                hint="WhatsApp se abre con el mensaje preparado; adjunta el PDF descargado si lo necesitas."
+              >
+                <Select
+                  value={appPreferences.documentWhatsAppMethod}
+                  onChange={(event) =>
+                    updateAppPreferences({
+                      documentWhatsAppMethod: event.target
+                        .value as AppPreferences["documentWhatsAppMethod"],
+                    })
+                  }
+                >
+                  {DOCUMENT_WHATSAPP_METHOD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} - {option.description}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <input
