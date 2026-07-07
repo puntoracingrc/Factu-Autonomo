@@ -15,6 +15,16 @@
 /test/fixtures/invoices/private_real/pdf/
 /test/fixtures/invoices/reports/
 /artifacts/invoice-benchmarks/
+test/fixtures/invoices/private_real_qa/raw/
+test/fixtures/invoices/private_real_qa/extracted/
+test/fixtures/invoices/private_real_qa/redacted/
+test/fixtures/invoices/private_real_qa/synthetic_derivatives/
+test/fixtures/invoices/private_real_qa/README.local.md
+artifacts/invoice-real-qa/
+*.real.pdf
+*.real.jpg
+*.real.jpeg
+*.real.png
 
 # next.js
 /.next/
