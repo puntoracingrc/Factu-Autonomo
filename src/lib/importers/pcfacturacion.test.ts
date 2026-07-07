@@ -173,6 +173,10 @@ describe("PC Facturacion importer", () => {
     expect(result.data.profile.name).toBe("");
     expect(result.profileSuggestion.emptyFieldCount).toBeGreaterThan(0);
     expect(result.data.customers).toHaveLength(1);
+    expect(result.data.customers[0]).toMatchObject({
+      name: "Ana Garcia",
+      customerType: "person",
+    });
     expect(result.data.documents).toHaveLength(2);
     expect(result.data.documents.find((doc) => doc.type === "factura")?.status).toBe(
       "pagado",
@@ -182,6 +186,23 @@ describe("PC Facturacion importer", () => {
       quantity: 2,
       unitPrice: 50,
       ivaPercent: 21,
+    });
+  });
+
+  it("clasifica como empresa clientes importados con CIF o forma juridica", () => {
+    const result = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
+      includeUnusedCustomers: true,
+    });
+
+    const company = result.data.customers.find(
+      (customer) => customer.id === "pcfacturacion:customer:1002",
+    );
+    expect(company).toMatchObject({
+      customerType: "company",
+      firstName: "Empresa SL",
+      lastName: "",
+      name: "Empresa SL",
+      nif: "B87654321",
     });
   });
 

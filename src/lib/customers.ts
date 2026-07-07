@@ -32,6 +32,37 @@ export function normalizeCustomerType(
   return value === "company" ? "company" : "person";
 }
 
+const SPANISH_COMPANY_NIF_PATTERN = /^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/;
+const COMPANY_NAME_PATTERN =
+  /\b(S\.?\s*L\.?\s*U?\.?|SLU|SL|S\.?\s*A\.?|SA|S\.?\s*C\.?\s*P\.?|SCP|C\.?\s*B\.?|CB|S\.?\s*COOP\.?|SCCL|UTE)\b|\bSOCIEDAD\s+(LIMITADA|AN[OÓ]NIMA|COOPERATIVA)\b|\b(COMUNIDAD|ASOCIACI[OÓ]N|FUNDACI[OÓ]N|AYUNTAMIENTO|COOPERATIVA)\b/i;
+
+export function looksLikeCompanyName(value?: string | null): boolean {
+  return COMPANY_NAME_PATTERN.test(normalizeNamePart(value ?? ""));
+}
+
+export function isSpanishCompanyTaxId(nif?: string | null): boolean {
+  return SPANISH_COMPANY_NIF_PATTERN.test(normalizeCustomerNif(nif));
+}
+
+export function inferCustomerTypeFromIdentity(input: {
+  customerType?: CustomerType | string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  name?: string | null;
+  nif?: string | null;
+}): CustomerType {
+  if (input.customerType === "company") return "company";
+  if (isSpanishCompanyTaxId(input.nif)) return "company";
+  if (
+    looksLikeCompanyName(
+      [input.name, input.firstName, input.lastName].filter(Boolean).join(" "),
+    )
+  ) {
+    return "company";
+  }
+  return "person";
+}
+
 export function customerFullName(firstName: string, lastName: string): string {
   return `${normalizeNamePart(firstName)} ${normalizeNamePart(lastName)}`.trim();
 }
@@ -95,7 +126,7 @@ function finalizeCustomerMigration(customer: Customer): Customer {
 }
 
 export function migrateCustomer(raw: Customer): Customer {
-  const customerType = normalizeCustomerType(raw.customerType);
+  const customerType = inferCustomerTypeFromIdentity(raw);
 
   if (customerType === "company") {
     const name = normalizeNamePart(

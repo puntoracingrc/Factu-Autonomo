@@ -233,6 +233,19 @@ describe("readGenericDocumentFiles", () => {
     expect(result.data.documents.map((document) => document.number)).toEqual(
       expect.arrayContaining(["F2026-0001", "F2026-0002", "P2026-0001"]),
     );
+    expect(result.data.customers[0]).toMatchObject({
+      customerType: "company",
+      name: "Cliente Uno SL",
+      nif: "B11111111",
+    });
+    expect(
+      result.data.documents.find((document) => document.number === "F2026-0001"),
+    ).toMatchObject({
+      client: {
+        customerType: "company",
+        name: "Cliente Uno SL",
+      },
+    });
     expect(result.warnings.join("\n")).toContain("PDF");
     expect(result.unsupported.map((item) => item.label)).toContain(
       "Adjuntos y documento visual original",
