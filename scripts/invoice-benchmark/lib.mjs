@@ -378,6 +378,10 @@ function normalizeExpandedGroundTruth(raw, fixture) {
       typeof visible.calculationBasis === "function"
         ? visible.calculationBasis(line)
         : visible.calculationBasis;
+    const reason =
+      basis === "unknown"
+        ? "Consumption-style invoice line has no explicit billing unit; amount is still validated."
+        : undefined;
     const unitPrice = visible.unitPrice
       ? normalizeMoney(line.unit_price) ?? normalizeMoney(line.line_base)
       : undefined;
@@ -401,6 +405,7 @@ function normalizeExpandedGroundTruth(raw, fixture) {
       amount,
       vatRate: visible.vatRate ? normalizeMoney(line.vat_rate) : undefined,
       formula: visible.formula === false ? undefined : formulaForBasis(basis),
+      reason,
     };
   });
   return {
@@ -1789,6 +1794,7 @@ export function summarizeBenchmark(results) {
     if (result.status === "skipped_missing_private_pdf") bySuite[result.suite].skipped += 1;
   }
   const coverage = summarizeCoverage(results);
+  const privateReal = summarizePrivateReal(results);
   return {
     invoiceCount: results.length,
     run: runnable.length,
@@ -1799,10 +1805,20 @@ export function summarizeBenchmark(results) {
     fieldAccuracy,
     aiUsageRate: 0,
     coverage,
+    privateReal,
     bySuite,
     topFailureCategories: Object.entries(byCategory)
       .sort((a, b) => b[1] - a[1])
       .map(([category, count]) => ({ category, count })),
+  };
+}
+
+function summarizePrivateReal(results) {
+  const privateResults = results.filter((result) => result.suite === "private_real");
+  return {
+    executed: privateResults.filter((result) => result.status === "passed" || result.status === "failed").length,
+    skippedMissingPdf: privateResults.filter((result) => result.status === "skipped_missing_private_pdf").length,
+    failed: privateResults.filter((result) => result.status === "failed").length,
   };
 }
 
@@ -1817,6 +1833,13 @@ function summarizeCoverage(results) {
   let deterministicOk = 0;
   let aiFallback = 0;
   let aiNeededButDisabled = 0;
+  const unknownAudit = {
+    total: 0,
+    withReason: 0,
+    grouped: 0,
+    amountValidated: 0,
+    bySuite: {},
+  };
 
   for (const result of results) {
     if (result.expectedLayoutId || result.layoutId) {
@@ -1833,6 +1856,17 @@ function summarizeCoverage(results) {
     }
     for (const [basis, count] of Object.entries(result.expectedBasisCounts ?? {})) {
       basisDistribution[basis] = (basisDistribution[basis] ?? 0) + count;
+    }
+    const unknown = result.expectedUnknownAudit;
+    if (unknown) {
+      unknownAudit.total += unknown.total ?? 0;
+      unknownAudit.withReason += unknown.withReason ?? 0;
+      unknownAudit.grouped += unknown.grouped ?? 0;
+      unknownAudit.amountValidated += unknown.amountValidated ?? 0;
+      if (unknown.total) {
+        unknownAudit.bySuite[result.suite] =
+          (unknownAudit.bySuite[result.suite] ?? 0) + unknown.total;
+      }
     }
     for (const fiscalCase of result.expectedFiscalCases ?? []) {
       fiscalCases[fiscalCase] = (fiscalCases[fiscalCase] ?? 0) + 1;
@@ -1857,7 +1891,18 @@ function summarizeCoverage(results) {
     basisDistribution,
     fiscalCases,
     adversarialCases,
+    numericFormatsFixtures: adversarialCases.formatos_numericos ?? 0,
+    misleadingTotalsFixtures: adversarialCases.totales_enganosos ?? 0,
+    repeatedHeaderFixtures: adversarialCases.cabecera_repetida ?? 0,
+    nonRepeatedHeaderFixtures: adversarialCases.cabecera_no_repetida ?? 0,
+    wrappedDescriptionFixtures: adversarialCases.descripcion_larga ?? 0,
+    compactColumnFixtures: results.filter(
+      (result) =>
+        result.expectedLayoutId === "L10_formato_compacto" ||
+        (result.expectedColumns?.length > 0 && result.expectedColumns.length <= 5),
+    ).length,
     productGrouping,
+    unknownAudit,
     aiUsage: {
       deterministicOk,
       aiFallback,
@@ -1901,6 +1946,28 @@ export function renderSummaryMarkdown(summary, outputDir) {
   const fiscalLines = renderCountMap(coverage.fiscalCases);
   const adversarialLines = renderCountMap(coverage.adversarialCases);
   const groupingLines = renderCountMap(coverage.productGrouping);
+  const unknownAudit = coverage.unknownAudit ?? {};
+  const requiredBasisLines = renderRequiredCountMap(coverage.basisDistribution, [
+    "unit",
+    "m2",
+    "ml",
+    "hour",
+    "fixed",
+    "mixed",
+    "unknown",
+  ]);
+  const requiredFiscalLines = renderRequiredCountMap(coverage.fiscalCases, [
+    "IVA 21",
+    "IVA 10",
+    "IVA 4",
+    "exenta",
+    "IRPF",
+    "recargo",
+    "suplidos",
+    "anticipos",
+    "intracomunitaria",
+    "rectificativa",
+  ]);
   return `# Invoice benchmark summary
 
 - Output: ${path.relative(REPO_ROOT, outputDir)}
@@ -1912,6 +1979,7 @@ export function renderSummaryMarkdown(summary, outputDir) {
 - Saltadas: ${summary.skipped}
 - Pass rate: ${summary.passRate}%
 - IA usada: ${summary.aiUsageRate}%
+- PDFs reales detectados en git: ${summary.realPdfsInGit ?? "n/a"}
 
 ## Precisión por campo
 
@@ -1926,20 +1994,40 @@ export function renderSummaryMarkdown(summary, outputDir) {
 
 ${suiteLines}
 
+## Private real fixture
+
+- Ejecutado: ${summary.privateReal?.executed ?? 0}
+- Saltado por PDF privado ausente: ${summary.privateReal?.skippedMissingPdf ?? 0}
+- Fallido: ${summary.privateReal?.failed ?? 0}
+
 ## Coverage report
 
 - Fixtures totales: ${coverage.totalFixtures ?? summary.invoiceCount}
 - Fixtures multipágina: ${coverage.multipageFixtures ?? 0}
 - Layouts distintos: ${coverage.distinctLayouts ?? 0}
 - Firmas de columnas distintas: ${coverage.distinctColumnSignatures ?? 0}
+- Formatos numéricos cubiertos: ${coverage.numericFormatsFixtures ?? 0}
+- Totales engañosos cubiertos: ${coverage.misleadingTotalsFixtures ?? 0}
+- Tablas con cabecera repetida: ${coverage.repeatedHeaderFixtures ?? 0}
+- Tablas sin cabecera repetida: ${coverage.nonRepeatedHeaderFixtures ?? 0}
+- Descripciones partidas/largas: ${coverage.wrappedDescriptionFixtures ?? 0}
+- Columnas compactas: ${coverage.compactColumnFixtures ?? 0}
 
 ### Calculation basis distribution
 
 ${basisLines}
 
+### Required calculation basis coverage
+
+${requiredBasisLines}
+
 ### Fiscal cases
 
 ${fiscalLines}
+
+### Required fiscal coverage
+
+${requiredFiscalLines}
 
 ### Adversarial cases
 
@@ -1948,6 +2036,14 @@ ${adversarialLines}
 ### Product grouping
 
 ${groupingLines}
+
+### Unknown audit
+
+- Unknown total: ${unknownAudit.total ?? 0}
+- Unknown con reason: ${unknownAudit.withReason ?? 0}
+- Unknown agrupados: ${unknownAudit.grouped ?? 0}
+- Unknown con importe validado: ${unknownAudit.amountValidated ?? 0}
+- Unknown por suite: ${renderInlineCountMap(unknownAudit.bySuite)}
 
 ### AI usage
 
@@ -1966,6 +2062,15 @@ function renderCountMap(map = {}) {
   const entries = Object.entries(map).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (!entries.length) return "- Sin datos";
   return entries.map(([key, count]) => `- ${key}: ${count}`).join("\n");
+}
+
+function renderRequiredCountMap(map = {}, keys) {
+  return keys.map((key) => `- ${key}: ${map[key] ?? 0}`).join("\n");
+}
+
+function renderInlineCountMap(map = {}) {
+  const entries = Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
+  return entries.length ? entries.map(([key, count]) => `${key}=${count}`).join(", ") : "Sin datos";
 }
 
 export function renderFailuresMarkdown(results) {

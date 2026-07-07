@@ -88,6 +88,51 @@ describe("invoice benchmark helpers", () => {
     expect(comparison.failures).toEqual([]);
   });
 
+  it("fails when expected JSON is mutated in memory", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const fixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0001");
+    expect(fixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(readJson(fixture.groundTruthPath), fixture);
+    expected.totals.total += 10;
+    expected.lines[0].amount += 10;
+    expected.lines[0].calculationBasis = "ml";
+    expected.lines.push({
+      ...expected.lines[0],
+      id: "L999",
+      index: expected.lines.length + 1,
+      description: "Synthetic mutation guard line",
+    });
+
+    const actual = await parseInvoicePdf(fixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+    const categories = comparison.failures.map((failure) => failure.category);
+
+    expect(comparison.passed).toBe(false);
+    expect(categories).toContain("totals_mismatch");
+    expect(categories).toContain("line_amount_mismatch");
+    expect(categories).toContain("calculation_basis_wrong");
+    expect(categories).toContain("missed_line");
+  });
+
+  it("fails when a fixture PDF is paired with the wrong expected JSON", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const expectedFixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0001");
+    const wrongPdfFixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0002");
+    expect(expectedFixture).toBeTruthy();
+    expect(wrongPdfFixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(
+      readJson(expectedFixture.groundTruthPath),
+      expectedFixture,
+    );
+    const actual = await parseInvoicePdf(wrongPdfFixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+
+    expect(comparison.passed).toBe(false);
+    expect(comparison.failures.length).toBeGreaterThan(0);
+  });
+
   testWithPrivateStilPdf("uses the real STIL extractor bridge for the private fixture", async () => {
     const fixtures = discoverInvoiceFixtures();
     const fixture = fixtures.find(
