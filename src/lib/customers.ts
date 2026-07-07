@@ -804,15 +804,53 @@ export type EnsureCustomerResult =
     }
   | { ok: false; error: string };
 
+function findReusableCustomerForDocumentInput(
+  customers: Customer[],
+  input: ClientInput,
+  selectedCustomerId: string | null,
+): Customer | undefined {
+  if (selectedCustomerId) {
+    return customers.find((customer) => customer.id === selectedCustomerId);
+  }
+
+  const byNif = input.nif?.trim()
+    ? findCustomerByNif(customers, input.nif)
+    : undefined;
+  if (byNif) return byNif;
+
+  const customerType = normalizeCustomerType(input.customerType);
+  const firstName = normalizeNamePart(input.firstName);
+  const lastName =
+    customerType === "company" ? "" : normalizeNamePart(input.lastName);
+  if (!firstName || (customerType === "person" && !lastName)) {
+    return undefined;
+  }
+
+  return findCustomerByIdentity(
+    customers,
+    firstName,
+    lastName,
+    undefined,
+    customerType,
+  );
+}
+
 export function ensureCustomerForDocument(
   customers: Customer[],
   input: ClientInput,
   selectedCustomerId: string | null,
 ): EnsureCustomerResult {
+  const reusableCustomer = findReusableCustomerForDocumentInput(
+    customers,
+    input,
+    selectedCustomerId,
+  );
+  const effectiveSelectedCustomerId =
+    selectedCustomerId ?? reusableCustomer?.id ?? null;
   const validation = validateCustomerInput(
     customers,
     input,
-    selectedCustomerId ?? undefined,
+    effectiveSelectedCustomerId ?? undefined,
   );
   if (!validation.ok) {
     return { ok: false, error: validation.error! };
@@ -833,8 +871,10 @@ export function ensureCustomerForDocument(
   });
   const now = new Date().toISOString();
 
-  if (selectedCustomerId) {
-    const existing = customers.find((c) => c.id === selectedCustomerId);
+  if (effectiveSelectedCustomerId) {
+    const existing =
+      reusableCustomer ??
+      customers.find((c) => c.id === effectiveSelectedCustomerId);
     if (!existing) {
       return { ok: false, error: "El cliente seleccionado ya no existe" };
     }
