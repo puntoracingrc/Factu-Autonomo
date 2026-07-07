@@ -614,7 +614,7 @@ export async function buildDocumentPdfBlob(
   );
 }
 
-function pdfFilename(doc: Document): string {
+export function documentPdfFilename(doc: Document): string {
   if (isDraftInvoiceNumber(doc)) {
     const suffix = doc.id.replace(/[^\w.-]+/g, "_").slice(0, 8) || "nuevo";
     return `factura-borrador-${suffix}.pdf`;
@@ -752,7 +752,7 @@ export async function downloadDocumentPdf(
   options: DocumentPdfOptions = {},
 ): Promise<void> {
   const blob = await buildDocumentPdfBlob(doc, profile, options);
-  triggerPdfBlobDownload(blob, pdfFilename(doc));
+  triggerPdfBlobDownload(blob, documentPdfFilename(doc));
 }
 
 export async function openDocumentPdfPreview(
@@ -760,12 +760,12 @@ export async function openDocumentPdfPreview(
   profile: BusinessProfile,
   options: DocumentPdfOptions = {},
 ): Promise<void> {
-  const opened = openPdfWindow(pdfFilename(doc));
+  const opened = openPdfWindow(documentPdfFilename(doc));
 
   try {
     const blob = await buildDocumentPdfBlob(doc, profile, options);
     const url = URL.createObjectURL(blob);
-    renderPdfWindow(opened, url, pdfFilename(doc));
+    renderPdfWindow(opened, url, documentPdfFilename(doc));
     window.setTimeout(() => {
       try {
         const bodyHasContent = Boolean(opened.document.body?.childElementCount);
@@ -788,12 +788,12 @@ export async function printDocumentPdf(
   profile: BusinessProfile,
   options: DocumentPdfOptions = {},
 ): Promise<void> {
-  const opened = openPdfWindow(`Imprimir ${pdfFilename(doc)}`);
+  const opened = openPdfWindow(`Imprimir ${documentPdfFilename(doc)}`);
 
   try {
     const blob = await buildDocumentPdfBlob(doc, profile, options);
     const url = URL.createObjectURL(blob);
-    renderPdfWindow(opened, url, pdfFilename(doc), { print: true });
+    renderPdfWindow(opened, url, documentPdfFilename(doc), { print: true });
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     opened.close();
