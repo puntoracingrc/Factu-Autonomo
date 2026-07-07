@@ -204,6 +204,7 @@ describe("FacturaDirecta importer", () => {
       attachments: 1,
     });
     expect(result.data.customers[0]).toMatchObject({
+      customerType: "company",
       name: "Cliente Importador Demo",
       nif: "B12345674",
     });
@@ -217,6 +218,10 @@ describe("FacturaDirecta importer", () => {
       customerId: "facturadirecta:customer:001",
       dueDate: "2026-07-29",
       notes: "Nota visible",
+      client: {
+        customerType: "company",
+        name: "Cliente Importador Demo",
+      },
     });
     expect(invoice?.notes).not.toContain("No debe hacerse visible");
     expect(invoice?.items[0]).toMatchObject({

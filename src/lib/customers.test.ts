@@ -12,6 +12,8 @@ import {
   findCustomerByIdentity,
   findCustomerByNif,
   findDuplicateCustomerGroups,
+  getCustomerDisplayName,
+  inferCustomerTypeFromIdentity,
   migrateCustomer,
   normalizeCustomerNif,
   sortCustomers,
@@ -28,7 +30,7 @@ const sample: Customer[] = [
     firstName: "Zara",
     lastName: "Servicios",
     name: "Zara Servicios",
-    nif: "B11111111",
+    nif: "11111111H",
     phone: "600111111",
     createdAt: "",
     updatedAt: "",
@@ -215,7 +217,7 @@ describe("filterCustomers", () => {
   });
 
   it("filtra por NIF", () => {
-    expect(filterCustomers(sample, "B111").map((c) => c.name)).toEqual([
+    expect(filterCustomers(sample, "1111").map((c) => c.name)).toEqual([
       "Zara Servicios",
     ]);
   });
@@ -716,6 +718,33 @@ describe("migrateCustomer", () => {
     expect(customerFullName(migrated.firstName, migrated.lastName)).toBe(
       "Carlos Ruiz",
     );
+  });
+
+  it("clasifica como empresa clientes importados con CIF de sociedad", () => {
+    const migrated = migrateCustomer({
+      id: "company-cif",
+      customerType: "person",
+      firstName: "Ferrer",
+      lastName: "Neurociencias, S.L.",
+      name: "FERRER NEUROCIENCIAS, S.L.",
+      nif: "B60896362",
+      createdAt: "",
+      updatedAt: "",
+    });
+
+    expect(migrated.customerType).toBe("company");
+    expect(migrated.firstName).toBe("FERRER NEUROCIENCIAS, S.L.");
+    expect(migrated.lastName).toBe("");
+    expect(getCustomerDisplayName(migrated)).toBe("FERRER NEUROCIENCIAS, S.L.");
+  });
+
+  it("mantiene particular cuando no hay NIF ni forma juridica de empresa", () => {
+    expect(
+      inferCustomerTypeFromIdentity({
+        name: "Pere Carmona Mas",
+        nif: "12345678Z",
+      }),
+    ).toBe("person");
   });
 });
 

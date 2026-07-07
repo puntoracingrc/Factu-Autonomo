@@ -223,12 +223,24 @@ describe("Holded importer", () => {
     });
     expect(result.data.customers.some((customer) => customer.id === "holded:customer:hol_con_1")).toBe(true);
     expect(result.data.suppliers.some((supplier) => supplier.id === "holded:supplier:hol_con_2")).toBe(true);
+    expect(
+      result.data.customers.find((customer) => customer.id === "holded:customer:hol_con_1"),
+    ).toMatchObject({
+      customerType: "company",
+      firstName: "Cliente Holded",
+      lastName: "",
+      nif: "B12345674",
+    });
     const invoice = result.data.documents.find((doc) => doc.id === "holded:factura:hol_inv_1");
     expect(invoice).toMatchObject({
       number: "F2026-0001",
       customerId: "holded:customer:hol_con_1",
       dueDate: "2026-07-29",
       paymentStatus: "pending",
+      client: {
+        customerType: "company",
+        name: "Cliente Holded",
+      },
     });
     const partial = result.data.documents.find((doc) => doc.id === "holded:factura:hol_inv_2");
     expect(partial?.paymentStatus).toBe("pending");

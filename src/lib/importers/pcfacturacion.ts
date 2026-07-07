@@ -2,6 +2,10 @@ import { countersFromDocuments, formatDocumentNumber } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  inferCustomerTypeFromIdentity,
+  looksLikeCompanyName,
+} from "../customers";
+import {
   buildBusinessProfileAutofillSuggestion,
   completeBusinessProfileIvaFromDocuments,
   fillMissingBusinessProfileFields,
@@ -156,9 +160,7 @@ function pcfId(kind: string, id: string): string {
 }
 
 function looksLikeCompany(value: string): boolean {
-  return /\b(S\.?L\.?|S\.?A\.?|SCP|CB|C\.B\.|CIF|COMUNIDAD|ASOCIACI[OÓ]N)\b/i.test(
-    value,
-  );
+  return looksLikeCompanyName(value);
 }
 
 export function extractSpanishTaxId(...values: unknown[]): string | undefined {
@@ -220,13 +222,21 @@ function parseCustomer(row: MdbRow, index: number): ParsedCustomer | null {
   if (!hasContent) return null;
 
   const { firstName, lastName } = splitPersonName(displayName);
-  const createdAt = isoDateTime(row.CustomerDate);
-  const customer: Customer = {
-    id: pcfId("customer", source),
+  const nif = extractSpanishTaxId(row.TaxNumber, row.VatID, row.Company, row.Name);
+  const customerType = inferCustomerTypeFromIdentity({
     firstName,
     lastName,
     name: displayName,
-    nif: extractSpanishTaxId(row.TaxNumber, row.VatID, row.Company, row.Name),
+    nif,
+  });
+  const createdAt = isoDateTime(row.CustomerDate);
+  const customer: Customer = {
+    id: pcfId("customer", source),
+    customerType,
+    firstName: customerType === "company" ? displayName : firstName,
+    lastName: customerType === "company" ? "" : lastName,
+    name: displayName,
+    nif,
     email: text(row.Email) || undefined,
     phone: text(row.Telephone) || text(row.Mobile) || undefined,
     address: text(row.Street) || undefined,
@@ -299,6 +309,7 @@ function clientFromCustomer(customer: Customer): Client {
     .filter(Boolean)
     .join(", ");
   return {
+    customerType: customer.customerType,
     firstName: customer.firstName,
     lastName: customer.lastName,
     name: customer.name,
@@ -314,8 +325,12 @@ function clientFromDocument(row: MdbRow, customerBySource: Map<string, Customer>
   if (customer) return clientFromCustomer(customer);
   const name = text(row.Customer) || "Cliente";
   const split = splitPersonName(name);
+  const customerType = inferCustomerTypeFromIdentity({ ...split, name });
   return {
+    customerType,
     ...split,
+    firstName: customerType === "company" ? name : split.firstName,
+    lastName: customerType === "company" ? "" : split.lastName,
     name,
     address: memo(row.Address) || undefined,
   };

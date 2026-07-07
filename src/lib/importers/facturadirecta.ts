@@ -1,4 +1,8 @@
 import { roundMoney } from "../calculations";
+import {
+  inferCustomerTypeFromIdentity,
+  looksLikeCompanyName,
+} from "../customers";
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
@@ -265,9 +269,7 @@ function extractSpanishTaxId(...values: unknown[]): string | undefined {
 }
 
 function looksLikeCompany(value: string): boolean {
-  return /\b(S\.?L\.?|S\.?A\.?|SCP|CB|C\.B\.|COMUNIDAD|ASOCIACI[OÓ]N)\b/i.test(
-    value,
-  );
+  return looksLikeCompanyName(value);
 }
 
 function splitName(displayName: string): { firstName: string; lastName: string } {
@@ -369,6 +371,12 @@ function parseContact(
     Boolean(get(row, "Cód. proveedor externo")) ||
     matchKeys.some((key) => usedSupplierKeys.has(key));
   const { firstName, lastName } = splitName(displayName);
+  const customerType = inferCustomerTypeFromIdentity({
+    firstName,
+    lastName,
+    name: displayName,
+    nif,
+  });
   const common = {
     nif,
     email: get(row, "Email") || undefined,
@@ -385,8 +393,9 @@ function parseContact(
     customer: isCustomer
       ? {
           id: fdId("customer", sourceKey),
-          firstName,
-          lastName,
+          customerType,
+          firstName: customerType === "company" ? displayName : firstName,
+          lastName: customerType === "company" ? "" : lastName,
           name: displayName,
           ...common,
           createdAt,
@@ -487,6 +496,7 @@ function clientFromCustomer(customer: Customer): Client {
     .filter(Boolean)
     .join(", ");
   return {
+    customerType: customer.customerType,
     firstName: customer.firstName,
     lastName: customer.lastName,
     name: customer.name,
@@ -528,11 +538,20 @@ function clientFromSale(row: Row, customersByKey: Map<string, Customer>): {
     get(row, "Cliente") ||
     "Cliente";
   const split = splitName(displayName);
+  const nif = extractSpanishTaxId(get(row, "NIF"));
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
+    name: displayName,
+    nif,
+  });
   return {
     client: {
+      customerType,
       ...split,
+      firstName: customerType === "company" ? displayName : split.firstName,
+      lastName: customerType === "company" ? "" : split.lastName,
       name: displayName,
-      nif: extractSpanishTaxId(get(row, "NIF")),
+      nif,
       email: get(row, "Email") || undefined,
       address:
         [get(row, "Código postal"), get(row, "Población")].filter(Boolean).join(" ") ||

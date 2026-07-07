@@ -163,9 +163,19 @@ function scoreLabelInTranscript(label: string, transcript: string): number {
   }, 0);
 }
 
+function withoutCompanyLegalSuffix(value: string): string {
+  return value
+    .replace(
+      /\b(S\.?\s*L\.?\s*U?\.?|SLU|SL|S\.?\s*A\.?|SA|S\.?\s*C\.?\s*P\.?|SCP|C\.?\s*B\.?|CB|S\.?\s*COOP\.?|SCCL|UTE)\.?$/i,
+      "",
+    )
+    .replace(/\bSOCIEDAD\s+(LIMITADA|AN[OÓ]NIMA|COOPERATIVA)\.?$/i, "")
+    .trim();
+}
+
 function customerLabels(customer: Customer): string[] {
   const migrated = migrateCustomer(customer);
-  return [
+  const labels = [
     getCustomerDisplayName(migrated),
     migrated.firstName,
     migrated.lastName,
@@ -173,6 +183,12 @@ function customerLabels(customer: Customer): string[] {
     migrated.nif,
   ]
     .filter((value): value is string => Boolean(value?.trim()))
+    .filter((value, index, values) => values.indexOf(value) === index);
+  return labels
+    .flatMap((label) => {
+      const withoutSuffix = withoutCompanyLegalSuffix(label);
+      return withoutSuffix && withoutSuffix !== label ? [label, withoutSuffix] : [label];
+    })
     .filter((value, index, values) => values.indexOf(value) === index);
 }
 

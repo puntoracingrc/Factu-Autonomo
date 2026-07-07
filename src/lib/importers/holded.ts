@@ -1,5 +1,9 @@
 import { strFromU8, unzipSync } from "fflate";
 import { roundMoney } from "../calculations";
+import {
+  inferCustomerTypeFromIdentity,
+  looksLikeCompanyName,
+} from "../customers";
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
@@ -214,7 +218,7 @@ function isoDateTime(value: unknown): string {
 function splitName(displayName: string): { firstName: string; lastName: string } {
   const clean = text(displayName);
   if (!clean) return { firstName: "Cliente", lastName: "" };
-  if (/\b(S\.?L\.?|S\.?A\.?|SCP|CB|C\.B\.|COMUNIDAD|ASOCIACI[OÓ]N)\b/i.test(clean)) {
+  if (looksLikeCompanyName(clean)) {
     return { firstName: clean, lastName: "" };
   }
   const parts = clean.split(" ");
@@ -374,6 +378,12 @@ function parseContact(row: Row, index: number): ParsedContact | null {
       .join("\n") || undefined,
   };
   const { firstName, lastName } = splitName(name);
+  const customerType = inferCustomerTypeFromIdentity({
+    firstName,
+    lastName,
+    name,
+    nif: common.nif,
+  });
   const isSupplier = role.includes("PROVEEDOR");
   const isCustomer = role.includes("CLIENTE") || !isSupplier;
 
@@ -382,8 +392,9 @@ function parseContact(row: Row, index: number): ParsedContact | null {
     customer: isCustomer
       ? {
           id: holdedId("customer", sourceKey),
-          firstName,
-          lastName,
+          customerType,
+          firstName: customerType === "company" ? name : firstName,
+          lastName: customerType === "company" ? "" : lastName,
           name,
           ...common,
           createdAt: now,
@@ -425,6 +436,7 @@ function clientFromCustomer(customer: Customer): Client {
     .filter(Boolean)
     .join(", ");
   return {
+    customerType: customer.customerType,
     firstName: customer.firstName,
     lastName: customer.lastName,
     name: customer.name,
@@ -443,9 +455,17 @@ function clientFromDocumentRow(row: Row, customersById: Map<string, Customer>): 
   if (customer) return { customerId: customer.id, client: clientFromCustomer(customer) };
   const displayName = get(row, "cliente_nombre") || "Cliente Holded";
   const split = splitName(displayName);
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
+    name: displayName,
+    nif: get(row, "cliente_nif"),
+  });
   return {
     client: {
+      customerType,
       ...split,
+      firstName: customerType === "company" ? displayName : split.firstName,
+      lastName: customerType === "company" ? "" : split.lastName,
       name: displayName,
       nif: get(row, "cliente_nif") || undefined,
     },

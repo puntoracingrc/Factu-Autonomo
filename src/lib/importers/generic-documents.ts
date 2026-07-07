@@ -1,5 +1,9 @@
 import { decompressSync, strFromU8, unzipSync } from "fflate";
 import { roundMoney } from "../calculations";
+import {
+  inferCustomerTypeFromIdentity,
+  looksLikeCompanyName,
+} from "../customers";
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
@@ -182,9 +186,7 @@ function isoDateTime(value: unknown): string {
 }
 
 function looksLikeCompany(value: string): boolean {
-  return /\b(S\.?L\.?|S\.?A\.?|SLP|S\.?A\.?U\.?|SCP|CB|C\.B\.|COMUNIDAD|ASOCIACI[OÓ]N)\b/i.test(
-    value,
-  );
+  return looksLikeCompanyName(value);
 }
 
 function splitName(displayName: string): { firstName: string; lastName: string } {
@@ -492,12 +494,19 @@ function contactFromRow(row: Row, kind: "customer" | "supplier"): Customer | Sup
     };
   }
   const split = splitName(name);
+  const nif = get(row, "NIF") || undefined;
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
+    name,
+    nif,
+  });
   return {
     id: genericId("customer", id || get(row, "NIF") || name),
-    firstName: split.firstName,
-    lastName: split.lastName,
+    customerType,
+    firstName: customerType === "company" ? name : split.firstName,
+    lastName: customerType === "company" ? "" : split.lastName,
     name,
-    nif: get(row, "NIF") || undefined,
+    nif,
     email: get(row, "Email") || undefined,
     phone: get(row, "Teléfono") || get(row, "Telefono") || undefined,
     address: address || undefined,
@@ -569,11 +578,18 @@ function parseClientFromLines(lines: string[]): Client {
     ? lines.slice(clientNif.index + 1, clientNif.index + 6).find((line) => line.includes("@"))
     : undefined;
   const split = splitName(name);
-  return {
-    firstName: split.firstName,
-    lastName: split.lastName,
+  const nif = clientNif?.line.replace(/^NIF:\s*/i, "").trim();
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
     name,
-    nif: clientNif?.line.replace(/^NIF:\s*/i, "").trim(),
+    nif,
+  });
+  return {
+    customerType,
+    firstName: customerType === "company" ? name : split.firstName,
+    lastName: customerType === "company" ? "" : split.lastName,
+    name,
+    nif,
     email,
     address: [address, postalCity].filter(Boolean).join(", "),
   };
@@ -711,10 +727,16 @@ function clientFromGrid(grid: Grid | null, fallback: Client): Client {
   const nif = valueFromGridPairs(grid, "NIF") || fallback.nif;
   const email = valueFromGridPairs(grid, "Email") || fallback.email;
   const split = splitName(name);
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
+    name,
+    nif,
+  });
   return {
     ...fallback,
-    firstName: split.firstName,
-    lastName: split.lastName,
+    customerType,
+    firstName: customerType === "company" ? name : split.firstName,
+    lastName: customerType === "company" ? "" : split.lastName,
     name,
     nif,
     email,
@@ -743,11 +765,17 @@ function parseDocument(file: ExtractedFile): ParsedDocument | null {
   const fallbackClient = parseClientFromLines(file.lines);
   const client = clientFromGrid(grid, fallbackClient);
   const split = splitName(client.name);
+  const customerType = inferCustomerTypeFromIdentity({
+    ...split,
+    name: client.name,
+    nif: client.nif,
+  });
   const now = new Date().toISOString();
   const customer: Customer = {
     id: genericId("customer", client.nif || client.name),
-    firstName: split.firstName,
-    lastName: split.lastName,
+    customerType,
+    firstName: customerType === "company" ? client.name : split.firstName,
+    lastName: customerType === "company" ? "" : split.lastName,
     name: client.name,
     nif: client.nif,
     email: client.email,
