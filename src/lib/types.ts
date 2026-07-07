@@ -567,12 +567,20 @@ export type AppStartPagePreference =
   | "expenses"
   | "taxes"
   | "settings";
+export type DocumentEmailSendPreference =
+  | "ask"
+  | "gmail"
+  | "mailto"
+  | "native";
+export type DocumentWhatsAppSendPreference = "ask" | "direct" | "native";
 
 export interface AppPreferences {
   theme: AppThemePreference;
   density: AppDensityPreference;
   startPage: AppStartPagePreference;
   reduceMotion: boolean;
+  documentEmailMethod: DocumentEmailSendPreference;
+  documentWhatsAppMethod: DocumentWhatsAppSendPreference;
 }
 
 export type DocumentSnapshotSource = "issue" | "legacy_backfill";
@@ -763,6 +771,8 @@ export const DEFAULT_PROFILE: BusinessProfile = {
     density: "comfortable",
     startPage: "panel",
     reduceMotion: false,
+    documentEmailMethod: "ask",
+    documentWhatsAppMethod: "ask",
   },
   productFamilyMarkups: {
     rules: [],
