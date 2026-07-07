@@ -22,6 +22,8 @@ describe("invoice benchmark helpers", () => {
   it("normalizes Spanish money and dates", () => {
     expect(normalizeMoney("1.234,56 €")).toBe(1234.56);
     expect(normalizeMoney("-185,07 €")).toBe(-185.07);
+    expect(normalizeMoney("(185,07 €)")).toBe(-185.07);
+    expect(normalizeMoney("1,234.56 €")).toBe(1234.56);
     expect(normalizeDate("07/06/2026")).toBe("2026-06-07");
   });
 
@@ -36,7 +38,8 @@ describe("invoice benchmark helpers", () => {
 
   it("discovers the imported synthetic and private fixtures", () => {
     const fixtures = discoverInvoiceFixtures();
-    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(230);
+    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(380);
+    expect(fixtures.filter((fixture) => fixture.suite === "synthetic_adversarial")).toHaveLength(150);
     expect(fixtures.some((fixture) => fixture.suite === "private_real")).toBe(true);
   });
 
@@ -59,6 +62,75 @@ describe("invoice benchmark helpers", () => {
       amount: 72.74,
     });
     expect(comparison.failures).toEqual([]);
+  });
+
+  it("parses an adversarial multipage table with product groups and explicit billing units", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const fixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0005");
+    expect(fixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(readJson(fixture.groundTruthPath), fixture);
+    const actual = await parseInvoicePdf(fixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+
+    expect(actual.pageCount).toBeGreaterThan(1);
+    expect(actual.lines).toHaveLength(81);
+    expect(actual.groups).toHaveLength(16);
+    expect(actual.lines[0]).toMatchObject({
+      reference: "MAIN-PER-5-1",
+      calculationBasis: "m2",
+      chargeQuantity: 5.9,
+    });
+    expect(actual.lines[1]).toMatchObject({
+      reference: "COMP-GUIA-5-1",
+      calculationBasis: "ml",
+    });
+    expect(comparison.failures).toEqual([]);
+  });
+
+  it("fails when expected JSON is mutated in memory", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const fixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0001");
+    expect(fixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(readJson(fixture.groundTruthPath), fixture);
+    expected.totals.total += 10;
+    expected.lines[0].amount += 10;
+    expected.lines[0].calculationBasis = "ml";
+    expected.lines.push({
+      ...expected.lines[0],
+      id: "L999",
+      index: expected.lines.length + 1,
+      description: "Synthetic mutation guard line",
+    });
+
+    const actual = await parseInvoicePdf(fixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+    const categories = comparison.failures.map((failure) => failure.category);
+
+    expect(comparison.passed).toBe(false);
+    expect(categories).toContain("totals_mismatch");
+    expect(categories).toContain("line_amount_mismatch");
+    expect(categories).toContain("calculation_basis_wrong");
+    expect(categories).toContain("missed_line");
+  });
+
+  it("fails when a fixture PDF is paired with the wrong expected JSON", async () => {
+    const fixtures = discoverInvoiceFixtures();
+    const expectedFixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0001");
+    const wrongPdfFixture = fixtures.find((item) => item.invoiceId === "synthetic_adv_0002");
+    expect(expectedFixture).toBeTruthy();
+    expect(wrongPdfFixture).toBeTruthy();
+
+    const expected = normalizeExpectedInvoice(
+      readJson(expectedFixture.groundTruthPath),
+      expectedFixture,
+    );
+    const actual = await parseInvoicePdf(wrongPdfFixture.pdfPath);
+    const comparison = compareInvoices(expected, actual);
+
+    expect(comparison.passed).toBe(false);
+    expect(comparison.failures.length).toBeGreaterThan(0);
   });
 
   testWithPrivateStilPdf("uses the real STIL extractor bridge for the private fixture", async () => {

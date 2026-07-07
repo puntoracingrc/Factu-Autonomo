@@ -1,0 +1,203 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_0051",
+  "document_title": "FACTURA",
+  "layout_id": "adv_net_before_price",
+  "invoice_number": "ADV-2026-0051",
+  "date": "2026-03-24",
+  "privacy": "Datos 100% ficticios. No contiene PDFs reales ni datos reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "supplier": {
+    "name": "Talleres Norte Demo SL",
+    "tax_id": "B10000001"
+  },
+  "customer": {
+    "name": "Prueba Instalaciones CB",
+    "tax_id": "E20000003"
+  },
+  "table_columns": [
+    "Ref.",
+    "Detalle",
+    "M2/ML/UN",
+    "Precio Neto",
+    "Precio",
+    "Descuento",
+    "IVA",
+    "Importe linea"
+  ],
+  "totals": {
+    "taxable_base": 1055.22,
+    "vat_total": 42.21,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 1097.43,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 1097.43,
+    "gross_amount": 1055.22
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "MAIN-PUE-51-1",
+      "description": "Producto principal puerta corredera medida especial con texto largo de prueba",
+      "lineType": "producto principal",
+      "roleInGroup": "main_product",
+      "productGroupId": "G1",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 5.96,
+      "calculationBasis": "m2",
+      "width": 2350,
+      "height": 2510,
+      "unit": "m2",
+      "unitPrice": 155,
+      "discountPct": 0,
+      "netUnitPrice": 155,
+      "amount": 923.8,
+      "vatRate": 4,
+      "expectedFormula": "m2 * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "La columna M2 explicita manda sobre ancho*alto.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "COMP-HOJA-51-1",
+      "description": "Hoja aluminio reforzada",
+      "lineType": "componente",
+      "roleInGroup": "component",
+      "productGroupId": "G1",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 5.1,
+      "calculationBasis": "ml",
+      "height": 2510,
+      "unit": "ML",
+      "unitPrice": 4.2,
+      "discountPct": 0,
+      "netUnitPrice": 4.2,
+      "amount": 21.42,
+      "vatRate": 4,
+      "expectedFormula": "ml * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Cantidad fisica distinta de metros cobrados.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L3",
+      "articleCode": "COMP-GUIA-51-1",
+      "description": "Guia superior e inferior",
+      "lineType": "componente",
+      "roleInGroup": "component",
+      "productGroupId": "G1",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 1,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 10,
+      "discountPct": 0,
+      "netUnitPrice": 10,
+      "amount": 10,
+      "vatRate": 4,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L4",
+      "articleCode": "COMP-MOTOR-51-1",
+      "description": "Motor tubular con mando",
+      "lineType": "componente",
+      "roleInGroup": "component",
+      "productGroupId": "G1",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 1,
+      "calculationBasis": "unit",
+      "unit": "UN",
+      "unitPrice": 20,
+      "discountPct": 0,
+      "netUnitPrice": 20,
+      "amount": 20,
+      "vatRate": 4,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L5",
+      "articleCode": "SERV-INST-51-1",
+      "description": "Mano de obra instalacion",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "productGroupId": "G1",
+      "quantity": 2.5,
+      "sourceQuantity": 2.5,
+      "chargeQuantity": 2.5,
+      "calculationBasis": "hour",
+      "length": 2510,
+      "unit": "horas",
+      "unitPrice": 32,
+      "discountPct": 0,
+      "netUnitPrice": 32,
+      "amount": 80,
+      "vatRate": 4,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Observacion: texto comercial dentro de tabla, no facturable",
+      "reason": "No es linea facturable."
+    }
+  ],
+  "product_groups": [
+    {
+      "id": "G1",
+      "title": "Puerta demo 1",
+      "mainLineId": "L1",
+      "componentLineIds": [
+        "L2",
+        "L3",
+        "L4",
+        "L5"
+      ],
+      "totalAmount": 1055.22,
+      "calculationSummary": "principal + componentes",
+      "confidence": 0.92
+    }
+  ],
+  "coverage": {
+    "adversarialCases": [
+      "columnas_cambiadas",
+      "calculo_m2_ml_unidad",
+      "formatos_numericos",
+      "producto_con_componentes",
+      "multipage_table",
+      "cabecera_no_repetida",
+      "descripcion_larga"
+    ],
+    "fiscalCases": [
+      "IVA 4"
+    ],
+    "productGrouping": "grupos con componentes"
+  }
+}
