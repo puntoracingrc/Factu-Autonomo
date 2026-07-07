@@ -146,6 +146,32 @@ export function normalizeCustomerNif(nif?: string | null): string {
   return nif.replace(/[\s.-]/g, "").toUpperCase();
 }
 
+function normalizeComparableCustomerText(value?: string | null): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function clientComparableName(client: Client): string {
+  const type = normalizeCustomerType(client.customerType);
+  if (type === "company") {
+    return normalizeComparableCustomerText(client.name || client.firstName);
+  }
+  if (client.firstName && client.lastName) {
+    return normalizeComparableCustomerText(
+      customerFullName(client.firstName, client.lastName),
+    );
+  }
+  return normalizeComparableCustomerText(client.name || client.firstName);
+}
+
+function customerComparableName(customer: Customer): string {
+  return normalizeComparableCustomerText(getCustomerDisplayName(customer));
+}
+
 const CUSTOMER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
 export function normalizeCustomerEmail(email?: string | null): string {
@@ -196,6 +222,20 @@ export function findCustomerByNif(
     (c) =>
       c.id !== excludeId && normalizeCustomerNif(c.nif) === key,
   );
+}
+
+export function findCustomerByIdOrMergedId(
+  customers: Customer[],
+  customerId?: string | null,
+): Customer | undefined {
+  if (!customerId) return undefined;
+
+  return customers.map(migrateCustomer).find((customer) => {
+    return (
+      customer.id === customerId ||
+      customer.mergedCustomerIds?.includes(customerId)
+    );
+  });
 }
 
 export function findDuplicateCustomerGroups(customers: Customer[]): Customer[][] {
@@ -284,7 +324,12 @@ export function buildCustomerInvoicedTotals(
 
     if (!doc.customerId || matchedIds.size === 0) {
       const nifMatches = byNif.get(normalizeCustomerNif(doc.client.nif)) ?? [];
-      nifMatches.forEach((id) => matchedIds.add(id));
+      nifMatches.forEach((id) => {
+        const customer = customers.find((candidate) => candidate.id === id);
+        if (customer && clientMatchesCustomer(doc.client, customer)) {
+          matchedIds.add(id);
+        }
+      });
 
       if (doc.client.firstName && doc.client.lastName) {
         const identityMatches =
@@ -314,7 +359,9 @@ export function clientMatchesCustomer(client: Client, customer: Customer): boole
   const customerNif = normalizeCustomerNif(migrated.nif);
   const clientNif = normalizeCustomerNif(client.nif);
   if (customerNif && clientNif && customerNif === clientNif) {
-    return true;
+    const clientName = clientComparableName(client);
+    const customerName = customerComparableName(migrated);
+    return !clientName || !customerName || clientName === customerName;
   }
 
   const clientType = normalizeCustomerType(client.customerType);
@@ -576,7 +623,9 @@ export function findCustomerByClient(
 
   const byNif = client.nif
     ? customers.find(
-        (c) => c.nif && c.nif.toLowerCase() === client.nif!.toLowerCase(),
+        (c) =>
+          normalizeCustomerNif(c.nif) === normalizeCustomerNif(client.nif) &&
+          clientMatchesCustomer(client, c),
       )
     : undefined;
   if (byNif) return byNif;
@@ -813,15 +862,26 @@ function findReusableCustomerForDocumentInput(
     return customers.find((customer) => customer.id === selectedCustomerId);
   }
 
-  const byNif = input.nif?.trim()
-    ? findCustomerByNif(customers, input.nif)
-    : undefined;
-  if (byNif) return byNif;
-
   const customerType = normalizeCustomerType(input.customerType);
   const firstName = normalizeNamePart(input.firstName);
   const lastName =
     customerType === "company" ? "" : normalizeNamePart(input.lastName);
+  const byNif = input.nif?.trim()
+    ? customers.find((customer) =>
+        clientMatchesCustomer(
+          {
+            customerType,
+            firstName,
+            lastName,
+            name: customerNameForType(customerType, firstName, lastName),
+            nif: input.nif,
+          },
+          customer,
+        ),
+      )
+    : undefined;
+  if (byNif) return byNif;
+
   if (!firstName || (customerType === "person" && !lastName)) {
     return undefined;
   }

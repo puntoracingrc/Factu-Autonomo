@@ -17,11 +17,23 @@ import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
 import {
+  buildDocumentPdfSnapshot,
+  deriveDocumentLifecycle,
+  deriveIntegrityLock,
+  deriveLegacySnapshotForReadOnly,
+} from "./document-integrity";
+import {
   DEMO_WORKSPACE_STORAGE_KEY,
   createDemoWorkspaceData,
   isDemoWorkspaceMode,
 } from "./demo-workspace";
-import type { AppData, BusinessProfile, DocumentType, UserReminder } from "./types";
+import type {
+  AppData,
+  BusinessProfile,
+  Document,
+  DocumentType,
+  UserReminder,
+} from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
 function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
@@ -60,10 +72,13 @@ function currentStorageKey(): string {
 }
 
 export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
-  const documents = (parsed.documents ?? []).map((document) =>
-    normalizeQuoteDocument(document as AppData["documents"][number]),
-  );
   const profile = migrateProfile(parsed.profile);
+  const documents = (parsed.documents ?? []).map((document) =>
+    normalizeHistoricalDocument(
+      normalizeQuoteDocument(document as AppData["documents"][number]),
+      profile,
+    ),
+  );
   return {
     ...EMPTY_DATA,
     ...parsed,
@@ -89,6 +104,42 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
       ),
     },
     meta: parsed.meta,
+  };
+}
+
+function shouldBackfillHistoricalSnapshot(doc: Document): boolean {
+  if (doc.documentSnapshot) return false;
+  if (doc.type !== "factura" && doc.type !== "recibo") return false;
+  return deriveDocumentLifecycle(doc) !== "draft";
+}
+
+function normalizeHistoricalDocument(
+  doc: Document,
+  profile: BusinessProfile,
+): Document {
+  const lifecycle = deriveDocumentLifecycle(doc);
+  const integrityLock = deriveIntegrityLock(doc);
+  if (!shouldBackfillHistoricalSnapshot(doc)) {
+    return {
+      ...doc,
+      documentLifecycle: doc.documentLifecycle ?? lifecycle,
+      integrityLock: doc.integrityLock ?? integrityLock,
+    };
+  }
+
+  const documentSnapshot = deriveLegacySnapshotForReadOnly(doc, profile);
+  return {
+    ...doc,
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    documentSnapshot,
+    pdfSnapshot:
+      doc.pdfSnapshot ??
+      buildDocumentPdfSnapshot(
+        documentSnapshot,
+        profile,
+        doc.issuedAt ?? doc.updatedAt,
+      ),
   };
 }
 

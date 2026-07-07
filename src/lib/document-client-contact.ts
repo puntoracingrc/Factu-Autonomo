@@ -1,22 +1,41 @@
 import {
   findCustomerByClient,
+  findCustomerByIdOrMergedId,
+  getCustomerDisplayName,
   isValidCustomerEmail,
   migrateCustomer,
 } from "./customers";
 import { normalizePhoneForWhatsApp } from "./share";
 import type { Customer, Document } from "./types";
 
-function findLinkedCustomer(doc: Document, customers: Customer[]): Customer | null {
-  if (!doc.customerId) return null;
+function normalizeLabel(value?: string): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
 
-  return (
-    customers.map(migrateCustomer).find((customer) => {
-      return (
-        customer.id === doc.customerId ||
-        customer.mergedCustomerIds?.includes(doc.customerId!)
-      );
-    }) ?? null
+export function findLinkedCustomerForDocument(
+  doc: Pick<Document, "customerId">,
+  customers: Customer[],
+): Customer | null {
+  return findCustomerByIdOrMergedId(customers, doc.customerId) ?? null;
+}
+
+export function documentHasLinkedCustomerNameMismatch(
+  doc: Pick<Document, "customerId" | "client">,
+  customers: Customer[],
+): boolean {
+  const customer = findLinkedCustomerForDocument(doc, customers);
+  if (!customer) return false;
+
+  const documentName = normalizeLabel(doc.client.name);
+  const customerName = normalizeLabel(
+    getCustomerDisplayName(migrateCustomer(customer)),
   );
+  return Boolean(documentName && customerName && documentName !== customerName);
 }
 
 function hasUsableEmail(email?: string): boolean {
@@ -31,7 +50,9 @@ export function documentWithCurrentCustomerContact(
   doc: Document,
   customers: Customer[],
 ): Document {
-  const customer = findLinkedCustomer(doc, customers) ?? findCustomerByClient(customers, doc.client);
+  const customer =
+    findLinkedCustomerForDocument(doc, customers) ??
+    findCustomerByClient(customers, doc.client);
   if (!customer) return doc;
 
   const migrated = migrateCustomer(customer);

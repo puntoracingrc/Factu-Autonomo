@@ -60,7 +60,12 @@ import {
   purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
 } from "@/lib/purchase-products";
+import {
+  isProviderSummaryPendingOriginal,
+  mergeProviderSummaryWithOriginal,
+} from "@/lib/provider-summary-expenses";
 import type {
+  Expense,
   ExpenseBusinessKind,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
@@ -446,6 +451,13 @@ export default function NuevoGastoPage() {
     supplierName,
     amount: currentAmount,
   });
+  const providerSummaryUpgradeTarget =
+    duplicateExpense && isProviderSummaryPendingOriginal(duplicateExpense)
+      ? duplicateExpense
+      : null;
+  const blockingDuplicateExpense = providerSummaryUpgradeTarget
+    ? null
+    : duplicateExpense;
   const duplicateExpenseNumber =
     duplicateExpense?.purchaseDocument?.invoiceNumber?.trim() || "sin número";
   const duplicateExpenseLines =
@@ -476,6 +488,15 @@ export default function NuevoGastoPage() {
 
   function duplicateForScanPayload(payload: ExpenseScanPayload) {
     return findDuplicateExpense(duplicateCandidateForScanPayload(payload));
+  }
+
+  function providerSummaryUpgradeTargetForScanPayload(
+    payload: ExpenseScanPayload,
+  ) {
+    const duplicate = duplicateForScanPayload(payload);
+    return duplicate && isProviderSummaryPendingOriginal(duplicate)
+      ? duplicate
+      : null;
   }
 
   function duplicateScanReviewInCurrentBatch(review: PendingExpenseScan) {
@@ -578,6 +599,9 @@ export default function NuevoGastoPage() {
     if (duplicate) {
       const invoiceNumber =
         duplicate.purchaseDocument?.invoiceNumber?.trim() || "sin número";
+      if (isProviderSummaryPendingOriginal(duplicate)) {
+        return `Esta factura ya estaba registrada desde un resumen como ${invoiceNumber}. Al guardar, se completará con la factura original y no se duplicará.`;
+      }
       return `Ya existe como ${duplicate.description}, factura ${invoiceNumber}, guardada el ${formatDate(duplicate.date)} por ${formatMoney(duplicate.amount)}.`;
     }
 
@@ -605,7 +629,11 @@ export default function NuevoGastoPage() {
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (negativeAmountReasonForScanPayload(review.payload)) return "blocked";
-    if (duplicateForScanPayload(review.payload)) return "blocked";
+    if (duplicateForScanPayload(review.payload)) {
+      return providerSummaryUpgradeTargetForScanPayload(review.payload)
+        ? "review"
+        : "blocked";
+    }
     if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
@@ -623,7 +651,10 @@ export default function NuevoGastoPage() {
   ): boolean {
     const { payload } = review;
     const currentDuplicateCandidate = duplicateCandidateForScanPayload(payload);
-    if (duplicateForScanPayload(payload)) return false;
+    const duplicate = duplicateForScanPayload(payload);
+    const upgradeTarget =
+      duplicate && isProviderSummaryPendingOriginal(duplicate) ? duplicate : null;
+    if (duplicate && !upgradeTarget) return false;
     if (
       savedPayloads.some((savedPayload) =>
         purchaseExpenseDuplicateMatches(
@@ -665,7 +696,7 @@ export default function NuevoGastoPage() {
       payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ?? [],
     );
 
-    addExpense({
+    const expensePayload: Omit<Expense, "id" | "createdAt"> = {
       date: payload.expense.date,
       supplierId,
       supplierName: resolved.supplierName,
@@ -679,7 +710,12 @@ export default function NuevoGastoPage() {
       purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
       origin: "scan",
       businessKind: payload.expense.businessKind ?? "purchase_invoice",
-    });
+    };
+    if (upgradeTarget) {
+      updateExpense(mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload));
+    } else {
+      addExpense(expensePayload);
+    }
     return true;
   }
 
@@ -766,9 +802,9 @@ export default function NuevoGastoPage() {
       return;
     }
 
-    if (duplicateExpense) {
+    if (blockingDuplicateExpense) {
       alert(
-        `Esta factura de proveedor ya está registrada como «${duplicateExpense.description}».`,
+        `Esta factura de proveedor ya está registrada como «${blockingDuplicateExpense.description}».`,
       );
       return;
     }
@@ -797,7 +833,7 @@ export default function NuevoGastoPage() {
     const cleanedPurchaseLines = sanitizeExpensePurchaseLines(purchaseLines);
     const cleanedPurchaseDocument =
       sanitizeExpensePurchaseDocument(purchaseDocument);
-    const payload = {
+    const payload: Omit<Expense, "id" | "createdAt"> = {
       date,
       supplierId,
       supplierName: resolved.supplierName,
@@ -820,6 +856,10 @@ export default function NuevoGastoPage() {
         ...editingExpense,
         ...payload,
       });
+    } else if (providerSummaryUpgradeTarget) {
+      updateExpense(
+        mergeProviderSummaryWithOriginal(providerSummaryUpgradeTarget, payload),
+      );
     } else {
       addExpense(payload);
     }
@@ -990,14 +1030,32 @@ export default function NuevoGastoPage() {
           </Card>
         )}
         {duplicateExpense && (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Esta factura de proveedor ya está guardada:{" "}
-            <strong>{duplicateExpense.description}</strong>. Coincide con la
-            factura {duplicateExpenseNumber}, guardada el{" "}
-            {formatDate(duplicateExpense.date)}, con importe{" "}
-            {formatMoney(duplicateExpense.amount)}
-            {duplicateExpenseLines ? ` y líneas como ${duplicateExpenseLines}` : ""}
-            . Está repetida y no se guardará de nuevo.
+          <p
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              providerSummaryUpgradeTarget
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-red-200 bg-red-50 text-red-800"
+            }`}
+          >
+            {providerSummaryUpgradeTarget ? (
+              <>
+                Esta factura ya estaba registrada desde un resumen de proveedor:{" "}
+                <strong>{duplicateExpense.description}</strong>. Al guardar se
+                completará con la factura original y no se duplicará.
+              </>
+            ) : (
+              <>
+                Esta factura de proveedor ya está guardada:{" "}
+                <strong>{duplicateExpense.description}</strong>. Coincide con la
+                factura {duplicateExpenseNumber}, guardada el{" "}
+                {formatDate(duplicateExpense.date)}, con importe{" "}
+                {formatMoney(duplicateExpense.amount)}
+                {duplicateExpenseLines
+                  ? ` y líneas como ${duplicateExpenseLines}`
+                  : ""}
+                . Está repetida y no se guardará de nuevo.
+              </>
+            )}
           </p>
         )}
         {priceAlerts.length > 0 && (
@@ -1533,11 +1591,13 @@ export default function NuevoGastoPage() {
           <Button
             fullWidth
             onClick={() => void handleSubmit()}
-            disabled={Boolean(duplicateExpense)}
+            disabled={Boolean(blockingDuplicateExpense)}
           >
-            {duplicateExpense
+            {blockingDuplicateExpense
               ? "Factura ya guardada"
-              : editingExpense
+              : providerSummaryUpgradeTarget
+                ? "Completar factura original"
+                : editingExpense
                 ? "Guardar cambios"
                 : pendingScans.length > 0
                   ? "Guardar y revisar siguiente"

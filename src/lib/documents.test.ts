@@ -561,7 +561,7 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
 
       const byNif = ensureCustomerForDocument(
         customers,
-        { firstName: "Ana", lastName: "Nueva", nif: "12345678a" },
+        { firstName: "Ana", lastName: "García", nif: "12345678a" },
         null,
       );
       expect(byNif.ok, `${type} reutiliza por NIF`).toBe(true);

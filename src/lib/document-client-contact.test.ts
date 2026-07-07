@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { documentWithCurrentCustomerContact } from "./document-client-contact";
+import {
+  documentHasLinkedCustomerNameMismatch,
+  documentWithCurrentCustomerContact,
+  findLinkedCustomerForDocument,
+} from "./document-client-contact";
 import type { Customer, Document } from "./types";
 
 const doc: Document = {
@@ -54,5 +58,71 @@ describe("documentWithCurrentCustomerContact", () => {
 
     expect(hydrated.client.email).toBe("snapshot@example.com");
     expect(hydrated.client.phone).toBe("+34 600 111 222");
+  });
+
+  it("no actualiza nombre, NIF ni dirección fiscal desde la ficha viva", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        client: {
+          ...doc.client,
+          nif: "11111111H",
+          address: "Calle congelada 1",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          name: "Cliente cambiado",
+          firstName: "Cliente",
+          lastName: "Cambiado",
+          nif: "22222222J",
+          address: "Direccion viva cambiada",
+        },
+      ],
+    );
+
+    expect(hydrated.client.name).toBe("Jordi Vinardell");
+    expect(hydrated.client.nif).toBe("11111111H");
+    expect(hydrated.client.address).toBe("Calle congelada 1");
+    expect(hydrated.client.email).toBe("jordi@example.com");
+  });
+
+  it("resuelve enlaces hacia la ficha viva aunque el documento guarde un id absorbido", () => {
+    const customer = findLinkedCustomerForDocument(
+      { customerId: "customer-old" },
+      [
+        {
+          ...customers[0],
+          mergedCustomerIds: ["customer-old"],
+        },
+      ],
+    );
+
+    expect(customer?.id).toBe("customer-1");
+  });
+
+  it("marca documentos cuyo titular congelado no coincide con la ficha vinculada", () => {
+    const mismatch = documentHasLinkedCustomerNameMismatch(
+      {
+        ...doc,
+        client: {
+          name: "Carmen Camí",
+          nif: "B60422417",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          customerType: "company",
+          firstName: "Llefisa SL",
+          lastName: "",
+          name: "Llefisa SL",
+          nif: "B60422417",
+        },
+      ],
+    );
+
+    expect(mismatch).toBe(true);
   });
 });

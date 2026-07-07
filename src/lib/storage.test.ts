@@ -233,6 +233,62 @@ describe("storage", () => {
     expect(isDocumentIntegrityLocked(normalized.documents[0])).toBe(true);
   });
 
+  it("congela facturas emitidas antiguas sin snapshot al cargar datos", () => {
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      customers: [
+        {
+          id: "c1",
+          firstName: "Carmen",
+          lastName: "Camí",
+          name: "Carmen Camí",
+          nif: "B60422417",
+          address: "Dirección viva cambiada",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-07-07T10:00:00.000Z",
+        },
+      ],
+      documents: [
+        {
+          id: "legacy-invoice",
+          type: "factura",
+          number: "Factura/2937/",
+          date: "2026-06-12",
+          customerId: "c1",
+          client: {
+            name: "LLEFISA SL",
+            nif: "B60422417",
+            address: "Avda Diagonal 622 2/1 B, 08021 Barcelona",
+          },
+          items: [
+            {
+              id: "line-1",
+              description: "Reparación de persiana",
+              quantity: 1,
+              unitPrice: 90,
+              ivaPercent: 21,
+            },
+          ],
+          status: "enviado",
+          createdAt: "2026-06-12T09:00:00.000Z",
+          updatedAt: "2026-06-12T09:00:00.000Z",
+        },
+      ],
+    });
+
+    const legacy = normalized.documents[0];
+
+    expect(legacy.documentLifecycle).toBe("issued");
+    expect(legacy.integrityLock).toBe("locked");
+    expect(hasDocumentSnapshot(legacy)).toBe(true);
+    expect(legacy.documentSnapshot?.customer.name).toBe("LLEFISA SL");
+    expect(legacy.documentSnapshot?.customer.address).toBe(
+      "Avda Diagonal 622 2/1 B, 08021 Barcelona",
+    );
+    expect(legacy.documentSnapshot?.customer.name).not.toBe("Carmen Camí");
+    expect(isDocumentIntegrityLocked(legacy)).toBe(true);
+  });
+
   it("conserva snapshots documentales en saveData -> loadData", () => {
     const document = snapshotDocument();
 

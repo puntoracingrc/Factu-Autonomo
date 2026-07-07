@@ -43,6 +43,7 @@ import {
   customerPayloadFromInput,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
+  findCustomerByIdOrMergedId,
   findDuplicateCustomerGroups,
   getCustomerDisplayName,
   migrateCustomer,
@@ -290,6 +291,16 @@ export default function ClientesPage() {
     setFormOpen(true);
     router.replace("/clientes", { scroll: false });
   }, [router, searchParams]);
+
+  useEffect(() => {
+    const customerId = searchParams.get("cliente") ?? searchParams.get("id");
+    if (!customerId) return;
+    const customer = findCustomerByIdOrMergedId(data.customers, customerId);
+    if (!customer) return;
+    setListFilterId(customer.id);
+    startEdit(customer);
+    router.replace("/clientes", { scroll: false });
+  }, [data.customers, router, searchParams]);
 
   function closeForm() {
     setEditingId(null);

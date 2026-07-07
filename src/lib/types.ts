@@ -315,6 +315,21 @@ export interface ExpensePurchaseDocument {
   paymentTerms?: string;
 }
 
+export type ProviderSummaryExpenseStatus =
+  | "pending_original"
+  | "completed_with_original";
+
+export interface ExpenseProviderSummaryInfo {
+  status: ProviderSummaryExpenseStatus;
+  summaryId: string;
+  fileName?: string;
+  importedAt: string;
+  providerName?: string;
+  completedAt?: string;
+  summaryInvoiceTotal?: number;
+  summaryIvaAmount?: number;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -333,6 +348,8 @@ export interface Expense {
   purchaseDocument?: ExpensePurchaseDocument;
   /** Líneas de compra detectadas por IA o introducidas manualmente. */
   purchaseLines?: ExpensePurchaseLine[];
+  /** Gasto creado desde un resumen de proveedor, pendiente de la factura original. */
+  providerSummary?: ExpenseProviderSummaryInfo;
   /** Factura o presupuesto al que pertenece esta compra para calcular margen del trabajo. */
   workDocumentId?: string;
   /** Gasto generado desde un gasto fijo */
@@ -583,7 +600,10 @@ export interface AppPreferences {
   documentWhatsAppMethod: DocumentWhatsAppSendPreference;
 }
 
-export type DocumentSnapshotSource = "issue" | "legacy_backfill";
+export type DocumentSnapshotSource =
+  | "issue"
+  | "legacy_backfill"
+  | "customer_repair";
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;

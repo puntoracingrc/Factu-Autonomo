@@ -598,6 +598,24 @@ describe("ensureCustomerForDocument", () => {
     }
   });
 
+  it("no reutiliza otro cliente solo por NIF si el nombre escrito es distinto", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        customerType: "company",
+        firstName: "Llefisa SL",
+        lastName: "",
+        nif: "12345678A",
+      },
+      null,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("Ya existe un cliente con el NIF");
+    }
+  });
+
   it("actualiza cliente seleccionado", () => {
     const result = ensureCustomerForDocument(
       sample,
@@ -842,13 +860,28 @@ describe("customerInvoicedTotal", () => {
 });
 
 describe("clientMatchesCustomer", () => {
-  it("empareja por NIF en documentos", () => {
+  it("empareja por NIF si el nombre tambien encaja", () => {
     expect(
       clientMatchesCustomer(
-        { name: "Otro nombre", nif: "12345678a" },
+        { name: "Ana García", nif: "12345678a" },
         sample[1],
       ),
     ).toBe(true);
+  });
+
+  it("no empareja solo por NIF si el nombre apunta a otro cliente", () => {
+    expect(
+      clientMatchesCustomer(
+        { name: "Llefisa SL", nif: "12345678a", customerType: "company" },
+        sample[1],
+      ),
+    ).toBe(false);
+  });
+
+  it("mantiene el NIF como apoyo si el documento no trae nombre util", () => {
+    expect(clientMatchesCustomer({ name: "", nif: "12345678a" }, sample[1])).toBe(
+      true,
+    );
   });
 });
 
