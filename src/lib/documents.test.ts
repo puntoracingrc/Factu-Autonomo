@@ -534,7 +534,7 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
     ]);
   });
 
-  it("evita duplicar clientes existentes al crear documentos", () => {
+  it("reutiliza clientes existentes al crear documentos", () => {
     const customers = [
       {
         id: "cust-1",
@@ -553,14 +553,23 @@ describe("flujo factura, presupuesto y recibo con clientes", () => {
         { firstName: "Ana", lastName: "García" },
         null,
       );
-      expect(byName.ok, `${type} duplica por nombre`).toBe(false);
+      expect(byName.ok, `${type} reutiliza por nombre`).toBe(true);
+      if (byName.ok) {
+        expect(byName.created).toBe(false);
+        expect(byName.customer.id).toBe("cust-1");
+      }
 
       const byNif = ensureCustomerForDocument(
         customers,
         { firstName: "Ana", lastName: "Nueva", nif: "12345678a" },
         null,
       );
-      expect(byNif.ok, `${type} duplica por NIF`).toBe(false);
+      expect(byNif.ok, `${type} reutiliza por NIF`).toBe(true);
+      if (byNif.ok) {
+        expect(byNif.created).toBe(false);
+        expect(byNif.customer.id).toBe("cust-1");
+        expect(byNif.customer.nif).toBe("12345678A");
+      }
     }
   });
 });

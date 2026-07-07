@@ -563,27 +563,38 @@ describe("ensureCustomerForDocument", () => {
     }
   });
 
-  it("bloquea duplicado si se escribe manualmente", () => {
+  it("reutiliza cliente existente si se escribe manualmente en un documento", () => {
     const result = ensureCustomerForDocument(
       sample,
-      { firstName: "Ana", lastName: "García" },
+      { firstName: "Ana", lastName: "García", phone: "600333222" },
       null,
     );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("Ya existe");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.created).toBe(false);
+      expect(result.customer.id).toBe("2");
+      expect(result.customer.phone).toBe("600333222");
+      expect(result.client.name).toBe("Ana García");
     }
   });
 
-  it("bloquea NIF duplicado al crear desde documento", () => {
+  it("reutiliza cliente existente por NIF al crear desde documento", () => {
     const result = ensureCustomerForDocument(
       sample,
-      { firstName: "Pedro", lastName: "Ruiz", nif: "12345678a" },
+      {
+        firstName: "Ana",
+        lastName: "García",
+        nif: "12345678a",
+        email: "ana.factura@test.com",
+      },
       null,
     );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("NIF");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.created).toBe(false);
+      expect(result.customer.id).toBe("2");
+      expect(result.customer.nif).toBe("12345678A");
+      expect(result.customer.email).toBe("ana.factura@test.com");
     }
   });
 
