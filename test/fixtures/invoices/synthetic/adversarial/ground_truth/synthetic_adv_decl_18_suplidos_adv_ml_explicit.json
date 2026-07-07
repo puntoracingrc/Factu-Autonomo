@@ -1,0 +1,137 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_18_suplidos",
+  "document_title": "FACTURA",
+  "layout_id": "adv_ml_explicit",
+  "invoice_number": "DECL-SYN-018",
+  "date": "2026-06-18",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "suplidos"
+  },
+  "supplier": {
+    "name": "Materiales Ficticios Centro CB",
+    "tax_id": "E10000003"
+  },
+  "customer": {
+    "name": "Prueba Instalaciones CB",
+    "tax_id": "E20000003"
+  },
+  "table_columns": [
+    "SKU",
+    "Producto",
+    "Qty",
+    "Largo",
+    "M2/ML/UN",
+    "Tarifa",
+    "Dto. %",
+    "Neto",
+    "IVA",
+    "Subtotal"
+  ],
+  "totals": {
+    "taxable_base": 582,
+    "vat_total": 114.87,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 696.87,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 696.87,
+    "gross_amount": 582
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-18-SERV",
+      "description": "Servicio ficticio suplidos",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 176,
+      "discountPct": 0,
+      "netUnitPrice": 176,
+      "amount": 352,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-18-MAT",
+      "description": "Material ficticio suplidos",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 65,
+      "discountPct": 0,
+      "netUnitPrice": 65,
+      "amount": 195,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L3",
+      "articleCode": "DECL-SUPLIDO",
+      "description": "Suplido ficticio no sujeto a IVA",
+      "lineType": "suplido",
+      "roleInGroup": "material",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 1,
+      "calculationBasis": "fixed",
+      "unit": "fijo",
+      "discountPct": 0,
+      "amount": 35,
+      "vatRate": 0,
+      "expectedFormula": "fixed",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Suplido separado para no confundirlo con base de IVA.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética suplidos",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "suplido no sujeto"
+    ],
+    "fiscalCases": [
+      "factura con suplidos",
+      "IVA 21",
+      "suplidos"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_06_recargo_equivalencia",
+  "document_title": "FACTURA",
+  "layout_id": "adv_ml_explicit",
+  "invoice_number": "DECL-SYN-006",
+  "date": "2026-06-06",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "recargo_equivalencia"
+  },
+  "supplier": {
+    "name": "Talleres Norte Demo SL",
+    "tax_id": "B10000001"
+  },
+  "customer": {
+    "name": "Prueba Instalaciones CB",
+    "tax_id": "E20000003"
+  },
+  "table_columns": [
+    "SKU",
+    "Producto",
+    "Qty",
+    "Largo",
+    "M2/ML/UN",
+    "Tarifa",
+    "Dto. %",
+    "Neto",
+    "IVA",
+    "Subtotal"
+  ],
+  "totals": {
+    "taxable_base": 439,
+    "vat_total": 92.19,
+    "irpf_amount": 0,
+    "recargo_amount": 22.83,
+    "global_discount_amount": 0,
+    "total": 554.02,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 554.02,
+    "gross_amount": 439
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-06-SERV",
+      "description": "Servicio ficticio recargo equivalencia",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 140,
+      "discountPct": 0,
+      "netUnitPrice": 140,
+      "amount": 280,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-06-MAT",
+      "description": "Material ficticio recargo equivalencia",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 53,
+      "discountPct": 0,
+      "netUnitPrice": 53,
+      "amount": 159,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética recargo equivalencia",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "recargo equivalencia"
+    ],
+    "fiscalCases": [
+      "factura con recargo de equivalencia",
+      "IVA 21",
+      "recargo"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

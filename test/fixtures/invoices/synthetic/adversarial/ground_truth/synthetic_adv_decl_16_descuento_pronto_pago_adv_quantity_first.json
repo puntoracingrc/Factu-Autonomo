@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_16_descuento_pronto_pago",
+  "document_title": "FACTURA",
+  "layout_id": "adv_quantity_first",
+  "invoice_number": "DECL-SYN-016",
+  "date": "2026-04-16",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "descuento_pronto_pago"
+  },
+  "supplier": {
+    "name": "Talleres Norte Demo SL",
+    "tax_id": "B10000001"
+  },
+  "customer": {
+    "name": "Autonomo Demo Uno",
+    "tax_id": "12345678Z"
+  },
+  "table_columns": [
+    "Ctdad.",
+    "Codigo",
+    "Descripcion",
+    "M2/ML/UN",
+    "Ud",
+    "P. Unit",
+    "Dto",
+    "Neto",
+    "IVA %",
+    "Total"
+  ],
+  "totals": {
+    "taxable_base": 495,
+    "vat_total": 103.95,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 52.9,
+    "total": 598.95,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 598.95,
+    "gross_amount": 495
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-16-SERV",
+      "description": "Servicio ficticio descuento pronto pago",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 170,
+      "discountPct": 10,
+      "netUnitPrice": 153,
+      "amount": 306,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-16-MAT",
+      "description": "Material ficticio descuento pronto pago",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 63,
+      "discountPct": 0,
+      "netUnitPrice": 63,
+      "amount": 189,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética descuento pronto pago",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "descuento pronto pago"
+    ],
+    "fiscalCases": [
+      "factura con descuento",
+      "IVA 21",
+      "descuento global"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

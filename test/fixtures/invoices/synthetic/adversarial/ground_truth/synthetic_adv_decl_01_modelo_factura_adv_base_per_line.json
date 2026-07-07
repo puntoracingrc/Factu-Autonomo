@@ -1,0 +1,115 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_01_modelo_factura",
+  "document_title": "FACTURA",
+  "layout_id": "adv_base_per_line",
+  "invoice_number": "DECL-SYN-001",
+  "date": "2026-01-01",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "modelo_factura"
+  },
+  "supplier": {
+    "name": "Talleres Norte Demo SL",
+    "tax_id": "B10000001"
+  },
+  "customer": {
+    "name": "Cliente Ficticio Dos SL",
+    "tax_id": "B20000002"
+  },
+  "table_columns": [
+    "Codigo",
+    "Concepto",
+    "Cant.",
+    "Unid.",
+    "Cantidad cobro",
+    "Precio",
+    "Dto. %",
+    "Precio Neto",
+    "Base",
+    "Tipo IVA"
+  ],
+  "totals": {
+    "taxable_base": 394,
+    "vat_total": 82.74,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 476.74,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 476.74,
+    "gross_amount": 394
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-01-SERV",
+      "description": "Servicio ficticio modelo factura",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 125,
+      "discountPct": 0,
+      "netUnitPrice": 125,
+      "amount": 250,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-01-MAT",
+      "description": "Material ficticio modelo factura",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 48,
+      "discountPct": 0,
+      "netUnitPrice": 48,
+      "amount": 144,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética modelo factura",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "estructura básica"
+    ],
+    "fiscalCases": [
+      "modelo factura",
+      "IVA 21"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

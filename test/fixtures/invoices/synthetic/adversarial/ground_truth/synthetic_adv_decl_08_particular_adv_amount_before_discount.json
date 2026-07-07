@@ -1,0 +1,113 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_08_particular",
+  "document_title": "FACTURA",
+  "layout_id": "adv_amount_before_discount",
+  "invoice_number": "DECL-SYN-008",
+  "date": "2026-08-08",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "particular"
+  },
+  "supplier": {
+    "name": "Materiales Ficticios Centro CB",
+    "tax_id": "E10000003"
+  },
+  "customer": {
+    "name": "Autonomo Demo Uno",
+    "tax_id": "12345678Z"
+  },
+  "table_columns": [
+    "Codigo",
+    "Descripcion",
+    "Uds.",
+    "M2/ML/UN",
+    "Importe",
+    "Dto. %",
+    "Precio",
+    "IVA"
+  ],
+  "totals": {
+    "taxable_base": 457,
+    "vat_total": 95.97,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 552.97,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 552.97,
+    "gross_amount": 457
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-08-SERV",
+      "description": "Servicio ficticio particular",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 146,
+      "discountPct": 0,
+      "netUnitPrice": 146,
+      "amount": 292,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-08-MAT",
+      "description": "Material ficticio particular",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 55,
+      "discountPct": 0,
+      "netUnitPrice": 55,
+      "amount": 165,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética particular",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "cliente particular"
+    ],
+    "fiscalCases": [
+      "factura a particular",
+      "IVA 21"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

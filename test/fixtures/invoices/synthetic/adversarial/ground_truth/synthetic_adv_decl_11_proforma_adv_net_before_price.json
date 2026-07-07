@@ -1,0 +1,113 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_11_proforma",
+  "document_title": "FACTURA PROFORMA",
+  "layout_id": "adv_net_before_price",
+  "invoice_number": "DECL-SYN-011",
+  "date": "2026-11-11",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "proforma"
+  },
+  "supplier": {
+    "name": "Talleres Norte Demo SL",
+    "tax_id": "B10000001"
+  },
+  "customer": {
+    "name": "Consumidor Demo",
+    "tax_id": "87654321X"
+  },
+  "table_columns": [
+    "Ref.",
+    "Detalle",
+    "M2/ML/UN",
+    "Precio Neto",
+    "Precio",
+    "Descuento",
+    "IVA",
+    "Importe linea"
+  ],
+  "totals": {
+    "taxable_base": 484,
+    "vat_total": 101.64,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 585.64,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 585.64,
+    "gross_amount": 484
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-11-SERV",
+      "description": "Servicio ficticio proforma",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 155,
+      "discountPct": 0,
+      "netUnitPrice": 155,
+      "amount": 310,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-11-MAT",
+      "description": "Material ficticio proforma",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 58,
+      "discountPct": 0,
+      "netUnitPrice": 58,
+      "amount": 174,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética proforma",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "proforma no fiscal"
+    ],
+    "fiscalCases": [
+      "factura proforma",
+      "IVA 21"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

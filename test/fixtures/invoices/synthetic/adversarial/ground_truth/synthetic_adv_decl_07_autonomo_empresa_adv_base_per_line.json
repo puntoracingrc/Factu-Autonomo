@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_07_autonomo_empresa",
+  "document_title": "FACTURA",
+  "layout_id": "adv_base_per_line",
+  "invoice_number": "DECL-SYN-007",
+  "date": "2026-07-07",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "autonomo_empresa"
+  },
+  "supplier": {
+    "name": "Persianas Sinteticas Levante SL",
+    "tax_id": "B10000002"
+  },
+  "customer": {
+    "name": "Consumidor Demo",
+    "tax_id": "87654321X"
+  },
+  "table_columns": [
+    "Codigo",
+    "Concepto",
+    "Cant.",
+    "Unid.",
+    "Cantidad cobro",
+    "Precio",
+    "Dto. %",
+    "Precio Neto",
+    "Base",
+    "Tipo IVA"
+  ],
+  "totals": {
+    "taxable_base": 448,
+    "vat_total": 94.08,
+    "irpf_amount": 67.2,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 474.88,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 474.88,
+    "gross_amount": 448
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-07-SERV",
+      "description": "Servicio ficticio autonomo empresa",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 143,
+      "discountPct": 0,
+      "netUnitPrice": 143,
+      "amount": 286,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-07-MAT",
+      "description": "Material ficticio autonomo empresa",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 54,
+      "discountPct": 0,
+      "netUnitPrice": 54,
+      "amount": 162,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética autonomo empresa",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "cliente empresa"
+    ],
+    "fiscalCases": [
+      "factura de autonomo a empresa",
+      "IVA 21",
+      "IRPF"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

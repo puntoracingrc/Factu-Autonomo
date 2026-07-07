@@ -1,0 +1,114 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_20_internacional",
+  "document_title": "FACTURA",
+  "layout_id": "adv_amount_before_discount",
+  "invoice_number": "DECL-SYN-020",
+  "date": "2026-08-20",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "internacional"
+  },
+  "supplier": {
+    "name": "Cristales de Prueba SA",
+    "tax_id": "A10000005"
+  },
+  "customer": {
+    "name": "Autonomo Demo Uno",
+    "tax_id": "12345678Z"
+  },
+  "table_columns": [
+    "Codigo",
+    "Descripcion",
+    "Uds.",
+    "M2/ML/UN",
+    "Importe",
+    "Dto. %",
+    "Precio",
+    "IVA"
+  ],
+  "totals": {
+    "taxable_base": 565,
+    "vat_total": 0,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 565,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 565,
+    "gross_amount": 565
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-20-SERV",
+      "description": "Servicio ficticio internacional",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 182,
+      "discountPct": 0,
+      "netUnitPrice": 182,
+      "amount": 364,
+      "vatRate": 0,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-20-MAT",
+      "description": "Material ficticio internacional",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 67,
+      "discountPct": 0,
+      "netUnitPrice": 67,
+      "amount": 201,
+      "vatRate": 0,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética internacional",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "cliente fuera UE"
+    ],
+    "fiscalCases": [
+      "factura internacional",
+      "exenta",
+      "exportacion"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

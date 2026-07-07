@@ -1,0 +1,114 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_17_rappel_descuento",
+  "document_title": "FACTURA",
+  "layout_id": "adv_net_before_price",
+  "invoice_number": "DECL-SYN-017",
+  "date": "2026-05-17",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "rappel_descuento"
+  },
+  "supplier": {
+    "name": "Persianas Sinteticas Levante SL",
+    "tax_id": "B10000002"
+  },
+  "customer": {
+    "name": "Cliente Ficticio Dos SL",
+    "tax_id": "B20000002"
+  },
+  "table_columns": [
+    "Ref.",
+    "Detalle",
+    "M2/ML/UN",
+    "Precio Neto",
+    "Precio",
+    "Descuento",
+    "IVA",
+    "Importe linea"
+  ],
+  "totals": {
+    "taxable_base": 503.4,
+    "vat_total": 105.71,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 53.8,
+    "total": 609.11,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 609.11,
+    "gross_amount": 503.4
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-17-SERV",
+      "description": "Servicio ficticio rappel descuento",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 173,
+      "discountPct": 10,
+      "netUnitPrice": 155.7,
+      "amount": 311.4,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-17-MAT",
+      "description": "Material ficticio rappel descuento",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 64,
+      "discountPct": 0,
+      "netUnitPrice": 64,
+      "amount": 192,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética rappel descuento",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "rappel comercial"
+    ],
+    "fiscalCases": [
+      "factura con rappel",
+      "IVA 21",
+      "descuento global"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}
