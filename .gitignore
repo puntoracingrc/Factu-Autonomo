@@ -25,6 +25,10 @@ artifacts/invoice-real-qa/
 *.real.jpg
 *.real.jpeg
 *.real.png
+*.real.tif
+*.real.tiff
+*.external.json
+*.external.txt
 
 # next.js
 /.next/

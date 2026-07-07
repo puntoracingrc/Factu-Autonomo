@@ -199,7 +199,7 @@ async function runRealQa() {
     path.join(outputDir, "synthetic-derivative-plan.md"),
     renderSyntheticDerivativePlan(results),
   );
-  writeJson(LATEST_RUN_PATH, { runId, outputDir });
+  writeJson(LATEST_RUN_PATH, { runId });
   console.log(`Real QA terminada: ${outputDir}`);
 }
 
@@ -864,7 +864,7 @@ function getLatestOutputDir() {
   if (!fs.existsSync(LATEST_RUN_PATH)) return undefined;
   try {
     const latest = JSON.parse(fs.readFileSync(LATEST_RUN_PATH, "utf8"));
-    return latest.outputDir;
+    return latest.outputDir ?? path.join(ARTIFACTS_ROOT, latest.runId);
   } catch {
     return undefined;
   }
