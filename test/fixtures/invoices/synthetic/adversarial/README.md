@@ -9,4 +9,6 @@ This suite contains generated, fully fictitious Spanish invoice PDFs and JSON gr
 
 The fixtures exercise multipage tables, repeated and missing headers, wrapped descriptions, changed columns, explicit M2/ML/UN charge quantities, line discounts, Spanish tax cases, misleading totals, and product groups with components.
 
+The latest generator also includes synthetic Spanish fiscal variants inspired by public example categories, without copying source invoices or real data.
+
 The expected JSON is generated from the fixture source of truth before the PDF is rendered. Do not edit ground truth to hide parser failures.

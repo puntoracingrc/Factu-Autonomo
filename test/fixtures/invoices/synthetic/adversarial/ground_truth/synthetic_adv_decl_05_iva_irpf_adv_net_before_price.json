@@ -1,0 +1,114 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_05_iva_irpf",
+  "document_title": "FACTURA",
+  "layout_id": "adv_net_before_price",
+  "invoice_number": "DECL-SYN-005",
+  "date": "2026-05-05",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "iva_irpf"
+  },
+  "supplier": {
+    "name": "Cristales de Prueba SA",
+    "tax_id": "A10000005"
+  },
+  "customer": {
+    "name": "Cliente Ficticio Dos SL",
+    "tax_id": "B20000002"
+  },
+  "table_columns": [
+    "Ref.",
+    "Detalle",
+    "M2/ML/UN",
+    "Precio Neto",
+    "Precio",
+    "Descuento",
+    "IVA",
+    "Importe linea"
+  ],
+  "totals": {
+    "taxable_base": 430,
+    "vat_total": 90.3,
+    "irpf_amount": 64.5,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 455.8,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 455.8,
+    "gross_amount": 430
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-05-SERV",
+      "description": "Servicio ficticio iva irpf",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 137,
+      "discountPct": 0,
+      "netUnitPrice": 137,
+      "amount": 274,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-05-MAT",
+      "description": "Material ficticio iva irpf",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 52,
+      "discountPct": 0,
+      "netUnitPrice": 52,
+      "amount": 156,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética iva irpf",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "iva mas retencion"
+    ],
+    "fiscalCases": [
+      "factura con IVA e IRPF",
+      "IVA 21",
+      "IRPF"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

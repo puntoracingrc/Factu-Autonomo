@@ -14,7 +14,7 @@ const SUITE_ROOT = path.join(
 );
 const PDF_DIR = path.join(SUITE_ROOT, "pdf");
 const GROUND_TRUTH_DIR = path.join(SUITE_ROOT, "ground_truth");
-const FIXTURE_COUNT = 150;
+const BASE_FIXTURE_COUNT = 150;
 
 const suppliers = [
   ["Talleres Norte Demo SL", "B10000001"],
@@ -109,6 +109,32 @@ const productFamilies = [
       ["COMP-SOP", "Soportes pared"],
     ],
   },
+];
+
+const declarandoInspiredVariants = [
+  ["modelo_factura", ["modelo factura", "IVA 21"], ["estructura básica"]],
+  ["con_iva", ["factura con IVA", "IVA 21"], ["desglose IVA"]],
+  ["exenta_iva", ["factura exenta de IVA", "exenta"], ["nota exencion IVA"]],
+  ["con_irpf", ["factura con IRPF", "IRPF"], ["retencion IRPF"]],
+  ["iva_irpf", ["factura con IVA e IRPF", "IVA 21", "IRPF"], ["iva mas retencion"]],
+  ["recargo_equivalencia", ["factura con recargo de equivalencia", "IVA 21", "recargo"], ["recargo equivalencia"]],
+  ["autonomo_empresa", ["factura de autonomo a empresa", "IVA 21", "IRPF"], ["cliente empresa"]],
+  ["particular", ["factura a particular", "IVA 21"], ["cliente particular"]],
+  ["simplificada", ["factura simplificada", "IVA 21"], ["ticket simplificado"]],
+  ["inversion_sujeto_pasivo", ["factura con inversion del sujeto pasivo", "exenta"], ["inversion sujeto pasivo"]],
+  ["proforma", ["factura proforma", "IVA 21"], ["proforma no fiscal"]],
+  ["anticipo", ["factura de anticipo", "IVA 21", "anticipos"], ["anticipo pagado"]],
+  ["recapitulativa", ["factura recapitulativa", "IVA 21", "IVA 10"], ["varias operaciones"]],
+  ["abono", ["factura de abono", "rectificativa"], ["importe negativo"]],
+  ["rectificativa", ["factura rectificativa", "rectificativa"], ["rectifica factura previa"]],
+  ["descuento_pronto_pago", ["factura con descuento", "IVA 21", "descuento global"], ["descuento pronto pago"]],
+  ["rappel_descuento", ["factura con rappel", "IVA 21", "descuento global"], ["rappel comercial"]],
+  ["suplidos", ["factura con suplidos", "IVA 21", "suplidos"], ["suplido no sujeto"]],
+  ["intracomunitaria", ["factura intracomunitaria", "exenta", "intracomunitaria"], ["NIF IVA UE"]],
+  ["internacional", ["factura internacional", "exenta", "exportacion"], ["cliente fuera UE"]],
+  ["ingles", ["factura en ingles", "IVA 21"], ["labels ingleses"]],
+  ["emitida_destinatario", ["factura emitida por destinatario", "IVA 21"], ["self billing"]],
+  ["electronica", ["factura electronica", "IVA 21", "Facturae"], ["firma electronica"]],
 ];
 
 function round(value, decimals = 2) {
@@ -589,20 +615,209 @@ function buildFixture(index) {
   };
 }
 
+function buildDeclarandoInspiredFixture(variant, offset) {
+  const [slug, fiscalCaseLabels, layoutCaseLabels] = variant;
+  const index = BASE_FIXTURE_COUNT + offset;
+  const layout = layouts[(offset + 4) % layouts.length];
+  const supplier = suppliers[offset % suppliers.length];
+  const customer = customers[(offset + 1) % customers.length];
+  const baseVatRate =
+    fiscalCaseLabels.includes("exenta") || fiscalCaseLabels.includes("rectificativa")
+      ? 0
+      : fiscalCaseLabels.includes("IVA 10")
+        ? 10
+        : 21;
+  const negative = ["abono", "rectificativa"].includes(slug);
+  const discount = ["descuento_pronto_pago", "rappel_descuento"].includes(slug) ? 10 : 0;
+  const lines = [
+    makeLine({
+      id: "L1",
+      articleCode: `DECL-${String(offset + 1).padStart(2, "0")}-SERV`,
+      description: `Servicio ficticio ${slug.replace(/_/g, " ")}`,
+      lineType: "servicio",
+      roleInGroup: "service",
+      quantity: 2,
+      chargeQuantity: 2,
+      calculationBasis: "hour",
+      unit: "horas",
+      unitPrice: 125 + offset * 3,
+      discountPct: discount,
+      vatRate: baseVatRate,
+      reason: "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+    }),
+    makeLine({
+      id: "L2",
+      articleCode: `DECL-${String(offset + 1).padStart(2, "0")}-MAT`,
+      description: `Material ficticio ${slug.replace(/_/g, " ")}`,
+      lineType: "material",
+      roleInGroup: "material",
+      quantity: slug === "simplificada" ? 1 : 3,
+      chargeQuantity: slug === "simplificada" ? 1 : 3,
+      calculationBasis: "unit",
+      unit: "Ud",
+      unitPrice: 48 + offset,
+      discountPct: 0,
+      vatRate: baseVatRate,
+    }),
+  ];
+
+  if (slug === "recapitulativa") {
+    lines.push(
+      makeLine({
+        id: "L3",
+        articleCode: "DECL-RECAP-10",
+        description: "Operacion ficticia con IVA reducido",
+        lineType: "material",
+        roleInGroup: "material",
+        quantity: 1,
+        chargeQuantity: 1,
+        calculationBasis: "unit",
+        unit: "Ud",
+        unitPrice: 80,
+        vatRate: 10,
+      }),
+    );
+  }
+
+  if (slug === "suplidos") {
+    lines.push(
+      makeLine({
+        id: "L3",
+        articleCode: "DECL-SUPLIDO",
+        description: "Suplido ficticio no sujeto a IVA",
+        lineType: "suplido",
+        roleInGroup: "material",
+        quantity: 1,
+        chargeQuantity: 1,
+        calculationBasis: "fixed",
+        unit: "fijo",
+        amount: 35,
+        vatRate: 0,
+        reason: "Suplido separado para no confundirlo con base de IVA.",
+      }),
+    );
+  }
+
+  if (negative) {
+    for (const line of lines) {
+      line.amount = round(-Math.abs(line.amount));
+    }
+  }
+
+  const taxBase = round(lines.reduce((sum, line) => sum + line.amount, 0));
+  const vatTotal = round(lines.reduce((sum, line) => sum + (line.amount * (line.vatRate ?? 0)) / 100, 0));
+  const irpfAmount = fiscalCaseLabels.includes("IRPF") ? round(taxBase * 0.15) : 0;
+  const recargoAmount = fiscalCaseLabels.includes("recargo") ? round(taxBase * 0.052) : 0;
+  const paidAmount = fiscalCaseLabels.includes("anticipos")
+    ? round(taxBase + vatTotal + recargoAmount - irpfAmount)
+    : 0;
+  const total = round(taxBase + vatTotal + recargoAmount - irpfAmount);
+  const totals = {
+    taxable_base: taxBase,
+    vat_total: vatTotal,
+    irpf_amount: irpfAmount,
+    recargo_amount: recargoAmount,
+    global_discount_amount: discount ? round(lines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * (line.quantity ?? 1) * discount / 100, 0)) : 0,
+    total,
+    paid_amount: paidAmount,
+    advance_paid: paidAmount,
+    due_amount: round(total - paidAmount),
+    gross_amount: round(lines.reduce((sum, line) => sum + Math.max(0, line.amount), 0)),
+  };
+  const invoiceId = `synthetic_adv_decl_${String(offset + 1).padStart(2, "0")}_${slug}`;
+  const rows = lines.map((line) => lineToRow(line, layout.columns, index));
+  rows.unshift([`Nota: variante española sintética ${slug.replace(/_/g, " ")}, sin datos reales`]);
+  const pdfName = `${invoiceId}_${layout.id}.pdf`;
+  const jsonName = `${invoiceId}_${layout.id}.json`;
+  const fixture = {
+    engine_contract_version: 1,
+    invoice_id: invoiceId,
+    document_title: slug === "proforma" ? "FACTURA PROFORMA" : negative ? "FACTURA RECTIFICATIVA" : "FACTURA",
+    layout_id: layout.id,
+    invoice_number: `DECL-SYN-${String(offset + 1).padStart(3, "0")}`,
+    date: `2026-${String((offset % 12) + 1).padStart(2, "0")}-${String((offset % 24) + 1).padStart(2, "0")}`,
+    privacy: "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+    synthetic_notice: "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+    inspiration: {
+      source: "Declarando ejemplos de facturas",
+      copiedRealData: false,
+      derivedPatternOnly: true,
+      variant: slug,
+    },
+    supplier: { name: supplier[0], tax_id: supplier[1] },
+    customer: { name: customer[0], tax_id: customer[1] },
+    table_columns: layout.columns,
+    totals,
+    lines,
+    informational_lines: [
+      {
+        text: `Variante sintética ${slug.replace(/_/g, " ")}`,
+        reason: "Etiqueta de cobertura, no linea facturable.",
+      },
+    ],
+    product_groups: [],
+    coverage: {
+      adversarialCases: [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        ...layoutCaseLabels,
+      ],
+      fiscalCases: fiscalCaseLabels,
+      productGrouping: "sin grupos",
+    },
+  };
+  writePdf({ ...fixture, index, pdfName }, layout, rows);
+  fs.writeFileSync(path.join(GROUND_TRUTH_DIR, jsonName), `${JSON.stringify(fixture, null, 2)}\n`);
+  return {
+    invoice_id: invoiceId,
+    pdf: `pdf/${pdfName}`,
+    ground_truth: `ground_truth/${jsonName}`,
+    layout_id: layout.id,
+    adversarial_cases: fixture.coverage.adversarialCases,
+    fiscal_cases: fixture.coverage.fiscalCases,
+    total: totals.total,
+  };
+}
+
+function writeReadme() {
+  fs.writeFileSync(
+    path.join(SUITE_ROOT, "README.md"),
+    `# Synthetic Adversarial Invoice Fixtures
+
+This suite contains generated, fully fictitious Spanish invoice PDFs and JSON ground truth files for hardening the deterministic invoice engine.
+
+- No real invoices or real customer data are stored here.
+- Regenerate with \`npm run fixtures:invoices:generate-adversarial\`.
+- Validate structure with \`npm run fixtures:invoices:validate\`.
+- Run the full benchmark with \`npm run benchmark:invoices\`.
+
+The fixtures exercise multipage tables, repeated and missing headers, wrapped descriptions, changed columns, explicit M2/ML/UN charge quantities, line discounts, Spanish tax cases, misleading totals, and product groups with components.
+
+The latest generator also includes synthetic Spanish fiscal variants inspired by public example categories, without copying source invoices or real data.
+
+The expected JSON is generated from the fixture source of truth before the PDF is rendered. Do not edit ground truth to hide parser failures.
+`,
+  );
+}
+
 fs.rmSync(SUITE_ROOT, { recursive: true, force: true });
 fs.mkdirSync(PDF_DIR, { recursive: true });
 fs.mkdirSync(GROUND_TRUTH_DIR, { recursive: true });
+writeReadme();
 
 const files = [];
-for (let index = 0; index < FIXTURE_COUNT; index += 1) {
+for (let index = 0; index < BASE_FIXTURE_COUNT; index += 1) {
   files.push(buildFixture(index));
+}
+for (const [offset, variant] of declarandoInspiredVariants.entries()) {
+  files.push(buildDeclarandoInspiredFixture(variant, offset));
 }
 
 const manifest = {
   created_at: "2026-07-07",
   generator_seed: 20260707,
   count: files.length,
-  description: "Facturas sinteticas adversariales para romper el invoice engine determinista antes que clientes reales.",
+  description: "Facturas sinteticas adversariales para romper el invoice engine determinista antes que clientes reales. Incluye variantes fiscales espanolas inspiradas en ejemplos publicos, sin copiar datos reales.",
   privacy: "No contiene facturas reales ni datos reales.",
   files,
 };

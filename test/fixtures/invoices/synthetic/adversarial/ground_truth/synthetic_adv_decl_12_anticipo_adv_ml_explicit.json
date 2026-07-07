@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_12_anticipo",
+  "document_title": "FACTURA",
+  "layout_id": "adv_ml_explicit",
+  "invoice_number": "DECL-SYN-012",
+  "date": "2026-12-12",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "anticipo"
+  },
+  "supplier": {
+    "name": "Persianas Sinteticas Levante SL",
+    "tax_id": "B10000002"
+  },
+  "customer": {
+    "name": "Autonomo Demo Uno",
+    "tax_id": "12345678Z"
+  },
+  "table_columns": [
+    "SKU",
+    "Producto",
+    "Qty",
+    "Largo",
+    "M2/ML/UN",
+    "Tarifa",
+    "Dto. %",
+    "Neto",
+    "IVA",
+    "Subtotal"
+  ],
+  "totals": {
+    "taxable_base": 493,
+    "vat_total": 103.53,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 596.53,
+    "paid_amount": 596.53,
+    "advance_paid": 596.53,
+    "due_amount": 0,
+    "gross_amount": 493
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-12-SERV",
+      "description": "Servicio ficticio anticipo",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 158,
+      "discountPct": 0,
+      "netUnitPrice": 158,
+      "amount": 316,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-12-MAT",
+      "description": "Material ficticio anticipo",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 59,
+      "discountPct": 0,
+      "netUnitPrice": 59,
+      "amount": 177,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética anticipo",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "anticipo pagado"
+    ],
+    "fiscalCases": [
+      "factura de anticipo",
+      "IVA 21",
+      "anticipos"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

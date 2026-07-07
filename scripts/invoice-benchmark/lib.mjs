@@ -1376,7 +1376,7 @@ function parseTotals(rows) {
       totals.vatAmount = roundMoney((totals.vatAmount ?? 0) + value);
     } else if (/IRPF|Retenci[oó]n/i.test(text)) {
       totals.irpfAmount = -value;
-    } else if (/Recargo/i.test(text)) {
+    } else if (/^Recargo\b/i.test(text.trim())) {
       totals.recargoAmount = roundMoney((totals.recargoAmount ?? 0) + value);
     } else if (/Descuento global/i.test(text)) {
       totals.globalDiscountAmount = Math.abs(value);

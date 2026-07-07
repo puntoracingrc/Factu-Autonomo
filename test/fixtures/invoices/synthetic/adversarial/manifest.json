@@ -1,8 +1,8 @@
 {
   "created_at": "2026-07-07",
   "generator_seed": 20260707,
-  "count": 150,
-  "description": "Facturas sinteticas adversariales para romper el invoice engine determinista antes que clientes reales.",
+  "count": 173,
+  "description": "Facturas sinteticas adversariales para romper el invoice engine determinista antes que clientes reales. Incluye variantes fiscales espanolas inspiradas en ejemplos publicos, sin copiar datos reales.",
   "privacy": "No contiene facturas reales ni datos reales.",
   "files": [
     {
@@ -2943,6 +2943,385 @@
         "IVA 4"
       ],
       "total": 25272.47
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_01_modelo_factura",
+      "pdf": "pdf/synthetic_adv_decl_01_modelo_factura_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_01_modelo_factura_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "estructura básica"
+      ],
+      "fiscal_cases": [
+        "modelo factura",
+        "IVA 21"
+      ],
+      "total": 476.74
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_02_con_iva",
+      "pdf": "pdf/synthetic_adv_decl_02_con_iva_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_02_con_iva_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "desglose IVA"
+      ],
+      "fiscal_cases": [
+        "factura con IVA",
+        "IVA 21"
+      ],
+      "total": 487.63
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_03_exenta_iva",
+      "pdf": "pdf/synthetic_adv_decl_03_exenta_iva_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_03_exenta_iva_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "nota exencion IVA"
+      ],
+      "fiscal_cases": [
+        "factura exenta de IVA",
+        "exenta"
+      ],
+      "total": 412
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_04_con_irpf",
+      "pdf": "pdf/synthetic_adv_decl_04_con_irpf_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_04_con_irpf_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "retencion IRPF"
+      ],
+      "fiscal_cases": [
+        "factura con IRPF",
+        "IRPF"
+      ],
+      "total": 446.26
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_05_iva_irpf",
+      "pdf": "pdf/synthetic_adv_decl_05_iva_irpf_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_05_iva_irpf_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "iva mas retencion"
+      ],
+      "fiscal_cases": [
+        "factura con IVA e IRPF",
+        "IVA 21",
+        "IRPF"
+      ],
+      "total": 455.8
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_06_recargo_equivalencia",
+      "pdf": "pdf/synthetic_adv_decl_06_recargo_equivalencia_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_06_recargo_equivalencia_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "recargo equivalencia"
+      ],
+      "fiscal_cases": [
+        "factura con recargo de equivalencia",
+        "IVA 21",
+        "recargo"
+      ],
+      "total": 554.02
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_07_autonomo_empresa",
+      "pdf": "pdf/synthetic_adv_decl_07_autonomo_empresa_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_07_autonomo_empresa_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "cliente empresa"
+      ],
+      "fiscal_cases": [
+        "factura de autonomo a empresa",
+        "IVA 21",
+        "IRPF"
+      ],
+      "total": 474.88
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_08_particular",
+      "pdf": "pdf/synthetic_adv_decl_08_particular_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_08_particular_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "cliente particular"
+      ],
+      "fiscal_cases": [
+        "factura a particular",
+        "IVA 21"
+      ],
+      "total": 552.97
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_09_simplificada",
+      "pdf": "pdf/synthetic_adv_decl_09_simplificada_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_09_simplificada_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "ticket simplificado"
+      ],
+      "fiscal_cases": [
+        "factura simplificada",
+        "IVA 21"
+      ],
+      "total": 428.34
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_10_inversion_sujeto_pasivo",
+      "pdf": "pdf/synthetic_adv_decl_10_inversion_sujeto_pasivo_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_10_inversion_sujeto_pasivo_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "inversion sujeto pasivo"
+      ],
+      "fiscal_cases": [
+        "factura con inversion del sujeto pasivo",
+        "exenta"
+      ],
+      "total": 475
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_11_proforma",
+      "pdf": "pdf/synthetic_adv_decl_11_proforma_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_11_proforma_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "proforma no fiscal"
+      ],
+      "fiscal_cases": [
+        "factura proforma",
+        "IVA 21"
+      ],
+      "total": 585.64
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_12_anticipo",
+      "pdf": "pdf/synthetic_adv_decl_12_anticipo_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_12_anticipo_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "anticipo pagado"
+      ],
+      "fiscal_cases": [
+        "factura de anticipo",
+        "IVA 21",
+        "anticipos"
+      ],
+      "total": 596.53
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_13_recapitulativa",
+      "pdf": "pdf/synthetic_adv_decl_13_recapitulativa_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_13_recapitulativa_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "varias operaciones"
+      ],
+      "fiscal_cases": [
+        "factura recapitulativa",
+        "IVA 21",
+        "IVA 10"
+      ],
+      "total": 640.2
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_14_abono",
+      "pdf": "pdf/synthetic_adv_decl_14_abono_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_14_abono_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "importe negativo"
+      ],
+      "fiscal_cases": [
+        "factura de abono",
+        "rectificativa"
+      ],
+      "total": -511
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_15_rectificativa",
+      "pdf": "pdf/synthetic_adv_decl_15_rectificativa_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_15_rectificativa_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "rectifica factura previa"
+      ],
+      "fiscal_cases": [
+        "factura rectificativa",
+        "rectificativa"
+      ],
+      "total": -520
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_16_descuento_pronto_pago",
+      "pdf": "pdf/synthetic_adv_decl_16_descuento_pronto_pago_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_16_descuento_pronto_pago_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "descuento pronto pago"
+      ],
+      "fiscal_cases": [
+        "factura con descuento",
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 598.95
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_17_rappel_descuento",
+      "pdf": "pdf/synthetic_adv_decl_17_rappel_descuento_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_17_rappel_descuento_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "rappel comercial"
+      ],
+      "fiscal_cases": [
+        "factura con rappel",
+        "IVA 21",
+        "descuento global"
+      ],
+      "total": 609.11
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_18_suplidos",
+      "pdf": "pdf/synthetic_adv_decl_18_suplidos_adv_ml_explicit.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_18_suplidos_adv_ml_explicit.json",
+      "layout_id": "adv_ml_explicit",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "suplido no sujeto"
+      ],
+      "fiscal_cases": [
+        "factura con suplidos",
+        "IVA 21",
+        "suplidos"
+      ],
+      "total": 696.87
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_19_intracomunitaria",
+      "pdf": "pdf/synthetic_adv_decl_19_intracomunitaria_adv_base_per_line.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_19_intracomunitaria_adv_base_per_line.json",
+      "layout_id": "adv_base_per_line",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "NIF IVA UE"
+      ],
+      "fiscal_cases": [
+        "factura intracomunitaria",
+        "exenta",
+        "intracomunitaria"
+      ],
+      "total": 556
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_20_internacional",
+      "pdf": "pdf/synthetic_adv_decl_20_internacional_adv_amount_before_discount.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_20_internacional_adv_amount_before_discount.json",
+      "layout_id": "adv_amount_before_discount",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "cliente fuera UE"
+      ],
+      "fiscal_cases": [
+        "factura internacional",
+        "exenta",
+        "exportacion"
+      ],
+      "total": 565
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_21_ingles",
+      "pdf": "pdf/synthetic_adv_decl_21_ingles_adv_stil_columns.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_21_ingles_adv_stil_columns.json",
+      "layout_id": "adv_stil_columns",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "labels ingleses"
+      ],
+      "fiscal_cases": [
+        "factura en ingles",
+        "IVA 21"
+      ],
+      "total": 694.54
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_22_emitida_destinatario",
+      "pdf": "pdf/synthetic_adv_decl_22_emitida_destinatario_adv_quantity_first.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_22_emitida_destinatario_adv_quantity_first.json",
+      "layout_id": "adv_quantity_first",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "self billing"
+      ],
+      "fiscal_cases": [
+        "factura emitida por destinatario",
+        "IVA 21"
+      ],
+      "total": 705.43
+    },
+    {
+      "invoice_id": "synthetic_adv_decl_23_electronica",
+      "pdf": "pdf/synthetic_adv_decl_23_electronica_adv_net_before_price.pdf",
+      "ground_truth": "ground_truth/synthetic_adv_decl_23_electronica_adv_net_before_price.json",
+      "layout_id": "adv_net_before_price",
+      "adversarial_cases": [
+        "declarando_spanish_variant",
+        "variantes_fiscales_espanolas",
+        "firma electronica"
+      ],
+      "fiscal_cases": [
+        "factura electronica",
+        "IVA 21",
+        "Facturae"
+      ],
+      "total": 716.32
     }
   ]
 }

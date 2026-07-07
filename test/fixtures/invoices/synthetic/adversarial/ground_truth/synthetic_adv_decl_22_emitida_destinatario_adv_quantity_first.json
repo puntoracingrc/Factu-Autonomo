@@ -1,0 +1,115 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_22_emitida_destinatario",
+  "document_title": "FACTURA",
+  "layout_id": "adv_quantity_first",
+  "invoice_number": "DECL-SYN-022",
+  "date": "2026-10-22",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "emitida_destinatario"
+  },
+  "supplier": {
+    "name": "Persianas Sinteticas Levante SL",
+    "tax_id": "B10000002"
+  },
+  "customer": {
+    "name": "Prueba Instalaciones CB",
+    "tax_id": "E20000003"
+  },
+  "table_columns": [
+    "Ctdad.",
+    "Codigo",
+    "Descripcion",
+    "M2/ML/UN",
+    "Ud",
+    "P. Unit",
+    "Dto",
+    "Neto",
+    "IVA %",
+    "Total"
+  ],
+  "totals": {
+    "taxable_base": 583,
+    "vat_total": 122.43,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 705.43,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 705.43,
+    "gross_amount": 583
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-22-SERV",
+      "description": "Servicio ficticio emitida destinatario",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 188,
+      "discountPct": 0,
+      "netUnitPrice": 188,
+      "amount": 376,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-22-MAT",
+      "description": "Material ficticio emitida destinatario",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 69,
+      "discountPct": 0,
+      "netUnitPrice": 69,
+      "amount": 207,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética emitida destinatario",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "self billing"
+    ],
+    "fiscalCases": [
+      "factura emitida por destinatario",
+      "IVA 21"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

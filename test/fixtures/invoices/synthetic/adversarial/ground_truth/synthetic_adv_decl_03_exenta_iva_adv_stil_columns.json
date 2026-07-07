@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_03_exenta_iva",
+  "document_title": "FACTURA",
+  "layout_id": "adv_stil_columns",
+  "invoice_number": "DECL-SYN-003",
+  "date": "2026-03-03",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "exenta_iva"
+  },
+  "supplier": {
+    "name": "Materiales Ficticios Centro CB",
+    "tax_id": "E10000003"
+  },
+  "customer": {
+    "name": "Consumidor Demo",
+    "tax_id": "87654321X"
+  },
+  "table_columns": [
+    "Articulo",
+    "Descripcion",
+    "Cant.",
+    "Ancho",
+    "Alto",
+    "M2/ML/UN",
+    "Precio",
+    "Dto. %",
+    "Precio Neto",
+    "IVA",
+    "Importe"
+  ],
+  "totals": {
+    "taxable_base": 412,
+    "vat_total": 0,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 412,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 412,
+    "gross_amount": 412
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-03-SERV",
+      "description": "Servicio ficticio exenta iva",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 131,
+      "discountPct": 0,
+      "netUnitPrice": 131,
+      "amount": 262,
+      "vatRate": 0,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-03-MAT",
+      "description": "Material ficticio exenta iva",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 50,
+      "discountPct": 0,
+      "netUnitPrice": 50,
+      "amount": 150,
+      "vatRate": 0,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética exenta iva",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "nota exencion IVA"
+    ],
+    "fiscalCases": [
+      "factura exenta de IVA",
+      "exenta"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

@@ -38,8 +38,9 @@ describe("invoice benchmark helpers", () => {
 
   it("discovers the imported synthetic and private fixtures", () => {
     const fixtures = discoverInvoiceFixtures();
-    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(380);
-    expect(fixtures.filter((fixture) => fixture.suite === "synthetic_adversarial")).toHaveLength(150);
+    expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(403);
+    expect(fixtures.filter((fixture) => fixture.suite === "synthetic_adversarial")).toHaveLength(173);
+    expect(fixtures.filter((fixture) => fixture.invoiceId.startsWith("synthetic_adv_decl_"))).toHaveLength(23);
     expect(fixtures.some((fixture) => fixture.suite === "private_real")).toBe(true);
   });
 

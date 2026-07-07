@@ -1,0 +1,139 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_13_recapitulativa",
+  "document_title": "FACTURA",
+  "layout_id": "adv_base_per_line",
+  "invoice_number": "DECL-SYN-013",
+  "date": "2026-01-13",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "recapitulativa"
+  },
+  "supplier": {
+    "name": "Materiales Ficticios Centro CB",
+    "tax_id": "E10000003"
+  },
+  "customer": {
+    "name": "Cliente Ficticio Dos SL",
+    "tax_id": "B20000002"
+  },
+  "table_columns": [
+    "Codigo",
+    "Concepto",
+    "Cant.",
+    "Unid.",
+    "Cantidad cobro",
+    "Precio",
+    "Dto. %",
+    "Precio Neto",
+    "Base",
+    "Tipo IVA"
+  ],
+  "totals": {
+    "taxable_base": 582,
+    "vat_total": 58.2,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 640.2,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 640.2,
+    "gross_amount": 582
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-13-SERV",
+      "description": "Servicio ficticio recapitulativa",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 161,
+      "discountPct": 0,
+      "netUnitPrice": 161,
+      "amount": 322,
+      "vatRate": 10,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-13-MAT",
+      "description": "Material ficticio recapitulativa",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 3,
+      "sourceQuantity": 3,
+      "chargeQuantity": 3,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 60,
+      "discountPct": 0,
+      "netUnitPrice": 60,
+      "amount": 180,
+      "vatRate": 10,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L3",
+      "articleCode": "DECL-RECAP-10",
+      "description": "Operacion ficticia con IVA reducido",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 1,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 80,
+      "discountPct": 0,
+      "netUnitPrice": 80,
+      "amount": 80,
+      "vatRate": 10,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética recapitulativa",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "varias operaciones"
+    ],
+    "fiscalCases": [
+      "factura recapitulativa",
+      "IVA 21",
+      "IVA 10"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}

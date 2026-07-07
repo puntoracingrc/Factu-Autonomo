@@ -1,0 +1,116 @@
+{
+  "engine_contract_version": 1,
+  "invoice_id": "synthetic_adv_decl_09_simplificada",
+  "document_title": "FACTURA",
+  "layout_id": "adv_stil_columns",
+  "invoice_number": "DECL-SYN-009",
+  "date": "2026-09-09",
+  "privacy": "Datos 100% ficticios. Inspirado en variantes fiscales españolas públicas sin copiar facturas reales.",
+  "synthetic_notice": "SINTETICA - SIN VALIDEZ FISCAL - DATOS FICTICIOS",
+  "inspiration": {
+    "source": "Declarando ejemplos de facturas",
+    "copiedRealData": false,
+    "derivedPatternOnly": true,
+    "variant": "simplificada"
+  },
+  "supplier": {
+    "name": "Servicios Demo Sur SL",
+    "tax_id": "B10000004"
+  },
+  "customer": {
+    "name": "Cliente Ficticio Dos SL",
+    "tax_id": "B20000002"
+  },
+  "table_columns": [
+    "Articulo",
+    "Descripcion",
+    "Cant.",
+    "Ancho",
+    "Alto",
+    "M2/ML/UN",
+    "Precio",
+    "Dto. %",
+    "Precio Neto",
+    "IVA",
+    "Importe"
+  ],
+  "totals": {
+    "taxable_base": 354,
+    "vat_total": 74.34,
+    "irpf_amount": 0,
+    "recargo_amount": 0,
+    "global_discount_amount": 0,
+    "total": 428.34,
+    "paid_amount": 0,
+    "advance_paid": 0,
+    "due_amount": 428.34,
+    "gross_amount": 354
+  },
+  "lines": [
+    {
+      "id": "L1",
+      "articleCode": "DECL-09-SERV",
+      "description": "Servicio ficticio simplificada",
+      "lineType": "servicio",
+      "roleInGroup": "service",
+      "quantity": 2,
+      "sourceQuantity": 2,
+      "chargeQuantity": 2,
+      "calculationBasis": "hour",
+      "unit": "horas",
+      "unitPrice": 149,
+      "discountPct": 0,
+      "netUnitPrice": 149,
+      "amount": 298,
+      "vatRate": 21,
+      "expectedFormula": "hours * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Caso sintético español inspirado en variantes públicas, sin copiar datos reales.",
+      "confidence": 0.94,
+      "warnings": []
+    },
+    {
+      "id": "L2",
+      "articleCode": "DECL-09-MAT",
+      "description": "Material ficticio simplificada",
+      "lineType": "material",
+      "roleInGroup": "material",
+      "quantity": 1,
+      "sourceQuantity": 1,
+      "chargeQuantity": 1,
+      "calculationBasis": "unit",
+      "unit": "Ud",
+      "unitPrice": 56,
+      "discountPct": 0,
+      "netUnitPrice": 56,
+      "amount": 56,
+      "vatRate": 21,
+      "expectedFormula": "units * netPrice",
+      "calculationDifference": 0,
+      "tolerance": 0.01,
+      "reason": "Deterministic fixture.",
+      "confidence": 0.94,
+      "warnings": []
+    }
+  ],
+  "informational_lines": [
+    {
+      "text": "Variante sintética simplificada",
+      "reason": "Etiqueta de cobertura, no linea facturable."
+    }
+  ],
+  "product_groups": [],
+  "coverage": {
+    "adversarialCases": [
+      "declarando_spanish_variant",
+      "variantes_fiscales_espanolas",
+      "ticket simplificado"
+    ],
+    "fiscalCases": [
+      "factura simplificada",
+      "IVA 21"
+    ],
+    "productGrouping": "sin grupos"
+  }
+}
