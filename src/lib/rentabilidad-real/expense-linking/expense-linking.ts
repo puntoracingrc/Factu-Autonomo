@@ -1,4 +1,5 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import { isProviderSummaryPendingOriginal } from "@/lib/provider-summary-expenses";
 import type { AppData, Document, Expense } from "@/lib/types";
 import type {
   RentabilidadRealExpenseLinkCandidate,
@@ -74,10 +75,22 @@ function warningsForExpense(
     });
   }
 
+  if (isProviderSummaryPendingOriginal(expense)) {
+    warnings.push({
+      code: "provider_summary_missing_original",
+      message:
+        "Este gasto viene de un resumen de proveedor. Cuenta como gasto, pero falta escanear la factura original.",
+      severity: "warning",
+    });
+  }
+
   return warnings;
 }
 
 function candidateReason(expense: Expense, distanceDays: number | null): string {
+  if (isProviderSummaryPendingOriginal(expense)) {
+    return "Registrado desde resumen de proveedor; falta la factura original.";
+  }
   if (expense.origin === "scan") {
     return "Gasto escaneado por IA pendiente de asignar.";
   }
@@ -95,6 +108,7 @@ function candidateReason(expense: Expense, distanceDays: number | null): string 
 
 function candidateScore(expense: Expense, distanceDays: number | null): number {
   let score = 0;
+  if (isProviderSummaryPendingOriginal(expense)) score += 15;
   if (expense.origin === "scan") score += 30;
   if (expense.purchaseDocument || expense.purchaseLines?.length) score += 20;
   if (distanceDays !== null && distanceDays <= 14) score += 20;

@@ -76,7 +76,7 @@ export function DocumentReadOnlyActions({
           />
         )}
         <DocumentLinkManagerButton doc={doc} />
-        <DocumentPdfShareActions doc={contactDoc} profile={profile} />
+        <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
 
       {missingContact && (

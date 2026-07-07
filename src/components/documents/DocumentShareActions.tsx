@@ -192,7 +192,7 @@ export function DocumentShareActions({
               externalWindow,
             );
             if (!opened) throw new Error("email_open_failed");
-            await downloadDocumentPdf(currentDoc, profile, pdfOptions);
+            await downloadDocumentPdf(current, profile, pdfOptions);
             return;
           }
           await shareDocumentByEmail(currentDoc, profile, pdfOptions, method);
@@ -235,7 +235,7 @@ export function DocumentShareActions({
               externalWindow,
             );
             if (!opened) throw new Error("whatsapp_open_failed");
-            await downloadDocumentPdf(currentDoc, profile, pdfOptions);
+            await downloadDocumentPdf(current, profile, pdfOptions);
             return;
           }
           await shareDocumentByWhatsApp(

@@ -103,6 +103,10 @@ type DocumentStatusFilter =
   | "pending"
   | "rectified";
 
+function customerHref(doc: Document): string | null {
+  return doc.customerId ? `/clientes?cliente=${encodeURIComponent(doc.customerId)}` : null;
+}
+
 const DOCUMENT_STATUS_OPTIONS: Record<
   DocumentType,
   Array<{ value: DocumentStatusFilter; label: string }>
@@ -436,7 +440,16 @@ export function DocumentList({
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-slate-700">{doc.client.name}</p>
+                      {customerHref(doc) ? (
+                        <Link
+                          href={customerHref(doc)!}
+                          className="mt-1 inline-flex max-w-full rounded-md text-slate-700 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                        >
+                          <span className="truncate">{doc.client.name}</span>
+                        </Link>
+                      ) : (
+                        <p className="mt-1 text-slate-700">{doc.client.name}</p>
+                      )}
                       <p className="text-sm text-slate-500">
                         {formatShortDate(doc.date)} · {formatMoney(total)}
                       </p>
@@ -531,7 +544,7 @@ export function DocumentList({
                     )}
                     <DocumentLinkManagerButton doc={doc} />
                     <DocumentPdfShareActions
-                      doc={contactDoc}
+                      doc={doc}
                       profile={data.profile}
                       showPreview={editable}
                     />

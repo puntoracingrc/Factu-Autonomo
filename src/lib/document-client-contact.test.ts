@@ -55,4 +55,32 @@ describe("documentWithCurrentCustomerContact", () => {
     expect(hydrated.client.email).toBe("snapshot@example.com");
     expect(hydrated.client.phone).toBe("+34 600 111 222");
   });
+
+  it("no actualiza nombre, NIF ni dirección fiscal desde la ficha viva", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        client: {
+          ...doc.client,
+          nif: "11111111H",
+          address: "Calle congelada 1",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          name: "Cliente cambiado",
+          firstName: "Cliente",
+          lastName: "Cambiado",
+          nif: "22222222J",
+          address: "Direccion viva cambiada",
+        },
+      ],
+    );
+
+    expect(hydrated.client.name).toBe("Jordi Vinardell");
+    expect(hydrated.client.nif).toBe("11111111H");
+    expect(hydrated.client.address).toBe("Calle congelada 1");
+    expect(hydrated.client.email).toBe("jordi@example.com");
+  });
 });

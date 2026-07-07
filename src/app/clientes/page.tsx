@@ -291,6 +291,16 @@ export default function ClientesPage() {
     router.replace("/clientes", { scroll: false });
   }, [router, searchParams]);
 
+  useEffect(() => {
+    const customerId = searchParams.get("cliente") ?? searchParams.get("id");
+    if (!customerId) return;
+    const customer = data.customers.find((item) => item.id === customerId);
+    if (!customer) return;
+    setListFilterId(customer.id);
+    startEdit(customer);
+    router.replace("/clientes", { scroll: false });
+  }, [data.customers, router, searchParams]);
+
   function closeForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);

@@ -163,4 +163,29 @@ describe("rentabilidad real expense linking", () => {
       "scanned_expense_review",
     );
   });
+
+  it("incluye gastos de resumen de proveedor como candidatos con aviso de original pendiente", () => {
+    const expense = expenseFixture({
+      origin: "import",
+      purchaseDocument: { invoiceNumber: "FD/222386" },
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary_1",
+        importedAt: "2026-07-07T10:00:00.000Z",
+        providerName: "Metalúrgica Arandes SL",
+      },
+    });
+
+    const result = getExpenseLinkCandidatesForWork(
+      appData({ documents: [documentFixture()], expenses: [expense] }),
+      ["doc_1"],
+    );
+
+    expect(result[0].suggestedReason).toBe(
+      "Registrado desde resumen de proveedor; falta la factura original.",
+    );
+    expect(result[0].warnings.map((warning) => warning.code)).toContain(
+      "provider_summary_missing_original",
+    );
+  });
 });
