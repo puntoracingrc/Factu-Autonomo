@@ -11,6 +11,7 @@ export interface InvoiceListProfitabilityInput {
 
 export interface InvoiceListProfitability {
   realProfit: number;
+  profitAfterIrpfReserve: number;
   ivaReserve: number;
   irpfReserve: number;
   taxReserve: number;
@@ -45,6 +46,7 @@ export function calculateInvoiceListProfitability(
 
   return {
     realProfit,
+    profitAfterIrpfReserve: roundMoney(realProfit - irpfReserve),
     ivaReserve,
     irpfReserve,
     taxReserve: roundMoney(ivaReserve + irpfReserve),

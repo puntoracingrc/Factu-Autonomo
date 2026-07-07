@@ -463,13 +463,15 @@ export function DocumentList({
                         <div className="mt-2 grid gap-2 text-xs font-bold sm:max-w-xl sm:grid-cols-2">
                           <span
                             className={`rounded-xl px-3 py-2 ${
-                              invoiceProfitability.realProfit >= 0
+                              invoiceProfitability.profitAfterIrpfReserve >= 0
                                 ? "bg-emerald-50 text-emerald-800"
                                 : "bg-red-50 text-red-700"
                             }`}
                           >
-                            Beneficio Real:{" "}
-                            {formatMoney(invoiceProfitability.realProfit)}
+                            Beneficio tras IRPF:{" "}
+                            {formatMoney(
+                              invoiceProfitability.profitAfterIrpfReserve,
+                            )}
                           </span>
                           <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">
                             Reserva impuestos:{" "}

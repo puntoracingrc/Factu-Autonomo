@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Mail, MessageCircle, X } from "lucide-react";
-import { DocumentPdfDragTray } from "@/components/documents/DocumentPdfDragTray";
 import { Button } from "@/components/ui/Button";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
@@ -16,11 +15,13 @@ import {
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
 import { showFactuToast } from "@/lib/factu/occasional";
+import { downloadDocumentPdf } from "@/lib/pdf";
 import {
   hasClientEmail,
   hasClientPhone,
   openDocumentEmailMessage,
   openWhatsAppDocumentMessage,
+  reserveExternalShareWindow,
   shareDocumentByEmail,
   shareDocumentByWhatsApp,
 } from "@/lib/share";
@@ -35,7 +36,6 @@ import type {
 type ShareChannel = "email" | "whatsapp";
 type ConcreteEmailMethod = Exclude<DocumentEmailSendPreference, "ask">;
 type ConcreteWhatsAppMethod = Exclude<DocumentWhatsAppSendPreference, "ask">;
-type DragTrayState = { target: ShareChannel; doc: Document } | null;
 
 const emailMethodChoices = DOCUMENT_EMAIL_METHOD_OPTIONS.filter(
   (option): option is (typeof DOCUMENT_EMAIL_METHOD_OPTIONS)[number] & {
@@ -71,15 +71,21 @@ function methodLabel(
 
 function postShareHint(channel: ShareChannel, method: string): string | null {
   if (channel === "email" && method === "gmail") {
-    return "Gmail abierto. Arrastra el PDF temporal al borrador antes de enviar.";
+    return "Gmail abierto. PDF descargado: selecciónalo desde Descargas para adjuntarlo.";
   }
   if (channel === "email" && method === "mailto") {
-    return "Correo abierto. Arrastra el PDF temporal al borrador si tu app lo permite.";
+    return "Correo abierto. PDF descargado: selecciónalo desde Descargas para adjuntarlo.";
   }
   if (channel === "whatsapp" && method === "direct") {
-    return "WhatsApp abierto. Arrastra el PDF temporal al chat para adjuntarlo.";
+    return "WhatsApp abierto. PDF descargado: selecciónalo desde Descargas para adjuntarlo.";
   }
   return null;
+}
+
+function externalOpenError(channel: ShareChannel): string {
+  return channel === "email"
+    ? "No se pudo abrir el correo. Revisa si el navegador ha bloqueado la ventana emergente."
+    : "No se pudo abrir WhatsApp. Revisa si el navegador ha bloqueado la ventana emergente.";
 }
 
 export function DocumentShareActions({
@@ -95,7 +101,6 @@ export function DocumentShareActions({
   const [busy, setBusy] = useState<ShareChannel | null>(null);
   const [chooser, setChooser] = useState<ShareChannel | null>(null);
   const [rememberMethod, setRememberMethod] = useState(true);
-  const [dragTray, setDragTray] = useState<DragTrayState>(null);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const contactDoc = useMemo(
     () => documentWithCurrentCustomerContact(doc, data.customers),
@@ -159,10 +164,17 @@ export function DocumentShareActions({
 
   async function runEmail(method: ConcreteEmailMethod) {
     if (!canEmail || busy) return;
-    const useDragTray = method === "gmail" || method === "mailto";
+    const useExternalClient = method === "gmail" || method === "mailto";
+    const externalWindow = useExternalClient
+      ? reserveExternalShareWindow()
+      : null;
+    if (useExternalClient && !externalWindow) {
+      showFactuToast(externalOpenError("email"), 5000);
+      return;
+    }
     setBusy("email");
     try {
-      const result = await shareDocumentWithIntegrity({
+      await shareDocumentWithIntegrity({
         doc,
         issueDocument,
         markDocumentSent,
@@ -172,8 +184,15 @@ export function DocumentShareActions({
             current,
             data.customers,
           );
-          if (useDragTray) {
-            openDocumentEmailMessage(currentDoc, profile, method);
+          if (useExternalClient) {
+            const opened = openDocumentEmailMessage(
+              currentDoc,
+              profile,
+              method,
+              externalWindow,
+            );
+            if (!opened) throw new Error("email_open_failed");
+            await downloadDocumentPdf(currentDoc, profile, pdfOptions);
             return;
           }
           await shareDocumentByEmail(currentDoc, profile, pdfOptions, method);
@@ -181,15 +200,9 @@ export function DocumentShareActions({
       });
       const hint = postShareHint("email", method);
       if (hint) showFactuToast(hint, 5000);
-      if (useDragTray) {
-        setDragTray({
-          target: "email",
-          doc: documentWithCurrentCustomerContact(
-            result.finalDocument,
-            data.customers,
-          ),
-        });
-      }
+    } catch {
+      externalWindow?.close();
+      showFactuToast(externalOpenError("email"), 5000);
     } finally {
       setBusy(null);
     }
@@ -197,10 +210,15 @@ export function DocumentShareActions({
 
   async function runWhatsApp(method: ConcreteWhatsAppMethod) {
     if (!canWhatsApp || busy) return;
-    const useDragTray = method === "direct";
+    const useDirect = method === "direct";
+    const externalWindow = useDirect ? reserveExternalShareWindow() : null;
+    if (useDirect && !externalWindow) {
+      showFactuToast(externalOpenError("whatsapp"), 5000);
+      return;
+    }
     setBusy("whatsapp");
     try {
-      const result = await shareDocumentWithIntegrity({
+      await shareDocumentWithIntegrity({
         doc,
         issueDocument,
         markDocumentSent,
@@ -210,8 +228,14 @@ export function DocumentShareActions({
             current,
             data.customers,
           );
-          if (useDragTray) {
-            openWhatsAppDocumentMessage(currentDoc, profile);
+          if (useDirect) {
+            const opened = openWhatsAppDocumentMessage(
+              currentDoc,
+              profile,
+              externalWindow,
+            );
+            if (!opened) throw new Error("whatsapp_open_failed");
+            await downloadDocumentPdf(currentDoc, profile, pdfOptions);
             return;
           }
           await shareDocumentByWhatsApp(
@@ -224,15 +248,9 @@ export function DocumentShareActions({
       });
       const hint = postShareHint("whatsapp", method);
       if (hint) showFactuToast(hint, 5000);
-      if (useDragTray) {
-        setDragTray({
-          target: "whatsapp",
-          doc: documentWithCurrentCustomerContact(
-            result.finalDocument,
-            data.customers,
-          ),
-        });
-      }
+    } catch {
+      externalWindow?.close();
+      showFactuToast(externalOpenError("whatsapp"), 5000);
     } finally {
       setBusy(null);
     }
@@ -326,16 +344,6 @@ export function DocumentShareActions({
           className={`h-5 w-5 ${busy === "whatsapp" ? "animate-pulse" : ""}`}
         />
       </IconActionButton>
-      {dragTray && (
-        <DocumentPdfDragTray
-          doc={dragTray.doc}
-          profile={profile}
-          target={dragTray.target}
-          pdfOptions={pdfOptions}
-          onClose={() => setDragTray(null)}
-        />
-      )}
-
       {chooser && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
           <div

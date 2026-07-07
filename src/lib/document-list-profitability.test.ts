@@ -13,6 +13,7 @@ describe("calculateInvoiceListProfitability", () => {
       }),
     ).toEqual({
       realProfit: 800,
+      profitAfterIrpfReserve: 640,
       ivaReserve: 168,
       irpfReserve: 160,
       taxReserve: 328,
@@ -30,6 +31,7 @@ describe("calculateInvoiceListProfitability", () => {
       }),
     ).toEqual({
       realProfit: -50,
+      profitAfterIrpfReserve: -50,
       ivaReserve: 0,
       irpfReserve: 0,
       taxReserve: 0,
@@ -48,6 +50,7 @@ describe("calculateInvoiceListProfitability", () => {
       }),
     ).toMatchObject({
       realProfit: 800,
+      profitAfterIrpfReserve: 680,
       ivaReserve: 0,
       irpfReserve: 120,
       taxReserve: 120,
