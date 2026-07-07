@@ -14,6 +14,10 @@ import {
   buildZenodoDocument,
   evaluateZenodoDocument,
 } from "./invoice-real-qa/adapters/zenodo-6371710-adapter.mjs";
+import {
+  buildFormsLayoutDocument,
+  evaluateFormsLayoutDocument,
+} from "./invoice-real-qa/adapters/forms-layout-adapter.mjs";
 import { REPO_ROOT, writeJson } from "./invoice-benchmark/lib.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +29,7 @@ const PRIVATE_QA_ROOT = path.join(REPO_ROOT, "test/fixtures/invoices/private_rea
 const RAW_ROOT = path.join(PRIVATE_QA_ROOT, "raw");
 const RAW_SROIE_ROOT = path.join(RAW_ROOT, "sroie");
 const RAW_ZENODO_ROOT = path.join(RAW_ROOT, "zenodo_6371710");
+const RAW_FORMS_ROOT = path.join(RAW_ROOT, "forms_layout");
 const EXTRACTED_ROOT = path.join(PRIVATE_QA_ROOT, "extracted");
 const REDACTED_ROOT = path.join(PRIVATE_QA_ROOT, "redacted");
 const LATEST_EXTERNAL_RUN = path.join(ARTIFACTS_ROOT, "latest-external-run.json");
@@ -100,26 +105,31 @@ async function importExternalSample(datasetPath = DEFAULT_EXTERNAL_ROOT, limits 
 
   fs.rmSync(RAW_SROIE_ROOT, { recursive: true, force: true });
   fs.rmSync(RAW_ZENODO_ROOT, { recursive: true, force: true });
+  fs.rmSync(RAW_FORMS_ROOT, { recursive: true, force: true });
   fs.mkdirSync(RAW_SROIE_ROOT, { recursive: true });
   fs.mkdirSync(RAW_ZENODO_ROOT, { recursive: true });
+  fs.mkdirSync(RAW_FORMS_ROOT, { recursive: true });
 
   const sroieMax = limits.sroieMax ?? 50;
   const zenodoMax = limits.zenodoMax ?? 50;
+  const formsMax = limits.formsMax ?? 50;
   const sroieImported = importSroieSample(report, sroieMax);
   const zenodoImported = importZenodoSample(report, zenodoMax);
+  const formsImported = importFormsLayoutSample(report, formsMax);
 
   const output = {
     importedAt: new Date().toISOString(),
     sroieImported,
     zenodoImported,
+    formsImported,
     externalDataInGit: trackedExternalDocuments().length,
   };
   fs.writeFileSync(
     path.join(INSPECTION_ROOT, "import-summary.md"),
-    `# External Import Summary\n\n- SROIE importados: ${sroieImported}\n- Zenodo 6371710 importados: ${zenodoImported}\n- Documentos externos trackeados por git: ${output.externalDataInGit}\n`,
+    `# External Import Summary\n\n- SROIE importados: ${sroieImported}\n- Zenodo 6371710 importados: ${zenodoImported}\n- Forms layout importados: ${formsImported}\n- Documentos externos trackeados por git: ${output.externalDataInGit}\n`,
   );
   writeJson(path.join(INSPECTION_ROOT, "import-summary.json"), output);
-  console.log(`Importacion temporal: SROIE ${sroieImported}; Zenodo ${zenodoImported}.`);
+  console.log(`Importacion temporal: SROIE ${sroieImported}; Zenodo ${zenodoImported}; Forms ${formsImported}.`);
 }
 
 async function runExternalHoldout() {
@@ -130,7 +140,8 @@ async function runExternalHoldout() {
   const salt = crypto.randomBytes(32).toString("hex");
   const sroieResults = runSroieImported(salt);
   const zenodoResults = runZenodoImported(salt);
-  const results = [...sroieResults, ...zenodoResults];
+  const formsResults = runFormsLayoutImported(salt);
+  const results = [...sroieResults, ...zenodoResults, ...formsResults];
 
   fs.writeFileSync(path.join(outputDir, "external-summary.md"), renderExternalSummary(results, runId));
   fs.writeFileSync(path.join(outputDir, "sroie-summary.md"), renderSroieSummary(sroieResults));
@@ -138,6 +149,7 @@ async function runExternalHoldout() {
     path.join(outputDir, "zenodo-6371710-summary.md"),
     renderZenodoSummary(zenodoResults),
   );
+  fs.writeFileSync(path.join(outputDir, "forms-layout-summary.md"), renderFormsLayoutSummary(formsResults));
   fs.writeFileSync(path.join(outputDir, "failures-redacted.md"), renderFailures(results));
   fs.writeFileSync(path.join(outputDir, "confidence.csv"), renderConfidenceCsv(results));
   writeJson(path.join(outputDir, "rule-candidates.json"), buildRuleCandidates(results));
@@ -151,7 +163,7 @@ async function runExternalHoldout() {
 }
 
 function purgeExternalHoldout() {
-  for (const dir of [RAW_SROIE_ROOT, RAW_ZENODO_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
+  for (const dir of [RAW_SROIE_ROOT, RAW_ZENODO_ROOT, RAW_FORMS_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -168,7 +180,7 @@ function purgeExternalHoldout() {
 function proveExternalPurge() {
   ensureBaseDirs();
   const findings = [];
-  for (const dir of [RAW_SROIE_ROOT, RAW_ZENODO_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
+  for (const dir of [RAW_SROIE_ROOT, RAW_ZENODO_ROOT, RAW_FORMS_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
     for (const filePath of safeWalk(dir).files) {
       findings.push({ type: "external_temp_residue", filePath: repoRelative(filePath) });
     }
@@ -209,10 +221,11 @@ function inspectDataset(datasetPath) {
     topDirectories: [],
     knownFolders: {},
     sampleFileNames: [],
-    imageAnnotationPairs: { byBasename: 0, sroieLike: 0, zenodoLike: 0 },
+    imageAnnotationPairs: { byBasename: 0, sroieLike: 0, zenodoLike: 0, formsLayoutLike: 0 },
     metadataSignals: {
       sroieCompanyAddressDateTotal: false,
       zenodoSellerTaxDateTotalTaxReference: false,
+      formsQuestionAnswerLayout: false,
     },
     detectedDatasets: [],
     classification: "unknown",
@@ -279,6 +292,15 @@ function importZenodoSample(report, max) {
   return imported;
 }
 
+function importFormsLayoutSample(report, max) {
+  const candidates = findFormsLayoutCandidates(report.files).slice(0, max);
+  let imported = 0;
+  for (const candidate of candidates) {
+    imported += copyFormsLayoutCandidate(candidate, imported + 1);
+  }
+  return imported;
+}
+
 function runSroieImported(salt) {
   const images = safeWalk(RAW_SROIE_ROOT).files.filter((file) =>
     IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase()),
@@ -315,6 +337,19 @@ function runZenodoImported(salt) {
   });
 }
 
+function runFormsLayoutImported(salt) {
+  const images = safeWalk(RAW_FORMS_ROOT).files.filter((file) =>
+    IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase()),
+  );
+  return images.map((imagePath) => {
+    const base = basenameWithoutRealExtension(imagePath);
+    const annotationPath = path.join(RAW_FORMS_ROOT, `${base}.external.json`);
+    return evaluateFormsLayoutDocument(
+      buildFormsLayoutDocument({ imagePath, annotationPath, salt }),
+    );
+  });
+}
+
 function findSroieCandidates(files) {
   const images = files.filter((file) => IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase()));
   const txtByBase = indexByBase(files.filter((file) => path.extname(file).toLowerCase() === ".txt"));
@@ -326,6 +361,25 @@ function findSroieCandidates(files) {
       bbox: txtByBase.get(baseName(image)),
       metadata: jsonByBase.get(baseName(image)) ?? findNearbyMetadata(image, files),
     }));
+}
+
+function findFormsLayoutCandidates(files) {
+  const images = files.filter(
+    (file) =>
+      IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase()) &&
+      /[/\\](training_data|testing_data)[/\\]images[/\\]/i.test(file),
+  );
+  const annotationsByBase = indexByBase(
+    files.filter(
+      (file) =>
+        path.extname(file).toLowerCase() === ".json" &&
+        /[/\\](training_data|testing_data)[/\\]annotations[/\\]/i.test(file) &&
+        looksLikeFormsAnnotation(file),
+    ),
+  );
+  return images
+    .map((image) => ({ image, annotation: annotationsByBase.get(baseName(image)) }))
+    .filter((candidate) => candidate.annotation);
 }
 
 function findZenodoFolderCandidates(files) {
@@ -452,6 +506,13 @@ function copyZenodoZipCandidate(candidate, index) {
   return 1;
 }
 
+function copyFormsLayoutCandidate(candidate, index) {
+  const base = `forms_${String(index).padStart(3, "0")}`;
+  copyExternalFile(candidate.image, path.join(RAW_FORMS_ROOT, `${base}.real${path.extname(candidate.image).toLowerCase()}`));
+  copyExternalFile(candidate.annotation, path.join(RAW_FORMS_ROOT, `${base}.external.json`));
+  return 1;
+}
+
 function copySroieZipCandidate(candidate, index) {
   const base = `sroie_${String(index).padStart(3, "0")}`;
   fs.writeFileSync(
@@ -518,11 +579,13 @@ ${report.sampleFileNames.map((name) => `- ${redactFileName(name)}`).join("\n") |
 - Por basename: ${report.imageAnnotationPairs.byBasename}
 - SROIE-like: ${report.imageAnnotationPairs.sroieLike}
 - Zenodo-like: ${report.imageAnnotationPairs.zenodoLike}
+- Forms layout-like: ${report.imageAnnotationPairs.formsLayoutLike}
 
 ## Metadata detectada
 
 - SROIE company/address/date/total: ${report.metadataSignals.sroieCompanyAddressDateTotal ? "si" : "no"}
 - Zenodo seller/tax/date/total/tax/reference: ${report.metadataSignals.zenodoSellerTaxDateTotalTaxReference ? "si" : "no"}
+- Forms question/answer/layout: ${report.metadataSignals.formsQuestionAnswerLayout ? "si" : "no"}
 
 ## Subdatasets detectados
 
@@ -562,7 +625,7 @@ ${renderCountBullets(categories) || "- Sin fallos"}
 
 ## Lectura correcta
 
-SROIE/Zenodo no validan IVA espanol avanzado, IRPF, recargo, Facturae, m2/ml, ancho x alto ni grupos tipo STIL. Solo miden robustez documental externa.
+SROIE/Zenodo no validan IVA espanol avanzado, IRPF, recargo, Facturae, m2/ml, ancho x alto ni grupos tipo STIL. Forms layout tampoco valida facturas: solo mide lectura de bloques, coordenadas, etiquetas y relaciones pregunta-respuesta.
 `;
 }
 
@@ -600,6 +663,29 @@ Valor: medio/alto para documentos portugueses cercanos; bajo para normativa espa
 `;
 }
 
+function renderFormsLayoutSummary(results) {
+  const passed = results.filter((result) => result.status === "pass_with_partial_ground_truth").length;
+  const avg = (metric) => {
+    if (!results.length) return "n/a";
+    const total = results.reduce((sum, result) => sum + Number(result.metrics?.[metric] ?? 0), 0);
+    return (total / results.length).toFixed(3);
+  };
+  const totalLinks = results.reduce((sum, result) => sum + Number(result.metrics?.questionAnswerLinks ?? 0), 0);
+  return `# Forms Layout Summary
+
+- Suite: external_forms_layout_holdout
+- Documentos: ${results.length}
+- Modo: image + form JSON annotation
+- pass_with_partial_ground_truth: ${passed}/${results.length || 0}
+- Label coverage medio: ${avg("labelCoverage")}
+- Box coverage medio: ${avg("boxCoverage")}
+- Word coverage medio: ${avg("wordCoverage")}
+- Question-answer links detectados: ${totalLinks}
+
+Valor: alto para estructura visual, coordenadas, orden de lectura y parejas campo-valor; bajo para facturas espanolas, impuestos y lineas de producto.
+`;
+}
+
 function renderFailures(results) {
   const failures = results.filter((result) => result.failureCategories.length || result.needsManualReview);
   if (!failures.length) return "# Failures Redacted\n\nSin fallos.\n";
@@ -616,7 +702,7 @@ ${failures
 
 function renderConfidenceCsv(results) {
   const rows = [
-    "documentId,suite,source,mode,status,aiUsed,needsManualReview,company,date,total,taxAmount,reference,ocr",
+    "documentId,suite,source,mode,status,aiUsed,needsManualReview,company,date,total,taxAmount,reference,ocr,layout,labels,linking",
   ];
   for (const result of results) {
     rows.push([
@@ -633,6 +719,9 @@ function renderConfidenceCsv(results) {
       result.confidence?.taxAmount ?? "",
       result.confidence?.reference ?? "",
       result.confidence?.ocr ?? "",
+      result.confidence?.layout ?? "",
+      result.confidence?.labels ?? "",
+      result.confidence?.linking ?? "",
     ].join(","));
   }
   return `${rows.join("\n")}\n`;
@@ -681,6 +770,15 @@ function candidateRuleFor(category) {
     zenodo_tax_amount_mismatch: "Ampliar IVA/imposto/tax amount.",
     zenodo_reference_mismatch: "Ampliar referencia/numero documento.",
     zenodo_portuguese_label_mapping_failed: "Anadir nuevos sinonimos portugueses como fixture sintetico.",
+    forms_annotation_missing: "Validar pairing imagen/anotacion antes de ejecutar parser.",
+    forms_image_missing: "Validar existencia de imagen antes de evaluar estructura.",
+    forms_json_parse_failed: "Crear fixture sintetico de JSON de formulario corrupto.",
+    forms_no_form_entries: "Detectar JSON sin bloques utiles y derivar caso sintetico.",
+    forms_low_label_coverage: "Reforzar clasificador question/answer/header/other con fixture sintetico.",
+    forms_low_box_coverage: "Reforzar validacion de coordenadas y cajas degeneradas.",
+    forms_no_answer_fields: "Mantener como revision manual: hay estructura, pero no hay valores answer para entrenar campo-valor.",
+    forms_no_question_answer_links: "Crear reglas para relacionar campo y valor por proximidad cuando no venga linking.",
+    forms_words_missing: "Preparar fallback de OCR real cuando no haya palabras anotadas.",
   };
   return rules[category] ?? "Revisar patron y crear fixture sintetico derivado sin datos reales.";
 }
@@ -718,6 +816,8 @@ function detectKnownFolders(directories) {
     "images",
     "labels",
     "annotations",
+    "training_data",
+    "testing_data",
     "1_Images",
     "2_Annotations_Json",
   ];
@@ -738,7 +838,8 @@ function detectPairs(files) {
   const byBasename = images.filter((image) => txtByBase.has(baseName(image)) || jsonByBase.has(baseName(image))).length;
   const sroieLike = images.filter((image) => isSroiePath(image) && txtByBase.has(baseName(image))).length;
   const zenodoLike = images.filter((image) => /1_Images/i.test(image) && jsonByBase.has(baseName(image))).length;
-  return { byBasename, sroieLike, zenodoLike };
+  const formsLayoutLike = findFormsLayoutCandidates(files).length;
+  return { byBasename, sroieLike, zenodoLike, formsLayoutLike };
 }
 
 function detectMetadataSignals(files) {
@@ -747,6 +848,7 @@ function detectMetadataSignals(files) {
     .slice(0, 100);
   let sroie = false;
   let zenodo = false;
+  let formsLayout = false;
   for (const file of jsonSample) {
     const text = safeReadSmall(file);
     const normalized = normalizeLoose(text);
@@ -759,10 +861,14 @@ function detectMetadataSignals(files) {
     ) {
       zenodo = true;
     }
+    if (normalized.includes("\"form\"") && normalized.includes("\"question\"") && normalized.includes("\"answer\"") && normalized.includes("\"box\"")) {
+      formsLayout = true;
+    }
   }
   return {
     sroieCompanyAddressDateTotal: sroie,
     zenodoSellerTaxDateTotalTaxReference: zenodo,
+    formsQuestionAnswerLayout: formsLayout,
   };
 }
 
@@ -785,6 +891,12 @@ function classifyDatasets(report) {
   }
   if (report.metadataSignals.zenodoSellerTaxDateTotalTaxReference) {
     detected.add("zenodo_huggingface_variant");
+  }
+  if (
+    report.metadataSignals.formsQuestionAnswerLayout ||
+    (report.knownFolders.training_data && report.knownFolders.testing_data && report.imageAnnotationPairs.formsLayoutLike > 0)
+  ) {
+    detected.add("forms_layout_dataset");
   }
   if (detected.size > 1) detected.add("mixed_downloads");
   if (!detected.size) detected.add("unknown");
@@ -853,6 +965,16 @@ function copyExternalFile(source, target) {
   fs.copyFileSync(source, target);
 }
 
+function looksLikeFormsAnnotation(file) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!Array.isArray(raw.form)) return false;
+    return raw.form.some((entry) => ["question", "answer", "header", "other"].includes(String(entry?.label ?? "").toLowerCase()));
+  } catch {
+    return false;
+  }
+}
+
 function findNearbyMetadata(image, files) {
   const base = baseName(image);
   const candidates = files.filter((file) => path.extname(file).toLowerCase() === ".json" && baseName(file) === base);
@@ -905,7 +1027,7 @@ function firstExisting(paths) {
 }
 
 function ensureBaseDirs() {
-  for (const dir of [ARTIFACTS_ROOT, INSPECTION_ROOT, RAW_SROIE_ROOT, RAW_ZENODO_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
+  for (const dir of [ARTIFACTS_ROOT, INSPECTION_ROOT, RAW_SROIE_ROOT, RAW_ZENODO_ROOT, RAW_FORMS_ROOT, EXTRACTED_ROOT, REDACTED_ROOT]) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
@@ -960,6 +1082,7 @@ function parseLimits(args) {
   return {
     sroieMax: numberArg(args, "--sroie-max", 50),
     zenodoMax: numberArg(args, "--zenodo-max", 50),
+    formsMax: numberArg(args, "--forms-max", 50),
   };
 }
 
