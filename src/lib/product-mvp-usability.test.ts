@@ -1068,6 +1068,10 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("Ver estructura");
     expect(productsPageSource).toContain("Familias y subfamilias");
     expect(productsPageSource).toContain("applyFamilyStructureFilter");
+    expect(productsPageSource).toContain("deleteFamilyFromStructure");
+    expect(productsPageSource).toContain("deleteSubfamilyFromStructure");
+    expect(productsPageSource).toContain("No se borrará ningún producto.");
+    expect(productsPageSource).toContain("pasarán a Sin familia");
     expect(productsPageSource).toContain("supplierStructureOpen");
     expect(productsPageSource).toContain("applySupplierStructureFilter");
     expect(productsPageSource).toContain("Dentro de la familia");
