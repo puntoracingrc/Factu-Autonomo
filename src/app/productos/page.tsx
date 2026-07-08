@@ -66,12 +66,22 @@ type ProductSort =
 
 const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
   { value: "newest", label: "Última compra" },
-  { value: "mostPurchases", label: "Más comprados" },
-  { value: "leastPurchases", label: "Menos comprados" },
+  { value: "mostPurchases", label: "Más cantidad comprada" },
+  { value: "leastPurchases", label: "Menos cantidad comprada" },
   { value: "amountDesc", label: "Mayor importe" },
   { value: "amountAsc", label: "Menor importe" },
   { value: "name", label: "Nombre" },
 ];
+
+function productQuantityUnit(product: PurchaseProductSummary): string {
+  const rawUnit = product.purchaseUnit ?? product.unit ?? product.saleUnit ?? "";
+  return unitShortLabel(normalizeDocumentUnitId(rawUnit) ?? rawUnit);
+}
+
+function productQuantityLabel(product: PurchaseProductSummary): string {
+  const unit = productQuantityUnit(product);
+  return `${product.totalQuantity.toLocaleString("es-ES")} ${unit}`.trim();
+}
 
 function parseOptionalNumber(value: string): number | undefined {
   const normalized = value.replace(",", ".").trim();
@@ -170,13 +180,13 @@ export default function ProductosPage() {
     return [...filtered].sort((a, b) => {
       switch (sort) {
         case "mostPurchases":
-          return b.purchaseCount - a.purchaseCount || b.totalBase - a.totalBase;
+          return b.totalQuantity - a.totalQuantity || b.totalBase - a.totalBase;
         case "leastPurchases":
-          return a.purchaseCount - b.purchaseCount || a.totalBase - b.totalBase;
+          return a.totalQuantity - b.totalQuantity || a.totalBase - b.totalBase;
         case "amountDesc":
-          return b.totalBase - a.totalBase || b.purchaseCount - a.purchaseCount;
+          return b.totalBase - a.totalBase || b.totalQuantity - a.totalQuantity;
         case "amountAsc":
-          return a.totalBase - b.totalBase || a.purchaseCount - b.purchaseCount;
+          return a.totalBase - b.totalBase || a.totalQuantity - b.totalQuantity;
         case "name":
           return a.name.localeCompare(b.name, "es");
         case "newest":
@@ -206,7 +216,7 @@ export default function ProductosPage() {
       products: PurchaseProductSummary[];
     }> = [];
     for (const product of visibleProducts) {
-      const key = String(product.purchaseCount);
+      const key = `${product.totalQuantity}:${productQuantityUnit(product).toLowerCase()}`;
       const current = groups[groups.length - 1];
       if (current?.key === key) {
         current.products.push(product);
@@ -214,9 +224,7 @@ export default function ProductosPage() {
       }
       groups.push({
         key,
-        title: `${product.purchaseCount.toLocaleString("es-ES")} ${
-          product.purchaseCount === 1 ? "compra" : "compras"
-        }`,
+        title: productQuantityLabel(product),
         products: [product],
       });
     }
@@ -1038,12 +1046,7 @@ function ProductCard({
     ? formatMoney(product.saleUnitPrice)
     : "Sin PVP";
   const supplierLabel = product.usualSupplier?.supplierName ?? "Sin proveedor";
-  const volumeUnit = unitShortLabel(
-    normalizeDocumentUnitId(product.unit) ?? product.unit ?? "",
-  );
-  const volumeLabel = `${product.totalQuantity.toLocaleString("es-ES")} ${
-    volumeUnit ?? ""
-  }`.trim();
+  const volumeLabel = productQuantityLabel(product);
 
   const resetPanelForm = useCallback(() => {
     setSku(product.sku ?? "");
