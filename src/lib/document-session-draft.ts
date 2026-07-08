@@ -40,8 +40,10 @@ function hasMeaningfulLine(form: DocumentSessionFormStateDraft): boolean {
 function hasMeaningfulAreaDraft(form: DocumentSessionFormStateDraft): boolean {
   return Object.values(form.lineAreaDrafts).some(
     (draft) =>
-      (Number.isFinite(draft.width) && draft.width > 0) ||
-      (Number.isFinite(draft.height) && draft.height > 0),
+      (Number.isFinite(draft.width) && (draft.width ?? 0) > 0) ||
+      (Number.isFinite(draft.height) && (draft.height ?? 0) > 0) ||
+      (Number.isFinite(draft.length) && (draft.length ?? 0) > 0) ||
+      (Number.isFinite(draft.pieces) && (draft.pieces ?? 0) > 1),
   );
 }
 

@@ -1,4 +1,5 @@
 import type { Document, DocumentType, LineItem } from "./types";
+import type { LineMeasurementDraft } from "./area-calculation";
 import { normalizeDocumentUnitId } from "./document-units";
 import type { PurchaseProductSummary } from "./purchase-products";
 import {
@@ -41,10 +42,7 @@ export interface DocumentProductLinePricingDraft {
   costIvaPercent?: number;
 }
 
-export interface DocumentProductAreaDraft {
-  width: number;
-  height: number;
-}
+export type DocumentProductAreaDraft = LineMeasurementDraft;
 
 export interface DocumentProductFormStateDraft {
   clientForm: Record<string, string>;
