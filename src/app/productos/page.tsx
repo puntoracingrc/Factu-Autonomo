@@ -123,6 +123,7 @@ export default function ProductosPage() {
   const { checkCanAddProduct } = useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
+  const [subfamily, setSubfamily] = useState(ALL);
   const [supplier, setSupplier] = useState(ALL);
   const [sort, setSort] = useState<ProductSort>("newest");
   const [visibleCount, setVisibleCount] = useState(30);
@@ -131,7 +132,13 @@ export default function ProductosPage() {
   const [familyRenameOpen, setFamilyRenameOpen] = useState(false);
   const [familyRenameFrom, setFamilyRenameFrom] = useState("");
   const [familyRenameTo, setFamilyRenameTo] = useState("");
+  const [subfamilyFormOpen, setSubfamilyFormOpen] = useState(false);
+  const [subfamilyDraft, setSubfamilyDraft] = useState("");
+  const [subfamilyRenameOpen, setSubfamilyRenameOpen] = useState(false);
+  const [subfamilyRenameFrom, setSubfamilyRenameFrom] = useState("");
+  const [subfamilyRenameTo, setSubfamilyRenameTo] = useState("");
   const [bulkFamilyDraft, setBulkFamilyDraft] = useState("");
+  const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
@@ -153,6 +160,21 @@ export default function ProductosPage() {
           ]
             .map((familyName) => familyName.trim())
             .filter(Boolean),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [data.products, products],
+  );
+
+  const subfamilies = useMemo(
+    () =>
+      [
+        ...new Set(
+          [
+            ...products.map((product) => product.subfamily),
+            ...data.products.map((product) => product.subfamily),
+          ]
+            .map((subfamilyName) => subfamilyName?.trim())
+            .filter((value): value is string => Boolean(value)),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
     [data.products, products],
@@ -181,6 +203,7 @@ export default function ProductosPage() {
           product.saleDescription,
           product.purchaseDescription,
           product.family,
+          product.subfamily,
           product.usualSupplier?.supplierName,
           product.suppliers.map((entry) => entry.supplierName).join(" "),
         ]
@@ -189,10 +212,12 @@ export default function ProductosPage() {
           .toLowerCase()
           .includes(normalizedQuery);
       const matchesFamily = family === ALL || product.family === family;
+      const matchesSubfamily =
+        subfamily === ALL || product.subfamily === subfamily;
       const matchesSupplier =
         supplier === ALL || product.usualSupplier?.supplierName === supplier;
 
-      return matchesQuery && matchesFamily && matchesSupplier;
+      return matchesQuery && matchesFamily && matchesSubfamily && matchesSupplier;
     });
 
     return [...filtered].sort((a, b) => {
@@ -215,16 +240,17 @@ export default function ProductosPage() {
           return b.lastPurchaseDate.localeCompare(a.lastPurchaseDate);
       }
     });
-  }, [family, products, query, sort, supplier]);
+  }, [family, products, query, sort, subfamily, supplier]);
 
   const totals = useMemo(
     () => ({
       products: products.length,
       families: families.length,
+      subfamilies: subfamilies.length,
       suppliers: suppliers.length,
       totalBase: products.reduce((sum, product) => sum + product.totalBase, 0),
     }),
-    [families.length, products, suppliers.length],
+    [families.length, products, subfamilies.length, suppliers.length],
   );
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const visibleProductGroups = useMemo(() => {
@@ -263,7 +289,7 @@ export default function ProductosPage() {
 
   useEffect(() => {
     setVisibleCount(30);
-  }, [family, query, sort, supplier]);
+  }, [family, query, sort, subfamily, supplier]);
 
   useEffect(() => {
     setDocumentPickRequest(getDocumentProductPickRequest());
@@ -285,6 +311,7 @@ export default function ProductosPage() {
     if (!searchTerm) return;
     setQuery(searchTerm);
     setFamily(ALL);
+    setSubfamily(ALL);
     setSupplier(ALL);
     setSort("name");
   }, [documentPickRequest, products]);
@@ -309,6 +336,7 @@ export default function ProductosPage() {
   function clearSelectedProducts() {
     setSelectedProductKeys([]);
     setBulkFamilyDraft("");
+    setBulkSubfamilyDraft("");
   }
 
   function openDocumentFromSelected(
@@ -389,6 +417,7 @@ export default function ProductosPage() {
       externalId: product.externalId,
       name: product.name,
       family: product.family,
+      subfamily: product.subfamily,
       unit: product.saleUnit ?? product.unit,
       supplierId: product.usualSupplier?.supplierId,
       supplierName: product.usualSupplier?.supplierName,
@@ -485,6 +514,30 @@ export default function ProductosPage() {
     });
   }
 
+  function saveProductSubfamily(
+    product: PurchaseProductSummary,
+    targetSubfamily: string,
+  ): Product | null {
+    const normalizedSubfamily = targetSubfamily.trim() || undefined;
+    const existing = catalogProductForSummary(product);
+    if (existing) {
+      const updated = {
+        ...existing,
+        subfamily: normalizedSubfamily,
+        source: "manual" as const,
+        hidden: false,
+      };
+      updateProduct(updated);
+      return updated;
+    }
+    if (!canAddCatalogProduct()) return null;
+    return addProduct({
+      ...productFromSummary(product),
+      subfamily: normalizedSubfamily,
+      source: "manual",
+    });
+  }
+
   function assignSelectedFamily() {
     const targetFamily = bulkFamilyDraft.trim();
     if (!targetFamily) {
@@ -505,6 +558,29 @@ export default function ProductosPage() {
     setBulkFamilyDraft("");
     setFamilyNotice(
       `${savedCount} producto(s) movido(s) a "${targetFamily}". La próxima lectura del mismo producto recordará esta familia.`,
+    );
+  }
+
+  function assignSelectedSubfamily() {
+    const targetSubfamily = bulkSubfamilyDraft.trim();
+    if (!targetSubfamily) {
+      setFamilyNotice("Elige o escribe la subfamilia de destino.");
+      return;
+    }
+    if (selectedProducts.length === 0) return;
+
+    let savedCount = 0;
+    for (const product of selectedProducts) {
+      if (saveProductSubfamily(product, targetSubfamily)) savedCount += 1;
+    }
+    if (savedCount === 0) return;
+
+    setSubfamily(targetSubfamily);
+    setSupplier(ALL);
+    setSelectedProductKeys([]);
+    setBulkSubfamilyDraft("");
+    setFamilyNotice(
+      `${savedCount} producto(s) movido(s) a la subfamilia "${targetSubfamily}". La próxima lectura del mismo producto recordará esta subfamilia.`,
     );
   }
 
@@ -550,6 +626,51 @@ export default function ProductosPage() {
     setFamilyRenameOpen(false);
     setFamilyNotice(
       `Familia "${sourceFamily}" renombrada a "${targetFamily}" en ${savedCount} producto(s).`,
+    );
+  }
+
+  function renameSubfamily() {
+    const sourceSubfamily = subfamilyRenameFrom.trim();
+    const targetSubfamily = subfamilyRenameTo.trim();
+    if (!sourceSubfamily) {
+      setFamilyNotice("Elige la subfamilia que quieres renombrar.");
+      return;
+    }
+    if (!targetSubfamily) {
+      setFamilyNotice("Escribe el nuevo nombre de la subfamilia.");
+      return;
+    }
+    if (sourceSubfamily === targetSubfamily) {
+      setSubfamilyRenameOpen(false);
+      setFamilyNotice("La subfamilia ya tenía ese nombre.");
+      return;
+    }
+
+    const affectedProducts = products.filter(
+      (product) => product.subfamily === sourceSubfamily,
+    );
+    let savedCount = 0;
+    for (const product of affectedProducts) {
+      if (saveProductSubfamily(product, targetSubfamily)) savedCount += 1;
+    }
+
+    for (const product of data.products) {
+      if (product.subfamily !== sourceSubfamily || !product.hidden) continue;
+      updateProduct({
+        ...product,
+        subfamily: targetSubfamily,
+        name: product.name.startsWith("Subfamilia:")
+          ? `Subfamilia: ${targetSubfamily}`
+          : product.name,
+      });
+    }
+
+    if (subfamily === sourceSubfamily) setSubfamily(targetSubfamily);
+    setSubfamilyRenameFrom("");
+    setSubfamilyRenameTo("");
+    setSubfamilyRenameOpen(false);
+    setFamilyNotice(
+      `Subfamilia "${sourceSubfamily}" renombrada a "${targetSubfamily}" en ${savedCount} producto(s).`,
     );
   }
 
@@ -611,6 +732,7 @@ export default function ProductosPage() {
     });
     setQuery("");
     setFamily(ALL);
+    setSubfamily(ALL);
     setSupplier(ALL);
     setSort("newest");
     setVisibleCount((current) => Math.max(current, 30));
@@ -683,6 +805,43 @@ export default function ProductosPage() {
     setFamilyNotice(`Familia "${name}" creada. Ya puedes usarla en productos.`);
   }
 
+  function createSubfamily() {
+    const name = subfamilyDraft.trim();
+    if (!name) {
+      setFamilyNotice("Escribe el nombre de la subfamilia.");
+      return;
+    }
+    const existing = subfamilies.find(
+      (item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
+    );
+    if (existing) {
+      setSubfamilyDraft("");
+      setSubfamily(existing);
+      setSubfamilyFormOpen(false);
+      setFamilyNotice(`La subfamilia "${existing}" ya existía.`);
+      return;
+    }
+
+    const familyScope = family !== ALL ? family : "Sin familia";
+    addProduct({
+      key: `__subfamily__-${purchaseProductKey(`${familyScope} ${name}`)}`,
+      aliases: [],
+      name: `Subfamilia: ${name}`,
+      family: familyScope,
+      subfamily: name,
+      unit: "ud",
+      hidden: true,
+      source: "manual",
+      notes: "Marcador interno para recordar una subfamilia creada a mano.",
+    });
+    setSubfamilyDraft("");
+    setSubfamily(name);
+    setSubfamilyFormOpen(false);
+    setFamilyNotice(
+      `Subfamilia "${name}" creada. Ya puedes usarla en productos.`,
+    );
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -695,6 +854,8 @@ export default function ProductosPage() {
               onClick={() => {
                 setFamilyFormOpen((current) => !current);
                 setFamilyRenameOpen(false);
+                setSubfamilyFormOpen(false);
+                setSubfamilyRenameOpen(false);
                 setFamilyNotice(null);
               }}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -707,12 +868,42 @@ export default function ProductosPage() {
               onClick={() => {
                 setFamilyRenameOpen((current) => !current);
                 setFamilyFormOpen(false);
+                setSubfamilyFormOpen(false);
+                setSubfamilyRenameOpen(false);
                 setFamilyNotice(null);
               }}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
               <Edit3 className="h-5 w-5" />
               Renombrar familia
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubfamilyFormOpen((current) => !current);
+                setFamilyFormOpen(false);
+                setFamilyRenameOpen(false);
+                setSubfamilyRenameOpen(false);
+                setFamilyNotice(null);
+              }}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Tag className="h-5 w-5" />
+              Nueva subfamilia
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubfamilyRenameOpen((current) => !current);
+                setFamilyFormOpen(false);
+                setFamilyRenameOpen(false);
+                setSubfamilyFormOpen(false);
+                setFamilyNotice(null);
+              }}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Edit3 className="h-5 w-5" />
+              Renombrar subfamilia
             </button>
             <Link
               href="/productos/nuevo"
@@ -836,6 +1027,111 @@ export default function ProductosPage() {
         </Card>
       ) : null}
 
+      {subfamilyFormOpen ? (
+        <Card className="border-blue-100 bg-blue-50/70">
+          <form
+            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createSubfamily();
+            }}
+          >
+            <label className="space-y-1.5">
+              <span className="text-sm font-black text-slate-800">
+                Nombre de la subfamilia
+              </span>
+              <input
+                value={subfamilyDraft}
+                onChange={(event) => {
+                  setSubfamilyDraft(event.target.value);
+                  setFamilyNotice(null);
+                }}
+                placeholder="Ej: Ejes, motores, lamas..."
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Crear subfamilia
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubfamilyFormOpen(false);
+                setSubfamilyDraft("");
+                setFamilyNotice(null);
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Cancelar
+            </button>
+          </form>
+          <p className="mt-3 text-sm font-semibold text-blue-900">
+            Se guarda como una capa dentro de tus familias para ordenar mejor el
+            catálogo.
+          </p>
+        </Card>
+      ) : null}
+
+      {subfamilyRenameOpen ? (
+        <Card className="border-blue-100 bg-blue-50/70">
+          <form
+            className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              renameSubfamily();
+            }}
+          >
+            <FilterSelect
+              label="Subfamilia actual"
+              value={subfamilyRenameFrom || ALL}
+              onChange={(value) => {
+                const nextValue = value === ALL ? "" : value;
+                setSubfamilyRenameFrom(nextValue);
+                setSubfamilyRenameTo(nextValue);
+                setFamilyNotice(null);
+              }}
+              options={subfamilies}
+              allLabel="Elige subfamilia"
+            />
+            <label className="space-y-1.5">
+              <span className="text-sm font-black text-slate-800">
+                Nuevo nombre
+              </span>
+              <input
+                value={subfamilyRenameTo}
+                onChange={(event) => {
+                  setSubfamilyRenameTo(event.target.value);
+                  setFamilyNotice(null);
+                }}
+                placeholder="Ej: Accesorios de persiana"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Guardar nombre
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubfamilyRenameOpen(false);
+                setSubfamilyRenameFrom("");
+                setSubfamilyRenameTo("");
+                setFamilyNotice(null);
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Cancelar
+            </button>
+          </form>
+        </Card>
+      ) : null}
+
       {products.length === 0 ? (
         <Card className="space-y-4">
           <div className="flex items-start gap-3">
@@ -857,6 +1153,7 @@ export default function ProductosPage() {
               type="button"
               onClick={() => {
                 setFamilyFormOpen(true);
+                setSubfamilyFormOpen(false);
                 setFamilyNotice(null);
               }}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-base font-bold text-blue-700 transition-colors hover:bg-blue-50 sm:w-auto"
@@ -905,7 +1202,7 @@ export default function ProductosPage() {
           ) : null}
 
           <Card className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <SummaryTile
                 label="Productos"
                 value={totals.products.toString()}
@@ -914,6 +1211,11 @@ export default function ProductosPage() {
               <SummaryTile
                 label="Familias"
                 value={totals.families.toString()}
+                icon={Tag}
+              />
+              <SummaryTile
+                label="Subfamilias"
+                value={totals.subfamilies.toString()}
                 icon={Tag}
               />
               <SummaryTile
@@ -927,7 +1229,7 @@ export default function ProductosPage() {
                 icon={Euro}
               />
             </div>
-            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
               <label className="space-y-1.5">
                 <span className="text-sm font-bold text-slate-700">Buscar</span>
                 <span className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
@@ -945,6 +1247,13 @@ export default function ProductosPage() {
                 value={family}
                 onChange={setFamily}
                 options={families}
+                allLabel="Todas"
+              />
+              <FilterSelect
+                label="Subfamilia"
+                value={subfamily}
+                onChange={setSubfamily}
+                options={subfamilies}
                 allLabel="Todas"
               />
               <FilterSelect
@@ -1034,6 +1343,31 @@ export default function ProductosPage() {
                     producto. No cambia la factura de proveedor original.
                   </p>
                 </div>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] xl:col-span-2">
+                  <ProductFamilySelect
+                    label="Mover a subfamilia"
+                    value={bulkSubfamilyDraft}
+                    onChange={(value) => {
+                      setBulkSubfamilyDraft(value);
+                      setFamilyNotice(null);
+                    }}
+                    options={subfamilies}
+                    emptyLabel="Sin subfamilia"
+                    customLabel="Otra subfamilia..."
+                    customPlaceholder="Escribe la subfamilia"
+                  />
+                  <button
+                    type="button"
+                    onClick={assignSelectedSubfamily}
+                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
+                  >
+                    Aplicar subfamilia
+                  </button>
+                  <p className="text-xs font-semibold text-blue-900 sm:col-span-2">
+                    La subfamilia ayuda a separar un nivel más: por ejemplo,
+                    motores, ejes, guías o lamas dentro de una familia.
+                  </p>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-4 xl:col-span-2">
                   <button
                     type="button"
@@ -1091,6 +1425,7 @@ export default function ProductosPage() {
                       product={product}
                       allProducts={products}
                       familyOptions={families}
+                      subfamilyOptions={subfamilies}
                       selected={selectedProductKeys.includes(product.key)}
                       pickMode={Boolean(documentPickRequest)}
                       editMode={
@@ -1196,6 +1531,7 @@ function ProductCard({
   product,
   allProducts,
   familyOptions,
+  subfamilyOptions,
   selected,
   pickMode,
   editMode,
@@ -1213,6 +1549,7 @@ function ProductCard({
   product: PurchaseProductSummary;
   allProducts: PurchaseProductSummary[];
   familyOptions: string[];
+  subfamilyOptions: string[];
   selected: boolean;
   pickMode: boolean;
   editMode: boolean;
@@ -1231,6 +1568,9 @@ function ProductCard({
   const [sku, setSku] = useState(product.sku ?? "");
   const [name, setName] = useState(product.name);
   const [family, setFamily] = useState(product.family);
+  const [productSubfamily, setProductSubfamily] = useState(
+    product.subfamily ?? "",
+  );
   const [saleDescription, setSaleDescription] = useState(
     product.saleDescription ?? "",
   );
@@ -1291,6 +1631,7 @@ function ProductCard({
       productDisplayName(item),
       item.name,
       item.family,
+      item.subfamily,
       item.usualSupplier?.supplierName,
     ]
       .filter(Boolean)
@@ -1317,6 +1658,7 @@ function ProductCard({
     setSku(product.sku ?? "");
     setName(product.name);
     setFamily(product.family);
+    setProductSubfamily(product.subfamily ?? "");
     setSaleDescription(product.saleDescription ?? "");
     setSaleUnit(product.saleUnit ?? product.unit ?? "");
     setSalePrice(numberToInput(product.saleUnitPrice));
@@ -1389,6 +1731,7 @@ function ProductCard({
       sku: sku.trim() || undefined,
       name: name.trim() || product.name,
       family: family.trim() || "Sin familia",
+      subfamily: productSubfamily.trim() || undefined,
       unit: normalizedSaleUnit,
       pvp: parsedPurchaseListPrice,
       cost: parsedPurchaseCost,
@@ -1463,6 +1806,11 @@ function ProductCard({
                 <span className="max-w-full truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-blue-700 lg:max-w-44">
                   {product.family}
                 </span>
+                {product.subfamily ? (
+                  <span className="max-w-full truncate rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-indigo-700 lg:max-w-44">
+                    {product.subfamily}
+                  </span>
+                ) : null}
                 {product.sku ? (
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
                     {product.sku}
@@ -1600,6 +1948,11 @@ function ProductCard({
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
               {product.family}
             </span>
+            {product.subfamily ? (
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-indigo-700">
+                {product.subfamily}
+              </span>
+            ) : null}
             {product.sku ? (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                 {product.sku}
@@ -1625,12 +1978,21 @@ function ProductCard({
                 onChange={setName}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)]">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)]">
               <ProductFamilySelect
                 label="Familia"
                 value={family}
                 onChange={setFamily}
                 options={familyOptions}
+              />
+              <ProductFamilySelect
+                label="Subfamilia"
+                value={productSubfamily}
+                onChange={setProductSubfamily}
+                options={subfamilyOptions}
+                emptyLabel="Sin subfamilia"
+                customLabel="Otra subfamilia..."
+                customPlaceholder="Escribe la subfamilia"
               />
               <label className="space-y-1.5">
                 <span className="text-xs font-black uppercase tracking-wide text-slate-600">
@@ -1950,11 +2312,17 @@ function ProductFamilySelect({
   value,
   onChange,
   options,
+  emptyLabel = "Sin familia",
+  customLabel = "Otra familia...",
+  customPlaceholder = "Escribe la familia",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: string[];
+  emptyLabel?: string;
+  customLabel?: string;
+  customPlaceholder?: string;
 }) {
   const [customMode, setCustomMode] = useState(false);
   const normalizedOptions = useMemo(
@@ -1989,22 +2357,22 @@ function ProductFamilySelect({
           }}
           className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         >
-          <option value="">Sin familia</option>
+          <option value="">{emptyLabel}</option>
           {normalizedOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
           ))}
-          <option value={CUSTOM_FAMILY}>Otra familia...</option>
+          <option value={CUSTOM_FAMILY}>{customLabel}</option>
         </select>
       </label>
       {isCustom ? (
         <label className="block">
-          <span className="sr-only">Nueva familia</span>
+          <span className="sr-only">{customLabel}</span>
           <input
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Escribe la familia"
+            placeholder={customPlaceholder}
             className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </label>

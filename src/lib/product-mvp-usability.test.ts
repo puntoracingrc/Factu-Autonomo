@@ -1032,6 +1032,35 @@ describe("MVP usability polish", () => {
     );
   });
 
+  it("permite organizar productos con subfamilias aprendidas", () => {
+    const productsPageSource = readFileSync(
+      new URL("../app/productos/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const newProductPageSource = readFileSync(
+      new URL("../app/productos/nuevo/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const purchaseProductsSource = readFileSync(
+      new URL("./purchase-products.ts", import.meta.url),
+      "utf8",
+    );
+    const typesSource = readFileSync(new URL("./types.ts", import.meta.url), "utf8");
+
+    expect(typesSource).toContain("subfamily?: string");
+    expect(purchaseProductsSource).toContain("subfamily: catalogProduct?.subfamily");
+    expect(purchaseProductsSource).toContain("subfamily: product.subfamily");
+    expect(productsPageSource).toContain("Nueva subfamilia");
+    expect(productsPageSource).toContain("Renombrar subfamilia");
+    expect(productsPageSource).toContain("saveProductSubfamily");
+    expect(productsPageSource).toContain("bulkSubfamilyDraft");
+    expect(productsPageSource).toContain('label="Subfamilia"');
+    expect(newProductPageSource).toContain("new-product-subfamily-options");
+    expect(newProductPageSource).toContain(
+      "subfamily: form.subfamily.trim() || undefined",
+    );
+  });
+
   it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
     const importPageSource = readFileSync(
       new URL("../app/importar/page.tsx", import.meta.url),

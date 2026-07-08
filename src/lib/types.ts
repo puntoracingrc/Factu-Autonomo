@@ -416,6 +416,7 @@ export interface Product {
   aliases?: string[];
   name: string;
   family: string;
+  subfamily?: string;
   sku?: string;
   externalId?: string;
   unit?: string;

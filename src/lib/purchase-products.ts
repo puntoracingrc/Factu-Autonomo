@@ -26,6 +26,7 @@ export interface PurchaseProductSummary {
   aliases: string[];
   name: string;
   family: string;
+  subfamily?: string;
   source: Product["source"];
   sku?: string;
   externalId?: string;
@@ -67,6 +68,7 @@ interface ProductAccumulator {
   aliases: string[];
   name: string;
   family: string;
+  subfamily?: string;
   source: Product["source"];
   sku?: string;
   externalId?: string;
@@ -172,6 +174,7 @@ function normalizeOptionalPositive(value: unknown): number | undefined {
 export function normalizeProductCatalogItem(product: Product): Product {
   const productName = (product.name ?? "").trim();
   const productFamily = (product.family ?? "").trim();
+  const productSubfamily = cleanOptionalText(product.subfamily);
   const key = purchaseProductKey(product.key || productName);
   const now = new Date().toISOString();
   const legacyUnit = cleanOptionalUnit(product.unit);
@@ -246,6 +249,7 @@ export function normalizeProductCatalogItem(product: Product): Product {
     ],
     name: productName || product.key || "Producto",
     family: productFamily || inferPurchaseProductFamily(productName),
+    subfamily: productSubfamily,
     sku: cleanOptionalText(product.sku),
     externalId: cleanOptionalText(product.externalId),
     unit: salesUnit ?? purchaseUnit,
@@ -417,6 +421,7 @@ function emptyAccumulatorFromProduct(product: Product): ProductAccumulator {
     aliases: product.aliases ?? [],
     name: product.name,
     family: product.family,
+    subfamily: product.subfamily,
     source: product.source,
     sku: product.sku,
     externalId: product.externalId,
@@ -512,6 +517,7 @@ export function buildPurchaseProductSummaries(
         family:
           catalogProduct?.family ||
           inferPurchaseProductFamily(line.description),
+        subfamily: catalogProduct?.subfamily,
         source: catalogProduct?.source ?? "detected",
         sku: catalogProduct?.sku,
         externalId: catalogProduct?.externalId,
@@ -615,6 +621,7 @@ export function buildPurchaseProductSummaries(
         aliases: item.aliases,
         name: item.name,
         family: item.family,
+        subfamily: item.subfamily,
         source: item.source,
         sku: item.sku,
         externalId: item.externalId,
