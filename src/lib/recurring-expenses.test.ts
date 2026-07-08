@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyRecurringExpenseChangeToData,
   collectNextRecurringOccurrencePreviews,
   collectRecurringOccurrencePreviews,
   expenseFromRecurring,
@@ -8,6 +9,7 @@ import {
   recurringExpenseTotals,
   resolveDueDate,
   syncRecurringExpenses,
+  type RecurringExpenseDraft,
 } from "./recurring-expenses";
 import { EMPTY_DATA } from "./types";
 import type { RecurringExpense } from "./types";
@@ -30,6 +32,29 @@ function template(
     createdAt: "2026-01-01",
     updatedAt: "2026-01-01",
     ...partial,
+  };
+}
+
+function draft(
+  item: RecurringExpense,
+  overrides: Partial<RecurringExpenseDraft> = {},
+): RecurringExpenseDraft {
+  return {
+    supplierName: item.supplierName,
+    description: item.description,
+    amount: item.amount,
+    ivaPercent: item.ivaPercent,
+    deductibility: item.deductibility,
+    category: item.category,
+    paymentMethod: item.paymentMethod,
+    frequency: item.frequency,
+    dueTiming: item.dueTiming,
+    dueMonth: item.dueMonth,
+    duration: item.duration,
+    startDate: item.startDate,
+    enabled: item.enabled,
+    notes: item.notes,
+    ...overrides,
   };
 }
 
@@ -233,5 +258,107 @@ describe("syncRecurringExpenses", () => {
     expect(expense.ivaPercent).toBe(0);
     expect(expense.deductibility).toBe("non_deductible");
     expect(expense.amount).toBe(120);
+  });
+});
+
+describe("applyRecurringExpenseChangeToData", () => {
+  it("crea un tramo nuevo desde la fecha elegida sin tocar meses anteriores", () => {
+    const recurring = template({
+      id: "autonomo",
+      frequency: "monthly",
+      amount: 300,
+      startDate: "2026-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-06-30",
+    );
+
+    const updated = applyRecurringExpenseChangeToData(
+      synced,
+      "autonomo",
+      draft(recurring, { amount: 350, startDate: "2026-05-01" }),
+      "2026-05-01",
+      {
+        now: "2026-07-08T10:00:00.000Z",
+        newId: () => "autonomo-v2",
+        referenceDate: "2026-06-30",
+      },
+    );
+
+    expect(updated.recurringExpenses).toHaveLength(2);
+    expect(updated.recurringExpenses[0]?.duration).toEqual({
+      kind: "until_date",
+      endDate: "2026-04-30",
+    });
+    expect(updated.recurringExpenses[1]).toMatchObject({
+      id: "autonomo-v2",
+      amount: 350,
+      startDate: "2026-05-01",
+    });
+    expect(updated.expenses).toHaveLength(6);
+
+    const byDate = new Map(
+      updated.expenses.map((expense) => [expense.date, expense]),
+    );
+    expect(byDate.get("2026-04-30")).toMatchObject({
+      amount: 300,
+      recurringExpenseId: "autonomo",
+    });
+    expect(byDate.get("2026-05-31")).toMatchObject({
+      amount: 350,
+      recurringExpenseId: "autonomo-v2",
+      recurringOccurrenceKey: "autonomo-v2:2026-05-31",
+    });
+    expect(byDate.get("2026-06-30")).toMatchObject({
+      amount: 350,
+      recurringExpenseId: "autonomo-v2",
+      recurringOccurrenceKey: "autonomo-v2:2026-06-30",
+    });
+    expect(new Set(updated.expenses.map((expense) => expense.date)).size).toBe(
+      updated.expenses.length,
+    );
+  });
+
+  it("si la fecha es el inicio, corrige la serie existente sin duplicarla", () => {
+    const recurring = template({
+      id: "mutua",
+      frequency: "monthly",
+      amount: 64.46,
+      ivaPercent: 21,
+      startDate: "2026-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-03-31",
+    );
+
+    const updated = applyRecurringExpenseChangeToData(
+      synced,
+      "mutua",
+      draft(recurring, { amount: 70 }),
+      "2026-01-01",
+      {
+        now: "2026-07-08T10:00:00.000Z",
+        newId: () => "mutua-v2",
+        referenceDate: "2026-03-31",
+      },
+    );
+
+    expect(updated.recurringExpenses).toHaveLength(1);
+    expect(updated.recurringExpenses[0]).toMatchObject({
+      id: "mutua",
+      amount: 70,
+      startDate: "2026-01-01",
+    });
+    expect(updated.expenses).toHaveLength(3);
+    expect(updated.expenses.every((expense) => expense.amount === 70)).toBe(
+      true,
+    );
+    expect(
+      updated.expenses.every(
+        (expense) => expense.recurringExpenseId === "mutua",
+      ),
+    ).toBe(true);
   });
 });
