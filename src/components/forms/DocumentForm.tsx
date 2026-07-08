@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  Calculator,
   CircleHelp,
   Edit3,
   Eye,
@@ -56,6 +57,7 @@ import {
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { QuickCalculator } from "@/components/documents/QuickCalculator";
 import {
   defaultPhraseForType,
   normalizeDocumentPhrases,
@@ -504,6 +506,7 @@ export function DocumentForm({
   const [openMarginInfoLineId, setOpenMarginInfoLineId] = useState<
     string | null
   >(null);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
@@ -1310,6 +1313,8 @@ export function DocumentForm({
       }
     }
 
+    setCalculatorOpen(false);
+
     let saved: Document;
     if (existing) {
       saved = {
@@ -1495,8 +1500,18 @@ export function DocumentForm({
 
       <Card>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
+            <button
+              type="button"
+              onClick={() => setCalculatorOpen(true)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              aria-label="Abrir calculadora rápida"
+              title="Calculadora rápida"
+            >
+              <Calculator className="h-4 w-4" />
+              Calculadora
+            </button>
           </div>
           {!vatExempt && (
             <div className="w-full sm:w-56">
@@ -1512,6 +1527,9 @@ export function DocumentForm({
             </div>
           )}
         </div>
+        {calculatorOpen && (
+          <QuickCalculator onClose={() => setCalculatorOpen(false)} />
+        )}
         <div className="space-y-3">
           <div className="space-y-3 lg:space-y-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
             <div
