@@ -55,6 +55,7 @@ import {
 import type { Product } from "@/lib/types";
 
 const ALL = "__all__";
+const CUSTOM_FAMILY = "__custom_family__";
 type ProductSort =
   | "newest"
   | "mostPurchases"
@@ -607,12 +608,6 @@ export default function ProductosPage() {
             </div>
           </Card>
 
-          <datalist id="product-family-options">
-            {families.map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
-
           <p className="text-sm font-semibold text-slate-500">
             {filteredProducts.length} de {products.length} producto(s)
           </p>
@@ -860,6 +855,17 @@ function ProductCard({
   const mergeOptions = allProducts
     .filter((item) => item.key !== product.key)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const familyOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          allProducts
+            .map((item) => item.family.trim())
+            .filter((item) => item.length > 0),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [allProducts],
+  );
   const filteredMergeOptions = mergeOptions.filter((item) => {
     const term = mergeSearch.trim().toLowerCase();
     if (!term) return true;
@@ -1175,15 +1181,17 @@ function ProductCard({
               </span>
             ) : null}
           </div>
-          <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
-            <div className="grid gap-3 lg:grid-cols-[0.5fr_1.4fr_1fr_0.7fr]">
+          <EditorSection title="Datos básicos">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
               <EditInput label="Código" value={sku} onChange={setSku} />
               <EditInput label="Producto" value={name} onChange={setName} />
-              <EditInput
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)]">
+              <ProductFamilySelect
                 label="Familia"
                 value={family}
                 onChange={setFamily}
-                list="product-family-options"
+                options={familyOptions}
               />
               <label className="space-y-1.5">
                 <span className="text-xs font-black uppercase tracking-wide text-slate-600">
@@ -1210,13 +1218,16 @@ function ProductCard({
                 ) : null}
               </label>
             </div>
+          </EditorSection>
 
-            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.45fr_0.6fr_0.45fr]">
+          <EditorSection title="Venta">
+            <div className="grid gap-3 sm:grid-cols-2">
               <EditInput
                 label="Venta: descripción"
                 value={saleDescription}
                 onChange={setSaleDescription}
                 placeholder={product.name}
+                className="sm:col-span-2"
               />
               <ProductUnitSelect
                 label="Unidad venta"
@@ -1236,12 +1247,15 @@ function ProductCard({
                 inputMode="decimal"
               />
             </div>
+          </EditorSection>
 
-            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.45fr_0.6fr_0.45fr_0.6fr]">
+          <EditorSection title="Compra">
+            <div className="grid gap-3 sm:grid-cols-2">
               <EditInput
                 label="Compra: descripción"
                 value={purchaseDescription}
                 onChange={setPurchaseDescription}
+                className="sm:col-span-2"
               />
               <EditInput
                 label="Ref. proveedor"
@@ -1272,7 +1286,9 @@ function ProductCard({
                 inputMode="decimal"
               />
             </div>
+          </EditorSection>
 
+          <EditorSection title="Aprendizaje del producto">
             <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">
                 Atributos
@@ -1326,19 +1342,20 @@ function ProductCard({
               />
             </label>
 
-            <button
-              type="button"
-              onClick={saveEdits}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
-            >
-              <Save className="h-4 w-4" />
-              {pickMode ? "Guardar y volver" : "Guardar y cerrar"}
-            </button>
-            <p className="text-sm font-semibold text-blue-900">
-              Estos datos se recordarán para futuros escaneos del mismo
-              producto.
-            </p>
-          </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={saveEdits}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
+              >
+                <Save className="h-4 w-4" />
+                {pickMode ? "Guardar y volver" : "Guardar y cerrar"}
+              </button>
+              <p className="text-sm font-semibold text-blue-900">
+                Se recordará para próximos escaneos.
+              </p>
+            </div>
+          </EditorSection>
 
           {product.attributes && product.attributes.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -1471,14 +1488,99 @@ function ProductCard({
   );
 }
 
-function ProductUnitSelect({
+function EditorSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+      <h3 className="text-sm font-black text-slate-950">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function ProductFamilySelect({
   label,
   value,
   onChange,
+  options,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  options: string[];
+}) {
+  const [customMode, setCustomMode] = useState(false);
+  const normalizedOptions = useMemo(
+    () =>
+      [...new Set(options.map((option) => option.trim()).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b, "es"),
+      ),
+    [options],
+  );
+  const trimmedValue = value.trim();
+  const matchesOption = normalizedOptions.includes(trimmedValue);
+  const isCustom = customMode || (!!trimmedValue && !matchesOption);
+  const selectValue = isCustom ? CUSTOM_FAMILY : trimmedValue;
+
+  return (
+    <div className="space-y-2">
+      <label className="space-y-1.5">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+          {label}
+        </span>
+        <select
+          value={selectValue}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            if (nextValue === CUSTOM_FAMILY) {
+              setCustomMode(true);
+              onChange("");
+              return;
+            }
+            setCustomMode(false);
+            onChange(nextValue);
+          }}
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        >
+          <option value="">Sin familia</option>
+          {normalizedOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value={CUSTOM_FAMILY}>Otra familia...</option>
+        </select>
+      </label>
+      {isCustom ? (
+        <label className="block">
+          <span className="sr-only">Nueva familia</span>
+          <input
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Escribe la familia"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
+function ProductUnitSelect({
+  label,
+  value,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
 }) {
   const trimmedValue = value.trim();
   const currentUnitId = normalizeDocumentUnitId(trimmedValue) ?? trimmedValue;
@@ -1498,7 +1600,7 @@ function ProductUnitSelect({
       : DOCUMENT_UNIT_CATALOG;
 
   return (
-    <label className="space-y-1.5">
+    <label className={`space-y-1.5 ${className}`.trim()}>
       <span className="text-xs font-black uppercase tracking-wide text-slate-600">
         {label}
       </span>
@@ -1528,17 +1630,17 @@ function EditInput({
   onChange,
   placeholder,
   inputMode,
-  list,
+  className = "",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   inputMode?: "decimal";
-  list?: string;
+  className?: string;
 }) {
   return (
-    <label className="space-y-1.5">
+    <label className={`space-y-1.5 ${className}`.trim()}>
       <span className="text-xs font-black uppercase tracking-wide text-slate-600">
         {label}
       </span>
@@ -1547,7 +1649,6 @@ function EditInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
-        list={list}
         className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
     </label>
