@@ -90,6 +90,15 @@ describe("product expenses/providers polish wiring", () => {
     );
   });
 
+  it("muestra los numeros de facturas pendientes de original", () => {
+    const listPage = source("../app/gastos/page.tsx");
+
+    expect(listPage).toContain("pendingOriginalInvoiceNumbers");
+    expect(listPage).toContain("pendingOriginalInvoicePreview");
+    expect(listPage).toContain("Faltan:");
+    expect(listPage).toContain("purchaseDocument?.invoiceNumber?.trim()");
+  });
+
   it("el listado de gastos conserva proveedor, categoria, pago y total", () => {
     const listPage = source("../app/gastos/page.tsx");
 
