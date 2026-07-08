@@ -148,6 +148,8 @@ export default function ProductosPage() {
   const [subfamilyRenameTo, setSubfamilyRenameTo] = useState("");
   const [bulkFamilyDraft, setBulkFamilyDraft] = useState("");
   const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
+  const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
+  const [supplierStructureOpen, setSupplierStructureOpen] = useState(false);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
@@ -233,6 +235,62 @@ export default function ProductosPage() {
     [family, subfamilyEntries],
   );
 
+  const familyStructure = useMemo(() => {
+    const byFamily = new Map<
+      string,
+      {
+        family: string;
+        directCount: number;
+        totalCount: number;
+        subfamilies: Map<string, number>;
+      }
+    >();
+    const ensureFamily = (familyName: string) => {
+      const normalizedFamily = familyName.trim() || "Sin familia";
+      const existing = byFamily.get(normalizedFamily);
+      if (existing) return existing;
+      const created = {
+        family: normalizedFamily,
+        directCount: 0,
+        totalCount: 0,
+        subfamilies: new Map<string, number>(),
+      };
+      byFamily.set(normalizedFamily, created);
+      return created;
+    };
+
+    for (const familyName of families) {
+      ensureFamily(familyName);
+    }
+    for (const entry of subfamilyEntries) {
+      ensureFamily(entry.family).subfamilies.set(entry.name, 0);
+    }
+    for (const product of products) {
+      const entry = ensureFamily(product.family);
+      const productSubfamily = product.subfamily?.trim();
+      entry.totalCount += 1;
+      if (!productSubfamily) {
+        entry.directCount += 1;
+        continue;
+      }
+      entry.subfamilies.set(
+        productSubfamily,
+        (entry.subfamilies.get(productSubfamily) ?? 0) + 1,
+      );
+    }
+
+    return [...byFamily.values()]
+      .map((entry) => ({
+        family: entry.family,
+        directCount: entry.directCount,
+        totalCount: entry.totalCount,
+        subfamilies: [...entry.subfamilies.entries()]
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => a.name.localeCompare(b.name, "es")),
+      }))
+      .sort((a, b) => a.family.localeCompare(b.family, "es"));
+  }, [families, products, subfamilyEntries]);
+
   const suppliers = useMemo(
     () =>
       [
@@ -243,6 +301,29 @@ export default function ProductosPage() {
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
     [products],
+  );
+
+  const supplierStructure = useMemo(
+    () =>
+      suppliers
+        .map((supplierName) => {
+          const supplierProducts = products.filter(
+            (product) => product.usualSupplier?.supplierName === supplierName,
+          );
+          return {
+            name: supplierName,
+            count: supplierProducts.length,
+            totalBase: supplierProducts.reduce(
+              (sum, product) => sum + product.totalBase,
+              0,
+            ),
+          };
+        })
+        .sort(
+          (a, b) =>
+            b.totalBase - a.totalBase || a.name.localeCompare(b.name, "es"),
+        ),
+    [products, suppliers],
   );
 
   const filteredProducts = useMemo(() => {
@@ -948,6 +1029,23 @@ export default function ProductosPage() {
     );
   }
 
+  function applyFamilyStructureFilter(
+    targetFamily: string,
+    targetSubfamily: string,
+  ) {
+    setQuery("");
+    setFamily(targetFamily);
+    setSubfamily(targetSubfamily);
+    setSupplier(ALL);
+  }
+
+  function applySupplierStructureFilter(targetSupplier: string) {
+    setQuery("");
+    setFamily(ALL);
+    setSubfamily(ALL);
+    setSupplier(targetSupplier);
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -958,7 +1056,9 @@ export default function ProductosPage() {
             <button
               type="button"
               onClick={() => {
-                setFamilyFormOpen((current) => !current);
+                setFamilyStructureOpen((current) => !current);
+                setSupplierStructureOpen(false);
+                setFamilyFormOpen(false);
                 setFamilyRenameOpen(false);
                 setSubfamilyFormOpen(false);
                 setSubfamilyRenameOpen(false);
@@ -966,51 +1066,77 @@ export default function ProductosPage() {
               }}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
-              <Tag className="h-5 w-5" />
-              Nueva familia
+              <Boxes className="h-5 w-5" />
+              {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFamilyRenameOpen((current) => !current);
-                setFamilyFormOpen(false);
-                setSubfamilyFormOpen(false);
-                setSubfamilyRenameOpen(false);
-                setFamilyNotice(null);
-              }}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              <Edit3 className="h-5 w-5" />
-              Renombrar familia
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSubfamilyFormOpen((current) => !current);
-                setFamilyFormOpen(false);
-                setFamilyRenameOpen(false);
-                setSubfamilyRenameOpen(false);
-                setFamilyNotice(null);
-              }}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              <Tag className="h-5 w-5" />
-              Nueva subfamilia
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSubfamilyRenameOpen((current) => !current);
-                setFamilyFormOpen(false);
-                setFamilyRenameOpen(false);
-                setSubfamilyFormOpen(false);
-                setFamilyNotice(null);
-              }}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              <Edit3 className="h-5 w-5" />
-              Renombrar subfamilia
-            </button>
+            <details className="relative">
+              <summary className="inline-flex min-h-12 cursor-pointer list-none items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+                <Tag className="h-5 w-5" />
+                Nuevo
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFamilyFormOpen((current) => !current);
+                    setFamilyRenameOpen(false);
+                    setSubfamilyFormOpen(false);
+                    setSubfamilyRenameOpen(false);
+                    setFamilyNotice(null);
+                  }}
+                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                >
+                  Familia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubfamilyFormOpen((current) => !current);
+                    setFamilyFormOpen(false);
+                    setFamilyRenameOpen(false);
+                    setSubfamilyRenameOpen(false);
+                    setFamilyNotice(null);
+                  }}
+                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                >
+                  Subfamilia
+                </button>
+              </div>
+            </details>
+            <details className="relative">
+              <summary className="inline-flex min-h-12 cursor-pointer list-none items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+                <Edit3 className="h-5 w-5" />
+                Renombrar
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFamilyRenameOpen((current) => !current);
+                    setFamilyFormOpen(false);
+                    setSubfamilyFormOpen(false);
+                    setSubfamilyRenameOpen(false);
+                    setFamilyNotice(null);
+                  }}
+                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                >
+                  Familia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubfamilyRenameOpen((current) => !current);
+                    setFamilyFormOpen(false);
+                    setFamilyRenameOpen(false);
+                    setSubfamilyFormOpen(false);
+                    setFamilyNotice(null);
+                  }}
+                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                >
+                  Subfamilia
+                </button>
+              </div>
+            </details>
             <Link
               href="/productos/nuevo"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -1026,6 +1152,131 @@ export default function ProductosPage() {
         <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
           {familyNotice}
         </div>
+      ) : null}
+
+      {familyStructureOpen ? (
+        <Card className="space-y-4 border-blue-100 bg-white">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">
+                Familias y subfamilias
+              </h2>
+              <p className="text-sm font-semibold text-slate-500">
+                Pulsa una familia o subfamilia para filtrar la lista.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFamily(ALL);
+                setSubfamily(ALL);
+                setQuery("");
+                setSupplier(ALL);
+              }}
+              className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Ver todo
+            </button>
+          </div>
+          <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1 lg:grid-cols-2">
+            {familyStructure.map((entry) => (
+              <section
+                key={entry.family}
+                className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-base font-black text-slate-950">
+                      {entry.family}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {entry.totalCount} producto(s) ·{" "}
+                      {entry.subfamilies.length} subfamilia(s)
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyFamilyStructureFilter(entry.family, NO_SUBFAMILY)
+                      }
+                      className="inline-flex min-h-9 items-center justify-center rounded-2xl border border-blue-200 bg-white px-3 text-xs font-black text-blue-700 transition-colors hover:bg-blue-50"
+                    >
+                      Sin subfamilia · {entry.directCount}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyFamilyStructureFilter(entry.family, ALL)
+                      }
+                      className="inline-flex min-h-9 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition-colors hover:bg-slate-100"
+                    >
+                      Toda la familia
+                    </button>
+                  </div>
+                </div>
+                {entry.subfamilies.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {entry.subfamilies.map((item) => (
+                      <button
+                        key={`${entry.family}-${item.name}`}
+                        type="button"
+                        onClick={() =>
+                          applyFamilyStructureFilter(entry.family, item.name)
+                        }
+                        className="inline-flex min-h-9 items-center justify-center rounded-2xl bg-emerald-50 px-3 text-xs font-black text-emerald-800 transition-colors hover:bg-emerald-100"
+                      >
+                        {item.name} · {item.count}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      {supplierStructureOpen ? (
+        <Card className="space-y-4 border-blue-100 bg-white">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">
+                Proveedores
+              </h2>
+              <p className="text-sm font-semibold text-slate-500">
+                Pulsa un proveedor para ver sus productos.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSupplier(ALL);
+                setQuery("");
+              }}
+              className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Ver todos
+            </button>
+          </div>
+          <div className="grid max-h-[60vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+            {supplierStructure.map((entry) => (
+              <button
+                key={entry.name}
+                type="button"
+                onClick={() => applySupplierStructureFilter(entry.name)}
+                className="flex min-h-24 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-left transition-colors hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <span className="text-base font-black text-slate-950">
+                  {entry.name}
+                </span>
+                <span className="text-sm font-semibold text-slate-500">
+                  {entry.count} producto(s) · {formatMoney(entry.totalBase)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
       ) : null}
 
       {familyFormOpen ? (
@@ -1344,16 +1595,28 @@ export default function ProductosPage() {
                 label="Familias"
                 value={totals.families.toString()}
                 icon={Tag}
+                onClick={() => {
+                  setFamilyStructureOpen(true);
+                  setSupplierStructureOpen(false);
+                }}
               />
               <SummaryTile
                 label="Subfamilias"
                 value={totals.subfamilies.toString()}
                 icon={Tag}
+                onClick={() => {
+                  setFamilyStructureOpen(true);
+                  setSupplierStructureOpen(false);
+                }}
               />
               <SummaryTile
                 label="Proveedores"
                 value={totals.suppliers.toString()}
                 icon={Factory}
+                onClick={() => {
+                  setSupplierStructureOpen(true);
+                  setFamilyStructureOpen(false);
+                }}
               />
               <SummaryTile
                 label="Comprado"
@@ -1619,13 +1882,15 @@ function SummaryTile({
   label,
   value,
   icon: Icon,
+  onClick,
 }: {
   label: string;
   value: string;
   icon: typeof Boxes;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 p-3">
+  const content = (
+    <>
       <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-blue-600">
         <Icon className="h-5 w-5" />
       </div>
@@ -1633,6 +1898,24 @@ function SummaryTile({
         {label}
       </p>
       <p className="mt-1 truncate text-xl font-black text-slate-950">{value}</p>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-2xl bg-slate-50 p-3 text-left transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3">
+      {content}
     </div>
   );
 }
