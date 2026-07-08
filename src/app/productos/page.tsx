@@ -83,6 +83,17 @@ function productQuantityLabel(product: PurchaseProductSummary): string {
   return `${product.totalQuantity.toLocaleString("es-ES")} ${unit}`.trim();
 }
 
+function productDisplayName(product: PurchaseProductSummary): string {
+  return product.saleDescription?.trim() || product.name;
+}
+
+function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
+  return Boolean(
+    product.saleDescription?.trim() &&
+      product.saleDescription.trim() !== product.name.trim(),
+  );
+}
+
 function parseOptionalNumber(value: string): number | undefined {
   const normalized = value.replace(",", ".").trim();
   if (!normalized) return undefined;
@@ -165,7 +176,10 @@ export default function ProductosPage() {
       const matchesQuery =
         !normalizedQuery ||
         [
+          productDisplayName(product),
           product.name,
+          product.saleDescription,
+          product.purchaseDescription,
           product.family,
           product.usualSupplier?.supplierName,
           product.suppliers.map((entry) => entry.supplierName).join(" "),
@@ -192,7 +206,10 @@ export default function ProductosPage() {
         case "amountAsc":
           return a.totalBase - b.totalBase || a.totalQuantity - b.totalQuantity;
         case "name":
-          return a.name.localeCompare(b.name, "es");
+          return productDisplayName(a).localeCompare(
+            productDisplayName(b),
+            "es",
+          );
         case "newest":
         default:
           return b.lastPurchaseDate.localeCompare(a.lastPurchaseDate);
@@ -253,17 +270,20 @@ export default function ProductosPage() {
   }, []);
 
   useEffect(() => {
-    if (
-      documentPickRequest?.mode !== "edit" ||
-      (!documentPickRequest.productId && !documentPickRequest.productKey)
-    ) {
-      return;
-    }
-    const targetProduct = products.find((product) =>
-      productMatchesDocumentPickRequest(product, documentPickRequest),
-    );
-    if (!targetProduct) return;
-    setQuery(targetProduct.name);
+    if (!documentPickRequest) return;
+    const targetProduct =
+      documentPickRequest.mode === "edit" &&
+      (documentPickRequest.productId || documentPickRequest.productKey)
+        ? products.find((product) =>
+            productMatchesDocumentPickRequest(product, documentPickRequest),
+          )
+        : undefined;
+    const searchTerm =
+      (targetProduct ? productDisplayName(targetProduct) : undefined) ??
+      documentPickRequest.prefill?.description?.trim() ??
+      documentPickRequest.prefill?.name?.trim();
+    if (!searchTerm) return;
+    setQuery(searchTerm);
     setFamily(ALL);
     setSupplier(ALL);
     setSort("name");
@@ -1261,11 +1281,18 @@ function ProductCard({
       : product.lastDiscountPercent;
   const mergeOptions = allProducts
     .filter((item) => item.key !== product.key)
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    .sort((a, b) =>
+      productDisplayName(a).localeCompare(productDisplayName(b), "es"),
+    );
   const filteredMergeOptions = mergeOptions.filter((item) => {
     const term = mergeSearch.trim().toLowerCase();
     if (!term) return true;
-    return [item.name, item.family, item.usualSupplier?.supplierName]
+    return [
+      productDisplayName(item),
+      item.name,
+      item.family,
+      item.usualSupplier?.supplierName,
+    ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
@@ -1278,6 +1305,8 @@ function ProductCard({
   const displayUnit = unitShortLabel(
     normalizedDisplayUnit ?? product.saleUnit ?? product.unit ?? "",
   );
+  const displayName = productDisplayName(product);
+  const hasCustomDisplayName = productHasCustomDisplayName(product);
   const salePriceLabel = product.saleUnitPrice
     ? formatMoney(product.saleUnitPrice)
     : "Sin PVP";
@@ -1456,8 +1485,13 @@ function ProductCard({
                 ) : null}
               </div>
               <span className="text-base font-black leading-tight text-slate-950 lg:text-lg">
-                {product.name}
+                {displayName}
               </span>
+              {hasCustomDisplayName ? (
+                <span className="text-xs font-semibold text-slate-500">
+                  Proveedor: {product.name}
+                </span>
+              ) : null}
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <CalendarDays className="h-3.5 w-3.5" />
                 <span>{formatShortDate(product.lastPurchaseDate)}</span>
@@ -1552,8 +1586,12 @@ function ProductCard({
 
       <ResponsiveEntityPanel
         open={panelOpen}
-        title={product.name}
-        subtitle="Detalle, reglas de cálculo y aprendizaje de este producto."
+        title={displayName}
+        subtitle={
+          hasCustomDisplayName
+            ? `Detectado como: ${product.name}`
+            : "Detalle, reglas de cálculo y aprendizaje de este producto."
+        }
         icon={PackageSearch}
         onClose={() => setPanelOpen(false)}
       >
@@ -1581,7 +1619,11 @@ function ProductCard({
           <EditorSection title="Datos básicos">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
               <EditInput label="Código" value={sku} onChange={setSku} />
-              <EditInput label="Producto" value={name} onChange={setName} />
+              <EditInput
+                label="Producto detectado / proveedor"
+                value={name}
+                onChange={setName}
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)]">
               <ProductFamilySelect
@@ -1620,7 +1662,7 @@ function ProductCard({
           <EditorSection title="Venta">
             <div className="grid gap-3 sm:grid-cols-2">
               <EditInput
-                label="Venta: descripción"
+                label="Nombre visible / venta"
                 value={saleDescription}
                 onChange={setSaleDescription}
                 placeholder={product.name}
@@ -1863,7 +1905,10 @@ function ProductCard({
                   <option value="">Elige producto duplicado...</option>
                   {filteredMergeOptions.map((item) => (
                     <option key={item.key} value={item.key}>
-                      {item.name}
+                      {productDisplayName(item)}
+                      {productHasCustomDisplayName(item)
+                        ? ` · ${item.name}`
+                        : ""}
                     </option>
                   ))}
                 </select>
