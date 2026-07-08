@@ -25,6 +25,10 @@ import {
   buildPurchaseProductSummaries,
   purchaseProductKey,
 } from "@/lib/purchase-products";
+import {
+  calculatePurchaseNetUnitCost,
+  purchaseNetUnitCostInputFromFields,
+} from "@/lib/product-costs";
 
 const EMPTY_FORM = {
   sku: "",
@@ -59,6 +63,7 @@ export default function NuevoProductoPage() {
   const { data, addProduct } = useAppStore();
   const { checkCanAddProduct } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [purchaseCostManual, setPurchaseCostManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
@@ -137,14 +142,43 @@ export default function NuevoProductoPage() {
   );
 
   function updateField(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-      ...(field === "family" ? { subfamily: "" } : {}),
-      ...(field === "calculationKind" && value === "area"
-        ? { saleUnit: "m2" }
-        : {}),
-    }));
+    setForm((current) => {
+      const next = {
+        ...current,
+        [field]: value,
+        ...(field === "family" ? { subfamily: "" } : {}),
+        ...(field === "calculationKind" && value === "area"
+          ? { saleUnit: "m2" }
+          : {}),
+      };
+
+      if (field === "purchaseNetUnitCost") {
+        const manual = value.trim().length > 0;
+        setPurchaseCostManual(manual);
+        if (!manual) {
+          next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
+            next.purchaseListPrice,
+            next.purchaseDiscountPercent,
+            parseAmount,
+          );
+        }
+        return next;
+      }
+
+      if (
+        !purchaseCostManual &&
+        (field === "purchaseListPrice" ||
+          field === "purchaseDiscountPercent")
+      ) {
+        next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
+          next.purchaseListPrice,
+          next.purchaseDiscountPercent,
+          parseAmount,
+        );
+      }
+
+      return next;
+    });
     setError(null);
   }
 
@@ -181,9 +215,7 @@ export default function NuevoProductoPage() {
     const purchaseDiscountPercent = parseAmount(form.purchaseDiscountPercent);
     const purchaseNetUnitCost =
       parseAmount(form.purchaseNetUnitCost) ??
-      (purchaseListPrice !== undefined && purchaseDiscountPercent !== undefined
-        ? purchaseListPrice * (1 - purchaseDiscountPercent / 100)
-        : undefined);
+      calculatePurchaseNetUnitCost(purchaseListPrice, purchaseDiscountPercent);
     const calculationKind = form.calculationKind === "area" ? "area" : "none";
     const saleUnit =
       calculationKind === "area"

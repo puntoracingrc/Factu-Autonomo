@@ -44,6 +44,10 @@ import {
   type PurchaseProductSummary,
 } from "@/lib/purchase-products";
 import {
+  calculatePurchaseNetUnitCost,
+  purchaseNetUnitCostInputFromFields,
+} from "@/lib/product-costs";
+import {
   clearDocumentProductPickRequest,
   getDocumentProductPickRequest,
   productSummaryToPickedLine,
@@ -2092,6 +2096,7 @@ function ProductCard({
       (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
     ),
   );
+  const [purchaseCostManual, setPurchaseCostManual] = useState(false);
   const [supplierReference, setSupplierReference] = useState(
     product.purchaseSupplierReference ?? "",
   );
@@ -2179,6 +2184,7 @@ function ProductCard({
         (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
       ),
     );
+    setPurchaseCostManual(false);
     setSupplierReference(product.purchaseSupplierReference ?? "");
     setAttributesText(productAttributesToText(product.attributes));
     setNotes(product.notes ?? "");
@@ -2190,6 +2196,46 @@ function ProductCard({
   function openPanel() {
     resetPanelForm();
     setPanelOpen(true);
+  }
+
+  function handlePurchaseListPriceChange(value: string) {
+    setPurchaseListPrice(value);
+    if (!purchaseCostManual) {
+      setPurchaseNetUnitCost(
+        purchaseNetUnitCostInputFromFields(
+          value,
+          purchaseDiscountPercent,
+          parseOptionalNumber,
+        ),
+      );
+    }
+  }
+
+  function handlePurchaseDiscountChange(value: string) {
+    setPurchaseDiscountPercent(value);
+    if (!purchaseCostManual) {
+      setPurchaseNetUnitCost(
+        purchaseNetUnitCostInputFromFields(
+          purchaseListPrice,
+          value,
+          parseOptionalNumber,
+        ),
+      );
+    }
+  }
+
+  function handlePurchaseNetCostChange(value: string) {
+    const manual = value.trim().length > 0;
+    setPurchaseCostManual(manual);
+    setPurchaseNetUnitCost(
+      manual
+        ? value
+        : purchaseNetUnitCostInputFromFields(
+            purchaseListPrice,
+            purchaseDiscountPercent,
+            parseOptionalNumber,
+          ),
+    );
   }
 
   useEffect(() => {
@@ -2211,10 +2257,10 @@ function ProductCard({
     const parsedPurchaseDiscount = parseOptionalNumber(purchaseDiscountPercent);
     const parsedPurchaseCost =
       parseOptionalNumber(purchaseNetUnitCost) ??
-      (parsedPurchaseListPrice !== undefined &&
-      parsedPurchaseDiscount !== undefined
-        ? parsedPurchaseListPrice * (1 - parsedPurchaseDiscount / 100)
-        : undefined);
+      calculatePurchaseNetUnitCost(
+        parsedPurchaseListPrice,
+        parsedPurchaseDiscount,
+      );
     const manualSaleUnit = normalizeDocumentUnitId(saleUnit) ?? saleUnit.trim();
     const normalizedSaleUnit =
       calculationKind === "area"
@@ -2578,19 +2624,19 @@ function ProductCard({
               <EditInput
                 label="Tarifa proveedor"
                 value={purchaseListPrice}
-                onChange={setPurchaseListPrice}
+                onChange={handlePurchaseListPriceChange}
                 inputMode="decimal"
               />
               <EditInput
                 label="Dto. %"
                 value={purchaseDiscountPercent}
-                onChange={setPurchaseDiscountPercent}
+                onChange={handlePurchaseDiscountChange}
                 inputMode="decimal"
               />
               <EditInput
                 label="Coste real"
                 value={purchaseNetUnitCost}
-                onChange={setPurchaseNetUnitCost}
+                onChange={handlePurchaseNetCostChange}
                 inputMode="decimal"
               />
             </div>
