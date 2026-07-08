@@ -6,11 +6,14 @@ import {
   cacheDriveAccessToken,
   clearDriveAccessToken,
   DRIVE_BACKUP_CALLBACK_PATH,
+  DRIVE_BACKUP_SETTINGS_EVENT,
+  DRIVE_BACKUP_SETTINGS_KEY,
   DRIVE_BACKUP_RETENTION_LIMIT,
   DRIVE_BACKUP_SCOPE,
   hasUsableDriveToken,
   normalizeDriveBackupSettings,
   restoreDriveAccessToken,
+  saveDriveBackupSettings,
   shouldRunAutomaticDriveBackup,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
@@ -108,6 +111,24 @@ describe("Google Drive backup", () => {
       lastFolderWebViewLink:
         "https://drive.google.com/drive/folders/folder-id",
     });
+  });
+
+  it("avisa a la app cuando se guardan ajustes de Drive", () => {
+    const storage = createMemoryStorage();
+    const dispatchEvent = vi.fn();
+
+    vi.stubGlobal("localStorage", storage);
+    vi.stubGlobal("window", { dispatchEvent });
+
+    saveDriveBackupSettings({ enabled: true, frequency: "important" });
+
+    expect(storage.setItem).toHaveBeenCalledWith(
+      DRIVE_BACKUP_SETTINGS_KEY,
+      JSON.stringify({ enabled: true, frequency: "important" }),
+    );
+    expect(dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: DRIVE_BACKUP_SETTINGS_EVENT }),
+    );
   });
 
   it("crea nombres de archivo con fecha y hora", () => {

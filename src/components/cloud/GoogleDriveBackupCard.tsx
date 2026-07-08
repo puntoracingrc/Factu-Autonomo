@@ -19,6 +19,8 @@ import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
+  DRIVE_BACKUP_SETTINGS_EVENT,
+  DRIVE_BACKUP_SETTINGS_KEY,
   DRIVE_BACKUP_RETENTION_LIMIT,
   buildDriveBackupSignature,
   clearDriveAccessToken,
@@ -26,7 +28,6 @@ import {
   loadDriveBackupSettings,
   restoreDriveAccessToken,
   saveDriveBackupSettings,
-  shouldRunAutomaticDriveBackup,
   startGoogleDriveBackupRedirect,
   uploadAppBackupToGoogleDrive,
   type DriveBackupSettings,
@@ -97,13 +98,30 @@ export function GoogleDriveBackupCard() {
     tone: FeedbackTone;
     message: string;
   } | null>(null);
-  const autoNoticeSignatureRef = useRef<string | null>(null);
   const restoreAttemptedRef = useRef(false);
 
   useEffect(() => {
-    setSettings(loadDriveBackupSettings());
-    setTokenReady(hasUsableDriveToken());
-    setHydrated(true);
+    function syncDriveSettings() {
+      setSettings(loadDriveBackupSettings());
+      setTokenReady(hasUsableDriveToken());
+      setHydrated(true);
+    }
+
+    function syncDriveSettingsFromStorage(event: StorageEvent) {
+      if (event.key === DRIVE_BACKUP_SETTINGS_KEY) syncDriveSettings();
+    }
+
+    syncDriveSettings();
+    window.addEventListener(DRIVE_BACKUP_SETTINGS_EVENT, syncDriveSettings);
+    window.addEventListener("storage", syncDriveSettingsFromStorage);
+
+    return () => {
+      window.removeEventListener(
+        DRIVE_BACKUP_SETTINGS_EVENT,
+        syncDriveSettings,
+      );
+      window.removeEventListener("storage", syncDriveSettingsFromStorage);
+    };
   }, []);
 
   const persistSettings = useCallback(
@@ -287,45 +305,6 @@ export function GoogleDriveBackupCard() {
     hydrated,
     settings.enabled,
     tokenReady,
-  ]);
-
-  useEffect(() => {
-    if (!hydrated || !driveConfigured || !driveAccountReady || busy) return;
-
-    const decision = shouldRunAutomaticDriveBackup(settings, data);
-    if (!decision.due) return;
-
-    if (!hasUsableDriveToken()) {
-      setTokenReady(false);
-      if (autoNoticeSignatureRef.current !== decision.signature) {
-        autoNoticeSignatureRef.current = decision.signature;
-        setFeedback({
-          tone: "info",
-          message:
-            "Las copias en Drive están pausadas hasta reconectar. Pulsa Reconectar Drive para reactivarlas.",
-        });
-      }
-      return;
-    }
-
-    setTokenReady(true);
-
-    const timer = window.setTimeout(() => {
-      void runDriveBackup({
-        automatic: true,
-        signature: decision.signature,
-      });
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    busy,
-    data,
-    driveAccountReady,
-    driveConfigured,
-    hydrated,
-    runDriveBackup,
-    settings,
   ]);
 
   function updateFrequency(value: DriveBackupSettings["frequency"]) {
