@@ -4,6 +4,13 @@ import {
   lineTotal,
   roundMoney,
 } from "./calculations";
+import {
+  isAreaDocumentUnit,
+  isLinearDocumentUnit,
+  lineMeasurementDescriptionSuffix,
+  measurementQuantityForUnit,
+  type LineMeasurementDraft,
+} from "./area-calculation";
 import type { LineItem } from "./types";
 
 export interface DocumentFormAmounts {
@@ -59,6 +66,18 @@ export function lineItemFormTotal(item: LineItem, vatExempt = false): number {
   return roundMoney(vatExempt ? lineSubtotal(safeItem) : lineTotal(safeItem));
 }
 
+export function applyLineMeasurementDraft(
+  item: LineItem,
+  draft?: LineMeasurementDraft,
+): LineItem {
+  if (draft && (isAreaDocumentUnit(item.unit) || isLinearDocumentUnit(item.unit))) {
+    return { ...item, quantity: measurementQuantityForUnit(item.unit, draft) };
+  }
+  const quantity = measurementQuantityForUnit(item.unit, draft);
+  if (quantity <= 0) return item;
+  return { ...item, quantity };
+}
+
 export function firstDocumentFormLineIssue(
   items: LineItem[],
   options: { requireConcept?: boolean } = {},
@@ -100,11 +119,29 @@ export function firstDocumentFormLineIssue(
 export function documentFormItemsForSave(
   items: LineItem[],
   vatExempt = false,
+  options: {
+    lineMeasurementDrafts?: Record<string, LineMeasurementDraft>;
+  } = {},
 ): LineItem[] {
   return sanitizeDocumentFormItems(items, vatExempt)
-    .map((item) => ({
-      ...item,
-      description: item.description.trim(),
-    }))
+    .map((item) => {
+      const measuredItem = applyLineMeasurementDraft(
+        item,
+        options.lineMeasurementDrafts?.[item.id],
+      );
+      const description = measuredItem.description.trim();
+      const measurementSuffix = lineMeasurementDescriptionSuffix(
+        measuredItem.unit,
+        options.lineMeasurementDrafts?.[item.id],
+      );
+
+      return {
+        ...measuredItem,
+        description:
+          description && measurementSuffix
+            ? `${description} (${measurementSuffix})`
+            : description,
+      };
+    })
     .filter((item) => item.description.length > 0);
 }

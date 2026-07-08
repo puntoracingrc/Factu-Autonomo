@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Calculator, X } from "lucide-react";
+import { X } from "lucide-react";
 
 type Operator = "+" | "-" | "*" | "/";
 
@@ -270,20 +270,13 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <div
-          className="flex min-h-8 flex-1 cursor-move items-center gap-2 rounded-xl px-1 text-sm font-bold text-slate-500 active:cursor-grabbing"
+          className="min-h-8 flex-1 cursor-move rounded-xl px-1 active:cursor-grabbing"
           onPointerDown={startDrag}
           onPointerMove={drag}
           onPointerUp={stopDrag}
           onPointerCancel={stopDrag}
           title="Arrastrar calculadora"
-        >
-          <div className="flex items-center gap-1.5" aria-hidden="true">
-            <span className="h-3 w-3 rounded-full bg-red-300" />
-            <span className="h-3 w-3 rounded-full bg-amber-300" />
-            <span className="h-3 w-3 rounded-full bg-emerald-300" />
-          </div>
-          <Calculator className="h-4 w-4 text-blue-600" />
-        </div>
+        />
         <button
           type="button"
           onClick={onClose}

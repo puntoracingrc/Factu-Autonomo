@@ -106,6 +106,42 @@ describe("document form totals flow", () => {
     expect(saved[1]).toMatchObject({ description: "Ajuste", unitPrice: 0 });
   });
 
+  it("guarda una línea de m2 con cantidad calculada y medidas en el concepto", () => {
+    const saved = documentFormItemsForSave(
+      [item({ description: "Persiana aluminio", unit: "m2", quantity: 0 })],
+      false,
+      {
+        lineMeasurementDrafts: {
+          "line-1": { pieces: 2, width: 1.2, height: 2.3 },
+        },
+      },
+    );
+
+    expect(saved[0]).toMatchObject({
+      quantity: 5.52,
+      unit: "m2",
+      description: "Persiana aluminio (2 uds x 1,2 x 2,3 m = 5,52 m²)",
+    });
+  });
+
+  it("guarda una línea de ml con cantidad calculada y metros en el concepto", () => {
+    const saved = documentFormItemsForSave(
+      [item({ description: "Guía lateral", unit: "ml", quantity: 0 })],
+      false,
+      {
+        lineMeasurementDrafts: {
+          "line-1": { pieces: 2, length: 2.55 },
+        },
+      },
+    );
+
+    expect(saved[0]).toMatchObject({
+      quantity: 5.1,
+      unit: "ml",
+      description: "Guía lateral (2 uds x 2,55 m = 5,1 ml)",
+    });
+  });
+
   it("calcula el total de línea para mostrarlo en el formulario", () => {
     expect(lineItemFormTotal(item({ quantity: 2, unitPrice: 50 }))).toBe(121);
   });
