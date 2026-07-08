@@ -625,7 +625,7 @@ export default function GastosPage() {
         <div className="grid gap-2 sm:grid-cols-2">
           <ButtonLink href="/gastos/nuevo">+ Añadir gasto</ButtonLink>
           <ButtonLink href="/gastos/fijos" variant="secondary">
-            + Gastos fijos
+            Gastos fijos
           </ButtonLink>
           <label
             className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 transition-colors hover:bg-blue-50 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-500 sm:col-span-2 ${
