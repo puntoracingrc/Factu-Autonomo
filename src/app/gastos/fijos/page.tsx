@@ -27,6 +27,7 @@ import { isVatExempt } from "@/lib/vat-regime";
 import {
   EXPENSE_CATEGORIES,
   PAYMENT_METHODS,
+  type ExpenseDeductibility,
   type RecurringDueTiming,
   type RecurringDuration,
   type RecurringExpense,
@@ -38,6 +39,7 @@ const EMPTY_FORM = {
   description: "",
   amountText: "",
   ivaPercent: 21,
+  deductibility: "deductible" as ExpenseDeductibility,
   category: EXPENSE_CATEGORIES[0] as string,
   paymentMethod: PAYMENT_METHODS[0] as string,
   frequency: "monthly" as RecurringExpenseFrequency,
@@ -61,6 +63,7 @@ function recurringExpenseForm(item: RecurringExpense) {
     description: item.description,
     amountText: decimalInputFromNumber(item.amount),
     ivaPercent: item.ivaPercent,
+    deductibility: item.deductibility ?? "deductible",
     category: item.category,
     paymentMethod: item.paymentMethod,
     frequency: item.frequency,
@@ -121,6 +124,7 @@ export default function GastosFijosPage() {
     setForm({
       ...EMPTY_FORM,
       ivaPercent: vatExempt ? 0 : defaultIva,
+      deductibility: "deductible",
       startDate: todayISO(),
     });
     setFormOpen(true);
@@ -178,7 +182,11 @@ export default function GastosFijosPage() {
       supplierName: form.supplierName.trim(),
       description: form.description.trim(),
       amount,
-      ivaPercent: vatExempt ? 0 : form.ivaPercent,
+      ivaPercent:
+        vatExempt || form.deductibility === "non_deductible"
+          ? 0
+          : form.ivaPercent,
+      deductibility: form.deductibility,
       category: form.category,
       paymentMethod: form.paymentMethod,
       frequency: form.frequency,
@@ -212,9 +220,17 @@ export default function GastosFijosPage() {
         title="Gastos fijos"
         subtitle="Cuotas recurrentes que se registran solas en Gastos (autónomos, seguros, planes de pago…)"
         action={
-          <ButtonLink href="/gastos" variant="secondary">
-            Volver
-          </ButtonLink>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {!formOpen && (
+              <Button onClick={openNew} className="gap-2">
+                <Plus className="h-5 w-5" />
+                Nuevo gasto fijo
+              </Button>
+            )}
+            <ButtonLink href="/gastos" variant="secondary">
+              Volver
+            </ButtonLink>
+          </div>
         }
       />
 
@@ -228,13 +244,6 @@ export default function GastosFijosPage() {
           <strong>Gastos y compras</strong> como cualquier otro.
         </p>
       </Card>
-
-      {!formOpen && (
-        <Button onClick={openNew} fullWidth className="mb-6 gap-2">
-          <Plus className="h-5 w-5" />
-          Nuevo gasto fijo
-        </Button>
-      )}
 
       {formOpen && (
         <Card className="mb-6 space-y-4">
@@ -253,6 +262,58 @@ export default function GastosFijosPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:col-span-2">
+              <p className="text-sm font-bold text-slate-900">
+                Tratamiento del gasto
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    value: "deductible" as ExpenseDeductibility,
+                    label: "Normal con factura o ticket",
+                    hint: "Para gastos deducibles habituales con su documento.",
+                  },
+                  {
+                    value: "non_deductible" as ExpenseDeductibility,
+                    label: "Gasto extra no desgravable",
+                    hint: "Para comidas, parking u otros pagos que quieres recordar, sin deducirlos.",
+                  },
+                ].map((option) => {
+                  const selected = form.deductibility === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          deductibility: option.value,
+                          ivaPercent:
+                            option.value === "non_deductible"
+                              ? 0
+                              : vatExempt
+                                ? 0
+                                : prev.ivaPercent || defaultIva,
+                        }))
+                      }
+                      aria-pressed={selected}
+                      className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        selected
+                          ? "border-blue-300 bg-blue-50 text-blue-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="block text-sm font-bold">
+                        {option.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {option.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <Field label="Proveedor / entidad *">
               <Input
                 value={form.supplierName}
@@ -277,9 +338,14 @@ export default function GastosFijosPage() {
                 setForm((prev) => ({ ...prev, amountText }))
               }
               ivaPercent={form.ivaPercent}
-              vatExempt={vatExempt}
+              vatExempt={vatExempt || form.deductibility === "non_deductible"}
             />
-            {!vatExempt && (
+            {form.deductibility === "non_deductible" ? (
+              <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2">
+                Se guardará como gasto extra no desgravable. Cuenta entero, con
+                IVA 0.
+              </div>
+            ) : !vatExempt && (
               <Field label="IVA %">
                 <IvaPercentSelect
                   value={form.ivaPercent}
@@ -497,6 +563,11 @@ export default function GastosFijosPage() {
                     >
                       {item.enabled ? "Activo" : "Pausado"}
                     </span>
+                    {item.deductibility === "non_deductible" && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        No desgravable
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-600">{item.supplierName}</p>
                   <p className="mt-1 text-sm text-slate-500">

@@ -223,6 +223,8 @@ export interface RecurringExpense {
   description: string;
   amount: number;
   ivaPercent: number;
+  /** Marca gastos reales que el usuario quiere controlar sin tratarlos como desgravables. */
+  deductibility?: ExpenseDeductibility;
   category: string;
   paymentMethod: string;
   frequency: RecurringExpenseFrequency;
@@ -239,6 +241,8 @@ export interface RecurringExpense {
 
 export type ExpenseBusinessKind =
   "purchase" | "purchase_invoice" | "quick_ticket" | "fixed";
+
+export type ExpenseDeductibility = "deductible" | "non_deductible";
 
 export type ExpenseLineCalculationBasis =
   | "m2"
@@ -341,6 +345,8 @@ export interface Expense {
   description: string;
   amount: number;
   ivaPercent: number;
+  /** Marca gastos reales que el usuario quiere controlar sin tratarlos como desgravables. */
+  deductibility?: ExpenseDeductibility;
   category: string;
   paymentMethod: string;
   notes?: string;
