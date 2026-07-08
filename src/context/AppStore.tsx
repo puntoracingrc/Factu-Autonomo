@@ -22,7 +22,11 @@ import type {
   RecurringExpense,
   UserReminder,
 } from "@/lib/types";
-import { syncRecurringExpenses } from "@/lib/recurring-expenses";
+import {
+  applyRecurringExpenseChangeToData,
+  syncRecurringExpenses,
+  type RecurringExpenseDraft,
+} from "@/lib/recurring-expenses";
 import {
   ensureCustomerForDocument,
   type ClientInput,
@@ -151,10 +155,13 @@ interface AppStoreValue {
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
-  addRecurringExpense: (
-    item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
-  ) => RecurringExpense;
+  addRecurringExpense: (item: RecurringExpenseDraft) => RecurringExpense;
   updateRecurringExpense: (item: RecurringExpense) => void;
+  applyRecurringExpenseChange: (
+    id: string,
+    item: RecurringExpenseDraft,
+    effectiveDate: string,
+  ) => void;
   deleteRecurringExpense: (id: string) => void;
   addUserReminder: (
     item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
@@ -1172,9 +1179,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }, [setAppData]);
 
   const addRecurringExpense = useCallback(
-    (
-      item: Omit<RecurringExpense, "id" | "createdAt" | "updatedAt">,
-    ): RecurringExpense => {
+    (item: RecurringExpenseDraft): RecurringExpense => {
       const now = new Date().toISOString();
       const created: RecurringExpense = {
         ...item,
@@ -1205,6 +1210,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           ),
         }),
       );
+    },
+    [setAppData],
+  );
+
+  const applyRecurringExpenseChange = useCallback(
+    (
+      id: string,
+      item: RecurringExpenseDraft,
+      effectiveDate: string,
+    ) => {
+      const now = new Date().toISOString();
+
+      setAppData((prev) => {
+        return applyRecurringExpenseChangeToData(prev, id, item, effectiveDate, {
+          now,
+          newId,
+        });
+      });
     },
     [setAppData],
   );
@@ -1586,6 +1609,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeProducts,
       addRecurringExpense,
       updateRecurringExpense,
+      applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
       updateUserReminder,
@@ -1634,6 +1658,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeProducts,
       addRecurringExpense,
       updateRecurringExpense,
+      applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
       updateUserReminder,

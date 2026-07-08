@@ -10,7 +10,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
-import { formatMoney, todayISO } from "@/lib/calculations";
+import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
 import {
   decimalInputFromNumber,
   parseDecimalInput,
@@ -58,6 +58,8 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+type EditApplyMode = "today" | "custom";
+
 function recurringExpenseForm(item: RecurringExpense) {
   return {
     supplierName: item.supplierName,
@@ -83,6 +85,15 @@ function recurringExpenseForm(item: RecurringExpense) {
   };
 }
 
+function recurringExpenseIsClosed(
+  item: RecurringExpense,
+  referenceDate: string,
+) {
+  return (
+    item.duration.kind === "until_date" && item.duration.endDate < referenceDate
+  );
+}
+
 export default function GastosFijosPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -91,22 +102,32 @@ export default function GastosFijosPage() {
     data,
     addRecurringExpense,
     updateRecurringExpense,
+    applyRecurringExpenseChange,
     deleteRecurringExpense,
   } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = data.profile.iva?.defaultRate ?? 21;
+  const today = todayISO();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editApplyMode, setEditApplyMode] =
+    useState<EditApplyMode>("today");
+  const [effectiveDate, setEffectiveDate] = useState(today);
   const [form, setForm] = useState({
     ...EMPTY_FORM,
     ivaPercent: defaultIva,
   });
 
-  const templates = [...data.recurringExpenses].sort((a, b) =>
-    a.supplierName.localeCompare(b.supplierName, "es"),
-  );
+  const templates = [...data.recurringExpenses].sort((a, b) => {
+    const closedA = recurringExpenseIsClosed(a, today);
+    const closedB = recurringExpenseIsClosed(b, today);
+    if (closedA !== closedB) return closedA ? 1 : -1;
+    return a.supplierName.localeCompare(b.supplierName, "es");
+  });
   const requestedEditId = searchParams.get("editar");
+  const selectedEffectiveDate =
+    editApplyMode === "today" ? today : effectiveDate || today;
 
   useEffect(() => {
     if (!requestedEditId || editingId === requestedEditId) return;
@@ -116,12 +137,16 @@ export default function GastosFijosPage() {
     if (!requestedTemplate) return;
 
     setEditingId(requestedTemplate.id);
+    setEditApplyMode("today");
+    setEffectiveDate(todayISO());
     setForm(recurringExpenseForm(requestedTemplate));
     setFormOpen(true);
   }, [data.recurringExpenses, editingId, requestedEditId]);
 
   function openNew() {
     setEditingId(null);
+    setEditApplyMode("today");
+    setEffectiveDate(todayISO());
     setForm({
       ...EMPTY_FORM,
       ivaPercent: vatExempt ? 0 : defaultIva,
@@ -134,6 +159,8 @@ export default function GastosFijosPage() {
   function closeForm() {
     setFormOpen(false);
     setEditingId(null);
+    setEditApplyMode("today");
+    setEffectiveDate(todayISO());
     if (requestedEditId) {
       router.replace(pathname, { scroll: false });
     }
@@ -141,6 +168,8 @@ export default function GastosFijosPage() {
 
   function startEdit(item: RecurringExpense) {
     setEditingId(item.id);
+    setEditApplyMode("today");
+    setEffectiveDate(todayISO());
     setForm(recurringExpenseForm(item));
     setFormOpen(true);
   }
@@ -170,12 +199,25 @@ export default function GastosFijosPage() {
 
   function handleSave() {
     const amount = parseDecimalInput(form.amountText);
+    const startDate = editingId ? selectedEffectiveDate : form.startDate;
     if (!form.supplierName.trim() || !form.description.trim() || amount <= 0) {
       alert("Completa proveedor, descripción e importe");
       return;
     }
+    if (!startDate) {
+      alert("Indica desde qué fecha se aplica el gasto");
+      return;
+    }
     if (form.frequency === "annual" && form.dueKind === "end_of_month") {
       alert("En gastos anuales indica un día concreto del mes");
+      return;
+    }
+    if (
+      form.durationKind === "until_date" &&
+      form.endDate &&
+      form.endDate < startDate
+    ) {
+      alert("La fecha final no puede ser anterior al inicio del tramo");
       return;
     }
 
@@ -195,7 +237,7 @@ export default function GastosFijosPage() {
       dueMonth:
         form.frequency === "annual" ? Number(form.dueMonth) : undefined,
       duration: buildDuration(),
-      startDate: form.startDate,
+      startDate,
       enabled: true,
       notes: form.notes || undefined,
     };
@@ -203,10 +245,7 @@ export default function GastosFijosPage() {
     if (editingId) {
       const existing = data.recurringExpenses.find((item) => item.id === editingId);
       if (existing) {
-        updateRecurringExpense({
-          ...existing,
-          ...payload,
-        });
+        applyRecurringExpenseChange(editingId, payload, startDate);
       }
     } else {
       addRecurringExpense(payload);
@@ -307,6 +346,71 @@ export default function GastosFijosPage() {
                 })}
               </div>
             </div>
+            {editingId && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
+                <p className="text-sm font-bold text-amber-950">
+                  Cómo aplicar este cambio
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {[
+                    {
+                      value: "today" as EditApplyMode,
+                      label: "Nuevo importe desde hoy",
+                      hint: `No cambia nada anterior a ${formatShortDate(today)}.`,
+                    },
+                    {
+                      value: "custom" as EditApplyMode,
+                      label: "Nuevo importe desde otra fecha",
+                      hint: "Para poner al día meses que aún no habías cambiado.",
+                    },
+                  ].map((option) => {
+                    const selected = editApplyMode === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setEditApplyMode(option.value);
+                          if (option.value === "today") {
+                            setEffectiveDate(today);
+                          }
+                        }}
+                        aria-pressed={selected}
+                        className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                          selected
+                            ? "border-amber-400 bg-white text-amber-950"
+                            : "border-amber-200 bg-amber-50 text-amber-900 hover:bg-white"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs">
+                          {option.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {editApplyMode === "custom" && (
+                  <div className="mt-3">
+                    <Field label="Aplicar desde">
+                      <Input
+                        type="date"
+                        value={effectiveDate}
+                        onChange={(e) => setEffectiveDate(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                )}
+                <p className="mt-3 text-xs font-medium text-amber-900">
+                  No se toca ningún gasto anterior a{" "}
+                  {formatShortDate(selectedEffectiveDate)}. El tramo anterior se
+                  cierra el día previo. Si ya había cargos desde esa fecha, se
+                  actualizan al nuevo tramo para no duplicarlos.
+                </p>
+              </div>
+            )}
             <Field label="Proveedor / entidad *">
               <Input
                 value={form.supplierName}
@@ -452,15 +556,17 @@ export default function GastosFijosPage() {
                 </Select>
               </Field>
             )}
-            <Field label="Primera fecha / inicio">
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, startDate: e.target.value }))
-                }
-              />
-            </Field>
+            {!editingId && (
+              <Field label="Primera fecha / inicio">
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, startDate: e.target.value }))
+                  }
+                />
+              </Field>
+            )}
             <Field label="Duración">
               <Select
                 value={form.durationKind}
@@ -537,6 +643,12 @@ export default function GastosFijosPage() {
           {templates.map((item) => {
             const totals = recurringExpenseTotals(item, vatExempt);
             const hasIva = totals.ivaPercent > 0;
+            const isClosed = recurringExpenseIsClosed(item, today);
+            const statusLabel = isClosed
+              ? "Tramo cerrado"
+              : item.enabled
+                ? "Activo"
+                : "Pausado";
             return (
               <Card
                 key={item.id}
@@ -549,12 +661,14 @@ export default function GastosFijosPage() {
                     </p>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        item.enabled
+                        isClosed
+                          ? "bg-slate-100 text-slate-600"
+                          : item.enabled
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-slate-100 text-slate-500"
                       }`}
                     >
-                      {item.enabled ? "Activo" : "Pausado"}
+                      {statusLabel}
                     </span>
                     {item.deductibility === "non_deductible" && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
@@ -578,18 +692,20 @@ export default function GastosFijosPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateRecurringExpense({
-                        ...item,
-                        enabled: !item.enabled,
-                      })
-                    }
-                    className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
-                  >
-                    {item.enabled ? "Pausar" : "Activar"}
-                  </button>
+                  {!isClosed && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateRecurringExpense({
+                          ...item,
+                          enabled: !item.enabled,
+                        })
+                      }
+                      className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      {item.enabled ? "Pausar" : "Activar"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => startEdit(item)}

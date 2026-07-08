@@ -7,6 +7,11 @@ import type {
 } from "./types";
 import { expenseTotalsFromBase } from "./expenses";
 
+export type RecurringExpenseDraft = Omit<
+  RecurringExpense,
+  "id" | "createdAt" | "updatedAt"
+>;
+
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -277,6 +282,117 @@ export function recurringExpenseTotals(
   const ivaPercent =
     template.deductibility === "non_deductible" ? 0 : template.ivaPercent;
   return expenseTotalsFromBase(template.amount, ivaPercent, vatExempt);
+}
+
+function expenseBelongsToRecurringTemplate(
+  expense: Expense,
+  recurringExpenseId: string,
+) {
+  return (
+    expense.recurringExpenseId === recurringExpenseId ||
+    expense.recurringOccurrenceKey?.startsWith(`${recurringExpenseId}:`)
+  );
+}
+
+export function applyRecurringExpenseChangeToData(
+  data: AppData,
+  id: string,
+  item: RecurringExpenseDraft,
+  effectiveDate: string,
+  options: {
+    now?: string;
+    newId?: () => string;
+    referenceDate?: string;
+  } = {},
+): AppData {
+  const existing = data.recurringExpenses.find((entry) => entry.id === id);
+  if (!existing) return data;
+
+  const now = options.now ?? new Date().toISOString();
+  const referenceDate = options.referenceDate ?? now.split("T")[0];
+
+  if (effectiveDate <= existing.startDate) {
+    const updated: RecurringExpense = {
+      ...existing,
+      ...item,
+      startDate: effectiveDate,
+      updatedAt: now,
+    };
+
+    return syncRecurringExpenses(
+      {
+        ...data,
+        recurringExpenses: data.recurringExpenses.map((entry) =>
+          entry.id === id ? updated : entry,
+        ),
+        expenses: data.expenses.map((expense) => {
+          if (
+            !expenseBelongsToRecurringTemplate(expense, id) ||
+            expense.date < effectiveDate
+          ) {
+            return expense;
+          }
+          const snapshot = expenseFromRecurring(updated, expense.date);
+          return {
+            ...expense,
+            ...snapshot,
+            id: expense.id,
+            createdAt: expense.createdAt,
+          };
+        }),
+      },
+      referenceDate,
+    );
+  }
+
+  const closingDate = addDaysIso(effectiveDate, -1);
+  const closedDuration =
+    existing.duration.kind === "until_date" &&
+    existing.duration.endDate < closingDate
+      ? existing.duration
+      : ({ kind: "until_date", endDate: closingDate } as const);
+  const closedExisting: RecurringExpense = {
+    ...existing,
+    duration: closedDuration,
+    updatedAt: now,
+  };
+  const nextTemplate: RecurringExpense = {
+    ...item,
+    id: options.newId?.() ?? crypto.randomUUID(),
+    startDate: effectiveDate,
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return syncRecurringExpenses(
+    {
+      ...data,
+      recurringExpenses: [
+        ...data.recurringExpenses.map((entry) =>
+          entry.id === id ? closedExisting : entry,
+        ),
+        nextTemplate,
+      ],
+      expenses: data.expenses.map((expense) => {
+        if (
+          !expenseBelongsToRecurringTemplate(expense, id) ||
+          expense.date < effectiveDate
+        ) {
+          return expense;
+        }
+        const snapshot = expenseFromRecurring(nextTemplate, expense.date);
+        return {
+          ...expense,
+          ...snapshot,
+          id: expense.id,
+          createdAt: expense.createdAt,
+          recurringOccurrenceKey: occurrenceKey(nextTemplate.id, expense.date),
+        };
+      }),
+    },
+    referenceDate,
+  );
 }
 
 function existingOccurrenceKeys(expenses: Expense[]): Set<string> {
