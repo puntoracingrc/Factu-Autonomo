@@ -56,6 +56,10 @@ import type { Product } from "@/lib/types";
 
 const ALL = "__all__";
 const CUSTOM_FAMILY = "__custom_family__";
+type SubfamilyEntry = {
+  family: string;
+  name: string;
+};
 type ProductSort =
   | "newest"
   | "mostPurchases"
@@ -180,6 +184,50 @@ export default function ProductosPage() {
     [data.products, products],
   );
 
+  const subfamilyEntries = useMemo<SubfamilyEntry[]>(
+    () => {
+      const entries = [
+        ...products.map((product) => ({
+          family: product.family,
+          name: product.subfamily,
+        })),
+        ...data.products.map((product) => ({
+          family: product.family,
+          name: product.subfamily,
+        })),
+      ];
+      const unique = new Map<string, SubfamilyEntry>();
+      for (const entry of entries) {
+        const familyName = entry.family.trim() || "Sin familia";
+        const subfamilyName = entry.name?.trim();
+        if (!subfamilyName) continue;
+        unique.set(
+          `${familyName.toLocaleLowerCase("es")}:::${subfamilyName.toLocaleLowerCase("es")}`,
+          {
+            family: familyName,
+            name: subfamilyName,
+          },
+        );
+      }
+      return [...unique.values()].sort(
+        (a, b) =>
+          a.family.localeCompare(b.family, "es") ||
+          a.name.localeCompare(b.name, "es"),
+      );
+    },
+    [data.products, products],
+  );
+
+  const selectedFamilySubfamilies = useMemo(
+    () =>
+      family === ALL
+        ? []
+        : subfamilyEntries
+            .filter((entry) => entry.family === family)
+            .map((entry) => entry.name),
+    [family, subfamilyEntries],
+  );
+
   const suppliers = useMemo(
     () =>
       [
@@ -287,9 +335,27 @@ export default function ProductosPage() {
     [products, selectedProductKeys],
   );
 
+  const bulkSubfamilyOptions = useMemo(() => {
+    const selectedFamilies = [
+      ...new Set(selectedProducts.map((product) => product.family)),
+    ];
+    if (selectedFamilies.length === 1) {
+      return subfamilyEntries
+        .filter((entry) => entry.family === selectedFamilies[0])
+        .map((entry) => entry.name);
+    }
+    return [];
+  }, [selectedProducts, subfamilyEntries]);
+
   useEffect(() => {
     setVisibleCount(30);
   }, [family, query, sort, subfamily, supplier]);
+
+  useEffect(() => {
+    if (family === ALL || subfamily === ALL) return;
+    if (selectedFamilySubfamilies.includes(subfamily)) return;
+    setSubfamily(ALL);
+  }, [family, selectedFamilySubfamilies, subfamily]);
 
   useEffect(() => {
     setDocumentPickRequest(getDocumentProductPickRequest());
@@ -562,6 +628,15 @@ export default function ProductosPage() {
   }
 
   function assignSelectedSubfamily() {
+    const selectedFamilies = [
+      ...new Set(selectedProducts.map((product) => product.family)),
+    ];
+    if (selectedFamilies.length !== 1) {
+      setFamilyNotice(
+        "Selecciona productos de una sola familia para moverlos a una subfamilia.",
+      );
+      return;
+    }
     const targetSubfamily = bulkSubfamilyDraft.trim();
     if (!targetSubfamily) {
       setFamilyNotice("Elige o escribe la subfamilia de destino.");
@@ -580,7 +655,7 @@ export default function ProductosPage() {
     setSelectedProductKeys([]);
     setBulkSubfamilyDraft("");
     setFamilyNotice(
-      `${savedCount} producto(s) movido(s) a la subfamilia "${targetSubfamily}". La próxima lectura del mismo producto recordará esta subfamilia.`,
+      `${savedCount} producto(s) movido(s) a "${selectedFamilies[0]} / ${targetSubfamily}". La próxima lectura del mismo producto recordará esta subfamilia.`,
     );
   }
 
@@ -630,6 +705,10 @@ export default function ProductosPage() {
   }
 
   function renameSubfamily() {
+    if (family === ALL) {
+      setFamilyNotice("Elige primero una familia para renombrar su subfamilia.");
+      return;
+    }
     const sourceSubfamily = subfamilyRenameFrom.trim();
     const targetSubfamily = subfamilyRenameTo.trim();
     if (!sourceSubfamily) {
@@ -647,7 +726,8 @@ export default function ProductosPage() {
     }
 
     const affectedProducts = products.filter(
-      (product) => product.subfamily === sourceSubfamily,
+      (product) =>
+        product.family === family && product.subfamily === sourceSubfamily,
     );
     let savedCount = 0;
     for (const product of affectedProducts) {
@@ -655,7 +735,13 @@ export default function ProductosPage() {
     }
 
     for (const product of data.products) {
-      if (product.subfamily !== sourceSubfamily || !product.hidden) continue;
+      if (
+        product.family !== family ||
+        product.subfamily !== sourceSubfamily ||
+        !product.hidden
+      ) {
+        continue;
+      }
       updateProduct({
         ...product,
         subfamily: targetSubfamily,
@@ -806,23 +892,31 @@ export default function ProductosPage() {
   }
 
   function createSubfamily() {
+    if (family === ALL) {
+      setFamilyNotice("Elige primero la familia donde irá esta subfamilia.");
+      return;
+    }
     const name = subfamilyDraft.trim();
     if (!name) {
       setFamilyNotice("Escribe el nombre de la subfamilia.");
       return;
     }
-    const existing = subfamilies.find(
-      (item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
+    const existing = subfamilyEntries.find(
+      (item) =>
+        item.family === family &&
+        item.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
     );
     if (existing) {
       setSubfamilyDraft("");
-      setSubfamily(existing);
+      setSubfamily(existing.name);
       setSubfamilyFormOpen(false);
-      setFamilyNotice(`La subfamilia "${existing}" ya existía.`);
+      setFamilyNotice(
+        `La subfamilia "${existing.name}" ya existía dentro de "${family}".`,
+      );
       return;
     }
 
-    const familyScope = family !== ALL ? family : "Sin familia";
+    const familyScope = family;
     addProduct({
       key: `__subfamily__-${purchaseProductKey(`${familyScope} ${name}`)}`,
       aliases: [],
@@ -838,7 +932,7 @@ export default function ProductosPage() {
     setSubfamily(name);
     setSubfamilyFormOpen(false);
     setFamilyNotice(
-      `Subfamilia "${name}" creada. Ya puedes usarla en productos.`,
+      `Subfamilia "${name}" creada dentro de "${familyScope}". Ya puedes usarla en productos.`,
     );
   }
 
@@ -1030,12 +1124,23 @@ export default function ProductosPage() {
       {subfamilyFormOpen ? (
         <Card className="border-blue-100 bg-blue-50/70">
           <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
+            className="grid gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_auto_auto] lg:items-end"
             onSubmit={(event) => {
               event.preventDefault();
               createSubfamily();
             }}
           >
+            <FilterSelect
+              label="Dentro de la familia"
+              value={family}
+              onChange={(value) => {
+                setFamily(value);
+                setSubfamily(ALL);
+                setFamilyNotice(null);
+              }}
+              options={families}
+              allLabel="Elige familia"
+            />
             <label className="space-y-1.5">
               <span className="text-sm font-black text-slate-800">
                 Nombre de la subfamilia
@@ -1069,8 +1174,8 @@ export default function ProductosPage() {
             </button>
           </form>
           <p className="mt-3 text-sm font-semibold text-blue-900">
-            Se guarda como una capa dentro de tus familias para ordenar mejor el
-            catálogo.
+            Una subfamilia siempre vive dentro de una familia, como una carpeta
+            dentro de otra.
           </p>
         </Card>
       ) : null}
@@ -1078,12 +1183,25 @@ export default function ProductosPage() {
       {subfamilyRenameOpen ? (
         <Card className="border-blue-100 bg-blue-50/70">
           <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
+            className="grid gap-3 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
             onSubmit={(event) => {
               event.preventDefault();
               renameSubfamily();
             }}
           >
+            <FilterSelect
+              label="Familia"
+              value={family}
+              onChange={(value) => {
+                setFamily(value);
+                setSubfamily(ALL);
+                setSubfamilyRenameFrom("");
+                setSubfamilyRenameTo("");
+                setFamilyNotice(null);
+              }}
+              options={families}
+              allLabel="Elige familia"
+            />
             <FilterSelect
               label="Subfamilia actual"
               value={subfamilyRenameFrom || ALL}
@@ -1093,8 +1211,10 @@ export default function ProductosPage() {
                 setSubfamilyRenameTo(nextValue);
                 setFamilyNotice(null);
               }}
-              options={subfamilies}
-              allLabel="Elige subfamilia"
+              options={selectedFamilySubfamilies}
+              allLabel={
+                family === ALL ? "Elige familia primero" : "Elige subfamilia"
+              }
             />
             <label className="space-y-1.5">
               <span className="text-sm font-black text-slate-800">
@@ -1245,7 +1365,10 @@ export default function ProductosPage() {
               <FilterSelect
                 label="Familia"
                 value={family}
-                onChange={setFamily}
+                onChange={(value) => {
+                  setFamily(value);
+                  setSubfamily(ALL);
+                }}
                 options={families}
                 allLabel="Todas"
               />
@@ -1253,8 +1376,10 @@ export default function ProductosPage() {
                 label="Subfamilia"
                 value={subfamily}
                 onChange={setSubfamily}
-                options={subfamilies}
-                allLabel="Todas"
+                options={selectedFamilySubfamilies}
+                allLabel={
+                  family === ALL ? "Elige familia primero" : "Todas"
+                }
               />
               <FilterSelect
                 label="Proveedor"
@@ -1351,7 +1476,7 @@ export default function ProductosPage() {
                       setBulkSubfamilyDraft(value);
                       setFamilyNotice(null);
                     }}
-                    options={subfamilies}
+                    options={bulkSubfamilyOptions}
                     emptyLabel="Sin subfamilia"
                     customLabel="Otra subfamilia..."
                     customPlaceholder="Escribe la subfamilia"
@@ -1425,7 +1550,7 @@ export default function ProductosPage() {
                       product={product}
                       allProducts={products}
                       familyOptions={families}
-                      subfamilyOptions={subfamilies}
+                      subfamilyEntries={subfamilyEntries}
                       selected={selectedProductKeys.includes(product.key)}
                       pickMode={Boolean(documentPickRequest)}
                       editMode={
@@ -1531,7 +1656,7 @@ function ProductCard({
   product,
   allProducts,
   familyOptions,
-  subfamilyOptions,
+  subfamilyEntries,
   selected,
   pickMode,
   editMode,
@@ -1549,7 +1674,7 @@ function ProductCard({
   product: PurchaseProductSummary;
   allProducts: PurchaseProductSummary[];
   familyOptions: string[];
-  subfamilyOptions: string[];
+  subfamilyEntries: SubfamilyEntry[];
   selected: boolean;
   pickMode: boolean;
   editMode: boolean;
@@ -1639,6 +1764,13 @@ function ProductCard({
       .toLowerCase()
       .includes(term);
   });
+  const productSubfamilyOptions = useMemo(
+    () =>
+      subfamilyEntries
+        .filter((entry) => entry.family === family)
+        .map((entry) => entry.name),
+    [family, subfamilyEntries],
+  );
 
   const normalizedDisplayUnit = normalizeDocumentUnitId(
     product.saleUnit ?? product.unit,
@@ -1982,14 +2114,25 @@ function ProductCard({
               <ProductFamilySelect
                 label="Familia"
                 value={family}
-                onChange={setFamily}
+                onChange={(value) => {
+                  setFamily(value);
+                  const nextFamilySubfamilies = subfamilyEntries
+                    .filter((entry) => entry.family === value)
+                    .map((entry) => entry.name);
+                  if (
+                    productSubfamily &&
+                    !nextFamilySubfamilies.includes(productSubfamily)
+                  ) {
+                    setProductSubfamily("");
+                  }
+                }}
                 options={familyOptions}
               />
               <ProductFamilySelect
                 label="Subfamilia"
                 value={productSubfamily}
                 onChange={setProductSubfamily}
-                options={subfamilyOptions}
+                options={productSubfamilyOptions}
                 emptyLabel="Sin subfamilia"
                 customLabel="Otra subfamilia..."
                 customPlaceholder="Escribe la subfamilia"

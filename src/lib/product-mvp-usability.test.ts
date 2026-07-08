@@ -1053,9 +1053,14 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("Nueva subfamilia");
     expect(productsPageSource).toContain("Renombrar subfamilia");
     expect(productsPageSource).toContain("saveProductSubfamily");
+    expect(productsPageSource).toContain("SubfamilyEntry");
+    expect(productsPageSource).toContain("selectedFamilySubfamilies");
+    expect(productsPageSource).toContain("Elige familia primero");
+    expect(productsPageSource).toContain("Dentro de la familia");
     expect(productsPageSource).toContain("bulkSubfamilyDraft");
     expect(productsPageSource).toContain('label="Subfamilia"');
     expect(newProductPageSource).toContain("new-product-subfamily-options");
+    expect(newProductPageSource).toContain("product.family === form.family.trim()");
     expect(newProductPageSource).toContain(
       "subfamily: form.subfamily.trim() || undefined",
     );
