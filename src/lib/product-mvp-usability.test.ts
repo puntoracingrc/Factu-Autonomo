@@ -1098,6 +1098,24 @@ describe("MVP usability polish", () => {
     expect(googleAddressSource).toContain("autoComplete ??");
   });
 
+  it("permite retocar una linea de producto sin perder coste ni incremento", () => {
+    const documentFormSource = readFileSync(
+      new URL("../components/forms/DocumentForm.tsx", import.meta.url),
+      "utf8",
+    );
+    const unitSelectSource = readFileSync(
+      new URL("../components/documents/LineItemUnitSelect.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(documentFormSource).toContain(
+      "if (!current || description.trim()) return prev;",
+    );
+    expect(documentFormSource).toContain("return removeLineProductPricing(prev, id);");
+    expect(unitSelectSource).toContain("PRACTICAL_LINE_UNIT_IDS");
+    expect(unitSelectSource).toContain('"ml"');
+  });
+
   it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
     const importPageSource = readFileSync(
       new URL("../app/importar/page.tsx", import.meta.url),

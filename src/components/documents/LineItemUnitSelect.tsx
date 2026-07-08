@@ -9,6 +9,8 @@ import {
 } from "@/lib/document-units";
 import type { DocumentUnitsSettings } from "@/lib/types";
 
+const PRACTICAL_LINE_UNIT_IDS = ["ud", "m", "ml", "m2", "h", "serv"];
+
 interface LineItemUnitSelectProps {
   settings?: DocumentUnitsSettings | null;
   value: string;
@@ -30,10 +32,19 @@ export function LineItemUnitSelect({
   const currentUnit = DOCUMENT_UNIT_CATALOG.find(
     (unit) => unit.id === currentUnitId,
   );
-  const units =
-    currentUnit && !enabledUnits.some((unit) => unit.id === currentUnit.id)
-      ? [currentUnit, ...enabledUnits]
-      : enabledUnits;
+  const practicalUnits = PRACTICAL_LINE_UNIT_IDS.map((unitId) =>
+    DOCUMENT_UNIT_CATALOG.find((unit) => unit.id === unitId),
+  ).filter((unit): unit is (typeof DOCUMENT_UNIT_CATALOG)[number] =>
+    Boolean(unit),
+  );
+  const units = [...enabledUnits, ...practicalUnits, currentUnit]
+    .filter((unit): unit is (typeof DOCUMENT_UNIT_CATALOG)[number] =>
+      Boolean(unit),
+    )
+    .filter(
+      (unit, index, allUnits) =>
+        allUnits.findIndex((candidate) => candidate.id === unit.id) === index,
+    );
 
   if (units.length <= 1) {
     const singleUnitClass = className
