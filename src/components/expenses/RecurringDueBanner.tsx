@@ -6,8 +6,10 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
   dueSoonLabel,
   getDueSoonRecurringAlerts,
+  recurringExpenseTotals,
 } from "@/lib/recurring-expenses";
 import type { AppData } from "@/lib/types";
+import { isVatExempt } from "@/lib/vat-regime";
 
 interface RecurringDueBannerProps {
   data: AppData;
@@ -21,6 +23,7 @@ export function RecurringDueBanner({
   const alerts = getDueSoonRecurringAlerts(data, referenceDate ?? today());
   if (alerts.length === 0) return null;
 
+  const vatExempt = isVatExempt(data.profile);
   const urgent = alerts.some((item) => item.daysUntil <= 1);
 
   return (
@@ -36,13 +39,17 @@ export function RecurringDueBanner({
         <div className="min-w-0 flex-1">
           <p className="font-semibold">Gastos fijos próximos</p>
           <ul className="mt-2 space-y-1.5">
-            {alerts.slice(0, 4).map((item) => (
-              <li key={`${item.templateId}-${item.date}`}>
-                <strong>{item.description}</strong> ({item.supplierName}) —{" "}
-                {formatMoney(item.amount)} · {formatShortDate(item.date)} ·{" "}
-                {dueSoonLabel(item.daysUntil)}
-              </li>
-            ))}
+            {alerts.slice(0, 4).map((item) => {
+              const totals = recurringExpenseTotals(item, vatExempt);
+              return (
+                <li key={`${item.templateId}-${item.date}`}>
+                  <strong>{item.description}</strong> ({item.supplierName}) —{" "}
+                  {formatMoney(totals.total)}
+                  {totals.ivaPercent > 0 ? " IVA incl." : ""} ·{" "}
+                  {formatShortDate(item.date)} · {dueSoonLabel(item.daysUntil)}
+                </li>
+              );
+            })}
           </ul>
           {alerts.length > 4 && (
             <p className="mt-1 text-xs opacity-80">

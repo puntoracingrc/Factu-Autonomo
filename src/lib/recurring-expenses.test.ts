@@ -3,6 +3,7 @@ import {
   collectRecurringOccurrencePreviews,
   getDueSoonRecurringAlerts,
   listRecurringOccurrenceDates,
+  recurringExpenseTotals,
   resolveDueDate,
   syncRecurringExpenses,
 } from "./recurring-expenses";
@@ -102,6 +103,32 @@ describe("collectRecurringOccurrencePreviews", () => {
     expect(previews.some((p) => p.date === "2026-06-20" && !p.generated)).toBe(
       true,
     );
+    expect(previews[0]?.ivaPercent).toBe(0);
+  });
+});
+
+describe("recurringExpenseTotals", () => {
+  it("calcula el total a pagar con IVA incluido", () => {
+    const totals = recurringExpenseTotals(
+      template({ frequency: "monthly", amount: 64.46, ivaPercent: 21 }),
+    );
+
+    expect(totals).toEqual({
+      base: 64.46,
+      iva: 13.54,
+      total: 78,
+      ivaPercent: 21,
+    });
+  });
+
+  it("respeta usuarios sin IVA", () => {
+    const totals = recurringExpenseTotals(
+      template({ frequency: "monthly", amount: 64.46, ivaPercent: 21 }),
+      true,
+    );
+
+    expect(totals.total).toBe(64.46);
+    expect(totals.ivaPercent).toBe(0);
   });
 });
 
