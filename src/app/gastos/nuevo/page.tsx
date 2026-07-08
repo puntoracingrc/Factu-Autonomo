@@ -522,9 +522,28 @@ export default function NuevoGastoPage() {
     if (payload.expense.amount >= 0) return null;
     return [
       "Factura con importe negativo detectada: parece un abono, devolución",
-      "o saldo a tu favor. La app la reconoce, pero no la guardará",
-      "automáticamente como gasto normal.",
+      "o saldo a tu favor. Revísala y guárdala si quieres que reste gasto e IVA soportado.",
     ].join(" ");
+  }
+
+  function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
+    return (payload.expense.purchaseLines ?? []).filter(
+      (line) =>
+        line.catalogProduct !== false &&
+        !purchaseLineHasCatalogProduct(line, productKeys),
+    );
+  }
+
+  function newCatalogProductReasonForScanPayload(payload: ExpenseScanPayload) {
+    const lines = newCatalogProductLinesForScanPayload(payload);
+    if (lines.length === 0) return null;
+    const sample = lines
+      .slice(0, 3)
+      .map((line) => line.description.trim())
+      .filter(Boolean)
+      .join(", ");
+    const tail = lines.length > 3 ? ` y ${lines.length - 3} más` : "";
+    return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}. Revisa la factura antes de guardar.`;
   }
 
   function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
@@ -595,6 +614,11 @@ export default function NuevoGastoPage() {
     );
     if (negativeAmountReason) return negativeAmountReason;
 
+    const newCatalogProductReason = newCatalogProductReasonForScanPayload(
+      review.payload,
+    );
+    if (newCatalogProductReason) return newCatalogProductReason;
+
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -628,15 +652,16 @@ export default function NuevoGastoPage() {
 
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
-    if (negativeAmountReasonForScanPayload(review.payload)) return "blocked";
+    if (negativeAmountReasonForScanPayload(review.payload)) return "review";
     if (duplicateForScanPayload(review.payload)) {
       return providerSummaryUpgradeTargetForScanPayload(review.payload)
-        ? "review"
+        ? "ready"
         : "blocked";
     }
     if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
+      newCatalogProductLinesForScanPayload(review.payload).length > 0 ||
       review.payload.warnings.length > 0 ||
       review.payload.confidence < 0.8
     ) {
@@ -797,8 +822,8 @@ export default function NuevoGastoPage() {
     );
     const amount = totals.base;
 
-    if (!description.trim() || amount <= 0) {
-      alert("Completa descripción y cantidad");
+    if (!description.trim() || amount === 0) {
+      alert("Completa descripción e importe");
       return;
     }
 
@@ -982,6 +1007,8 @@ export default function NuevoGastoPage() {
                                 className={`mt-1 text-sm font-semibold ${
                                   status === "blocked"
                                     ? "text-red-700"
+                                    : status === "ready"
+                                      ? "text-green-700"
                                     : "text-amber-800"
                                 }`}
                               >

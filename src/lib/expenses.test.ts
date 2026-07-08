@@ -32,6 +32,15 @@ describe("expenseTotalsFromBase", () => {
     });
   });
 
+  it("mantiene importes negativos para abonos o devoluciones", () => {
+    expect(expenseTotalsFromBase(-100, 21)).toEqual({
+      base: -100,
+      iva: -21,
+      total: -121,
+      ivaPercent: 21,
+    });
+  });
+
   it("recalcula total al editar la base", () => {
     const before = expenseTotalsFromBase(100, 21);
     const after = expenseTotalsFromBase(200, 21);
@@ -76,6 +85,27 @@ describe("expenseTotalsFromBase", () => {
     });
     expect(expensePurchaseLineBaseTotal(lines[0])).toBe(54);
     expect(expensePurchaseLinesBaseTotal(lines)).toBe(54);
+  });
+
+  it("conserva líneas negativas de abonos de proveedor", () => {
+    const lines = sanitizeExpensePurchaseLines([
+      {
+        id: "line-return",
+        description: "Material devuelto",
+        quantity: -2,
+        unitPrice: 30,
+        ivaPercent: 21,
+        total: -60,
+      },
+    ]);
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      description: "Material devuelto",
+      quantity: -2,
+      total: -60,
+    });
+    expect(expensePurchaseLineBaseTotal(lines[0])).toBe(-60);
   });
 
   it("limpia datos de factura de proveedor vacíos", () => {

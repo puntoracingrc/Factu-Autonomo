@@ -42,7 +42,7 @@ export interface PurchaseExpenseDuplicateCandidate {
 }
 
 export function normalizeExpenseAmount(value: number): number {
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  return Number.isFinite(value) ? roundMoney(value) : 0;
 }
 
 export function normalizeExpenseIvaPercent(value: number): number {
@@ -78,7 +78,7 @@ export function expensePurchaseLineBaseTotal(
     "quantity" | "unitPrice" | "discountPercent" | "total"
   >,
 ): number {
-  if (Number.isFinite(line.total) && (line.total ?? 0) > 0) {
+  if (Number.isFinite(line.total) && (line.total ?? 0) !== 0) {
     return roundMoney(line.total ?? 0);
   }
 
@@ -166,15 +166,15 @@ export function sanitizeExpensePurchaseLines(
         ? normalizeExpenseIvaPercent(line.ivaPercent ?? 0)
         : undefined,
       total:
-        Number.isFinite(line.total) && (line.total ?? 0) > 0
+        Number.isFinite(line.total) && (line.total ?? 0) !== 0
           ? roundMoney(line.total ?? 0)
           : undefined,
     }))
     .filter(
       (line) =>
         line.description.length > 0 &&
-        line.quantity > 0 &&
-        (line.unitPrice > 0 || (line.total ?? 0) > 0),
+        line.quantity !== 0 &&
+        (line.unitPrice !== 0 || (line.total ?? 0) !== 0),
     );
 }
 
