@@ -111,14 +111,24 @@ export default function NuevoProductoPage() {
       [
         ...new Set(
           [
-            ...productSummaries.map((product) => product.subfamily),
-            ...data.products.map((product) => product.subfamily),
+            ...productSummaries
+              .filter(
+                (product) =>
+                  !form.family.trim() || product.family === form.family.trim(),
+              )
+              .map((product) => product.subfamily),
+            ...data.products
+              .filter(
+                (product) =>
+                  !form.family.trim() || product.family === form.family.trim(),
+              )
+              .map((product) => product.subfamily),
           ]
             .map((subfamily) => subfamily?.trim())
             .filter((value): value is string => Boolean(value)),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
-    [data.products, productSummaries],
+    [data.products, form.family, productSummaries],
   );
 
   const supplierOptions = useMemo(
@@ -130,6 +140,7 @@ export default function NuevoProductoPage() {
     setForm((current) => ({
       ...current,
       [field]: value,
+      ...(field === "family" ? { subfamily: "" } : {}),
       ...(field === "calculationKind" && value === "area"
         ? { saleUnit: "m2" }
         : {}),
@@ -317,7 +328,11 @@ export default function NuevoProductoPage() {
               list="new-product-subfamily-options"
               value={form.subfamily}
               onChange={(event) => updateField("subfamily", event.target.value)}
-              placeholder="Ej: Motores, ejes, guías..."
+              placeholder={
+                form.family.trim()
+                  ? "Ej: Motores, ejes, guías..."
+                  : "Elige familia primero"
+              }
             />
           </Field>
         </div>
