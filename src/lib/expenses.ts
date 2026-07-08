@@ -1,5 +1,6 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
+import { supplierCompareKey } from "./suppliers";
 import type {
   Expense,
   ExpensePurchaseDocument,
@@ -198,6 +199,10 @@ function normalizeDuplicateText(value?: string | null): string {
   return value?.trim().toLowerCase() ?? "";
 }
 
+function normalizeDuplicateSupplierName(value?: string | null): string {
+  return value ? supplierCompareKey(value) : "";
+}
+
 function normalizeDuplicateAmount(value?: number): number | undefined {
   return Number.isFinite(value) && (value ?? 0) > 0
     ? roundMoney(value ?? 0)
@@ -226,8 +231,8 @@ export function purchaseExpenseDuplicateMatches(
     return true;
   }
 
-  const currentSupplier = normalizeDuplicateText(current.supplierName);
-  const previousSupplier = normalizeDuplicateText(previous.supplierName);
+  const currentSupplier = normalizeDuplicateSupplierName(current.supplierName);
+  const previousSupplier = normalizeDuplicateSupplierName(previous.supplierName);
   return Boolean(
     currentSupplier &&
       previousSupplier &&

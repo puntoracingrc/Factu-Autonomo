@@ -118,12 +118,14 @@ describe("provider summary expenses", () => {
     const row = parseProviderInvoiceSummaryText(SUMMARY_TEXT).rows[0];
     const expense = createProviderSummaryExpense(row, {
       providerName: "Metalúrgica Arandes SL",
+      supplierId: "supplier-1",
       summaryId: "summary_1",
       fileName: "resumen.pdf",
       importedAt: "2026-07-07T10:00:00.000Z",
     });
 
     expect(isProviderSummaryPendingOriginal(expense)).toBe(true);
+    expect(expense.supplierId).toBe("supplier-1");
     expect(expense.amount).toBe(12.54);
     expect(expense.providerSummary?.summaryInvoiceTotal).toBe(15.17);
     expect(expenseTotals(expense)).toEqual({
@@ -147,6 +149,24 @@ describe("provider summary expenses", () => {
     expect(plan.expenses).toHaveLength(1);
     expect(plan.skippedExisting).toBe(1);
     expect(plan.expenses[0].purchaseDocument?.invoiceNumber).toBe("FD/222483");
+  });
+
+  it("enlaza las facturas del resumen con el proveedor existente", () => {
+    const parsed = parseProviderInvoiceSummaryText(SUMMARY_TEXT);
+
+    const plan = planProviderSummaryExpenseImport([], parsed.rows, {
+      providerName: "METALURGICA ARANDES S.L.",
+      supplierId: "supplier-arandes",
+      summaryId: "summary_3",
+      importedAt: "2026-07-07T12:00:00.000Z",
+    });
+
+    expect(plan.expenses).toHaveLength(2);
+    expect(plan.expenses[0].supplierId).toBe("supplier-arandes");
+    expect(plan.expenses[0].supplierName).toBe("METALURGICA ARANDES S.L.");
+    expect(plan.expenses[0].providerSummary?.providerName).toBe(
+      "METALURGICA ARANDES S.L.",
+    );
   });
 
   it("completa el gasto provisional con la factura original sin perder el enlace al trabajo", () => {

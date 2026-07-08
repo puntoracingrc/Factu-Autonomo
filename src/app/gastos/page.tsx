@@ -69,6 +69,10 @@ import {
   planProviderSummaryExpenseImport,
   type ProviderInvoiceSummaryRow,
 } from "@/lib/provider-summary-expenses";
+import {
+  ensureSupplierForExpense,
+  supplierCompareKey,
+} from "@/lib/suppliers";
 import type { Quarter } from "@/lib/periods";
 import type { Expense, ExpenseBusinessKind, Supplier } from "@/lib/types";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
@@ -88,20 +92,13 @@ interface ProviderSummaryPreview {
   id: string;
   fileName: string;
   providerName?: string;
+  detectedProviderName?: string;
+  providerSupplierId?: string;
+  providerToCreate?: Omit<Supplier, "id" | "createdAt">;
   rows: ProviderInvoiceSummaryRow[];
   warnings: string[];
   alreadyRegisteredCount: number;
   alreadyPendingOriginalCount: number;
-}
-
-function normalizeSupplierLookup(value?: string): string {
-  return (
-    value
-      ?.normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLowerCase() ?? ""
-  );
 }
 
 function providerSummaryEmailHref(input: {
@@ -295,7 +292,7 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
 }
 
 export default function GastosPage() {
-  const { data, addExpense, deleteExpense } = useAppStore();
+  const { data, addExpense, addSupplier, deleteExpense } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const defaultPeriod = getDefaultExpensePeriod();
 
@@ -416,13 +413,23 @@ export default function GastosPage() {
   }, [summaryPreview, summaryRemovedInvoiceNumbers]);
 
   const summarySupplier = useMemo(() => {
-    const providerKey = normalizeSupplierLookup(summaryPreview?.providerName);
+    if (summaryPreview?.providerSupplierId) {
+      return suppliersById.get(summaryPreview.providerSupplierId);
+    }
+    const providerKey = summaryPreview?.providerName
+      ? supplierCompareKey(summaryPreview.providerName)
+      : "";
     if (!providerKey) return undefined;
     return data.suppliers.find((supplier) => {
-      const supplierKey = normalizeSupplierLookup(supplier.name);
+      const supplierKey = supplierCompareKey(supplier.name);
       return supplierKey === providerKey || supplierKey.includes(providerKey);
     });
-  }, [data.suppliers, summaryPreview?.providerName]);
+  }, [
+    data.suppliers,
+    suppliersById,
+    summaryPreview?.providerName,
+    summaryPreview?.providerSupplierId,
+  ]);
 
   const summaryEmailHref = useMemo(
     () =>
@@ -489,7 +496,16 @@ export default function GastosPage() {
         throw new Error(payload.error || "No se pudo leer el resumen.");
       }
 
-      const providerName = payload.providerName?.trim() || undefined;
+      const detectedProviderName = payload.providerName?.trim() || undefined;
+      const providerResolution = detectedProviderName
+        ? ensureSupplierForExpense(data.suppliers, {
+            name: detectedProviderName,
+            category: "Material",
+            saveSupplier: true,
+          })
+        : undefined;
+      const providerName =
+        providerResolution?.supplierName || detectedProviderName;
       const rowsWithDuplicates = payload.rows.map((row) => ({
         row,
         duplicate: findDuplicatePurchaseExpense(data.expenses, {
@@ -509,6 +525,9 @@ export default function GastosPage() {
         id: crypto.randomUUID(),
         fileName: payload.fileName || file.name,
         providerName,
+        detectedProviderName,
+        providerSupplierId: providerResolution?.supplierId,
+        providerToCreate: providerResolution?.create,
         rows: newRows,
         warnings: payload.warnings,
         alreadyRegisteredCount: payload.rows.length - newRows.length,
@@ -535,11 +554,19 @@ export default function GastosPage() {
     if (!summaryPreview || selectedSummaryRows.length === 0) return;
     const emailHref = summaryEmailHref;
     const importedAt = new Date().toISOString();
+    let supplierId = summaryPreview.providerSupplierId;
+    let providerName = summaryPreview.providerName;
+    if (!supplierId && summaryPreview.providerToCreate) {
+      const created = addSupplier(summaryPreview.providerToCreate);
+      supplierId = created.id;
+      providerName = created.name;
+    }
     const plan = planProviderSummaryExpenseImport(
       data.expenses,
       selectedSummaryRows,
       {
-        providerName: summaryPreview.providerName,
+        providerName,
+        supplierId,
         summaryId: summaryPreview.id,
         fileName: summaryPreview.fileName,
         importedAt,
@@ -650,6 +677,22 @@ export default function GastosPage() {
               {summaryPreview.providerName && (
                 <p className="mt-1 text-sm font-semibold text-slate-700">
                   Proveedor: {summaryPreview.providerName}
+                </p>
+              )}
+              {summaryPreview.detectedProviderName &&
+                summaryPreview.providerName &&
+                supplierCompareKey(summaryPreview.detectedProviderName) !==
+                  supplierCompareKey(summaryPreview.providerName) && (
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">
+                    Detectado como «{summaryPreview.detectedProviderName}»,
+                    guardado en el proveedor existente «
+                    {summaryPreview.providerName}».
+                  </p>
+                )}
+              {summaryPreview.providerToCreate && (
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                  Se creará este proveedor al guardar porque no hay ninguno
+                  parecido.
                 </p>
               )}
               {summaryPreview.alreadyRegisteredCount > 0 && (

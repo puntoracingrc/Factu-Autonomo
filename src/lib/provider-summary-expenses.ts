@@ -27,6 +27,7 @@ export interface ParsedProviderInvoiceSummary {
 
 export interface ProviderSummaryExpenseOptions {
   providerName?: string;
+  supplierId?: string;
   summaryId: string;
   fileName?: string;
   importedAt?: string;
@@ -258,6 +259,7 @@ export function createProviderSummaryExpense(
     date: row.date,
     origin: "import",
     businessKind: "purchase_invoice",
+    supplierId: options.supplierId,
     supplierName: providerName,
     description: `Factura ${row.invoiceNumber} pendiente de original`,
     amount: row.base,

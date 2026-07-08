@@ -132,6 +132,18 @@ describe("expenseTotalsFromBase", () => {
       }),
     ).toBe(previousExpense);
     expect(
+      purchaseExpenseDuplicateMatches(
+        {
+          invoiceNumber: "FD/224811",
+          supplierName: "Metalúrgica Arandes SL",
+        },
+        {
+          invoiceNumber: previousExpense.purchaseDocument?.invoiceNumber,
+          supplierName: previousExpense.supplierName,
+        },
+      ),
+    ).toBe(true);
+    expect(
       findDuplicatePurchaseExpense(
         [previousExpense],
         {
