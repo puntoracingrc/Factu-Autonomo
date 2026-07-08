@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   sku: "",
   name: "",
   family: "",
+  subfamily: "",
   saleDescription: "",
   saleUnit: "ud",
   salePrice: "",
@@ -105,6 +106,21 @@ export default function NuevoProductoPage() {
     [data.products, productSummaries],
   );
 
+  const subfamilyOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          [
+            ...productSummaries.map((product) => product.subfamily),
+            ...data.products.map((product) => product.subfamily),
+          ]
+            .map((subfamily) => subfamily?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [data.products, productSummaries],
+  );
+
   const supplierOptions = useMemo(
     () => data.suppliers.map((supplier) => supplier.name).sort(),
     [data.suppliers],
@@ -174,6 +190,7 @@ export default function NuevoProductoPage() {
       sku: form.sku.trim() || undefined,
       name,
       family: form.family.trim() || "Sin familia",
+      subfamily: form.subfamily.trim() || undefined,
       unit: saleUnit,
       supplierId: supplier?.id,
       supplierName: supplier?.name ?? (supplierName || undefined),
@@ -272,7 +289,7 @@ export default function NuevoProductoPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[0.55fr_1.4fr_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[0.55fr_1.4fr_1fr_1fr]">
           <Field label="Código / SKU">
             <Input
               value={form.sku}
@@ -293,6 +310,14 @@ export default function NuevoProductoPage() {
               value={form.family}
               onChange={(event) => updateField("family", event.target.value)}
               placeholder="Ej: Persianas y accesorios"
+            />
+          </Field>
+          <Field label="Subfamilia">
+            <Input
+              list="new-product-subfamily-options"
+              value={form.subfamily}
+              onChange={(event) => updateField("subfamily", event.target.value)}
+              placeholder="Ej: Motores, ejes, guías..."
             />
           </Field>
         </div>
@@ -505,6 +530,11 @@ export default function NuevoProductoPage() {
       <datalist id="new-product-family-options">
         {familyOptions.map((family) => (
           <option key={family} value={family} />
+        ))}
+      </datalist>
+      <datalist id="new-product-subfamily-options">
+        {subfamilyOptions.map((subfamily) => (
+          <option key={subfamily} value={subfamily} />
         ))}
       </datalist>
       <datalist id="new-product-supplier-options">
