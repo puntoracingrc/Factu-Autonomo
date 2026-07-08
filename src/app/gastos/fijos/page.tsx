@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -59,6 +59,12 @@ const EMPTY_FORM = {
 };
 
 type EditApplyMode = "today" | "custom";
+
+const FREQUENCY_MONTHLY_DIVISOR: Record<RecurringExpenseFrequency, number> = {
+  monthly: 1,
+  quarterly: 3,
+  annual: 12,
+};
 
 function recurringExpenseForm(item: RecurringExpense) {
   return {
@@ -125,6 +131,29 @@ export default function GastosFijosPage() {
     if (closedA !== closedB) return closedA ? 1 : -1;
     return a.supplierName.localeCompare(b.supplierName, "es");
   });
+  const activeSummary = useMemo(() => {
+    const summary = {
+      monthly: 0,
+      quarterly: 0,
+      annual: 0,
+      monthlyEquivalent: 0,
+      totalActive: 0,
+    };
+
+    for (const item of data.recurringExpenses) {
+      if (!item.enabled || recurringExpenseIsClosed(item, today)) continue;
+      summary[item.frequency] += 1;
+      summary.totalActive += 1;
+      summary.monthlyEquivalent +=
+        recurringExpenseTotals(item, vatExempt).total /
+        FREQUENCY_MONTHLY_DIVISOR[item.frequency];
+    }
+
+    summary.monthlyEquivalent =
+      Math.round((summary.monthlyEquivalent + Number.EPSILON) * 100) / 100;
+
+    return summary;
+  }, [data.recurringExpenses, today, vatExempt]);
   const requestedEditId = searchParams.get("editar");
   const selectedEffectiveDate =
     editApplyMode === "today" ? today : effectiveDate || today;
@@ -273,6 +302,22 @@ export default function GastosFijosPage() {
           </div>
         }
       />
+
+      <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
+        {activeSummary.totalActive > 0 ? (
+          <>
+            Activos ahora: {activeSummary.monthly} al mes ·{" "}
+            {activeSummary.quarterly} al trimestre · {activeSummary.annual} al
+            año. Equivalente mensual aprox.:{" "}
+            <span className="font-black text-slate-950">
+              {formatMoney(activeSummary.monthlyEquivalent)}
+            </span>
+            .
+          </>
+        ) : (
+          "No tienes gastos fijos activos ahora mismo."
+        )}
+      </p>
 
       <RecurringDueBanner data={data} />
       <RecurringUpcomingList data={data} />
