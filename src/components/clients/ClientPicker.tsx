@@ -325,6 +325,7 @@ export function ClientPicker({
                 value={values.firstName}
                 onChange={(e) => handleFieldChange("firstName", e.target.value)}
                 placeholder={namePlaceholder}
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -339,6 +340,7 @@ export function ClientPicker({
                   )
                 }
                 placeholder={isCompany ? "Ej: Laura Gómez" : "Ej: López García"}
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -348,6 +350,7 @@ export function ClientPicker({
                 value={values.nif}
                 onChange={(e) => handleFieldChange("nif", e.target.value)}
                 placeholder="12345678A"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -357,6 +360,7 @@ export function ClientPicker({
                 value={values.phone}
                 onChange={(e) => handleFieldChange("phone", e.target.value)}
                 placeholder="600 000 000"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -367,6 +371,7 @@ export function ClientPicker({
                 value={values.email}
                 onChange={(e) => handleFieldChange("email", e.target.value)}
                 placeholder="cliente@email.com"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -389,6 +394,7 @@ export function ClientPicker({
                 enabled={Boolean(data.profile.googlePlaces?.enabled)}
                 displayStreetLineOnly
                 placeholder="Ej: Valencia 546 7/1"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -420,6 +426,7 @@ export function ClientPicker({
                     handleFieldChange("addressExtra", e.target.value)
                   }
                   placeholder="Ej: 2º 2ª"
+                  autoComplete="new-password"
                 />
               </Field>
             </div>
@@ -432,6 +439,7 @@ export function ClientPicker({
                   handleFieldChange("postalCode", e.target.value)
                 }
                 placeholder="08017"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -441,6 +449,7 @@ export function ClientPicker({
                 value={values.city}
                 onChange={(e) => handleFieldChange("city", e.target.value)}
                 placeholder="Barcelona"
+                autoComplete="new-password"
               />
             </Field>
           </div>
@@ -451,6 +460,7 @@ export function ClientPicker({
                 onChange={(e) => handleFieldChange("notes", e.target.value)}
                 placeholder="Datos internos de la ficha del cliente..."
                 className="min-h-20"
+                autoComplete="new-password"
               />
             </Field>
           </div>

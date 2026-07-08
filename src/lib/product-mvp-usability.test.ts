@@ -1050,8 +1050,8 @@ describe("MVP usability polish", () => {
     expect(typesSource).toContain("subfamily?: string");
     expect(purchaseProductsSource).toContain("subfamily: catalogProduct?.subfamily");
     expect(purchaseProductsSource).toContain("subfamily: product.subfamily");
-    expect(productsPageSource).toContain("Nueva subfamilia");
-    expect(productsPageSource).toContain("Renombrar subfamilia");
+    expect(productsPageSource).toContain("Nuevo");
+    expect(productsPageSource).toContain("Renombrar");
     expect(productsPageSource).toContain("saveProductSubfamily");
     expect(productsPageSource).toContain("SubfamilyEntry");
     expect(productsPageSource).toContain("selectedFamilySubfamilies");
@@ -1059,6 +1059,11 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("NO_SUBFAMILY");
     expect(productsPageSource).toContain("Sin subfamilia");
     expect(productsPageSource).toContain("defaultSubfamilyForFamily");
+    expect(productsPageSource).toContain("Ver estructura");
+    expect(productsPageSource).toContain("Familias y subfamilias");
+    expect(productsPageSource).toContain("applyFamilyStructureFilter");
+    expect(productsPageSource).toContain("supplierStructureOpen");
+    expect(productsPageSource).toContain("applySupplierStructureFilter");
     expect(productsPageSource).toContain("Dentro de la familia");
     expect(productsPageSource).toContain("bulkSubfamilyDraft");
     expect(productsPageSource).toContain('label="Subfamilia"');
@@ -1067,6 +1072,24 @@ describe("MVP usability polish", () => {
     expect(newProductPageSource).toContain(
       "subfamily: form.subfamily.trim() || undefined",
     );
+  });
+
+  it("evita la memoria del navegador en la ficha de cliente de documentos", () => {
+    const clientPickerSource = readFileSync(
+      new URL("../components/clients/ClientPicker.tsx", import.meta.url),
+      "utf8",
+    );
+    const googleAddressSource = readFileSync(
+      new URL("../components/places/GoogleAddressAutocomplete.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(clientPickerSource).toContain('autoComplete="new-password"');
+    expect(clientPickerSource).toContain(
+      '<GoogleAddressAutocomplete',
+    );
+    expect(googleAddressSource).toContain("autoComplete?: string");
+    expect(googleAddressSource).toContain("autoComplete ??");
   });
 
   it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {

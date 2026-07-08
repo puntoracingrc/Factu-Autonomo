@@ -69,6 +69,7 @@ interface GoogleAddressAutocompleteProps {
   id?: string;
   name?: string;
   className?: string;
+  autoComplete?: string;
   displayStreetLineOnly?: boolean;
   "aria-invalid"?: boolean;
 }
@@ -131,6 +132,7 @@ export function GoogleAddressAutocomplete({
   id,
   name,
   className,
+  autoComplete,
   displayStreetLineOnly = false,
   "aria-invalid": ariaInvalid,
 }: GoogleAddressAutocompleteProps) {
@@ -334,7 +336,7 @@ export function GoogleAddressAutocomplete({
           placeholder={placeholder}
           className={`pr-12 ${className ?? ""}`.trim()}
           aria-invalid={ariaInvalid}
-          autoComplete={canUsePlaces ? "off" : "street-address"}
+          autoComplete={autoComplete ?? (canUsePlaces ? "off" : "street-address")}
         />
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
           {loading || applying ? (
