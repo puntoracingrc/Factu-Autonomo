@@ -5,6 +5,7 @@ import type {
   RecurringExpense,
   RecurringExpenseFrequency,
 } from "./types";
+import { expenseTotalsFromBase } from "./expenses";
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
@@ -259,9 +260,17 @@ export interface RecurringOccurrencePreview {
   supplierName: string;
   description: string;
   amount: number;
+  ivaPercent: number;
   date: string;
   daysUntil: number;
   generated: boolean;
+}
+
+export function recurringExpenseTotals(
+  template: Pick<RecurringExpense, "amount" | "ivaPercent">,
+  vatExempt = false,
+) {
+  return expenseTotalsFromBase(template.amount, template.ivaPercent, vatExempt);
 }
 
 function existingOccurrenceKeys(expenses: Expense[]): Set<string> {
@@ -292,6 +301,7 @@ export function collectRecurringOccurrencePreviews(
         supplierName: template.supplierName,
         description: template.description,
         amount: template.amount,
+        ivaPercent: template.ivaPercent,
         date,
         daysUntil: daysBetweenIso(referenceDate, date),
         generated: existingKeys.has(occurrenceKey(template.id, date)),

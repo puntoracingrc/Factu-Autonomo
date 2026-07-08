@@ -7,8 +7,10 @@ import {
   collectRecurringOccurrencePreviews,
   dueSoonLabel,
   RECURRING_PREVIEW_HORIZON_DAYS,
+  recurringExpenseTotals,
 } from "@/lib/recurring-expenses";
 import type { AppData } from "@/lib/types";
+import { isVatExempt } from "@/lib/vat-regime";
 
 interface RecurringUpcomingListProps {
   data: AppData;
@@ -19,6 +21,7 @@ export function RecurringUpcomingList({
   data,
   limit = 12,
 }: RecurringUpcomingListProps) {
+  const vatExempt = isVatExempt(data.profile);
   const previews = collectRecurringOccurrencePreviews(
     data,
     todayISO(),
@@ -43,23 +46,36 @@ export function RecurringUpcomingList({
       </div>
 
       <ul className="divide-y divide-violet-100 rounded-xl border border-violet-100 bg-white">
-        {previews.slice(0, limit).map((item) => (
-          <li
-            key={`${item.templateId}-${item.date}`}
-            className="flex items-start justify-between gap-3 px-4 py-3"
-          >
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-900">{item.description}</p>
-              <p className="text-sm text-slate-500">{item.supplierName}</p>
-              <p className="mt-1 text-xs font-medium text-violet-700">
-                {formatShortDate(item.date)} · {dueSoonLabel(item.daysUntil)}
-              </p>
-            </div>
-            <p className="shrink-0 font-bold text-red-700">
-              {formatMoney(item.amount)}
-            </p>
-          </li>
-        ))}
+        {previews.slice(0, limit).map((item) => {
+          const totals = recurringExpenseTotals(item, vatExempt);
+          const hasIva = totals.ivaPercent > 0;
+          return (
+            <li
+              key={`${item.templateId}-${item.date}`}
+              className="flex items-start justify-between gap-3 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900">
+                  {item.description}
+                </p>
+                <p className="text-sm text-slate-500">{item.supplierName}</p>
+                <p className="mt-1 text-xs font-medium text-violet-700">
+                  {formatShortDate(item.date)} · {dueSoonLabel(item.daysUntil)}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-bold text-red-700">
+                  {formatMoney(totals.total)}
+                </p>
+                {hasIva && (
+                  <p className="text-xs font-medium text-slate-500">
+                    IVA incl.
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {previews.length > limit && (
