@@ -1014,6 +1014,24 @@ describe("MVP usability polish", () => {
     expect(expensesPageSource).toContain("Mostrando");
   });
 
+  it("muestra productos con nombre bonito sin romper el nombre detectado", () => {
+    const productsPageSource = readFileSync(
+      new URL("../app/productos/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(productsPageSource).toContain("function productDisplayName");
+    expect(productsPageSource).toContain("product.saleDescription?.trim()");
+    expect(productsPageSource).toContain("Proveedor: {product.name}");
+    expect(productsPageSource).toContain(
+      'label="Producto detectado / proveedor"',
+    );
+    expect(productsPageSource).toContain('label="Nombre visible / venta"');
+    expect(productsPageSource).toContain(
+      "documentPickRequest.prefill?.description?.trim()",
+    );
+  });
+
   it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
     const importPageSource = readFileSync(
       new URL("../app/importar/page.tsx", import.meta.url),
