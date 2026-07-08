@@ -4,7 +4,7 @@ import { CalendarDays } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
 import {
-  collectRecurringOccurrencePreviews,
+  collectNextRecurringOccurrencePreviews,
   dueSoonLabel,
   RECURRING_PREVIEW_HORIZON_DAYS,
   recurringExpenseTotals,
@@ -19,14 +19,14 @@ interface RecurringUpcomingListProps {
 
 export function RecurringUpcomingList({
   data,
-  limit = 12,
+  limit = 5,
 }: RecurringUpcomingListProps) {
   const vatExempt = isVatExempt(data.profile);
-  const previews = collectRecurringOccurrencePreviews(
+  const previews = collectNextRecurringOccurrencePreviews(
     data,
     todayISO(),
     RECURRING_PREVIEW_HORIZON_DAYS,
-  ).filter((item) => !item.generated);
+  );
 
   if (previews.length === 0) return null;
 
@@ -45,8 +45,11 @@ export function RecurringUpcomingList({
         </div>
       </div>
 
-      <ul className="divide-y divide-violet-100 rounded-xl border border-violet-100 bg-white">
-        {previews.slice(0, limit).map((item) => {
+      <ul
+        className="divide-y divide-violet-100 overflow-y-auto rounded-xl border border-violet-100 bg-white"
+        style={{ maxHeight: `${limit * 5.8}rem` }}
+      >
+        {previews.map((item) => {
           const totals = recurringExpenseTotals(item, vatExempt);
           const hasIva = totals.ivaPercent > 0;
           return (
@@ -80,7 +83,7 @@ export function RecurringUpcomingList({
 
       {previews.length > limit && (
         <p className="text-center text-xs text-slate-500">
-          +{previews.length - limit} cargos más en el calendario
+          Desliza para ver {previews.length - limit} gasto(s) fijo(s) más.
         </p>
       )}
     </Card>

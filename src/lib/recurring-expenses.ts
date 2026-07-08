@@ -140,12 +140,15 @@ export function expenseFromRecurring(
   template: RecurringExpense,
   date: string,
 ): Omit<Expense, "id" | "createdAt"> {
+  const deductibility = template.deductibility ?? "deductible";
+
   return {
     date,
     supplierName: template.supplierName,
     description: template.description,
     amount: template.amount,
-    ivaPercent: template.ivaPercent,
+    ivaPercent: deductibility === "non_deductible" ? 0 : template.ivaPercent,
+    deductibility,
     category: template.category,
     paymentMethod: template.paymentMethod,
     notes: template.notes,
@@ -261,16 +264,19 @@ export interface RecurringOccurrencePreview {
   description: string;
   amount: number;
   ivaPercent: number;
+  deductibility?: RecurringExpense["deductibility"];
   date: string;
   daysUntil: number;
   generated: boolean;
 }
 
 export function recurringExpenseTotals(
-  template: Pick<RecurringExpense, "amount" | "ivaPercent">,
+  template: Pick<RecurringExpense, "amount" | "ivaPercent" | "deductibility">,
   vatExempt = false,
 ) {
-  return expenseTotalsFromBase(template.amount, template.ivaPercent, vatExempt);
+  const ivaPercent =
+    template.deductibility === "non_deductible" ? 0 : template.ivaPercent;
+  return expenseTotalsFromBase(template.amount, ivaPercent, vatExempt);
 }
 
 function existingOccurrenceKeys(expenses: Expense[]): Set<string> {
@@ -302,6 +308,7 @@ export function collectRecurringOccurrencePreviews(
         description: template.description,
         amount: template.amount,
         ivaPercent: template.ivaPercent,
+        deductibility: template.deductibility,
         date,
         daysUntil: daysBetweenIso(referenceDate, date),
         generated: existingKeys.has(occurrenceKey(template.id, date)),
@@ -310,6 +317,30 @@ export function collectRecurringOccurrencePreviews(
   }
 
   return previews.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function collectNextRecurringOccurrencePreviews(
+  data: AppData,
+  referenceDate: string,
+  horizonDays = RECURRING_PREVIEW_HORIZON_DAYS,
+): RecurringOccurrencePreview[] {
+  const previews = collectRecurringOccurrencePreviews(
+    data,
+    referenceDate,
+    horizonDays,
+  ).filter((preview) => !preview.generated);
+  const nextByTemplate = new Map<string, RecurringOccurrencePreview>();
+
+  for (const preview of previews) {
+    const current = nextByTemplate.get(preview.templateId);
+    if (!current || preview.date < current.date) {
+      nextByTemplate.set(preview.templateId, preview);
+    }
+  }
+
+  return [...nextByTemplate.values()].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
 }
 
 export function getDueSoonRecurringAlerts(

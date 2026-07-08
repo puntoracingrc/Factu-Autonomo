@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectNextRecurringOccurrencePreviews,
   collectRecurringOccurrencePreviews,
+  expenseFromRecurring,
   getDueSoonRecurringAlerts,
   listRecurringOccurrenceDates,
   recurringExpenseTotals,
@@ -107,6 +109,40 @@ describe("collectRecurringOccurrencePreviews", () => {
   });
 });
 
+describe("collectNextRecurringOccurrencePreviews", () => {
+  it("muestra solo el siguiente cargo de cada gasto fijo", () => {
+    const monthly = template({
+      id: "monthly",
+      frequency: "monthly",
+      dueTiming: { kind: "day_of_month", day: 10 },
+      startDate: "2026-01-01",
+    });
+    const annual = template({
+      id: "annual",
+      description: "Seguro anual",
+      frequency: "annual",
+      dueMonth: 9,
+      dueTiming: { kind: "day_of_month", day: 1 },
+      startDate: "2026-01-01",
+    });
+
+    const previews = collectNextRecurringOccurrencePreviews(
+      { ...EMPTY_DATA, recurringExpenses: [monthly, annual] },
+      "2026-07-01",
+      120,
+    );
+
+    expect(previews.map((preview) => preview.templateId)).toEqual([
+      "monthly",
+      "annual",
+    ]);
+    expect(previews.map((preview) => preview.date)).toEqual([
+      "2026-07-10",
+      "2026-09-01",
+    ]);
+  });
+});
+
 describe("recurringExpenseTotals", () => {
   it("calcula el total a pagar con IVA incluido", () => {
     const totals = recurringExpenseTotals(
@@ -129,6 +165,24 @@ describe("recurringExpenseTotals", () => {
 
     expect(totals.total).toBe(64.46);
     expect(totals.ivaPercent).toBe(0);
+  });
+
+  it("trata los gastos no fiscales como importe íntegro sin IVA", () => {
+    const totals = recurringExpenseTotals(
+      template({
+        frequency: "monthly",
+        amount: 120,
+        ivaPercent: 21,
+        deductibility: "non_deductible",
+      }),
+    );
+
+    expect(totals).toEqual({
+      base: 120,
+      iva: 0,
+      total: 120,
+      ivaPercent: 0,
+    });
   });
 });
 
@@ -164,5 +218,20 @@ describe("syncRecurringExpenses", () => {
 
     const second = syncRecurringExpenses(first, "2026-02-28");
     expect(second.expenses).toHaveLength(2);
+  });
+
+  it("materializa gastos no fiscales con IVA 0", () => {
+    const recurring = template({
+      frequency: "monthly",
+      amount: 120,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+    });
+
+    const expense = expenseFromRecurring(recurring, "2026-07-31");
+
+    expect(expense.ivaPercent).toBe(0);
+    expect(expense.deductibility).toBe("non_deductible");
+    expect(expense.amount).toBe(120);
   });
 });
