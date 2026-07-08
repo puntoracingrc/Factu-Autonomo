@@ -992,7 +992,7 @@ export function DocumentForm({
     setFocusedProductLineId(id);
     setLineProductPricing((prev) => {
       const current = prev[id];
-      if (!current || description.trim() === current.productName) return prev;
+      if (!current || description.trim()) return prev;
       return removeLineProductPricing(prev, id);
     });
   }
