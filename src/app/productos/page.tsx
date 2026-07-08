@@ -117,6 +117,10 @@ export default function ProductosPage() {
   const [visibleCount, setVisibleCount] = useState(30);
   const [familyFormOpen, setFamilyFormOpen] = useState(false);
   const [familyDraft, setFamilyDraft] = useState("");
+  const [familyRenameOpen, setFamilyRenameOpen] = useState(false);
+  const [familyRenameFrom, setFamilyRenameFrom] = useState("");
+  const [familyRenameTo, setFamilyRenameTo] = useState("");
+  const [bulkFamilyDraft, setBulkFamilyDraft] = useState("");
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
@@ -273,6 +277,20 @@ export default function ProductosPage() {
     );
   }
 
+  function selectVisibleProducts() {
+    setSelectedProductKeys((current) => [
+      ...new Set([
+        ...current,
+        ...visibleProducts.map((product) => product.key),
+      ]),
+    ]);
+  }
+
+  function clearSelectedProducts() {
+    setSelectedProductKeys([]);
+    setBulkFamilyDraft("");
+  }
+
   function openDocumentFromSelected(
     documentType: "factura" | "presupuesto" | "recibo",
   ) {
@@ -412,6 +430,107 @@ export default function ProductosPage() {
     }
     if (!canAddCatalogProduct()) return null;
     return addProduct({ ...productFromSummary(product), ...patch });
+  }
+
+  function catalogProductForSummary(
+    product: PurchaseProductSummary,
+  ): Product | undefined {
+    if (product.productId) {
+      return data.products.find((entry) => entry.id === product.productId);
+    }
+    return data.products.find((entry) => entry.key === product.key);
+  }
+
+  function saveProductFamily(
+    product: PurchaseProductSummary,
+    targetFamily: string,
+  ): Product | null {
+    const normalizedFamily = targetFamily.trim() || "Sin familia";
+    const existing = catalogProductForSummary(product);
+    if (existing) {
+      const updated = {
+        ...existing,
+        family: normalizedFamily,
+        source: "manual" as const,
+        hidden: false,
+      };
+      updateProduct(updated);
+      return updated;
+    }
+    if (!canAddCatalogProduct()) return null;
+    return addProduct({
+      ...productFromSummary(product),
+      family: normalizedFamily,
+      source: "manual",
+    });
+  }
+
+  function assignSelectedFamily() {
+    const targetFamily = bulkFamilyDraft.trim();
+    if (!targetFamily) {
+      setFamilyNotice("Elige o escribe la familia de destino.");
+      return;
+    }
+    if (selectedProducts.length === 0) return;
+
+    let savedCount = 0;
+    for (const product of selectedProducts) {
+      if (saveProductFamily(product, targetFamily)) savedCount += 1;
+    }
+    if (savedCount === 0) return;
+
+    setFamily(targetFamily);
+    setSupplier(ALL);
+    setSelectedProductKeys([]);
+    setBulkFamilyDraft("");
+    setFamilyNotice(
+      `${savedCount} producto(s) movido(s) a "${targetFamily}". La próxima lectura del mismo producto recordará esta familia.`,
+    );
+  }
+
+  function renameFamily() {
+    const sourceFamily = familyRenameFrom.trim();
+    const targetFamily = familyRenameTo.trim();
+    if (!sourceFamily) {
+      setFamilyNotice("Elige la familia que quieres renombrar.");
+      return;
+    }
+    if (!targetFamily) {
+      setFamilyNotice("Escribe el nuevo nombre de la familia.");
+      return;
+    }
+    if (sourceFamily === targetFamily) {
+      setFamilyRenameOpen(false);
+      setFamilyNotice("La familia ya tenía ese nombre.");
+      return;
+    }
+
+    const affectedProducts = products.filter(
+      (product) => product.family === sourceFamily,
+    );
+    let savedCount = 0;
+    for (const product of affectedProducts) {
+      if (saveProductFamily(product, targetFamily)) savedCount += 1;
+    }
+
+    for (const product of data.products) {
+      if (product.family !== sourceFamily || !product.hidden) continue;
+      updateProduct({
+        ...product,
+        family: targetFamily,
+        name: product.name.startsWith("Familia:")
+          ? `Familia: ${targetFamily}`
+          : product.name,
+      });
+    }
+
+    if (family === sourceFamily) setFamily(targetFamily);
+    setFamilyRenameFrom("");
+    setFamilyRenameTo("");
+    setFamilyRenameOpen(false);
+    setFamilyNotice(
+      `Familia "${sourceFamily}" renombrada a "${targetFamily}" en ${savedCount} producto(s).`,
+    );
   }
 
   function handleMergeProducts(
@@ -555,12 +674,25 @@ export default function ProductosPage() {
               type="button"
               onClick={() => {
                 setFamilyFormOpen((current) => !current);
+                setFamilyRenameOpen(false);
                 setFamilyNotice(null);
               }}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
               <Tag className="h-5 w-5" />
               Nueva familia
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFamilyRenameOpen((current) => !current);
+                setFamilyFormOpen(false);
+                setFamilyNotice(null);
+              }}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Edit3 className="h-5 w-5" />
+              Renombrar familia
             </button>
             <Link
               href="/productos/nuevo"
@@ -620,6 +752,67 @@ export default function ProductosPage() {
               Cancelar
             </button>
           </form>
+        </Card>
+      ) : null}
+
+      {familyRenameOpen ? (
+        <Card className="border-blue-100 bg-blue-50/70">
+          <form
+            className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              renameFamily();
+            }}
+          >
+            <FilterSelect
+              label="Familia actual"
+              value={familyRenameFrom || ALL}
+              onChange={(value) => {
+                const nextValue = value === ALL ? "" : value;
+                setFamilyRenameFrom(nextValue);
+                setFamilyRenameTo(nextValue);
+                setFamilyNotice(null);
+              }}
+              options={families}
+              allLabel="Elige familia"
+            />
+            <label className="space-y-1.5">
+              <span className="text-sm font-black text-slate-800">
+                Nuevo nombre
+              </span>
+              <input
+                value={familyRenameTo}
+                onChange={(event) => {
+                  setFamilyRenameTo(event.target.value);
+                  setFamilyNotice(null);
+                }}
+                placeholder="Ej: Accesorios de persiana"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Guardar nombre
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFamilyRenameOpen(false);
+                setFamilyRenameFrom("");
+                setFamilyRenameTo("");
+                setFamilyNotice(null);
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Cancelar
+            </button>
+          </form>
+          <p className="mt-3 text-sm font-semibold text-blue-900">
+            Al renombrar, el catálogo recordará el nuevo nombre para productos ya
+            detectados con esa familia.
+          </p>
         </Card>
       ) : null}
 
@@ -762,23 +955,66 @@ export default function ProductosPage() {
             </div>
           </Card>
 
-          <p className="text-sm font-semibold text-slate-500">
-            {filteredProducts.length} de {products.length} producto(s)
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-slate-500">
+              {filteredProducts.length} de {products.length} producto(s)
+            </p>
+            {!documentPickRequest && visibleProducts.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={selectVisibleProducts}
+                  className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  Seleccionar visibles
+                </button>
+                {selectedProducts.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={clearSelectedProducts}
+                    className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Quitar selección
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
           {!documentPickRequest && selectedProducts.length > 0 ? (
-            <Card className="fixed bottom-24 left-4 right-4 z-40 border-blue-100 bg-white/95 shadow-2xl backdrop-blur lg:bottom-6 lg:left-auto lg:right-6 lg:w-[min(44rem,calc(100vw-22rem))]">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <Card className="fixed bottom-24 left-4 right-4 z-40 max-h-[75vh] overflow-y-auto border-blue-100 bg-white/95 shadow-2xl backdrop-blur lg:bottom-6 lg:left-auto lg:right-6 lg:w-[min(52rem,calc(100vw-22rem))]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div>
                   <p className="text-sm font-black text-slate-950">
-                    {selectedProducts.length} producto(s) añadido(s) al
-                    documento
+                    {selectedProducts.length} producto(s) seleccionado(s)
                   </p>
                   <p className="text-sm font-semibold text-slate-500">
-                    Elige dónde insertarlos como líneas editables.
+                    Muévelos de familia o úsalos en un documento.
                   </p>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-4">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <ProductFamilySelect
+                    label="Mover a familia"
+                    value={bulkFamilyDraft}
+                    onChange={(value) => {
+                      setBulkFamilyDraft(value);
+                      setFamilyNotice(null);
+                    }}
+                    options={families}
+                  />
+                  <button
+                    type="button"
+                    onClick={assignSelectedFamily}
+                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
+                  >
+                    Aplicar
+                  </button>
+                  <p className="text-xs font-semibold text-blue-900 sm:col-span-2">
+                    Esto enseña al catálogo para próximos escaneos del mismo
+                    producto. No cambia la factura de proveedor original.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-4 xl:col-span-2">
                   <button
                     type="button"
                     onClick={() => openDocumentFromSelected("factura")}
@@ -803,7 +1039,7 @@ export default function ProductosPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedProductKeys([])}
+                    onClick={clearSelectedProducts}
                     className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     Vaciar
@@ -1256,15 +1492,15 @@ function ProductCard({
                     pickMode
                       ? "Usar producto en el documento"
                       : selected
-                        ? "Quitar producto del documento"
-                        : "Añadir producto a un documento"
+                        ? "Quitar producto de la selección"
+                        : "Seleccionar producto"
                   }
                   title={
                     pickMode
                       ? "Usar en esta línea del documento"
                       : selected
-                        ? "Quitar del documento"
-                        : "Añadir a factura, presupuesto o recibo"
+                        ? "Quitar de la selección"
+                        : "Seleccionar producto"
                   }
                 >
                   {pickMode || selected ? (
