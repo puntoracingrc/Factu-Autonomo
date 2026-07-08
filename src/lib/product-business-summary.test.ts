@@ -139,6 +139,45 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.totalPendingCollection).toBe(121);
   });
 
+  it("incluye rectificativas vigentes positivas en pendientes de cobro", () => {
+    const original = invoice({
+      id: "original",
+      status: "rectificada",
+      rectifiedById: "rect-1",
+    });
+    const rectification = invoice({
+      id: "rect-1",
+      number: "FR-2026-0001",
+      items: [
+        {
+          id: "line-rect",
+          description: "Corrección",
+          quantity: 1,
+          unitPrice: 50,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+    });
+
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [original, rectification],
+    });
+
+    expect(summary.pendingInvoicesCount).toBe(1);
+    expect(summary.totalPendingCollection).toBe(60.5);
+    expect(summary.pendingInvoices.map((document) => document.id)).toEqual([
+      "rect-1",
+    ]);
+  });
+
   it("suma gastos registrados", () => {
     const summary = buildProductBusinessSummary({
       ...EMPTY_DATA,

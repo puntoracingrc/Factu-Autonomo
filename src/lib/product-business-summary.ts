@@ -106,7 +106,7 @@ export function buildProductBusinessSummary(
     (document) => deriveDocumentLifecycle(document) === "draft",
   );
   const collectedInvoices = issuedInvoices.filter(isCollectedDocument);
-  const pendingInvoices = issuedInvoices.filter(isPendingInvoicePayment);
+  const pendingInvoices = invoices.filter(isPendingInvoicePayment);
 
   const totalBilledIssued = safeMoney(
     issuedInvoices.reduce(

@@ -552,7 +552,10 @@ function DocumentRow({
         </span>
         <span className="block truncate text-xs text-slate-500">
           {document.client.name || "Sin cliente"} ·{" "}
-          {documentStatusLabel(document, document.type)} ·{" "}
+          {document.rectification
+            ? "Rectificativa"
+            : documentStatusLabel(document, document.type)}{" "}
+          ·{" "}
           {formatShortDate(document.date)}
         </span>
       </span>
