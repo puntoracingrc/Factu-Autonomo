@@ -96,8 +96,8 @@ function productDisplayName(product: PurchaseProductSummary): string {
   return product.saleDescription?.trim() || product.name;
 }
 
-function defaultSubfamilyForFamily(familyValue: string): string {
-  return familyValue === ALL ? ALL : NO_SUBFAMILY;
+function defaultSubfamilyForFamily(): string {
+  return ALL;
 }
 
 function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
@@ -453,9 +453,9 @@ export default function ProductosPage() {
       if (subfamily !== ALL) setSubfamily(ALL);
       return;
     }
-    if (subfamily === ALL || subfamily === NO_SUBFAMILY) return;
+    if (subfamily === ALL) return;
     if (selectedFamilySubfamilies.includes(subfamily)) return;
-    setSubfamily(NO_SUBFAMILY);
+    setSubfamily(ALL);
   }, [family, selectedFamilySubfamilies, subfamily]);
 
   useEffect(() => {
@@ -1216,14 +1216,14 @@ export default function ProductosPage() {
       ) : null}
 
       {familyStructureOpen ? (
-        <Card className="space-y-4 border-blue-100 bg-white">
+        <Card className="space-y-3 border-blue-100 bg-white">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-black text-slate-950">
                 Familias y subfamilias
               </h2>
               <p className="text-sm font-semibold text-slate-500">
-                Pulsa una familia o subfamilia para filtrar la lista.
+                Pulsa una familia para verla completa o una subfamilia para afinar.
               </p>
             </div>
             <button
@@ -1239,59 +1239,55 @@ export default function ProductosPage() {
               Ver todo
             </button>
           </div>
-          <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1 lg:grid-cols-2">
+          <div className="max-h-[56vh] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/60">
             {familyStructure.map((entry) => (
               <section
                 key={entry.family}
-                className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"
+                className="grid gap-2 border-b border-slate-200 px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(180px,240px)_1fr]"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-base font-black text-slate-950">
-                      {entry.family}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
-                      {entry.totalCount} producto(s) ·{" "}
-                      {entry.subfamilies.length} subfamilia(s)
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyFamilyStructureFilter(entry.family, ALL)}
+                  className={`rounded-xl px-2 py-1 text-left transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                    family === entry.family && subfamily === ALL
+                      ? "bg-blue-50 text-blue-800"
+                      : "text-slate-950"
+                  }`}
+                >
+                  <span className="block text-base font-black">
+                    {entry.family}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-bold text-slate-500">
+                    {entry.totalCount} productos ·{" "}
+                    {entry.subfamilies.length} subfamilias
+                  </span>
+                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {entry.subfamilies.map((item) => (
                     <button
+                      key={`${entry.family}-${item.name}`}
                       type="button"
                       onClick={() =>
-                        applyFamilyStructureFilter(entry.family, NO_SUBFAMILY)
+                        applyFamilyStructureFilter(entry.family, item.name)
                       }
-                      className="inline-flex min-h-9 items-center justify-center rounded-2xl border border-blue-200 bg-white px-3 text-xs font-black text-blue-700 transition-colors hover:bg-blue-50"
+                      className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-xs font-black transition-colors ${
+                        family === entry.family && subfamily === item.name
+                          ? "bg-emerald-600 text-white"
+                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      }`}
                     >
-                      Sin subfamilia · {entry.directCount}
+                      {item.name}
+                      <span className="ml-1 text-current opacity-80">
+                        {item.count}
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        applyFamilyStructureFilter(entry.family, ALL)
-                      }
-                      className="inline-flex min-h-9 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition-colors hover:bg-slate-100"
-                    >
-                      Toda la familia
-                    </button>
-                  </div>
+                  ))}
+                  {entry.totalCount === 0 && entry.subfamilies.length === 0 ? (
+                    <span className="inline-flex min-h-8 items-center rounded-full bg-white px-3 text-xs font-black text-slate-400">
+                      Sin productos
+                    </span>
+                  ) : null}
                 </div>
-                {entry.subfamilies.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {entry.subfamilies.map((item) => (
-                      <button
-                        key={`${entry.family}-${item.name}`}
-                        type="button"
-                        onClick={() =>
-                          applyFamilyStructureFilter(entry.family, item.name)
-                        }
-                        className="inline-flex min-h-9 items-center justify-center rounded-2xl bg-emerald-50 px-3 text-xs font-black text-emerald-800 transition-colors hover:bg-emerald-100"
-                      >
-                        {item.name} · {item.count}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </section>
             ))}
           </div>
@@ -1459,7 +1455,7 @@ export default function ProductosPage() {
               value={family}
               onChange={(value) => {
                 setFamily(value);
-                setSubfamily(defaultSubfamilyForFamily(value));
+                setSubfamily(defaultSubfamilyForFamily());
                 setFamilyNotice(null);
               }}
               options={families}
@@ -1518,7 +1514,7 @@ export default function ProductosPage() {
               value={family}
               onChange={(value) => {
                 setFamily(value);
-                setSubfamily(defaultSubfamilyForFamily(value));
+                setSubfamily(defaultSubfamilyForFamily());
                 setSubfamilyRenameFrom("");
                 setSubfamilyRenameTo("");
                 setFamilyNotice(null);
@@ -1703,7 +1699,7 @@ export default function ProductosPage() {
                 value={family}
                 onChange={(value) => {
                   setFamily(value);
-                  setSubfamily(defaultSubfamilyForFamily(value));
+                  setSubfamily(defaultSubfamilyForFamily());
                 }}
                 options={families}
                 allLabel="Todas"
@@ -1713,11 +1709,6 @@ export default function ProductosPage() {
                 value={subfamily}
                 onChange={setSubfamily}
                 options={selectedFamilySubfamilies}
-                extraOptions={
-                  family === ALL
-                    ? []
-                    : [{ value: NO_SUBFAMILY, label: "Sin subfamilia" }]
-                }
                 allLabel={
                   family === ALL ? "Elige familia primero" : "Todas"
                 }
