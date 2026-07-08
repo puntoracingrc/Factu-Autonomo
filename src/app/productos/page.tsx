@@ -61,6 +61,9 @@ import type { Product } from "@/lib/types";
 const ALL = "__all__";
 const NO_SUBFAMILY = "__no_subfamily__";
 const CUSTOM_FAMILY = "__custom_family__";
+const UNCATEGORIZED_FAMILY = "Sin familia";
+const FAMILY_MARKER_KEY_PREFIX = "__family__-";
+const SUBFAMILY_MARKER_KEY_PREFIX = "__subfamily__-";
 type SubfamilyEntry = {
   family: string;
   name: string;
@@ -98,6 +101,16 @@ function productDisplayName(product: PurchaseProductSummary): string {
 
 function defaultSubfamilyForFamily(): string {
   return ALL;
+}
+
+function isFamilyMarker(product: Product): boolean {
+  return product.hidden === true && product.key.startsWith(FAMILY_MARKER_KEY_PREFIX);
+}
+
+function isSubfamilyMarker(product: Product): boolean {
+  return (
+    product.hidden === true && product.key.startsWith(SUBFAMILY_MARKER_KEY_PREFIX)
+  );
 }
 
 function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
@@ -674,6 +687,21 @@ export default function ProductosPage() {
     return addProduct({ ...productFromSummary(product), ...patch });
   }
 
+  function saveProductStructurePatch(
+    product: PurchaseProductSummary,
+    patch: Partial<Product>,
+  ): Product {
+    const existing = product.productId
+      ? data.products.find((entry) => entry.id === product.productId)
+      : data.products.find((entry) => entry.key === product.key);
+    if (existing) {
+      const updated = { ...existing, ...patch };
+      updateProduct(updated);
+      return updated;
+    }
+    return addProduct({ ...productFromSummary(product), ...patch });
+  }
+
   function catalogProductForSummary(
     product: PurchaseProductSummary,
   ): Product | undefined {
@@ -884,6 +912,146 @@ export default function ProductosPage() {
     setSubfamilyRenameOpen(false);
     setFamilyNotice(
       `Subfamilia "${sourceSubfamily}" renombrada a "${targetSubfamily}" en ${savedCount} producto(s).`,
+    );
+  }
+
+  function deleteFamilyFromStructure(sourceFamily: string) {
+    if (!sourceFamily || sourceFamily === UNCATEGORIZED_FAMILY) return;
+
+    const structureEntry = familyStructure.find(
+      (entry) => entry.family === sourceFamily,
+    );
+    const productCount = structureEntry?.totalCount ?? 0;
+    const subfamilyCount = structureEntry?.subfamilies.length ?? 0;
+    const productCopy =
+      productCount === 1
+        ? "El producto incluido pasará a Sin familia."
+        : productCount > 1
+          ? `Los ${productCount} productos incluidos pasarán a Sin familia.`
+          : "La familia se quitará de la estructura.";
+    const subfamilyCopy =
+      subfamilyCount > 0
+        ? " También se quitarán sus subfamilias."
+        : "";
+
+    if (
+      !confirm(
+        `¿Borrar la familia "${sourceFamily}"?\n\n${productCopy}${subfamilyCopy}\n\nNo se borrará ningún producto.`,
+      )
+    ) {
+      return;
+    }
+
+    const handledProductIds = new Set<string>();
+    let movedCount = 0;
+    for (const product of products) {
+      if (product.family !== sourceFamily) continue;
+      const updated = saveProductStructurePatch(product, {
+        family: UNCATEGORIZED_FAMILY,
+        subfamily: undefined,
+        source: "manual",
+      });
+      handledProductIds.add(updated.id);
+      movedCount += 1;
+    }
+
+    for (const product of data.products) {
+      if (handledProductIds.has(product.id) || product.family !== sourceFamily) {
+        continue;
+      }
+      if (isFamilyMarker(product) || isSubfamilyMarker(product)) {
+        deleteProduct(product.id);
+        continue;
+      }
+      updateProduct({
+        ...product,
+        family: UNCATEGORIZED_FAMILY,
+        subfamily: undefined,
+        source: "manual",
+      });
+      movedCount += 1;
+    }
+
+    if (family === sourceFamily) {
+      setFamily(ALL);
+      setSubfamily(ALL);
+    }
+    setSelectedProductKeys([]);
+    setFamilyNotice(
+      `Familia "${sourceFamily}" borrada. ${movedCount} producto(s) quedan ahora sin familia.`,
+    );
+  }
+
+  function deleteSubfamilyFromStructure(
+    sourceFamily: string,
+    sourceSubfamily: string,
+  ) {
+    if (!sourceFamily || !sourceSubfamily) return;
+
+    const structureEntry = familyStructure.find(
+      (entry) => entry.family === sourceFamily,
+    );
+    const productCount =
+      structureEntry?.subfamilies.find((entry) => entry.name === sourceSubfamily)
+        ?.count ?? 0;
+    const productCopy =
+      productCount === 1
+        ? `El producto incluido seguirá en "${sourceFamily}", sin subfamilia.`
+        : productCount > 1
+          ? `Los ${productCount} productos incluidos seguirán en "${sourceFamily}", sin subfamilia.`
+          : "La subfamilia se quitará de la estructura.";
+
+    if (
+      !confirm(
+        `¿Borrar la subfamilia "${sourceSubfamily}"?\n\n${productCopy}\n\nNo se borrará ningún producto.`,
+      )
+    ) {
+      return;
+    }
+
+    const handledProductIds = new Set<string>();
+    let movedCount = 0;
+    for (const product of products) {
+      if (
+        product.family !== sourceFamily ||
+        product.subfamily !== sourceSubfamily
+      ) {
+        continue;
+      }
+      const updated = saveProductStructurePatch(product, {
+        subfamily: undefined,
+        source: "manual",
+      });
+      handledProductIds.add(updated.id);
+      movedCount += 1;
+    }
+
+    for (const product of data.products) {
+      if (
+        handledProductIds.has(product.id) ||
+        product.family !== sourceFamily ||
+        product.subfamily !== sourceSubfamily
+      ) {
+        continue;
+      }
+      if (isSubfamilyMarker(product)) {
+        deleteProduct(product.id);
+        continue;
+      }
+      updateProduct({
+        ...product,
+        subfamily: undefined,
+        source: "manual",
+      });
+      movedCount += 1;
+    }
+
+    if (family === sourceFamily && subfamily === sourceSubfamily) {
+      setSubfamily(ALL);
+    }
+    setSelectedProductKeys([]);
+    setFamilyNotice(
+      `Subfamilia "${sourceSubfamily}" borrada. ${movedCount} producto(s) quedan en "${sourceFamily}", sin subfamilia.`,
     );
   }
 
@@ -1245,42 +1413,72 @@ export default function ProductosPage() {
                 key={entry.family}
                 className="grid gap-2 border-b border-slate-200 px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(180px,240px)_1fr]"
               >
-                <button
-                  type="button"
-                  onClick={() => applyFamilyStructureFilter(entry.family, ALL)}
-                  className={`rounded-xl px-2 py-1 text-left transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                    family === entry.family && subfamily === ALL
-                      ? "bg-blue-50 text-blue-800"
-                      : "text-slate-950"
-                  }`}
-                >
-                  <span className="block text-base font-black">
-                    {entry.family}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-bold text-slate-500">
-                    {entry.totalCount} productos ·{" "}
-                    {entry.subfamilies.length} subfamilias
-                  </span>
-                </button>
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      applyFamilyStructureFilter(entry.family, ALL)
+                    }
+                    className={`min-w-0 flex-1 rounded-xl px-2 py-1 text-left transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                      family === entry.family && subfamily === ALL
+                        ? "bg-blue-50 text-blue-800"
+                        : "text-slate-950"
+                    }`}
+                  >
+                    <span className="block truncate text-base font-black">
+                      {entry.family}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-bold text-slate-500">
+                      {entry.totalCount} productos ·{" "}
+                      {entry.subfamilies.length} subfamilias
+                    </span>
+                  </button>
+                  {entry.family !== UNCATEGORIZED_FAMILY ? (
+                    <button
+                      type="button"
+                      onClick={() => deleteFamilyFromStructure(entry.family)}
+                      aria-label={`Borrar familia ${entry.family}`}
+                      title="Borrar familia"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {entry.subfamilies.map((item) => (
-                    <button
+                    <span
                       key={`${entry.family}-${item.name}`}
-                      type="button"
-                      onClick={() =>
-                        applyFamilyStructureFilter(entry.family, item.name)
-                      }
                       className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-xs font-black transition-colors ${
                         family === entry.family && subfamily === item.name
                           ? "bg-emerald-600 text-white"
                           : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                       }`}
                     >
-                      {item.name}
-                      <span className="ml-1 text-current opacity-80">
-                        {item.count}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFamilyStructureFilter(entry.family, item.name)
+                        }
+                        className="min-h-8 rounded-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                      >
+                        {item.name}
+                        <span className="ml-1 text-current opacity-80">
+                          {item.count}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deleteSubfamilyFromStructure(entry.family, item.name)
+                        }
+                        aria-label={`Borrar subfamilia ${item.name}`}
+                        title="Borrar subfamilia"
+                        className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-current opacity-70 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                   ))}
                   {entry.totalCount === 0 && entry.subfamilies.length === 0 ? (
                     <span className="inline-flex min-h-8 items-center rounded-full bg-white px-3 text-xs font-black text-slate-400">
