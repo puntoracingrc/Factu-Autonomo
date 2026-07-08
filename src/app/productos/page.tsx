@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -150,11 +150,15 @@ export default function ProductosPage() {
   const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
   const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
   const [supplierStructureOpen, setSupplierStructureOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState<"new" | "rename" | null>(
+    null,
+  );
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
   const [editingProductKey, setEditingProductKey] = useState<string | null>(null);
+  const productActionsRef = useRef<HTMLDivElement | null>(null);
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -453,6 +457,32 @@ export default function ProductosPage() {
   useEffect(() => {
     setDocumentPickRequest(getDocumentProductPickRequest());
   }, []);
+
+  useEffect(() => {
+    if (!actionMenuOpen) return;
+
+    function closeMenuOnOutsideClick(event: PointerEvent) {
+      if (
+        productActionsRef.current &&
+        event.target instanceof Node &&
+        productActionsRef.current.contains(event.target)
+      ) {
+        return;
+      }
+      setActionMenuOpen(null);
+    }
+
+    function closeMenuOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setActionMenuOpen(null);
+    }
+
+    document.addEventListener("pointerdown", closeMenuOnOutsideClick);
+    document.addEventListener("keydown", closeMenuOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenuOnOutsideClick);
+      document.removeEventListener("keydown", closeMenuOnEscape);
+    };
+  }, [actionMenuOpen]);
 
   useEffect(() => {
     if (!documentPickRequest) return;
@@ -1052,12 +1082,13 @@ export default function ProductosPage() {
         title="Productos"
         subtitle="Materiales y servicios detectados en tus compras escaneadas."
         action={
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div ref={productActionsRef} className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={() => {
                 setFamilyStructureOpen((current) => !current);
                 setSupplierStructureOpen(false);
+                setActionMenuOpen(null);
                 setFamilyFormOpen(false);
                 setFamilyRenameOpen(false);
                 setSubfamilyFormOpen(false);
@@ -1069,74 +1100,100 @@ export default function ProductosPage() {
               <Boxes className="h-5 w-5" />
               {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
             </button>
-            <details className="relative">
-              <summary className="inline-flex min-h-12 cursor-pointer list-none items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setActionMenuOpen((current) =>
+                    current === "new" ? null : "new",
+                  )
+                }
+                aria-expanded={actionMenuOpen === "new"}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
                 <Tag className="h-5 w-5" />
                 Nuevo
-              </summary>
-              <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFamilyFormOpen((current) => !current);
-                    setFamilyRenameOpen(false);
-                    setSubfamilyFormOpen(false);
-                    setSubfamilyRenameOpen(false);
-                    setFamilyNotice(null);
-                  }}
-                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                >
-                  Familia
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubfamilyFormOpen((current) => !current);
-                    setFamilyFormOpen(false);
-                    setFamilyRenameOpen(false);
-                    setSubfamilyRenameOpen(false);
-                    setFamilyNotice(null);
-                  }}
-                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                >
-                  Subfamilia
-                </button>
-              </div>
-            </details>
-            <details className="relative">
-              <summary className="inline-flex min-h-12 cursor-pointer list-none items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+              </button>
+              {actionMenuOpen === "new" ? (
+                <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setFamilyFormOpen((current) => !current);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                  >
+                    Familia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setSubfamilyFormOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                  >
+                    Subfamilia
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setActionMenuOpen((current) =>
+                    current === "rename" ? null : "rename",
+                  )
+                }
+                aria-expanded={actionMenuOpen === "rename"}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
                 <Edit3 className="h-5 w-5" />
                 Renombrar
-              </summary>
-              <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFamilyRenameOpen((current) => !current);
-                    setFamilyFormOpen(false);
-                    setSubfamilyFormOpen(false);
-                    setSubfamilyRenameOpen(false);
-                    setFamilyNotice(null);
-                  }}
-                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                >
-                  Familia
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubfamilyRenameOpen((current) => !current);
-                    setFamilyFormOpen(false);
-                    setFamilyRenameOpen(false);
-                    setSubfamilyFormOpen(false);
-                    setFamilyNotice(null);
-                  }}
-                  className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                >
-                  Subfamilia
-                </button>
-              </div>
-            </details>
+              </button>
+              {actionMenuOpen === "rename" ? (
+                <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setFamilyRenameOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                  >
+                    Familia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setSubfamilyRenameOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
+                  >
+                    Subfamilia
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <Link
               href="/productos/nuevo"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
