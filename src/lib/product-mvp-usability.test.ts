@@ -1052,6 +1052,12 @@ describe("MVP usability polish", () => {
     expect(purchaseProductsSource).toContain("subfamily: product.subfamily");
     expect(productsPageSource).toContain("Nuevo");
     expect(productsPageSource).toContain("Renombrar");
+    expect(productsPageSource).toContain("actionMenuOpen");
+    expect(productsPageSource).toContain("closeMenuOnOutsideClick");
+    expect(productsPageSource).toContain("closeMenuOnEscape");
+    expect(productsPageSource).toContain(
+      'aria-expanded={actionMenuOpen === "new"}',
+    );
     expect(productsPageSource).toContain("saveProductSubfamily");
     expect(productsPageSource).toContain("SubfamilyEntry");
     expect(productsPageSource).toContain("selectedFamilySubfamilies");
