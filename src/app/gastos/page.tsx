@@ -337,6 +337,25 @@ export default function GastosPage() {
     () => data.expenses.filter(isProviderSummaryPendingOriginal),
     [data.expenses],
   );
+  const pendingOriginalInvoiceNumbers = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          pendingOriginalExpenses
+            .map((expense) => expense.purchaseDocument?.invoiceNumber?.trim())
+            .filter((invoiceNumber): invoiceNumber is string =>
+              Boolean(invoiceNumber),
+            ),
+        ),
+      ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [pendingOriginalExpenses],
+  );
+  const pendingOriginalInvoicePreview =
+    pendingOriginalInvoiceNumbers.slice(0, 10);
+  const pendingOriginalInvoiceOverflow = Math.max(
+    pendingOriginalInvoiceNumbers.length - pendingOriginalInvoicePreview.length,
+    0,
+  );
 
   const periodExpenses = useMemo(
     () =>
@@ -653,6 +672,14 @@ export default function GastosPage() {
                 {pendingOriginalExpenses.length === 1 ? "" : "s"} desde resumen.
                 Cuentan como gasto, pero falta escanear la factura original.
               </p>
+              {pendingOriginalInvoicePreview.length > 0 && (
+                <p className="mt-1 text-sm font-semibold text-amber-950">
+                  Faltan: {pendingOriginalInvoicePreview.join(", ")}
+                  {pendingOriginalInvoiceOverflow > 0
+                    ? ` y ${pendingOriginalInvoiceOverflow} más`
+                    : ""}
+                </p>
+              )}
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase text-amber-800">
               Falta original
