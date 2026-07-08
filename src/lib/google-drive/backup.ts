@@ -10,6 +10,8 @@ export const DRIVE_BACKUP_PENDING_KEY =
 export const DRIVE_BACKUP_TOKEN_KEY = "factura-autonomo-drive-access-token";
 export const DRIVE_BACKUP_FILE_PREFIX = "factu-autonomo-drive-backup-";
 export const DRIVE_BACKUP_RETENTION_LIMIT = 10;
+export const DRIVE_BACKUP_SETTINGS_EVENT =
+  "factura-autonomo-drive-backup-settings-changed";
 
 export type DriveBackupFrequency =
   | "manual"
@@ -178,6 +180,7 @@ export function loadDriveBackupSettings(): DriveBackupSettings {
 export function saveDriveBackupSettings(settings: DriveBackupSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(DRIVE_BACKUP_SETTINGS_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new Event(DRIVE_BACKUP_SETTINGS_EVENT));
 }
 
 function normalizePendingDriveBackupRequest(
