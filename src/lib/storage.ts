@@ -16,6 +16,7 @@ import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
+import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import {
   buildDocumentPdfSnapshot,
   deriveDocumentLifecycle,
@@ -32,6 +33,8 @@ import type {
   BusinessProfile,
   Document,
   DocumentType,
+  Expense,
+  Supplier,
   UserReminder,
 } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
@@ -79,6 +82,11 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
       profile,
     ),
   );
+  const suppliers = (parsed.suppliers ?? []) as Supplier[];
+  const expenses = linkLooseExpensesToExistingSuppliers(
+    (parsed.expenses ?? []) as Expense[],
+    suppliers,
+  );
   return {
     ...EMPTY_DATA,
     ...parsed,
@@ -93,6 +101,8 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     products: (parsed.products ?? []).map((product) =>
       normalizeProductCatalogItem(product as AppData["products"][number]),
     ),
+    suppliers,
+    expenses,
     documents,
     counters: {
       ...EMPTY_DATA.counters,
@@ -105,6 +115,46 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     },
     meta: parsed.meta,
   };
+}
+
+function linkLooseExpensesToExistingSuppliers(
+  expenses: Expense[],
+  suppliers: Supplier[],
+): Expense[] {
+  if (expenses.length === 0 || suppliers.length === 0) return expenses;
+
+  const suppliersByNif = new Map<string, Supplier>();
+  const suppliersByName = new Map<string, Supplier>();
+  for (const supplier of suppliers) {
+    const nif = normalizeSupplierNif(supplier.nif);
+    if (nif && !suppliersByNif.has(nif)) {
+      suppliersByNif.set(nif, supplier);
+    }
+
+    const name = supplierCompareKey(supplier.name);
+    if (name && !suppliersByName.has(name)) {
+      suppliersByName.set(name, supplier);
+    }
+  }
+
+  return expenses.map((expense) => {
+    if (expense.supplierId) return expense;
+
+    const supplierNif = normalizeSupplierNif(
+      expense.purchaseDocument?.supplierNif,
+    );
+    const supplier =
+      (supplierNif ? suppliersByNif.get(supplierNif) : undefined) ??
+      suppliersByName.get(supplierCompareKey(expense.supplierName));
+
+    if (!supplier) return expense;
+
+    return {
+      ...expense,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+    };
+  });
 }
 
 function shouldBackfillHistoricalSnapshot(doc: Document): boolean {

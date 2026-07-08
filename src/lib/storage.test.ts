@@ -124,6 +124,78 @@ describe("storage", () => {
     });
   });
 
+  it("enlaza gastos antiguos sin supplierId con el proveedor existente por nombre normalizado", () => {
+    const data = normalizeLoadedData({
+      suppliers: [
+        {
+          id: "supplier-arandes",
+          name: "METALURGICA ARANDES S.L.",
+          createdAt: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+      expenses: [
+        {
+          id: "expense-summary-1",
+          date: "2026-06-19",
+          supplierName: "Metalúrgica Arandes SL",
+          description: "Factura FD/225009 pendiente de original",
+          amount: 467.56,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Efectivo",
+          purchaseDocument: {
+            invoiceNumber: "FD/225009",
+            issueDate: "2026-06-19",
+          },
+          providerSummary: {
+            status: "pending_original",
+            summaryId: "summary-1",
+            importedAt: "2026-07-08T01:00:00.000Z",
+            providerName: "Metalúrgica Arandes SL",
+          },
+          createdAt: "2026-07-08T01:00:00.000Z",
+        },
+      ],
+    } as Partial<AppData>);
+
+    expect(data.expenses[0]?.supplierId).toBe("supplier-arandes");
+    expect(data.expenses[0]?.supplierName).toBe("METALURGICA ARANDES S.L.");
+  });
+
+  it("enlaza gastos antiguos sin supplierId con el proveedor existente por NIF", () => {
+    const data = normalizeLoadedData({
+      suppliers: [
+        {
+          id: "supplier-arandes",
+          name: "METALURGICA ARANDES S.L.",
+          nif: "B60470374",
+          createdAt: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+      expenses: [
+        {
+          id: "expense-summary-1",
+          date: "2026-06-19",
+          supplierName: "Proveedor escrito distinto",
+          description: "Factura FD/225009 pendiente de original",
+          amount: 467.56,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Efectivo",
+          purchaseDocument: {
+            invoiceNumber: "FD/225009",
+            issueDate: "2026-06-19",
+            supplierNif: "B60470374",
+          },
+          createdAt: "2026-07-08T01:00:00.000Z",
+        },
+      ],
+    } as Partial<AppData>);
+
+    expect(data.expenses[0]?.supplierId).toBe("supplier-arandes");
+    expect(data.expenses[0]?.supplierName).toBe("METALURGICA ARANDES S.L.");
+  });
+
   it("no borra datos guardados al intentar guardar vacío", () => {
     saveData(sampleData());
     saveData(EMPTY_DATA);
