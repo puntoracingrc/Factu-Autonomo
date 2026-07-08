@@ -105,6 +105,9 @@ export default function ProductosPage() {
   const [supplier, setSupplier] = useState(ALL);
   const [sort, setSort] = useState<ProductSort>("newest");
   const [visibleCount, setVisibleCount] = useState(30);
+  const [familyFormOpen, setFamilyFormOpen] = useState(false);
+  const [familyDraft, setFamilyDraft] = useState("");
+  const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
@@ -116,8 +119,18 @@ export default function ProductosPage() {
   );
 
   const families = useMemo(
-    () => [...new Set(products.map((product) => product.family))].sort(),
-    [products],
+    () =>
+      [
+        ...new Set(
+          [
+            ...products.map((product) => product.family),
+            ...data.products.map((product) => product.family),
+          ]
+            .map((familyName) => familyName.trim())
+            .filter(Boolean),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [data.products, products],
   );
 
   const suppliers = useMemo(
@@ -183,6 +196,32 @@ export default function ProductosPage() {
     [families.length, products, suppliers.length],
   );
   const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const visibleProductGroups = useMemo(() => {
+    if (sort !== "mostPurchases" && sort !== "leastPurchases") {
+      return [{ key: "all", title: null, products: visibleProducts }];
+    }
+    const groups: Array<{
+      key: string;
+      title: string;
+      products: PurchaseProductSummary[];
+    }> = [];
+    for (const product of visibleProducts) {
+      const key = String(product.purchaseCount);
+      const current = groups[groups.length - 1];
+      if (current?.key === key) {
+        current.products.push(product);
+        continue;
+      }
+      groups.push({
+        key,
+        title: `${product.purchaseCount.toLocaleString("es-ES")} ${
+          product.purchaseCount === 1 ? "compra" : "compras"
+        }`,
+        products: [product],
+      });
+    }
+    return groups;
+  }, [sort, visibleProducts]);
   const selectedProducts = useMemo(
     () =>
       selectedProductKeys
@@ -464,21 +503,117 @@ export default function ProductosPage() {
     );
   }
 
+  function createFamily() {
+    const name = familyDraft.trim();
+    if (!name) {
+      setFamilyNotice("Escribe el nombre de la familia.");
+      return;
+    }
+    const existing = families.find(
+      (item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
+    );
+    if (existing) {
+      setFamilyDraft("");
+      setFamily(ALL);
+      setFamilyFormOpen(false);
+      setFamilyNotice(`La familia "${existing}" ya existía.`);
+      return;
+    }
+
+    addProduct({
+      key: `__family__-${purchaseProductKey(name)}`,
+      aliases: [],
+      name: `Familia: ${name}`,
+      family: name,
+      unit: "ud",
+      hidden: true,
+      source: "manual",
+      notes: "Marcador interno para recordar una familia creada a mano.",
+    });
+    setFamilyDraft("");
+    setFamily(ALL);
+    setFamilyFormOpen(false);
+    setFamilyNotice(`Familia "${name}" creada. Ya puedes usarla en productos.`);
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Productos"
         subtitle="Materiales y servicios detectados en tus compras escaneadas."
         action={
-          <Link
-            href="/productos/nuevo"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            <Plus className="h-5 w-5" />
-            {documentPickRequest ? "Crear producto" : "Nuevo producto"}
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => {
+                setFamilyFormOpen((current) => !current);
+                setFamilyNotice(null);
+              }}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Tag className="h-5 w-5" />
+              Nueva familia
+            </button>
+            <Link
+              href="/productos/nuevo"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <Plus className="h-5 w-5" />
+              {documentPickRequest ? "Crear producto" : "Nuevo producto"}
+            </Link>
+          </div>
         }
       />
+
+      {familyNotice ? (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+          {familyNotice}
+        </div>
+      ) : null}
+
+      {familyFormOpen ? (
+        <Card className="border-blue-100 bg-blue-50/70">
+          <form
+            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createFamily();
+            }}
+          >
+            <label className="space-y-1.5">
+              <span className="text-sm font-black text-slate-800">
+                Nombre de la familia
+              </span>
+              <input
+                value={familyDraft}
+                onChange={(event) => {
+                  setFamilyDraft(event.target.value);
+                  setFamilyNotice(null);
+                }}
+                placeholder="Ej: Motores y electrónica"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Crear familia
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFamilyFormOpen(false);
+                setFamilyDraft("");
+                setFamilyNotice(null);
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              Cancelar
+            </button>
+          </form>
+        </Card>
+      ) : null}
 
       {products.length === 0 ? (
         <Card className="space-y-4">
@@ -497,6 +632,17 @@ export default function ProductosPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => {
+                setFamilyFormOpen(true);
+                setFamilyNotice(null);
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-base font-bold text-blue-700 transition-colors hover:bg-blue-50 sm:w-auto"
+            >
+              <Tag className="h-5 w-5" />
+              Nueva familia
+            </button>
             <Link
               href="/productos/nuevo"
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-base font-bold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 sm:w-auto"
@@ -660,41 +806,56 @@ export default function ProductosPage() {
           ) : null}
 
           <div className="grid gap-4">
-            {visibleProducts.map((product) => {
-              const targetFromDocument = productMatchesDocumentPickRequest(
-                product,
-                documentPickRequest,
-              );
-              return (
-                <ProductCard
-                  key={product.key}
-                  product={product}
-                  allProducts={products}
-                  selected={selectedProductKeys.includes(product.key)}
-                  pickMode={Boolean(documentPickRequest)}
-                  editMode={
-                    documentPickRequest?.mode === "edit" && targetFromDocument
-                  }
-                  startOpen={
-                    (documentPickRequest?.mode === "edit" && targetFromDocument) ||
-                    editingProductKey === product.key
-                  }
-                  autoEdit={editingProductKey === product.key}
-                  onToggleSelected={() => toggleProductForDraft(product)}
-                  onPickForDocument={() =>
-                    handlePickProductForDocument(product)
-                  }
-                  onPickSavedProduct={handlePickSavedProductForDocument}
-                  onSave={(patch) => saveProductPatch(product, patch)}
-                  onDuplicate={() => duplicateProduct(product)}
-                  onRemove={() => removeProduct(product)}
-                  onAutoEditConsumed={() => setEditingProductKey(null)}
-                  onMerge={(removeKey) =>
-                    handleMergeProducts(product, removeKey)
-                  }
-                />
-              );
-            })}
+            {visibleProductGroups.map((group) => (
+              <div key={group.key} className="grid gap-3">
+                {group.title ? (
+                  <div className="flex items-center gap-4">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-600 shadow-sm ring-1 ring-slate-200">
+                      {group.title}
+                    </span>
+                    <span className="h-px flex-1 bg-slate-200" />
+                  </div>
+                ) : null}
+                {group.products.map((product) => {
+                  const targetFromDocument = productMatchesDocumentPickRequest(
+                    product,
+                    documentPickRequest,
+                  );
+                  return (
+                    <ProductCard
+                      key={product.key}
+                      product={product}
+                      allProducts={products}
+                      familyOptions={families}
+                      selected={selectedProductKeys.includes(product.key)}
+                      pickMode={Boolean(documentPickRequest)}
+                      editMode={
+                        documentPickRequest?.mode === "edit" &&
+                        targetFromDocument
+                      }
+                      startOpen={
+                        (documentPickRequest?.mode === "edit" &&
+                          targetFromDocument) ||
+                        editingProductKey === product.key
+                      }
+                      autoEdit={editingProductKey === product.key}
+                      onToggleSelected={() => toggleProductForDraft(product)}
+                      onPickForDocument={() =>
+                        handlePickProductForDocument(product)
+                      }
+                      onPickSavedProduct={handlePickSavedProductForDocument}
+                      onSave={(patch) => saveProductPatch(product, patch)}
+                      onDuplicate={() => duplicateProduct(product)}
+                      onRemove={() => removeProduct(product)}
+                      onAutoEditConsumed={() => setEditingProductKey(null)}
+                      onMerge={(removeKey) =>
+                        handleMergeProducts(product, removeKey)
+                      }
+                    />
+                  );
+                })}
+              </div>
+            ))}
           </div>
           {visibleProducts.length < filteredProducts.length ? (
             <div className="flex justify-center">
@@ -770,6 +931,7 @@ function FilterSelect({
 function ProductCard({
   product,
   allProducts,
+  familyOptions,
   selected,
   pickMode,
   editMode,
@@ -786,6 +948,7 @@ function ProductCard({
 }: {
   product: PurchaseProductSummary;
   allProducts: PurchaseProductSummary[];
+  familyOptions: string[];
   selected: boolean;
   pickMode: boolean;
   editMode: boolean;
@@ -855,17 +1018,6 @@ function ProductCard({
   const mergeOptions = allProducts
     .filter((item) => item.key !== product.key)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
-  const familyOptions = useMemo(
-    () =>
-      [
-        ...new Set(
-          allProducts
-            .map((item) => item.family.trim())
-            .filter((item) => item.length > 0),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "es")),
-    [allProducts],
-  );
   const filteredMergeOptions = mergeOptions.filter((item) => {
     const term = mergeSearch.trim().toLowerCase();
     if (!term) return true;
@@ -1032,14 +1184,14 @@ function ProductCard({
             : ""
         }`}
       >
-        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(20rem,1fr)_minmax(7rem,0.45fr)_minmax(7rem,0.45fr)_auto] lg:items-center">
+        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,0.32fr)_auto] lg:items-center">
           <button
             type="button"
             onClick={pickMode && !editMode ? onPickForDocument : openPanel}
             className="min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="max-w-full truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-blue-700 lg:max-w-44">
                   {product.family}
                 </span>
@@ -1063,92 +1215,98 @@ function ProductCard({
                     Seleccionado
                   </span>
                 ) : null}
-                <span className="min-w-0 flex-1 truncate text-base font-black text-slate-950 lg:text-lg">
-                  {product.name}
-                </span>
               </div>
+              <span className="text-base font-black leading-tight text-slate-950 lg:text-lg">
+                {product.name}
+              </span>
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <CalendarDays className="h-3.5 w-3.5" />
                 <span>{formatShortDate(product.lastPurchaseDate)}</span>
-                <span aria-hidden="true">·</span>
-                <span>{product.purchaseCount} compra(s)</span>
               </p>
             </div>
           </button>
 
-          <CompactValue
-            label="Último coste"
-            value={formatMoney(product.lastUnitPrice)}
-          />
-          <CompactValue label="Precio venta" value={salePriceLabel} />
-          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <CompactValue
+              label="Último coste"
+              value={formatMoney(product.lastUnitPrice)}
+            />
+            <CompactValue label="Precio venta" value={salePriceLabel} />
+          </div>
+          <div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
             <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
               {volumeLabel}
             </span>
-            {!editMode ? (
+            <div className="grid grid-cols-2 gap-2">
+              {!editMode ? (
+                <button
+                  type="button"
+                  onClick={pickMode ? onPickForDocument : onToggleSelected}
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                    pickMode
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : selected
+                        ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                        : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                  }`}
+                  aria-label={
+                    pickMode
+                      ? "Usar producto en el documento"
+                      : selected
+                        ? "Quitar producto del documento"
+                        : "Añadir producto a un documento"
+                  }
+                  title={
+                    pickMode
+                      ? "Usar en esta línea del documento"
+                      : selected
+                        ? "Quitar del documento"
+                        : "Añadir a factura, presupuesto o recibo"
+                  }
+                >
+                  {pickMode || selected ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={pickMode ? onPickForDocument : onToggleSelected}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                  pickMode
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : selected
-                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                      : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-                }`}
+                onClick={openPanel}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                aria-label="Editar producto"
+                title="Editar producto"
+              >
+                <Edit3 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onDuplicate}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                aria-label="Duplicar producto"
+                title="Duplicar producto"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onRemove}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
                 aria-label={
-                  pickMode
-                    ? "Usar producto en el documento"
-                    : selected
-                      ? "Quitar producto del documento"
-                      : "Añadir producto a un documento"
+                  product.purchaseCount > 0
+                    ? "Ocultar producto"
+                    : "Eliminar producto"
                 }
                 title={
-                  pickMode
-                    ? "Usar en esta línea del documento"
-                    : selected
-                      ? "Quitar del documento"
-                      : "Añadir a factura, presupuesto o recibo"
+                  product.purchaseCount > 0
+                    ? "Ocultar producto"
+                    : "Eliminar producto"
                 }
               >
-                {pickMode || selected ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
+                <Trash2 className="h-4 w-4" />
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={openPanel}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              aria-label="Editar producto"
-              title="Editar producto"
-            >
-              <Edit3 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onDuplicate}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              aria-label="Duplicar producto"
-              title="Duplicar producto"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-              aria-label={
-                product.purchaseCount > 0 ? "Ocultar producto" : "Eliminar producto"
-              }
-              title={
-                product.purchaseCount > 0 ? "Ocultar producto" : "Eliminar producto"
-              }
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            </div>
           </div>
         </div>
       </Card>
