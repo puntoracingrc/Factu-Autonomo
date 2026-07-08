@@ -1116,6 +1116,24 @@ describe("MVP usability polish", () => {
     expect(unitSelectSource).toContain('"ml"');
   });
 
+  it("calcula el coste real de producto desde tarifa y descuento", () => {
+    const newProductPageSource = readFileSync(
+      new URL("../app/productos/nuevo/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const productsPageSource = readFileSync(
+      new URL("../app/productos/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(newProductPageSource).toContain("purchaseCostManual");
+    expect(newProductPageSource).toContain("purchaseNetUnitCostInputFromFields");
+    expect(productsPageSource).toContain("handlePurchaseListPriceChange");
+    expect(productsPageSource).toContain("handlePurchaseDiscountChange");
+    expect(productsPageSource).toContain("handlePurchaseNetCostChange");
+    expect(productsPageSource).toContain("calculatePurchaseNetUnitCost");
+  });
+
   it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
     const importPageSource = readFileSync(
       new URL("../app/importar/page.tsx", import.meta.url),
