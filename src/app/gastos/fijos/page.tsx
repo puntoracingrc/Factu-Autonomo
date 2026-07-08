@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarClock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, todayISO } from "@/lib/calculations";
 import {
@@ -245,22 +246,14 @@ export default function GastosFijosPage() {
         </p>
       </Card>
 
-      {formOpen && (
-        <Card className="mb-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-bold text-slate-900">
-              <CalendarClock className="h-5 w-5 text-blue-600" />
-              {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
-            </h2>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="flex items-center gap-1 text-sm text-slate-500"
-            >
-              <X className="h-4 w-4" /> Cancelar
-            </button>
-          </div>
-
+      <ResponsiveEntityPanel
+        open={formOpen}
+        title={editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
+        subtitle="Importe, frecuencia, vencimiento y tratamiento del gasto."
+        icon={CalendarClock}
+        onClose={closeForm}
+      >
+        <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:col-span-2">
               <p className="text-sm font-bold text-slate-900">
@@ -531,8 +524,8 @@ export default function GastosFijosPage() {
           <Button fullWidth onClick={handleSave}>
             {editingId ? "Guardar cambios" : "Guardar gasto fijo"}
           </Button>
-        </Card>
-      )}
+        </div>
+      </ResponsiveEntityPanel>
 
       {templates.length === 0 ? (
         <Card className="text-center text-slate-500">
