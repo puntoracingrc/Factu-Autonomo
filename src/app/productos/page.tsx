@@ -55,6 +55,7 @@ import {
 import type { Product } from "@/lib/types";
 
 const ALL = "__all__";
+const NO_SUBFAMILY = "__no_subfamily__";
 const CUSTOM_FAMILY = "__custom_family__";
 type SubfamilyEntry = {
   family: string;
@@ -89,6 +90,10 @@ function productQuantityLabel(product: PurchaseProductSummary): string {
 
 function productDisplayName(product: PurchaseProductSummary): string {
   return product.saleDescription?.trim() || product.name;
+}
+
+function defaultSubfamilyForFamily(familyValue: string): string {
+  return familyValue === ALL ? ALL : NO_SUBFAMILY;
 }
 
 function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
@@ -261,7 +266,10 @@ export default function ProductosPage() {
           .includes(normalizedQuery);
       const matchesFamily = family === ALL || product.family === family;
       const matchesSubfamily =
-        subfamily === ALL || product.subfamily === subfamily;
+        subfamily === ALL ||
+        (subfamily === NO_SUBFAMILY
+          ? !product.subfamily
+          : product.subfamily === subfamily);
       const matchesSupplier =
         supplier === ALL || product.usualSupplier?.supplierName === supplier;
 
@@ -352,9 +360,13 @@ export default function ProductosPage() {
   }, [family, query, sort, subfamily, supplier]);
 
   useEffect(() => {
-    if (family === ALL || subfamily === ALL) return;
+    if (family === ALL) {
+      if (subfamily !== ALL) setSubfamily(ALL);
+      return;
+    }
+    if (subfamily === ALL || subfamily === NO_SUBFAMILY) return;
     if (selectedFamilySubfamilies.includes(subfamily)) return;
-    setSubfamily(ALL);
+    setSubfamily(NO_SUBFAMILY);
   }, [family, selectedFamilySubfamilies, subfamily]);
 
   useEffect(() => {
@@ -1135,7 +1147,7 @@ export default function ProductosPage() {
               value={family}
               onChange={(value) => {
                 setFamily(value);
-                setSubfamily(ALL);
+                setSubfamily(defaultSubfamilyForFamily(value));
                 setFamilyNotice(null);
               }}
               options={families}
@@ -1194,7 +1206,7 @@ export default function ProductosPage() {
               value={family}
               onChange={(value) => {
                 setFamily(value);
-                setSubfamily(ALL);
+                setSubfamily(defaultSubfamilyForFamily(value));
                 setSubfamilyRenameFrom("");
                 setSubfamilyRenameTo("");
                 setFamilyNotice(null);
@@ -1367,7 +1379,7 @@ export default function ProductosPage() {
                 value={family}
                 onChange={(value) => {
                   setFamily(value);
-                  setSubfamily(ALL);
+                  setSubfamily(defaultSubfamilyForFamily(value));
                 }}
                 options={families}
                 allLabel="Todas"
@@ -1377,6 +1389,11 @@ export default function ProductosPage() {
                 value={subfamily}
                 onChange={setSubfamily}
                 options={selectedFamilySubfamilies}
+                extraOptions={
+                  family === ALL
+                    ? []
+                    : [{ value: NO_SUBFAMILY, label: "Sin subfamilia" }]
+                }
                 allLabel={
                   family === ALL ? "Elige familia primero" : "Todas"
                 }
@@ -1626,12 +1643,14 @@ function FilterSelect({
   onChange,
   options,
   allLabel,
+  extraOptions = [],
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: string[];
   allLabel: string;
+  extraOptions?: Array<{ value: string; label: string }>;
 }) {
   return (
     <label className="space-y-1.5">
@@ -1642,6 +1661,11 @@ function FilterSelect({
         className="h-[3.125rem] w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       >
         <option value={ALL}>{allLabel}</option>
+        {extraOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
         {options.map((option) => (
           <option key={option} value={option}>
             {option}

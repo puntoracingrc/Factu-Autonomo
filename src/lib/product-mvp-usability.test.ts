@@ -1056,6 +1056,9 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("SubfamilyEntry");
     expect(productsPageSource).toContain("selectedFamilySubfamilies");
     expect(productsPageSource).toContain("Elige familia primero");
+    expect(productsPageSource).toContain("NO_SUBFAMILY");
+    expect(productsPageSource).toContain("Sin subfamilia");
+    expect(productsPageSource).toContain("defaultSubfamilyForFamily");
     expect(productsPageSource).toContain("Dentro de la familia");
     expect(productsPageSource).toContain("bulkSubfamilyDraft");
     expect(productsPageSource).toContain('label="Subfamilia"');
