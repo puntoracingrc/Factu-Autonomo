@@ -62,6 +62,11 @@ export default function NuevoProductoPage() {
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
 
+  const productSummaries = useMemo(
+    () => buildPurchaseProductSummaries(data.expenses, data.products),
+    [data.expenses, data.products],
+  );
+
   useLayoutEffect(() => {
     const request = getDocumentProductPickRequest();
     setDocumentPickRequest(request);
@@ -89,12 +94,15 @@ export default function NuevoProductoPage() {
     () =>
       [
         ...new Set(
-          data.products
-            .map((product) => product.family)
+          [
+            ...productSummaries.map((product) => product.family),
+            ...data.products.map((product) => product.family),
+          ]
+            .map((family) => family.trim())
             .filter((family) => family.trim().length > 0),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
-    [data.products],
+    [data.products, productSummaries],
   );
 
   const supplierOptions = useMemo(
