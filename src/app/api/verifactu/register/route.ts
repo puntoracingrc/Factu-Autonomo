@@ -15,6 +15,10 @@ import {
   persistVerifactuRecord,
   upsertVerifactuChain,
 } from "@/lib/verifactu/server-db";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import type {
   BusinessProfile,
   Document,
@@ -37,6 +41,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "verifactu_register",
+      limit: 60,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   let body: RegisterBody;
   try {

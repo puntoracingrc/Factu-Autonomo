@@ -10,6 +10,10 @@ import {
   type AdminSyncEntityRow,
 } from "@/lib/admin/user-restore";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { SyncChange } from "@/lib/types";
 
@@ -68,6 +72,18 @@ async function requireAdmin(request: Request): Promise<AdminAuthResult> {
         { status: 403 },
       ),
     };
+  }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "admin_user_restore",
+      limit: 60,
+      windowMs: 10 * 60_000,
+    },
+    requester.id,
+  );
+  if (!rateLimit.allowed) {
+    return { ok: false, response: rateLimitExceededResponse(rateLimit) };
   }
 
   const admin = getSupabaseAdmin();

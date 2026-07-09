@@ -5,6 +5,10 @@ import {
 } from "@/lib/ai-learning";
 import { persistAiLearningEvent } from "@/lib/ai-learning-store";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
@@ -16,6 +20,16 @@ export async function POST(request: Request) {
   if (!learning.allowed) {
     return NextResponse.json({ error: "Cuenta no autorizada" }, { status: 403 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "admin_ai_learning_feedback",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const body = await request.json().catch(() => null);
   const event = buildExpenseScanLearningEvent(body, {

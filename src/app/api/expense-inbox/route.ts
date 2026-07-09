@@ -9,6 +9,10 @@ import {
   rotateExpenseInboxAlias,
   updateExpenseInboxItemStatus,
 } from "@/lib/expense-inbox-server";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 function serverError(error: unknown) {
   return NextResponse.json(
@@ -32,6 +36,16 @@ export async function GET(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "expense_inbox_read",
+      limit: 180,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   try {
     const access = await canUseExpenseInbox(user.id);
@@ -77,6 +91,16 @@ export async function PATCH(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "expense_inbox_update",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   try {
     const body = (await request.json().catch(() => ({}))) as {
@@ -85,6 +109,19 @@ export async function PATCH(request: Request) {
       status?: unknown;
     };
     if (body.action === "rotate-alias") {
+      const rotateRateLimit = checkRateLimit(
+        request,
+        {
+          namespace: "expense_inbox_rotate_alias",
+          limit: 5,
+          windowMs: 60 * 60_000,
+        },
+        user.id,
+      );
+      if (!rotateRateLimit.allowed) {
+        return rateLimitExceededResponse(rotateRateLimit);
+      }
+
       const access = await canUseExpenseInbox(user.id);
       if (!access.allowed) {
         return NextResponse.json({ error: access.reason }, { status: 402 });

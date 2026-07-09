@@ -3,6 +3,10 @@ import { getAppUrl } from "@/lib/billing/config";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getStripe, priceIdForPlanInterval } from "@/lib/billing/stripe";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -12,6 +16,16 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "billing_checkout",
+      limit: 10,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const stripe = getStripe();
   if (!stripe) {

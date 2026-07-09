@@ -6,6 +6,10 @@ import {
   isExpenseScanCorrectionConfigured,
   normalizeExpenseScanCorrectionInput,
 } from "@/lib/expense-scan/correction";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
@@ -16,6 +20,16 @@ export async function POST(request: Request) {
   if (!aiLearningAccountForEmail(user.email).allowed) {
     return NextResponse.json({ error: "Cuenta no autorizada" }, { status: 403 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "admin_ai_learning_correct",
+      limit: 30,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const body = await request.json().catch(() => null);
   const input = normalizeExpenseScanCorrectionInput(body);
