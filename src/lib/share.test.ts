@@ -189,7 +189,7 @@ describe("openWhatsAppDocumentMessage", () => {
 describe("reserveExternalShareWindow", () => {
   it("reserva una pestaña temporal durante el gesto del usuario", () => {
     const opened = {
-      document: { title: "", body: { innerHTML: "" } },
+      document: { title: "", body: { textContent: "" } },
       opener: {},
     };
     const open = vi.fn(() => opened);
@@ -199,6 +199,7 @@ describe("reserveExternalShareWindow", () => {
     expect(open).toHaveBeenCalledWith("about:blank", "_blank");
     expect(opened.opener).toBeNull();
     expect(opened.document.title).toBe("Preparando envío");
+    expect(opened.document.body.textContent).toContain("Preparando el envío");
   });
 });
 

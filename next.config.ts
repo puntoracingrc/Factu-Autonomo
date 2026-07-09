@@ -21,7 +21,7 @@ const developmentConnectSources = isProductionBuild
       "ws://127.0.0.1:*",
     ];
 
-const contentSecurityPolicyReportOnly = serializeCsp([
+const contentSecurityPolicy = serializeCsp([
   ["default-src", ["'self'"]],
   ["base-uri", ["'self'"]],
   ["object-src", ["'none'"]],
@@ -75,6 +75,11 @@ const contentSecurityPolicyReportOnly = serializeCsp([
   ["upgrade-insecure-requests"],
 ]);
 
+const contentSecurityPolicyHeader =
+  process.env.SECURITY_CSP_MODE === "enforce"
+    ? "Content-Security-Policy"
+    : "Content-Security-Policy-Report-Only";
+
 const securityHeaders = [
   {
     key: "Access-Control-Allow-Origin",
@@ -91,8 +96,8 @@ const securityHeaders = [
   },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   {
-    key: "Content-Security-Policy-Report-Only",
-    value: contentSecurityPolicyReportOnly,
+    key: contentSecurityPolicyHeader,
+    value: contentSecurityPolicy,
   },
 ];
 
@@ -104,6 +109,9 @@ const apiNoStoreHeaders = [
 ];
 
 const appNoIndexHeaders = [
+  { key: "Cache-Control", value: "no-store, max-age=0" },
+  { key: "CDN-Cache-Control", value: "no-store" },
+  { key: "Vercel-CDN-Cache-Control", value: "no-store" },
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ];
 

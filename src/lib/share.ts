@@ -201,8 +201,8 @@ export function reserveExternalShareWindow(): Window | null {
   try {
     opened.opener = null;
     opened.document.title = "Preparando envío";
-    opened.document.body.innerHTML =
-      '<div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; padding: 24px; color: #0f172a;"><strong>Preparando el envío...</strong><p>Esta pestaña se abrirá en unos segundos.</p></div>';
+    opened.document.body.textContent =
+      "Preparando el envío... Esta pestaña se abrirá en unos segundos.";
   } catch {
     // Algunos navegadores no permiten escribir en la ventana reservada.
   }
