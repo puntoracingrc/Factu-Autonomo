@@ -33,6 +33,7 @@ const contentSecurityPolicyReportOnly = serializeCsp([
       "'self'",
       "'unsafe-inline'",
       "https://accounts.google.com",
+      "https://challenges.cloudflare.com",
       "https://maps.googleapis.com",
       "https://maps.gstatic.com",
     ],
@@ -63,6 +64,7 @@ const contentSecurityPolicyReportOnly = serializeCsp([
     [
       "'self'",
       "https://accounts.google.com",
+      "https://challenges.cloudflare.com",
       "https://drive.google.com",
       "https://mail.google.com",
     ],
