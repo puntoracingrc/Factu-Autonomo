@@ -26,8 +26,9 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El rate limit distribuido queda aplicado en Supabase, con
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production y
   fallback en memoria.
-- El MFA admin queda preparado con TOTP y bloqueo por `ADMIN_MFA_REQUIRED=true`;
-  no debe activarse hasta enrolar y probar las cuentas admin.
+- El MFA admin queda activo para APIs admin completas mediante TOTP y
+  `ADMIN_MFA_REQUIRED=true`; la cuenta `puntoracingrc@gmail.com` fue verificada
+  en sesion `aal2`.
 - Verificacion final de produccion tras PR #336: workflow `main` 29047106837 en
   verde, Production Domain correcto, CSP en bloqueo y rate limit distribuido
   confirmado con bucket `security_csp_report`.
@@ -76,12 +77,13 @@ Protecciones actuales:
 - `ADMIN_EMAILS` es obligatorio en produccion para admins.
 - El email admin de desarrollo solo se incluye fuera de `NODE_ENV=production`.
 - MFA admin con TOTP preparado en el panel `/admin`.
-- Las APIs admin completas pueden exigir `aal2` con `ADMIN_MFA_REQUIRED=true`.
+- Las APIs admin completas exigen `aal2` con `ADMIN_MFA_REQUIRED=true` en
+  Vercel Production.
 
-Riesgos pendientes:
+Punto operativo:
 
-- MFA admin no debe forzarse hasta que al menos una cuenta admin haya verificado
-  TOTP y se haya probado acceso al panel.
+- Mantener al menos una cuenta admin con TOTP recuperable y guardar codigos o
+  procedimiento de recuperacion fuera de la app.
 
 ## Base de datos y Supabase
 
@@ -183,7 +185,7 @@ Protecciones actuales:
 
 Riesgos pendientes:
 
-- Exigir MFA para admins.
+- Mantener MFA admin probado despues de cambios de auth/sesion.
 - Alertas externas con Log Drains si la operacion crece.
 - Runbook formal para incidentes: cuenta comprometida, fuga de clave, rollback,
   abuso de escaneo IA, error de migracion.
@@ -228,7 +230,8 @@ Alta prioridad:
 
 - Vigilar informes CSP y usar `report-only` solo como rollback temporal si
   aparece una incompatibilidad legitima.
-- Enrolar TOTP en cuentas admin y despues activar `ADMIN_MFA_REQUIRED=true`.
+- Mantener TOTP activo en cuentas admin y revisar que las sesiones admin sigan
+  alcanzando `aal2`.
 - Revisar logs de rate limit distribuido durante los primeros dias.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 

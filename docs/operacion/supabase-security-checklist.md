@@ -24,8 +24,8 @@ Ultima revision: 2026-07-09.
 - Produccion: confirmar que Vercel apunta a la ultima build de `main`.
 - CSP: revisar informes de `/api/security/csp-report`; produccion bloquea CSP
   por defecto y `SECURITY_CSP_MODE=report-only` queda como rollback temporal.
-- Admin MFA: confirmar que las cuentas admin tienen TOTP verificado antes de
-  activar o mantener `ADMIN_MFA_REQUIRED=true`.
+- Admin MFA: confirmar que las cuentas admin tienen TOTP verificado y que
+  `ADMIN_MFA_REQUIRED=true` sigue activo en Vercel Production.
 - WAF/bots: revisar si hay scraping, registros masivos o picos raros antes de
   contratar/activar proteccion avanzada.
 
@@ -54,8 +54,8 @@ Ultima revision: 2026-07-09.
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production para
   nuevos despliegues; bucket `security_csp_report` observado tras prueba real de
   produccion.
-- Admin MFA: panel preparado para enrolar TOTP y backend preparado para exigir
-  `aal2` con `ADMIN_MFA_REQUIRED=true`.
+- Admin MFA: cuenta `puntoracingrc@gmail.com` verificada con TOTP real en sesion
+  `aal2`; Vercel Production tiene `ADMIN_MFA_REQUIRED=true`.
 - Revisión mensual: recordatorio activo en Codex
   `revisi-n-mensual-supabase-seguridad`.
 
@@ -74,8 +74,8 @@ Ultima revision: 2026-07-09.
 - CSP rollback: usar `SECURITY_CSP_MODE=report-only` solo si login, Turnstile,
   Google, Drive, Maps, escaneo IA, PDF o admin muestran una incompatibilidad
   legitima.
-- Admin MFA required: no activar si no se ha verificado TOTP en al menos una
-  cuenta admin y comprobado acceso real al panel.
+- Admin MFA required: no desactivar salvo rollback controlado; si se anade otra
+  cuenta admin, verificar TOTP real antes de depender de ella.
 - Rate limit distribuido: si se cambia o se revierte, confirmar que la migracion
   `20260709123000_server_rate_limit_buckets.sql` existe en el proyecto correcto
   antes de mantener `SERVER_RATE_LIMIT_BACKEND=supabase`.
