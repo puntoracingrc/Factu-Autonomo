@@ -19,6 +19,9 @@ decision operativa y coste.
   una sesion admin `aal2`.
 - Rate limit distribuido queda aplicado en Supabase y preparado en Vercel
   mediante `SERVER_RATE_LIMIT_BACKEND=supabase`.
+- El panel Admin > Errores y salud muestra senales de abuso/scraping basadas en
+  `server_rate_limit_buckets` y ofrece un log copiable para diagnostico sin IPs,
+  tokens ni emails.
 - WAF/bot protection queda como control operativo externo: no se activa a ciegas
   porque depende de DNS/proveedor/coste y puede bloquear trafico legitimo.
 - Revision mensual de Supabase queda documentada y con recordatorio activo en
@@ -43,6 +46,7 @@ Fecha: 2026-07-09.
   confirmando que el backend distribuido esta activo.
 - Cuenta admin `puntoracingrc@gmail.com` con TOTP verificado: estado
   `verificado · Nivel aal2 · preparado`.
+- Cuenta admin `persianasalmar@gmail.com` con TOTP verificado manualmente.
 - Vercel Production tiene `ADMIN_MFA_REQUIRED=true` configurado.
 
 ## CSP
@@ -102,13 +106,18 @@ Hecho:
 - Consulta de verificacion devuelta en `true`: tabla existe, RPC existe, sin
   grants a usuarios normales y con execute para `service_role`.
 - Variable Vercel Production `SERVER_RATE_LIMIT_BACKEND=supabase` anadida.
+- Admin > Errores y salud lee los contadores recientes por namespace y alerta si
+  hay volumen anomalo o muchos origenes distintos contra rutas protegidas.
+- El log `FACTU_SECURITY_HEALTH_V1` se puede copiar desde admin y pegar en Codex
+  para analizar picos sin exponer identificadores reales.
 
 Verificacion realizada:
 
 1. Produccion desplegada desde `main`.
 2. Endpoint con rate limit probado mediante `/api/security/csp-report`.
 3. Bucket `security_csp_report` observado en Supabase tras la llamada.
-4. Si Supabase no estuviera disponible, el codigo vuelve a memoria para no
+4. Panel admin preparado para resumir buckets recientes y generar log copiable.
+5. Si Supabase no estuviera disponible, el codigo vuelve a memoria para no
    tumbar rutas sensibles.
 
 ## WAF y bot protection
@@ -127,6 +136,8 @@ Estado actual:
 - `robots.txt` bloquea rutas privadas para crawlers educados.
 - Rutas privadas llevan `X-Robots-Tag: noindex, nofollow, noarchive`.
 - APIs sensibles tienen rate limit.
+- Admin > Errores y salud muestra senales de abuso/scraping cuando los
+  contadores distribuidos pasan umbrales de vigilancia o accion.
 - Futuro recomendado: WAF/bot protection si aparecen picos, scraping real o
   abuso de registro/login.
 
@@ -147,9 +158,12 @@ Revisar cada mes:
 - Backups diarios.
 - Buckets Storage publicos.
 - CSP reports.
+- Log copiable `FACTU_SECURITY_HEALTH_V1` de Admin > Errores y salud.
 - Estado de Vercel Production Domain.
 - Necesidad real de WAF/bot protection.
 
 ## Pendiente seguro
 
 - WAF/bot protection solo si hay senales reales o decision comercial.
+- El panel admin ayuda a detectar senales, pero no bloquea bots avanzados por si
+  solo. Si se confirma abuso real, evaluar WAF/bot protection externo.

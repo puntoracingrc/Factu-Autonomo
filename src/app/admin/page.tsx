@@ -8,6 +8,7 @@ import {
   Ban,
   BarChart3,
   Brain,
+  Clipboard,
   Cloud,
   CreditCard,
   Database,
@@ -1270,9 +1271,57 @@ function HealthHourlyBars({ points }: { points: AdminHealthHourlyPoint[] }) {
   );
 }
 
+function buildAdminSecurityLog(health: AdminHealthSnapshot) {
+  const abuseLines =
+    health.abuse.namespaces.length > 0
+      ? health.abuse.namespaces.map(
+          (item) =>
+            `- ${item.namespace}|${item.level}|requests=${item.requests}|buckets=${item.buckets}|max=${item.maxRequests}|latest=${item.latestAt ?? "none"}`,
+        )
+      : ["- none"];
+
+  return [
+    "FACTU_SECURITY_HEALTH_V1",
+    `generatedAt=${health.generatedAt}`,
+    `overall=${health.level}`,
+    `headline=${health.headline}`,
+    `activeUsers7d=${health.summary.activeUsers7d}`,
+    `activeUsers30d=${health.summary.activeUsers30d}`,
+    `syncRows=${health.summary.syncRows}`,
+    `syncUpdates24h=${health.summary.syncUpdates24h}`,
+    `errors24h=${health.summary.errors24h}`,
+    `errors7d=${health.summary.errors7d}`,
+    `abuse.level=${health.abuse.level}`,
+    `abuse.label=${health.abuse.label}`,
+    `abuse.totalRequests=${health.abuse.totalRequests}`,
+    `abuse.totalBuckets=${health.abuse.totalBuckets}`,
+    `abuse.latestAt=${health.abuse.latestAt ?? "none"}`,
+    "abuse.namespaces=",
+    ...abuseLines,
+    "recommendations=",
+    ...(health.recommendations.length > 0
+      ? health.recommendations.map((item) => `- ${item}`)
+      : ["- none"]),
+  ].join("\n");
+}
+
 function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
   const tone = healthToneClasses(health.level);
   const topUsers = health.topUsers.slice(0, 6);
+  const abuseTone = healthToneClasses(health.abuse.level);
+  const securityLog = buildAdminSecurityLog(health);
+  const [copiedSecurityLog, setCopiedSecurityLog] = useState(false);
+
+  const copySecurityLog = useCallback(async () => {
+    if (!navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(securityLog);
+    } catch {
+      return;
+    }
+    setCopiedSecurityLog(true);
+    window.setTimeout(() => setCopiedSecurityLog(false), 2200);
+  }, [securityLog]);
 
   return (
     <div className="space-y-4">
@@ -1323,6 +1372,78 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
             </div>
           );
         })}
+      </div>
+
+      <div className={`rounded-2xl border p-4 ${abuseTone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${abuseTone.badge}`}>
+              {health.abuse.level === "action" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <ShieldCheck className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Abuso y scraping · {health.abuse.label}
+              </p>
+              <p className="mt-1 text-lg font-black">{health.abuse.headline}</p>
+              <p className="mt-1 text-sm">
+                {formatInteger(health.abuse.totalRequests)} golpes en{" "}
+                {formatInteger(health.abuse.totalBuckets)} contador(es) recientes
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void copySecurityLog()}
+            className="min-h-10 px-4 text-sm"
+          >
+            <Clipboard className="h-4 w-4" />
+            {copiedSecurityLog ? "Copiado" : "Copiar log"}
+          </Button>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]">
+          <div className="space-y-2">
+            {health.abuse.namespaces.length === 0 && (
+              <p className="rounded-2xl bg-white/70 px-3 py-2 text-sm font-bold">
+                Sin señales en rutas protegidas.
+              </p>
+            )}
+            {health.abuse.namespaces.map((item) => {
+              const itemTone = healthToneClasses(item.level);
+              return (
+                <div
+                  key={item.namespace}
+                  className="rounded-2xl bg-white/75 px-3 py-2"
+                >
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-black">{item.label}</p>
+                    <span
+                      className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${itemTone.soft}`}
+                    >
+                      {item.level === "action"
+                        ? "Actuar"
+                        : item.level === "watch"
+                          ? "Vigilar"
+                          : "OK"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold opacity-75">
+                    {formatInteger(item.requests)} golpes · {item.detail} ·{" "}
+                    {formatDateTime(item.latestAt)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-3 text-xs font-semibold text-slate-100">
+            {securityLog}
+          </pre>
+        </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-4">

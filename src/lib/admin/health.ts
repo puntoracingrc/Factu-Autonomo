@@ -32,6 +32,27 @@ export interface AdminHealthHourlyPoint {
   errors: number;
 }
 
+export interface AdminHealthAbuseNamespace {
+  namespace: string;
+  label: string;
+  level: AdminHealthLevel;
+  buckets: number;
+  requests: number;
+  maxRequests: number;
+  latestAt: string | null;
+  detail: string;
+}
+
+export interface AdminHealthAbuseSummary {
+  level: AdminHealthLevel;
+  label: string;
+  headline: string;
+  totalBuckets: number;
+  totalRequests: number;
+  latestAt: string | null;
+  namespaces: AdminHealthAbuseNamespace[];
+}
+
 export interface AdminHealthSnapshot {
   generatedAt: string;
   level: AdminHealthLevel;
@@ -71,6 +92,7 @@ export interface AdminHealthSnapshot {
   entityTypes: AdminHealthEntityType[];
   topUsers: AdminHealthTopUser[];
   hourly: AdminHealthHourlyPoint[];
+  abuse: AdminHealthAbuseSummary;
   recommendations: string[];
 }
 
@@ -79,6 +101,49 @@ const COMFORTABLE_ACTIVE_USERS = 300;
 const WATCH_ACTIVE_USERS = 200;
 const WATCH_ERROR_COUNT = 5;
 const ACTION_ERROR_COUNT = 20;
+const WATCH_ABUSE_REQUESTS = 60;
+const ACTION_ABUSE_REQUESTS = 250;
+const WATCH_ABUSE_BUCKETS = 8;
+const ACTION_ABUSE_BUCKETS = 25;
+const WATCH_ABUSE_MAX_REQUESTS = 30;
+const ACTION_ABUSE_MAX_REQUESTS = 120;
+
+const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
+  admin_capabilities: "Admin: capacidades",
+  admin_ai_learning_correct: "Admin: corregir IA",
+  admin_ai_learning_feedback: "Admin: feedback IA",
+  admin_errors: "Admin: errores",
+  admin_health: "Admin: salud",
+  admin_user_restore: "Admin: restauracion",
+  admin_users_list: "Admin: usuarios",
+  admin_users_update: "Admin: actualizar usuario",
+  billing_checkout: "Billing: checkout",
+  billing_checkout_scan_pack: "Billing: pack escaneos",
+  billing_portal: "Billing: portal",
+  billing_trial: "Billing: prueba",
+  customers_parse: "IA: parseo clientes",
+  email: "Email",
+  email_payment_reminder: "Email: recordatorios",
+  email_welcome: "Email: bienvenida",
+  expense_inbox_read: "Buzon gastos: lectura",
+  expense_inbox_rotate_alias: "Buzon gastos: alias",
+  expense_inbox_update: "Buzon gastos: configurar",
+  expenses_provider_summary: "Gastos: proveedor",
+  expenses_scan: "IA: escaneo gastos",
+  google_auth_token: "Google Auth",
+  google_drive_token: "Google Drive",
+  google_places_address_fill: "Google Places",
+  imports_review: "Importaciones",
+  monitoring_error: "Monitoring",
+  referrals_me: "Referidos",
+  referrals_redeem: "Referidos: canje",
+  reminders_realtime_session: "Recordatorios voz",
+  security_csp_report: "CSP reports",
+  uploads: "Uploads",
+  verifactu_declaration: "VeriFactu: declaracion",
+  verifactu_register: "VeriFactu: registro",
+  verifactu_status: "VeriFactu: estado",
+};
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -162,6 +227,96 @@ function normalizeHourlyPoint(value: unknown): AdminHealthHourlyPoint {
   };
 }
 
+function namespaceLabel(namespace: string): string {
+  return ABUSE_NAMESPACE_LABELS[namespace] ?? namespace.replace(/_/g, " ");
+}
+
+function abuseNamespaceLevel(
+  buckets: number,
+  requests: number,
+  maxRequests: number,
+): AdminHealthLevel {
+  if (
+    requests >= ACTION_ABUSE_REQUESTS ||
+    buckets >= ACTION_ABUSE_BUCKETS ||
+    maxRequests >= ACTION_ABUSE_MAX_REQUESTS
+  ) {
+    return "action";
+  }
+  if (
+    requests >= WATCH_ABUSE_REQUESTS ||
+    buckets >= WATCH_ABUSE_BUCKETS ||
+    maxRequests >= WATCH_ABUSE_MAX_REQUESTS
+  ) {
+    return "watch";
+  }
+  return "ok";
+}
+
+function normalizeAbuseNamespace(value: unknown): AdminHealthAbuseNamespace {
+  const row = asRecord(value);
+  const namespace = String(row.namespace ?? "desconocido");
+  const buckets = integerValue(row.buckets);
+  const requests = integerValue(row.requests);
+  const maxRequests = integerValue(row.maxRequests);
+  const level = abuseNamespaceLevel(buckets, requests, maxRequests);
+
+  return {
+    namespace,
+    label: namespaceLabel(namespace),
+    level,
+    buckets,
+    requests,
+    maxRequests,
+    latestAt: stringValue(row.latestAt),
+    detail: `${buckets.toLocaleString("es-ES")} origen(es) · pico ${maxRequests.toLocaleString(
+      "es-ES",
+    )}`,
+  };
+}
+
+function normalizeAbuseSummary(rawValue: unknown): AdminHealthAbuseSummary {
+  const raw = asRecord(rawValue);
+  const namespaces = asArray(raw.namespaces)
+    .map(normalizeAbuseNamespace)
+    .sort((a, b) => levelRank(b.level) - levelRank(a.level) || b.requests - a.requests)
+    .slice(0, 8);
+  const totalBuckets =
+    integerValue(raw.totalBuckets) ||
+    namespaces.reduce((total, item) => total + item.buckets, 0);
+  const totalRequests =
+    integerValue(raw.totalRequests) ||
+    namespaces.reduce((total, item) => total + item.requests, 0);
+  const latestAt =
+    stringValue(raw.latestAt) ??
+    namespaces
+      .map((item) => item.latestAt)
+      .filter(Boolean)
+      .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0] ??
+    null;
+  const level = maxLevel(namespaces.map((item) => item.level));
+
+  return {
+    level,
+    label:
+      level === "action"
+        ? "Ataque probable"
+        : level === "watch"
+          ? "Vigilar"
+          : "Sin señales",
+    headline:
+      level === "action"
+        ? "Hay actividad anómala que conviene revisar."
+        : level === "watch"
+          ? "Hay más actividad de lo normal en rutas protegidas."
+          : "Sin señales claras de scraping o abuso.",
+    totalBuckets,
+    totalRequests,
+    latestAt,
+    namespaces,
+  };
+}
+
 export function isMissingAdminHealthRpc(error: {
   code?: string | null;
   message?: string | null;
@@ -181,6 +336,7 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
   const sync = asRecord(raw.sync);
   const errors = asRecord(raw.errors);
   const usage = asRecord(raw.usage);
+  const abuse = normalizeAbuseSummary(raw.abuse);
   const generatedAt = stringValue(raw.generatedAt) ?? new Date().toISOString();
 
   const databaseBytes = integerValue(database.bytes);
@@ -225,7 +381,13 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
         : "ok";
   const syncLevel: AdminHealthLevel =
     cloudUsers > 0 && !latestSyncAt ? "watch" : "ok";
-  const level = maxLevel([storageLevel, capacityLevel, errorLevel, syncLevel]);
+  const level = maxLevel([
+    storageLevel,
+    capacityLevel,
+    errorLevel,
+    syncLevel,
+    abuse.level,
+  ]);
 
   const checks: AdminHealthCheck[] = [
     {
@@ -256,6 +418,13 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
       value: errors24h.toLocaleString("es-ES"),
       detail: "errores abiertos registrados en las últimas 24 horas",
     },
+    {
+      id: "abuse",
+      label: "Abuso/scraping",
+      level: abuse.level,
+      value: abuse.totalRequests.toLocaleString("es-ES"),
+      detail: "golpes recientes en rutas protegidas por rate limit",
+    },
   ];
 
   const recommendations: string[] = [];
@@ -276,6 +445,12 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
   }
   if (syncLevel !== "ok") {
     recommendations.push("Comprobar sincronización cloud de usuarios activos.");
+  }
+  if (abuse.level === "watch") {
+    recommendations.push("Vigilar señales de abuso: revisar rutas e IPs si se repite.");
+  }
+  if (abuse.level === "action") {
+    recommendations.push("Posible scraping/abuso: revisar logs y valorar WAF/bot protection.");
   }
 
   return {
@@ -323,6 +498,7 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
     entityTypes: asArray(raw.entityTypes).map(normalizeEntityType),
     topUsers: asArray(raw.topUsers).map(normalizeTopUser),
     hourly: asArray(raw.hourly).map(normalizeHourlyPoint),
+    abuse,
     recommendations,
   };
 }
