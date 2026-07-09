@@ -52,7 +52,8 @@ Ultima revision: 2026-07-09.
 - CSP reports: ruta `/api/security/csp-report` preparada y con rate limit.
 - Rate limit distribuido: migracion aplicada y verificada en produccion;
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production para
-  nuevos despliegues.
+  nuevos despliegues; bucket `security_csp_report` observado tras prueba real de
+  produccion.
 - Admin MFA: panel preparado para enrolar TOTP y backend preparado para exigir
   `aal2` con `ADMIN_MFA_REQUIRED=true`.
 - Revisión mensual: recordatorio activo en Codex
