@@ -1,4 +1,4 @@
-import { appDataToSyncChanges, applySyncChanges, diffAppData } from "../cloud/diff";
+import { appDataToSyncChanges, applySyncChanges } from "../cloud/diff";
 import { normalizeImportedCloudData } from "../cloud/incremental";
 import type { AppData, SyncChange, SyncEntityType } from "../types";
 import { EMPTY_DATA } from "../types";
@@ -62,6 +62,13 @@ export interface AdminUserRestorePointSummary {
   summary: AdminRestoreDataSummary;
 }
 
+type AdminRestoreChangeKind = "added" | "updated" | "deleted";
+
+interface AdminRestoreChange {
+  kind: AdminRestoreChangeKind;
+  change: SyncChange;
+}
+
 const EMPTY_RESTORE_SUMMARY: AdminRestoreDataSummary = {
   documents: 0,
   customers: 0,
@@ -91,6 +98,24 @@ function isSyncEntityType(value: string): value is SyncEntityType {
 
 function keyFor(change: Pick<SyncChange, "entityType" | "entityId">): string {
   return `${change.entityType}:${change.entityId}`;
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item));
+  }
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, canonicalize(entry)]),
+  );
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(canonicalize(value));
 }
 
 function maxIso(values: string[]): string | null {
@@ -151,21 +176,18 @@ export function summarizeRestoreDiff(
   current: AppData,
   target: AppData,
 ): AdminRestoreDiffSummary {
-  const currentKeys = new Set(
-    appDataToSyncChanges(current).map((change) => keyFor(change)),
-  );
-  const changes = diffAppData(current, target);
+  const changes = buildRestoreChangeSet(current, target);
   const byType = emptyTypeSummary();
   let added = 0;
   let updated = 0;
   let deleted = 0;
 
-  for (const change of changes) {
+  for (const { change, kind } of changes) {
     const typeSummary = byType[change.entityType];
-    if (change.deleted) {
+    if (kind === "deleted") {
       typeSummary.deleted += 1;
       deleted += 1;
-    } else if (currentKeys.has(keyFor(change))) {
+    } else if (kind === "updated") {
       typeSummary.updated += 1;
       updated += 1;
     } else {
@@ -183,15 +205,64 @@ export function summarizeRestoreDiff(
   };
 }
 
+function buildRestoreChangeSet(
+  current: AppData,
+  target: AppData,
+  restoredAt = new Date().toISOString(),
+): AdminRestoreChange[] {
+  const currentMap = new Map(
+    appDataToSyncChanges(current).map((change) => [keyFor(change), change]),
+  );
+  const targetMap = new Map(
+    appDataToSyncChanges(target).map((change) => [keyFor(change), change]),
+  );
+  const changes: AdminRestoreChange[] = [];
+
+  for (const [key, targetChange] of targetMap) {
+    const currentChange = currentMap.get(key);
+    if (!currentChange) {
+      changes.push({
+        kind: "added",
+        change: { ...targetChange, updatedAt: restoredAt },
+      });
+      continue;
+    }
+    if (stableJson(currentChange.payload) !== stableJson(targetChange.payload)) {
+      changes.push({
+        kind: "updated",
+        change: {
+          ...targetChange,
+          updatedAt: restoredAt,
+        },
+      });
+    }
+  }
+
+  for (const [key, currentChange] of currentMap) {
+    if (!targetMap.has(key)) {
+      changes.push({
+        kind: "deleted",
+        change: {
+          entityType: currentChange.entityType,
+          entityId: currentChange.entityId,
+          deleted: true,
+          updatedAt: restoredAt,
+        },
+      });
+    }
+  }
+
+  return changes;
+}
+
 export function buildRestoreChanges(
   current: AppData,
   target: AppData,
   restoredAt = new Date().toISOString(),
 ): SyncChange[] {
-  return diffAppData(current, target).map((change) => ({
-    ...change,
-    updatedAt: restoredAt,
-  }));
+  return buildRestoreChangeSet(current, target, restoredAt).map(
+    ({ change }) => change,
+  );
 }
 
 export function normalizeRestorePointData(raw: unknown): AppData {
