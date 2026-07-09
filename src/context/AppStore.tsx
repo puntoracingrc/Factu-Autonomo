@@ -24,6 +24,8 @@ import type {
 } from "@/lib/types";
 import {
   applyRecurringExpenseChangeToData,
+  listRecurringOccurrenceDates,
+  occurrenceKey,
   syncRecurringExpenses,
   type RecurringExpenseDraft,
 } from "@/lib/recurring-expenses";
@@ -151,6 +153,12 @@ interface AppStoreValue {
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  saveFixedExpenseWithRecurringTemplate: (
+    expense:
+      | Omit<Expense, "id" | "createdAt">
+      | Expense,
+    item: RecurringExpenseDraft,
+  ) => RecurringExpense;
   addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Product;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
@@ -1083,6 +1091,66 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const saveFixedExpenseWithRecurringTemplate = useCallback(
+    (
+      expense: Omit<Expense, "id" | "createdAt"> | Expense,
+      item: RecurringExpenseDraft,
+    ): RecurringExpense => {
+      const now = new Date().toISOString();
+      const templateId = newId();
+      const created: RecurringExpense = {
+        ...item,
+        id: templateId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const searchLimit = item.startDate
+        ? new Date(`${item.startDate}T00:00:00.000Z`)
+        : null;
+      searchLimit?.setUTCFullYear(searchLimit.getUTCFullYear() + 2);
+      const firstOccurrenceDate =
+        listRecurringOccurrenceDates(
+          created,
+          searchLimit?.toISOString().split("T")[0] ?? expense.date,
+        )[0] ?? expense.date;
+      const linkedExpense = {
+        ...expense,
+        businessKind: "fixed" as const,
+        recurringExpenseId: templateId,
+        recurringOccurrenceKey: occurrenceKey(templateId, firstOccurrenceDate),
+      };
+
+      setAppData((prev) => {
+        const existingId = "id" in expense ? expense.id : null;
+        const existingCreatedAt =
+          "createdAt" in expense ? expense.createdAt : now;
+        const savedExpense: Expense = {
+          ...linkedExpense,
+          id: existingId ?? newId(),
+          createdAt: existingCreatedAt,
+        };
+        const existingExpenseFound = existingId
+          ? prev.expenses.some((entry) => entry.id === existingId)
+          : false;
+
+        const expenses = existingExpenseFound
+          ? prev.expenses.map((entry) =>
+              entry.id === existingId ? savedExpense : entry,
+            )
+          : [...prev.expenses, savedExpense];
+
+        return syncRecurringExpenses({
+          ...prev,
+          recurringExpenses: [...prev.recurringExpenses, created],
+          expenses,
+        });
+      });
+
+      return created;
+    },
+    [setAppData],
+  );
+
   const addProduct = useCallback(
     (product: Omit<Product, "id" | "createdAt" | "updatedAt">): Product => {
       const now = new Date().toISOString();
@@ -1603,6 +1671,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,
       deleteProduct,
@@ -1652,6 +1721,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,
       deleteProduct,
