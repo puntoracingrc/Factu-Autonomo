@@ -7,8 +7,10 @@ import {
   Cloud,
   CreditCard,
   FileText,
+  History,
   Import,
   RefreshCw,
+  RotateCcw,
   Siren,
   ShieldCheck,
   UserCog,
@@ -25,6 +27,11 @@ import {
   dateOnlyFromIso,
   type AdminUserRow,
 } from "@/lib/admin/users";
+import type {
+  AdminRestoreDataSummary,
+  AdminRestoreDiffSummary,
+  AdminUserRestorePointSummary,
+} from "@/lib/admin/user-restore";
 import {
   AI_UNITS_PER_SCAN,
   UNLIMITED_AI_CREDIT_UNITS,
@@ -57,6 +64,24 @@ interface AdminUsersResponse {
   page?: number;
   perPage?: number;
   total?: number;
+  error?: string;
+}
+
+interface AdminUserRestorePointsResponse {
+  email?: string | null;
+  current?: AdminRestoreDataSummary;
+  restorePoints?: AdminUserRestorePointSummary[];
+  error?: string;
+}
+
+interface AdminUserRestoreActionResponse {
+  ok?: boolean;
+  restorePoint?: AdminUserRestorePointSummary;
+  safetyRestorePoint?: AdminUserRestorePointSummary;
+  current?: AdminRestoreDataSummary;
+  diff?: AdminRestoreDiffSummary;
+  changes?: number;
+  restoredAt?: string;
   error?: string;
 }
 
@@ -153,6 +178,17 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) return "Sin fecha";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function formatMoney(cents: number) {
   return (cents / 100).toLocaleString("es-ES", {
     style: "currency",
@@ -192,6 +228,14 @@ async function readAdminPatchResponse(response: Response) {
     return (await response.json()) as { error?: string; monthKey?: string };
   } catch {
     return {};
+  }
+}
+
+async function readAdminJsonResponse<T>(response: Response): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return {} as T;
   }
 }
 
@@ -272,6 +316,407 @@ function FutureSection({ section }: { section: AdminSection }) {
         suscripción y acceso.
       </p>
     </Card>
+  );
+}
+
+function RestoreDataSummary({
+  summary,
+}: {
+  summary: AdminRestoreDataSummary | null;
+}) {
+  if (!summary) {
+    return (
+      <p className="text-sm font-semibold text-slate-500">
+        Sin resumen cargado.
+      </p>
+    );
+  }
+
+  const items = [
+    ["Facturas/doc.", summary.documents],
+    ["Clientes", summary.customers],
+    ["Gastos", summary.expenses],
+    ["Gastos fijos", summary.recurringExpenses],
+    ["Proveedores", summary.suppliers],
+    ["Productos", summary.products],
+  ];
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-xl bg-white px-3 py-2">
+          <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
+          <p className="text-lg font-black text-slate-900">{value}</p>
+        </div>
+      ))}
+      <div className="rounded-xl bg-white px-3 py-2">
+        <p className="text-xs font-bold uppercase text-slate-500">Filas nube</p>
+        <p className="text-lg font-black text-slate-900">{summary.totalRows}</p>
+      </div>
+      <div className="rounded-xl bg-white px-3 py-2">
+        <p className="text-xs font-bold uppercase text-slate-500">Borrados</p>
+        <p className="text-lg font-black text-slate-900">
+          {summary.deletedEntities}
+        </p>
+      </div>
+      <div className="rounded-xl bg-white px-3 py-2">
+        <p className="text-xs font-bold uppercase text-slate-500">Último sync</p>
+        <p className="text-sm font-bold text-slate-900">
+          {formatDateTime(summary.latestSyncAt)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RestoreDiffSummary({ diff }: { diff: AdminRestoreDiffSummary | null }) {
+  if (!diff) return null;
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+      <p className="font-black text-slate-900">Vista previa de restauración</p>
+      <p className="mt-1">
+        {diff.totalChanges} cambio(s): {diff.added} añadido(s), {diff.updated}{" "}
+        actualizado(s), {diff.deleted} borrado(s).
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {Object.entries(diff.byType)
+          .filter(([, value]) => value.added + value.updated + value.deleted > 0)
+          .map(([type, value]) => (
+            <div key={type} className="rounded-xl bg-white px-3 py-2">
+              <p className="text-xs font-bold uppercase text-slate-500">
+                {type}
+              </p>
+              <p className="font-bold text-slate-900">
+                +{value.added} · ~{value.updated} · -{value.deleted}
+              </p>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+function UserRestorePanel({ user }: { user: AdminUserRow }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<"idle" | "create" | "preview" | "restore">(
+    "idle",
+  );
+  const [current, setCurrent] = useState<AdminRestoreDataSummary | null>(null);
+  const [restorePoints, setRestorePoints] = useState<
+    AdminUserRestorePointSummary[]
+  >([]);
+  const [selectedRestorePointId, setSelectedRestorePointId] = useState("");
+  const [label, setLabel] = useState("Copia soporte admin");
+  const [reason, setReason] = useState("");
+  const [preview, setPreview] = useState<AdminRestoreDiffSummary | null>(null);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const endpoint = `/api/admin/users/${encodeURIComponent(user.id)}/restore-points`;
+
+  const loadRestorePoints = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setLoading(false);
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await readAdminJsonResponse<AdminUserRestorePointsResponse>(
+      response,
+    );
+    if (!response.ok) {
+      setError(body.error ?? "No se pudieron cargar las copias.");
+    } else {
+      const points = body.restorePoints ?? [];
+      setCurrent(body.current ?? null);
+      setRestorePoints(points);
+      setSelectedRestorePointId((selected) =>
+        points.some((point) => point.id === selected)
+          ? selected
+          : (points[0]?.id ?? ""),
+      );
+    }
+    setLoading(false);
+  }, [endpoint]);
+
+  useEffect(() => {
+    if (open) void loadRestorePoints();
+  }, [loadRestorePoints, open]);
+
+  const createRestorePoint = async () => {
+    setBusy("create");
+    setError(null);
+    setMessage(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy("idle");
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "create",
+        label,
+        reason,
+      }),
+    });
+    const body = await readAdminJsonResponse<AdminUserRestoreActionResponse>(
+      response,
+    );
+    if (!response.ok || !body.restorePoint) {
+      setError(body.error ?? "No se pudo crear la copia.");
+    } else {
+      setMessage("Copia de restauración creada.");
+      setSelectedRestorePointId(body.restorePoint.id);
+      setPreview(null);
+      await loadRestorePoints();
+    }
+    setBusy("idle");
+  };
+
+  const previewRestore = async () => {
+    if (!selectedRestorePointId) return;
+    setBusy("preview");
+    setError(null);
+    setMessage(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy("idle");
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "preview",
+        restorePointId: selectedRestorePointId,
+      }),
+    });
+    const body = await readAdminJsonResponse<AdminUserRestoreActionResponse>(
+      response,
+    );
+    if (!response.ok || !body.diff) {
+      setError(body.error ?? "No se pudo preparar la vista previa.");
+    } else {
+      setPreview(body.diff);
+      setMessage("Vista previa lista. Revisa cambios antes de restaurar.");
+    }
+    setBusy("idle");
+  };
+
+  const restoreUser = async () => {
+    if (!selectedRestorePointId) return;
+    setBusy("restore");
+    setError(null);
+    setMessage(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy("idle");
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: "restore",
+        restorePointId: selectedRestorePointId,
+        confirmEmail,
+        reason,
+      }),
+    });
+    const body = await readAdminJsonResponse<AdminUserRestoreActionResponse>(
+      response,
+    );
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo restaurar.");
+    } else {
+      setMessage(
+        `Usuario restaurado. Se aplicaron ${body.changes ?? 0} cambio(s) y se creó una copia de seguridad previa.`,
+      );
+      setPreview(body.diff ?? null);
+      setConfirmEmail("");
+      await loadRestorePoints();
+    }
+    setBusy("idle");
+  };
+
+  const selectedPoint = restorePoints.find(
+    (point) => point.id === selectedRestorePointId,
+  );
+  const confirmMatches =
+    confirmEmail.trim().toLowerCase() === user.email.trim().toLowerCase();
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+            <History className="h-4 w-4" />
+            Restauración de datos
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Copias privadas para restaurar solo esta cuenta sin tocar al resto.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "Cerrar restauración" : "Abrir restauración"}
+        </Button>
+      </div>
+
+      {open && (
+        <div className="mt-4 space-y-4">
+          {loading && <p className="text-sm font-semibold text-slate-500">Cargando...</p>}
+          {!loading && (
+            <>
+              <div className="rounded-2xl bg-slate-100 p-4">
+                <p className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">
+                  Estado actual en nube
+                </p>
+                <RestoreDataSummary summary={current} />
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                <label className="space-y-1 text-sm font-bold text-slate-700">
+                  Nombre de la copia
+                  <input
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-bold text-slate-700">
+                  Motivo interno
+                  <input
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Ej: soporte antes de restaurar"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  onClick={createRestorePoint}
+                  disabled={busy !== "idle" || !label.trim()}
+                >
+                  Crear copia actual
+                </Button>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+                <label className="space-y-1 text-sm font-bold text-slate-700">
+                  Copia disponible
+                  <select
+                    value={selectedRestorePointId}
+                    onChange={(event) => {
+                      setSelectedRestorePointId(event.target.value);
+                      setPreview(null);
+                    }}
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
+                  >
+                    {restorePoints.length === 0 && (
+                      <option value="">Sin copias todavía</option>
+                    )}
+                    {restorePoints.map((point) => (
+                      <option key={point.id} value={point.id}>
+                        {formatDateTime(point.createdAt)} · {point.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={previewRestore}
+                  disabled={busy !== "idle" || !selectedRestorePointId}
+                >
+                  Ver vista previa
+                </Button>
+              </div>
+
+              {selectedPoint && (
+                <div className="rounded-2xl bg-white p-4 text-sm text-slate-700">
+                  <p className="font-bold text-slate-900">{selectedPoint.label}</p>
+                  <p>Creada: {formatDateTime(selectedPoint.createdAt)}</p>
+                  <p>
+                    Tipo:{" "}
+                    {selectedPoint.source === "pre_restore_safety"
+                      ? "seguridad previa"
+                      : "manual admin"}
+                  </p>
+                  {selectedPoint.reason && <p>Motivo: {selectedPoint.reason}</p>}
+                </div>
+              )}
+
+              <RestoreDiffSummary diff={preview} />
+
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <label className="space-y-1 text-sm font-bold text-red-900">
+                  Confirmación para restaurar
+                  <input
+                    value={confirmEmail}
+                    onChange={(event) => setConfirmEmail(event.target.value)}
+                    placeholder={user.email}
+                    className="min-h-11 w-full rounded-xl border border-red-200 bg-white px-3 text-base font-semibold text-slate-900"
+                  />
+                </label>
+                <p className="mt-2 text-sm font-semibold text-red-800">
+                  Escribe el email exacto para restaurar solo esta cuenta. Antes de
+                  aplicar cambios se crea una copia de seguridad automática.
+                </p>
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={restoreUser}
+                  disabled={
+                    busy !== "idle" ||
+                    !selectedRestorePointId ||
+                    !preview ||
+                    !confirmMatches
+                  }
+                  className="mt-3"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Restaurar usuario
+                </Button>
+              </div>
+            </>
+          )}
+          {message && (
+            <p className="text-sm font-semibold text-green-700">{message}</p>
+          )}
+          {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -628,6 +1073,8 @@ function UserAdminCard({
           no los créditos extra.
         </p>
       </div>
+
+      <UserRestorePanel user={user} />
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <label className="space-y-1 text-sm font-bold text-slate-700">
