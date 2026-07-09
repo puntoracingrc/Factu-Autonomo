@@ -20,6 +20,9 @@ describe("security headers config", () => {
     expect(globalRule).toBeDefined();
     const headers = headerMap(globalRule?.headers ?? []);
 
+    expect(headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://facturacion-autonomos.app",
+    );
     expect(headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
     expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(headers.get("X-Frame-Options")).toBe("DENY");
