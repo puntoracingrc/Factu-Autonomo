@@ -15,7 +15,8 @@ decision operativa y coste.
   `/api/security/csp-report` y con el interruptor
   `SECURITY_CSP_MODE=report-only` disponible para diagnostico temporal.
 - MFA admin queda implementado con TOTP en el panel `/admin` y bloqueo por
-  `ADMIN_MFA_REQUIRED=true`.
+  `ADMIN_MFA_REQUIRED=true`, ya configurado en Vercel Production tras verificar
+  una sesion admin `aal2`.
 - Rate limit distribuido queda aplicado en Supabase y preparado en Vercel
   mediante `SERVER_RATE_LIMIT_BACKEND=supabase`.
 - WAF/bot protection queda como control operativo externo: no se activa a ciegas
@@ -40,6 +41,9 @@ Fecha: 2026-07-09.
 - Vercel logs no muestran `rate_limit_supabase_fallback`.
 - Supabase `server_rate_limit_buckets` registra bucket `security_csp_report`,
   confirmando que el backend distribuido esta activo.
+- Cuenta admin `puntoracingrc@gmail.com` con TOTP verificado: estado
+  `verificado · Nivel aal2 · preparado`.
+- Vercel Production tiene `ADMIN_MFA_REQUIRED=true` configurado.
 
 ## CSP
 
@@ -71,14 +75,17 @@ Hecho:
 - Las APIs admin completas usan una comprobacion comun.
 - Si `ADMIN_MFA_REQUIRED=true`, las APIs admin exigen `aal2`.
 - Las cuentas de aprendizaje IA no quedan mezcladas con admin completo.
+- Cuenta admin `puntoracingrc@gmail.com` verificada con TOTP real y sesion
+  `aal2`.
+- Variable Vercel Production `ADMIN_MFA_REQUIRED=true` anadida.
 
-Activacion recomendada:
+Verificacion realizada:
 
 1. Entrar con una cuenta admin.
 2. Preparar TOTP desde el panel admin.
 3. Verificar el codigo y confirmar que la sesion queda `aal2`.
-4. Activar `ADMIN_MFA_REQUIRED=true` en Vercel.
-5. Reabrir `/admin` y comprobar usuarios, errores/salud y restauracion.
+4. Activar `ADMIN_MFA_REQUIRED=true` en Vercel Production.
+5. Desplegar por Git para que Vercel cargue la variable nueva.
 
 ## Rate limit distribuido
 
@@ -145,5 +152,4 @@ Revisar cada mes:
 
 ## Pendiente seguro
 
-- Enrolar TOTP real en admin antes de activar MFA obligatorio.
 - WAF/bot protection solo si hay senales reales o decision comercial.
