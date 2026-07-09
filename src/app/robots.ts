@@ -2,13 +2,34 @@ import type { MetadataRoute } from "next";
 
 const SITE_URL = "https://facturacion-autonomos.app";
 
+const appInternalRoutes = [
+  "/admin",
+  "/api",
+  "/auth/callback",
+  "/google-auth/callback",
+  "/drive/callback",
+  "/avisos",
+  "/clientes",
+  "/configuracion",
+  "/cuenta",
+  "/facturas",
+  "/gastos",
+  "/importar",
+  "/impuestos",
+  "/presupuestos",
+  "/productos",
+  "/proveedores",
+  "/recibos",
+  "/rentabilidad-real",
+];
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api", "/auth/callback", "/google-auth/callback"],
+        disallow: appInternalRoutes,
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

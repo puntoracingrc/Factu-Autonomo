@@ -822,6 +822,9 @@ describe("MVP usability polish", () => {
     expect(robotsSource).toContain("sitemap.xml");
     expect(robotsSource).toContain('"/admin"');
     expect(robotsSource).toContain('"/api"');
+    expect(robotsSource).toContain('"/facturas"');
+    expect(robotsSource).toContain('"/clientes"');
+    expect(robotsSource).toContain('"/cuenta"');
     expect(sitemapSource).toContain('"/inicio"');
     expect(sitemapSource).toContain('"/demo"');
     expect(sitemapSource).toContain('"/precios"');
