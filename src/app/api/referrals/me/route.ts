@@ -7,6 +7,10 @@ import {
 } from "@/lib/billing/referrals";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export async function GET(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"), {
@@ -15,6 +19,16 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "referrals_me",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   if (!isBillingEnforced()) {
     return NextResponse.json({

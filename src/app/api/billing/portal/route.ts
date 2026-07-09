@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/billing/config";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getStripe } from "@/lib/billing/stripe";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -11,6 +15,16 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "billing_portal",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const stripe = getStripe();
   const admin = getSupabaseAdmin();

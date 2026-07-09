@@ -17,6 +17,10 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import type { PlanId } from "@/lib/billing/plans";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 import { currentMonthKey } from "@/lib/billing/usage";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 function subscriptionFromRow(
@@ -152,6 +156,16 @@ export async function GET(request: Request) {
   if (!isAdminUser(requester)) {
     return NextResponse.json({ error: "Solo administradores" }, { status: 403 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "admin_users_list",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    requester.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const admin = getSupabaseAdmin();
   if (!admin) {

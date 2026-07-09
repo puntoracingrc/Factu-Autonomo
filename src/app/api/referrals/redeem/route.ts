@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { redeemReferralCode } from "@/lib/billing/referrals";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"), {
@@ -10,6 +14,16 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "referrals_redeem",
+      limit: 10,
+      windowMs: 60 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   if (!isBillingEnforced()) {
     return NextResponse.json({

@@ -5,6 +5,10 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { isProPlan, type PlanId } from "@/lib/billing/plans";
 import { getStripe, scanPackPriceId } from "@/lib/billing/stripe";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -14,6 +18,16 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "billing_checkout_scan_pack",
+      limit: 10,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const stripe = getStripe();
   const priceId = scanPackPriceId();
