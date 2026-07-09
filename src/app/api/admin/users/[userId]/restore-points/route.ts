@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
+import type { User } from "@supabase/supabase-js";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   appDataFromSyncRows,
   buildRestoreChanges,
@@ -9,7 +10,6 @@ import {
   summarizeRestoreDiff,
   type AdminSyncEntityRow,
 } from "@/lib/admin/user-restore";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -22,7 +22,7 @@ type RouteParams = {
 };
 
 type AdminClient = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
-type AdminRequester = NonNullable<Awaited<ReturnType<typeof getUserFromBearer>>>;
+type AdminRequester = User;
 type AdminAuthResult =
   | { ok: true; requester: AdminRequester; admin: AdminClient }
   | { ok: false; response: NextResponse };
@@ -57,30 +57,16 @@ function cleanId(value: unknown): string | null {
 }
 
 async function requireAdmin(request: Request): Promise<AdminAuthResult> {
-  const requester = await getUserFromBearer(request.headers.get("authorization"));
-  if (!requester) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "No autorizado" }, { status: 401 }),
-    };
-  }
-  if (!isAdminUser(requester)) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: "Solo administradores" },
-        { status: 403 },
-      ),
-    };
-  }
-  const rateLimit = checkRateLimit(
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return access;
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_user_restore",
       limit: 60,
       windowMs: 10 * 60_000,
     },
-    requester.id,
+    access.user.id,
   );
   if (!rateLimit.allowed) {
     return { ok: false, response: rateLimitExceededResponse(rateLimit) };
@@ -97,7 +83,7 @@ async function requireAdmin(request: Request): Promise<AdminAuthResult> {
     };
   }
 
-  return { ok: true, requester, admin };
+  return { ok: true, requester: access.user, admin };
 }
 
 async function fetchTargetEmail(admin: AdminClient, userId: string) {

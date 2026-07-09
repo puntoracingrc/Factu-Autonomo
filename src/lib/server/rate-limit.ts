@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 assertServerOnlyModule();
 
@@ -19,6 +21,7 @@ export interface RateLimitResult {
   remaining: number;
   resetAt: number;
   retryAfterSeconds: number;
+  backend: "memory" | "supabase";
 }
 
 const buckets = new Map<string, RateLimitBucket>();
@@ -73,7 +76,89 @@ function bucketKey(
   return `${safePart(policy.namespace)}:${safePart(identifier)}`;
 }
 
-export function checkRateLimit(
+function requestIdentifier(request: Request, subject?: string | null): string {
+  return subject?.trim() || clientIpFromRequest(request);
+}
+
+function shouldUseSupabaseRateLimit(): boolean {
+  return process.env.SERVER_RATE_LIMIT_BACKEND === "supabase";
+}
+
+function identifierHash(namespace: string, identifier: string): string {
+  const salt =
+    process.env.SERVER_RATE_LIMIT_SALT ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "facturacion-autonomos";
+  return createHash("sha256")
+    .update(`${salt}:${namespace}:${identifier}`)
+    .digest("hex");
+}
+
+type SupabaseRateLimitRow = {
+  allowed?: boolean;
+  limit_count?: number;
+  remaining_count?: number;
+  reset_at?: string;
+  retry_after_seconds?: number;
+};
+
+function firstRpcRow(data: unknown): SupabaseRateLimitRow | null {
+  if (Array.isArray(data)) return (data[0] as SupabaseRateLimitRow) ?? null;
+  if (data && typeof data === "object") return data as SupabaseRateLimitRow;
+  return null;
+}
+
+function warnSupabaseRateLimitFallback(error: unknown): void {
+  if (process.env.NODE_ENV === "test") return;
+  console.warn("rate_limit_supabase_fallback", error);
+}
+
+async function checkSupabaseRateLimit(
+  request: Request,
+  policy: RateLimitPolicy,
+  subject?: string | null,
+): Promise<RateLimitResult | null> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+
+  const identifier = requestIdentifier(request, subject);
+  try {
+    const { data, error } = await admin.rpc("claim_rate_limit_bucket", {
+      p_identifier_hash: identifierHash(policy.namespace, identifier),
+      p_limit: policy.limit,
+      p_namespace: safePart(policy.namespace),
+      p_window_ms: policy.windowMs,
+    });
+
+    if (error) {
+      warnSupabaseRateLimitFallback(error);
+      return null;
+    }
+
+    const row = firstRpcRow(data);
+    if (!row || typeof row.allowed !== "boolean" || !row.reset_at) return null;
+
+    const resetAt = new Date(row.reset_at).getTime();
+    if (!Number.isFinite(resetAt)) return null;
+
+    return {
+      allowed: row.allowed,
+      limit: Number(row.limit_count ?? policy.limit),
+      remaining: Math.max(0, Number(row.remaining_count ?? 0)),
+      resetAt,
+      retryAfterSeconds: Math.max(
+        1,
+        Number(row.retry_after_seconds ?? Math.ceil((resetAt - Date.now()) / 1000)),
+      ),
+      backend: "supabase",
+    };
+  } catch (error) {
+    warnSupabaseRateLimitFallback(error);
+    return null;
+  }
+}
+
+export function checkMemoryRateLimit(
   request: Request,
   policy: RateLimitPolicy,
   subject?: string | null,
@@ -103,7 +188,22 @@ export function checkRateLimit(
     remaining,
     resetAt: bucket.resetAt,
     retryAfterSeconds,
+    backend: "memory",
   };
+}
+
+export async function checkRateLimit(
+  request: Request,
+  policy: RateLimitPolicy,
+  subject?: string | null,
+  now = Date.now(),
+): Promise<RateLimitResult> {
+  if (shouldUseSupabaseRateLimit()) {
+    const supabaseResult = await checkSupabaseRateLimit(request, policy, subject);
+    if (supabaseResult) return supabaseResult;
+  }
+
+  return checkMemoryRateLimit(request, policy, subject, now);
 }
 
 export function rateLimitExceededResponse(

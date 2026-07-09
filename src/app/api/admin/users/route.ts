@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import type { User } from "@supabase/supabase-js";
 import {
   ageDaysFromIso,
@@ -13,7 +13,6 @@ import {
   type AdminSubscriptionSnapshot,
   type AdminUserRow,
 } from "@/lib/admin/users";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
 import type { PlanId } from "@/lib/billing/plans";
 import type { SubscriptionStatus } from "@/lib/billing/subscription";
 import { currentMonthKey } from "@/lib/billing/usage";
@@ -149,21 +148,16 @@ async function fetchMonthlyUsageRows(
 }
 
 export async function GET(request: Request) {
-  const requester = await getUserFromBearer(request.headers.get("authorization"));
-  if (!requester) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!isAdminUser(requester)) {
-    return NextResponse.json({ error: "Solo administradores" }, { status: 403 });
-  }
-  const rateLimit = checkRateLimit(
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return access.response;
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_users_list",
       limit: 120,
       windowMs: 10 * 60_000,
     },
-    requester.id,
+    access.user.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 

@@ -16,10 +16,18 @@ Ultima revision: 2026-07-09.
 - Backups: confirmar backups diarios activos y ultima restauracion disponible.
 - RLS/grants: ejecutar consulta de auditoria y confirmar que no hay permisos
   peligrosos a `public`/`anon`.
+- Rate limit distribuido: si esta activo, revisar que
+  `server_rate_limit_buckets` no crece de forma anomala y que la RPC
+  `claim_rate_limit_bucket` existe solo para `service_role`.
 - Migraciones: confirmar que toda migracion de produccion viene de PR, CI verde
   y ejecucion controlada.
 - Produccion: confirmar que Vercel apunta a la ultima build de `main`.
-- CSP: revisar report-only antes de activar `SECURITY_CSP_MODE=enforce`.
+- CSP: revisar informes de `/api/security/csp-report` antes de activar
+  `SECURITY_CSP_MODE=enforce`.
+- Admin MFA: confirmar que las cuentas admin tienen TOTP verificado antes de
+  activar o mantener `ADMIN_MFA_REQUIRED=true`.
+- WAF/bots: revisar si hay scraping, registros masivos o picos raros antes de
+  contratar/activar proteccion avanzada.
 
 ## Estado revisado
 
@@ -41,6 +49,13 @@ Ultima revision: 2026-07-09.
 - Storage buckets: sin buckets publicos detectados en la revision.
 - CSP: preparado interruptor `SECURITY_CSP_MODE=enforce`; por defecto sigue en
   modo informe.
+- CSP reports: ruta `/api/security/csp-report` preparada y con rate limit.
+- Rate limit distribuido: preparado por migracion, pero requiere activar
+  `SERVER_RATE_LIMIT_BACKEND=supabase` tras aplicar SQL en produccion.
+- Admin MFA: panel preparado para enrolar TOTP y backend preparado para exigir
+  `aal2` con `ADMIN_MFA_REQUIRED=true`.
+- Revisión mensual: recordatorio activo en Codex
+  `revisi-n-mensual-supabase-seguridad`.
 
 ## Cambios que no se hacen a ciegas
 
@@ -56,6 +71,11 @@ Ultima revision: 2026-07-09.
   activar.
 - CSP enforce: activar solo tras comprobar que login, Turnstile, Google, Drive,
   Maps, escaneo IA, PDF y admin funcionan sin violaciones legitimas.
+- Admin MFA required: no activar si no se ha verificado TOTP en al menos una
+  cuenta admin y comprobado acceso real al panel.
+- Rate limit distribuido: no activar si la migracion
+  `20260709123000_server_rate_limit_buckets.sql` no esta aplicada en el proyecto
+  correcto.
 - Migraciones Supabase automaticas: no activar sin entorno GitHub protegido,
   secretos revisados y dry-run previo.
 
@@ -71,3 +91,5 @@ Ultima revision: 2026-07-09.
   caso de uso lo exija y tenga test.
 - Mantener `ADMIN_EMAILS` explicito en produccion. El fallback local no debe ser
   la fuente de verdad de administradores.
+- Mantener `SERVER_RATE_LIMIT_BACKEND=memory` hasta confirmar migracion aplicada;
+  despues usar `supabase` para rutas criticas.

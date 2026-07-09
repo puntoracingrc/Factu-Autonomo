@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   }
 
   const userId = user?.id ?? "dev";
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "reminders_realtime_session",

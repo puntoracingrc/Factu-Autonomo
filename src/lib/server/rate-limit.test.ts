@@ -25,67 +25,81 @@ describe("server rate limit", () => {
     });
   }
 
-  it("allows requests until the policy limit is exceeded", () => {
+  it("allows requests until the policy limit is exceeded", async () => {
     const policy = { namespace: "test", limit: 2, windowMs: 60_000 };
 
-    expect(checkRateLimit(request(), policy, null, 1_000).allowed).toBe(true);
-    expect(checkRateLimit(request(), policy, null, 2_000).allowed).toBe(true);
-    const third = checkRateLimit(request(), policy, null, 3_000);
+    expect((await checkRateLimit(request(), policy, null, 1_000)).allowed).toBe(
+      true,
+    );
+    expect((await checkRateLimit(request(), policy, null, 2_000)).allowed).toBe(
+      true,
+    );
+    const third = await checkRateLimit(request(), policy, null, 3_000);
 
     expect(third.allowed).toBe(false);
     expect(third.remaining).toBe(0);
     expect(third.retryAfterSeconds).toBe(58);
   });
 
-  it("resets the bucket after the window expires", () => {
+  it("resets the bucket after the window expires", async () => {
     const policy = { namespace: "test", limit: 1, windowMs: 10_000 };
 
-    expect(checkRateLimit(request(), policy, null, 1_000).allowed).toBe(true);
-    expect(checkRateLimit(request(), policy, null, 2_000).allowed).toBe(false);
-    expect(checkRateLimit(request(), policy, null, 12_000).allowed).toBe(true);
+    expect((await checkRateLimit(request(), policy, null, 1_000)).allowed).toBe(
+      true,
+    );
+    expect((await checkRateLimit(request(), policy, null, 2_000)).allowed).toBe(
+      false,
+    );
+    expect((await checkRateLimit(request(), policy, null, 12_000)).allowed).toBe(
+      true,
+    );
   });
 
-  it("separates buckets by namespace and subject", () => {
+  it("separates buckets by namespace and subject", async () => {
     const policy = { namespace: "uploads", limit: 1, windowMs: 10_000 };
     const otherPolicy = { namespace: "email", limit: 1, windowMs: 10_000 };
 
-    expect(checkRateLimit(request(), policy, "user-a", 1_000).allowed).toBe(
-      true,
-    );
-    expect(checkRateLimit(request(), policy, "user-a", 1_001).allowed).toBe(
-      false,
-    );
-    expect(checkRateLimit(request(), policy, "user-b", 1_002).allowed).toBe(
-      true,
-    );
-    expect(checkRateLimit(request(), otherPolicy, "user-a", 1_003).allowed).toBe(
-      true,
-    );
+    expect(
+      (await checkRateLimit(request(), policy, "user-a", 1_000)).allowed,
+    ).toBe(true);
+    expect(
+      (await checkRateLimit(request(), policy, "user-a", 1_001)).allowed,
+    ).toBe(false);
+    expect(
+      (await checkRateLimit(request(), policy, "user-b", 1_002)).allowed,
+    ).toBe(true);
+    expect(
+      (await checkRateLimit(request(), otherPolicy, "user-a", 1_003)).allowed,
+    ).toBe(true);
   });
 
-  it("uses Vercel's forwarded IP header before generic forwarded values", () => {
+  it("uses Vercel's forwarded IP header before generic forwarded values", async () => {
     const policy = { namespace: "test", limit: 1, windowMs: 10_000 };
 
     expect(
-      checkRateLimit(
-        vercelRequest("198.51.100.10", "203.0.113.20"),
-        policy,
-        null,
-        1_000,
+      (
+        await checkRateLimit(
+          vercelRequest("198.51.100.10", "203.0.113.20"),
+          policy,
+          null,
+          1_000,
+        )
       ).allowed,
     ).toBe(true);
     expect(
-      checkRateLimit(
-        vercelRequest("198.51.100.10", "203.0.113.30"),
-        policy,
-        null,
-        1_001,
+      (
+        await checkRateLimit(
+          vercelRequest("198.51.100.10", "203.0.113.30"),
+          policy,
+          null,
+          1_001,
+        )
       ).allowed,
     ).toBe(false);
   });
 
   it("returns a safe 429 response with retry headers", async () => {
-    const result = checkRateLimit(
+    const result = await checkRateLimit(
       request(),
       { namespace: "test", limit: 0, windowMs: 60_000 },
       null,

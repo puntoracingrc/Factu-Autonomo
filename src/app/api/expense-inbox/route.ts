@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       { status: 401 },
     );
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "expense_inbox_read",
@@ -91,7 +91,7 @@ export async function PATCH(request: Request) {
       { status: 401 },
     );
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "expense_inbox_update",
@@ -109,7 +109,7 @@ export async function PATCH(request: Request) {
       status?: unknown;
     };
     if (body.action === "rotate-alias") {
-      const rotateRateLimit = checkRateLimit(
+      const rotateRateLimit = await checkRateLimit(
         request,
         {
           namespace: "expense_inbox_rotate_alias",

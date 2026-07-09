@@ -50,6 +50,9 @@ describe("security headers config", () => {
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
       "object-src 'none'",
     );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "report-uri /api/security/csp-report",
+    );
   });
 
   it("can enforce CSP with an explicit production switch", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
@@ -67,6 +68,12 @@ type AdminSection =
 
 interface AdminCapabilitiesResponse {
   fullAdmin?: boolean;
+  adminEmailAuthorized?: boolean;
+  adminMfa?: {
+    required?: boolean;
+    satisfied?: boolean;
+    currentLevel?: string | null;
+  };
   aiLearning?: boolean;
   learningLabel?: string;
   error?: string;
@@ -122,6 +129,13 @@ interface AdminHealthResponse {
   error?: string;
   message?: string;
   monitoringAvailable?: boolean;
+}
+
+interface AdminMfaFactor {
+  id: string;
+  factor_type?: string;
+  status?: string;
+  friendly_name?: string;
 }
 
 const ADMIN_MENU: Array<{
@@ -1873,6 +1887,269 @@ function AiLearningPanel() {
   );
 }
 
+function qrCodeSrc(qrCode: string): string {
+  if (qrCode.startsWith("data:")) return qrCode;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`;
+}
+
+function AdminMfaPanel({
+  adminMfa,
+  onChanged,
+}: {
+  adminMfa: NonNullable<AdminCapabilitiesResponse["adminMfa"]>;
+  onChanged: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<"idle" | "enroll" | "verify">("idle");
+  const [factors, setFactors] = useState<AdminMfaFactor[]>([]);
+  const [currentLevel, setCurrentLevel] = useState<string | null>(
+    adminMfa.currentLevel ?? null,
+  );
+  const [enrollment, setEnrollment] = useState<{
+    factorId: string;
+    qrCode: string;
+    secret: string;
+  } | null>(null);
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMfa = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) {
+      setError("Supabase no está disponible en este entorno.");
+      setLoading(false);
+      return;
+    }
+
+    const [aalResult, factorsResult] = await Promise.all([
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      supabase.auth.mfa.listFactors(),
+    ]);
+
+    if (aalResult.error) {
+      setError(aalResult.error.message);
+    } else {
+      setCurrentLevel(aalResult.data.currentLevel ?? null);
+    }
+
+    if (factorsResult.error) {
+      setError(factorsResult.error.message);
+    } else {
+      setFactors((factorsResult.data.all ?? []) as AdminMfaFactor[]);
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadMfa();
+  }, [loadMfa]);
+
+  const verifiedTotp = factors.find(
+    (factor) => factor.factor_type === "totp" && factor.status === "verified",
+  );
+  const satisfied = currentLevel === "aal2" || adminMfa.satisfied === true;
+  const required = adminMfa.required === true;
+
+  const startEnrollment = async () => {
+    setBusy("enroll");
+    setError(null);
+    setMessage(null);
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) {
+      setError("Supabase no está disponible en este entorno.");
+      setBusy("idle");
+      return;
+    }
+
+    const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      friendlyName: "Factura Autonomo Admin",
+    });
+    if (enrollError) {
+      setError(enrollError.message);
+      setBusy("idle");
+      return;
+    }
+
+    setEnrollment({
+      factorId: data.id,
+      qrCode: data.totp.qr_code,
+      secret: data.totp.secret,
+    });
+    setBusy("idle");
+  };
+
+  const verifyFactor = async (factorId: string) => {
+    const cleanCode = code.trim().replace(/\s+/g, "");
+    if (!cleanCode) {
+      setError("Introduce el código de 6 dígitos.");
+      return;
+    }
+
+    setBusy("verify");
+    setError(null);
+    setMessage(null);
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) {
+      setError("Supabase no está disponible en este entorno.");
+      setBusy("idle");
+      return;
+    }
+
+    const challenge = await supabase.auth.mfa.challenge({ factorId });
+    if (challenge.error) {
+      setError(challenge.error.message);
+      setBusy("idle");
+      return;
+    }
+
+    const verified = await supabase.auth.mfa.verify({
+      factorId,
+      challengeId: challenge.data.id,
+      code: cleanCode,
+    });
+    if (verified.error) {
+      setError(verified.error.message);
+      setBusy("idle");
+      return;
+    }
+
+    setCode("");
+    setEnrollment(null);
+    setMessage("Verificación en dos pasos activa en esta sesión.");
+    await loadMfa();
+    onChanged();
+    setBusy("idle");
+  };
+
+  return (
+    <Card
+      className={
+        required && !satisfied
+          ? "mb-5 border-amber-200 bg-amber-50 text-amber-950"
+          : "mb-5 border-emerald-100 bg-emerald-50 text-emerald-950"
+      }
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            MFA admin
+          </h2>
+          <p className="text-sm text-slate-700">
+            Estado: {satisfied ? "verificado" : "pendiente"} · Nivel{" "}
+            {currentLevel ?? "sin confirmar"}
+            {required ? " · obligatorio" : " · preparado"}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={loadMfa}
+          disabled={loading || busy !== "idle"}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Actualizar
+        </Button>
+      </div>
+
+      {loading && <p className="mt-3 text-sm text-slate-600">Comprobando MFA...</p>}
+
+      {!loading && satisfied && (
+        <p className="mt-3 text-sm font-semibold text-emerald-800">
+          Esta sesión admin ya tiene segundo factor validado.
+        </p>
+      )}
+
+      {!loading && !satisfied && verifiedTotp && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="block flex-1 space-y-1">
+            <span className="text-sm font-bold text-slate-700">
+              Código MFA
+            </span>
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+          <Button
+            type="button"
+            onClick={() => verifyFactor(verifiedTotp.id)}
+            disabled={busy !== "idle"}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Verificar
+          </Button>
+        </div>
+      )}
+
+      {!loading && !verifiedTotp && !enrollment && (
+        <div className="mt-4">
+          <Button
+            type="button"
+            onClick={startEnrollment}
+            disabled={busy !== "idle"}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Preparar TOTP
+          </Button>
+        </div>
+      )}
+
+      {enrollment && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[180px_1fr]">
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <Image
+              src={qrCodeSrc(enrollment.qrCode)}
+              alt="Código QR MFA"
+              width={144}
+              height={144}
+              unoptimized
+              className="h-36 w-36"
+            />
+          </div>
+          <div className="space-y-3">
+            <p className="break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-700">
+              {enrollment.secret}
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="block flex-1 space-y-1">
+                <span className="text-sm font-bold text-slate-700">
+                  Código MFA
+                </span>
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <Button
+                type="button"
+                onClick={() => verifyFactor(enrollment.factorId)}
+                disabled={busy !== "idle"}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Activar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {message && <p className="mt-3 text-sm font-semibold text-emerald-800">{message}</p>}
+      {error && <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>}
+    </Card>
+  );
+}
+
 export default function AdminPage() {
   const { user, cloudEnabled } = useCloudSync();
   const searchParams = useSearchParams();
@@ -1880,6 +2157,7 @@ export default function AdminPage() {
   const [capabilities, setCapabilities] =
     useState<AdminCapabilitiesResponse | null>(null);
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
+  const [capabilitiesRefreshKey, setCapabilitiesRefreshKey] = useState(0);
 
   const availableSections = useMemo<AdminSection[]>(() => {
     if (!capabilities) return [];
@@ -1918,7 +2196,7 @@ export default function AdminPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, capabilitiesRefreshKey]);
 
   useEffect(() => {
     if (availableSections.length === 0) return;
@@ -1967,10 +2245,20 @@ export default function AdminPage() {
         <Card className="mb-5 text-slate-600">Comprobando acceso...</Card>
       )}
 
-      {user && !capabilitiesLoading && availableSections.length === 0 && (
+      {user &&
+        !capabilitiesLoading &&
+        availableSections.length === 0 &&
+        !capabilities?.adminEmailAuthorized && (
         <Card className="mb-5 border-amber-200 bg-amber-50 text-amber-900">
           Esta cuenta no tiene acceso al panel interno.
         </Card>
+      )}
+
+      {capabilities?.adminEmailAuthorized && capabilities.adminMfa && (
+        <AdminMfaPanel
+          adminMfa={capabilities.adminMfa}
+          onChanged={() => setCapabilitiesRefreshKey((value) => value + 1)}
+        />
       )}
 
       {availableSections.length > 0 && (

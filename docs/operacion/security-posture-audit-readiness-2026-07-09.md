@@ -18,9 +18,13 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El admin depende de `ADMIN_EMAILS` en produccion. El fallback local solo se
   aplica fuera de produccion.
 - Los principales riesgos que siguen vivos son: XSS con impacto alto por uso de
-  `localStorage`, rate limit en memoria, CSP todavia en modo informe por defecto,
-  ausencia de PITR, ausencia de WAF/bot protection avanzado y despliegue de
-  migraciones Supabase todavia no totalmente automatizado.
+  `localStorage`, CSP todavia en modo informe por defecto, ausencia de PITR,
+  ausencia de WAF/bot protection avanzado y despliegue de migraciones Supabase
+  todavia no totalmente automatizado.
+- El rate limit distribuido queda preparado con Supabase y fallback en memoria;
+  requiere aplicar la migracion y activar `SERVER_RATE_LIMIT_BACKEND=supabase`.
+- El MFA admin queda preparado con TOTP y bloqueo por `ADMIN_MFA_REQUIRED=true`;
+  no debe activarse hasta enrolar y probar las cuentas admin.
 
 ## Infraestructura y cabeceras
 
@@ -34,6 +38,8 @@ Protecciones actuales:
 - CSP con directivas restrictivas y `frame-ancestors 'none'`.
 - CSP permite explicitamente servicios necesarios: Supabase, OpenAI, Google,
   Google Maps, Google Drive, Gmail y Cloudflare Turnstile.
+- CSP incluye `report-uri /api/security/csp-report` para registrar violaciones
+  reales antes de pasar a bloqueo.
 - `Referrer-Policy: strict-origin-when-cross-origin`.
 - `Permissions-Policy` limita sensores, camara, ubicacion, pago, USB, etc.
 - `X-Permitted-Cross-Domain-Policies: none`.
@@ -47,6 +53,8 @@ Estado CSP:
 - Por defecto sigue en `Content-Security-Policy-Report-Only`.
 - Existe interruptor `SECURITY_CSP_MODE=enforce` para pasar a bloqueo sin tocar
   codigo cuando se confirme que no rompe produccion.
+- La ruta `/api/security/csp-report` acepta informes del navegador, los sanea y
+  los registra sin aceptar campos arbitrarios largos.
 
 ## Autenticacion y cuentas
 
@@ -61,12 +69,13 @@ Protecciones actuales:
 - Admin validado por token de usuario y email autorizado.
 - `ADMIN_EMAILS` es obligatorio en produccion para admins.
 - El email admin de desarrollo solo se incluye fuera de `NODE_ENV=production`.
+- MFA admin con TOTP preparado en el panel `/admin`.
+- Las APIs admin completas pueden exigir `aal2` con `ADMIN_MFA_REQUIRED=true`.
 
 Riesgos pendientes:
 
-- MFA de admin no esta forzado dentro de la app.
-- Si se quiere exigir MFA real para panel admin, hay que comprobar AAL/factores
-  de Supabase y probar login admin antes de bloquear.
+- MFA admin no debe forzarse hasta que al menos una cuenta admin haya verificado
+  TOTP y se haya probado acceso al panel.
 
 ## Base de datos y Supabase
 
@@ -104,6 +113,11 @@ Protecciones actuales:
 - Muchas APIs sensibles exigen bearer token.
 - Rate limits aplicados a admin, billing, email, Google token, Google Places,
   imports, expense scan, referrals, reminders, monitoring y VeriFactu.
+- Rate limit distribuido opcional mediante Supabase:
+  `server_rate_limit_buckets` + RPC `claim_rate_limit_bucket`.
+- El limitador distribuido usa hashes de identificador, no IP/email en claro.
+- Si Supabase no esta disponible o la migracion no existe, el sistema vuelve al
+  limitador en memoria para no tumbar rutas sensibles.
 - Webhook Stripe valida firma `stripe-signature`.
 - Webhook Stripe usa idempotencia por evento.
 - Inbound email valida Svix/Resend o secreto privado.
@@ -115,9 +129,9 @@ Protecciones actuales:
 
 Riesgos pendientes:
 
-- Rate limit actual es en memoria. En serverless no es una barrera global fuerte.
-- Para abuso serio, pasar a almacenamiento distribuido: Vercel KV, Upstash,
-  Redis o tabla Supabase dedicada con RPC atomica.
+- El modo por defecto sigue en memoria hasta activar
+  `SERVER_RATE_LIMIT_BACKEND=supabase`.
+- El modo distribuido debe verificarse en produccion tras aplicar migracion.
 - Revisar periodicamente endpoints sin auth clasica: webhooks, monitoring,
   welcome email, status/declaration y provider-summary.
 
@@ -203,8 +217,8 @@ Riesgos pendientes:
 Alta prioridad:
 
 - Vigilar CSP report-only y pasar a enforce si no hay bloqueos legitimos.
-- Forzar MFA para cuentas admin tras probar AAL/factores.
-- Pasar rate limit critico a backend distribuido.
+- Enrolar TOTP en cuentas admin y despues activar `ADMIN_MFA_REQUIRED=true`.
+- Aplicar migracion de rate limit y activar `SERVER_RATE_LIMIT_BACKEND=supabase`.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 
 Media prioridad:
