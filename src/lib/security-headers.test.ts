@@ -29,6 +29,18 @@ describe("security headers config", () => {
     expect(headers.get("Permissions-Policy")).toContain("microphone=(self)");
     expect(headers.get("X-Permitted-Cross-Domain-Policies")).toBe("none");
     expect(headers.has("Content-Security-Policy")).toBe(false);
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "default-src 'self'",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "object-src 'none'",
+    );
   });
 
   it("prevents API responses from being cached by shared caches", async () => {
