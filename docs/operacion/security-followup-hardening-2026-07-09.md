@@ -23,6 +23,24 @@ decision operativa y coste.
 - Revision mensual de Supabase queda documentada y con recordatorio activo en
   Codex: `revisi-n-mensual-supabase-seguridad`.
 
+## Verificacion final de produccion
+
+Fecha: 2026-07-09.
+
+- PR #336 mergeado a `main`.
+- Workflow `main` 29047106837 completado en verde: Quality, Supabase Acceptance
+  y Production Domain.
+- Produccion `https://facturacion-autonomos.app/` responde `200`.
+- Produccion emite `Content-Security-Policy` en bloqueo, no
+  `Content-Security-Policy-Report-Only`.
+- `/admin` responde `200` con `Cache-Control: no-store` y
+  `X-Robots-Tag: noindex, nofollow, noarchive`.
+- `/api/admin/capabilities` sin token responde `401`.
+- `/api/security/csp-report` acepta informe CSP de prueba con `{"ok":true}`.
+- Vercel logs no muestran `rate_limit_supabase_fallback`.
+- Supabase `server_rate_limit_buckets` registra bucket `security_csp_report`,
+  confirmando que el backend distribuido esta activo.
+
 ## CSP
 
 Hecho:
@@ -78,11 +96,12 @@ Hecho:
   grants a usuarios normales y con execute para `service_role`.
 - Variable Vercel Production `SERVER_RATE_LIMIT_BACKEND=supabase` anadida.
 
-Verificacion post-despliegue:
+Verificacion realizada:
 
-1. Desplegar la version actual en produccion.
-2. Probar login, admin, escaneo IA, email y endpoints billing.
-3. Si Supabase no estuviera disponible, el codigo vuelve a memoria para no
+1. Produccion desplegada desde `main`.
+2. Endpoint con rate limit probado mediante `/api/security/csp-report`.
+3. Bucket `security_csp_report` observado en Supabase tras la llamada.
+4. Si Supabase no estuviera disponible, el codigo vuelve a memoria para no
    tumbar rutas sensibles.
 
 ## WAF y bot protection
@@ -127,5 +146,4 @@ Revisar cada mes:
 ## Pendiente seguro
 
 - Enrolar TOTP real en admin antes de activar MFA obligatorio.
-- Probar rate limit distribuido tras el siguiente despliegue de produccion.
 - WAF/bot protection solo si hay senales reales o decision comercial.

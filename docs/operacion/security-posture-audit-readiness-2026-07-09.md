@@ -28,6 +28,9 @@ pendientes que conviene revisar antes de una auditoria externa.
   fallback en memoria.
 - El MFA admin queda preparado con TOTP y bloqueo por `ADMIN_MFA_REQUIRED=true`;
   no debe activarse hasta enrolar y probar las cuentas admin.
+- Verificacion final de produccion tras PR #336: workflow `main` 29047106837 en
+  verde, Production Domain correcto, CSP en bloqueo y rate limit distribuido
+  confirmado con bucket `security_csp_report`.
 
 ## Infraestructura y cabeceras
 
@@ -125,6 +128,8 @@ Protecciones actuales:
   produccion el 2026-07-09.
 - Vercel Production tiene `SERVER_RATE_LIMIT_BACKEND=supabase` configurado para
   nuevos despliegues.
+- Tras el despliegue de `main`, Supabase registra bucket
+  `security_csp_report`, lo que confirma uso real del backend distribuido.
 - Webhook Stripe valida firma `stripe-signature`.
 - Webhook Stripe usa idempotencia por evento.
 - Inbound email valida Svix/Resend o secreto privado.
@@ -136,8 +141,7 @@ Protecciones actuales:
 
 Riesgos pendientes:
 
-- El modo distribuido debe verificarse tras el siguiente despliegue de
-  produccion con la variable ya configurada.
+- Mantener vigilancia de logs por si apareciera `rate_limit_supabase_fallback`.
 - Revisar periodicamente endpoints sin auth clasica: webhooks, monitoring,
   welcome email, status/declaration y provider-summary.
 
@@ -225,7 +229,7 @@ Alta prioridad:
 - Vigilar informes CSP y usar `report-only` solo como rollback temporal si
   aparece una incompatibilidad legitima.
 - Enrolar TOTP en cuentas admin y despues activar `ADMIN_MFA_REQUIRED=true`.
-- Verificar rate limit distribuido tras el siguiente despliegue de produccion.
+- Revisar logs de rate limit distribuido durante los primeros dias.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 
 Media prioridad:
