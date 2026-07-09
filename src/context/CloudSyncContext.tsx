@@ -79,8 +79,11 @@ interface CloudSyncValue {
   pendingChangeCount: number;
   localDataHandoffStatus: LocalDataHandoffStatus;
   setEmail: (value: string) => void;
-  signUp: (password: string) => Promise<SignUpResult>;
-  signIn: (password: string) => Promise<string | null>;
+  signUp: (
+    password: string,
+    captchaToken?: string,
+  ) => Promise<SignUpResult>;
+  signIn: (password: string, captchaToken?: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -906,7 +909,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [updatePendingStatus, pendingUpload, online, pendingChangeCount]);
 
   const signUp = useCallback(
-    async (password: string): Promise<SignUpResult> => {
+    async (
+      password: string,
+      captchaToken?: string,
+    ): Promise<SignUpResult> => {
       const supabase = await getSupabaseClientAsync();
       if (!supabase) {
         return {
@@ -921,7 +927,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: getAuthCallbackUrl() },
+        options: {
+          emailRedirectTo: getAuthCallbackUrl(),
+          ...(captchaToken ? { captchaToken } : {}),
+        },
       });
       if (error) return { ok: false, error: error.message };
 
@@ -960,7 +969,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signIn = useCallback(
-    async (password: string) => {
+    async (password: string, captchaToken?: string) => {
       const supabase = await getSupabaseClientAsync();
       if (!supabase) return "La nube no está configurada en este servidor";
       if (!email.trim()) return "Introduce tu email";
@@ -968,6 +977,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        ...(captchaToken ? { options: { captchaToken } } : {}),
       });
       if (error) return error.message;
 

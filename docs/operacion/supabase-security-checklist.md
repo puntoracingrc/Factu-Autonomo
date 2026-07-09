@@ -7,6 +7,8 @@ Ultima revision: 2026-07-09.
 - Security Advisor: revisar errores, warnings e info.
 - Performance Advisor: revisar errores, warnings e indices recomendados.
 - Auth: comprobar limites de login, signup, recuperacion y OTP.
+- Auth CAPTCHA: confirmar que Cloudflare Turnstile sigue activo en registro y
+  login.
 - Sesiones: comprobar caducidad maxima y caducidad por inactividad.
 - Redirect URLs: mantener solo dominios reales y callbacks necesarios.
 - Storage: confirmar que no hay buckets publicos salvo decision explicita.
@@ -27,6 +29,8 @@ Ultima revision: 2026-07-09.
   migracion.
 - Storage: el codigo no usa Supabase Storage actualmente. Si hay buckets creados
   manualmente, deben revisarse desde Dashboard.
+- Auth CAPTCHA: Cloudflare Turnstile creado para `facturacion-autonomos.app` y
+  `localhost`; Vercel Production tiene `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 
 ## Cambios que no se hacen a ciegas
 
@@ -36,7 +40,8 @@ Ultima revision: 2026-07-09.
   trabajan. Ajustarlo en una ventana controlada.
 - Redirect URLs de Auth: quitar una URL equivocada puede romper login o previews.
   Revisar con la lista exacta antes de borrar.
-- CAPTCHA Turnstile: requiere claves de Cloudflare, cambios de app y prueba UX.
+- CAPTCHA Turnstile: no activar en Supabase si la build de produccion no tiene
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; bloquearia registro/login por email.
 - Log Drains/PITR/Storage backups externos: revisar coste y necesidad antes de
   activar.
 
