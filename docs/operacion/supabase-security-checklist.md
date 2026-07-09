@@ -19,6 +19,8 @@ Ultima revision: 2026-07-09.
 - Rate limit distribuido: si esta activo, revisar que
   `server_rate_limit_buckets` no crece de forma anomala y que la RPC
   `claim_rate_limit_bucket` existe solo para `service_role`.
+- Admin salud: abrir Admin > Errores y salud, revisar Abuso y scraping y copiar
+  el log `FACTU_SECURITY_HEALTH_V1` si hay senales en nivel vigilar/actuar.
 - Migraciones: confirmar que toda migracion de produccion viene de PR, CI verde
   y ejecucion controlada.
 - Produccion: confirmar que Vercel apunta a la ultima build de `main`.
@@ -54,6 +56,8 @@ Ultima revision: 2026-07-09.
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production para
   nuevos despliegues; bucket `security_csp_report` observado tras prueba real de
   produccion.
+- Admin salud: panel preparado para resumir abuso/scraping por namespace y
+  generar log copiable sin IPs, tokens ni emails.
 - Admin MFA: cuenta `puntoracingrc@gmail.com` verificada con TOTP real en sesion
   `aal2`; Vercel Production tiene `ADMIN_MFA_REQUIRED=true`.
 - Revisión mensual: recordatorio activo en Codex

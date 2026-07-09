@@ -22,6 +22,21 @@ function request() {
   });
 }
 
+function rateLimitBucketFromMock(rows: Array<Record<string, unknown>> = []) {
+  return {
+    select: vi.fn(() => ({
+      gte: vi.fn(() => ({
+        order: vi.fn(() => ({
+          limit: vi.fn(async () => ({
+            data: rows,
+            error: null,
+          })),
+        })),
+      })),
+    })),
+  };
+}
+
 describe("GET /api/admin/health", () => {
   beforeEach(() => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
@@ -46,6 +61,24 @@ describe("GET /api/admin/health", () => {
 
   it("devuelve resumen normalizado", async () => {
     vi.mocked(getSupabaseAdmin).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "server_rate_limit_buckets") {
+          return rateLimitBucketFromMock([
+            {
+              namespace: "security_csp_report",
+              request_count: 12,
+              updated_at: "2026-07-09T08:05:00.000Z",
+            },
+            {
+              namespace: "security_csp_report",
+              request_count: 8,
+              updated_at: "2026-07-09T08:10:00.000Z",
+            },
+          ]);
+        }
+
+        return rateLimitBucketFromMock();
+      }),
       rpc: vi.fn(async () => ({
         data: {
           generatedAt: "2026-07-09T08:00:00.000Z",
@@ -74,10 +107,22 @@ describe("GET /api/admin/health", () => {
     expect(response.status).toBe(200);
     expect(body.health.level).toBe("ok");
     expect(body.health.summary.syncRows).toBe(5342);
+    expect(body.health.abuse.totalRequests).toBe(20);
+    expect(body.health.abuse.namespaces[0].namespace).toBe("security_csp_report");
   });
 
   it("usa lectura alternativa si falta una pieza del esquema", async () => {
     const from = vi.fn((table: string) => {
+      if (table === "server_rate_limit_buckets") {
+        return rateLimitBucketFromMock([
+          {
+            namespace: "google_auth_token",
+            request_count: 140,
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+      }
+
       if (table === "sync_entities") {
         return {
           select: vi.fn(() => ({
@@ -180,6 +225,7 @@ describe("GET /api/admin/health", () => {
     expect(body.monitoringAvailable).toBe(true);
     expect(body.degraded).toBe(true);
     expect(body.health.summary.syncRows).toBe(1);
+    expect(body.health.abuse.level).toBe("action");
     expect(body.health.topUsers[0].email).toBe("cliente@example.com");
   });
 });

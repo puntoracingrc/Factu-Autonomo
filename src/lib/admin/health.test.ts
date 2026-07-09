@@ -32,6 +32,7 @@ describe("admin health helpers", () => {
     expect(snapshot.level).toBe("ok");
     expect(snapshot.summary.syncRows).toBe(5342);
     expect(snapshot.summary.databaseUsedPercent).toBeCloseTo(3.3, 1);
+    expect(snapshot.abuse.level).toBe("ok");
     expect(snapshot.recommendations[0]).toContain("Vais cómodos");
   });
 
@@ -46,6 +47,38 @@ describe("admin health helpers", () => {
     expect(snapshot.level).toBe("action");
     expect(snapshot.checks.find((check) => check.id === "errors")?.level).toBe(
       "action",
+    );
+  });
+
+  it("detecta senales de abuso por rutas protegidas", () => {
+    const snapshot = buildAdminHealthSnapshot({
+      database: { bytes: 100, limitBytes: 1000 },
+      users: { active30d: 20 },
+      sync: { cloudUsers: 1, latestSyncAt: "2026-07-09T06:03:00.000Z" },
+      errors: { last24h: 0 },
+      abuse: {
+        totalRequests: 320,
+        totalBuckets: 18,
+        latestAt: "2026-07-09T09:30:00.000Z",
+        namespaces: [
+          {
+            namespace: "security_csp_report",
+            buckets: 18,
+            requests: 320,
+            maxRequests: 140,
+            latestAt: "2026-07-09T09:30:00.000Z",
+          },
+        ],
+      },
+    });
+
+    expect(snapshot.level).toBe("action");
+    expect(snapshot.abuse.label).toBe("Ataque probable");
+    expect(snapshot.checks.find((check) => check.id === "abuse")?.level).toBe(
+      "action",
+    );
+    expect(snapshot.recommendations).toContain(
+      "Posible scraping/abuso: revisar logs y valorar WAF/bot protection.",
     );
   });
 

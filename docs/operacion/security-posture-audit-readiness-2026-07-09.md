@@ -26,6 +26,9 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El rate limit distribuido queda aplicado en Supabase, con
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production y
   fallback en memoria.
+- Admin > Errores y salud incluye vigilancia de abuso/scraping basada en los
+  contadores distribuidos y un log copiable `FACTU_SECURITY_HEALTH_V1` para
+  analisis posterior sin IPs ni secretos.
 - El MFA admin queda activo para APIs admin completas mediante TOTP y
   `ADMIN_MFA_REQUIRED=true`; la cuenta `puntoracingrc@gmail.com` fue verificada
   en sesion `aal2`.
@@ -132,6 +135,10 @@ Protecciones actuales:
   nuevos despliegues.
 - Tras el despliegue de `main`, Supabase registra bucket
   `security_csp_report`, lo que confirma uso real del backend distribuido.
+- La ruta `/api/admin/health` agrega los buckets recientes por namespace y los
+  normaliza como senal de abuso/scraping para el panel admin.
+- El log copiable del panel admin resume estado general, errores, actividad y
+  namespaces con contadores, sin incluir IPs, hashes, tokens ni emails.
 - Webhook Stripe valida firma `stripe-signature`.
 - Webhook Stripe usa idempotencia por evento.
 - Inbound email valida Svix/Resend o secreto privado.
@@ -179,6 +186,8 @@ Protecciones actuales:
 - Panel admin solo carga capacidades si hay sesion.
 - APIs admin vuelven a validar token y email admin en servidor.
 - Panel admin incluye errores/salud y metricas de uso.
+- Panel admin incluye senales de abuso/scraping y log copiable para diagnostico
+  externo controlado.
 - Restauracion por usuario existe como herramienta admin con confirmacion.
 - Acciones de restauracion crean punto de seguridad antes de aplicar cambios.
 - Produccion se verifica tras deploy y alias Vercel.
@@ -221,6 +230,8 @@ Riesgos pendientes:
 - CORS: origen externo intentando leer APIs.
 - CSP: intento de script inline externo, iframe externo y exfiltracion.
 - Scraping/bots: crawling de app privada, APIs, registro masivo y fuerza bruta.
+- Observabilidad de scraping: provocar picos controlados en endpoints con rate
+  limit y verificar que admin refleja namespaces, nivel y log copiable.
 - Backups/restauracion: restaurar usuario equivocado, rollback parcial, logs.
 - Secrets: bundle cliente, repo, logs, errores y variables publicas.
 
@@ -233,6 +244,8 @@ Alta prioridad:
 - Mantener TOTP activo en cuentas admin y revisar que las sesiones admin sigan
   alcanzando `aal2`.
 - Revisar logs de rate limit distribuido durante los primeros dias.
+- Revisar Admin > Errores y salud cuando haya sospecha de scraping y copiar el
+  log `FACTU_SECURITY_HEALTH_V1` para analisis.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 
 Media prioridad:
@@ -240,6 +253,8 @@ Media prioridad:
 - Workflow manual para migraciones Supabase con dry-run y aprobacion.
 - Runbook de incidentes y recuperacion.
 - Alertas externas para errores criticos y abuso.
+- Convertir senales admin de abuso en alerta externa si aumenta el trafico o hay
+  usuarios reales en volumen.
 
 Baja prioridad o dependiente de coste:
 
