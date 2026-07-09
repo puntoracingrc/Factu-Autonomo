@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import nextConfig from "../../next.config";
 
 describe("security headers config", () => {
@@ -52,6 +52,31 @@ describe("security headers config", () => {
     );
   });
 
+  it("can enforce CSP with an explicit production switch", async () => {
+    const previous = process.env.SECURITY_CSP_MODE;
+    process.env.SECURITY_CSP_MODE = "enforce";
+
+    try {
+      vi.resetModules();
+      const { default: enforcedConfig } = await import("../../next.config");
+      const rules = (await enforcedConfig.headers?.()) ?? [];
+      const globalRule = rules.find((rule) => rule.source === "/:path*");
+      const headers = headerMap(globalRule?.headers ?? []);
+
+      expect(headers.get("Content-Security-Policy")).toContain(
+        "default-src 'self'",
+      );
+      expect(headers.has("Content-Security-Policy-Report-Only")).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.SECURITY_CSP_MODE;
+      } else {
+        process.env.SECURITY_CSP_MODE = previous;
+      }
+      vi.resetModules();
+    }
+  });
+
   it("prevents API responses from being cached by shared caches", async () => {
     const rules = await configuredHeaders();
     const apiRule = rules.find((rule) => rule.source === "/api/:path*");
@@ -82,6 +107,9 @@ describe("security headers config", () => {
       const rule = rules.find((candidate) => candidate.source === source);
       expect(rule).toBeDefined();
       const headers = headerMap(rule?.headers ?? []);
+      expect(headers.get("Cache-Control")).toBe("no-store, max-age=0");
+      expect(headers.get("CDN-Cache-Control")).toBe("no-store");
+      expect(headers.get("Vercel-CDN-Cache-Control")).toBe("no-store");
       expect(headers.get("X-Robots-Tag")).toBe(
         "noindex, nofollow, noarchive",
       );
