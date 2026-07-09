@@ -3,6 +3,10 @@ import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmati
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isEmailConfigured } from "@/lib/email/config";
 import { sendPaymentReminderEmail } from "@/lib/email/send-payment-reminder";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import type { BusinessProfile, Document } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -17,6 +21,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "email_payment_reminder",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   if (!isEmailConfigured()) {
     return NextResponse.json(

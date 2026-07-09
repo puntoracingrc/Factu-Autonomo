@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -62,6 +66,13 @@ function googleErrorMessage(payload: GoogleTokenPayload): string {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    namespace: "google_auth_token",
+    limit: 30,
+    windowMs: 5 * 60_000,
+  });
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+
   const clientId = getGoogleAuthClientId();
   const clientSecret = getGoogleAuthClientSecret();
 

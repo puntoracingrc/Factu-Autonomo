@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { isEmailConfigured } from "@/lib/email/config";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    namespace: "email_welcome",
+    limit: 12,
+    windowMs: 5 * 60_000,
+  });
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+
   if (!isEmailConfigured()) {
     return NextResponse.json(
       { ok: false, skipped: true, error: "Email no configurado" },

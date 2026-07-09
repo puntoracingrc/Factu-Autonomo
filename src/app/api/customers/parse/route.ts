@@ -7,6 +7,10 @@ import { consumeCustomerAiAutofill } from "@/lib/billing/scan-usage-server";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { enrichCustomerPostalCode } from "@/lib/customer-ai/geocoding";
 import { extractCustomerFromText } from "@/lib/customer-ai/openai";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 async function canUseCustomerAi(userId: string): Promise<{
   allowed: boolean;
@@ -40,6 +44,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "customers_parse",
+      limit: 30,
+      windowMs: 10 * 60_000,
+    },
+    user?.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const gate = user ? await canUseCustomerAi(user.id) : { allowed: true };
   if (!gate.allowed) {
