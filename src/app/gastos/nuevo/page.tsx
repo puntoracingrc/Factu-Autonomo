@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Trash2,
@@ -56,6 +57,7 @@ import {
   expenseBusinessKindHint,
   inferExpenseBusinessKind,
 } from "@/lib/expense-classification";
+import { occurrenceKey } from "@/lib/recurring-expenses";
 import {
   purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
@@ -67,8 +69,12 @@ import {
 import type {
   Expense,
   ExpenseBusinessKind,
+  ExpenseDeductibility,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
+  RecurringDueTiming,
+  RecurringDuration,
+  RecurringExpenseFrequency,
 } from "@/lib/types";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 
@@ -113,6 +119,22 @@ interface ExpenseInboxItemResponse {
 }
 
 type ScanReviewStatus = "ready" | "review" | "blocked";
+type FixedDueKind = RecurringDueTiming["kind"];
+
+const FIXED_MONTHS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 async function currentAuthHeaders(): Promise<HeadersInit> {
   const supabase = await getSupabaseClientAsync();
@@ -125,7 +147,13 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
 
 export default function NuevoGastoPage() {
   const router = useRouter();
-  const { data, addExpense, updateExpense, addSupplier } = useAppStore();
+  const {
+    data,
+    addExpense,
+    updateExpense,
+    addSupplier,
+    saveFixedExpenseWithRecurringTemplate,
+  } = useAppStore();
 
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [loadedExpenseId, setLoadedExpenseId] = useState<string | null>(null);
@@ -151,6 +179,19 @@ export default function NuevoGastoPage() {
     useState<"manual" | "scan">("manual");
   const [businessKind, setBusinessKind] =
     useState<ExpenseBusinessKind>("purchase");
+  const [fixedDeductibility, setFixedDeductibility] =
+    useState<ExpenseDeductibility>("deductible");
+  const [fixedFrequency, setFixedFrequency] =
+    useState<RecurringExpenseFrequency>("monthly");
+  const [fixedDueKind, setFixedDueKind] =
+    useState<FixedDueKind>("end_of_month");
+  const [fixedDueDay, setFixedDueDay] = useState("1");
+  const [fixedDueMonth, setFixedDueMonth] = useState("1");
+  const [fixedDurationKind, setFixedDurationKind] =
+    useState<RecurringDuration["kind"]>("indefinite");
+  const [fixedEndDate, setFixedEndDate] = useState("");
+  const [fixedOccurrenceCount, setFixedOccurrenceCount] = useState("12");
+  const [fixedStartDate, setFixedStartDate] = useState(todayISO());
   const [purchaseDocument, setPurchaseDocument] =
     useState<ExpensePurchaseDocument>({});
   const [purchaseLines, setPurchaseLines] = useState<ExpensePurchaseLine[]>([]);
@@ -174,6 +215,7 @@ export default function NuevoGastoPage() {
     [data.expenses, editingExpenseId],
   );
   const editingRequested = Boolean(editingExpenseId);
+  const editingRecurringExpense = Boolean(editingExpense?.recurringExpenseId);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -211,13 +253,50 @@ export default function NuevoGastoPage() {
           : undefined,
       ),
     );
+    const recurringTemplate = editingExpense.recurringExpenseId
+      ? data.recurringExpenses.find(
+          (item) => item.id === editingExpense.recurringExpenseId,
+        )
+      : undefined;
+    if (recurringTemplate) {
+      setFixedDeductibility(recurringTemplate.deductibility ?? "deductible");
+      setFixedFrequency(recurringTemplate.frequency);
+      setFixedDueKind(recurringTemplate.dueTiming.kind);
+      setFixedDueDay(
+        recurringTemplate.dueTiming.kind === "day_of_month"
+          ? String(recurringTemplate.dueTiming.day)
+          : "1",
+      );
+      setFixedDueMonth(String(recurringTemplate.dueMonth ?? 1));
+      setFixedDurationKind(recurringTemplate.duration.kind);
+      setFixedEndDate(
+        recurringTemplate.duration.kind === "until_date"
+          ? recurringTemplate.duration.endDate
+          : "",
+      );
+      setFixedOccurrenceCount(
+        recurringTemplate.duration.kind === "occurrences"
+          ? String(recurringTemplate.duration.count)
+          : "12",
+      );
+      setFixedStartDate(recurringTemplate.startDate);
+    } else {
+      setFixedDeductibility(editingExpense.deductibility ?? "deductible");
+      setFixedStartDate(editingExpense.date);
+    }
     setSaveSupplier(Boolean(editingExpense.supplierId));
     setSupplierHint(
       editingExpense.supplierId
         ? `Usando el proveedor guardado «${editingExpense.supplierName}».`
         : null,
     );
-  }, [data.suppliers, editingExpense, loadedExpenseId, vatExempt]);
+  }, [
+    data.recurringExpenses,
+    data.suppliers,
+    editingExpense,
+    loadedExpenseId,
+    vatExempt,
+  ]);
 
   const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
     const { payload, fileName } = review;
@@ -244,6 +323,15 @@ export default function NuevoGastoPage() {
     setCategory(payload.expense.category);
     setPaymentMethod(payload.expense.paymentMethod);
     setBusinessKind(payload.expense.businessKind ?? "purchase_invoice");
+    setFixedDeductibility("deductible");
+    setFixedFrequency("monthly");
+    setFixedDueKind("end_of_month");
+    setFixedDueDay("1");
+    setFixedDueMonth("1");
+    setFixedDurationKind("indefinite");
+    setFixedEndDate("");
+    setFixedOccurrenceCount("12");
+    setFixedStartDate(payload.expense.date);
     setNotes(payload.expense.notes ?? "");
     setPurchaseDocument({
       ...(payload.expense.purchaseDocument ?? {}),
@@ -337,6 +425,15 @@ export default function NuevoGastoPage() {
     setSelectedSupplierId(null);
     setExpenseOrigin("manual");
     setBusinessKind("purchase");
+    setFixedDeductibility("deductible");
+    setFixedFrequency("monthly");
+    setFixedDueKind("end_of_month");
+    setFixedDueDay("1");
+    setFixedDueMonth("1");
+    setFixedDurationKind("indefinite");
+    setFixedEndDate("");
+    setFixedOccurrenceCount("12");
+    setFixedStartDate(todayISO());
     setPurchaseDocument({});
     setPurchaseLines([]);
     setWorkDocumentId("");
@@ -428,11 +525,38 @@ export default function NuevoGastoPage() {
     setPurchaseDocument((prev) => ({ ...prev, ...patch }));
   }
 
+  const expenseVatExempt =
+    vatExempt ||
+    (businessKind === "fixed" && fixedDeductibility === "non_deductible");
+
   const currentAmount = expenseTotalsFromBase(
     parseDecimalInput(amountText),
     ivaPercent,
-    vatExempt,
+    expenseVatExempt,
   ).base;
+
+  function buildFixedDueTiming(): RecurringDueTiming {
+    if (fixedDueKind === "start_of_month") return { kind: "start_of_month" };
+    if (fixedDueKind === "mid_of_month") return { kind: "mid_of_month" };
+    if (fixedDueKind === "end_of_month") return { kind: "end_of_month" };
+    return {
+      kind: "day_of_month",
+      day: Math.min(31, Math.max(1, Number(fixedDueDay) || 1)),
+    };
+  }
+
+  function buildFixedDuration(): RecurringDuration {
+    if (fixedDurationKind === "until_date") {
+      return { kind: "until_date", endDate: fixedEndDate || fixedStartDate };
+    }
+    if (fixedDurationKind === "occurrences") {
+      return {
+        kind: "occurrences",
+        count: Math.max(1, Number(fixedOccurrenceCount) || 1),
+      };
+    }
+    return { kind: "indefinite" };
+  }
 
   function findDuplicateExpense(input: {
     invoiceNumber?: string;
@@ -818,13 +942,31 @@ export default function NuevoGastoPage() {
     const totals = expenseTotalsFromBase(
       parseDecimalInput(amountText),
       ivaPercent,
-      vatExempt,
+      expenseVatExempt,
     );
     const amount = totals.base;
 
     if (!description.trim() || amount === 0) {
       alert("Completa descripción e importe");
       return;
+    }
+    if (businessKind === "fixed") {
+      if (!fixedStartDate) {
+        alert("Indica desde qué fecha empieza este gasto fijo");
+        return;
+      }
+      if (fixedFrequency === "annual" && fixedDueKind === "end_of_month") {
+        alert("En gastos anuales indica un día concreto del mes");
+        return;
+      }
+      if (
+        fixedDurationKind === "until_date" &&
+        fixedEndDate &&
+        fixedEndDate < fixedStartDate
+      ) {
+        alert("La fecha final no puede ser anterior al inicio del gasto fijo");
+        return;
+      }
     }
 
     if (blockingDuplicateExpense) {
@@ -858,13 +1000,19 @@ export default function NuevoGastoPage() {
     const cleanedPurchaseLines = sanitizeExpensePurchaseLines(purchaseLines);
     const cleanedPurchaseDocument =
       sanitizeExpensePurchaseDocument(purchaseDocument);
+    const expenseDate =
+      businessKind === "fixed" && !editingRecurringExpense
+        ? fixedStartDate
+        : date;
     const payload: Omit<Expense, "id" | "createdAt"> = {
-      date,
+      date: expenseDate,
       supplierId,
       supplierName: resolved.supplierName,
       description: description.trim(),
       amount,
       ivaPercent: totals.ivaPercent,
+      deductibility:
+        businessKind === "fixed" ? fixedDeductibility : undefined,
       category,
       paymentMethod,
       notes: notes || undefined,
@@ -876,7 +1024,51 @@ export default function NuevoGastoPage() {
       businessKind,
     };
 
-    if (editingExpense) {
+    if (businessKind === "fixed") {
+      const recurringPayload = {
+        supplierName: resolved.supplierName,
+        description: description.trim(),
+        amount,
+        ivaPercent: totals.ivaPercent,
+        deductibility: fixedDeductibility,
+        category,
+        paymentMethod,
+        frequency: fixedFrequency,
+        dueTiming: buildFixedDueTiming(),
+        dueMonth:
+          fixedFrequency === "annual" ? Number(fixedDueMonth) : undefined,
+        duration: buildFixedDuration(),
+        startDate: fixedStartDate,
+        enabled: true,
+        notes: notes || undefined,
+      };
+      const existingRecurringId = editingExpense?.recurringExpenseId;
+      if (editingExpense && existingRecurringId) {
+        updateExpense({
+          ...editingExpense,
+          ...payload,
+          recurringExpenseId: existingRecurringId,
+          recurringOccurrenceKey:
+            editingExpense.recurringOccurrenceKey ??
+            occurrenceKey(existingRecurringId, expenseDate),
+        });
+      } else if (editingExpense) {
+        saveFixedExpenseWithRecurringTemplate(
+          {
+            ...editingExpense,
+            ...payload,
+          },
+          recurringPayload,
+        );
+      } else if (providerSummaryUpgradeTarget) {
+        saveFixedExpenseWithRecurringTemplate(
+          mergeProviderSummaryWithOriginal(providerSummaryUpgradeTarget, payload),
+          recurringPayload,
+        );
+      } else {
+        saveFixedExpenseWithRecurringTemplate(payload, recurringPayload);
+      }
+    } else if (editingExpense) {
       updateExpense({
         ...editingExpense,
         ...payload,
@@ -1120,7 +1312,12 @@ export default function NuevoGastoPage() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setBusinessKind(option.value)}
+                    onClick={() => {
+                      setBusinessKind(option.value);
+                      if (option.value === "fixed" && !editingRecurringExpense) {
+                        setFixedStartDate(date);
+                      }
+                    }}
                     aria-pressed={selected}
                     className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                       selected
@@ -1142,6 +1339,219 @@ export default function NuevoGastoPage() {
               {expenseBusinessKindHint(businessKind)}
             </p>
           </FormSection>
+
+          {businessKind === "fixed" && (
+            <FormSection
+              variant="fields"
+              title="Configuración de gasto fijo"
+              hint={
+                editingRecurringExpense
+                  ? "Este cargo ya viene de una regla recurrente. Aquí puedes corregir este gasto concreto; cambia la regla completa desde Gastos fijos."
+                  : "Define cómo se repetirá. El gasto actual quedará guardado como primer cargo de la regla."
+              }
+            >
+              {editingRecurringExpense ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-bold">
+                      Gasto fijo ya vinculado a una regla
+                    </p>
+                    <p className="mt-1 text-blue-800">
+                      Los cambios de importe o fechas futuras se gestionan desde
+                      la pantalla de Gastos fijos para no tocar el histórico por
+                      accidente.
+                    </p>
+                  </div>
+                  <a
+                    href={`/gastos/fijos?editar=${editingExpense?.recurringExpenseId}`}
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                  >
+                    Abrir regla
+                  </a>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFixedDeductibility("deductible");
+                        if (!vatExempt && ivaPercent === 0) {
+                          setIvaPercent(defaultIva);
+                        }
+                      }}
+                      aria-pressed={fixedDeductibility === "deductible"}
+                      className={`rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        fixedDeductibility === "deductible"
+                          ? "border-blue-300 bg-blue-50 text-blue-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-bold">
+                        <CalendarClock className="h-4 w-4" />
+                        Gasto fijo normal
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        Factura, ticket o recibo recurrente con IVA si
+                        corresponde.
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFixedDeductibility("non_deductible")}
+                      aria-pressed={fixedDeductibility === "non_deductible"}
+                      className={`rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        fixedDeductibility === "non_deductible"
+                          ? "border-amber-300 bg-amber-50 text-amber-950"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-bold">
+                        <CalendarClock className="h-4 w-4" />
+                        Extra no desgravable
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        Control interno recurrente. Cuenta entero, sin IVA
+                        deducible.
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Field label="Frecuencia">
+                      <Select
+                        value={fixedFrequency}
+                        onChange={(event) => {
+                          const nextFrequency = event.target
+                            .value as RecurringExpenseFrequency;
+                          setFixedFrequency(nextFrequency);
+                          if (
+                            nextFrequency === "annual" &&
+                            fixedDueKind !== "day_of_month"
+                          ) {
+                            setFixedDueKind("day_of_month");
+                          }
+                        }}
+                      >
+                        <option value="monthly">Mensual</option>
+                        <option value="quarterly">Trimestral</option>
+                        <option value="annual">Anual</option>
+                      </Select>
+                    </Field>
+                    <Field label="Desde">
+                      <Input
+                        type="date"
+                        value={fixedStartDate}
+                        onChange={(event) => {
+                          const nextDate = event.target.value;
+                          setFixedStartDate(nextDate);
+                          setDate(nextDate);
+                        }}
+                      />
+                    </Field>
+                    <Field label="Cuándo vence">
+                      <Select
+                        value={fixedDueKind}
+                        onChange={(event) =>
+                          setFixedDueKind(event.target.value as FixedDueKind)
+                        }
+                      >
+                        <option value="start_of_month">Inicio de mes</option>
+                        <option value="mid_of_month">Mitad de mes</option>
+                        <option value="end_of_month">Final de mes</option>
+                        <option value="day_of_month">Día concreto</option>
+                      </Select>
+                    </Field>
+                    {fixedDueKind === "day_of_month" ||
+                    fixedFrequency === "annual" ? (
+                      <Field
+                        label={
+                          fixedFrequency === "annual"
+                            ? "Mes y día"
+                            : "Día del mes"
+                        }
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          {fixedFrequency === "annual" ? (
+                            <Select
+                              value={fixedDueMonth}
+                              onChange={(event) =>
+                                setFixedDueMonth(event.target.value)
+                              }
+                            >
+                              {FIXED_MONTHS.map((month, index) => (
+                                <option key={month} value={index + 1}>
+                                  {month}
+                                </option>
+                              ))}
+                            </Select>
+                          ) : null}
+                          <Input
+                            type="number"
+                            min={1}
+                            max={31}
+                            value={fixedDueDay}
+                            onChange={(event) =>
+                              setFixedDueDay(event.target.value)
+                            }
+                            className={
+                              fixedFrequency === "annual"
+                                ? undefined
+                                : "col-span-2"
+                            }
+                          />
+                        </div>
+                      </Field>
+                    ) : (
+                      <div className="hidden lg:block" />
+                    )}
+                    <Field label="Duración">
+                      <Select
+                        value={fixedDurationKind}
+                        onChange={(event) =>
+                          setFixedDurationKind(
+                            event.target.value as RecurringDuration["kind"],
+                          )
+                        }
+                      >
+                        <option value="indefinite">Hasta que lo pares</option>
+                        <option value="occurrences">Número de cargos</option>
+                        <option value="until_date">Hasta una fecha</option>
+                      </Select>
+                    </Field>
+                    {fixedDurationKind === "occurrences" ? (
+                      <Field label="Cargos">
+                        <Input
+                          type="number"
+                          min={1}
+                          value={fixedOccurrenceCount}
+                          onChange={(event) =>
+                            setFixedOccurrenceCount(event.target.value)
+                          }
+                        />
+                      </Field>
+                    ) : null}
+                    {fixedDurationKind === "until_date" ? (
+                      <Field label="Hasta">
+                        <Input
+                          type="date"
+                          value={fixedEndDate}
+                          onChange={(event) =>
+                            setFixedEndDate(event.target.value)
+                          }
+                        />
+                      </Field>
+                    ) : null}
+                  </div>
+                  <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    Si más adelante cambia el importe, usa la opción de nuevo
+                    importe desde una fecha en Gastos fijos. Así no se cambia
+                    el histórico anterior.
+                  </p>
+                </div>
+              )}
+            </FormSection>
+          )}
 
           <FormSection
             variant="search"
@@ -1356,7 +1766,13 @@ export default function NuevoGastoPage() {
                 <Input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    const nextDate = e.target.value;
+                    setDate(nextDate);
+                    if (businessKind === "fixed" && !editingRecurringExpense) {
+                      setFixedStartDate(nextDate);
+                    }
+                  }}
                 />
               </Field>
               <Field label="¿Qué compraste? *" hint="Describe el gasto">
@@ -1369,13 +1785,15 @@ export default function NuevoGastoPage() {
               <ExpenseAmountFields
                 amountText={amountText}
                 onAmountTextChange={setAmountText}
-                ivaPercent={ivaPercent}
-                vatExempt={vatExempt}
+                ivaPercent={expenseVatExempt ? 0 : ivaPercent}
+                vatExempt={expenseVatExempt}
               />
-              {vatExempt ? (
+              {expenseVatExempt ? (
                 <p className="text-sm text-slate-500 sm:col-span-2">
-                  Sin IVA deducible — tu perfil está marcado como exento de
-                  repercusión.
+                  {businessKind === "fixed" &&
+                  fixedDeductibility === "non_deductible"
+                    ? "Gasto extra no desgravable: se guarda como control interno completo, sin IVA deducible."
+                    : "Sin IVA deducible — tu perfil está marcado como exento de repercusión."}
                 </p>
               ) : (
                 <Field label="IVA %">
