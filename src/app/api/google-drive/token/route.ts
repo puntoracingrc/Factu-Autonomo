@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { DRIVE_BACKUP_CALLBACK_PATH } from "@/lib/google-drive/backup";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -75,6 +79,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "google_drive_token",
+      limit: 30,
+      windowMs: 5 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const clientId = getGoogleDriveClientId();
   const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() ?? "";

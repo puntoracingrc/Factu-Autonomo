@@ -5,6 +5,10 @@ import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeAddressAutofill } from "@/lib/billing/scan-usage-server";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 async function canUseAddressAutofill(userId: string): Promise<{
   allowed: boolean;
@@ -39,6 +43,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "google_places_address_fill",
+      limit: 60,
+      windowMs: 5 * 60_000,
+    },
+    user?.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const gate = user ? await canUseAddressAutofill(user.id) : { allowed: true };
   if (!gate.allowed) {

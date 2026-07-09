@@ -10,6 +10,10 @@ import {
   normalizeImportAiReviewInput,
   reviewImportWithAi,
 } from "@/lib/import-ai/review";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 async function canUseImportAi(userId: string): Promise<{
   allowed: boolean;
@@ -42,6 +46,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "imports_review",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    },
+    user?.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const body = await request.json().catch(() => null);
   const input = normalizeImportAiReviewInput(body);

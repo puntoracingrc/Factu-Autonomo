@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
 import { parseProviderInvoiceSummaryText } from "@/lib/provider-summary-expenses";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,6 +15,13 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    namespace: "expenses_provider_summary",
+    limit: 8,
+    windowMs: 5 * 60_000,
+  });
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+
   const formData = await request.formData();
   const file = formData.get("file");
 

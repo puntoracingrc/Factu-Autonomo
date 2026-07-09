@@ -19,6 +19,10 @@ import {
   resolveScanMimeType,
   validateScanFile,
 } from "@/lib/expense-scan/file-validation";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -76,6 +80,16 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "expenses_scan",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    },
+    user?.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const form = await request.formData();
   const file = form.get("file");

@@ -5,6 +5,10 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 const OPENAI_REALTIME_CLIENT_SECRETS_URL =
   "https://api.openai.com/v1/realtime/client_secrets";
@@ -80,6 +84,17 @@ export async function POST(request: Request) {
   }
 
   const userId = user?.id ?? "dev";
+  const rateLimit = checkRateLimit(
+    request,
+    {
+      namespace: "reminders_realtime_session",
+      limit: 30,
+      windowMs: 10 * 60_000,
+    },
+    user?.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+
   const gate = await canUseReminderVoice(userId);
   if (!gate.allowed) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
