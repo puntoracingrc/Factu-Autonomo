@@ -85,6 +85,45 @@ describe("admin user restore", () => {
     });
   });
 
+  it("ignora diferencias que solo vienen del orden interno del JSON", () => {
+    const currentCustomer = {
+      id: "customer-1",
+      firstName: "Ana",
+      lastName: "",
+      name: "Ana",
+      createdAt: "2026-07-01T10:00:00.000Z",
+      updatedAt: "2026-07-01T10:00:00.000Z",
+      metadata: {
+        b: 2,
+        a: 1,
+      },
+    } as unknown as Customer;
+    const targetCustomer = {
+      metadata: {
+        a: 1,
+        b: 2,
+      },
+      updatedAt: "2026-07-01T10:00:00.000Z",
+      createdAt: "2026-07-01T10:00:00.000Z",
+      name: "Ana",
+      lastName: "",
+      firstName: "Ana",
+      id: "customer-1",
+    } as unknown as Customer;
+
+    const diff = summarizeRestoreDiff(
+      dataWithCustomers([currentCustomer]),
+      dataWithCustomers([targetCustomer]),
+    );
+    const changes = buildRestoreChanges(
+      dataWithCustomers([currentCustomer]),
+      dataWithCustomers([targetCustomer]),
+    );
+
+    expect(diff.totalChanges).toBe(0);
+    expect(changes).toEqual([]);
+  });
+
   it("genera cambios con marca nueva para que los dispositivos reciban la restauracion", () => {
     const current = dataWithCustomers([
       customer("customer-1", "Ana"),
