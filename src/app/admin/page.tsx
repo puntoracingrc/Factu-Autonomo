@@ -2,18 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Activity,
+  AlertTriangle,
   Ban,
+  BarChart3,
   Brain,
   Cloud,
   CreditCard,
+  Database,
   FileText,
+  Gauge,
+  HardDrive,
   History,
   Import,
   RefreshCw,
   RotateCcw,
   Siren,
   ShieldCheck,
+  TrendingUp,
   UserCog,
+  Users,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
@@ -27,6 +35,11 @@ import {
   dateOnlyFromIso,
   type AdminUserRow,
 } from "@/lib/admin/users";
+import type {
+  AdminHealthHourlyPoint,
+  AdminHealthLevel,
+  AdminHealthSnapshot,
+} from "@/lib/admin/health";
 import type {
   AdminRestoreDataSummary,
   AdminRestoreDiffSummary,
@@ -99,6 +112,13 @@ interface AdminErrorRow {
 
 interface AdminErrorsResponse {
   errors?: AdminErrorRow[];
+  error?: string;
+  message?: string;
+  monitoringAvailable?: boolean;
+}
+
+interface AdminHealthResponse {
+  health?: AdminHealthSnapshot | null;
   error?: string;
   message?: string;
   monitoringAvailable?: boolean;
@@ -196,6 +216,28 @@ function formatMoney(cents: number) {
   });
 }
 
+function formatInteger(value: number) {
+  return Math.round(value).toLocaleString("es-ES");
+}
+
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return "0 MB";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toLocaleString("es-ES", {
+    maximumFractionDigits: unitIndex >= 3 ? 2 : 1,
+  })} ${units[unitIndex]}`;
+}
+
+function formatPercent(value: number) {
+  return `${value.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+}
+
 function formatAiUnitCount(value: number) {
   if (value === Number.MAX_SAFE_INTEGER || isUnlimitedAiCreditUnits(value)) {
     return "Sin límite";
@@ -214,6 +256,37 @@ function severityClasses(severity: AdminErrorRow["severity"]) {
   if (severity === "warning") return "bg-amber-100 text-amber-800";
   if (severity === "info") return "bg-blue-100 text-blue-800";
   return "bg-red-100 text-red-800";
+}
+
+function healthToneClasses(level: AdminHealthLevel) {
+  if (level === "action") {
+    return {
+      panel: "border-red-200 bg-red-50 text-red-950",
+      badge: "bg-red-600 text-white",
+      soft: "bg-red-100 text-red-800",
+      bar: "bg-red-500",
+    };
+  }
+  if (level === "watch") {
+    return {
+      panel: "border-amber-200 bg-amber-50 text-amber-950",
+      badge: "bg-amber-500 text-white",
+      soft: "bg-amber-100 text-amber-800",
+      bar: "bg-amber-500",
+    };
+  }
+  return {
+    panel: "border-emerald-200 bg-emerald-50 text-emerald-950",
+    badge: "bg-emerald-600 text-white",
+    soft: "bg-emerald-100 text-emerald-800",
+    bar: "bg-emerald-500",
+  };
+}
+
+function hourLabel(value: string) {
+  return new Intl.DateTimeFormat("es-ES", {
+    hour: "2-digit",
+  }).format(new Date(value));
 }
 
 async function getAccessToken() {
@@ -1109,16 +1182,297 @@ function UserAdminCard({
   );
 }
 
+function HealthMetricCard({
+  label,
+  value,
+  detail,
+  Icon,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  Icon: typeof Users;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 text-slate-500">
+        <Icon className="h-4 w-4" />
+        <p className="text-sm font-bold">{label}</p>
+      </div>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="mt-1 text-sm text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function HealthHourlyBars({ points }: { points: AdminHealthHourlyPoint[] }) {
+  const visible = points.slice(-24);
+  const maxValue = Math.max(
+    1,
+    ...visible.map((point) => point.syncUpdates + point.errors),
+  );
+
+  if (visible.length === 0) {
+    return <p className="text-sm text-slate-500">Sin actividad por horas todavía.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex h-24 items-end gap-1">
+        {visible.map((point) => {
+          const total = point.syncUpdates + point.errors;
+          const height = Math.max(8, Math.round((total / maxValue) * 88));
+          return (
+            <div
+              key={point.hour}
+              className="flex min-w-0 flex-1 flex-col items-center justify-end"
+              title={`${formatDateTime(point.hour)} · ${point.syncUpdates} sync · ${point.errors} errores`}
+            >
+              <div
+                className={`w-full rounded-t-md ${
+                  point.errors > 0 ? "bg-red-400" : "bg-sky-500"
+                }`}
+                style={{ height }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex justify-between text-xs font-bold text-slate-400">
+        <span>{hourLabel(visible[0]?.hour ?? new Date().toISOString())}</span>
+        <span>{hourLabel(visible[visible.length - 1]?.hour ?? new Date().toISOString())}</span>
+      </div>
+      <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-500">
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+          Sync/API
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+          Errores
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
+  const tone = healthToneClasses(health.level);
+  const topUsers = health.topUsers.slice(0, 6);
+
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 ${tone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${tone.badge}`}>
+              {health.level === "action" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <Gauge className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Estado general · {health.label}
+              </p>
+              <p className="mt-1 text-xl font-black">{health.headline}</p>
+              <p className="mt-1 text-sm">
+                Supabase {health.plan.supabasePlan} · {health.plan.compute} ·{" "}
+                {health.plan.includedDatabaseGb} GB incluidos
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+            Actualizado: {formatDateTime(health.generatedAt)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {health.checks.map((check) => {
+          const checkTone = healthToneClasses(check.level);
+          return (
+            <div key={check.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-bold text-slate-500">{check.label}</p>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${checkTone.soft}`}>
+                  {check.level === "action"
+                    ? "Actuar"
+                    : check.level === "watch"
+                      ? "Vigilar"
+                      : "OK"}
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-black text-slate-900">{check.value}</p>
+              <p className="mt-1 text-sm text-slate-500">{check.detail}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-4">
+        <HealthMetricCard
+          Icon={Users}
+          label="Usuarios activos"
+          value={`${formatInteger(health.summary.activeUsers7d)} / ${formatInteger(
+            health.summary.activeUsers30d,
+          )}`}
+          detail="7 días / 30 días"
+        />
+        <HealthMetricCard
+          Icon={Database}
+          label="Filas cloud"
+          value={formatInteger(health.summary.syncRows)}
+          detail={`${formatInteger(health.summary.deletedRows)} borradas lógicas`}
+        />
+        <HealthMetricCard
+          Icon={HardDrive}
+          label="Base Postgres"
+          value={formatBytes(health.summary.databaseBytes)}
+          detail={`${formatPercent(health.summary.databaseUsedPercent)} de ${formatBytes(
+            health.summary.databaseLimitBytes,
+          )}`}
+        />
+        <HealthMetricCard
+          Icon={TrendingUp}
+          label="Actividad 24h"
+          value={formatInteger(health.summary.syncUpdates24h)}
+          detail={`${formatInteger(health.summary.syncActiveUsers24h)} usuario(s) con sync`}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-slate-500" />
+            <h3 className="font-bold text-slate-900">Picos últimas 24h</h3>
+          </div>
+          <HealthHourlyBars points={health.hourly} />
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-500" />
+            <h3 className="font-bold text-slate-900">Señales rápidas</h3>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Usuarios cloud</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.cloudUsers)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Último sync</span>
+              <span className="font-bold text-slate-900">
+                {formatDateTime(health.summary.latestSyncAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Errores 24h / 7d</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.errors24h)} /{" "}
+                {formatInteger(health.summary.errors7d)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">IA mes</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.expenseScansThisMonth)} escaneos
+              </span>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            {health.recommendations.map((item) => (
+              <p key={item} className={`rounded-2xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-bold text-slate-900">Usuarios que más pesan</h3>
+          <div className="space-y-3">
+            {topUsers.length === 0 && (
+              <p className="text-sm text-slate-500">Sin datos cloud todavía.</p>
+            )}
+            {topUsers.map((user) => (
+              <div
+                key={user.userId || user.email}
+                className="rounded-2xl bg-slate-50 p-3"
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="break-all text-sm font-bold text-slate-900">
+                    {user.email}
+                  </p>
+                  <p className="text-sm font-black text-slate-900">
+                    {formatInteger(user.rowCount)} filas
+                  </p>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Doc. {formatInteger(user.documentRows)} · Clientes{" "}
+                  {formatInteger(user.customerRows)} · Gastos{" "}
+                  {formatInteger(user.expenseRows)} · Productos{" "}
+                  {formatInteger(user.productRows)} · Sync{" "}
+                  {formatDateTime(user.latestSyncAt)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-bold text-slate-900">Tipos de datos</h3>
+          <div className="space-y-3">
+            {health.entityTypes.length === 0 && (
+              <p className="text-sm text-slate-500">Sin filas cloud todavía.</p>
+            )}
+            {health.entityTypes.slice(0, 8).map((item) => {
+              const width =
+                health.summary.syncRows > 0
+                  ? Math.max(4, Math.round((item.rows / health.summary.syncRows) * 100))
+                  : 0;
+              return (
+                <div key={item.type} className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-bold text-slate-700">{item.type}</span>
+                    <span className="font-bold text-slate-900">
+                      {formatInteger(item.rows)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-sky-500"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ErrorsPanel() {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
+  const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [healthNotice, setHealthNotice] = useState<string | null>(null);
 
   const loadErrors = useCallback(async () => {
     setLoading(true);
     setError(null);
     setNotice(null);
+    setHealthNotice(null);
     const token = await getAccessToken();
     if (!token) {
       setError("Inicia sesión con una cuenta administradora.");
@@ -1126,17 +1480,33 @@ function ErrorsPanel() {
       return;
     }
 
-    const response = await fetch("/api/admin/errors?limit=80", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const body = (await response.json()) as AdminErrorsResponse;
-    if (!response.ok) {
-      setError(body.error ?? "No se pudieron cargar errores.");
+    const headers = { Authorization: `Bearer ${token}` };
+    const [errorsResponse, healthResponse] = await Promise.all([
+      fetch("/api/admin/errors?limit=80", { headers }),
+      fetch("/api/admin/health", { headers }),
+    ]);
+
+    const errorsBody = (await errorsResponse.json()) as AdminErrorsResponse;
+    if (!errorsResponse.ok) {
+      setError(errorsBody.error ?? "No se pudieron cargar errores.");
       setLoading(false);
       return;
     }
-    setErrors(body.errors ?? []);
-    setNotice(body.monitoringAvailable === false ? body.message ?? null : null);
+
+    const healthBody = (await healthResponse.json()) as AdminHealthResponse;
+    setErrors(errorsBody.errors ?? []);
+    setNotice(
+      errorsBody.monitoringAvailable === false ? errorsBody.message ?? null : null,
+    );
+    if (!healthResponse.ok) {
+      setHealth(null);
+      setHealthNotice(healthBody.error ?? "No se pudo cargar salud del sistema.");
+    } else {
+      setHealth(healthBody.health ?? null);
+      setHealthNotice(
+        healthBody.monitoringAvailable === false ? healthBody.message ?? null : null,
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -1179,10 +1549,16 @@ function ErrorsPanel() {
         </div>
       </Card>
 
-      {loading && <Card>Cargando errores...</Card>}
+      {loading && <Card>Cargando errores y salud...</Card>}
       {error && (
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           {error}
+        </Card>
+      )}
+      {!loading && !error && health && <HealthDashboard health={health} />}
+      {!loading && !error && healthNotice && (
+        <Card className="border-blue-100 bg-blue-50 text-blue-900">
+          {healthNotice}
         </Card>
       )}
       {!loading && !error && notice && (
