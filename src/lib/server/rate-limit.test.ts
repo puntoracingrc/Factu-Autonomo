@@ -16,6 +16,15 @@ describe("server rate limit", () => {
     });
   }
 
+  function vercelRequest(vercelIp: string, forwardedIp: string) {
+    return new Request("https://facturacion-autonomos.app/api/test", {
+      headers: {
+        "x-forwarded-for": forwardedIp,
+        "x-vercel-forwarded-for": `${vercelIp}, 10.0.0.1`,
+      },
+    });
+  }
+
   it("allows requests until the policy limit is exceeded", () => {
     const policy = { namespace: "test", limit: 2, windowMs: 60_000 };
 
@@ -52,6 +61,27 @@ describe("server rate limit", () => {
     expect(checkRateLimit(request(), otherPolicy, "user-a", 1_003).allowed).toBe(
       true,
     );
+  });
+
+  it("uses Vercel's forwarded IP header before generic forwarded values", () => {
+    const policy = { namespace: "test", limit: 1, windowMs: 10_000 };
+
+    expect(
+      checkRateLimit(
+        vercelRequest("198.51.100.10", "203.0.113.20"),
+        policy,
+        null,
+        1_000,
+      ).allowed,
+    ).toBe(true);
+    expect(
+      checkRateLimit(
+        vercelRequest("198.51.100.10", "203.0.113.30"),
+        policy,
+        null,
+        1_001,
+      ).allowed,
+    ).toBe(false);
   });
 
   it("returns a safe 429 response with retry headers", async () => {

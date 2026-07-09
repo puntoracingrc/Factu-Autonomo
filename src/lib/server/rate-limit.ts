@@ -38,16 +38,21 @@ function headerValue(request: Request, name: string): string {
   return request.headers.get(name)?.trim() ?? "";
 }
 
-function clientIpFromRequest(request: Request): string {
-  const forwardedFor = headerValue(request, "x-forwarded-for")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)[0];
-
+function firstForwardedIp(value: string): string {
   return (
-    headerValue(request, "cf-connecting-ip") ||
+    value
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)[0] ?? ""
+  );
+}
+
+function clientIpFromRequest(request: Request): string {
+  return (
+    firstForwardedIp(headerValue(request, "x-vercel-forwarded-for")) ||
+    firstForwardedIp(headerValue(request, "x-forwarded-for")) ||
     headerValue(request, "x-real-ip") ||
-    forwardedFor ||
+    headerValue(request, "cf-connecting-ip") ||
     "unknown"
   );
 }
