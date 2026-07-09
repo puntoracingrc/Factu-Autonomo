@@ -262,6 +262,29 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain("<CloudAccountCard />");
   });
 
+  it("ofrece recuperacion de contraseña por email", () => {
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudContextSource = readFileSync(
+      new URL("../context/CloudSyncContext.tsx", import.meta.url),
+      "utf8",
+    );
+    const authCallbackSource = readFileSync(
+      new URL("../app/auth/callback/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(cloudAccountSource).toContain("He olvidado mi contraseña");
+    expect(cloudAccountSource).toContain("Enviar enlace de recuperación");
+    expect(cloudAccountSource).toContain("Crear contraseña nueva");
+    expect(cloudContextSource).toContain("resetPasswordForEmail");
+    expect(cloudContextSource).toContain("updateUser({ password");
+    expect(authCallbackSource).toContain('"recovery"');
+    expect(authCallbackSource).toContain("auth=${result}");
+  });
+
   it("ordena cuenta por bloques reconocibles", () => {
     const accountPageSource = readFileSync(
       new URL("../app/cuenta/page.tsx", import.meta.url),
@@ -270,12 +293,14 @@ describe("MVP usability polish", () => {
 
     expect(accountPageSource).toContain("AccountSection");
     expect(accountPageSource).toContain("Acceso");
+    expect(accountPageSource).toContain("Seguridad");
     expect(accountPageSource).toContain("Plan");
     expect(accountPageSource).toContain("Sincronización");
     expect(accountPageSource).toContain("Copias");
     expect(accountPageSource).toContain("Importación");
     expect(accountPageSource).toContain("Legal");
     expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
+    expect(accountPageSource).toContain('id="seguridad-cuenta"');
     expect(accountPageSource).toContain('id="copias-cuenta"');
     expect(accountPageSource).not.toContain("Cuenta y nube");
   });
@@ -904,12 +929,14 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain("Opciones de cuenta");
     expect(accountPageSource).toContain("flex flex-wrap gap-2");
     expect(accountPageSource).toContain("#inicio-sesion");
+    expect(accountPageSource).toContain("#seguridad-cuenta");
     expect(accountPageSource).toContain("#plan-cuenta");
     expect(accountPageSource).toContain("#sincronizacion-cuenta");
     expect(accountPageSource).toContain("#copias-cuenta");
     expect(accountPageSource).toContain("#importar-datos");
     expect(accountPageSource).toContain("#legal-privacidad");
     expect(accountPageSource).toContain("Acceso");
+    expect(accountPageSource).toContain("Seguridad");
     expect(accountPageSource).toContain("Sincronización");
     expect(accountPageSource).toContain("Copias");
     expect(accountPageSource).toContain("Importación");
@@ -918,11 +945,34 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).not.toContain("ManualHelpLink");
     expect(accountPageSource).not.toContain("InstallAppCard");
     expect(accountPageSource).toContain('id="plan-cuenta"');
+    expect(accountPageSource).toContain('id="seguridad-cuenta"');
     expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
     expect(accountPageSource).toContain('id="copias-cuenta"');
     expect(accountPageSource).toContain('id="importar-datos"');
     expect(accountPageSource).toContain('id="datos-privacidad"');
     expect(accountPageSource).toContain('id="legal-privacidad"');
+  });
+
+  it("ofrece doble factor opcional sin meter friccion al registro", () => {
+    const accountPageSource = readFileSync(
+      new URL("../app/cuenta/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const accountMfaSource = readFileSync(
+      new URL("../components/cloud/AccountMfaCard.tsx", import.meta.url),
+      "utf8",
+    );
+    const cloudAccountSource = readFileSync(
+      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(accountPageSource).toContain("<AccountMfaCard />");
+    expect(accountMfaSource).toContain("Activar doble factor");
+    expect(accountMfaSource).toContain("Añadir dispositivo de respaldo");
+    expect(accountMfaSource).toContain("tendrá que ayudarte soporte");
+    expect(cloudAccountSource).not.toContain("Activar doble factor");
+    expect(cloudAccountSource).not.toContain("Código de 6 dígitos");
   });
 
   it("encapsula acciones y filtros de clientes en bloques separados", () => {

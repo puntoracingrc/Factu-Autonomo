@@ -9,6 +9,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  KeyRound,
   Mail,
   RefreshCw,
 } from "lucide-react";
@@ -24,6 +25,10 @@ import {
   friendlyAuthError,
   isEmailNotConfirmedError,
 } from "@/lib/supabase/auth-errors";
+import {
+  ACCOUNT_PASSWORD_POLICY_HINT,
+  validateNewAccountPassword,
+} from "@/lib/auth/password-policy";
 import { buildFirstUseOnboardingState } from "@/lib/first-use-onboarding";
 import { isGoogleAuthEnabled } from "@/lib/supabase/config";
 import {
@@ -44,7 +49,7 @@ const STATUS_LABELS = {
   error: "Error — reintentando",
 } as const;
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "reset";
 const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
 
@@ -80,6 +85,8 @@ export function CloudAccountCard() {
     setEmail,
     signUp,
     signIn,
+    requestPasswordReset,
+    updatePassword,
     signInWithGoogle,
     resendConfirmationEmail,
     signOut,
@@ -98,8 +105,11 @@ export function CloudAccountCard() {
   const { billingEnabled, limits } = useBilling();
 
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState<Extract<
     SignUpResult,
     { ok: true }
@@ -135,6 +145,7 @@ export function CloudAccountCard() {
     if (requestedMode === "crear" || requestedMode === "signup") {
       setAuthMode("signup");
       setAuthError(null);
+      setAuthNotice(null);
       setResendNotice(null);
     }
   }, [requestedMode]);
@@ -157,6 +168,7 @@ export function CloudAccountCard() {
   function changeAuthMode(mode: AuthMode) {
     setAuthMode(mode);
     setAuthError(null);
+    setAuthNotice(null);
     setResendNotice(null);
     resetCaptchaChallenge();
     if (mode === "signin") {
@@ -171,7 +183,12 @@ export function CloudAccountCard() {
 
   async function runAuth(action: AuthMode) {
     setAuthError(null);
+    setAuthNotice(null);
     if (action === "signin") setSignupSuccess(null);
+    if (action === "reset") {
+      await requestResetLink();
+      return;
+    }
 
     if (action === "signup") {
       if (!legalAccepted) {
@@ -214,10 +231,69 @@ export function CloudAccountCard() {
     }
   }
 
+  async function requestResetLink() {
+    setAuthError(null);
+    setAuthNotice(null);
+    if (!email.trim()) {
+      setAuthError("Introduce tu email");
+      return;
+    }
+
+    const requestCaptchaToken = captchaEnabled
+      ? captchaToken?.trim()
+      : undefined;
+    if (captchaEnabled && !requestCaptchaToken) {
+      setAuthError("Espera a que termine la verificación de seguridad.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const error = await requestPasswordReset(requestCaptchaToken);
+      if (error) {
+        setAuthError(friendlyAuthError(error));
+        return;
+      }
+      setAuthNotice(
+        "Te hemos enviado un enlace para crear una contraseña nueva. Revisa tu email y spam.",
+      );
+    } finally {
+      setBusy(false);
+      if (captchaEnabled) resetCaptchaChallenge();
+    }
+  }
+
+  async function saveNewPassword() {
+    setAuthError(null);
+    setAuthNotice(null);
+    const passwordError = validateNewAccountPassword(newPassword);
+    if (passwordError) {
+      setAuthError(passwordError);
+      return;
+    }
+    if (newPassword !== newPasswordConfirmation) {
+      setAuthError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setBusy(true);
+    const error = await updatePassword(newPassword);
+    setBusy(false);
+    if (error) {
+      setAuthError(friendlyAuthError(error));
+      return;
+    }
+
+    setNewPassword("");
+    setNewPasswordConfirmation("");
+    setAuthNotice("Contraseña actualizada. Ya puedes seguir usando tu cuenta.");
+  }
+
   async function runGoogleAuth() {
     setAuthError(null);
     setSignupSuccess(null);
     setResendNotice(null);
+    setAuthNotice(null);
     if (referralCode.trim()) storePendingReferralCode(referralCode);
     setBusy(true);
     const error = await signInWithGoogle();
@@ -297,6 +373,48 @@ export function CloudAccountCard() {
           <p className="text-sm text-slate-700">
             Sesión: <strong>{user.email}</strong>
           </p>
+          {authStatus === "recovery" ? (
+            <div className="space-y-3 rounded-xl border border-blue-200 bg-white p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-900">
+                    Crear contraseña nueva
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    El enlace del email ya ha validado tu cuenta. Elige una
+                    contraseña nueva para futuros accesos por email.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Nueva contraseña" hint={ACCOUNT_PASSWORD_POLICY_HINT}>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    autoComplete="new-password"
+                  />
+                </Field>
+                <Field label="Repetir contraseña">
+                  <Input
+                    type="password"
+                    value={newPasswordConfirmation}
+                    onChange={(event) =>
+                      setNewPasswordConfirmation(event.target.value)
+                    }
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+              <Button onClick={() => void saveNewPassword()} disabled={busy}>
+                <KeyRound className="h-4 w-4" />
+                Guardar contraseña
+              </Button>
+            </div>
+          ) : null}
           {shouldOfferFirstSteps ? (
             <div className="space-y-3 rounded-xl border border-blue-200 bg-white p-4">
               <div>
@@ -465,6 +583,12 @@ export function CloudAccountCard() {
               entrar verás los primeros pasos en el Panel.
             </p>
           ) : null}
+          {authStatus === "recovery" ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
+              El enlace de recuperación no pudo abrir una sesión válida. Pide un
+              enlace nuevo e inténtalo desde el mismo navegador.
+            </p>
+          ) : null}
 
           {signupSuccess ? (
             <div ref={signupSuccessRef}>
@@ -505,7 +629,19 @@ export function CloudAccountCard() {
               </button>
             </div>
 
-            {googleAuthEnabled ? (
+            {authMode === "reset" ? (
+              <div className="rounded-xl border border-blue-200 bg-white p-4">
+                <p className="text-sm font-black text-slate-900">
+                  Recuperar contraseña
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Te enviaremos un enlace para crear una contraseña nueva. No
+                  cambia nada hasta que abras ese email.
+                </p>
+              </div>
+            ) : null}
+
+            {googleAuthEnabled && authMode !== "reset" ? (
               <div className="space-y-2">
                 <Button
                   fullWidth
@@ -540,9 +676,11 @@ export function CloudAccountCard() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
+                autoComplete="email"
               />
             </Field>
-            <Field label="Contraseña" hint="Mínimo 6 caracteres">
+            {authMode !== "reset" ? (
+              <Field label="Contraseña" hint={ACCOUNT_PASSWORD_POLICY_HINT}>
               <div className="relative">
                 <Input
                   ref={passwordInputRef}
@@ -572,7 +710,8 @@ export function CloudAccountCard() {
                   )}
                 </button>
               </div>
-            </Field>
+              </Field>
+            ) : null}
             {billingEnabled && authMode === "signup" ? (
               <Field
                 label="Código de invitación"
@@ -652,13 +791,35 @@ export function CloudAccountCard() {
               disabled={busy}
             >
               {busy
-                ? authMode === "signup"
+                ? authMode === "reset"
+                  ? "Enviando enlace…"
+                  : authMode === "signup"
                   ? "Creando cuenta…"
                   : "Comprobando…"
-                : authMode === "signup"
+                : authMode === "reset"
+                  ? "Enviar enlace de recuperación"
+                  : authMode === "signup"
                   ? "Crear cuenta"
                   : "Iniciar sesión"}
             </Button>
+            {authMode === "signin" ? (
+              <button
+                type="button"
+                onClick={() => changeAuthMode("reset")}
+                className="mx-auto block text-sm font-bold text-blue-700 underline-offset-4 hover:underline"
+              >
+                He olvidado mi contraseña
+              </button>
+            ) : null}
+            {authMode === "reset" ? (
+              <button
+                type="button"
+                onClick={() => changeAuthMode("signin")}
+                className="mx-auto block text-sm font-bold text-slate-600 underline-offset-4 hover:underline"
+              >
+                Volver a iniciar sesión
+              </button>
+            ) : null}
           </div>
         </div>
       )}
@@ -690,6 +851,9 @@ export function CloudAccountCard() {
 
       {resendNotice ? (
         <p className="text-sm font-medium text-emerald-700">{resendNotice}</p>
+      ) : null}
+      {authNotice ? (
+        <p className="text-sm font-medium text-emerald-700">{authNotice}</p>
       ) : null}
     </Card>
   );

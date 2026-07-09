@@ -114,6 +114,7 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   admin_ai_learning_feedback: "Admin: feedback IA",
   admin_errors: "Admin: errores",
   admin_health: "Admin: salud",
+  admin_user_mfa: "Admin: MFA usuarios",
   admin_user_restore: "Admin: restauracion",
   admin_users_list: "Admin: usuarios",
   admin_users_update: "Admin: actualizar usuario",

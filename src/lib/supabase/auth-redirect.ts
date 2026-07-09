@@ -8,3 +8,8 @@ export function getAuthCallbackUrl(): string {
       : getAppUrl();
   return `${origin.replace(/\/$/, "")}/auth/callback`;
 }
+
+/** URL a la que Supabase redirige tras pedir recuperacion de contraseña. */
+export function getPasswordRecoveryCallbackUrl(): string {
+  return `${getAuthCallbackUrl()}?type=recovery`;
+}

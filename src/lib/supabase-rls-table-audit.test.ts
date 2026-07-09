@@ -16,6 +16,13 @@ const rateLimitMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const adminMfaRecoveryMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260709222000_admin_mfa_recovery_challenges.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -29,6 +36,7 @@ const serviceOnlyTables = [
   "admin_user_controls",
   "app_error_events",
   "ai_learning_events",
+  "admin_mfa_recovery_challenges",
   "admin_user_restore_points",
   "admin_user_restore_events",
   "stripe_events",
@@ -89,13 +97,17 @@ describe("Supabase table-by-table RLS audit hardening", () => {
 
   it("keeps internal tables unavailable to browser roles", () => {
     for (const table of serviceOnlyTables) {
-      expect(migrationSource).toContain(
+      const source =
+        table === "admin_mfa_recovery_challenges"
+          ? adminMfaRecoveryMigrationSource
+          : migrationSource;
+      expect(source).toContain(
         `revoke all on table public.${table} from public, anon, authenticated`,
       );
-      expect(migrationSource).toContain(
+      expect(source).toContain(
         `grant all on table public.${table} to service_role`,
       );
-      expect(migrationSource).not.toMatch(
+      expect(source).not.toMatch(
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
           "i",

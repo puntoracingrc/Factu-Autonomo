@@ -32,6 +32,9 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El MFA admin queda activo para APIs admin completas mediante TOTP y
   `ADMIN_MFA_REQUIRED=true`; la cuenta `puntoracingrc@gmail.com` fue verificada
   en sesion `aal2`.
+- Los usuarios pueden activar MFA TOTP opcional desde Cuenta > Seguridad sin
+  anadir friccion al registro, demo ni primera factura. La recuperacion de MFA
+  se prepara en admin con codigo enviado al email verificado del usuario.
 - Verificacion final de produccion tras PR #336: workflow `main` 29047106837 en
   verde, Production Domain correcto, CSP en bloqueo y rate limit distribuido
   confirmado con bucket `security_csp_report`.
@@ -72,6 +75,11 @@ Protecciones actuales:
 
 - Supabase Auth para usuarios.
 - Confirmacion de email requerida en APIs sensibles.
+- Recuperacion de contraseña por email para cuentas con email/contraseña:
+  enlace al email verificado y cambio de contraseña dentro de la app.
+- Nuevas contraseñas con minimo 12 caracteres, sin exigir mayusculas, numeros o
+  simbolos concretos. Se prioriza longitud, frases largas y compatibilidad con
+  gestores de contraseñas.
 - Turnstile CAPTCHA en registro/login.
 - Google Auth controlado con redirect/origin validado.
 - Sesiones endurecidas desde Supabase.
@@ -82,11 +90,19 @@ Protecciones actuales:
 - MFA admin con TOTP preparado en el panel `/admin`.
 - Las APIs admin completas exigen `aal2` con `ADMIN_MFA_REQUIRED=true` en
   Vercel Production.
+- MFA TOTP opcional para usuarios normales en Cuenta > Seguridad.
+- Los usuarios pueden anadir un dispositivo de respaldo para no depender de un
+  solo movil.
+- Supabase Auth no ofrece codigos de recuperacion TOTP nativos; la recuperacion
+  segura se basa en segundo factor/dispositivo y soporte admin controlado.
 
 Punto operativo:
 
 - Mantener al menos una cuenta admin con TOTP recuperable y guardar codigos o
   procedimiento de recuperacion fuera de la app.
+- Mantener al menos dos cuentas admin con MFA activo antes de depender de MFA
+  obligatorio. Si todos los admins pierden sus factores y no hay sesion abierta,
+  la recuperacion pasa a ser tecnica desde Supabase/Vercel, no desde la app.
 
 ## Base de datos y Supabase
 
@@ -137,6 +153,9 @@ Protecciones actuales:
   `security_csp_report`, lo que confirma uso real del backend distribuido.
 - La ruta `/api/admin/health` agrega los buckets recientes por namespace y los
   normaliza como senal de abuso/scraping para el panel admin.
+- La ruta `/api/admin/users/[userId]/mfa` permite al admin listar factores MFA
+  seguros, enviar un codigo de recuperacion al email del usuario y eliminar un
+  factor solo con admin `aal2`, email confirmado manualmente y codigo vigente.
 - El log copiable del panel admin resume estado general, errores, actividad y
   namespaces con contadores, sin incluir IPs, hashes, tokens ni emails.
 - Webhook Stripe valida firma `stripe-signature`.
@@ -190,11 +209,16 @@ Protecciones actuales:
   externo controlado.
 - Restauracion por usuario existe como herramienta admin con confirmacion.
 - Acciones de restauracion crean punto de seguridad antes de aplicar cambios.
+- Recuperacion MFA por usuario desde admin exige sesion admin `aal2`, rate limit,
+  codigo de 6 digitos enviado al email verificado del usuario, confirmacion
+  manual del email y registro operativo del factor eliminado.
 - Produccion se verifica tras deploy y alias Vercel.
 
 Riesgos pendientes:
 
 - Mantener MFA admin probado despues de cambios de auth/sesion.
+- Probar recuperacion MFA con una cuenta de pruebas antes de usarla sobre una
+  cuenta real bloqueada.
 - Alertas externas con Log Drains si la operacion crece.
 - Runbook formal para incidentes: cuenta comprometida, fuga de clave, rollback,
   abuso de escaneo IA, error de migracion.
@@ -246,6 +270,9 @@ Alta prioridad:
 - Revisar logs de rate limit distribuido durante los primeros dias.
 - Revisar Admin > Errores y salud cuando haya sospecha de scraping y copiar el
   log `FACTU_SECURITY_HEALTH_V1` para analisis.
+- Mantener MFA opcional de usuarios como opt-in hasta validar recuperacion y UX;
+  exigir MFA a todos los usuarios requeriria login MFA completo, soporte y
+  comunicacion previa.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 
 Media prioridad:
