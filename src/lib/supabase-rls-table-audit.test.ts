@@ -81,10 +81,10 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("keeps internal tables unavailable to browser roles", () => {
     for (const table of serviceOnlyTables) {
       expect(migrationSource).toContain(
-        `revoke all on table public.${table} from public, anon, authenticated;`,
+        `revoke all on table public.${table} from public, anon, authenticated`,
       );
       expect(migrationSource).toContain(
-        `grant all on table public.${table} to service_role;`,
+        `grant all on table public.${table} to service_role`,
       );
       expect(migrationSource).not.toMatch(
         new RegExp(
@@ -98,10 +98,10 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("allows browser sync writes only on owner-scoped sync tables", () => {
     for (const table of browserSyncTables) {
       expect(migrationSource).toContain(
-        `revoke all on table public.${table} from public, anon, authenticated;`,
+        `revoke all on table public.${table} from public, anon, authenticated`,
       );
       expect(migrationSource).toContain(
-        `grant select, insert, update on table public.${table} to authenticated;`,
+        `grant select, insert, update on table public.${table} to authenticated`,
       );
       expect(migrationSource).not.toMatch(
         new RegExp(
@@ -115,10 +115,10 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("keeps billing summary tables read-only for browser clients", () => {
     for (const table of browserReadOnlyTables) {
       expect(migrationSource).toContain(
-        `revoke all on table public.${table} from public, anon, authenticated;`,
+        `revoke all on table public.${table} from public, anon, authenticated`,
       );
       expect(migrationSource).toContain(
-        `grant select on table public.${table} to authenticated;`,
+        `grant select on table public.${table} to authenticated`,
       );
       expect(migrationSource).not.toMatch(
         new RegExp(
@@ -140,7 +140,7 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("keeps document and fiscal read tables scoped to their owner", () => {
     for (const table of serverDocumentTables) {
       expect(migrationSource).toContain(
-        `revoke all on table public.${table} from public;`,
+        `revoke all on table public.${table} from public`,
       );
     }
     expect(migrationSource.match(/using \(\(select auth\.uid\(\)\) = user_id\)/g))
