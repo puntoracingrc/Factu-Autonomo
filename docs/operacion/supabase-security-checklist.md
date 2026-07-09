@@ -22,8 +22,8 @@ Ultima revision: 2026-07-09.
 - Migraciones: confirmar que toda migracion de produccion viene de PR, CI verde
   y ejecucion controlada.
 - Produccion: confirmar que Vercel apunta a la ultima build de `main`.
-- CSP: revisar informes de `/api/security/csp-report` antes de activar
-  `SECURITY_CSP_MODE=enforce`.
+- CSP: revisar informes de `/api/security/csp-report`; produccion bloquea CSP
+  por defecto y `SECURITY_CSP_MODE=report-only` queda como rollback temporal.
 - Admin MFA: confirmar que las cuentas admin tienen TOTP verificado antes de
   activar o mantener `ADMIN_MFA_REQUIRED=true`.
 - WAF/bots: revisar si hay scraping, registros masivos o picos raros antes de
@@ -47,11 +47,12 @@ Ultima revision: 2026-07-09.
 - RLS/grants produccion: checks criticos de tablas internas, `sync_entities`,
   `user_backups` y billing devueltos en `true`.
 - Storage buckets: sin buckets publicos detectados en la revision.
-- CSP: preparado interruptor `SECURITY_CSP_MODE=enforce`; por defecto sigue en
-  modo informe.
+- CSP: produccion bloquea por defecto; rollback temporal disponible con
+  `SECURITY_CSP_MODE=report-only`.
 - CSP reports: ruta `/api/security/csp-report` preparada y con rate limit.
-- Rate limit distribuido: preparado por migracion, pero requiere activar
-  `SERVER_RATE_LIMIT_BACKEND=supabase` tras aplicar SQL en produccion.
+- Rate limit distribuido: migracion aplicada y verificada en produccion;
+  `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production para
+  nuevos despliegues.
 - Admin MFA: panel preparado para enrolar TOTP y backend preparado para exigir
   `aal2` con `ADMIN_MFA_REQUIRED=true`.
 - Revisión mensual: recordatorio activo en Codex
@@ -69,13 +70,14 @@ Ultima revision: 2026-07-09.
   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; bloquearia registro/login por email.
 - Log Drains/PITR/Storage backups externos: revisar coste y necesidad antes de
   activar.
-- CSP enforce: activar solo tras comprobar que login, Turnstile, Google, Drive,
-  Maps, escaneo IA, PDF y admin funcionan sin violaciones legitimas.
+- CSP rollback: usar `SECURITY_CSP_MODE=report-only` solo si login, Turnstile,
+  Google, Drive, Maps, escaneo IA, PDF o admin muestran una incompatibilidad
+  legitima.
 - Admin MFA required: no activar si no se ha verificado TOTP en al menos una
   cuenta admin y comprobado acceso real al panel.
-- Rate limit distribuido: no activar si la migracion
-  `20260709123000_server_rate_limit_buckets.sql` no esta aplicada en el proyecto
-  correcto.
+- Rate limit distribuido: si se cambia o se revierte, confirmar que la migracion
+  `20260709123000_server_rate_limit_buckets.sql` existe en el proyecto correcto
+  antes de mantener `SERVER_RATE_LIMIT_BACKEND=supabase`.
 - Migraciones Supabase automaticas: no activar sin entorno GitHub protegido,
   secretos revisados y dry-run previo.
 
@@ -91,5 +93,5 @@ Ultima revision: 2026-07-09.
   caso de uso lo exija y tenga test.
 - Mantener `ADMIN_EMAILS` explicito en produccion. El fallback local no debe ser
   la fuente de verdad de administradores.
-- Mantener `SERVER_RATE_LIMIT_BACKEND=memory` hasta confirmar migracion aplicada;
-  despues usar `supabase` para rutas criticas.
+- Mantener `SERVER_RATE_LIMIT_BACKEND=supabase` para rutas criticas mientras la
+  migracion exista y este verificada; usar `memory` solo como rollback temporal.

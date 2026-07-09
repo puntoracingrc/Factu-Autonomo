@@ -76,8 +76,12 @@ const contentSecurityPolicy = serializeCsp([
   ["upgrade-insecure-requests"],
 ]);
 
+const cspMode =
+  process.env.SECURITY_CSP_MODE ??
+  (isProductionBuild ? "enforce" : "report-only");
+
 const contentSecurityPolicyHeader =
-  process.env.SECURITY_CSP_MODE === "enforce"
+  cspMode === "enforce"
     ? "Content-Security-Policy"
     : "Content-Security-Policy-Report-Only";
 
