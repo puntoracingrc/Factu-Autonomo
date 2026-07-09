@@ -56,5 +56,29 @@ describe("security headers config", () => {
     expect(headers.get("Cache-Control")).toBe("no-store, max-age=0");
     expect(headers.get("CDN-Cache-Control")).toBe("no-store");
     expect(headers.get("Vercel-CDN-Cache-Control")).toBe("no-store");
+    expect(headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+  });
+
+  it("marks private app surfaces as non-indexable", async () => {
+    const rules = await configuredHeaders();
+    const privateRouteSources = [
+      "/admin/:path*",
+      "/auth/callback/:path*",
+      "/cuenta/:path*",
+      "/drive/callback/:path*",
+      "/facturas/:path*",
+      "/google-auth/callback/:path*",
+      "/clientes/:path*",
+      "/gastos/:path*",
+    ];
+
+    for (const source of privateRouteSources) {
+      const rule = rules.find((candidate) => candidate.source === source);
+      expect(rule).toBeDefined();
+      const headers = headerMap(rule?.headers ?? []);
+      expect(headers.get("X-Robots-Tag")).toBe(
+        "noindex, nofollow, noarchive",
+      );
+    }
   });
 });
