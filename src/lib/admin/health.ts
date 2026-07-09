@@ -118,6 +118,7 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   admin_user_restore: "Admin: restauracion",
   admin_users_list: "Admin: usuarios",
   admin_users_update: "Admin: actualizar usuario",
+  admin_vercel_usage: "Admin: uso Vercel",
   billing_checkout: "Billing: checkout",
   billing_checkout_scan_pack: "Billing: pack escaneos",
   billing_portal: "Billing: portal",

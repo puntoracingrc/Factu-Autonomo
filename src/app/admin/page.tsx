@@ -152,6 +152,60 @@ interface AdminHealthResponse {
   monitoringAvailable?: boolean;
 }
 
+interface AdminVercelUsageResource {
+  id: string;
+  label: string;
+  service: string;
+  resource: string;
+  costUsd: number;
+  usageQuantity: number | null;
+  usageUnit: string | null;
+  project: string | null;
+  sharePercent: number;
+}
+
+interface AdminVercelUsageProject {
+  project: string;
+  costUsd: number;
+  sharePercent: number;
+}
+
+interface AdminVercelUsageSnapshot {
+  generatedAt: string;
+  level: AdminHealthLevel;
+  label: string;
+  headline: string;
+  period: {
+    from: string;
+    to: string;
+    daysRemaining: number;
+  };
+  plan: {
+    name: "Pro";
+    monthlyCreditUsd: number;
+    includedFastDataTransferGb: number;
+    includedEdgeRequests: number;
+  };
+  summary: {
+    totalCostUsd: number;
+    creditUsedUsd: number;
+    onDemandUsd: number;
+    creditUsedPercent: number;
+    lineCount: number;
+    primaryProjectSlug: string | null;
+  };
+  topResources: AdminVercelUsageResource[];
+  topProjects: AdminVercelUsageProject[];
+  recommendations: string[];
+}
+
+interface AdminVercelUsageResponse {
+  configured?: boolean;
+  vercel?: AdminVercelUsageSnapshot | null;
+  message?: string;
+  error?: string;
+}
+
 interface AdminMfaFactor {
   id: string;
   factor_type?: string;
@@ -251,6 +305,14 @@ function formatMoney(cents: number) {
   });
 }
 
+function formatUsd(value: number) {
+  return value.toLocaleString("es-ES", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+}
+
 function formatInteger(value: number) {
   return Math.round(value).toLocaleString("es-ES");
 }
@@ -271,6 +333,13 @@ function formatBytes(bytes: number) {
 
 function formatPercent(value: number) {
   return `${value.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+}
+
+function formatUsageQuantity(value: number | null, unit: string | null) {
+  if (value === null || value <= 0) return null;
+  return `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}${
+    unit ? ` ${unit}` : ""
+  }`;
 }
 
 function formatAiUnitCount(value: number) {
@@ -1840,19 +1909,190 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
   );
 }
 
+function VercelUsageDashboard({
+  vercel,
+  notice,
+}: {
+  vercel: AdminVercelUsageSnapshot | null;
+  notice: string | null;
+}) {
+  if (!vercel) {
+    return notice ? (
+      <Card className="border-blue-100 bg-blue-50 text-blue-900">
+        {notice}
+      </Card>
+    ) : null;
+  }
+
+  const tone = healthToneClasses(vercel.level);
+  const creditWidth = Math.min(100, Math.max(4, vercel.summary.creditUsedPercent));
+
+  return (
+    <div className={`rounded-2xl border p-4 ${tone.panel}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className={`rounded-2xl p-3 ${tone.badge}`}>
+            {vercel.level === "action" ? (
+              <AlertTriangle className="h-5 w-5" />
+            ) : (
+              <Cloud className="h-5 w-5" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-wide">
+              Vercel Pro · {vercel.label}
+            </p>
+            <p className="mt-1 text-xl font-black">{vercel.headline}</p>
+            <p className="mt-1 text-sm">
+              Ciclo {formatDateTime(vercel.period.from)} -{" "}
+              {formatDateTime(vercel.period.to)} · {vercel.period.daysRemaining} dia(s)
+              restantes
+            </p>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+          Actualizado: {formatDateTime(vercel.generatedAt)}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <HealthMetricCard
+          Icon={CreditCard}
+          label="Coste ciclo"
+          value={formatUsd(vercel.summary.totalCostUsd)}
+          detail={`${formatInteger(vercel.summary.lineCount)} línea(s) de uso`}
+        />
+        <HealthMetricCard
+          Icon={Gauge}
+          label="Crédito incluido"
+          value={`${formatUsd(vercel.summary.creditUsedUsd)} / ${formatUsd(
+            vercel.plan.monthlyCreditUsd,
+          )}`}
+          detail={`${formatPercent(vercel.summary.creditUsedPercent)} consumido`}
+        />
+        <HealthMetricCard
+          Icon={TrendingUp}
+          label="Bajo demanda"
+          value={formatUsd(vercel.summary.onDemandUsd)}
+          detail={
+            vercel.summary.onDemandUsd > 0
+              ? "ya hay coste fuera del crédito"
+              : "sin coste fuera del crédito"
+          }
+        />
+        <HealthMetricCard
+          Icon={Cloud}
+          label="Incluido Pro"
+          value={`${formatInteger(vercel.plan.includedEdgeRequests / 1_000_000)}M req.`}
+          detail={`${formatInteger(vercel.plan.includedFastDataTransferGb)} GB transferencia`}
+        />
+      </div>
+
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/70">
+        <div className={`h-full ${tone.bar}`} style={{ width: `${creditWidth}%` }} />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl bg-white/75 p-4">
+          <h3 className="font-bold text-slate-900">Recursos que más consumen</h3>
+          <div className="mt-3 space-y-3">
+            {vercel.topResources.length === 0 && (
+              <p className="text-sm font-semibold text-slate-500">
+                Sin consumo registrado en el ciclo.
+              </p>
+            )}
+            {vercel.topResources.map((item) => {
+              const quantity = formatUsageQuantity(
+                item.usageQuantity,
+                item.usageUnit,
+              );
+              return (
+                <div key={item.id} className="space-y-1">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">
+                        {item.label}
+                      </p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {item.project ?? "Equipo completo"}
+                        {quantity ? ` · ${quantity}` : ""}
+                      </p>
+                    </div>
+                    <p className="text-sm font-black text-slate-900">
+                      {formatUsd(item.costUsd)}
+                    </p>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className={`h-2 rounded-full ${tone.bar}`}
+                      style={{ width: `${Math.max(4, item.sharePercent)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white/75 p-4">
+          <h3 className="font-bold text-slate-900">Proyectos y avisos</h3>
+          <div className="mt-3 space-y-3">
+            {vercel.topProjects.length === 0 && (
+              <p className="text-sm font-semibold text-slate-500">
+                La API no ha devuelto desglose por proyecto.
+              </p>
+            )}
+            {vercel.topProjects.map((item) => (
+              <div key={item.project} className="space-y-1">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="break-all font-bold text-slate-700">
+                    {item.project}
+                  </span>
+                  <span className="font-black text-slate-900">
+                    {formatUsd(item.costUsd)}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100">
+                  <div
+                    className={`h-2 rounded-full ${tone.bar}`}
+                    style={{ width: `${Math.max(4, item.sharePercent)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {vercel.recommendations.map((item) => (
+              <p key={item} className={`rounded-2xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {notice && <p className="mt-3 text-sm font-semibold">{notice}</p>}
+    </div>
+  );
+}
+
 function ErrorsPanel() {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
+  const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [healthNotice, setHealthNotice] = useState<string | null>(null);
+  const [vercelNotice, setVercelNotice] = useState<string | null>(null);
 
   const loadErrors = useCallback(async () => {
     setLoading(true);
     setError(null);
     setNotice(null);
     setHealthNotice(null);
+    setVercelNotice(null);
     const token = await getAccessToken();
     if (!token) {
       setError("Inicia sesión con una cuenta administradora.");
@@ -1861,9 +2101,10 @@ function ErrorsPanel() {
     }
 
     const headers = { Authorization: `Bearer ${token}` };
-    const [errorsResponse, healthResponse] = await Promise.all([
+    const [errorsResponse, healthResponse, vercelResponse] = await Promise.all([
       fetch("/api/admin/errors?limit=80", { headers }),
       fetch("/api/admin/health", { headers }),
+      fetch("/api/admin/vercel-usage", { headers }),
     ]);
 
     const errorsBody = (await errorsResponse.json()) as AdminErrorsResponse;
@@ -1885,6 +2126,21 @@ function ErrorsPanel() {
       setHealth(healthBody.health ?? null);
       setHealthNotice(
         healthBody.monitoringAvailable === false ? healthBody.message ?? null : null,
+      );
+    }
+
+    const vercelBody = await readAdminJsonResponse<AdminVercelUsageResponse>(
+      vercelResponse,
+    );
+    if (!vercelResponse.ok) {
+      setVercel(null);
+      setVercelNotice(vercelBody.error ?? "No se pudo cargar Vercel.");
+    } else {
+      setVercel(vercelBody.vercel ?? null);
+      setVercelNotice(
+        vercelBody.configured === false
+          ? vercelBody.message ?? "Panel Vercel pendiente de conectar."
+          : vercelBody.message ?? null,
       );
     }
     setLoading(false);
@@ -1936,6 +2192,9 @@ function ErrorsPanel() {
         </Card>
       )}
       {!loading && !error && health && <HealthDashboard health={health} />}
+      {!loading && !error && (
+        <VercelUsageDashboard vercel={vercel} notice={vercelNotice} />
+      )}
       {!loading && !error && healthNotice && (
         <Card className="border-blue-100 bg-blue-50 text-blue-900">
           {healthNotice}

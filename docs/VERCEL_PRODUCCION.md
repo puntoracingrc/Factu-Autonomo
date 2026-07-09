@@ -60,6 +60,39 @@ Copia desde tu `.env.local` (Production + Preview):
 
 Después: **Deployments → Redeploy** (sin caché si cambias muchas variables).
 
+## Panel admin de uso Vercel
+
+La pestaña Admin → Errores y salud puede mostrar consumo real de Vercel si se
+conecta con un token privado de solo servidor.
+
+Variables:
+
+| Variable | Valor |
+|----------|-------|
+| `VERCEL_BILLING_API_TOKEN` | token privado de Vercel con permiso de lectura de billing/usage |
+| `VERCEL_TEAM_ID` | ID del equipo, por ejemplo `team_...` |
+| `VERCEL_BILLING_TEAM_SLUG` | alternativa a `VERCEL_TEAM_ID` si se usa slug |
+| `VERCEL_USAGE_PROJECT_SLUG` | `factu-autonomo` |
+| `VERCEL_BILLING_CYCLE_START_DAY` | `15`, según el ciclo visto en Vercel |
+| `VERCEL_BILLING_CYCLE_START_HOUR` | `9`, según el ciclo visto en Vercel |
+
+No usar variables `NEXT_PUBLIC_` para este token. Si faltan estas variables, el
+admin sigue funcionando y muestra el panel como pendiente de conectar.
+
+Lectura actual observada el 2026-07-10 en el dashboard Vercel del equipo:
+
+- Ciclo: 2026-06-15 09:00 → 2026-07-15 09:00.
+- Crédito incluido Pro: `20 USD / 20 USD` consumido.
+- Bajo demanda del equipo: `7,40 USD`.
+- `factu-autonomo` tiene margen amplio en el ciclo:
+  - `86.520` Edge Requests, aprox. `0,9%` de los `10.000.000` incluidos.
+  - `654,47 MB` Fast Data Transfer, aprox. `0,06%` de `1 TB` incluido.
+  - `10.095` invocaciones de funciones.
+  - `14m 10s` de Fluid Active CPU.
+  - `3,5 GB-Hrs` de Fluid Provisioned Memory.
+- El consumo principal del equipo venia de otros proyectos, sobre todo
+  `regionatlas`, y de Blob Stores.
+
 ## Google Drive opcional
 
 La copia extra en Drive usa el mismo cliente OAuth de Google, pero con retorno
