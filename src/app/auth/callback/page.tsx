@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
-async function completeAuthCallback(): Promise<"confirmed" | "pending" | "error"> {
+type AuthCallbackResult = "confirmed" | "pending" | "recovery" | "error";
+
+async function completeAuthCallback(): Promise<AuthCallbackResult> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return "error";
 
@@ -12,6 +14,7 @@ async function completeAuthCallback(): Promise<"confirmed" | "pending" | "error"
   const code = query.get("code");
   const tokenHash = query.get("token_hash");
   const type = query.get("type");
+  let isRecovery = type === "recovery";
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -35,6 +38,7 @@ async function completeAuthCallback(): Promise<"confirmed" | "pending" | "error"
     const hashParams = new URLSearchParams(hash);
     const accessToken = hashParams.get("access_token");
     const refreshToken = hashParams.get("refresh_token");
+    isRecovery = isRecovery || hashParams.get("type") === "recovery";
     if (accessToken && refreshToken) {
       const { error } = await supabase.auth.setSession({
         access_token: accessToken,
@@ -45,6 +49,7 @@ async function completeAuthCallback(): Promise<"confirmed" | "pending" | "error"
   }
 
   const { data } = await supabase.auth.getSession();
+  if (data.session && isRecovery) return "recovery";
   return data.session ? "confirmed" : "pending";
 }
 

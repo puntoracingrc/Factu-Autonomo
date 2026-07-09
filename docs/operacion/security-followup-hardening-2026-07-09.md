@@ -17,6 +17,13 @@ decision operativa y coste.
 - MFA admin queda implementado con TOTP en el panel `/admin` y bloqueo por
   `ADMIN_MFA_REQUIRED=true`, ya configurado en Vercel Production tras verificar
   una sesion admin `aal2`.
+- MFA opcional para usuarios queda preparado en Cuenta > Seguridad, sin afectar
+  al registro ni a la demo. El rescate de usuario se hace desde admin con codigo
+  al email verificado y sesion admin `aal2`.
+- Recuperacion de contraseña por email queda incorporada al acceso normal:
+  enlace de recuperacion, callback seguro y formulario de nueva contraseña.
+- Politica de nuevas contraseñas alineada con un enfoque moderno: minimo 12
+  caracteres y sin reglas artificiales de simbolo/mayuscula/numero.
 - Rate limit distribuido queda aplicado en Supabase y preparado en Vercel
   mediante `SERVER_RATE_LIMIT_BACKEND=supabase`.
 - El panel Admin > Errores y salud muestra senales de abuso/scraping basadas en
@@ -82,6 +89,7 @@ Hecho:
 - Cuenta admin `puntoracingrc@gmail.com` verificada con TOTP real y sesion
   `aal2`.
 - Variable Vercel Production `ADMIN_MFA_REQUIRED=true` anadida.
+- Cuenta admin `persianasalmar@gmail.com` verificada manualmente con TOTP real.
 
 Verificacion realizada:
 
@@ -90,6 +98,73 @@ Verificacion realizada:
 3. Verificar el codigo y confirmar que la sesion queda `aal2`.
 4. Activar `ADMIN_MFA_REQUIRED=true` en Vercel Production.
 5. Desplegar por Git para que Vercel cargue la variable nueva.
+
+## MFA opcional de usuarios
+
+Hecho:
+
+- Cuenta > Seguridad incluye una tarjeta de doble factor TOTP para usuarios
+  normales.
+- El registro, la demo y la primera creacion de factura no quedan bloqueados por
+  MFA; es una proteccion voluntaria para quien quiera maxima seguridad.
+- La tarjeta permite activar TOTP, verificar la sesion actual, cancelar una
+  configuracion pendiente y anadir un dispositivo de respaldo.
+- La tarjeta avisa de que si se pierden todos los factores, soporte debe ayudar
+  tras comprobar que la cuenta es del usuario.
+- Supabase Auth no ofrece codigos de recuperacion TOTP nativos; por eso se
+  recomienda registrar un segundo dispositivo o usar una app autenticadora con
+  copia segura.
+
+Recuperacion por admin:
+
+- Nueva tabla interna `admin_mfa_recovery_challenges`, cerrada a `public`,
+  `anon` y `authenticated`; solo la usa `service_role`.
+- Nueva ruta `/api/admin/users/[userId]/mfa` para listar factores seguros,
+  enviar codigo de recuperacion y eliminar un factor perdido.
+- La eliminacion de factor exige:
+  - admin autenticado y en sesion `aal2`;
+  - codigo de 6 digitos enviado al email verificado del usuario;
+  - confirmacion manual del email del usuario;
+  - maximo 5 intentos por codigo y caducidad de 15 minutos;
+  - registro operativo en `app_error_events`.
+
+Riesgo controlado:
+
+- Este rescate sirve para usuarios cuando un admin puede entrar. Si todos los
+  admins pierden sus factores a la vez y no hay sesion admin abierta, la
+  recuperacion ya no se puede hacer desde el panel y pasa a ser tecnica desde
+  Supabase/Vercel.
+- No se fuerza MFA a todos los usuarios hasta validar soporte, recuperacion y UX
+  con cuentas reales.
+
+## Recuperacion de contraseña
+
+Hecho:
+
+- En Cuenta > Acceso, el modo de inicio de sesion incluye
+  "He olvidado mi contraseña".
+- La app solicita a Supabase un enlace de recuperacion con redirect de vuelta a
+  `/auth/callback?type=recovery`.
+- El callback distingue recuperacion de confirmacion de cuenta y redirige a
+  `/cuenta?auth=recovery#inicio-sesion`.
+- Cuando el enlace abre una sesion valida, Cuenta muestra un formulario para
+  guardar una contraseña nueva.
+
+Alcance:
+
+- Aplica a cuentas creadas con email y contraseña.
+- No cambia el flujo de Google.
+- No obliga a recuperar ni cambiar contraseña durante registro, demo o primer
+  uso normal.
+
+Politica aplicada:
+
+- Registro y cambio de contraseña exigen minimo 12 caracteres.
+- No se exige simbolo, numero ni mayuscula concreta para evitar patrones
+  previsibles como `Factura2026!`.
+- Se permite usar frases largas y gestores de contraseña.
+- El inicio de sesion no bloquea por longitud para no dejar fuera a cuentas
+  antiguas si existieran con una contraseña mas corta.
 
 ## Rate limit distribuido
 

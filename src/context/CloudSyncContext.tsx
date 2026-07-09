@@ -36,7 +36,10 @@ import {
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
-import { getAuthCallbackUrl } from "@/lib/supabase/auth-redirect";
+import {
+  getAuthCallbackUrl,
+  getPasswordRecoveryCallbackUrl,
+} from "@/lib/supabase/auth-redirect";
 import {
   friendlyGoogleLoginError,
   startGoogleLoginRedirect,
@@ -49,6 +52,7 @@ import {
   EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
   isUserEmailConfirmed,
 } from "@/lib/auth/email-confirmation";
+import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { loadData } from "@/lib/storage";
 import { pickNewerAppData } from "@/lib/cloud/sync";
@@ -84,6 +88,10 @@ interface CloudSyncValue {
     captchaToken?: string,
   ) => Promise<SignUpResult>;
   signIn: (password: string, captchaToken?: string) => Promise<string | null>;
+  requestPasswordReset: (
+    captchaToken?: string,
+  ) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -923,6 +931,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!email.trim()) {
         return { ok: false, error: "Introduce tu email" };
       }
+      const passwordError = validateNewAccountPassword(password);
+      if (passwordError) return { ok: false, error: passwordError };
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -987,6 +997,39 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [email],
   );
+
+  const requestPasswordReset = useCallback(
+    async (captchaToken?: string) => {
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) return "La nube no está configurada en este servidor";
+      if (!email.trim()) return "Introduce tu email";
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        {
+          redirectTo: getPasswordRecoveryCallbackUrl(),
+          ...(captchaToken ? { captchaToken } : {}),
+        },
+      );
+      if (error) return error.message;
+
+      return null;
+    },
+    [email],
+  );
+
+  const updatePassword = useCallback(async (password: string) => {
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) return "La nube no está configurada en este servidor";
+    const passwordError = validateNewAccountPassword(password);
+    if (passwordError) return passwordError;
+
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return error.message;
+
+    setSyncMessage("Contraseña actualizada.");
+    return null;
+  }, []);
 
   const signInWithGoogle = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
@@ -1094,6 +1137,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setEmail,
       signUp,
       signIn,
+      requestPasswordReset,
+      updatePassword,
       signInWithGoogle,
       resendConfirmationEmail,
       signOut,
@@ -1117,6 +1162,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       localDataHandoffStatus,
       signUp,
       signIn,
+      requestPasswordReset,
+      updatePassword,
       signInWithGoogle,
       resendConfirmationEmail,
       signOut,

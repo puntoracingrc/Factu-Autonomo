@@ -17,11 +17,13 @@ import {
   HardDrive,
   History,
   Import,
+  Mail,
   RefreshCw,
   RotateCcw,
   Siren,
   ShieldCheck,
   TrendingUp,
+  Trash2,
   UserCog,
   Users,
 } from "lucide-react";
@@ -104,6 +106,24 @@ interface AdminUserRestoreActionResponse {
   changes?: number;
   restoredAt?: string;
   error?: string;
+}
+
+interface AdminUserMfaFactor {
+  id: string;
+  type: string;
+  status: string;
+  friendlyName: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  lastChallengedAt: string | null;
+}
+
+interface AdminUserMfaResponse {
+  email?: string | null;
+  factors?: AdminUserMfaFactor[];
+  expiresAt?: string;
+  error?: string;
+  code?: string;
 }
 
 interface AdminErrorRow {
@@ -808,6 +828,230 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
   );
 }
 
+function UserMfaRecoveryPanel({ user }: { user: AdminUserRow }) {
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [factors, setFactors] = useState<AdminUserMfaFactor[]>([]);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const endpoint = `/api/admin/users/${encodeURIComponent(user.id)}/mfa`;
+
+  const loadFactors = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setLoading(false);
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await readAdminJsonResponse<AdminUserMfaResponse>(response);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo cargar MFA del usuario.");
+    } else {
+      setFactors(body.factors ?? []);
+    }
+    setLoading(false);
+  }, [endpoint]);
+
+  const sendRecoveryCode = async () => {
+    setBusy(true);
+    setMessage(null);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy(false);
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await readAdminJsonResponse<AdminUserMfaResponse>(response);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo enviar el código.");
+    } else {
+      setRecoveryCode("");
+      setCodeExpiresAt(body.expiresAt ?? null);
+      setMessage(
+        `Código enviado a ${body.email ?? user.email}. Pídeselo al usuario antes de quitar el factor.`,
+      );
+    }
+    setBusy(false);
+  };
+
+  const deleteFactor = async (factor: AdminUserMfaFactor) => {
+    const cleanCode = recoveryCode.trim().replace(/\s+/g, "");
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setError("Introduce el código de 6 dígitos que ha recibido el usuario.");
+      return;
+    }
+    if (confirmationEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
+      setError("Confirma el email completo del usuario antes de quitar el factor.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+    setError(null);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Sesión no disponible.");
+      setBusy(false);
+      return;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        factorId: factor.id,
+        confirmationEmail,
+        recoveryCode: cleanCode,
+      }),
+    });
+    const body = await readAdminJsonResponse<AdminUserMfaResponse>(response);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo quitar el factor MFA.");
+    } else {
+      setRecoveryCode("");
+      setConfirmationEmail("");
+      setCodeExpiresAt(null);
+      setMessage("Factor MFA eliminado. El usuario deberá iniciar sesión y configurarlo de nuevo.");
+      await loadFactors();
+    }
+    setBusy(false);
+  };
+
+  return (
+    <details className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      <summary className="cursor-pointer text-sm font-black text-amber-950">
+        Recuperación de doble factor
+      </summary>
+      <div className="mt-4 space-y-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="text-sm leading-6 text-amber-950">
+            <p className="font-bold">Solo para soporte con identidad comprobada.</p>
+            <p>
+              Quitar un factor permite al usuario recuperar acceso y configurarlo
+              otra vez. La acción queda registrada como evento de seguridad.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void loadFactors()}
+            disabled={loading || busy}
+            className="bg-white"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Ver factores
+          </Button>
+        </div>
+
+        <div className="grid gap-3 rounded-xl bg-white p-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+          <label className="space-y-1 text-sm font-bold text-slate-700">
+            Código recibido por el usuario
+            <input
+              value={recoveryCode}
+              onChange={(event) => setRecoveryCode(event.target.value)}
+              inputMode="numeric"
+              placeholder="6 dígitos"
+              className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
+            />
+            {codeExpiresAt ? (
+              <span className="block text-xs font-semibold text-slate-500">
+                Caduca: {formatDateTime(codeExpiresAt)}
+              </span>
+            ) : null}
+          </label>
+          <label className="space-y-1 text-sm font-bold text-slate-700">
+            Confirmar email
+            <input
+              value={confirmationEmail}
+              onChange={(event) => setConfirmationEmail(event.target.value)}
+              placeholder={user.email}
+              className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900"
+            />
+            <span className="block text-xs font-semibold text-slate-500">
+              Escribe el email completo antes de quitar un factor.
+            </span>
+          </label>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void sendRecoveryCode()}
+            disabled={busy}
+          >
+            <Mail className="h-4 w-4" />
+            Enviar código
+          </Button>
+        </div>
+
+        {loading ? (
+          <p className="text-sm font-semibold text-amber-900">Cargando factores...</p>
+        ) : null}
+
+        {!loading && factors.length === 0 ? (
+          <p className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-amber-900">
+            Sin factores cargados o sin doble factor activo.
+          </p>
+        ) : null}
+
+        {factors.length > 0 ? (
+          <div className="space-y-2">
+            {factors.map((factor) => (
+              <div
+                key={factor.id}
+                className="flex flex-col gap-3 rounded-xl bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="text-sm text-slate-700">
+                  <p className="font-black text-slate-900">
+                    {factor.friendlyName || factor.type} · {factor.status}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Creado: {formatDateTime(factor.createdAt)} · Último reto:{" "}
+                    {formatDateTime(factor.lastChallengedAt)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => void deleteFactor(factor)}
+                  disabled={busy}
+                  className="min-h-10 px-4 text-sm"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Quitar factor
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {message ? (
+          <p className="text-sm font-semibold text-emerald-700">{message}</p>
+        ) : null}
+        {error ? (
+          <p className="text-sm font-semibold text-red-700">{error}</p>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 function UserAdminCard({
   user,
   onChanged,
@@ -1163,6 +1407,7 @@ function UserAdminCard({
       </div>
 
       <UserRestorePanel user={user} />
+      <UserMfaRecoveryPanel user={user} />
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <label className="space-y-1 text-sm font-bold text-slate-700">
