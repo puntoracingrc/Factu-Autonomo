@@ -5,9 +5,9 @@ const SITE_URL = "https://facturacion-autonomos.app";
 const appInternalRoutes = [
   "/admin",
   "/api",
-  "/auth/callback",
-  "/google-auth/callback",
-  "/drive/callback",
+  "/auth",
+  "/google-auth",
+  "/drive",
   "/avisos",
   "/clientes",
   "/configuracion",
