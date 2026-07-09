@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import {
   Cloud,
   Download,
@@ -44,6 +45,8 @@ const STATUS_LABELS = {
 } as const;
 
 type AuthMode = "signin" | "signup";
+const TURNSTILE_SITE_KEY =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
 
 function GoogleLogoIcon() {
   return (
@@ -106,12 +109,15 @@ export function CloudAccountCard() {
   const [referralCode, setReferralCode] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const authStatus = searchParams.get("auth");
   const requestedMode = searchParams.get("modo");
   const googleAuthEnabled = isGoogleAuthEnabled();
   const signupSuccessRef = useRef<HTMLDivElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+  const captchaEnabled = Boolean(TURNSTILE_SITE_KEY);
   const hasLocalWork = hasWorkspaceContent(data);
   const firstUseState = buildFirstUseOnboardingState({
     data,
@@ -152,40 +158,60 @@ export function CloudAccountCard() {
     setAuthMode(mode);
     setAuthError(null);
     setResendNotice(null);
+    resetCaptchaChallenge();
     if (mode === "signin") {
       setSignupSuccess(null);
     }
   }
 
+  function resetCaptchaChallenge() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
+
   async function runAuth(action: AuthMode) {
     setAuthError(null);
     if (action === "signin") setSignupSuccess(null);
-    setBusy(true);
 
     if (action === "signup") {
       if (!legalAccepted) {
-        setBusy(false);
         setAuthError(
           "Para crear cuenta debes aceptar los términos y la política de privacidad.",
         );
         return;
       }
-      if (referralCode.trim()) storePendingReferralCode(referralCode);
-      const result = await signUp(password);
-      setBusy(false);
-      if (!result.ok) {
-        setAuthError(result.error);
-        return;
-      }
-      setSignupSuccess(result);
-      setPassword("");
+    }
+
+    const requestCaptchaToken = captchaEnabled
+      ? captchaToken?.trim()
+      : undefined;
+    if (captchaEnabled && !requestCaptchaToken) {
+      setAuthError("Espera a que termine la verificación de seguridad.");
       return;
     }
 
-    const error = await signIn(password);
-    setBusy(false);
-    if (error) setAuthError(friendlyAuthError(error));
-    else setPassword("");
+    setBusy(true);
+
+    try {
+      if (action === "signup") {
+        if (referralCode.trim()) storePendingReferralCode(referralCode);
+        const result = await signUp(password, requestCaptchaToken);
+        if (!result.ok) {
+          setAuthError(result.error);
+          return;
+        }
+        setSignupSuccess(result);
+        setPassword("");
+        return;
+      }
+
+      const error = await signIn(password, requestCaptchaToken);
+      if (error) setAuthError(friendlyAuthError(error));
+      else setPassword("");
+    } finally {
+      setBusy(false);
+      if (captchaEnabled) resetCaptchaChallenge();
+    }
   }
 
   async function runGoogleAuth() {
@@ -591,6 +617,34 @@ export function CloudAccountCard() {
                   .
                 </span>
               </label>
+            ) : null}
+            {captchaEnabled ? (
+              <div className="overflow-hidden rounded-xl bg-white px-3 py-2">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  options={{
+                    appearance: "interaction-only",
+                    language: "es",
+                    size: "flexible",
+                    theme: "light",
+                  }}
+                  onSuccess={setCaptchaToken}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => {
+                    setCaptchaToken(null);
+                    setAuthError(
+                      "No se pudo completar la verificación de seguridad. Recarga la página e inténtalo de nuevo.",
+                    );
+                  }}
+                  onUnsupported={() => {
+                    setCaptchaToken(null);
+                    setAuthError(
+                      "Este navegador no puede completar la verificación de seguridad.",
+                    );
+                  }}
+                />
+              </div>
             ) : null}
             <Button
               fullWidth
