@@ -11,13 +11,13 @@ decision operativa y coste.
 
 ## Resumen
 
-- CSP no se fuerza todavia a bloqueo para evitar roturas, pero queda con ruta de
-  informes `/api/security/csp-report` y con el interruptor
-  `SECURITY_CSP_MODE=enforce`.
+- CSP queda en bloqueo en builds de produccion por defecto, con ruta de informes
+  `/api/security/csp-report` y con el interruptor
+  `SECURITY_CSP_MODE=report-only` disponible para diagnostico temporal.
 - MFA admin queda implementado con TOTP en el panel `/admin` y bloqueo por
   `ADMIN_MFA_REQUIRED=true`.
-- Rate limit distribuido queda preparado con Supabase mediante la migracion
-  `20260709123000_server_rate_limit_buckets.sql`.
+- Rate limit distribuido queda aplicado en Supabase y preparado en Vercel
+  mediante `SERVER_RATE_LIMIT_BACKEND=supabase`.
 - WAF/bot protection queda como control operativo externo: no se activa a ciegas
   porque depende de DNS/proveedor/coste y puede bloquear trafico legitimo.
 - Revision mensual de Supabase queda documentada y con recordatorio activo en
@@ -27,19 +27,22 @@ decision operativa y coste.
 
 Hecho:
 
-- CSP mantiene `report-only` por defecto.
+- CSP pasa a bloqueo en produccion por defecto.
 - Se anade `report-uri /api/security/csp-report`.
 - La ruta de informes sanea campos permitidos, limita tamano de valores y tiene
   rate limit.
-- `SECURITY_CSP_MODE=enforce` permite pasar a bloqueo sin cambiar codigo.
+- Logs de Vercel revisados el 2026-07-09: no habia informes CSP legitimos; solo
+  el informe artificial usado para probar el endpoint.
+- `SECURITY_CSP_MODE=report-only` permite volver temporalmente a modo informe
+  sin cambiar codigo si aparece una incompatibilidad.
 
-Activacion recomendada:
+Verificacion recomendada:
 
-1. Dejar produccion unos dias registrando informes.
-2. Revisar que no haya bloqueos legitimos de login, Google, Drive, Maps,
+1. Revisar que no haya bloqueos legitimos de login, Google, Drive, Maps,
    Turnstile, PDF, IA o admin.
-3. Cambiar `SECURITY_CSP_MODE=enforce` en Vercel.
-4. Verificar `/`, `/cuenta`, `/admin`, login, Google, Drive y facturas.
+2. Verificar `/`, `/cuenta`, `/admin`, login, Google, Drive y facturas.
+3. Si algo se rompe, poner `SECURITY_CSP_MODE=report-only` en Vercel y corregir
+   la directiva concreta.
 
 ## MFA admin
 
@@ -69,13 +72,18 @@ Hecho:
 - Ejecucion permitida solo a `service_role`.
 - La app usa hashes de identificador, no IP/email en claro.
 - Si el backend Supabase no esta disponible, vuelve a memoria para no romper.
+- Migracion `20260709123000_server_rate_limit_buckets.sql` aplicada en el
+  proyecto Supabase de produccion el 2026-07-09.
+- Consulta de verificacion devuelta en `true`: tabla existe, RPC existe, sin
+  grants a usuarios normales y con execute para `service_role`.
+- Variable Vercel Production `SERVER_RATE_LIMIT_BACKEND=supabase` anadida.
 
-Activacion recomendada:
+Verificacion post-despliegue:
 
-1. Aplicar la migracion versionada en Supabase produccion.
-2. Verificar que la RPC existe y que no hay grants a usuarios publicos.
-3. Activar `SERVER_RATE_LIMIT_BACKEND=supabase` en Vercel.
-4. Probar login, admin, escaneo IA, email y endpoints billing.
+1. Desplegar la version actual en produccion.
+2. Probar login, admin, escaneo IA, email y endpoints billing.
+3. Si Supabase no estuviera disponible, el codigo vuelve a memoria para no
+   tumbar rutas sensibles.
 
 ## WAF y bot protection
 
@@ -119,6 +127,5 @@ Revisar cada mes:
 ## Pendiente seguro
 
 - Enrolar TOTP real en admin antes de activar MFA obligatorio.
-- Aplicar migracion de rate limit distribuido antes de activar backend Supabase.
-- Pasar CSP a bloqueo solo tras revisar informes.
+- Probar rate limit distribuido tras el siguiente despliegue de produccion.
 - WAF/bot protection solo si hay senales reales o decision comercial.

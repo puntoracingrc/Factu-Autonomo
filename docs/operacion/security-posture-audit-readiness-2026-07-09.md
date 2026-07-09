@@ -18,11 +18,14 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El admin depende de `ADMIN_EMAILS` en produccion. El fallback local solo se
   aplica fuera de produccion.
 - Los principales riesgos que siguen vivos son: XSS con impacto alto por uso de
-  `localStorage`, CSP todavia en modo informe por defecto, ausencia de PITR,
-  ausencia de WAF/bot protection avanzado y despliegue de migraciones Supabase
-  todavia no totalmente automatizado.
-- El rate limit distribuido queda preparado con Supabase y fallback en memoria;
-  requiere aplicar la migracion y activar `SERVER_RATE_LIMIT_BACKEND=supabase`.
+  `localStorage`, ausencia de PITR, ausencia de WAF/bot protection avanzado y
+  despliegue de migraciones Supabase todavia no totalmente automatizado.
+- CSP queda en bloqueo por defecto en produccion tras revisar logs de Vercel el
+  2026-07-09. Se puede volver temporalmente a informe con
+  `SECURITY_CSP_MODE=report-only`.
+- El rate limit distribuido queda aplicado en Supabase, con
+  `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production y
+  fallback en memoria.
 - El MFA admin queda preparado con TOTP y bloqueo por `ADMIN_MFA_REQUIRED=true`;
   no debe activarse hasta enrolar y probar las cuentas admin.
 
@@ -39,7 +42,7 @@ Protecciones actuales:
 - CSP permite explicitamente servicios necesarios: Supabase, OpenAI, Google,
   Google Maps, Google Drive, Gmail y Cloudflare Turnstile.
 - CSP incluye `report-uri /api/security/csp-report` para registrar violaciones
-  reales antes de pasar a bloqueo.
+  reales y permitir diagnostico/rollback controlado.
 - `Referrer-Policy: strict-origin-when-cross-origin`.
 - `Permissions-Policy` limita sensores, camara, ubicacion, pago, USB, etc.
 - `X-Permitted-Cross-Domain-Policies: none`.
@@ -50,9 +53,9 @@ Protecciones actuales:
 
 Estado CSP:
 
-- Por defecto sigue en `Content-Security-Policy-Report-Only`.
-- Existe interruptor `SECURITY_CSP_MODE=enforce` para pasar a bloqueo sin tocar
-  codigo cuando se confirme que no rompe produccion.
+- En produccion se emite `Content-Security-Policy` por defecto.
+- Existe interruptor `SECURITY_CSP_MODE=report-only` para volver temporalmente a
+  informe sin tocar codigo si aparece una incompatibilidad.
 - La ruta `/api/security/csp-report` acepta informes del navegador, los sanea y
   los registra sin aceptar campos arbitrarios largos.
 
@@ -118,6 +121,10 @@ Protecciones actuales:
 - El limitador distribuido usa hashes de identificador, no IP/email en claro.
 - Si Supabase no esta disponible o la migracion no existe, el sistema vuelve al
   limitador en memoria para no tumbar rutas sensibles.
+- Migracion de rate limit distribuido aplicada y verificada en Supabase
+  produccion el 2026-07-09.
+- Vercel Production tiene `SERVER_RATE_LIMIT_BACKEND=supabase` configurado para
+  nuevos despliegues.
 - Webhook Stripe valida firma `stripe-signature`.
 - Webhook Stripe usa idempotencia por evento.
 - Inbound email valida Svix/Resend o secreto privado.
@@ -129,9 +136,8 @@ Protecciones actuales:
 
 Riesgos pendientes:
 
-- El modo por defecto sigue en memoria hasta activar
-  `SERVER_RATE_LIMIT_BACKEND=supabase`.
-- El modo distribuido debe verificarse en produccion tras aplicar migracion.
+- El modo distribuido debe verificarse tras el siguiente despliegue de
+  produccion con la variable ya configurada.
 - Revisar periodicamente endpoints sin auth clasica: webhooks, monitoring,
   welcome email, status/declaration y provider-summary.
 
@@ -154,7 +160,7 @@ Riesgo principal:
 
 Mejoras pendientes:
 
-- Pasar CSP a bloqueo cuando se confirme que no rompe.
+- Vigilar informes CSP tras pasar a bloqueo.
 - Reducir dependencias de `unsafe-inline` en CSP a medio plazo.
 - Evaluar migracion progresiva de datos sensibles a IndexedDB cifrado o modelo
   cloud-first con recuperacion por usuario.
@@ -216,9 +222,10 @@ Riesgos pendientes:
 
 Alta prioridad:
 
-- Vigilar CSP report-only y pasar a enforce si no hay bloqueos legitimos.
+- Vigilar informes CSP y usar `report-only` solo como rollback temporal si
+  aparece una incompatibilidad legitima.
 - Enrolar TOTP en cuentas admin y despues activar `ADMIN_MFA_REQUIRED=true`.
-- Aplicar migracion de rate limit y activar `SERVER_RATE_LIMIT_BACKEND=supabase`.
+- Verificar rate limit distribuido tras el siguiente despliegue de produccion.
 - Revisar Security Advisor y Performance Advisor tras cada migracion.
 
 Media prioridad:
