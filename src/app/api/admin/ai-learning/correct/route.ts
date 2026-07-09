@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   if (!aiLearningAccountForEmail(user.email).allowed) {
     return NextResponse.json({ error: "Cuenta no autorizada" }, { status: 403 });
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_ai_learning_correct",

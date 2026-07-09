@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   coerceAdminPlan,
   coerceAdminStatus,
@@ -7,7 +7,6 @@ import {
   normalizeAdminAiCreditUnits,
   normalizeAdminDate,
 } from "@/lib/admin/users";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { currentMonthKey } from "@/lib/billing/usage";
 import {
   checkRateLimit,
@@ -144,21 +143,16 @@ async function resetMonthlyAiUsage(admin: AdminClient, userId: string) {
 }
 
 export async function PATCH(request: Request, { params }: RouteParams) {
-  const requester = await getUserFromBearer(request.headers.get("authorization"));
-  if (!requester) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!isAdminUser(requester)) {
-    return NextResponse.json({ error: "Solo administradores" }, { status: 403 });
-  }
-  const rateLimit = checkRateLimit(
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return access.response;
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_users_update",
       limit: 60,
       windowMs: 10 * 60_000,
     },
-    requester.id,
+    access.user.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -193,7 +187,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    await touchAdminControls(admin, userId, requester.id);
+    await touchAdminControls(admin, userId, access.user.id);
 
     return NextResponse.json({ ok: true });
   }
@@ -204,7 +198,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    await touchAdminControls(admin, userId, requester.id);
+    await touchAdminControls(admin, userId, access.user.id);
 
     return NextResponse.json({ ok: true, monthKey });
   }
@@ -231,7 +225,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
-    await touchAdminControls(admin, userId, requester.id, {
+    await touchAdminControls(admin, userId, access.user.id, {
       banned_at: banned ? new Date().toISOString() : null,
       ban_reason: banned ? reason : null,
     });

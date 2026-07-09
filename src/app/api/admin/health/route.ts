@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   buildAdminHealthSnapshot,
   isMissingAdminHealthRpc,
 } from "@/lib/admin/health";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { currentMonthKey } from "@/lib/billing/usage";
 import {
   checkRateLimit,
@@ -334,21 +333,16 @@ async function buildFallbackRawHealth(admin: AdminClient) {
 }
 
 export async function GET(request: Request) {
-  const requester = await getUserFromBearer(request.headers.get("authorization"));
-  if (!requester) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!isAdminUser(requester)) {
-    return NextResponse.json({ error: "Solo administradores" }, { status: 403 });
-  }
-  const rateLimit = checkRateLimit(
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return access.response;
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_health",
       limit: 120,
       windowMs: 10 * 60_000,
     },
-    requester.id,
+    access.user.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 

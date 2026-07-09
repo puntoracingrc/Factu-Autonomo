@@ -66,7 +66,7 @@ function googleErrorMessage(payload: GoogleTokenPayload): string {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, {
+  const rateLimit = await checkRateLimit(request, {
     namespace: "google_auth_token",
     limit: 30,
     windowMs: 5 * 60_000,

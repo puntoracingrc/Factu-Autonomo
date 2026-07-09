@@ -1,0 +1,124 @@
+# Informe de fase: endurecimiento adicional de seguridad
+
+Ultima revision: 2026-07-09.
+
+Proyecto: `facturacion-autonomos.app`.
+
+Este informe cubre solo la fase adicional pedida despues del informe general:
+CSP en bloqueo controlado, MFA admin, rate limit distribuido, WAF/bot
+protection y revision mensual de Supabase. PITR queda excluido de esta fase por
+decision operativa y coste.
+
+## Resumen
+
+- CSP no se fuerza todavia a bloqueo para evitar roturas, pero queda con ruta de
+  informes `/api/security/csp-report` y con el interruptor
+  `SECURITY_CSP_MODE=enforce`.
+- MFA admin queda implementado con TOTP en el panel `/admin` y bloqueo por
+  `ADMIN_MFA_REQUIRED=true`.
+- Rate limit distribuido queda preparado con Supabase mediante la migracion
+  `20260709123000_server_rate_limit_buckets.sql`.
+- WAF/bot protection queda como control operativo externo: no se activa a ciegas
+  porque depende de DNS/proveedor/coste y puede bloquear trafico legitimo.
+- Revision mensual de Supabase queda documentada y con recordatorio activo en
+  Codex: `revisi-n-mensual-supabase-seguridad`.
+
+## CSP
+
+Hecho:
+
+- CSP mantiene `report-only` por defecto.
+- Se anade `report-uri /api/security/csp-report`.
+- La ruta de informes sanea campos permitidos, limita tamano de valores y tiene
+  rate limit.
+- `SECURITY_CSP_MODE=enforce` permite pasar a bloqueo sin cambiar codigo.
+
+Activacion recomendada:
+
+1. Dejar produccion unos dias registrando informes.
+2. Revisar que no haya bloqueos legitimos de login, Google, Drive, Maps,
+   Turnstile, PDF, IA o admin.
+3. Cambiar `SECURITY_CSP_MODE=enforce` en Vercel.
+4. Verificar `/`, `/cuenta`, `/admin`, login, Google, Drive y facturas.
+
+## MFA admin
+
+Hecho:
+
+- El panel `/admin` muestra estado MFA para cuentas admin.
+- Permite enrolar TOTP con QR/secret y verificar codigo.
+- Las APIs admin completas usan una comprobacion comun.
+- Si `ADMIN_MFA_REQUIRED=true`, las APIs admin exigen `aal2`.
+- Las cuentas de aprendizaje IA no quedan mezcladas con admin completo.
+
+Activacion recomendada:
+
+1. Entrar con una cuenta admin.
+2. Preparar TOTP desde el panel admin.
+3. Verificar el codigo y confirmar que la sesion queda `aal2`.
+4. Activar `ADMIN_MFA_REQUIRED=true` en Vercel.
+5. Reabrir `/admin` y comprobar usuarios, errores/salud y restauracion.
+
+## Rate limit distribuido
+
+Hecho:
+
+- Nueva tabla `server_rate_limit_buckets`.
+- Nueva RPC `claim_rate_limit_bucket`.
+- Permisos cerrados a `public`, `anon` y `authenticated`.
+- Ejecucion permitida solo a `service_role`.
+- La app usa hashes de identificador, no IP/email en claro.
+- Si el backend Supabase no esta disponible, vuelve a memoria para no romper.
+
+Activacion recomendada:
+
+1. Aplicar la migracion versionada en Supabase produccion.
+2. Verificar que la RPC existe y que no hay grants a usuarios publicos.
+3. Activar `SERVER_RATE_LIMIT_BACKEND=supabase` en Vercel.
+4. Probar login, admin, escaneo IA, email y endpoints billing.
+
+## WAF y bot protection
+
+No activado por codigo.
+
+Motivo:
+
+- Depende del proveedor DNS/CDN elegido.
+- Puede generar falsos positivos en registro/login.
+- Scraping no se elimina al 100%; se reduce con rate limits, robots, noindex,
+  WAF, reglas por pais/ASN y bot protection.
+
+Estado actual:
+
+- `robots.txt` bloquea rutas privadas para crawlers educados.
+- Rutas privadas llevan `X-Robots-Tag: noindex, nofollow, noarchive`.
+- APIs sensibles tienen rate limit.
+- Futuro recomendado: WAF/bot protection si aparecen picos, scraping real o
+  abuso de registro/login.
+
+## Revision mensual Supabase
+
+Hecho:
+
+- Checklist actualizado.
+- Recordatorio mensual creado en Codex:
+  `revisi-n-mensual-supabase-seguridad`.
+
+Revisar cada mes:
+
+- Security Advisor.
+- Performance Advisor.
+- Auth: limites, sesiones, callbacks y CAPTCHA.
+- Logs de Auth/API/DB.
+- Backups diarios.
+- Buckets Storage publicos.
+- CSP reports.
+- Estado de Vercel Production Domain.
+- Necesidad real de WAF/bot protection.
+
+## Pendiente seguro
+
+- Enrolar TOTP real en admin antes de activar MFA obligatorio.
+- Aplicar migracion de rate limit distribuido antes de activar backend Supabase.
+- Pasar CSP a bloqueo solo tras revisar informes.
+- WAF/bot protection solo si hay senales reales o decision comercial.

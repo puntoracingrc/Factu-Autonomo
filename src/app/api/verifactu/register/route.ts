@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "verifactu_register",

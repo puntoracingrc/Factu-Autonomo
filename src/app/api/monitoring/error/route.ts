@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "monitoring_error",

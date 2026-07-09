@@ -72,6 +72,7 @@ const contentSecurityPolicy = serializeCsp([
   ["worker-src", ["'self'", "blob:"]],
   ["media-src", ["'self'", "blob:", "data:"]],
   ["manifest-src", ["'self'"]],
+  ["report-uri", ["/api/security/csp-report"]],
   ["upgrade-insecure-requests"],
 ]);
 

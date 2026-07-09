@@ -13,7 +13,7 @@ import {
 } from "@/lib/server/rate-limit";
 
 export async function GET(request: Request) {
-  const rateLimit = checkRateLimit(request, {
+  const rateLimit = await checkRateLimit(request, {
     namespace: "verifactu_status",
     limit: 120,
     windowMs: 5 * 60_000,

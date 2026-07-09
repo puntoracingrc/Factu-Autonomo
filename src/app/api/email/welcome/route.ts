@@ -9,7 +9,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, {
+  const rateLimit = await checkRateLimit(request, {
     namespace: "email_welcome",
     limit: 12,
     windowMs: 5 * 60_000,

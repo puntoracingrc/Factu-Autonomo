@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "google_places_address_fill",

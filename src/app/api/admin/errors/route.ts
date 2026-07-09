@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -17,21 +16,16 @@ function isMissingErrorEventsTable(error: { code?: string; message?: string }) {
 }
 
 export async function GET(request: Request) {
-  const requester = await getUserFromBearer(request.headers.get("authorization"));
-  if (!requester) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!isAdminUser(requester)) {
-    return NextResponse.json({ error: "Solo administradores" }, { status: 403 });
-  }
-  const rateLimit = checkRateLimit(
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return access.response;
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_errors",
       limit: 120,
       windowMs: 10 * 60_000,
     },
-    requester.id,
+    access.user.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 

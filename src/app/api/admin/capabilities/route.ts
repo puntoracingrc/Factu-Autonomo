@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin/access";
+import { adminMfaAccessFromAuthorization } from "@/lib/admin/server-access";
 import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
@@ -8,11 +9,12 @@ import {
 } from "@/lib/server/rate-limit";
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const authorization = request.headers.get("authorization");
+  const user = await getUserFromBearer(authorization);
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     request,
     {
       namespace: "admin_capabilities",
@@ -24,9 +26,13 @@ export async function GET(request: Request) {
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const learning = aiLearningAccountForEmail(user.email);
+  const adminEmailAuthorized = isAdminUser(user);
+  const adminMfa = adminMfaAccessFromAuthorization(authorization);
 
   return NextResponse.json({
-    fullAdmin: isAdminUser(user),
+    fullAdmin: adminEmailAuthorized && (!adminMfa.required || adminMfa.satisfied),
+    adminEmailAuthorized,
+    adminMfa,
     aiLearning: learning.allowed,
     learningLabel: learning.label,
   });

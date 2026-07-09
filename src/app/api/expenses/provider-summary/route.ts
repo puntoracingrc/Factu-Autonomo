@@ -15,7 +15,7 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, {
+  const rateLimit = await checkRateLimit(request, {
     namespace: "expenses_provider_summary",
     limit: 8,
     windowMs: 5 * 60_000,

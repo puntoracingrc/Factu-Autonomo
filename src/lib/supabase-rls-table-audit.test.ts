@@ -9,6 +9,13 @@ const migrationSource = readFileSync(
   ),
   "utf8",
 );
+const rateLimitMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260709123000_server_rate_limit_buckets.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -40,11 +47,13 @@ const serverDocumentTables = [
   "fiscal_chain_state",
   "fiscal_transport_attempts",
 ];
+const rateLimitTables = ["server_rate_limit_buckets"];
 const classifiedTables = new Set([
   ...serviceOnlyTables,
   ...browserSyncTables,
   ...browserReadOnlyTables,
   ...serverDocumentTables,
+  ...rateLimitTables,
 ]);
 
 function escapedTable(table: string) {
@@ -93,6 +102,27 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         ),
       );
     }
+  });
+
+  it("keeps distributed rate limit buckets service-only", () => {
+    expect(rateLimitMigrationSource).toContain(
+      "revoke all on table public.server_rate_limit_buckets from public",
+    );
+    expect(rateLimitMigrationSource).toContain(
+      "revoke all on table public.server_rate_limit_buckets from anon",
+    );
+    expect(rateLimitMigrationSource).toContain(
+      "revoke all on table public.server_rate_limit_buckets from authenticated",
+    );
+    expect(rateLimitMigrationSource).toContain(
+      "grant all on table public.server_rate_limit_buckets to service_role",
+    );
+    expect(rateLimitMigrationSource).toContain(
+      "grant execute on function public.claim_rate_limit_bucket(text, text, integer, integer) to service_role",
+    );
+    expect(rateLimitMigrationSource).not.toMatch(
+      /grant\s+[^;]*server_rate_limit_buckets\s+to\s+(?:public|anon|authenticated)/i,
+    );
   });
 
   it("allows browser sync writes only on owner-scoped sync tables", () => {
