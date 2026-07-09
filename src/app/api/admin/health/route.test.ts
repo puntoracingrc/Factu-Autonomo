@@ -76,21 +76,110 @@ describe("GET /api/admin/health", () => {
     expect(body.health.summary.syncRows).toBe(5342);
   });
 
-  it("degrada con mensaje si falta la migracion", async () => {
+  it("usa lectura alternativa si falta una pieza del esquema", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "sync_entities") {
+        return {
+          select: vi.fn(() => ({
+            limit: vi.fn(async () => ({
+              data: [
+                {
+                  user_id: "user-1",
+                  entity_type: "documents",
+                  deleted: false,
+                  updated_at: new Date().toISOString(),
+                },
+              ],
+              count: 1,
+              error: null,
+            })),
+          })),
+        };
+      }
+
+      if (table === "user_usage") {
+        return {
+          select: vi.fn((columns: string) => ({
+            eq: vi.fn(async () => {
+              if (columns.includes("customer_ai_autofills_created")) {
+                return {
+                  data: null,
+                  error: {
+                    code: "42703",
+                    message:
+                      "column customer_ai_autofills_created does not exist",
+                  },
+                };
+              }
+
+              return {
+                data: [{ documents_created: 2, expense_scans_created: 1 }],
+                error: null,
+              };
+            }),
+          })),
+        };
+      }
+
+      if (table === "app_error_events") {
+        return {
+          select: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(async () => ({
+                data: null,
+                error: {
+                  code: "42P01",
+                  message: "relation app_error_events does not exist",
+                },
+              })),
+            })),
+          })),
+        };
+      }
+
+      return {
+        select: vi.fn(() => ({
+          limit: vi.fn(async () => ({ data: [], error: null })),
+        })),
+      };
+    });
+
     vi.mocked(getSupabaseAdmin).mockReturnValue({
       rpc: vi.fn(async () => ({
         data: null,
         error: {
-          code: "PGRST202",
-          message: "Could not find the function admin_health_snapshot",
+          code: "42703",
+          message: "column uu.customer_ai_autofills_created does not exist",
         },
       })),
+      from,
+      auth: {
+        admin: {
+          listUsers: vi.fn(async () => ({
+            data: {
+              users: [
+                {
+                  id: "user-1",
+                  email: "cliente@example.com",
+                  created_at: new Date().toISOString(),
+                  last_sign_in_at: new Date().toISOString(),
+                },
+              ],
+              total: 1,
+            },
+            error: null,
+          })),
+        },
+      },
     } as never);
 
     const response = await GET(request());
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.monitoringAvailable).toBe(false);
+    expect(body.monitoringAvailable).toBe(true);
+    expect(body.degraded).toBe(true);
+    expect(body.health.summary.syncRows).toBe(1);
+    expect(body.health.topUsers[0].email).toBe("cliente@example.com");
   });
 });
