@@ -417,6 +417,37 @@ function buildCodexHandoffBlock(scope: string) {
   ].join("\n");
 }
 
+async function copyTextToClipboard(value: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall back to the textarea path below for browsers or embedded views
+      // that expose Clipboard API but reject writes.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-1000px";
+  textarea.style.left = "-1000px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  return copied;
+}
+
 function CopyableLogPanel({
   title,
   description,
@@ -429,12 +460,8 @@ function CopyableLogPanel({
   const [copied, setCopied] = useState(false);
 
   const copy = useCallback(async () => {
-    if (!navigator.clipboard?.writeText) return;
-    try {
-      await navigator.clipboard.writeText(log);
-    } catch {
-      return;
-    }
+    const ok = await copyTextToClipboard(log);
+    if (!ok) return;
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2200);
   }, [log]);
@@ -1778,12 +1805,8 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
   const [copiedSecurityLog, setCopiedSecurityLog] = useState(false);
 
   const copySecurityLog = useCallback(async () => {
-    if (!navigator.clipboard?.writeText) return;
-    try {
-      await navigator.clipboard.writeText(securityLog);
-    } catch {
-      return;
-    }
+    const ok = await copyTextToClipboard(securityLog);
+    if (!ok) return;
     setCopiedSecurityLog(true);
     window.setTimeout(() => setCopiedSecurityLog(false), 2200);
   }, [securityLog]);
