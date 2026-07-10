@@ -66,16 +66,16 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("const created = addSupplier(resolved.create)");
   });
 
-  it("avisa si un escaneo trae articulos nuevos para Productos", () => {
+  it("notifica sin bloquear si un escaneo trae articulos nuevos para Productos", () => {
     const formPage = source("../app/gastos/nuevo/page.tsx");
 
+    expect(formPage).toContain("function scanReviewNotice");
     expect(formPage).toContain("newCatalogProductReasonForScanPayload");
     expect(formPage).toContain("artículo");
     expect(formPage).toContain("nuevo");
     expect(formPage).toContain("purchaseLineHasCatalogProduct(line, productKeys)");
-    expect(formPage).toContain(
-      "newCatalogProductLinesForScanPayload(review.payload).length > 0",
-    );
+    expect(formPage).toContain("text-sky-700");
+    expect(formPage).not.toContain("Revisa la factura antes de guardar");
   });
 
   it("marca como listo el escaneo que completa un resumen de proveedor", () => {

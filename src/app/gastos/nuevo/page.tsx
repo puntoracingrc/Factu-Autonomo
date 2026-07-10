@@ -667,7 +667,7 @@ export default function NuevoGastoPage() {
       .filter(Boolean)
       .join(", ");
     const tail = lines.length > 3 ? ` y ${lines.length - 3} más` : "";
-    return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}. Revisa la factura antes de guardar.`;
+    return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}.`;
   }
 
   function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
@@ -738,11 +738,6 @@ export default function NuevoGastoPage() {
     );
     if (negativeAmountReason) return negativeAmountReason;
 
-    const newCatalogProductReason = newCatalogProductReasonForScanPayload(
-      review.payload,
-    );
-    if (newCatalogProductReason) return newCatalogProductReason;
-
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -774,6 +769,10 @@ export default function NuevoGastoPage() {
     return null;
   }
 
+  function scanReviewNotice(review: PendingExpenseScan) {
+    return newCatalogProductReasonForScanPayload(review.payload);
+  }
+
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (negativeAmountReasonForScanPayload(review.payload)) return "review";
@@ -785,7 +784,6 @@ export default function NuevoGastoPage() {
     if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
-      newCatalogProductLinesForScanPayload(review.payload).length > 0 ||
       review.payload.warnings.length > 0 ||
       review.payload.confidence < 0.8
     ) {
@@ -1155,6 +1153,7 @@ export default function NuevoGastoPage() {
                 .map((review) => {
                   const status = scanReviewStatus(review);
                   const warningText = scanReviewWarning(review);
+                  const noticeText = scanReviewNotice(review);
                   const isActive = review.id === activeScanReview?.id;
                   const icon =
                     status === "ready" ? (
@@ -1205,6 +1204,11 @@ export default function NuevoGastoPage() {
                                 }`}
                               >
                                 {warningText}
+                              </p>
+                            ) : null}
+                            {noticeText ? (
+                              <p className="mt-1 text-sm font-medium text-sky-700">
+                                {noticeText}
                               </p>
                             ) : null}
                           </div>
