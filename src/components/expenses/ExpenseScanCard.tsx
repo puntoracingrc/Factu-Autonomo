@@ -36,11 +36,17 @@ interface ExpenseScanCardProps {
     payload: ExpenseScanPayload,
     options?: { fileName?: string; append?: boolean },
   ) => void;
+  onScanProgress?: (
+    progress: { current: number; total: number; fileName?: string } | null,
+  ) => void;
 }
 
 const MAX_SCAN_FILES = 10;
 
-export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
+export function ExpenseScanCard({
+  onScanned,
+  onScanProgress,
+}: ExpenseScanCardProps) {
   const searchParams = useSearchParams();
   const { billingEnabled, isPro, checkoutScanPack } = useBilling();
   const { user } = useCloudSync();
@@ -215,7 +221,12 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       const errors: string[] = [];
       let imported = 0;
 
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
+        onScanProgress?.({
+          current: index + 1,
+          total: files.length,
+          fileName: file.name,
+        });
         const result = await scanFile(file);
         if (result.quota) setQuota(result.quota);
 
@@ -243,6 +254,7 @@ export function ExpenseScanCard({ onScanned }: ExpenseScanCardProps) {
       setError("Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
     } finally {
       setScanning(false);
+      onScanProgress?.(null);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
