@@ -4,7 +4,9 @@ export const DEFAULT_EXPENSE_INBOX_DOMAIN = "mail.facturacion-autonomos.app";
 export const EXPENSE_INBOX_LOCAL_PART = "gastos";
 const EXPENSE_INBOX_ALIAS_FALLBACK = "mi-negocio";
 const EXPENSE_INBOX_ALIAS_MAX_LENGTH = 48;
-const EXPENSE_INBOX_PRIVATE_SUFFIX_LENGTH = 10;
+const EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MAX_LENGTH = 3;
+const EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MIN_LENGTH = 2;
+const EXPENSE_INBOX_PRIVATE_SUFFIX_LENGTH = 8;
 
 export type ExpenseInboxDeliveryState = "ready" | "needs_setup" | "unknown";
 
@@ -271,14 +273,18 @@ export function extractExpenseInboxAliasToken(
   return match?.[1] ?? null;
 }
 
-export function normalizeExpenseInboxAliasBase(value: string | undefined): string {
-  const normalized = (value ?? "")
+function normalizeExpenseInboxAliasSlug(value: string | undefined): string {
+  return (value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-{2,}/g, "-");
+}
+
+export function normalizeExpenseInboxAliasBase(value: string | undefined): string {
+  const normalized = normalizeExpenseInboxAliasSlug(value);
   const readable = normalized || EXPENSE_INBOX_ALIAS_FALLBACK;
   const longEnough = readable.length >= 8 ? readable : `${readable}-gastos`;
   return (
@@ -286,6 +292,31 @@ export function normalizeExpenseInboxAliasBase(value: string | undefined): strin
       .slice(0, EXPENSE_INBOX_ALIAS_MAX_LENGTH)
       .replace(/-+$/g, "") || EXPENSE_INBOX_ALIAS_FALLBACK
   );
+}
+
+export function compactExpenseInboxAliasBase(value: string | undefined): string {
+  const normalized =
+    normalizeExpenseInboxAliasSlug(value) ||
+    normalizeExpenseInboxAliasSlug(EXPENSE_INBOX_ALIAS_FALLBACK);
+  const words = normalized.split("-").filter(Boolean);
+  const initials = words
+    .map((word) => word[0])
+    .join("")
+    .slice(0, EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MAX_LENGTH);
+  const readable = words
+    .join("")
+    .slice(0, EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MAX_LENGTH);
+  const candidate =
+    initials.length >= EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MIN_LENGTH
+      ? initials
+      : readable;
+  if (candidate.length >= EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MIN_LENGTH) {
+    return candidate;
+  }
+  const padded = `${candidate}${normalizeExpenseInboxAliasSlug(
+    EXPENSE_INBOX_ALIAS_FALLBACK,
+  ).replace(/-/g, "")}`;
+  return padded.slice(0, EXPENSE_INBOX_PRIVATE_ALIAS_BASE_MAX_LENGTH);
 }
 
 export function buildFriendlyExpenseInboxAliasToken(
@@ -320,14 +351,7 @@ export function buildPrivateExpenseInboxAliasToken(
     throw new Error("El sufijo privado del buzón no es válido.");
   }
 
-  const cleanBase = normalizeExpenseInboxAliasBase(base);
-  const baseMaxLength = Math.max(
-    EXPENSE_INBOX_ALIAS_MAX_LENGTH - cleanSuffix.length - 1,
-    8,
-  );
-  const trimmedBase =
-    cleanBase.slice(0, baseMaxLength).replace(/-+$/g, "") ||
-    EXPENSE_INBOX_ALIAS_FALLBACK;
+  const trimmedBase = compactExpenseInboxAliasBase(base);
   return `${trimmedBase}-${cleanSuffix}`;
 }
 

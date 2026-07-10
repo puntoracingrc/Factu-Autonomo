@@ -652,10 +652,71 @@ export default function NuevoGastoPage() {
 
   function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
     return (payload.expense.purchaseLines ?? []).filter(
-      (line) =>
-        line.catalogProduct !== false &&
-        !purchaseLineHasCatalogProduct(line, productKeys),
+      (line) => !purchaseLineHasCatalogProduct(line, productKeys),
     );
+  }
+
+  function newCatalogProductLinesEnabledForScanPayload(
+    payload: ExpenseScanPayload,
+  ) {
+    const lines = newCatalogProductLinesForScanPayload(payload);
+    return lines.length > 0 && lines.every((line) => line.catalogProduct === true);
+  }
+
+  function scanPayloadWithCatalogProductSelection(
+    payload: ExpenseScanPayload,
+    enabled: boolean,
+  ): ExpenseScanPayload {
+    return {
+      ...payload,
+      expense: {
+        ...payload.expense,
+        purchaseLines: payload.expense.purchaseLines?.map((line) =>
+          purchaseLineHasCatalogProduct(line, productKeys)
+            ? line
+            : { ...line, catalogProduct: enabled },
+        ),
+      },
+    };
+  }
+
+  function setScanReviewCatalogProductSelection(
+    review: PendingExpenseScan,
+    enabled: boolean,
+  ) {
+    setActiveScanReview((current) =>
+      current?.id === review.id
+        ? {
+            ...current,
+            payload: scanPayloadWithCatalogProductSelection(
+              current.payload,
+              enabled,
+            ),
+          }
+        : current,
+    );
+    setPendingScans((current) =>
+      current.map((item) =>
+        item.id === review.id
+          ? {
+              ...item,
+              payload: scanPayloadWithCatalogProductSelection(
+                item.payload,
+                enabled,
+              ),
+            }
+          : item,
+      ),
+    );
+    if (activeScanReview?.id === review.id) {
+      setPurchaseLines((current) =>
+        current.map((line) =>
+          purchaseLineHasCatalogProduct(line, productKeys)
+            ? line
+            : { ...line, catalogProduct: enabled },
+        ),
+      );
+    }
   }
 
   function newCatalogProductReasonForScanPayload(payload: ExpenseScanPayload) {
@@ -667,7 +728,7 @@ export default function NuevoGastoPage() {
       .filter(Boolean)
       .join(", ");
     const tail = lines.length > 3 ? ` y ${lines.length - 3} más` : "";
-    return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}. Revisa la factura antes de guardar.`;
+    return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}.`;
   }
 
   function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
@@ -738,11 +799,6 @@ export default function NuevoGastoPage() {
     );
     if (negativeAmountReason) return negativeAmountReason;
 
-    const newCatalogProductReason = newCatalogProductReasonForScanPayload(
-      review.payload,
-    );
-    if (newCatalogProductReason) return newCatalogProductReason;
-
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -774,6 +830,10 @@ export default function NuevoGastoPage() {
     return null;
   }
 
+  function scanReviewNotice(review: PendingExpenseScan) {
+    return newCatalogProductReasonForScanPayload(review.payload);
+  }
+
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (negativeAmountReasonForScanPayload(review.payload)) return "review";
@@ -785,7 +845,6 @@ export default function NuevoGastoPage() {
     if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
-      newCatalogProductLinesForScanPayload(review.payload).length > 0 ||
       review.payload.warnings.length > 0 ||
       review.payload.confidence < 0.8
     ) {
@@ -1155,6 +1214,13 @@ export default function NuevoGastoPage() {
                 .map((review) => {
                   const status = scanReviewStatus(review);
                   const warningText = scanReviewWarning(review);
+                  const noticeText = scanReviewNotice(review);
+                  const newCatalogProductLines =
+                    newCatalogProductLinesForScanPayload(review.payload);
+                  const canToggleCatalogProducts =
+                    status !== "blocked" && newCatalogProductLines.length > 0;
+                  const catalogProductsEnabled =
+                    newCatalogProductLinesEnabledForScanPayload(review.payload);
                   const isActive = review.id === activeScanReview?.id;
                   const icon =
                     status === "ready" ? (
@@ -1206,6 +1272,27 @@ export default function NuevoGastoPage() {
                               >
                                 {warningText}
                               </p>
+                            ) : null}
+                            {noticeText ? (
+                              <p className="mt-1 text-sm font-medium text-sky-700">
+                                {noticeText}
+                              </p>
+                            ) : null}
+                            {canToggleCatalogProducts ? (
+                              <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded"
+                                  checked={catalogProductsEnabled}
+                                  onChange={(event) =>
+                                    setScanReviewCatalogProductSelection(
+                                      review,
+                                      event.target.checked,
+                                    )
+                                  }
+                                />
+                                Añadir estos artículos a Productos al guardar
+                              </label>
                             ) : null}
                           </div>
                         </div>

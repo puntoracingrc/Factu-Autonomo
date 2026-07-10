@@ -59,13 +59,16 @@ describe("expense inbox", () => {
         "Persianas Almar",
         "A1B2-C3D4-E5F6",
       ),
-    ).toBe("persianas-almar-a1b2c3d4e5");
-    expect(
-      buildPrivateExpenseInboxAliasToken(
-        "Mi Empresa con Nombre Muy Largo",
-        "1234567890",
-      ),
-    ).toMatch(/^mi-empresa-con-nombre-muy-largo-[a-z0-9]{10}$/);
+    ).toBe("pa-a1b2c3d4");
+
+    const longNameAlias = buildPrivateExpenseInboxAliasToken(
+      "Mi Empresa con Nombre Muy Largo",
+      "1234567890",
+    );
+    expect(longNameAlias).toBe("mec-12345678");
+    expect(buildExpenseInboxAddress(longNameAlias).length).toBeLessThanOrEqual(
+      50,
+    );
   });
 
   it("detecta cuando el dominio del buzón aún entrega en IONOS", () => {
