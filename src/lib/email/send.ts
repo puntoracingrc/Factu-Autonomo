@@ -10,6 +10,7 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
   attachments?: EmailAttachment[];
 }
 
@@ -40,6 +41,7 @@ export async function sendEmail(
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(input.replyTo ? { reply_to: input.replyTo } : {}),
       ...(input.attachments?.length
         ? { attachments: input.attachments }
         : {}),

@@ -3,6 +3,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 type CspReportValue = string | number | boolean | null;
 
@@ -58,8 +59,13 @@ export async function POST(request: Request) {
   });
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const body = await request.json().catch(() => null);
-  const report = sanitizeCspReport(body);
+  const bodyResult = await readJsonBody(request, {
+    maxBytes: 32 * 1024,
+    invalidMessage: "Informe CSP no válido.",
+    tooLargeMessage: "El informe CSP es demasiado grande.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const report = sanitizeCspReport(bodyResult.data);
   if (!report) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }

@@ -10,6 +10,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
@@ -31,8 +32,12 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const body = await request.json().catch(() => null);
-  const input = normalizeExpenseScanCorrectionInput(body);
+  const bodyResult = await readJsonBody(request, {
+    maxBytes: 512 * 1024,
+    invalidMessage: "La corrección no es válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const input = normalizeExpenseScanCorrectionInput(bodyResult.data);
   if (!input) {
     return NextResponse.json(
       { error: "Falta la lectura original o la instrucción de corrección." },

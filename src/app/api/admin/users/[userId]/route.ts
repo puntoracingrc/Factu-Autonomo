@@ -12,6 +12,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type RouteParams = {
@@ -165,7 +166,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   const { userId } = await params;
-  const body = (await request.json()) as AdminUserPatchBody;
+  const bodyResult = await readJsonBody<AdminUserPatchBody>(request, {
+    maxBytes: 16 * 1024,
+    invalidMessage: "Acción admin no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   if (body.action === "subscription") {
     const normalizedAiCreditUnits = normalizeAdminAiCreditUnits(

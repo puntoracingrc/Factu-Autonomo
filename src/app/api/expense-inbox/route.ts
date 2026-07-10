@@ -13,6 +13,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 function serverError(error: unknown) {
   return NextResponse.json(
@@ -102,12 +103,18 @@ export async function PATCH(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  try {
-    const body = (await request.json().catch(() => ({}))) as {
+  const bodyResult = await readJsonBody<{
       action?: unknown;
       id?: unknown;
       status?: unknown;
-    };
+  }>(request, {
+    maxBytes: 8 * 1024,
+    invalidMessage: "Petición de buzón no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+
+  try {
+    const body = bodyResult.data;
     if (body.action === "rotate-alias") {
       const rotateRateLimit = await checkRateLimit(
         request,

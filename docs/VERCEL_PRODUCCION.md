@@ -57,6 +57,10 @@ Copia desde tu `.env.local` (Production + Preview):
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
 | `EMAIL_FROM` | `Factu - Facturación Autónomos <info@facturacion-autonomos.app>` |
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |
+| `SERVER_RATE_LIMIT_BACKEND` | `supabase` tras aplicar/verificar la migracion distribuida |
+| `SERVER_RATE_LIMIT_SALT` | secreto aleatorio exclusivo; no usar URL, email ni otra clave |
+| `CRON_SECRET` | secreto aleatorio para autenticar Vercel Cron |
+| `VERCEL_PROJECT_ID` | ID del proyecto `factu-autonomo`, solo servidor |
 
 Después: **Deployments → Redeploy** (sin caché si cambias muchas variables).
 
@@ -73,11 +77,50 @@ Variables:
 | `VERCEL_TEAM_ID` | ID del equipo, por ejemplo `team_...` |
 | `VERCEL_BILLING_TEAM_SLUG` | alternativa a `VERCEL_TEAM_ID` si se usa slug |
 | `VERCEL_USAGE_PROJECT_SLUG` | `factu-autonomo` |
+| `VERCEL_PROJECT_ID` | ID `prj_...` del proyecto para dominio, deployments y Firewall |
 | `VERCEL_BILLING_CYCLE_START_DAY` | `15`, según el ciclo visto en Vercel |
 | `VERCEL_BILLING_CYCLE_START_HOUR` | `9`, según el ciclo visto en Vercel |
 
 No usar variables `NEXT_PUBLIC_` para este token. Si faltan estas variables, el
 admin sigue funcionando y muestra el panel como pendiente de conectar.
+
+## Produccion, CI y dominio en admin
+
+La ruta protegida `/api/admin/operations-status` compara:
+
+- SHA de `main` en GitHub;
+- ultimo workflow CI de `main` y ultimo CodeQL visible;
+- ultimo deployment Production listo de Vercel;
+- deployment al que apunta `facturacion-autonomos.app`;
+- configuracion y eventos de Vercel Firewall.
+
+El panel marca rojo si el CI ya termino correctamente pero el dominio sigue en
+otro SHA/deployment. Los logs copiables omiten tokens e IPs. La ruta exige admin
+con MFA igual que el resto de APIs internas.
+
+## Firewall y bots
+
+Estado aplicado el 2026-07-10:
+
+- Firewall habilitado.
+- System Mitigations activo.
+- Attack Mode apagado.
+- Bot Protection: `Log`.
+- AI Bots: `Log`.
+- Sin reglas custom, IP blocks, deny o challenge en esta fase.
+
+El modo `Log` no muestra retos ni bloquea usuarios. Admin agrega los eventos de
+24 horas por accion/host y elimina la IP antes de devolverlos al navegador.
+
+## Cron de alertas de seguridad
+
+`vercel.json` programa `/api/security/health-alert` cada 15 minutos. Vercel
+envia `Authorization: Bearer <CRON_SECRET>` automaticamente. La ruta:
+
+- devuelve `401` si el secreto no coincide;
+- solo envia correo si la senal de abuso es roja y reciente;
+- deduplica durante seis horas;
+- usa `ADMIN_EMAILS` y no incluye IPs, usuarios, tokens ni documentos.
 
 Estado operativo verificado el 2026-07-10:
 

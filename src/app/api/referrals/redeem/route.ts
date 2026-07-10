@@ -6,6 +6,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"), {
@@ -34,12 +35,12 @@ export async function POST(request: Request) {
     });
   }
 
-  let body: { code?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Petición inválida" }, { status: 400 });
-  }
+  const bodyResult = await readJsonBody<{ code?: string }>(request, {
+    maxBytes: 4 * 1024,
+    invalidMessage: "Petición inválida",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   const code = body.code?.trim();
   if (!code) {

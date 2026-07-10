@@ -14,4 +14,14 @@ describe("welcome email template", () => {
     expect(content.html).toContain("Entrar a mi Panel de Control");
     expect(content.html).toContain("Veri*Factu");
   });
+
+  it("escapes an optional recipient name before rendering HTML", () => {
+    const content = buildWelcomeEmail({
+      email: "test@example.com",
+      recipientName: '<img src=x onerror="alert(1)">',
+    });
+
+    expect(content.html).not.toContain("<img src=x");
+    expect(content.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+  });
 });

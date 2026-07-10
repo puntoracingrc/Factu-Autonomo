@@ -1,9 +1,11 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import {
   ingestExpenseInboxEmail,
   ingestResendExpenseInboxEmail,
 } from "@/lib/expense-inbox-server";
+import { readTextBody } from "@/lib/server/request-body";
 
 function expectedSecret(): string {
   return process.env.EXPENSE_INBOX_WEBHOOK_SECRET?.trim() ?? "";
@@ -27,6 +29,15 @@ function requestSecret(request: Request): string {
     request.headers.get("x-expense-inbox-secret")?.trim() ||
     request.headers.get("x-webhook-secret")?.trim() ||
     ""
+  );
+}
+
+function secretsEqual(actual: string, expected: string): boolean {
+  const actualBytes = Buffer.from(actual);
+  const expectedBytes = Buffer.from(expected);
+  return (
+    actualBytes.length === expectedBytes.length &&
+    timingSafeEqual(actualBytes, expectedBytes)
   );
 }
 
@@ -59,7 +70,13 @@ function isResendReceivedEvent(payload: unknown): boolean {
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  const bodyResult = await readTextBody(request, {
+    maxBytes: 4 * 1024 * 1024,
+    invalidMessage: "Payload no válido.",
+    tooLargeMessage: "El webhook de correo es demasiado grande.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const rawBody = bodyResult.data;
 
   let payload: unknown;
   if (hasResendSignature(request)) {
@@ -70,7 +87,7 @@ export async function POST(request: Request) {
     }
   } else {
     const secret = expectedSecret();
-    if (!secret || requestSecret(request) !== secret) {
+    if (!secret || !secretsEqual(requestSecret(request), secret)) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 

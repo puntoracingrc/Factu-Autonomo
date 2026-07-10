@@ -3,6 +3,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export const runtime = "nodejs";
 
@@ -83,15 +84,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "La respuesta de Google no se pudo leer." },
-      { status: 400 },
-    );
-  }
+  const bodyResult = await readJsonBody(request, {
+    maxBytes: 16 * 1024,
+    invalidMessage: "La respuesta de Google no se pudo leer.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   const code =
     body && typeof body === "object" && "code" in body

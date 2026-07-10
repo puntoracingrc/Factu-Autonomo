@@ -1,6 +1,6 @@
 # Checklist Supabase
 
-Ultima revision: 2026-07-09.
+Ultima revision: 2026-07-10.
 
 ## Revision rapida mensual
 
@@ -9,6 +9,9 @@ Ultima revision: 2026-07-09.
 - Auth: comprobar limites de login, signup, recuperacion y OTP.
 - Passwords: mantener minimo 12 caracteres para nuevas contraseñas, sin reglas
   de composicion artificiales.
+- Leaked passwords: confirmar que Supabase Auth rechaza contrasenas aparecidas
+  en filtraciones conocidas. Esta opcion Pro sigue pendiente de verificacion en
+  Dashboard.
 - Auth CAPTCHA: confirmar que Cloudflare Turnstile sigue activo en registro y
   login.
 - Sesiones: comprobar caducidad maxima y caducidad por inactividad.
@@ -37,8 +40,8 @@ Ultima revision: 2026-07-09.
 - Admin recuperacion MFA: comprobar que `admin_mfa_recovery_challenges` existe,
   no tiene permisos para `public`, `anon` ni `authenticated`, y solo se usa desde
   servidor con `service_role`.
-- WAF/bots: revisar si hay scraping, registros masivos o picos raros antes de
-  contratar/activar proteccion avanzada.
+- WAF/bots: revisar eventos agregados en admin. Bot Protection y AI Bots estan
+  activos en `Log`; no pasar a challenge/deny sin medir falsos positivos.
 
 ## Estado revisado
 
@@ -69,8 +72,17 @@ Ultima revision: 2026-07-09.
   `SERVER_RATE_LIMIT_BACKEND=supabase` configurado en Vercel Production para
   nuevos despliegues; bucket `security_csp_report` observado tras prueba real de
   produccion.
+- Rate limit salt: `SERVER_RATE_LIMIT_SALT` aleatorio configurado en Vercel
+  Production para que los identificadores no dependan de valores publicos.
 - Admin salud: panel preparado para resumir abuso/scraping por namespace y
   generar log copiable sin IPs, tokens ni emails.
+- Alertas: cron protegido con `CRON_SECRET` preparado para avisar por email a
+  admins cuando una senal roja sea reciente, con deduplicacion de seis horas.
+- Operacion externa: admin compara GitHub main/CI/CodeQL con deployment, dominio
+  y Vercel Firewall. Los eventos WAF llegan agregados y sin IPs.
+- GitHub: Dependabot, CodeQL, secret scanning y push protection activos.
+- Leaked password protection: pendiente de confirmar manualmente en Supabase
+  Auth; no se modifica con la service role de la aplicacion.
 - Admin MFA: cuenta `puntoracingrc@gmail.com` verificada con TOTP real en sesion
   `aal2`; Vercel Production tiene `ADMIN_MFA_REQUIRED=true`.
 - MFA usuarios: preparado como opt-in en Cuenta > Seguridad; recuperacion por

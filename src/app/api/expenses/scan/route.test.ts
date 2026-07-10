@@ -91,6 +91,14 @@ describe("GET /api/expenses/scan", () => {
 
   it("devuelve quota sin limite para cuentas de aprendizaje IA", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      limit: 180,
+      remaining: 179,
+      resetAt: Date.now() + 600_000,
+      retryAfterSeconds: 600,
+      backend: "memory",
+    });
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "learning-user",
       email: "persianasalmar@gmail.com",
@@ -101,6 +109,15 @@ describe("GET /api/expenses/scan", () => {
 
     expect(response.status).toBe(200);
     expect(getExpenseScanQuota).not.toHaveBeenCalled();
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      {
+        namespace: "expense_scan_quota",
+        limit: 180,
+        windowMs: 600_000,
+      },
+      "learning-user",
+    );
     expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
     expect(body.quota.remaining).toBe(Number.MAX_SAFE_INTEGER);
   });

@@ -24,6 +24,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { validateRequestBodySize } from "@/lib/server/request-body";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,16 @@ export async function GET(request: Request) {
       { status: 401 },
     );
   }
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "expense_scan_quota",
+      limit: 180,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   if (hasAiLearningScanAccess(user.email)) {
     return NextResponse.json({ quota: buildAiLearningTestQuota() });
@@ -99,6 +110,13 @@ export async function POST(request: Request) {
     user?.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+
+  const oversized = await validateRequestBodySize(
+    request,
+    4.25 * 1024 * 1024,
+    "El archivo supera el límite seguro de subida.",
+  );
+  if (oversized) return oversized;
 
   const form = await request.formData();
   const file = form.get("file");

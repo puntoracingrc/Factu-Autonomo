@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   aiLearningAccountForEmail,
   buildExpenseScanLearningEvent,
+  type ExpenseScanLearningFeedbackInput,
 } from "@/lib/ai-learning";
 import { persistAiLearningEvent } from "@/lib/ai-learning-store";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
@@ -9,6 +10,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export async function POST(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
@@ -31,8 +33,12 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const body = await request.json().catch(() => null);
-  const event = buildExpenseScanLearningEvent(body, {
+  const bodyResult = await readJsonBody<ExpenseScanLearningFeedbackInput>(request, {
+    maxBytes: 512 * 1024,
+    invalidMessage: "El aprendizaje no es válido.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const event = buildExpenseScanLearningEvent(bodyResult.data, {
     userId: user.id,
     email: user.email,
   });

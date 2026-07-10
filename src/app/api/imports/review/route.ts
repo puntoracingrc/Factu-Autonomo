@@ -14,6 +14,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 async function canUseImportAi(userId: string): Promise<{
   allowed: boolean;
@@ -57,8 +58,12 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const body = await request.json().catch(() => null);
-  const input = normalizeImportAiReviewInput(body);
+  const bodyResult = await readJsonBody(request, {
+    maxBytes: 256 * 1024,
+    invalidMessage: "La previsualización no es válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const input = normalizeImportAiReviewInput(bodyResult.data);
   if (!input) {
     return NextResponse.json(
       { error: "Falta una previsualización válida para revisar." },

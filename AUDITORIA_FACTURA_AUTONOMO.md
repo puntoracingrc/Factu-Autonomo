@@ -1,5 +1,11 @@
 # Auditoria tecnica profunda de Factura Autonomo
 
+> Nota de vigencia (2026-07-10): este documento conserva la fotografia y los
+> hallazgos originales del 2026-06-24. El estado de seguridad actualizado esta
+> en `docs/operacion/security-posture-audit-readiness-2026-07-09.md` y
+> `docs/operacion/security-low-friction-hardening-2026-07-10.md`. No deben
+> presentarse como abiertos los puntos marcados como resueltos abajo.
+
 Fecha: 2026-06-24  
 Version: 2, segunda pasada de auditoria con foco en produccion comercial  
 Alcance: revision estatica del proyecto Next.js/React/TypeScript, SQL de Supabase, flujos de negocio, importador, Stripe, VeriFactu, PDF, legal y UX.  
@@ -20,6 +26,18 @@ La segunda pasada anade dos conclusiones importantes:
 
 5. Hay funciones de documento que pueden cambiar datos historicos de forma comoda pero peligrosa: fusionar clientes cambia el cliente congelado dentro de documentos existentes, y algunas acciones renumeran recibos/presupuestos despues de borrar.
 6. Algunas funciones Pro estan protegidas en interfaz, pero no siempre de forma robusta en servidor. Esto no siempre es un riesgo legal, pero si es un riesgo comercial y de consistencia del producto.
+
+## Actualizacion de hallazgos de seguridad
+
+| ID original | Estado 2026-07-10 | Evidencia actual |
+| --- | --- | --- |
+| `SP-C-01` | Resuelto | Billing/uso queda cerrado a usuarios normales mediante migraciones RLS/grants; las escrituras sensibles usan servidor/service role. |
+| `SP-C-03` | Resuelto | `/api/customers/parse` usa `fetchUserSubscriptionServer`, bearer confirmado y consumo atomico de unidades. |
+| `SP-H-06` | Resuelto | El consumo IA usa la RPC atomica `consume_ai_units`, restringida a `service_role`. |
+| Rutas API sin limites globales | Reforzado | Inventario automatico, rate limit distribuido y limites de cuerpo por ruta. |
+| Scraping/bots | Reforzado | Vercel Bot Protection y AI Bots en modo `Log`, panel admin y alertas saneadas. |
+| Dependencias/codigo vulnerable | Reforzado | Dependabot y CodeQL default setup activos. |
+| `SP-C-02`, `SP-C-04`, `SP-C-05` | Abierto/controlado | VeriFactu productivo, evidencia legal servidor y dependencia localStorage siguen requiriendo sus fases propias. |
 
 ## Segunda pasada de auditoria profunda
 

@@ -20,6 +20,7 @@ import {
 import { getStripe, planFromStripePriceId } from "@/lib/billing/stripe";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
+import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -218,7 +219,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Firma ausente" }, { status: 400 });
   }
 
-  const payload = await request.text();
+  const payloadResult = await readTextBody(request, {
+    maxBytes: 1024 * 1024,
+    invalidMessage: "El evento Stripe no es válido.",
+    tooLargeMessage: "El evento Stripe es demasiado grande.",
+  });
+  if (!payloadResult.ok) return payloadResult.response;
+  const payload = payloadResult.data;
   let event: Stripe.Event;
 
   try {

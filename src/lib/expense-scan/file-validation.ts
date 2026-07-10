@@ -29,7 +29,7 @@ export function validateScanFile(file: File): string | null {
   const maxBytes = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
   if (file.size > maxBytes) {
     return isPdf
-      ? "El PDF es demasiado grande (máx. 8 MB)."
+      ? "El PDF es demasiado grande (máx. 4 MB)."
       : "La imagen es demasiado grande (máx. 4 MB). Si es una foto del móvil, debería optimizarse sola; inténtalo de nuevo.";
   }
 
