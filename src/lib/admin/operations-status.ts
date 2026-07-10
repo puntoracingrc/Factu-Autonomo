@@ -28,6 +28,8 @@ export interface AdminOperationsStatus {
     mainUpdatedAt: string | null;
     ci: AdminOperationsRun | null;
     codeql: AdminOperationsRun | null;
+    scheduler: AdminOperationsRun | null;
+    schedulerLevel: AdminHealthLevel;
   };
   deployment: {
     level: AdminHealthLevel;
@@ -126,6 +128,19 @@ function runLevel(run: AdminOperationsRun | null): AdminHealthLevel {
   return run.conclusion === "success" ? "ok" : "action";
 }
 
+const SCHEDULER_STALE_MS = 60 * 60_000;
+
+function schedulerRunLevel(
+  run: AdminOperationsRun | null,
+  now: Date,
+): AdminHealthLevel {
+  const baseLevel = runLevel(run);
+  if (baseLevel !== "ok") return baseLevel;
+  if (!run?.updatedAt) return "watch";
+  const ageMs = now.getTime() - new Date(run.updatedAt).getTime();
+  return ageMs > SCHEDULER_STALE_MS ? "action" : "ok";
+}
+
 function managedRuleMode(config: Record<string, unknown>, id: string): string {
   const managedRules = asRecord(config.managedRules);
   const rule = asRecord(managedRules[id]);
@@ -185,6 +200,7 @@ function aggregateFirewallEvents(value: unknown): {
 export function buildAdminOperationsStatus(
   input: OperationsStatusInput,
 ): AdminOperationsStatus {
+  const now = input.now ?? new Date();
   const githubCommit = asRecord(input.githubCommit);
   const commitData = asRecord(githubCommit.commit);
   const committer = asRecord(commitData.committer);
@@ -196,11 +212,16 @@ export function buildAdminOperationsStatus(
   const ci = workflowRuns.find((run) => run.name.toLowerCase() === "ci") ?? null;
   const codeql =
     workflowRuns.find((run) => run.name.toLowerCase().includes("codeql")) ?? null;
+  const scheduler =
+    workflowRuns.find(
+      (run) => run.name.toLowerCase() === "security health alert",
+    ) ?? null;
   const ciLevel = runLevel(ci);
   // CodeQL is weekly, so its last run can fall outside the recent-run window.
   // Absence is displayed as unconfirmed but must not create a permanent alert.
   const codeqlLevel = codeql ? runLevel(codeql) : "ok";
-  const githubLevel = maxLevel([ciLevel, codeqlLevel]);
+  const schedulerLevel = schedulerRunLevel(scheduler, now);
+  const githubLevel = maxLevel([ciLevel, codeqlLevel, schedulerLevel]);
 
   const alias = asRecord(input.vercelAlias);
   const aliasDeploymentId =
@@ -268,6 +289,15 @@ export function buildAdminOperationsStatus(
   if (codeqlLevel === "action") {
     recommendations.push("CodeQL ha fallado; revisar el analisis de seguridad del repositorio.");
   }
+  if (schedulerLevel === "action") {
+    recommendations.push(
+      "Las alertas automaticas han fallado o llevan mas de una hora sin ejecutarse.",
+    );
+  } else if (schedulerLevel === "watch") {
+    recommendations.push(
+      "La ejecucion de alertas automaticas aun no se ha podido confirmar.",
+    );
+  }
   if (alignedWithMain === false || domainPointsToLatest === false) {
     recommendations.push("El dominio no coincide con el ultimo main listo; revisar Production Domain.");
   }
@@ -282,7 +312,7 @@ export function buildAdminOperationsStatus(
   }
 
   return {
-    generatedAt: (input.now ?? new Date()).toISOString(),
+    generatedAt: now.toISOString(),
     level,
     label:
       level === "action" ? "Actuar" : level === "watch" ? "Vigilar" : "Todo bien",
@@ -298,6 +328,8 @@ export function buildAdminOperationsStatus(
       mainUpdatedAt,
       ci,
       codeql,
+      scheduler,
+      schedulerLevel,
     },
     deployment: {
       level: deploymentLevel,

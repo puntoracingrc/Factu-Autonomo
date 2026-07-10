@@ -320,6 +320,7 @@ function buildAdminSectionSignals(input: {
     const securityLevel = highestAdminLevel([
       health.abuse.level,
       ...(operations ? [operations.firewall.level] : []),
+      ...(operations ? [operations.github.schedulerLevel] : []),
     ]);
     if (securityLevel !== "ok") {
       signals.seguridad = {
@@ -329,6 +330,9 @@ function buildAdminSectionSignals(input: {
           operations?.firewall.level ?? "external-unknown",
           operations?.firewall.latestAt ?? "none",
           operations?.firewall.events24h ?? 0,
+          operations?.github.scheduler?.id ?? "no-scheduler-run",
+          operations?.github.scheduler?.conclusion ?? "unknown",
+          operations?.github.scheduler?.updatedAt ?? "none",
         ].join("|"),
       };
     }
@@ -1949,6 +1953,10 @@ function buildVercelOperationsLog(
     `github.ci.conclusion=${operations?.github.ci?.conclusion ?? "unknown"}`,
     `github.codeql.status=${operations?.github.codeql?.status ?? "unknown"}`,
     `github.codeql.conclusion=${operations?.github.codeql?.conclusion ?? "unknown"}`,
+    `github.scheduler.level=${operations?.github.schedulerLevel ?? "unknown"}`,
+    `github.scheduler.status=${operations?.github.scheduler?.status ?? "unknown"}`,
+    `github.scheduler.conclusion=${operations?.github.scheduler?.conclusion ?? "unknown"}`,
+    `github.scheduler.updatedAt=${operations?.github.scheduler?.updatedAt ?? "none"}`,
     `waf.enabled=${operations?.firewall.enabled ?? "unknown"}`,
     `waf.botProtection=${operations?.firewall.botProtection ?? "unknown"}`,
     `waf.aiBots=${operations?.firewall.aiBots ?? "unknown"}`,
@@ -2001,6 +2009,11 @@ function buildAdminOperationsLog(
     `github.ci.run=${operations.github.ci?.id ?? "none"}`,
     `github.codeql.status=${operations.github.codeql?.status ?? "unknown"}`,
     `github.codeql.conclusion=${operations.github.codeql?.conclusion ?? "unknown"}`,
+    `github.scheduler.level=${operations.github.schedulerLevel}`,
+    `github.scheduler.status=${operations.github.scheduler?.status ?? "unknown"}`,
+    `github.scheduler.conclusion=${operations.github.scheduler?.conclusion ?? "unknown"}`,
+    `github.scheduler.run=${operations.github.scheduler?.id ?? "none"}`,
+    `github.scheduler.updatedAt=${operations.github.scheduler?.updatedAt ?? "none"}`,
     `deployment.level=${operations.deployment.level}`,
     `deployment.domain=${operations.deployment.domain}`,
     `deployment.alignedWithMain=${operations.deployment.alignedWithMain ?? "unknown"}`,
@@ -2592,7 +2605,7 @@ function OperationsStatusDashboard({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <HealthMetricCard
             Icon={Cloud}
             label="Dominio"
@@ -2610,6 +2623,16 @@ function OperationsStatusDashboard({
             label="GitHub CI"
             value={operationsRunLabel(operations.github.ci)}
             detail={`CodeQL: ${operationsRunLabel(operations.github.codeql)}`}
+          />
+          <HealthMetricCard
+            Icon={Mail}
+            label="Alertas automáticas"
+            value={operationsRunLabel(operations.github.scheduler)}
+            detail={
+              operations.github.scheduler?.updatedAt
+                ? `última ${formatDateTime(operations.github.scheduler.updatedAt)}`
+                : "sin ejecución confirmada"
+            }
           />
           <HealthMetricCard
             Icon={ShieldCheck}

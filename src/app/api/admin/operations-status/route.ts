@@ -70,6 +70,12 @@ async function readExternalJson(
   }
 }
 
+function workflowRunsFrom(value: unknown): unknown[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const runs = (value as { workflow_runs?: unknown }).workflow_runs;
+  return Array.isArray(runs) ? runs : [];
+}
+
 async function fetchOperationsSources(now: Date) {
   const config = vercelConfig();
   const githubHeaders = {
@@ -88,6 +94,16 @@ async function fetchOperationsSources(now: Date) {
   );
   githubRunsUrl.searchParams.set("branch", "main");
   githubRunsUrl.searchParams.set("per_page", "20");
+  const githubCiRunsUrl = new URL(
+    `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs`,
+  );
+  githubCiRunsUrl.searchParams.set("branch", "main");
+  githubCiRunsUrl.searchParams.set("per_page", "1");
+  const githubSchedulerRunsUrl = new URL(
+    `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/security-health-alert.yml/runs`,
+  );
+  githubSchedulerRunsUrl.searchParams.set("branch", "main");
+  githubSchedulerRunsUrl.searchParams.set("per_page", "1");
 
   const vercelReady = Boolean(
     config.token && config.projectId && (config.teamId || config.teamSlug),
@@ -121,19 +137,42 @@ async function fetchOperationsSources(now: Date) {
   firewallEventsUrl.searchParams.set("startTimestamp", String(startTimestamp));
   firewallEventsUrl.searchParams.set("endTimestamp", String(endTimestamp));
 
-  const [githubCommit, githubRuns, vercelAlias, vercelDeployments, firewall, events] =
-    await Promise.all([
+  const [
+    githubCommit,
+    githubRecentRuns,
+    githubCiRuns,
+    githubSchedulerRuns,
+    vercelAlias,
+    vercelDeployments,
+    firewall,
+    events,
+  ] = await Promise.all([
       readExternalJson(githubCommitUrl, githubHeaders),
       readExternalJson(githubRunsUrl, githubHeaders),
+      readExternalJson(githubCiRunsUrl, githubHeaders),
+      readExternalJson(githubSchedulerRunsUrl, githubHeaders),
       vercelReady ? readExternalJson(aliasUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(deploymentsUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(firewallConfigUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(firewallEventsUrl, vercelHeaders) : null,
     ]);
 
+  const githubRuns = {
+    workflow_runs: [
+      ...workflowRunsFrom(githubCiRuns),
+      ...workflowRunsFrom(githubSchedulerRuns),
+      ...workflowRunsFrom(githubRecentRuns),
+    ],
+  };
+
   return {
     configured: {
-      github: Boolean(githubCommit || githubRuns),
+      github: Boolean(
+        githubCommit ||
+          githubRecentRuns ||
+          githubCiRuns ||
+          githubSchedulerRuns,
+      ),
       vercel: vercelReady,
     },
     operations: buildAdminOperationsStatus({

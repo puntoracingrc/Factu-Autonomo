@@ -59,7 +59,7 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |
 | `SERVER_RATE_LIMIT_BACKEND` | `supabase` tras aplicar/verificar la migracion distribuida |
 | `SERVER_RATE_LIMIT_SALT` | secreto aleatorio exclusivo; no usar URL, email ni otra clave |
-| `CRON_SECRET` | secreto aleatorio para autenticar Vercel Cron |
+| `CRON_SECRET` | secreto aleatorio compartido con el workflow protegido de alertas |
 | `VERCEL_PROJECT_ID` | ID del proyecto `factu-autonomo`, solo servidor |
 
 Después: **Deployments → Redeploy** (sin caché si cambias muchas variables).
@@ -112,15 +112,22 @@ Estado aplicado el 2026-07-10:
 El modo `Log` no muestra retos ni bloquea usuarios. Admin agrega los eventos de
 24 horas por accion/host y elimina la IP antes de devolverlos al navegador.
 
-## Cron de alertas de seguridad
+## Alertas programadas de seguridad
 
-`vercel.json` programa `/api/security/health-alert` cada 15 minutos. Vercel
-envia `Authorization: Bearer <CRON_SECRET>` automaticamente. La ruta:
+GitHub Actions ejecuta `.github/workflows/security-health-alert.yml` cada 15
+minutos y llama a `/api/security/health-alert` con un secreto compartido. El
+repositorio usa un runner estandar y es publico. La ruta:
 
 - devuelve `401` si el secreto no coincide;
 - solo envia correo si la senal de abuso es roja y reciente;
 - deduplica durante seis horas;
 - usa `ADMIN_EMAILS` y no incluye IPs, usuarios, tokens ni documentos.
+
+Configuracion necesaria:
+
+- Vercel Production: `CRON_SECRET`.
+- GitHub Actions secret: `SECURITY_HEALTH_CRON_SECRET` con el mismo valor.
+- El workflow tambien admite ejecucion manual para probar el circuito completo.
 
 Estado operativo verificado el 2026-07-10:
 
