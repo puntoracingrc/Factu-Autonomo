@@ -262,6 +262,21 @@ const ADMIN_MENU: Array<{
   },
 ];
 
+const SECURITY_ALERT_SEEN_KEY = "factu-admin-security-alert-seen";
+
+function securityAlertIdFromHealth(health: AdminHealthSnapshot | null): string | null {
+  if (!health || health.abuse.level !== "action") return null;
+  return [
+    health.abuse.latestAt ?? health.generatedAt,
+    health.abuse.totalRequests,
+    health.abuse.totalBuckets,
+    health.abuse.namespaces
+      .filter((item) => item.level === "action")
+      .map((item) => `${item.namespace}:${item.requests}:${item.maxRequests}`)
+      .join(","),
+  ].join("|");
+}
+
 function formatDate(value: string | null) {
   if (!value) return "Sin fecha";
   return new Intl.DateTimeFormat("es-ES", {
@@ -512,10 +527,12 @@ function AdminMenu({
   current,
   onSelect,
   sections,
+  alerts = {},
 }: {
   current: AdminSection;
   onSelect: (section: AdminSection) => void;
   sections: AdminSection[];
+  alerts?: Partial<Record<AdminSection, AdminHealthLevel>>;
 }) {
   const visibleMenu = ADMIN_MENU.filter((entry) => sections.includes(entry.id));
 
@@ -523,28 +540,53 @@ function AdminMenu({
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       {visibleMenu.map(({ id, label, description, Icon }) => {
         const selected = current === id;
+        const alertLevel = alerts[id];
+        const hasActionAlert = alertLevel === "action";
+        const hasWatchAlert = alertLevel === "watch";
+        const buttonClass = hasActionAlert
+          ? "border-red-300 bg-red-50 shadow-red-100 hover:border-red-400 hover:bg-red-50"
+          : hasWatchAlert
+            ? "border-amber-300 bg-amber-50 shadow-amber-100 hover:border-amber-400 hover:bg-amber-50"
+            : selected
+              ? "border-blue-300 bg-blue-50"
+              : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/60";
+        const iconClass = hasActionAlert
+          ? "bg-red-600 text-white"
+          : hasWatchAlert
+            ? "bg-amber-500 text-white"
+            : selected
+              ? "bg-blue-600 text-white"
+              : "bg-slate-100 text-slate-700";
         return (
           <button
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            className={`min-h-[116px] rounded-2xl border p-3 text-left shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-              selected
-                ? "border-blue-300 bg-blue-50"
-                : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/60"
-            }`}
+            className={`min-h-[116px] rounded-2xl border p-3 text-left shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${buttonClass}`}
           >
             <div className="flex items-start gap-3">
               <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-                  selected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-                }`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconClass}`}
               >
-                <Icon className="h-5 w-5" />
+                {hasActionAlert ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : (
+                  <Icon className="h-5 w-5" />
+                )}
               </span>
-              <span>
-                <span className="block text-lg font-bold text-slate-900">
-                  {label}
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-lg font-bold text-slate-900">{label}</span>
+                  {hasActionAlert && (
+                    <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-white">
+                      Aviso
+                    </span>
+                  )}
+                  {hasWatchAlert && (
+                    <span className="rounded-full bg-amber-500 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-white">
+                      Vigilar
+                    </span>
+                  )}
                 </span>
                 <span className="mt-1 block text-sm text-slate-600">
                   {description}
@@ -2603,7 +2645,13 @@ function ErrorsListDashboard({ errors }: { errors: AdminErrorRow[] }) {
   );
 }
 
-function OperationsPanel({ section }: { section: OperationsSection }) {
+function OperationsPanel({
+  section,
+  onHealthLoaded,
+}: {
+  section: OperationsSection;
+  onHealthLoaded?: (health: AdminHealthSnapshot | null) => void;
+}) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
@@ -2647,9 +2695,12 @@ function OperationsPanel({ section }: { section: OperationsSection }) {
     );
     if (!healthResponse.ok) {
       setHealth(null);
+      onHealthLoaded?.(null);
       setHealthNotice(healthBody.error ?? "No se pudo cargar salud del sistema.");
     } else {
-      setHealth(healthBody.health ?? null);
+      const nextHealth = healthBody.health ?? null;
+      setHealth(nextHealth);
+      onHealthLoaded?.(nextHealth);
       setHealthNotice(
         healthBody.monitoringAvailable === false ? healthBody.message ?? null : null,
       );
@@ -2670,7 +2721,7 @@ function OperationsPanel({ section }: { section: OperationsSection }) {
       );
     }
     setLoading(false);
-  }, []);
+  }, [onHealthLoaded]);
 
   useEffect(() => {
     void loadOperations();
@@ -3299,6 +3350,8 @@ export default function AdminPage() {
   const { user, cloudEnabled } = useCloudSync();
   const searchParams = useSearchParams();
   const [section, setSection] = useState<AdminSection>("sistema");
+  const [securityAlertId, setSecurityAlertId] = useState<string | null>(null);
+  const [seenSecurityAlertId, setSeenSecurityAlertId] = useState<string | null>(null);
   const [capabilities, setCapabilities] =
     useState<AdminCapabilitiesResponse | null>(null);
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
@@ -3310,6 +3363,45 @@ export default function AdminPage() {
     if (capabilities.aiLearning) return ["aprendizaje"];
     return [];
   }, [capabilities]);
+  const sectionAlerts = useMemo<Partial<Record<AdminSection, AdminHealthLevel>>>(
+    () =>
+      securityAlertId && seenSecurityAlertId !== securityAlertId
+        ? { seguridad: "action" }
+        : {},
+    [securityAlertId, seenSecurityAlertId],
+  );
+
+  const markSecurityAlertSeen = useCallback((alertId: string) => {
+    setSeenSecurityAlertId(alertId);
+    try {
+      window.localStorage.setItem(SECURITY_ALERT_SEEN_KEY, alertId);
+    } catch {
+      // El aviso seguirá funcionando aunque el navegador bloquee almacenamiento local.
+    }
+  }, []);
+
+  const handleHealthLoaded = useCallback((health: AdminHealthSnapshot | null) => {
+    setSecurityAlertId(securityAlertIdFromHealth(health));
+  }, []);
+
+  const loadSecurityAlert = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    const response = await fetch("/api/admin/health", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return;
+    const body = (await response.json().catch(() => ({}))) as AdminHealthResponse;
+    setSecurityAlertId(securityAlertIdFromHealth(body.health ?? null));
+  }, []);
+
+  useEffect(() => {
+    try {
+      setSeenSecurityAlertId(window.localStorage.getItem(SECURITY_ALERT_SEEN_KEY));
+    } catch {
+      setSeenSecurityAlertId(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -3354,6 +3446,16 @@ export default function AdminPage() {
       setSection(availableSections[0]);
     }
   }, [availableSections, searchParams, section]);
+
+  useEffect(() => {
+    if (capabilities?.fullAdmin) void loadSecurityAlert();
+  }, [capabilities?.fullAdmin, loadSecurityAlert]);
+
+  useEffect(() => {
+    if (section === "seguridad" && securityAlertId) {
+      markSecurityAlertSeen(securityAlertId);
+    }
+  }, [markSecurityAlertSeen, section, securityAlertId]);
 
   return (
     <div>
@@ -3411,6 +3513,7 @@ export default function AdminPage() {
           current={section}
           onSelect={setSection}
           sections={availableSections}
+          alerts={sectionAlerts}
         />
       )}
 
@@ -3418,7 +3521,7 @@ export default function AdminPage() {
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
         section !== "aprendizaje" && (
-        <OperationsPanel section={section} />
+        <OperationsPanel section={section} onHealthLoaded={handleHealthLoaded} />
       )}
       {capabilities?.aiLearning && section === "aprendizaje" && (
         <AiLearningPanel />

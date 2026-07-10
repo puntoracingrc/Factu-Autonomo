@@ -108,11 +108,41 @@ const ACTION_ABUSE_BUCKETS = 25;
 const WATCH_ABUSE_MAX_REQUESTS = 30;
 const ACTION_ABUSE_MAX_REQUESTS = 120;
 
+interface AbuseThresholds {
+  watchRequests: number;
+  actionRequests: number;
+  watchBuckets: number;
+  actionBuckets: number;
+  watchMaxRequests: number;
+  actionMaxRequests: number;
+}
+
+const DEFAULT_ABUSE_THRESHOLDS: AbuseThresholds = {
+  watchRequests: WATCH_ABUSE_REQUESTS,
+  actionRequests: ACTION_ABUSE_REQUESTS,
+  watchBuckets: WATCH_ABUSE_BUCKETS,
+  actionBuckets: ACTION_ABUSE_BUCKETS,
+  watchMaxRequests: WATCH_ABUSE_MAX_REQUESTS,
+  actionMaxRequests: ACTION_ABUSE_MAX_REQUESTS,
+};
+
+const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
+  admin_expenses_scan: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
+};
+
 const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   admin_capabilities: "Admin: capacidades",
   admin_ai_learning_correct: "Admin: corregir IA",
   admin_ai_learning_feedback: "Admin: feedback IA",
   admin_errors: "Admin: errores",
+  admin_expenses_scan: "Admin: escaneo masivo gastos",
   admin_health: "Admin: salud",
   admin_user_mfa: "Admin: MFA usuarios",
   admin_user_restore: "Admin: restauracion",
@@ -234,21 +264,23 @@ function namespaceLabel(namespace: string): string {
 }
 
 function abuseNamespaceLevel(
+  namespace: string,
   buckets: number,
   requests: number,
   maxRequests: number,
 ): AdminHealthLevel {
+  const thresholds = ABUSE_NAMESPACE_THRESHOLDS[namespace] ?? DEFAULT_ABUSE_THRESHOLDS;
   if (
-    requests >= ACTION_ABUSE_REQUESTS ||
-    buckets >= ACTION_ABUSE_BUCKETS ||
-    maxRequests >= ACTION_ABUSE_MAX_REQUESTS
+    requests >= thresholds.actionRequests ||
+    buckets >= thresholds.actionBuckets ||
+    maxRequests >= thresholds.actionMaxRequests
   ) {
     return "action";
   }
   if (
-    requests >= WATCH_ABUSE_REQUESTS ||
-    buckets >= WATCH_ABUSE_BUCKETS ||
-    maxRequests >= WATCH_ABUSE_MAX_REQUESTS
+    requests >= thresholds.watchRequests ||
+    buckets >= thresholds.watchBuckets ||
+    maxRequests >= thresholds.watchMaxRequests
   ) {
     return "watch";
   }
@@ -261,7 +293,7 @@ function normalizeAbuseNamespace(value: unknown): AdminHealthAbuseNamespace {
   const buckets = integerValue(row.buckets);
   const requests = integerValue(row.requests);
   const maxRequests = integerValue(row.maxRequests);
-  const level = abuseNamespaceLevel(buckets, requests, maxRequests);
+  const level = abuseNamespaceLevel(namespace, buckets, requests, maxRequests);
 
   return {
     namespace,

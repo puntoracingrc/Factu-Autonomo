@@ -82,6 +82,37 @@ describe("admin health helpers", () => {
     );
   });
 
+  it("no trata un lote razonable de escaneos admin como ataque probable", () => {
+    const snapshot = buildAdminHealthSnapshot({
+      database: { bytes: 100, limitBytes: 1000 },
+      users: { active30d: 20 },
+      sync: { cloudUsers: 1, latestSyncAt: "2026-07-09T06:03:00.000Z" },
+      errors: { last24h: 0 },
+      abuse: {
+        totalRequests: 187,
+        totalBuckets: 1,
+        latestAt: "2026-07-10T13:17:01.028Z",
+        namespaces: [
+          {
+            namespace: "admin_expenses_scan",
+            buckets: 1,
+            requests: 187,
+            maxRequests: 187,
+            latestAt: "2026-07-10T13:17:01.028Z",
+          },
+        ],
+      },
+    });
+
+    expect(snapshot.abuse.level).toBe("ok");
+    expect(snapshot.abuse.namespaces[0].label).toBe(
+      "Admin: escaneo masivo gastos",
+    );
+    expect(snapshot.recommendations).not.toContain(
+      "Posible scraping/abuso: revisar logs y valorar WAF/bot protection.",
+    );
+  });
+
   it("detecta RPC no desplegada", () => {
     expect(
       isMissingAdminHealthRpc({
