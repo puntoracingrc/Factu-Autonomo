@@ -1,10 +1,9 @@
 # Auditoria tecnica profunda de Factura Autonomo
 
 > Nota de vigencia (2026-07-10): este documento conserva la fotografia y los
-> hallazgos originales del 2026-06-24. El estado de seguridad actualizado esta
-> en `docs/operacion/security-posture-audit-readiness-2026-07-09.md` y
-> `docs/operacion/security-low-friction-hardening-2026-07-10.md`. No deben
-> presentarse como abiertos los puntos marcados como resueltos abajo.
+> hallazgos originales del 2026-06-24. El unico estado de seguridad vigente
+> esta en `docs/operacion/security-current-state.md`. No deben presentarse como
+> abiertos los puntos historicos que ya figuren resueltos en ese documento.
 
 Fecha: 2026-06-24  
 Version: 2, segunda pasada de auditoria con foco en produccion comercial  
