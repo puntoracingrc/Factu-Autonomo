@@ -2566,9 +2566,9 @@ function ProductCard({
               <span className="text-base font-black leading-tight text-slate-950 lg:text-lg">
                 {displayName}
               </span>
-              {hasCustomDisplayName ? (
+              {product.usualSupplier?.supplierName ? (
                 <span className="text-xs font-semibold text-slate-500">
-                  Proveedor: {product.name}
+                  Proveedor: {supplierLabel}
                 </span>
               ) : null}
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
