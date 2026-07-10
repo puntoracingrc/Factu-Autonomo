@@ -1490,39 +1490,45 @@ export default function NuevoGastoPage() {
                               </p>
                             ) : null}
                             {productPreview.length > 0 ? (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {productPreview.slice(0, 8).map((item) => {
-                                  const stateLabel =
-                                    item.state === "catalog"
-                                      ? "En Productos"
-                                      : item.state === "batch"
-                                        ? "Misma tanda"
+                              <div className="mt-2 space-y-1.5">
+                                <div className="flex flex-wrap gap-2">
+                                  {productPreview.slice(0, 8).map((item) => {
+                                    const stateLabel =
+                                      item.state === "catalog"
+                                        ? "En Productos"
+                                        : item.state === "batch"
+                                          ? "Misma tanda"
+                                          : item.state === "new"
+                                            ? "Se creará"
+                                            : "No se añade";
+                                    const stateClass =
+                                      item.state === "catalog" ||
+                                      item.state === "batch"
+                                        ? "bg-green-50 text-green-800 ring-green-100"
                                         : item.state === "new"
-                                          ? "Se creará"
-                                          : "No se añade";
-                                  const stateClass =
-                                    item.state === "catalog" ||
-                                    item.state === "batch"
-                                      ? "bg-green-50 text-green-800 ring-green-100"
-                                      : item.state === "new"
-                                        ? "bg-sky-50 text-sky-800 ring-sky-100"
-                                        : "bg-slate-50 text-slate-600 ring-slate-100";
+                                          ? "bg-sky-50 text-sky-800 ring-sky-100"
+                                          : "bg-slate-50 text-slate-600 ring-slate-100";
 
-                                  return (
-                                    <span
-                                      key={item.key}
-                                      className={`max-w-full truncate rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${stateClass}`}
-                                      title={`${item.description} · ${stateLabel}`}
-                                    >
-                                      {item.description} · {stateLabel}
+                                    return (
+                                      <span
+                                        key={item.key}
+                                        className={`max-w-full truncate rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${stateClass}`}
+                                        title={`${item.description} · ${stateLabel}`}
+                                      >
+                                        {item.description} · {stateLabel}
+                                      </span>
+                                    );
+                                  })}
+                                  {productPreview.length > 8 ? (
+                                    <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
+                                      y {productPreview.length - 8} más
                                     </span>
-                                  );
-                                })}
-                                {productPreview.length > 8 ? (
-                                  <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
-                                    y {productPreview.length - 8} más
-                                  </span>
-                                ) : null}
+                                  ) : null}
+                                </div>
+                                <p className="text-xs font-medium text-slate-500">
+                                  Verde: ya cubierto por Productos. Gris: no se
+                                  añade salvo que marques la casilla.
+                                </p>
                               </div>
                             ) : null}
                             {canToggleCatalogProducts ? (
@@ -1538,12 +1544,13 @@ export default function NuevoGastoPage() {
                                     )
                                   }
                                 />
-                                Añadir estos artículos a Productos al guardar
+                                Añadir a Productos solo los artículos grises al
+                                guardar
                               </label>
                             ) : null}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
                           >
@@ -1553,7 +1560,7 @@ export default function NuevoGastoPage() {
                             <button
                               type="button"
                               onClick={() => void handleSaveSingleScan(review)}
-                              className="inline-flex items-center justify-center rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-bold text-green-700"
+                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center whitespace-nowrap rounded-xl border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
                             >
                               Guardar esta
                             </button>
@@ -1568,7 +1575,7 @@ export default function NuevoGastoPage() {
                                 }
                                 openScanReview(review);
                               }}
-                              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700"
+                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700"
                             >
                               {isActive && !scanFormCollapsed
                                 ? "Contraer"
@@ -1579,7 +1586,7 @@ export default function NuevoGastoPage() {
                           <button
                             type="button"
                             onClick={() => removeScanReview(review)}
-                            className="inline-flex items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
+                            className="inline-flex min-h-11 w-11 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-bold text-red-700"
                             aria-label={`Quitar ${review.fileName ?? review.payload.expense.description}`}
                             title="Quitar de esta revisión"
                           >

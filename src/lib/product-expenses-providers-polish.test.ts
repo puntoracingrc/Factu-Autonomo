@@ -74,7 +74,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("newCatalogProductReasonForScanPayload");
     expect(formPage).toContain("artículo");
     expect(formPage).toContain("nuevo");
-    expect(formPage).toContain("Añadir estos artículos a Productos al guardar");
+    expect(formPage).toContain("artículos grises");
+    expect(formPage).toContain("Verde: ya cubierto por Productos");
     expect(formPage).toContain("Guardar esta");
     expect(formPage).toContain("Misma tanda");
     expect(formPage).toContain("se unirán al mismo producto");
