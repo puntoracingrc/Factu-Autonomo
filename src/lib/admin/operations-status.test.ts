@@ -29,6 +29,15 @@ function healthyInput() {
           updated_at: "2026-07-10T17:04:00.000Z",
           html_url: "https://github.com/example/actions/runs/11",
         },
+        {
+          id: 12,
+          name: "Security Health Alert",
+          status: "completed",
+          conclusion: "success",
+          head_sha: sha,
+          updated_at: "2026-07-10T17:09:00.000Z",
+          html_url: "https://github.com/example/actions/runs/12",
+        },
       ],
     },
     vercelAlias: { deploymentId: "dpl_current" },
@@ -121,5 +130,26 @@ describe("admin operations status", () => {
 
     expect(status.github.codeql).toBeNull();
     expect(status.level).toBe("ok");
+  });
+
+  it("marca rojo si falla el control programado de alertas", () => {
+    const input = healthyInput();
+    input.githubRuns.workflow_runs[2].conclusion = "failure";
+
+    const status = buildAdminOperationsStatus(input);
+
+    expect(status.github.schedulerLevel).toBe("action");
+    expect(status.level).toBe("action");
+    expect(status.recommendations.join(" ")).toContain("alertas automaticas");
+  });
+
+  it("marca rojo si el control programado lleva mas de una hora sin ejecutarse", () => {
+    const input = healthyInput();
+    input.githubRuns.workflow_runs[2].updated_at = "2026-07-10T15:00:00.000Z";
+
+    const status = buildAdminOperationsStatus(input);
+
+    expect(status.github.schedulerLevel).toBe("action");
+    expect(status.level).toBe("action");
   });
 });

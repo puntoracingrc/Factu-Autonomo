@@ -76,8 +76,9 @@ Ultima revision: 2026-07-10.
   Production para que los identificadores no dependan de valores publicos.
 - Admin salud: panel preparado para resumir abuso/scraping por namespace y
   generar log copiable sin IPs, tokens ni emails.
-- Alertas: cron protegido con `CRON_SECRET` preparado para avisar por email a
-  admins cuando una senal roja sea reciente, con deduplicacion de seis horas.
+- Alertas: workflow programado de GitHub protegido con `CRON_SECRET`, preparado
+  para avisar por email a admins cuando una senal roja sea reciente, con
+  deduplicacion de seis horas.
 - Operacion externa: admin compara GitHub main/CI/CodeQL con deployment, dominio
   y Vercel Firewall. Los eventos WAF llegan agregados y sin IPs.
 - GitHub: Dependabot, CodeQL, secret scanning y push protection activos.

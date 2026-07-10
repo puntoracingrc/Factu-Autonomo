@@ -4,6 +4,9 @@ import { relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const apiRoot = fileURLToPath(new URL("../app/api/", import.meta.url));
+const securityScheduler = fileURLToPath(
+  new URL("../../.github/workflows/security-health-alert.yml", import.meta.url),
+);
 
 const expectedMethods: Record<string, string[]> = {
   "admin/ai-learning/correct/route.ts": ["POST"],
@@ -188,11 +191,20 @@ describe("API security inventory", () => {
     }
   });
 
-  it("keeps scheduled routes behind the Vercel cron secret", () => {
+  it("keeps scheduled routes behind the shared scheduler secret", () => {
     for (const route of scheduledRoutes) {
       expect(sourceFor(route), route).toContain("CRON_SECRET");
       expect(sourceFor(route), route).toContain("timingSafeEqual");
     }
+  });
+
+  it("keeps the security alert scheduler versioned and protected", () => {
+    const workflow = readFileSync(securityScheduler, "utf8");
+    expect(workflow).toContain('cron: "*/15 * * * *"');
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("SECURITY_HEALTH_CRON_SECRET");
+    expect(workflow).toContain("/api/security/health-alert");
+    expect(workflow).toContain("Authorization: Bearer");
   });
 
   it("keeps constrained routes behind distributed rate limiting", () => {

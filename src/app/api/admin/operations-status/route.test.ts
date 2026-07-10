@@ -56,6 +56,7 @@ describe("GET /api/admin/operations-status", () => {
 
   it("combina GitHub, dominio, deployment y WAF sin exponer IPs", async () => {
     const sha = "a".repeat(40);
+    const now = new Date().toISOString();
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/commits/main")) {
@@ -64,7 +65,7 @@ describe("GET /api/admin/operations-status", () => {
           commit: { committer: { date: "2026-07-10T17:00:00.000Z" } },
         });
       }
-      if (url.includes("/actions/runs")) {
+      if (url.includes("/actions/workflows/ci.yml/runs")) {
         return jsonResponse({
           workflow_runs: [
             {
@@ -73,13 +74,35 @@ describe("GET /api/admin/operations-status", () => {
               status: "completed",
               conclusion: "success",
               head_sha: sha,
+              updated_at: now,
             },
+          ],
+        });
+      }
+      if (url.includes("/actions/workflows/security-health-alert.yml/runs")) {
+        return jsonResponse({
+          workflow_runs: [
+            {
+              id: 3,
+              name: "Security Health Alert",
+              status: "completed",
+              conclusion: "success",
+              head_sha: sha,
+              updated_at: now,
+            },
+          ],
+        });
+      }
+      if (url.includes("/actions/runs")) {
+        return jsonResponse({
+          workflow_runs: [
             {
               id: 2,
               name: "CodeQL",
               status: "completed",
               conclusion: "success",
               head_sha: sha,
+              updated_at: now,
             },
           ],
         });
@@ -123,6 +146,7 @@ describe("GET /api/admin/operations-status", () => {
 
     expect(response.status).toBe(200);
     expect(body.operations.level).toBe("ok");
+    expect(body.operations.github.scheduler.conclusion).toBe("success");
     expect(body.operations.deployment.alignedWithMain).toBe(true);
     expect(body.operations.firewall.events24h).toBe(2);
     expect(JSON.stringify(body)).not.toContain("203.0.113.10");
