@@ -1,7 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GET } from "./route";
+import { GET, POST } from "./route";
+import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { getExpenseScanQuota } from "@/lib/billing/scan-usage-server";
+import {
+  consumeExpenseScan,
+  getExpenseScanQuota,
+} from "@/lib/billing/scan-usage-server";
+import {
+  extractExpenseFromImage,
+  fileToBase64,
+} from "@/lib/expense-scan/openai";
+import {
+  resolveScanMimeType,
+  validateScanFile,
+} from "@/lib/expense-scan/file-validation";
+import { checkRateLimit } from "@/lib/server/rate-limit";
+
+vi.mock("@/lib/admin/access", () => ({
+  isAdminUser: vi.fn(),
+}));
 
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
@@ -22,10 +39,48 @@ vi.mock("@/lib/expense-scan/file-validation", () => ({
   validateScanFile: vi.fn(),
 }));
 
+vi.mock("@/lib/server/rate-limit", () => ({
+  checkRateLimit: vi.fn(),
+  rateLimitExceededResponse: vi.fn(() =>
+    Response.json({ error: "Rate limit" }, { status: 429 }),
+  ),
+}));
+
 function request(token: string | null) {
   return new Request("http://localhost/api/expenses/scan", {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+}
+
+function scanPostRequest(token: string | null) {
+  const form = new FormData();
+  form.set("file", new File(["factura"], "factura.pdf", { type: "application/pdf" }));
+  return new Request("http://localhost/api/expenses/scan", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+}
+
+function mockSuccessfulScan() {
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    limit: 20,
+    remaining: 19,
+    resetAt: Date.now() + 600_000,
+    retryAfterSeconds: 600,
+    backend: "memory",
+  });
+  vi.mocked(validateScanFile).mockReturnValue(null);
+  vi.mocked(resolveScanMimeType).mockReturnValue("application/pdf");
+  vi.mocked(fileToBase64).mockResolvedValue("base64");
+  vi.mocked(extractExpenseFromImage).mockResolvedValue({
+    data: { expense: { description: "Factura proveedor" } },
+  } as Awaited<ReturnType<typeof extractExpenseFromImage>>);
+  vi.mocked(consumeExpenseScan).mockResolvedValue({
+    allowed: true,
+    quota: { remaining: 9, remainingUnits: 90 },
+  } as Awaited<ReturnType<typeof consumeExpenseScan>>);
 }
 
 describe("GET /api/expenses/scan", () => {
@@ -48,5 +103,58 @@ describe("GET /api/expenses/scan", () => {
     expect(getExpenseScanQuota).not.toHaveBeenCalled();
     expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
     expect(body.quota.remaining).toBe(Number.MAX_SAFE_INTEGER);
+  });
+});
+
+describe("POST /api/expenses/scan", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("mantiene el limite antiabuso normal para usuarios no admin", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    mockSuccessfulScan();
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-1",
+      email: "cliente@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(isAdminUser).mockReturnValue(false);
+
+    const response = await POST(scanPostRequest("token"));
+
+    expect(response.status).toBe(200);
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      {
+        namespace: "expenses_scan",
+        limit: 20,
+        windowMs: 600_000,
+      },
+      "user-1",
+    );
+  });
+
+  it("permite lotes internos mas grandes para cuentas admin autenticadas", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    mockSuccessfulScan();
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(isAdminUser).mockReturnValue(true);
+
+    const response = await POST(scanPostRequest("token"));
+
+    expect(response.status).toBe(200);
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      {
+        namespace: "admin_expenses_scan",
+        limit: 300,
+        windowMs: 600_000,
+      },
+      "admin-1",
+    );
   });
 });

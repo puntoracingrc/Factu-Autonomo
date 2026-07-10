@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { aiLearningAccountForEmail } from "@/lib/ai-learning";
+import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isBillingEnforced } from "@/lib/billing/config";
 import {
@@ -25,6 +26,18 @@ import {
 } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
+
+const EXPENSE_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60_000;
+const USER_EXPENSE_SCAN_RATE_LIMIT = 20;
+const ADMIN_EXPENSE_SCAN_RATE_LIMIT = 300;
+
+function expenseScanRateLimitPolicy(adminUser: boolean) {
+  return {
+    namespace: adminUser ? "admin_expenses_scan" : "expenses_scan",
+    limit: adminUser ? ADMIN_EXPENSE_SCAN_RATE_LIMIT : USER_EXPENSE_SCAN_RATE_LIMIT,
+    windowMs: EXPENSE_SCAN_RATE_LIMIT_WINDOW_MS,
+  };
+}
 
 function buildAiLearningTestQuota() {
   return buildScanQuota(
@@ -82,11 +95,7 @@ export async function POST(request: Request) {
   }
   const rateLimit = await checkRateLimit(
     request,
-    {
-      namespace: "expenses_scan",
-      limit: 20,
-      windowMs: 10 * 60_000,
-    },
+    expenseScanRateLimitPolicy(Boolean(user && isAdminUser(user))),
     user?.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
