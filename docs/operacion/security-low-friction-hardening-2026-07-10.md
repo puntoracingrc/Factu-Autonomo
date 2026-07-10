@@ -124,14 +124,31 @@ merge se verifica expresamente que `facturacion-autonomos.app` apunta al SHA de
 
 ## Verificacion de esta fase
 
-Antes del PR:
+Despliegue cerrado el 2026-07-10:
 
-- tests especificos de limites, API inventory, PDF local, alertas, operaciones,
-  admin health y webhooks;
-- `npm test` completo;
-- `npm run lint`;
-- `npx tsc --noEmit`;
-- `npm run build`.
+- PR `#353`, fusionado mediante merge normal.
+- Merge de `main`: `af6088c4fbf24cd7d027b53e1eab5723175ee7bd`.
+- GitHub Actions `29112892539`: `Quality`, `Supabase Acceptance` y
+  `Production Domain` finalizaron correctamente.
+- Vercel deployment `dpl_121szBnCSnHuqWWih5eFy6JEyjQo`: estado `READY`,
+  entorno Production, rama `main` y el mismo SHA del merge.
+- La inspeccion de `facturacion-autonomos.app` resolvio exactamente a ese
+  deployment, no a una produccion anterior.
+- `/`, `/cuenta` y `/admin` respondieron `200`.
+- Las APIs admin de operaciones y salud respondieron `401` sin sesion.
+- El cron de alertas respondio `401` sin `CRON_SECRET` y su configuracion de
+  ejecucion cada 15 minutos figura en el deployment de produccion.
+- La antigua API publica de resumen de proveedor respondio `404`.
+- CSP se sirve en modo bloqueo e incluye `script-src-attr 'none'`; HSTS,
+  `nosniff`, `DENY`, Referrer Policy y Permissions Policy continuan activos.
 
-Tras el merge debe completarse aqui el PR, run de `main`, deployment y prueba de
-produccion.
+Verificacion local y CI:
+
+- pruebas especificas de limites, inventario API, PDF local, alertas,
+  operaciones, admin health y webhooks;
+- 391 archivos de pruebas y 2.215 pruebas superadas; 12 omitidas;
+- cuatro suites de fixtures privados no se ejecutaron por permisos de archivos
+  externos y no se alteraron esos permisos ni los datos privados;
+- `npm run lint`, `npx tsc --noEmit`, `npm run check:migrations` y
+  `npm run build` correctos;
+- `npm audit --audit-level=high`: cero vulnerabilidades.
