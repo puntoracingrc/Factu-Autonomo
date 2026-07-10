@@ -1592,9 +1592,24 @@ export default function NuevoGastoPage() {
                 })}
               {scanProgress ? (
                 <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
-                  Escaneando siguiente factura {scanProgress.current}/
-                  {scanProgress.total}
-                  {scanProgress.fileName ? ` · ${scanProgress.fileName}` : ""}…
+                  <span className="scan-progress-thinking">
+                    Escaneando siguiente factura {scanProgress.current}/
+                    {scanProgress.total}
+                    {scanProgress.fileName ? ` · ${scanProgress.fileName}` : ""}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="ml-1 inline-flex align-baseline text-blue-600"
+                  >
+                    <span className="scan-progress-dot">.</span>
+                    <span className="scan-progress-dot scan-progress-dot-delay-1">
+                      .
+                    </span>
+                    <span className="scan-progress-dot scan-progress-dot-delay-2">
+                      .
+                    </span>
+                  </span>
+                  <span className="sr-only">Procesando siguiente factura</span>
                 </div>
               ) : null}
             </div>

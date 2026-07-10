@@ -94,6 +94,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("Escaneando siguiente factura");
     expect(formPage).toContain("scanProgress.current");
     expect(formPage).toContain("scanProgress.total");
+    expect(formPage).toContain("scan-progress-thinking");
+    expect(formPage).toContain("scan-progress-dot");
   });
 
   it("marca como listo el escaneo que completa un resumen de proveedor", () => {
