@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -61,6 +61,7 @@ import { occurrenceKey } from "@/lib/recurring-expenses";
 import {
   purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
+  purchaseProductKey,
 } from "@/lib/purchase-products";
 import {
   isProviderSummaryPendingOriginal,
@@ -120,6 +121,7 @@ interface ExpenseInboxItemResponse {
 
 type ScanReviewStatus = "ready" | "review" | "blocked";
 type FixedDueKind = RecurringDueTiming["kind"];
+type ScanProgress = { current: number; total: number; fileName?: string };
 
 const FIXED_MONTHS = [
   "Enero",
@@ -201,6 +203,9 @@ export default function NuevoGastoPage() {
   const [activeScanReview, setActiveScanReview] =
     useState<PendingExpenseScan | null>(null);
   const [scanFormCollapsed, setScanFormCollapsed] = useState(false);
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const scanFormRef = useRef<HTMLDivElement | null>(null);
+  const scanReviewReturnScrollY = useRef<number | null>(null);
   const [inboxItemId, setInboxItemId] = useState<string | null>(null);
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
   const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(null);
@@ -600,6 +605,44 @@ export default function NuevoGastoPage() {
   const showWorkDocumentSection = editingRequested || expenseOrigin !== "scan";
   const showExpenseForm = !scanFormCollapsed;
 
+  function scrollToScanForm() {
+    window.setTimeout(() => {
+      scanFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
+  function restoreScanReviewScroll() {
+    const top = scanReviewReturnScrollY.current;
+    scanReviewReturnScrollY.current = null;
+    if (top === null) return;
+
+    window.setTimeout(() => {
+      window.scrollTo({ top, behavior: "smooth" });
+    }, 0);
+  }
+
+  function openScanReview(review: PendingExpenseScan) {
+    scanReviewReturnScrollY.current = window.scrollY;
+    setPendingScans((prev) => {
+      const remaining = prev.filter((item) => item.id !== review.id);
+      if (activeScanReview && activeScanReview.id !== review.id) {
+        return [activeScanReview, ...remaining];
+      }
+      return remaining;
+    });
+    fillFormFromScan(review);
+    setScanFormCollapsed(false);
+    scrollToScanForm();
+  }
+
+  function collapseActiveScanReview() {
+    setScanFormCollapsed(true);
+    restoreScanReviewScroll();
+  }
+
   function duplicateCandidateForScanPayload(payload: ExpenseScanPayload) {
     return {
       invoiceNumber: payload.expense.purchaseDocument?.invoiceNumber,
@@ -654,6 +697,98 @@ export default function NuevoGastoPage() {
     return (payload.expense.purchaseLines ?? []).filter(
       (line) => !purchaseLineHasCatalogProduct(line, productKeys),
     );
+  }
+
+  function purchaseLineBatchKeys(
+    line: Pick<ExpensePurchaseLine, "description" | "supplierReference">,
+  ) {
+    return [line.description, line.supplierReference]
+      .map((candidate) => (candidate ? purchaseProductKey(candidate) : ""))
+      .filter(Boolean);
+  }
+
+  function selectedForCatalogInScan(
+    line: Pick<ExpensePurchaseLine, "catalogProduct">,
+  ) {
+    return line.catalogProduct === true;
+  }
+
+  function selectedBatchCatalogOwnerForLine(
+    review: PendingExpenseScan,
+    lineIndex: number,
+  ) {
+    const line = review.payload.expense.purchaseLines?.[lineIndex];
+    if (!line || !selectedForCatalogInScan(line)) return null;
+
+    const lineKeys = purchaseLineBatchKeys(line);
+    if (lineKeys.length === 0) return null;
+    const lineKeySet = new Set(lineKeys);
+
+    for (const candidateReview of currentScanReviews) {
+      const candidateLines = candidateReview.payload.expense.purchaseLines ?? [];
+      for (let candidateIndex = 0; candidateIndex < candidateLines.length; candidateIndex += 1) {
+        if (
+          candidateReview.id === review.id &&
+          candidateIndex === lineIndex
+        ) {
+          return null;
+        }
+
+        const candidateLine = candidateLines[candidateIndex];
+        if (
+          !selectedForCatalogInScan(candidateLine) ||
+          purchaseLineHasCatalogProduct(candidateLine, productKeys)
+        ) {
+          continue;
+        }
+
+        const matches = purchaseLineBatchKeys(candidateLine).some((key) =>
+          lineKeySet.has(key),
+        );
+        if (matches) {
+          return {
+            review: candidateReview,
+            line: candidateLine,
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function scanReviewCatalogProductPreview(review: PendingExpenseScan) {
+    return (review.payload.expense.purchaseLines ?? [])
+      .map((line, index) => {
+        const description = line.description.trim();
+        if (!description) return null;
+
+        const inCatalog = purchaseLineHasCatalogProduct(line, productKeys);
+        const selected = selectedForCatalogInScan(line);
+        const batchOwner = selectedBatchCatalogOwnerForLine(review, index);
+        const state = inCatalog
+          ? "catalog"
+          : batchOwner
+            ? "batch"
+            : selected
+              ? "new"
+              : "off";
+
+        return {
+          key: `${review.id}-${index}`,
+          description,
+          state,
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          key: string;
+          description: string;
+          state: "catalog" | "batch" | "new" | "off";
+        } => Boolean(item),
+      );
   }
 
   function newCatalogProductLinesEnabledForScanPayload(
@@ -729,6 +864,28 @@ export default function NuevoGastoPage() {
       .join(", ");
     const tail = lines.length > 3 ? ` y ${lines.length - 3} más` : "";
     return `${lines.length} artículo${lines.length === 1 ? "" : "s"} nuevo${lines.length === 1 ? "" : "s"} para Productos${sample ? `: ${sample}${tail}` : ""}.`;
+  }
+
+  function batchCatalogProductReasonForScanReview(review: PendingExpenseScan) {
+    const lines = review.payload.expense.purchaseLines ?? [];
+    const selectedNewLines = lines
+      .map((line, index) => ({ line, index }))
+      .filter(
+        ({ line }) =>
+          selectedForCatalogInScan(line) &&
+          !purchaseLineHasCatalogProduct(line, productKeys),
+      );
+    if (selectedNewLines.length === 0) return null;
+
+    const repeated = selectedNewLines.filter(({ index }) =>
+      selectedBatchCatalogOwnerForLine(review, index),
+    );
+    if (repeated.length === 0) {
+      return `${selectedNewLines.length} se crearán o actualizarán en Productos al guardar.`;
+    }
+
+    const firstTime = selectedNewLines.length - repeated.length;
+    return `${firstTime} se crearán una vez; ${repeated.length} ya aparecen en esta tanda y se unirán al mismo producto.`;
   }
 
   function nonExpenseReasonForScanReview(review: PendingExpenseScan) {
@@ -965,6 +1122,44 @@ export default function NuevoGastoPage() {
     setScanFormCollapsed(true);
   }
 
+  async function handleSaveSingleScan(review: PendingExpenseScan) {
+    if (scanReviewStatus(review) !== "ready") return;
+    if (review.id === activeScanReview?.id && !scanFormCollapsed) return;
+    if (!saveScanPayload(review)) return;
+
+    if (activeInboxItemId && review.id === activeInboxItemId) {
+      await markInboxItemProcessed();
+    }
+
+    const remaining = currentScanReviews.filter((item) => item.id !== review.id);
+    setScanHint(
+      "Factura guardada. Si el resto del lote trae el mismo producto, aparecerá como ya incluido.",
+    );
+
+    if (activeScanReview?.id === review.id) {
+      setActiveScanReview(null);
+      setPendingScans(remaining);
+      setScanFormCollapsed(false);
+      if (remaining.length === 0) {
+        router.push("/gastos");
+        return;
+      }
+
+      const next = remaining.find(
+        (item) => scanReviewStatus(item) !== "blocked",
+      );
+      if (!next) return;
+      setPendingScans(remaining.filter((item) => item.id !== next.id));
+      fillFormFromScan(next);
+      setScanFormCollapsed(true);
+      return;
+    }
+
+    setPendingScans((current) =>
+      current.filter((item) => item.id !== review.id),
+    );
+  }
+
   const priceAlerts = useMemo(
     () =>
       findExpensePurchaseLinePriceAlerts({
@@ -1165,7 +1360,12 @@ export default function NuevoGastoPage() {
         }
       />
       <div className="space-y-5">
-        {!editingRequested && <ExpenseScanCard onScanned={applyScanResult} />}
+        {!editingRequested && (
+          <ExpenseScanCard
+            onScanned={applyScanResult}
+            onScanProgress={setScanProgress}
+          />
+        )}
         {editingRequested && !editingExpense && (
           <Card className="border-amber-200 bg-amber-50 text-sm text-amber-900">
             No encuentro ese gasto en tus datos locales. Puedes volver al listado
@@ -1182,7 +1382,7 @@ export default function NuevoGastoPage() {
             {scanHint}
           </p>
         )}
-        {(activeScanReview || pendingScans.length > 0) && (
+        {(activeScanReview || pendingScans.length > 0 || scanProgress) && (
           <Card className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1215,6 +1415,10 @@ export default function NuevoGastoPage() {
                   const status = scanReviewStatus(review);
                   const warningText = scanReviewWarning(review);
                   const noticeText = scanReviewNotice(review);
+                  const batchCatalogNotice =
+                    batchCatalogProductReasonForScanReview(review);
+                  const productPreview =
+                    scanReviewCatalogProductPreview(review);
                   const newCatalogProductLines =
                     newCatalogProductLinesForScanPayload(review.payload);
                   const canToggleCatalogProducts =
@@ -1222,6 +1426,8 @@ export default function NuevoGastoPage() {
                   const catalogProductsEnabled =
                     newCatalogProductLinesEnabledForScanPayload(review.payload);
                   const isActive = review.id === activeScanReview?.id;
+                  const canSaveThisScan =
+                    status === "ready" && (!isActive || scanFormCollapsed);
                   const icon =
                     status === "ready" ? (
                       <CheckCircle2 className="h-5 w-5 text-green-700" />
@@ -1278,6 +1484,47 @@ export default function NuevoGastoPage() {
                                 {noticeText}
                               </p>
                             ) : null}
+                            {batchCatalogNotice ? (
+                              <p className="mt-1 text-sm font-semibold text-emerald-700">
+                                {batchCatalogNotice}
+                              </p>
+                            ) : null}
+                            {productPreview.length > 0 ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {productPreview.slice(0, 8).map((item) => {
+                                  const stateLabel =
+                                    item.state === "catalog"
+                                      ? "En Productos"
+                                      : item.state === "batch"
+                                        ? "Misma tanda"
+                                        : item.state === "new"
+                                          ? "Se creará"
+                                          : "No se añade";
+                                  const stateClass =
+                                    item.state === "catalog" ||
+                                    item.state === "batch"
+                                      ? "bg-green-50 text-green-800 ring-green-100"
+                                      : item.state === "new"
+                                        ? "bg-sky-50 text-sky-800 ring-sky-100"
+                                        : "bg-slate-50 text-slate-600 ring-slate-100";
+
+                                  return (
+                                    <span
+                                      key={item.key}
+                                      className={`max-w-full truncate rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${stateClass}`}
+                                      title={`${item.description} · ${stateLabel}`}
+                                    >
+                                      {item.description} · {stateLabel}
+                                    </span>
+                                  );
+                                })}
+                                {productPreview.length > 8 ? (
+                                  <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
+                                    y {productPreview.length - 8} más
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
                             {canToggleCatalogProducts ? (
                               <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800">
                                 <input
@@ -1302,19 +1549,30 @@ export default function NuevoGastoPage() {
                           >
                             {statusText}
                           </span>
+                          {canSaveThisScan ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleSaveSingleScan(review)}
+                              className="inline-flex items-center justify-center rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-bold text-green-700"
+                            >
+                              Guardar esta
+                            </button>
+                          ) : null}
                           {status !== "blocked" && (
                             <button
                               type="button"
                               onClick={() => {
-                                setPendingScans((prev) =>
-                                  prev.filter((item) => item.id !== review.id),
-                                );
-                                fillFormFromScan(review);
-                                setScanFormCollapsed(isActive ? !scanFormCollapsed : false);
+                                if (isActive && !scanFormCollapsed) {
+                                  collapseActiveScanReview();
+                                  return;
+                                }
+                                openScanReview(review);
                               }}
                               className="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700"
                             >
-                              {isActive && !scanFormCollapsed ? "Contraer" : "Revisar"}
+                              {isActive && !scanFormCollapsed
+                                ? "Contraer"
+                                : "Revisar"}
                               <ChevronDown className="h-4 w-4" />
                             </button>
                           )}
@@ -1332,6 +1590,13 @@ export default function NuevoGastoPage() {
                     </div>
                   );
                 })}
+              {scanProgress ? (
+                <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+                  Escaneando siguiente factura {scanProgress.current}/
+                  {scanProgress.total}
+                  {scanProgress.fileName ? ` · ${scanProgress.fileName}` : ""}…
+                </div>
+              ) : null}
             </div>
           </Card>
         )}
@@ -1386,7 +1651,20 @@ export default function NuevoGastoPage() {
             </ul>
           </div>
         )}
-        {showExpenseForm && <Card className="space-y-5">
+        {showExpenseForm && (
+          <div ref={scanFormRef}>
+            <Card className="space-y-5">
+              {activeScanReview && !editingRequested ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={collapseActiveScanReview}
+                    className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700"
+                  >
+                    Contraer ficha y volver al listado
+                  </button>
+                </div>
+              ) : null}
           <FormSection
             variant="fields"
             title="Tipo de gasto"
@@ -2118,7 +2396,9 @@ export default function NuevoGastoPage() {
               </div>
             </div>
           </FormSection>
-        </Card>}
+            </Card>
+          </div>
+        )}
         {showExpenseForm && (
           <Button
             fullWidth

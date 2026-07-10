@@ -75,9 +75,25 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("artículo");
     expect(formPage).toContain("nuevo");
     expect(formPage).toContain("Añadir estos artículos a Productos al guardar");
+    expect(formPage).toContain("Guardar esta");
+    expect(formPage).toContain("Misma tanda");
+    expect(formPage).toContain("se unirán al mismo producto");
+    expect(formPage).toContain("Contraer ficha y volver al listado");
     expect(formPage).toContain("purchaseLineHasCatalogProduct(line, productKeys)");
     expect(formPage).toContain("text-sky-700");
     expect(formPage).not.toContain("Revisa la factura antes de guardar");
+  });
+
+  it("muestra progreso mientras se escanea un lote de facturas", () => {
+    const formPage = source("../app/gastos/nuevo/page.tsx");
+    const scanCard = source("../components/expenses/ExpenseScanCard.tsx");
+
+    expect(scanCard).toContain("onScanProgress");
+    expect(scanCard).toContain("current: index + 1");
+    expect(formPage).toContain("setScanProgress");
+    expect(formPage).toContain("Escaneando siguiente factura");
+    expect(formPage).toContain("scanProgress.current");
+    expect(formPage).toContain("scanProgress.total");
   });
 
   it("marca como listo el escaneo que completa un resumen de proveedor", () => {
