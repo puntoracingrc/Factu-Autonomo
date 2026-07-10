@@ -1,6 +1,6 @@
 # Informe de seguridad y preparacion de auditoria
 
-Ultima revision: 2026-07-09.
+Ultima revision: 2026-07-10.
 
 Proyecto: `facturacion-autonomos.app`.
 
@@ -29,6 +29,9 @@ pendientes que conviene revisar antes de una auditoria externa.
 - Admin > Errores y salud incluye vigilancia de abuso/scraping basada en los
   contadores distribuidos y un log copiable `FACTU_SECURITY_HEALTH_V1` para
   analisis posterior sin IPs ni secretos.
+- Admin > Errores y salud incluye observabilidad de uso/coste de Vercel Pro
+  mediante token privado de servidor. El token activo es el de uso admin creado
+  el 2026-07-10; el duplicado creado durante la configuracion fue revocado.
 - El MFA admin queda activo para APIs admin completas mediante TOTP y
   `ADMIN_MFA_REQUIRED=true`; la cuenta `puntoracingrc@gmail.com` fue verificada
   en sesion `aal2`.
@@ -38,6 +41,10 @@ pendientes que conviene revisar antes de una auditoria externa.
 - Verificacion final de produccion tras PR #336: workflow `main` 29047106837 en
   verde, Production Domain correcto, CSP en bloqueo y rate limit distribuido
   confirmado con bucket `security_csp_report`.
+- Verificacion adicional tras PR #341 y configuracion Vercel: Production Domain
+  apunta al deployment `dpl_DhQ6o93ZgzevghZ2ZJsmqxHhkmuq`, `/admin` responde
+  `200`, `/api/admin/vercel-usage` sin sesion responde `401` y el panel Vercel
+  carga datos reales sin exponer el token.
 
 ## Infraestructura y cabeceras
 
@@ -213,6 +220,11 @@ Protecciones actuales:
   codigo de 6 digitos enviado al email verificado del usuario, confirmacion
   manual del email y registro operativo del factor eliminado.
 - Produccion se verifica tras deploy y alias Vercel.
+- Panel admin muestra consumo real de Vercel Pro cuando existen
+  `VERCEL_BILLING_API_TOKEN`, `VERCEL_TEAM_ID` o `VERCEL_BILLING_TEAM_SLUG` y
+  `VERCEL_USAGE_PROJECT_SLUG` en Vercel Production.
+- El token privado de Vercel se guarda solo como variable sensible de servidor,
+  sin prefijo `NEXT_PUBLIC_`; no se documenta ni se expone su valor.
 
 Riesgos pendientes:
 
@@ -232,6 +244,9 @@ Protecciones actuales:
 - Supabase local acceptance corre en CI.
 - Push a `main` espera Vercel y reasigna alias de produccion.
 - Production Domain verifica que el dominio responde con la marca esperada.
+- Cuando se cambian secretos de Vercel fuera de Git, se redepliega produccion y
+  se verifica explicitamente el alias del dominio para evitar que el dominio
+  quede apuntando a un deployment antiguo.
 
 Riesgos pendientes:
 

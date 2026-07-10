@@ -1,6 +1,6 @@
 # Informe de fase: endurecimiento adicional de seguridad
 
-Ultima revision: 2026-07-09.
+Ultima revision: 2026-07-10.
 
 Proyecto: `facturacion-autonomos.app`.
 
@@ -29,6 +29,9 @@ decision operativa y coste.
 - El panel Admin > Errores y salud muestra senales de abuso/scraping basadas en
   `server_rate_limit_buckets` y ofrece un log copiable para diagnostico sin IPs,
   tokens ni emails.
+- El mismo panel muestra consumo/coste real de Vercel Pro con un token privado
+  de servidor. El token duplicado creado durante la configuracion fue revocado y
+  se mantiene activo solo `Factu Admin Vercel Usage 2026-07`.
 - WAF/bot protection queda como control operativo externo: no se activa a ciegas
   porque depende de DNS/proveedor/coste y puede bloquear trafico legitimo.
 - Revision mensual de Supabase queda documentada y con recordatorio activo en
@@ -55,6 +58,22 @@ Fecha: 2026-07-09.
   `verificado · Nivel aal2 · preparado`.
 - Cuenta admin `persianasalmar@gmail.com` con TOTP verificado manualmente.
 - Vercel Production tiene `ADMIN_MFA_REQUIRED=true` configurado.
+- PR #341 `Add admin Vercel usage dashboard` mergeado a `main`.
+- Workflow `main` 29056651431 completado en verde: Quality, Supabase Acceptance
+  y Production Domain.
+- Vercel Production tiene configuradas las variables de lectura de uso:
+  `VERCEL_BILLING_API_TOKEN`, `VERCEL_TEAM_ID`,
+  `VERCEL_BILLING_TEAM_SLUG`, `VERCEL_USAGE_PROJECT_SLUG`,
+  `VERCEL_BILLING_CYCLE_START_DAY` y `VERCEL_BILLING_CYCLE_START_HOUR`.
+- Tras actualizar el secreto se redeplego produccion, se reasigno
+  `facturacion-autonomos.app` al deployment
+  `dpl_DhQ6o93ZgzevghZ2ZJsmqxHhkmuq` y se verifico que `/admin` responde `200`.
+- `/api/admin/vercel-usage` sin sesion responde `401`, confirmando que el uso de
+  Vercel no queda expuesto publicamente.
+- Admin > Errores y salud carga `VERCEL PRO` con datos reales; no aparece
+  `No se pudo cargar Vercel`.
+- El token duplicado `Factu Admin Vercel Usage` fue eliminado/revocado en
+  Vercel. El token operativo queda como `Factu Admin Vercel Usage 2026-07`.
 
 ## CSP
 
@@ -215,6 +234,32 @@ Estado actual:
   contadores distribuidos pasan umbrales de vigilancia o accion.
 - Futuro recomendado: WAF/bot protection si aparecen picos, scraping real o
   abuso de registro/login.
+
+## Observabilidad Vercel Pro
+
+Hecho:
+
+- Admin > Errores y salud consulta la API de billing/usage de Vercel desde una
+  ruta admin protegida.
+- La ruta `/api/admin/vercel-usage` exige usuario admin y respeta rate limit.
+- El token de Vercel vive solo en Vercel Production como secreto sensible
+  `VERCEL_BILLING_API_TOKEN`; no se expone al navegador y no tiene prefijo
+  `NEXT_PUBLIC_`.
+- El panel muestra ciclo de facturacion, credito incluido, coste bajo demanda,
+  recursos con mas consumo y proyectos con mayor impacto.
+- Verificacion de produccion del 2026-07-10: el coste bajo demanda observado
+  venia principalmente de otro proyecto del equipo (`regionatlas`), mientras
+  `factu-autonomo` aparecia con consumo bajo en el ciclo.
+- El token temporal/duplicado creado durante la configuracion fue revocado tras
+  confirmar que el nuevo token seguia alimentando el panel.
+
+Operacion segura:
+
+- Si se rota `VERCEL_BILLING_API_TOKEN`, hay que redeplegar produccion para que
+  las funciones server lean el secreto nuevo.
+- Tras el redeploy, comprobar `/admin`, `/api/admin/vercel-usage` sin sesion
+  (`401`) y el alias de `facturacion-autonomos.app`.
+- No pegar tokens en tickets, documentos, chats ni logs.
 
 ## Revision mensual Supabase
 

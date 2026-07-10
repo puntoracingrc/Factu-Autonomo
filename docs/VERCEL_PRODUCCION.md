@@ -79,19 +79,35 @@ Variables:
 No usar variables `NEXT_PUBLIC_` para este token. Si faltan estas variables, el
 admin sigue funcionando y muestra el panel como pendiente de conectar.
 
-Lectura actual observada el 2026-07-10 en el dashboard Vercel del equipo:
+Estado operativo verificado el 2026-07-10:
 
-- Ciclo: 2026-06-15 09:00 → 2026-07-15 09:00.
-- Crédito incluido Pro: `20 USD / 20 USD` consumido.
-- Bajo demanda del equipo: `7,40 USD`.
-- `factu-autonomo` tiene margen amplio en el ciclo:
-  - `86.520` Edge Requests, aprox. `0,9%` de los `10.000.000` incluidos.
-  - `654,47 MB` Fast Data Transfer, aprox. `0,06%` de `1 TB` incluido.
-  - `10.095` invocaciones de funciones.
-  - `14m 10s` de Fluid Active CPU.
-  - `3,5 GB-Hrs` de Fluid Provisioned Memory.
-- El consumo principal del equipo venia de otros proyectos, sobre todo
-  `regionatlas`, y de Blob Stores.
+- Token privado activo en Vercel: `Factu Admin Vercel Usage 2026-07`.
+- Token duplicado de configuracion `Factu Admin Vercel Usage`: revocado.
+- Tras actualizar el secreto se hizo redeploy de produccion y alias explicito de
+  `facturacion-autonomos.app` al deployment nuevo.
+- `/admin` responde `200`.
+- `/api/admin/vercel-usage` sin sesion responde `401`.
+- Admin > Errores y salud carga el bloque `VERCEL PRO` con datos reales.
+
+Lectura observada desde Admin > Errores y salud el 2026-07-10:
+
+- Ciclo mostrado por la app: 2026-06-15 11:00 → 2026-07-15 11:00.
+- Credito incluido Pro: `20 USD / 20 USD` consumido.
+- Coste de ciclo mostrado: `26,65 USD`.
+- Bajo demanda mostrado: `6,65 USD`.
+- `factu-autonomo` aparecia con consumo bajo en el ciclo: aprox. `0,33 USD`.
+- El consumo principal bajo demanda venia de otro proyecto del equipo,
+  `regionatlas`, no de `factu-autonomo`.
+
+Rotacion del token:
+
+1. Crear un token nuevo en Vercel con scope del equipo.
+2. Guardarlo en Vercel Production como `VERCEL_BILLING_API_TOKEN`.
+3. Redeplegar produccion para que las funciones server lean el secreto nuevo.
+4. Verificar `/admin`, `/api/admin/vercel-usage` sin sesion (`401`) y el alias
+   de `facturacion-autonomos.app`.
+5. Revocar el token anterior solo cuando el panel ya cargue con el token nuevo.
+6. No documentar nunca el valor del token.
 
 ## Google Drive opcional
 
