@@ -75,6 +75,74 @@ button:disabled {
   display: none;
 }
 
+.scan-progress-thinking {
+  --scan-progress-start: #1d4ed8;
+  --scan-progress-mid: #0284c7;
+  --scan-progress-shine: #38bdf8;
+  animation: scan-progress-shimmer 1.85s linear infinite;
+  background: linear-gradient(
+    90deg,
+    var(--scan-progress-start) 0%,
+    var(--scan-progress-mid) 34%,
+    var(--scan-progress-shine) 50%,
+    var(--scan-progress-mid) 66%,
+    var(--scan-progress-start) 100%
+  );
+  background-clip: text;
+  background-size: 220% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+}
+
+.scan-progress-dot {
+  animation: scan-progress-dot 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+.scan-progress-dot-delay-1 {
+  animation-delay: 150ms;
+}
+
+.scan-progress-dot-delay-2 {
+  animation-delay: 300ms;
+}
+
+@keyframes scan-progress-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes scan-progress-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress-thinking,
+  .scan-progress-dot {
+    animation: none;
+  }
+
+  .scan-progress-thinking {
+    background: none;
+    color: #1d4ed8;
+  }
+}
+
 .demo-mode-banner {
   background: #fff7ed;
   border-color: #fed7aa;
@@ -191,6 +259,22 @@ html[data-app-theme="dark"] .demo-mode-button-primary {
 html[data-app-theme="dark"] .demo-mode-button-primary:hover {
   background: #1d4ed8;
   border-color: #1d4ed8;
+}
+
+html[data-app-theme="dark"] .scan-progress-thinking {
+  --scan-progress-start: #93c5fd;
+  --scan-progress-mid: #38bdf8;
+  --scan-progress-shine: #e0f2fe;
+}
+
+html[data-reduce-motion="true"] .scan-progress-thinking,
+html[data-reduce-motion="true"] .scan-progress-dot {
+  animation: none !important;
+}
+
+html[data-reduce-motion="true"] .scan-progress-thinking {
+  background: none;
+  color: #1d4ed8;
 }
 
 html[data-app-theme="dark"] .bg-white,
