@@ -760,23 +760,26 @@ export async function openDocumentPdfPreview(
   profile: BusinessProfile,
   options: DocumentPdfOptions = {},
 ): Promise<void> {
-  const opened = openPdfWindow(documentPdfFilename(doc));
+  const filename = documentPdfFilename(doc);
+  const opened = openPdfWindow(filename);
 
   try {
     const blob = await buildDocumentPdfBlob(doc, profile, options);
-    const url = URL.createObjectURL(blob);
-    renderPdfWindow(opened, url, documentPdfFilename(doc));
-    window.setTimeout(() => {
-      try {
-        const bodyHasContent = Boolean(opened.document.body?.childElementCount);
-        if (!opened.closed && !bodyHasContent) {
-          opened.location.href = url;
-        }
-      } catch {
-        if (!opened.closed) opened.location.href = url;
-      }
-    }, 250);
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const file = new File([blob], filename, {
+      type: blob.type || "application/pdf",
+    });
+    const url = URL.createObjectURL(file);
+    try {
+      opened.opener = null;
+    } catch {
+      // Algunos navegadores no permiten modificar opener.
+    }
+    if (typeof opened.location.replace === "function") {
+      opened.location.replace(url);
+    } else {
+      opened.location.href = url;
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 10 * 60_000);
   } catch (error) {
     opened.close();
     throw error;
