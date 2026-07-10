@@ -1075,7 +1075,9 @@ describe("MVP usability polish", () => {
 
     expect(productsPageSource).toContain("function productDisplayName");
     expect(productsPageSource).toContain("product.saleDescription?.trim()");
-    expect(productsPageSource).toContain("Proveedor: {product.name}");
+    expect(productsPageSource).toContain("Proveedor: {supplierLabel}");
+    expect(productsPageSource).toContain("product.usualSupplier?.supplierName");
+    expect(productsPageSource).toContain("Detectado como: ${product.name}");
     expect(productsPageSource).toContain(
       'label="Producto detectado / proveedor"',
     );
