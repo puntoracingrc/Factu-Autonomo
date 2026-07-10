@@ -103,6 +103,12 @@ interface ProductAccumulator {
   suppliers: Map<string, PurchaseProductSupplierSummary>;
 }
 
+type PurchaseCatalogPriceLine = Pick<
+  ExpensePurchaseLine,
+  "quantity" | "unitPrice" | "discountPercent" | "netUnitPrice" | "total"
+> &
+  Pick<Partial<ExpensePurchaseLine>, "catalogProduct">;
+
 function cleanOptionalText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
@@ -351,15 +357,13 @@ function supplierKey(expense: Expense): string {
   );
 }
 
-function normalizedDiscountPercent(
-  line: NonNullable<Expense["purchaseLines"]>[number],
-): number {
+function normalizedDiscountPercent(line: PurchaseCatalogPriceLine): number {
   const discount = line.discountPercent ?? 0;
   return Number.isFinite(discount) ? Math.min(Math.max(discount, 0), 100) : 0;
 }
 
 function purchaseLineNetUnitCost(
-  line: NonNullable<Expense["purchaseLines"]>[number],
+  line: PurchaseCatalogPriceLine,
 ): number {
   const discount = normalizedDiscountPercent(line);
   if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
@@ -377,6 +381,25 @@ function purchaseLineNetUnitCost(
   }
 
   return 0;
+}
+
+export function purchaseLineHasPositiveCatalogPrice(
+  line: PurchaseCatalogPriceLine,
+): boolean {
+  return (
+    expensePurchaseLineBaseTotal(line) > 0 &&
+    purchaseLineNetUnitCost(line) > 0 &&
+    (line.netUnitPrice === undefined || line.netUnitPrice > 0)
+  );
+}
+
+export function purchaseLineCanFeedProductCatalog(
+  line: PurchaseCatalogPriceLine,
+): boolean {
+  return (
+    expensePurchaseLineTracksProduct(line) &&
+    purchaseLineHasPositiveCatalogPrice(line)
+  );
 }
 
 function isAreaUnit(unit: string | undefined): boolean {
@@ -491,7 +514,7 @@ export function buildPurchaseProductSummaries(
 
   for (const expense of expenses) {
     const lines = sanitizeExpensePurchaseLines(expense.purchaseLines).filter(
-      expensePurchaseLineTracksProduct,
+      purchaseLineCanFeedProductCatalog,
     );
     for (const line of lines) {
       const detectedKey = purchaseProductKey(line.description);

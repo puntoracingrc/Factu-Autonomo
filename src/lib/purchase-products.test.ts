@@ -328,6 +328,44 @@ describe("purchase products", () => {
     expect(summaries[0].name).toBe("Motor vendible");
   });
 
+  it("ignora abonos negativos al actualizar precios de Productos", () => {
+    const summaries = buildPurchaseProductSummaries([
+      expense("1", "2026-07-01", "Arandes", [
+        {
+          id: "l1",
+          description: "Noyo orientable SUPER GH",
+          catalogProduct: true,
+          quantity: 10,
+          unit: "ud",
+          unitPrice: 1.79,
+          ivaPercent: 21,
+        },
+      ]),
+      expense("2", "2026-07-10", "Arandes", [
+        {
+          id: "l2",
+          description: "Noyo orientable SUPER GH",
+          catalogProduct: true,
+          quantity: 10,
+          unit: "ud",
+          unitPrice: -1.79,
+          ivaPercent: 21,
+        },
+      ]),
+    ]);
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toMatchObject({
+      purchaseCount: 1,
+      totalQuantity: 10,
+      totalBase: 17.9,
+      averageUnitPrice: 1.79,
+      lastUnitPrice: 1.79,
+      minUnitPrice: 1.79,
+      maxUnitPrice: 1.79,
+    });
+  });
+
   it("marca líneas que ya existen en productos manuales o detectados", () => {
     const expenses = [
       expense("1", "2026-07-01", "Arandes", [
