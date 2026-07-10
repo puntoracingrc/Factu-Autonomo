@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Activity,
@@ -457,13 +457,22 @@ function CopyableLogPanel({
   description: string;
   log: string;
 }) {
-  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "selected">(
+    "idle",
+  );
 
   const copy = useCallback(async () => {
     const ok = await copyTextToClipboard(log);
-    if (!ok) return;
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
+    if (!ok) {
+      textareaRef.current?.focus();
+      textareaRef.current?.select();
+      setCopyState("selected");
+      window.setTimeout(() => setCopyState("idle"), 3200);
+      return;
+    }
+    setCopyState("copied");
+    window.setTimeout(() => setCopyState("idle"), 2200);
   }, [log]);
 
   return (
@@ -480,12 +489,21 @@ function CopyableLogPanel({
           className="min-h-10 bg-white px-4 text-sm text-slate-900 hover:bg-slate-100"
         >
           <Clipboard className="h-4 w-4" />
-          {copied ? "Copiado" : "Copiar log"}
+          {copyState === "copied"
+            ? "Copiado"
+            : copyState === "selected"
+              ? "Seleccionado"
+              : "Copiar log"}
         </Button>
       </div>
-      <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-3 text-xs font-semibold leading-5 text-slate-100">
-        {log}
-      </pre>
+      <textarea
+        ref={textareaRef}
+        readOnly
+        value={log}
+        onFocus={(event) => event.currentTarget.select()}
+        aria-label={title}
+        className="mt-4 h-72 w-full resize-y rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-xs font-semibold leading-5 text-slate-100 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-400/40"
+      />
     </div>
   );
 }
