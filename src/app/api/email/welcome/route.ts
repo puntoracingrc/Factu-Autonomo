@@ -5,6 +5,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export const runtime = "nodejs";
 
@@ -23,12 +24,16 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { userId?: string; email?: string; recipientName?: string };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
-  }
+  const bodyResult = await readJsonBody<{
+    userId?: string;
+    email?: string;
+  }>(request, {
+    maxBytes: 8 * 1024,
+    invalidMessage: "JSON inválido",
+    tooLargeMessage: "La petición de bienvenida es demasiado grande.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   const userId = body.userId?.trim();
   const email = body.email?.trim();
@@ -43,7 +48,6 @@ export async function POST(request: Request) {
   const result = await sendWelcomeEmailForUser({
     userId,
     email,
-    recipientName: body.recipientName?.trim(),
   });
 
   if (!result.ok && !result.skipped) {

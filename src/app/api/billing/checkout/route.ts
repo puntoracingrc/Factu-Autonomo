@@ -7,6 +7,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -35,10 +36,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as {
+  const bodyResult = await readJsonBody<{
     interval?: "monthly" | "yearly";
     plan?: PaidPlanId;
-  };
+  }>(request, {
+    maxBytes: 8 * 1024,
+    invalidMessage: "Petición de pago no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
   const interval = body.interval === "yearly" ? "yearly" : "monthly";
   const plan: PaidPlanId = body.plan === "pro_plus" ? "pro_plus" : "pro";
   const priceId = priceIdForPlanInterval(plan, interval);

@@ -144,6 +144,7 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   admin_errors: "Admin: errores",
   admin_expenses_scan: "Admin: escaneo masivo gastos",
   admin_health: "Admin: salud",
+  admin_operations_status: "Admin: CI, dominio y Firewall",
   admin_user_mfa: "Admin: MFA usuarios",
   admin_user_restore: "Admin: restauracion",
   admin_users_list: "Admin: usuarios",
@@ -151,16 +152,19 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   admin_vercel_usage: "Admin: uso Vercel",
   billing_checkout: "Billing: checkout",
   billing_checkout_scan_pack: "Billing: pack escaneos",
+  billing_ai_usage: "Billing: consumo IA",
+  billing_profile: "Billing: perfil",
   billing_portal: "Billing: portal",
   billing_trial: "Billing: prueba",
   customers_parse: "IA: parseo clientes",
   email: "Email",
   email_payment_reminder: "Email: recordatorios",
+  email_payment_reminder_daily: "Email: recordatorios diarios",
   email_welcome: "Email: bienvenida",
   expense_inbox_read: "Buzon gastos: lectura",
   expense_inbox_rotate_alias: "Buzon gastos: alias",
   expense_inbox_update: "Buzon gastos: configurar",
-  expenses_provider_summary: "Gastos: proveedor",
+  expense_scan_quota: "IA: consulta de cuota",
   expenses_scan: "IA: escaneo gastos",
   google_auth_token: "Google Auth",
   google_drive_token: "Google Drive",
@@ -171,6 +175,7 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   referrals_redeem: "Referidos: canje",
   reminders_realtime_session: "Recordatorios voz",
   security_csp_report: "CSP reports",
+  security_health_alert: "Seguridad: alerta admin",
   uploads: "Uploads",
   verifactu_declaration: "VeriFactu: declaracion",
   verifactu_register: "VeriFactu: registro",
@@ -309,7 +314,9 @@ function normalizeAbuseNamespace(value: unknown): AdminHealthAbuseNamespace {
   };
 }
 
-function normalizeAbuseSummary(rawValue: unknown): AdminHealthAbuseSummary {
+export function buildAdminAbuseSummary(
+  rawValue: unknown,
+): AdminHealthAbuseSummary {
   const raw = asRecord(rawValue);
   const namespaces = asArray(raw.namespaces)
     .map(normalizeAbuseNamespace)
@@ -370,7 +377,7 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
   const sync = asRecord(raw.sync);
   const errors = asRecord(raw.errors);
   const usage = asRecord(raw.usage);
-  const abuse = normalizeAbuseSummary(raw.abuse);
+  const abuse = buildAdminAbuseSummary(raw.abuse);
   const generatedAt = stringValue(raw.generatedAt) ?? new Date().toISOString();
 
   const databaseBytes = integerValue(database.bytes);

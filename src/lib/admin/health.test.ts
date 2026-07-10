@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildAdminHealthSnapshot, isMissingAdminHealthRpc } from "./health";
+import {
+  buildAdminAbuseSummary,
+  buildAdminHealthSnapshot,
+  isMissingAdminHealthRpc,
+} from "./health";
 
 describe("admin health helpers", () => {
   it("marca el sistema como holgado con uso bajo", () => {
@@ -111,6 +115,22 @@ describe("admin health helpers", () => {
     expect(snapshot.recommendations).not.toContain(
       "Posible scraping/abuso: revisar logs y valorar WAF/bot protection.",
     );
+  });
+
+  it("nombra los nuevos contadores protegidos de forma legible", () => {
+    const abuse = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "email_payment_reminder_daily",
+          buckets: 1,
+          requests: 1,
+          maxRequests: 1,
+          latestAt: "2026-07-10T13:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(abuse.namespaces[0].label).toBe("Email: recordatorios diarios");
   });
 
   it("detecta RPC no desplegada", () => {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchRateLimitAbuse, type RawAbuseSummary } from "@/lib/admin/abuse-server";
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   buildAdminHealthSnapshot,
@@ -37,36 +38,6 @@ interface FallbackUsage {
   documentsCreated: number;
   expenseScans: number;
   customerAiAutofills: number;
-}
-
-interface RateLimitBucketRow {
-  namespace: string | null;
-  request_count: number | null;
-  updated_at: string | null;
-}
-
-interface RawAbuseNamespace {
-  namespace: string;
-  buckets: number;
-  requests: number;
-  maxRequests: number;
-  latestAt: string | null;
-}
-
-interface RawAbuseSummary {
-  namespaces: RawAbuseNamespace[];
-  totalBuckets: number;
-  totalRequests: number;
-  latestAt: string | null;
-}
-
-function emptyAbuseSummary(): RawAbuseSummary {
-  return {
-    namespaces: [],
-    totalBuckets: 0,
-    totalRequests: 0,
-    latestAt: null,
-  };
 }
 
 function errorText(error: DatabaseErrorLike): string {
@@ -116,68 +87,6 @@ function mergeRawHealthWithAbuse(rawValue: unknown, abuse: RawAbuseSummary) {
       : {}) as Record<string, unknown>),
     abuse,
   };
-}
-
-async function fetchRateLimitAbuse(
-  admin: AdminClient,
-): Promise<RawAbuseSummary> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  try {
-    const result = await admin
-      .from("server_rate_limit_buckets")
-      .select("namespace,request_count,updated_at")
-      .gte("updated_at", since)
-      .order("updated_at", { ascending: false })
-      .limit(1000);
-
-    if (result.error) {
-      if (isMissingTable(result.error, "server_rate_limit_buckets")) {
-        return emptyAbuseSummary();
-      }
-      return emptyAbuseSummary();
-    }
-
-    const namespaces = new Map<string, RawAbuseNamespace>();
-    let totalBuckets = 0;
-    let totalRequests = 0;
-    let latestAt: string | null = null;
-
-    for (const row of (result.data ?? []) as RateLimitBucketRow[]) {
-      const namespace = row.namespace?.trim() || "desconocido";
-      const requests = Math.max(0, Math.floor(Number(row.request_count ?? 0)));
-      const updatedAt = row.updated_at ?? null;
-      const current =
-        namespaces.get(namespace) ??
-        {
-          namespace,
-          buckets: 0,
-          requests: 0,
-          maxRequests: 0,
-          latestAt: null,
-        };
-
-      current.buckets += 1;
-      current.requests += requests;
-      current.maxRequests = Math.max(current.maxRequests, requests);
-      if (toTime(updatedAt) > toTime(current.latestAt)) current.latestAt = updatedAt;
-      namespaces.set(namespace, current);
-
-      totalBuckets += 1;
-      totalRequests += requests;
-      if (toTime(updatedAt) > toTime(latestAt)) latestAt = updatedAt;
-    }
-
-    return {
-      namespaces: Array.from(namespaces.values())
-        .sort((a, b) => b.requests - a.requests)
-        .slice(0, 12),
-      totalBuckets,
-      totalRequests,
-      latestAt,
-    };
-  } catch {
-    return emptyAbuseSummary();
-  }
 }
 
 async function fetchUsageFallback(

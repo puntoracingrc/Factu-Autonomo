@@ -5,6 +5,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const MAX_ERROR_EVENT_BODY_BYTES = 16 * 1024;
@@ -35,16 +36,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 202 });
   }
 
-  let rawBody: string;
-  try {
-    rawBody = await request.text();
-  } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
-  }
-
-  if (new TextEncoder().encode(rawBody).length > MAX_ERROR_EVENT_BODY_BYTES) {
-    return NextResponse.json({ error: "Evento demasiado grande" }, { status: 413 });
-  }
+  const bodyResult = await readTextBody(request, {
+    maxBytes: MAX_ERROR_EVENT_BODY_BYTES,
+    invalidMessage: "JSON inválido",
+    tooLargeMessage: "Evento demasiado grande",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const rawBody = bodyResult.data;
 
   let parsed: unknown;
   try {

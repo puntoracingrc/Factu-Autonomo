@@ -9,6 +9,14 @@ export interface WelcomeEmailContent {
   text: string;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function displayNameFromEmail(email: string): string {
   const local = email.split("@")[0]?.trim();
   if (!local) return "jefe";
@@ -26,6 +34,7 @@ export function buildWelcomeEmail(input: {
 }): WelcomeEmailContent {
   const appUrl = getAppBaseUrl();
   const name = input.recipientName?.trim() || displayNameFromEmail(input.email);
+  const safeName = escapeHtml(name);
   const panelUrl = `${appUrl}/facturas/nuevo`;
   const verifactuUrl = `${appUrl}/configuracion`;
   const avatarUrl = `${appUrl}/brand/robot-avatar.png`;
@@ -73,7 +82,7 @@ Tu asistente inteligente de confianza.`;
             </tr>
             <tr>
               <td style="padding:8px 32px 28px;font-size:16px;line-height:1.65;color:#334155;">
-                <p style="margin:0 0 16px;">Hola, <strong>${name}</strong>:</p>
+                <p style="margin:0 0 16px;">Hola, <strong>${safeName}</strong>:</p>
                 <p style="margin:0 0 16px;">¡Oficialmente ya soy tu nuevo empleado favorito! Acabas de activar mi sistema en <strong>Facturación Autónomos</strong> y mis circuitos de silicio están listos para empezar a doblar el lomo por ti. A partir de hoy, me puedes llamar <strong>Factu</strong>.</p>
                 <p style="margin:0 0 12px;font-weight:600;color:#0f172a;">Nuestro trato a partir de ahora es muy sencillo:</p>
                 <ul style="margin:0 0 16px;padding-left:20px;">

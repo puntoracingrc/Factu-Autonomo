@@ -26,6 +26,7 @@ export interface SendPaymentReminderInput {
   doc: Document;
   profile: BusinessProfile;
   message: string;
+  replyTo?: string;
 }
 
 export interface SendPaymentReminderResult {
@@ -43,6 +44,9 @@ export function validatePaymentReminderInput(
   }
   if (!hasClientEmail(input.doc)) {
     return "El cliente no tiene email.";
+  }
+  if (input.doc.items.length > 200) {
+    return "La factura tiene demasiadas líneas para enviarla por email.";
   }
   const message = input.message.trim();
   if (!message) return "Escribe un mensaje para el cliente.";
@@ -80,6 +84,7 @@ export async function sendPaymentReminderEmail(
     subject: content.subject,
     html: content.html,
     text: content.text,
+    replyTo: input.replyTo,
     attachments: [
       {
         filename: pdfFilename(input.doc),

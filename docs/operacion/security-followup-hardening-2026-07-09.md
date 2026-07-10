@@ -32,8 +32,14 @@ decision operativa y coste.
 - El mismo panel muestra consumo/coste real de Vercel Pro con un token privado
   de servidor. El token duplicado creado durante la configuracion fue revocado y
   se mantiene activo solo `Factu Admin Vercel Usage 2026-07`.
-- WAF/bot protection queda como control operativo externo: no se activa a ciegas
-  porque depende de DNS/proveedor/coste y puede bloquear trafico legitimo.
+- Vercel Firewall queda habilitado con Bot Protection y AI Bots en modo `Log`.
+  Registra trafico automatizado sin bloquear, desafiar ni anadir friccion.
+- Dependabot y CodeQL quedan activos en GitHub. El primer setup CodeQL termino
+  correctamente y no habia alertas Dependabot abiertas.
+- Se anaden limites de cuerpo por API, inventario automatico de rutas y una
+  alerta programada por email para senales rojas recientes de abuso.
+- Admin compara GitHub `main`, CI, deployment y dominio, e incorpora eventos WAF
+  agregados sin IPs en logs copiables para Codex.
 - Revision mensual de Supabase queda documentada y con recordatorio activo en
   Codex: `revisi-n-mensual-supabase-seguridad`.
 
@@ -200,6 +206,8 @@ Hecho:
 - Consulta de verificacion devuelta en `true`: tabla existe, RPC existe, sin
   grants a usuarios normales y con execute para `service_role`.
 - Variable Vercel Production `SERVER_RATE_LIMIT_BACKEND=supabase` anadida.
+- `SERVER_RATE_LIMIT_SALT` aleatorio y exclusivo configurado en Vercel
+  Production; los hashes ya no dependen de una URL publica como fallback.
 - Admin > Errores y salud lee los contadores recientes por namespace y alerta si
   hay volumen anomalo o muchos origenes distintos contra rutas protegidas.
 - El log `FACTU_SECURITY_HEALTH_V1` se puede copiar desde admin y pegar en Codex
@@ -216,24 +224,47 @@ Verificacion realizada:
 
 ## WAF y bot protection
 
-No activado por codigo.
+Estado aplicado el 2026-07-10:
 
-Motivo:
+- Vercel Firewall habilitado.
+- System Mitigations/DDoS activo y Attack Mode apagado.
+- Bot Protection en `Log`.
+- AI Bots en `Log`.
+- Sin reglas de deny, challenge o bloqueo IP creadas en esta fase.
+- Admin lee los eventos de las ultimas 24 horas, los agrega por accion/host y
+  descarta las IPs antes de responder al navegador.
 
-- Depende del proveedor DNS/CDN elegido.
-- Puede generar falsos positivos en registro/login.
-- Scraping no se elimina al 100%; se reduce con rate limits, robots, noindex,
-  WAF, reglas por pais/ASN y bot protection.
+Operacion:
 
-Estado actual:
+- Mantener `Log` mientras no exista trafico real suficiente para medir falsos
+  positivos.
+- Pasar Bot Protection a `Challenge` o AI Bots a `Deny` solo tras revisar los
+  eventos, rutas y navegadores afectados.
+- Scraping no se elimina al 100%; esta capa se complementa con auth, RLS, CSP,
+  rate limits distribuidos y limites de consumo.
 
-- `robots.txt` bloquea rutas privadas para crawlers educados.
-- Rutas privadas llevan `X-Robots-Tag: noindex, nofollow, noarchive`.
-- APIs sensibles tienen rate limit.
-- Admin > Errores y salud muestra senales de abuso/scraping cuando los
-  contadores distribuidos pasan umbrales de vigilancia o accion.
-- Futuro recomendado: WAF/bot protection si aparecen picos, scraping real o
-  abuso de registro/login.
+## Limites API y alertas
+
+- Las rutas que leen JSON/texto directamente tienen limite explicito.
+- Stripe queda limitado a 1 MB y conserva firma sobre el cuerpo exacto.
+- Resend/Svix queda limitado a 4 MB y conserva firma.
+- Escaneo de gastos queda en 4 MB, coherente con Vercel Functions.
+- El resumen de proveedor se procesa localmente y ya no tiene API publica.
+- `/api/security/health-alert` se ejecuta cada 15 minutos mediante Vercel Cron,
+  exige `CRON_SECRET` y envia como maximo un aviso cada seis horas cuando la
+  senal roja es reciente.
+- `CRON_SECRET` y `SERVER_RATE_LIMIT_SALT` estan en Vercel Production y no se
+  guardan en Git.
+
+## Seguridad GitHub
+
+- Dependabot alerts y security updates activos.
+- CodeQL default setup activo para Actions, JavaScript y TypeScript, suite
+  `default`, threat model `remote` y ejecucion semanal.
+- Setup CodeQL `29110670450` finalizado en `success`.
+- Secret scanning y push protection siguen activos.
+- Validity checks/non-provider patterns no estan disponibles con la capacidad
+  actual del repo personal y permanecen desactivados.
 
 ## Observabilidad Vercel Pro
 
@@ -280,10 +311,13 @@ Revisar cada mes:
 - CSP reports.
 - Log copiable `FACTU_SECURITY_HEALTH_V1` de Admin > Errores y salud.
 - Estado de Vercel Production Domain.
-- Necesidad real de WAF/bot protection.
+- Eventos WAF y necesidad real de cambiar `Log` a challenge/deny.
 
 ## Pendiente seguro
 
-- WAF/bot protection solo si hay senales reales o decision comercial.
-- El panel admin ayuda a detectar senales, pero no bloquea bots avanzados por si
-  solo. Si se confirma abuso real, evaluar WAF/bot protection externo.
+- Confirmar `Leaked password protection` en Supabase Auth desde Dashboard.
+- Mantener WAF en `Log`; no activar challenge/deny sin revisar trafico real.
+- El panel y los correos detectan senales, pero ningun sistema elimina por si
+  solo todos los bots avanzados.
+- Reducir `unsafe-inline` de CSP requiere una fase separada con nonces y pruebas
+  de Next.js, Turnstile, Google, Drive y Maps.

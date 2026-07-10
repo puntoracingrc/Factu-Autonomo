@@ -69,6 +69,7 @@ import {
   planProviderSummaryExpenseImport,
   type ProviderInvoiceSummaryRow,
 } from "@/lib/provider-summary-expenses";
+import { parseProviderSummaryFile } from "@/lib/provider-summary-file";
 import {
   ensureSupplierForExpense,
   supplierCompareKey,
@@ -79,14 +80,6 @@ import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
-
-interface ProviderSummaryApiResponse {
-  fileName: string;
-  providerName?: string;
-  rows: ProviderInvoiceSummaryRow[];
-  warnings: string[];
-  error?: string;
-}
 
 interface ProviderSummaryPreview {
   id: string;
@@ -504,16 +497,7 @@ export default function GastosPage() {
     setSummaryRemovedInvoiceNumbers([]);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("/api/expenses/provider-summary", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as ProviderSummaryApiResponse;
-      if (!response.ok || payload.error) {
-        throw new Error(payload.error || "No se pudo leer el resumen.");
-      }
+      const payload = await parseProviderSummaryFile(file);
 
       const detectedProviderName = payload.providerName?.trim() || undefined;
       const providerResolution = detectedProviderName
@@ -542,7 +526,7 @@ export default function GastosPage() {
 
       setSummaryPreview({
         id: crypto.randomUUID(),
-        fileName: payload.fileName || file.name,
+        fileName: payload.fileName,
         providerName,
         detectedProviderName,
         providerSupplierId: providerResolution?.supplierId,

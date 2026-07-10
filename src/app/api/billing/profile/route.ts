@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { billingProfileFromDbRow } from "@/lib/billing/billing-profile";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 function isMissingBillingProfileSchemaError(error: {
@@ -22,6 +26,16 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "billing_profile",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const admin = getSupabaseAdmin();
   if (!admin) {

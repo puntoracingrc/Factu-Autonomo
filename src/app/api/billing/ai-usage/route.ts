@@ -8,6 +8,10 @@ import {
 } from "@/lib/billing/scan-limits";
 import { getExpenseScanQuota } from "@/lib/billing/scan-usage-server";
 import { currentMonthKey } from "@/lib/billing/usage";
+import {
+  checkRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/server/rate-limit";
 
 function buildAiLearningTestQuota() {
   return buildScanQuota(
@@ -28,6 +32,16 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "billing_ai_usage",
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+    user.id,
+  );
+  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const quota = aiLearningAccountForEmail(user.email).allowed
     ? buildAiLearningTestQuota()

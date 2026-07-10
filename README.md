@@ -26,8 +26,14 @@ Programa de facturación **sencillo** para autónomos. Funciona en **PC, iPhone 
 
 ## Tus datos
 
-Todo se guarda **en tu dispositivo** (navegador). No necesitas cuenta ni contraseña.
+Puedes empezar sin cuenta y guardar los datos **en tu dispositivo**. Al crear
+una cuenta con nube activa, la app sincroniza cada usuario de forma aislada con
+Supabase y permite copias adicionales en Google Drive. La cuenta incluye
+confirmacion de email, recuperacion de contraseña y MFA opcional.
 
 ## Tecnología
 
-Next.js · TypeScript · Tailwind CSS · PWA
+Next.js · React · TypeScript · Tailwind CSS · Supabase · Stripe · Vercel · PWA
+
+La configuracion real de produccion y seguridad se documenta en
+`docs/VERCEL_PRODUCCION.md` y `docs/operacion/`.

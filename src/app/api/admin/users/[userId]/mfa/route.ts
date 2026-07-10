@@ -7,6 +7,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -364,7 +365,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   }
 
   const { userId } = await params;
-  const body = (await request.json()) as DeleteMfaFactorBody;
+  const bodyResult = await readJsonBody<DeleteMfaFactorBody>(request, {
+    maxBytes: 8 * 1024,
+    invalidMessage: "Petición de recuperación MFA no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
   const factorId = typeof body.factorId === "string" ? body.factorId.trim() : "";
   const recoveryCode = safeCode(body.recoveryCode);
   const confirmationEmail =

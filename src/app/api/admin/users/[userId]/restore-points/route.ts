@@ -14,6 +14,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { SyncChange } from "@/lib/types";
 
@@ -266,7 +267,12 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!auth.ok) return auth.response;
 
   const { userId } = await params;
-  const body = (await request.json().catch(() => ({}))) as RestorePointBody;
+  const bodyResult = await readJsonBody<RestorePointBody>(request, {
+    maxBytes: 16 * 1024,
+    invalidMessage: "Acción de restauración no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   const target = await fetchTargetEmail(auth.admin, userId);
   if ("error" in target) {

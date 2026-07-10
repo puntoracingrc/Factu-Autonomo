@@ -11,6 +11,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 async function canUseCustomerAi(userId: string): Promise<{
   allowed: boolean;
@@ -60,9 +61,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
   }
 
-  const body = (await request.json().catch(() => null)) as {
+  const bodyResult = await readJsonBody<{
     text?: unknown;
-  } | null;
+  }>(request, {
+    maxBytes: 8 * 1024,
+    invalidMessage: "Petición no válida.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
   const text = typeof body?.text === "string" ? body.text.trim() : "";
 
   if (text.length < 10) {

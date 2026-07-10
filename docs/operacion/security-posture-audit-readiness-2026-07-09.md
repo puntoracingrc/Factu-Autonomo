@@ -18,7 +18,7 @@ pendientes que conviene revisar antes de una auditoria externa.
 - El admin depende de `ADMIN_EMAILS` en produccion. El fallback local solo se
   aplica fuera de produccion.
 - Los principales riesgos que siguen vivos son: XSS con impacto alto por uso de
-  `localStorage`, ausencia de PITR, ausencia de WAF/bot protection avanzado y
+  `localStorage`, ausencia de PITR, CSP aun dependiente de `unsafe-inline` y
   despliegue de migraciones Supabase todavia no totalmente automatizado.
 - CSP queda en bloqueo por defecto en produccion tras revisar logs de Vercel el
   2026-07-09. Se puede volver temporalmente a informe con
@@ -32,6 +32,10 @@ pendientes que conviene revisar antes de una auditoria externa.
 - Admin > Errores y salud incluye observabilidad de uso/coste de Vercel Pro
   mediante token privado de servidor. El token activo es el de uso admin creado
   el 2026-07-10; el duplicado creado durante la configuracion fue revocado.
+- Vercel Firewall esta activo con Bot Protection y AI Bots en modo `Log`. El
+  panel agrega eventos sin IPs y compara `main`, CI, deployment y dominio.
+- Dependabot y CodeQL estan activos en GitHub; el primer setup CodeQL termino
+  correctamente y no habia alertas Dependabot abiertas.
 - El MFA admin queda activo para APIs admin completas mediante TOTP y
   `ADMIN_MFA_REQUIRED=true`; la cuenta `puntoracingrc@gmail.com` fue verificada
   en sesion `aal2`.
@@ -56,6 +60,7 @@ Protecciones actuales:
 - `X-Content-Type-Options: nosniff`.
 - `X-Frame-Options: DENY`.
 - CSP con directivas restrictivas y `frame-ancestors 'none'`.
+- CSP bloquea manejadores JavaScript de atributos con `script-src-attr 'none'`.
 - CSP permite explicitamente servicios necesarios: Supabase, OpenAI, Google,
   Google Maps, Google Drive, Gmail y Cloudflare Turnstile.
 - CSP incluye `report-uri /api/security/csp-report` para registrar violaciones
@@ -160,6 +165,13 @@ Protecciones actuales:
   `security_csp_report`, lo que confirma uso real del backend distribuido.
 - La ruta `/api/admin/health` agrega los buckets recientes por namespace y los
   normaliza como senal de abuso/scraping para el panel admin.
+- La ruta `/api/admin/operations-status` exige admin y agrega GitHub CI, CodeQL,
+  alias de dominio, deployment y Vercel Firewall.
+- La ruta programada `/api/security/health-alert` exige `CRON_SECRET`, solo
+  alerta ante senal roja reciente y deduplica avisos durante seis horas.
+- Cada ruta que lee JSON/texto directamente tiene un limite de cuerpo. El test
+  `api-security-inventory` obliga a clasificar rutas, metodos, acceso, rate
+  limit, firmas y limites de payload.
 - La ruta `/api/admin/users/[userId]/mfa` permite al admin listar factores MFA
   seguros, enviar un codigo de recuperacion al email del usuario y eliminar un
   factor solo con admin `aal2`, email confirmado manualmente y codigo vigente.
@@ -169,6 +181,10 @@ Protecciones actuales:
 - Webhook Stripe usa idempotencia por evento.
 - Inbound email valida Svix/Resend o secreto privado.
 - Upload de escaneo IA valida fichero, tamano/tipo y cuota.
+- El maximo de PDF/imagen es 4 MB para quedar por debajo del limite multipart de
+  Vercel Functions.
+- El resumen PDF/TXT/CSV de proveedor se procesa en el navegador y la antigua
+  API publica fue eliminada.
 - APIs de Google token validan redirect/origin.
 - Rutas experimentales `document-sync` y `server-documents/ingest` quedan bajo
   flags y hardening especifico.
@@ -178,7 +194,7 @@ Riesgos pendientes:
 
 - Mantener vigilancia de logs por si apareciera `rate_limit_supabase_fallback`.
 - Revisar periodicamente endpoints sin auth clasica: webhooks, monitoring,
-  welcome email, status/declaration y provider-summary.
+  welcome email y status/declaration. Todos estan clasificados en el inventario.
 
 ## Frontend, XSS y datos locales
 
@@ -214,6 +230,8 @@ Protecciones actuales:
 - Panel admin incluye errores/salud y metricas de uso.
 - Panel admin incluye senales de abuso/scraping y log copiable para diagnostico
   externo controlado.
+- Panel admin marca por seccion los avisos rojos/ambar hasta abrirlos y genera
+  logs copiables para Supabase, Vercel, seguridad, errores y operacion externa.
 - Restauracion por usuario existe como herramienta admin con confirmacion.
 - Acciones de restauracion crean punto de seguridad antes de aplicar cambios.
 - Recuperacion MFA por usuario desde admin exige sesion admin `aal2`, rate limit,
@@ -241,6 +259,9 @@ Protecciones actuales:
 
 - Todo cambio pasa por Git.
 - CI ejecuta migraciones check, tests, lint, typecheck y build.
+- GitHub exige PR y checks de Quality/Supabase Acceptance para `main`.
+- Dependabot alerts/security updates y CodeQL default setup estan activos.
+- Secret scanning y push protection estan activos.
 - Supabase local acceptance corre en CI.
 - Push a `main` espera Vercel y reasigna alias de produccion.
 - Production Domain verifica que el dominio responde con la marca esperada.
@@ -294,12 +315,12 @@ Media prioridad:
 
 - Workflow manual para migraciones Supabase con dry-run y aprobacion.
 - Runbook de incidentes y recuperacion.
-- Alertas externas para errores criticos y abuso.
-- Convertir senales admin de abuso en alerta externa si aumenta el trafico o hay
-  usuarios reales en volumen.
+- Confirmar leaked password protection en Supabase Auth.
+- Extender alertas externas solo si aparecen nuevas fuentes que no esten
+  cubiertas por admin, Vercel o el cron actual.
 
 Baja prioridad o dependiente de coste:
 
 - PITR si el negocio no puede tolerar perdida de hasta 24h.
-- WAF/bot protection avanzada si aparecen ataques o scraping real.
+- Pasar WAF de `Log` a challenge/deny solo si los eventos confirman abuso real.
 - Log Drains si se necesita monitorizacion externa continua.

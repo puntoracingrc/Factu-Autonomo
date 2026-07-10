@@ -19,6 +19,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 import type {
   BusinessProfile,
   Document,
@@ -52,15 +53,13 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  let body: RegisterBody;
-  try {
-    body = (await request.json()) as RegisterBody;
-  } catch {
-    return NextResponse.json(
-      { error: "Cuerpo JSON inválido" },
-      { status: 400 },
-    );
-  }
+  const bodyResult = await readJsonBody<RegisterBody>(request, {
+    maxBytes: 1024 * 1024,
+    invalidMessage: "Cuerpo JSON inválido",
+    tooLargeMessage: "El documento Veri*Factu es demasiado grande.",
+  });
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.data;
 
   const profile: BusinessProfile = {
     name: body.profile.name ?? "",

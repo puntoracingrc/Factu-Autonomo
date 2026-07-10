@@ -38,6 +38,7 @@ const contentSecurityPolicy = serializeCsp([
       "https://maps.gstatic.com",
     ],
   ],
+  ["script-src-attr", ["'none'"]],
   [
     "style-src",
     ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],

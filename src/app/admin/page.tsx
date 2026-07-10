@@ -42,6 +42,7 @@ import type {
   AdminHealthLevel,
   AdminHealthSnapshot,
 } from "@/lib/admin/health";
+import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
 import type {
   AdminRestoreDataSummary,
   AdminRestoreDiffSummary,
@@ -205,6 +206,23 @@ interface AdminVercelUsageResponse {
   error?: string;
 }
 
+interface AdminOperationsStatusResponse {
+  configured?: {
+    github?: boolean;
+    vercel?: boolean;
+  };
+  operations?: AdminOperationsStatus | null;
+  message?: string;
+  error?: string;
+}
+
+interface AdminSectionSignal {
+  id: string;
+  level: AdminHealthLevel;
+}
+
+type AdminSectionSignals = Partial<Record<AdminSection, AdminSectionSignal>>;
+
 interface AdminMfaFactor {
   id: string;
   factor_type?: string;
@@ -262,7 +280,7 @@ const ADMIN_MENU: Array<{
   },
 ];
 
-const SECURITY_ALERT_SEEN_KEY = "factu-admin-security-alert-seen";
+const SECTION_ALERTS_SEEN_KEY = "factu-admin-section-alerts-seen-v1";
 
 function securityAlertIdFromHealth(health: AdminHealthSnapshot | null): string | null {
   if (!health || health.abuse.level !== "action") return null;
@@ -275,6 +293,96 @@ function securityAlertIdFromHealth(health: AdminHealthSnapshot | null): string |
       .map((item) => `${item.namespace}:${item.requests}:${item.maxRequests}`)
       .join(","),
   ].join("|");
+}
+
+function adminLevelRank(level: AdminHealthLevel): number {
+  return level === "action" ? 2 : level === "watch" ? 1 : 0;
+}
+
+function highestAdminLevel(levels: AdminHealthLevel[]): AdminHealthLevel {
+  return levels.reduce<AdminHealthLevel>(
+    (highest, level) =>
+      adminLevelRank(level) > adminLevelRank(highest) ? level : highest,
+    "ok",
+  );
+}
+
+function buildAdminSectionSignals(input: {
+  health: AdminHealthSnapshot | null;
+  operations: AdminOperationsStatus | null;
+  vercel: AdminVercelUsageSnapshot | null;
+  errors: AdminErrorRow[];
+}): AdminSectionSignals {
+  const signals: AdminSectionSignals = {};
+  const { health, operations, vercel, errors } = input;
+
+  if (health) {
+    const securityLevel = highestAdminLevel([
+      health.abuse.level,
+      ...(operations ? [operations.firewall.level] : []),
+    ]);
+    if (securityLevel !== "ok") {
+      signals.seguridad = {
+        level: securityLevel,
+        id: [
+          securityAlertIdFromHealth(health) ?? "app-ok",
+          operations?.firewall.level ?? "external-unknown",
+          operations?.firewall.latestAt ?? "none",
+          operations?.firewall.events24h ?? 0,
+        ].join("|"),
+      };
+    }
+
+    const supabaseChecks = health.checks.filter((check) =>
+      ["capacity", "database", "sync"].includes(check.id),
+    );
+    const supabaseLevel = highestAdminLevel(
+      supabaseChecks.map((check) => check.level),
+    );
+    if (supabaseLevel !== "ok") {
+      signals.supabase = {
+        level: supabaseLevel,
+        id: supabaseChecks
+          .filter((check) => check.level !== "ok")
+          .map((check) => `${check.id}:${check.level}:${check.value}`)
+          .join("|"),
+      };
+    }
+  }
+
+  const vercelLevel = highestAdminLevel([
+    vercel?.level ?? "ok",
+    operations?.deployment.level ?? "ok",
+  ]);
+  if (vercelLevel !== "ok") {
+    signals.vercel = {
+      level: vercelLevel,
+      id: [
+        vercel?.period.from ?? "no-cycle",
+        vercel?.level ?? "no-billing",
+        operations?.deployment.aliasDeploymentId ?? "no-alias",
+        operations?.deployment.latestDeploymentId ?? "no-deployment",
+        operations?.deployment.alignedWithMain ?? "unknown",
+      ].join("|"),
+    };
+  }
+
+  const unresolvedErrors = errors.filter((item) => !item.resolved_at);
+  const errorLevel: AdminHealthLevel = unresolvedErrors.some(
+    (item) => item.severity === "error",
+  )
+    ? "action"
+    : unresolvedErrors.some((item) => item.severity === "warning")
+      ? "watch"
+      : "ok";
+  if (errorLevel !== "ok") {
+    signals.errores = {
+      level: errorLevel,
+      id: `${unresolvedErrors[0]?.created_at ?? "none"}|${unresolvedErrors.length}|${errorLevel}`,
+    };
+  }
+
+  return signals;
 }
 
 function formatDate(value: string | null) {
@@ -1689,7 +1797,10 @@ function HealthHourlyBars({ points }: { points: AdminHealthHourlyPoint[] }) {
   );
 }
 
-function buildAdminSecurityLog(health: AdminHealthSnapshot) {
+function buildAdminSecurityLog(
+  health: AdminHealthSnapshot,
+  operations: AdminOperationsStatus | null,
+) {
   const abuseLines =
     health.abuse.namespaces.length > 0
       ? health.abuse.namespaces.map(
@@ -1715,6 +1826,20 @@ function buildAdminSecurityLog(health: AdminHealthSnapshot) {
     `abuse.totalRequests=${health.abuse.totalRequests}`,
     `abuse.totalBuckets=${health.abuse.totalBuckets}`,
     `abuse.latestAt=${health.abuse.latestAt ?? "none"}`,
+    `waf.available=${operations?.firewall.available ?? "unknown"}`,
+    `waf.enabled=${operations?.firewall.enabled ?? "unknown"}`,
+    `waf.level=${operations?.firewall.level ?? "unknown"}`,
+    `waf.botProtection=${operations?.firewall.botProtection ?? "unknown"}`,
+    `waf.aiBots=${operations?.firewall.aiBots ?? "unknown"}`,
+    `waf.events24h=${operations?.firewall.events24h ?? "unknown"}`,
+    `waf.latestAt=${operations?.firewall.latestAt ?? "none"}`,
+    "waf.eventsRedacted=",
+    ...(operations?.firewall.events.length
+      ? operations.firewall.events.map(
+          (item) =>
+            `- ${item.action}|host=${item.host}|count=${item.count}|latest=${item.latestAt ?? "none"}`,
+        )
+      : ["- none"]),
     "abuse.namespaces=",
     ...abuseLines,
     "recommendations=",
@@ -1784,6 +1909,7 @@ function buildSupabaseOperationsLog(health: AdminHealthSnapshot) {
 function buildVercelOperationsLog(
   vercel: AdminVercelUsageSnapshot | null,
   notice: string | null,
+  operations: AdminOperationsStatus | null,
 ) {
   if (!vercel) {
     return [
@@ -1792,6 +1918,7 @@ function buildVercelOperationsLog(
       `configured=${notice ? "partial_or_missing" : "unknown"}`,
       `notice=${notice ?? "none"}`,
       "status=no_snapshot",
+      `operations=${operations?.level ?? "unavailable"}`,
     ].join("\n");
   }
 
@@ -1810,6 +1937,22 @@ function buildVercelOperationsLog(
     `creditUsedPercent=${vercel.summary.creditUsedPercent}`,
     `lineCount=${vercel.summary.lineCount}`,
     `primaryProjectSlug=${vercel.summary.primaryProjectSlug ?? "none"}`,
+    `domain=${operations?.deployment.domain ?? "unknown"}`,
+    `domain.level=${operations?.deployment.level ?? "unknown"}`,
+    `domain.alignedWithMain=${operations?.deployment.alignedWithMain ?? "unknown"}`,
+    `domain.pointsToLatest=${operations?.deployment.domainPointsToLatest ?? "unknown"}`,
+    `domain.aliasDeployment=${operations?.deployment.aliasDeploymentId ?? "none"}`,
+    `domain.latestDeployment=${operations?.deployment.latestDeploymentId ?? "none"}`,
+    `domain.deployedSha=${operations?.deployment.deployedSha ?? "none"}`,
+    `github.mainSha=${operations?.github.mainSha ?? "none"}`,
+    `github.ci.status=${operations?.github.ci?.status ?? "unknown"}`,
+    `github.ci.conclusion=${operations?.github.ci?.conclusion ?? "unknown"}`,
+    `github.codeql.status=${operations?.github.codeql?.status ?? "unknown"}`,
+    `github.codeql.conclusion=${operations?.github.codeql?.conclusion ?? "unknown"}`,
+    `waf.enabled=${operations?.firewall.enabled ?? "unknown"}`,
+    `waf.botProtection=${operations?.firewall.botProtection ?? "unknown"}`,
+    `waf.aiBots=${operations?.firewall.aiBots ?? "unknown"}`,
+    `waf.events24h=${operations?.firewall.events24h ?? "unknown"}`,
     "topProjects=",
     ...(vercel.topProjects.length > 0
       ? vercel.topProjects.map(
@@ -1827,6 +1970,63 @@ function buildVercelOperationsLog(
     "recommendations=",
     ...(vercel.recommendations.length > 0
       ? vercel.recommendations.map((item) => `- ${item}`)
+      : ["- none"]),
+  ].join("\n");
+}
+
+function buildAdminOperationsLog(
+  operations: AdminOperationsStatus | null,
+  notice: string | null,
+) {
+  if (!operations) {
+    return [
+      "FACTU_OPERATIONS_STATUS_V1",
+      buildCodexHandoffBlock("admin_ci_deploy_domain_waf"),
+      "status=unavailable",
+      `notice=${notice ?? "none"}`,
+    ].join("\n");
+  }
+
+  return [
+    "FACTU_OPERATIONS_STATUS_V1",
+    buildCodexHandoffBlock("admin_ci_deploy_domain_waf"),
+    `generatedAt=${operations.generatedAt}`,
+    `overall=${operations.level}`,
+    `headline=${operations.headline}`,
+    `github.level=${operations.github.level}`,
+    `github.mainSha=${operations.github.mainSha ?? "none"}`,
+    `github.mainUpdatedAt=${operations.github.mainUpdatedAt ?? "none"}`,
+    `github.ci.status=${operations.github.ci?.status ?? "unknown"}`,
+    `github.ci.conclusion=${operations.github.ci?.conclusion ?? "unknown"}`,
+    `github.ci.run=${operations.github.ci?.id ?? "none"}`,
+    `github.codeql.status=${operations.github.codeql?.status ?? "unknown"}`,
+    `github.codeql.conclusion=${operations.github.codeql?.conclusion ?? "unknown"}`,
+    `deployment.level=${operations.deployment.level}`,
+    `deployment.domain=${operations.deployment.domain}`,
+    `deployment.alignedWithMain=${operations.deployment.alignedWithMain ?? "unknown"}`,
+    `deployment.domainPointsToLatest=${operations.deployment.domainPointsToLatest ?? "unknown"}`,
+    `deployment.aliasId=${operations.deployment.aliasDeploymentId ?? "none"}`,
+    `deployment.latestId=${operations.deployment.latestDeploymentId ?? "none"}`,
+    `deployment.sha=${operations.deployment.deployedSha ?? "none"}`,
+    `deployment.branch=${operations.deployment.branch ?? "none"}`,
+    `deployment.createdAt=${operations.deployment.createdAt ?? "none"}`,
+    `firewall.level=${operations.firewall.level}`,
+    `firewall.available=${operations.firewall.available}`,
+    `firewall.enabled=${operations.firewall.enabled}`,
+    `firewall.botProtection=${operations.firewall.botProtection}`,
+    `firewall.aiBots=${operations.firewall.aiBots}`,
+    `firewall.events24h=${operations.firewall.events24h}`,
+    `firewall.latestAt=${operations.firewall.latestAt ?? "none"}`,
+    "firewall.eventsRedacted=",
+    ...(operations.firewall.events.length
+      ? operations.firewall.events.map(
+          (item) =>
+            `- ${item.action}|host=${item.host}|count=${item.count}|latest=${item.latestAt ?? "none"}`,
+        )
+      : ["- none"]),
+    "recommendations=",
+    ...(operations.recommendations.length
+      ? operations.recommendations.map((item) => `- ${item}`)
       : ["- none"]),
   ].join("\n");
 }
@@ -1861,7 +2061,7 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
   const tone = healthToneClasses(health.level);
   const topUsers = health.topUsers.slice(0, 6);
   const abuseTone = healthToneClasses(health.abuse.level);
-  const securityLog = buildAdminSecurityLog(health);
+  const securityLog = buildAdminSecurityLog(health, null);
   const [copiedSecurityLog, setCopiedSecurityLog] = useState(false);
 
   const copySecurityLog = useCallback(async () => {
@@ -2321,9 +2521,192 @@ function SupabaseDashboard({ health }: { health: AdminHealthSnapshot }) {
   );
 }
 
-function SecurityDashboard({ health }: { health: AdminHealthSnapshot }) {
-  const abuseTone = healthToneClasses(health.abuse.level);
-  const securityLog = buildAdminSecurityLog(health);
+function operationsRunLabel(run: AdminOperationsStatus["github"]["ci"]): string {
+  if (!run) return "Sin confirmar";
+  if (run.status !== "completed") return "En curso";
+  return run.conclusion === "success" ? "Correcto" : "Falló";
+}
+
+function deploymentAlignmentLabel(
+  value: boolean | null,
+): string {
+  return value === true ? "Al día" : value === false ? "Desfasado" : "Sin confirmar";
+}
+
+function firewallModeLabel(mode: string): string {
+  if (mode === "log") return "Registro";
+  if (mode === "challenge") return "Reto";
+  if (mode === "deny") return "Bloqueo";
+  if (mode === "off") return "Apagado";
+  return mode;
+}
+
+function OperationsStatusDashboard({
+  operations,
+  notice,
+}: {
+  operations: AdminOperationsStatus | null;
+  notice: string | null;
+}) {
+  const operationsLog = buildAdminOperationsLog(operations, notice);
+  if (!operations) {
+    return (
+      <div className="space-y-4">
+        <Card className="border-amber-200 bg-amber-50 text-amber-900">
+          {notice ?? "No se pudo confirmar el estado externo del proyecto."}
+        </Card>
+        <CopyableLogPanel
+          title="Log operativo para Codex"
+          description="Incluye el contexto necesario para revisar por qué no están disponibles GitHub o Vercel."
+          log={operationsLog}
+        />
+      </div>
+    );
+  }
+
+  const tone = healthToneClasses(operations.level);
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 ${tone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${tone.badge}`}>
+              {operations.level === "action" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <Activity className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Producción y controles externos · {operations.label}
+              </p>
+              <p className="mt-1 text-xl font-black">{operations.headline}</p>
+              <p className="mt-1 text-sm">
+                GitHub, CI, dominio real, deployment y Firewall en una sola comprobación.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+            Actualizado: {formatDateTime(operations.generatedAt)}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <HealthMetricCard
+            Icon={Cloud}
+            label="Dominio"
+            value={deploymentAlignmentLabel(operations.deployment.alignedWithMain)}
+            detail={
+              operations.deployment.domainPointsToLatest === true
+                ? "apunta al último deployment listo"
+                : operations.deployment.domainPointsToLatest === false
+                  ? "apunta a un deployment anterior"
+                  : "no se pudo comparar el alias"
+            }
+          />
+          <HealthMetricCard
+            Icon={Activity}
+            label="GitHub CI"
+            value={operationsRunLabel(operations.github.ci)}
+            detail={`CodeQL: ${operationsRunLabel(operations.github.codeql)}`}
+          />
+          <HealthMetricCard
+            Icon={ShieldCheck}
+            label="Vigilancia bots"
+            value={`${firewallModeLabel(operations.firewall.botProtection)} / ${firewallModeLabel(
+              operations.firewall.aiBots,
+            )}`}
+            detail="bots de navegador / bots de IA"
+          />
+          <HealthMetricCard
+            Icon={Siren}
+            label="Eventos WAF 24h"
+            value={formatInteger(operations.firewall.events24h)}
+            detail={
+              operations.firewall.latestAt
+                ? `último ${formatDateTime(operations.firewall.latestAt)}`
+                : "sin eventos registrados"
+            }
+          />
+        </div>
+
+        {(operations.firewall.events.length > 0 ||
+          operations.recommendations.length > 0) && (
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <div className="rounded-2xl bg-white/75 p-4">
+              <h3 className="font-bold text-slate-900">Actividad del Firewall</h3>
+              <div className="mt-3 space-y-2">
+                {operations.firewall.events.length === 0 && (
+                  <p className="text-sm font-semibold text-slate-500">
+                    Sin actividad de bots registrada en las últimas 24 horas.
+                  </p>
+                )}
+                {operations.firewall.events.map((item) => (
+                  <div key={`${item.action}-${item.host}`} className="rounded-xl bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="min-w-0 break-all text-sm font-bold text-slate-800">
+                        {item.action} · {item.host}
+                      </p>
+                      <span className="shrink-0 text-sm font-black text-slate-900">
+                        {formatInteger(item.count)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Último: {formatDateTime(item.latestAt)} · sin mostrar IPs
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white/75 p-4">
+              <h3 className="font-bold text-slate-900">Qué conviene hacer</h3>
+              <div className="mt-3 space-y-2">
+                {operations.recommendations.map((item) => (
+                  <p key={item} className={`rounded-xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
+                    {item}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {notice && <p className="mt-3 text-sm font-semibold">{notice}</p>}
+      </div>
+
+      <CopyableLogPanel
+        title="Log operativo para Codex"
+        description="Compara main, CI, dominio, deployment y WAF sin incluir tokens ni direcciones IP."
+        log={operationsLog}
+      />
+    </div>
+  );
+}
+
+function SecurityDashboard({
+  health,
+  operations,
+}: {
+  health: AdminHealthSnapshot;
+  operations: AdminOperationsStatus | null;
+}) {
+  const securityLevel = highestAdminLevel([
+    health.abuse.level,
+    operations?.firewall.level ?? "ok",
+  ]);
+  const abuseTone = healthToneClasses(securityLevel);
+  const securityLog = buildAdminSecurityLog(health, operations);
+  const externalFirewallLeads =
+    operations &&
+    adminLevelRank(operations.firewall.level) > adminLevelRank(health.abuse.level);
+  const securityLabel = externalFirewallLeads
+    ? operations.firewall.level === "action"
+      ? "Actuar"
+      : "Vigilar"
+    : health.abuse.label;
+  const securityHeadline = externalFirewallLeads
+    ? "Vercel ha registrado actividad de bots que conviene revisar."
+    : health.abuse.headline;
 
   return (
     <div className="space-y-4">
@@ -2339,12 +2722,13 @@ function SecurityDashboard({ health }: { health: AdminHealthSnapshot }) {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-wide">
-                Abuso y scraping · {health.abuse.label}
+                Abuso y scraping · {securityLabel}
               </p>
-              <p className="mt-1 text-xl font-black">{health.abuse.headline}</p>
+              <p className="mt-1 text-xl font-black">{securityHeadline}</p>
               <p className="mt-1 text-sm">
                 {formatInteger(health.abuse.totalRequests)} golpes en{" "}
-                {formatInteger(health.abuse.totalBuckets)} contador(es) recientes
+                {formatInteger(health.abuse.totalBuckets)} contador(es) internos ·{" "}
+                {formatInteger(operations?.firewall.events24h ?? 0)} evento(s) WAF
               </p>
             </div>
           </div>
@@ -2354,12 +2738,24 @@ function SecurityDashboard({ health }: { health: AdminHealthSnapshot }) {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <HealthMetricCard
           Icon={ShieldCheck}
           label="Estado abuso"
           value={health.abuse.label}
           detail={health.abuse.headline}
+        />
+        <HealthMetricCard
+          Icon={Cloud}
+          label="Firewall Vercel"
+          value={operations?.firewall.enabled ? "Activo" : "Sin confirmar"}
+          detail={
+            operations
+              ? `${firewallModeLabel(operations.firewall.botProtection)} bots · ${formatInteger(
+                  operations.firewall.events24h,
+                )} eventos/24h`
+              : "estado externo no disponible"
+          }
         />
         <HealthMetricCard
           Icon={Siren}
@@ -2416,9 +2812,11 @@ function SecurityDashboard({ health }: { health: AdminHealthSnapshot }) {
 function VercelUsageDashboard({
   vercel,
   notice,
+  operations,
 }: {
   vercel: AdminVercelUsageSnapshot | null;
   notice: string | null;
+  operations: AdminOperationsStatus | null;
 }) {
   if (!vercel) {
     return notice ? (
@@ -2429,7 +2827,7 @@ function VercelUsageDashboard({
         <CopyableLogPanel
           title="Log Vercel para Codex"
           description="Incluye el estado de conexión del panel Vercel y las instrucciones seguras de actuación."
-          log={buildVercelOperationsLog(null, notice)}
+          log={buildVercelOperationsLog(null, notice, operations)}
         />
       </div>
     ) : null;
@@ -2437,7 +2835,7 @@ function VercelUsageDashboard({
 
   const tone = healthToneClasses(vercel.level);
   const creditWidth = Math.min(100, Math.max(4, vercel.summary.creditUsedPercent));
-  const vercelLog = buildVercelOperationsLog(vercel, notice);
+  const vercelLog = buildVercelOperationsLog(vercel, notice, operations);
 
   return (
     <div className="space-y-4">
@@ -2647,19 +3045,21 @@ function ErrorsListDashboard({ errors }: { errors: AdminErrorRow[] }) {
 
 function OperationsPanel({
   section,
-  onHealthLoaded,
+  onSignalsLoaded,
 }: {
   section: OperationsSection;
-  onHealthLoaded?: (health: AdminHealthSnapshot | null) => void;
+  onSignalsLoaded?: (signals: AdminSectionSignals) => void;
 }) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
+  const [operations, setOperations] = useState<AdminOperationsStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [healthNotice, setHealthNotice] = useState<string | null>(null);
   const [vercelNotice, setVercelNotice] = useState<string | null>(null);
+  const [operationsNotice, setOperationsNotice] = useState<string | null>(null);
 
   const loadOperations = useCallback(async () => {
     setLoading(true);
@@ -2667,6 +3067,7 @@ function OperationsPanel({
     setNotice(null);
     setHealthNotice(null);
     setVercelNotice(null);
+    setOperationsNotice(null);
     const token = await getAccessToken();
     if (!token) {
       setError("Inicia sesión con una cuenta administradora.");
@@ -2675,11 +3076,13 @@ function OperationsPanel({
     }
 
     const headers = { Authorization: `Bearer ${token}` };
-    const [errorsResponse, healthResponse, vercelResponse] = await Promise.all([
-      fetch("/api/admin/errors?limit=80", { headers }),
-      fetch("/api/admin/health", { headers }),
-      fetch("/api/admin/vercel-usage", { headers }),
-    ]);
+    const [errorsResponse, healthResponse, vercelResponse, operationsResponse] =
+      await Promise.all([
+        fetch("/api/admin/errors?limit=80", { headers }),
+        fetch("/api/admin/health", { headers }),
+        fetch("/api/admin/vercel-usage", { headers }),
+        fetch("/api/admin/operations-status", { headers }),
+      ]);
 
     const errorsBody = (await errorsResponse.json()) as AdminErrorsResponse;
     if (!errorsResponse.ok) {
@@ -2689,18 +3092,17 @@ function OperationsPanel({
     }
 
     const healthBody = (await healthResponse.json()) as AdminHealthResponse;
-    setErrors(errorsBody.errors ?? []);
+    const nextErrors = errorsBody.errors ?? [];
+    setErrors(nextErrors);
     setNotice(
       errorsBody.monitoringAvailable === false ? errorsBody.message ?? null : null,
     );
     if (!healthResponse.ok) {
       setHealth(null);
-      onHealthLoaded?.(null);
       setHealthNotice(healthBody.error ?? "No se pudo cargar salud del sistema.");
     } else {
       const nextHealth = healthBody.health ?? null;
       setHealth(nextHealth);
-      onHealthLoaded?.(nextHealth);
       setHealthNotice(
         healthBody.monitoringAvailable === false ? healthBody.message ?? null : null,
       );
@@ -2709,19 +3111,46 @@ function OperationsPanel({
     const vercelBody = await readAdminJsonResponse<AdminVercelUsageResponse>(
       vercelResponse,
     );
+    let nextVercel: AdminVercelUsageSnapshot | null = null;
     if (!vercelResponse.ok) {
       setVercel(null);
       setVercelNotice(vercelBody.error ?? "No se pudo cargar Vercel.");
     } else {
-      setVercel(vercelBody.vercel ?? null);
+      nextVercel = vercelBody.vercel ?? null;
+      setVercel(nextVercel);
       setVercelNotice(
         vercelBody.configured === false
           ? vercelBody.message ?? "Panel Vercel pendiente de conectar."
           : vercelBody.message ?? null,
       );
     }
+
+    const operationsBody =
+      await readAdminJsonResponse<AdminOperationsStatusResponse>(
+        operationsResponse,
+      );
+    let nextOperations: AdminOperationsStatus | null = null;
+    if (!operationsResponse.ok) {
+      setOperations(null);
+      setOperationsNotice(
+        operationsBody.error ?? "No se pudo comprobar GitHub, dominio y Firewall.",
+      );
+    } else {
+      nextOperations = operationsBody.operations ?? null;
+      setOperations(nextOperations);
+      setOperationsNotice(operationsBody.message ?? null);
+    }
+
+    onSignalsLoaded?.(
+      buildAdminSectionSignals({
+        health: healthResponse.ok ? healthBody.health ?? null : null,
+        operations: nextOperations,
+        vercel: nextVercel,
+        errors: nextErrors,
+      }),
+    );
     setLoading(false);
-  }, [onHealthLoaded]);
+  }, [onSignalsLoaded]);
 
   useEffect(() => {
     void loadOperations();
@@ -2755,7 +3184,7 @@ function OperationsPanel({
             Actualizar
           </Button>
         </div>
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-2xl bg-slate-50 p-4">
             <p className="text-sm font-bold text-slate-500">Últimos eventos</p>
             <p className="text-2xl font-bold text-slate-900">{errors.length}</p>
@@ -2774,6 +3203,14 @@ function OperationsPanel({
               {vercel ? formatUsd(vercel.summary.onDemandUsd) : "—"}
             </p>
           </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-500">Producción</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {operations
+                ? deploymentAlignmentLabel(operations.deployment.alignedWithMain)
+                : "—"}
+            </p>
+          </div>
         </div>
       </Card>
 
@@ -2785,18 +3222,36 @@ function OperationsPanel({
       )}
       {!loading && !error && section === "sistema" && health && (
         <>
+          <OperationsStatusDashboard
+            operations={operations}
+            notice={operationsNotice}
+          />
           <HealthDashboard health={health} />
-          <VercelUsageDashboard vercel={vercel} notice={vercelNotice} />
+          <VercelUsageDashboard
+            vercel={vercel}
+            notice={vercelNotice}
+            operations={operations}
+          />
         </>
       )}
       {!loading && !error && section === "supabase" && health && (
         <SupabaseDashboard health={health} />
       )}
       {!loading && !error && section === "vercel" && (
-        <VercelUsageDashboard vercel={vercel} notice={vercelNotice} />
+        <div className="space-y-4">
+          <OperationsStatusDashboard
+            operations={operations}
+            notice={operationsNotice}
+          />
+          <VercelUsageDashboard
+            vercel={vercel}
+            notice={vercelNotice}
+            operations={operations}
+          />
+        </div>
       )}
       {!loading && !error && section === "seguridad" && health && (
-        <SecurityDashboard health={health} />
+        <SecurityDashboard health={health} operations={operations} />
       )}
       {!loading && !error && section === "errores" && (
         <ErrorsListDashboard errors={errors} />
@@ -3350,8 +3805,10 @@ export default function AdminPage() {
   const { user, cloudEnabled } = useCloudSync();
   const searchParams = useSearchParams();
   const [section, setSection] = useState<AdminSection>("sistema");
-  const [securityAlertId, setSecurityAlertId] = useState<string | null>(null);
-  const [seenSecurityAlertId, setSeenSecurityAlertId] = useState<string | null>(null);
+  const [sectionSignals, setSectionSignals] = useState<AdminSectionSignals>({});
+  const [seenSectionAlerts, setSeenSectionAlerts] = useState<
+    Partial<Record<AdminSection, string>>
+  >({});
   const [capabilities, setCapabilities] =
     useState<AdminCapabilitiesResponse | null>(null);
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
@@ -3365,23 +3822,32 @@ export default function AdminPage() {
   }, [capabilities]);
   const sectionAlerts = useMemo<Partial<Record<AdminSection, AdminHealthLevel>>>(
     () =>
-      securityAlertId && seenSecurityAlertId !== securityAlertId
-        ? { seguridad: "action" }
-        : {},
-    [securityAlertId, seenSecurityAlertId],
+      Object.fromEntries(
+        Object.entries(sectionSignals)
+          .filter(
+            ([sectionId, signal]) =>
+              signal &&
+              seenSectionAlerts[sectionId as AdminSection] !== signal.id,
+          )
+          .map(([sectionId, signal]) => [sectionId, signal?.level]),
+      ) as Partial<Record<AdminSection, AdminHealthLevel>>,
+    [sectionSignals, seenSectionAlerts],
   );
 
-  const markSecurityAlertSeen = useCallback((alertId: string) => {
-    setSeenSecurityAlertId(alertId);
-    try {
-      window.localStorage.setItem(SECURITY_ALERT_SEEN_KEY, alertId);
-    } catch {
-      // El aviso seguirá funcionando aunque el navegador bloquee almacenamiento local.
-    }
+  const markSectionAlertSeen = useCallback((sectionId: AdminSection, alertId: string) => {
+    setSeenSectionAlerts((current) => {
+      const next = { ...current, [sectionId]: alertId };
+      try {
+        window.localStorage.setItem(SECTION_ALERTS_SEEN_KEY, JSON.stringify(next));
+      } catch {
+        // El aviso seguirá funcionando aunque el navegador bloquee almacenamiento local.
+      }
+      return next;
+    });
   }, []);
 
-  const handleHealthLoaded = useCallback((health: AdminHealthSnapshot | null) => {
-    setSecurityAlertId(securityAlertIdFromHealth(health));
+  const handleSignalsLoaded = useCallback((signals: AdminSectionSignals) => {
+    setSectionSignals(signals);
   }, []);
 
   const loadSecurityAlert = useCallback(async () => {
@@ -3392,14 +3858,33 @@ export default function AdminPage() {
     });
     if (!response.ok) return;
     const body = (await response.json().catch(() => ({}))) as AdminHealthResponse;
-    setSecurityAlertId(securityAlertIdFromHealth(body.health ?? null));
+    const signals = buildAdminSectionSignals({
+      health: body.health ?? null,
+      operations: null,
+      vercel: null,
+      errors: [],
+    });
+    setSectionSignals((current) => {
+      const next = { ...current };
+      if (signals.seguridad) next.seguridad = signals.seguridad;
+      else delete next.seguridad;
+      if (signals.supabase) next.supabase = signals.supabase;
+      else delete next.supabase;
+      return next;
+    });
   }, []);
 
   useEffect(() => {
     try {
-      setSeenSecurityAlertId(window.localStorage.getItem(SECURITY_ALERT_SEEN_KEY));
+      const stored = window.localStorage.getItem(SECTION_ALERTS_SEEN_KEY);
+      const parsed = stored ? (JSON.parse(stored) as unknown) : null;
+      setSeenSectionAlerts(
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Partial<Record<AdminSection, string>>)
+          : {},
+      );
     } catch {
-      setSeenSecurityAlertId(null);
+      setSeenSectionAlerts({});
     }
   }, []);
 
@@ -3452,10 +3937,9 @@ export default function AdminPage() {
   }, [capabilities?.fullAdmin, loadSecurityAlert]);
 
   useEffect(() => {
-    if (section === "seguridad" && securityAlertId) {
-      markSecurityAlertSeen(securityAlertId);
-    }
-  }, [markSecurityAlertSeen, section, securityAlertId]);
+    const signal = sectionSignals[section];
+    if (signal) markSectionAlertSeen(section, signal.id);
+  }, [markSectionAlertSeen, section, sectionSignals]);
 
   return (
     <div>
@@ -3521,7 +4005,7 @@ export default function AdminPage() {
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
         section !== "aprendizaje" && (
-        <OperationsPanel section={section} onHealthLoaded={handleHealthLoaded} />
+        <OperationsPanel section={section} onSignalsLoaded={handleSignalsLoaded} />
       )}
       {capabilities?.aiLearning && section === "aprendizaje" && (
         <AiLearningPanel />
