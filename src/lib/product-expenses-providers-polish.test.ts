@@ -70,9 +70,11 @@ describe("product expenses/providers polish wiring", () => {
     const formPage = source("../app/gastos/nuevo/page.tsx");
 
     expect(formPage).toContain("function scanReviewNotice");
+    expect(formPage).toContain("setScanReviewCatalogProductSelection");
     expect(formPage).toContain("newCatalogProductReasonForScanPayload");
     expect(formPage).toContain("artículo");
     expect(formPage).toContain("nuevo");
+    expect(formPage).toContain("Añadir estos artículos a Productos al guardar");
     expect(formPage).toContain("purchaseLineHasCatalogProduct(line, productKeys)");
     expect(formPage).toContain("text-sky-700");
     expect(formPage).not.toContain("Revisa la factura antes de guardar");
