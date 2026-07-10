@@ -12,11 +12,9 @@ import {
   Cloud,
   CreditCard,
   Database,
-  FileText,
   Gauge,
   HardDrive,
   History,
-  Import,
   Mail,
   RefreshCw,
   RotateCcw,
@@ -61,13 +59,14 @@ import { Card, PageHeader } from "@/components/ui/Card";
 
 type AdminSection =
   | "usuarios"
+  | "sistema"
+  | "supabase"
+  | "vercel"
+  | "seguridad"
   | "errores"
-  | "pagos"
-  | "ia"
-  | "aprendizaje"
-  | "importaciones"
-  | "verifactu"
-  | "sistema";
+  | "aprendizaje";
+
+type OperationsSection = Exclude<AdminSection, "usuarios" | "aprendizaje">;
 
 interface AdminCapabilitiesResponse {
   fullAdmin?: boolean;
@@ -217,64 +216,49 @@ const ADMIN_MENU: Array<{
   id: AdminSection;
   label: string;
   description: string;
-  status: "activo" | "fase";
   Icon: typeof UserCog;
 }> = [
   {
+    id: "sistema",
+    label: "Panel de control",
+    description: "Resumen operativo, picos y señales de capacidad.",
+    Icon: Gauge,
+  },
+  {
     id: "usuarios",
     label: "Usuarios",
-    description: "Suscripciones manuales, antigüedad, pagos y baneo.",
-    status: "activo",
+    description: "Planes, pagos, restauración y acceso de cuentas.",
     Icon: UserCog,
   },
   {
+    id: "supabase",
+    label: "Supabase",
+    description: "Base de datos, sync, capacidad y usuarios cloud.",
+    Icon: Database,
+  },
+  {
+    id: "vercel",
+    label: "Vercel",
+    description: "Coste, consumo, proyectos y despliegue del dominio.",
+    Icon: Cloud,
+  },
+  {
+    id: "seguridad",
+    label: "Seguridad",
+    description: "MFA, abuso/scraping y log seguro para diagnóstico.",
+    Icon: ShieldCheck,
+  },
+  {
     id: "errores",
-    label: "Errores y salud",
-    description: "Fallos recientes por usuario, sincronización y navegador.",
-    status: "activo",
+    label: "Errores",
+    description: "Eventos técnicos recientes y rutas afectadas.",
     Icon: Siren,
   },
   {
-    id: "pagos",
-    label: "Pagos",
-    description: "Stripe, recibos y revisiones pendientes.",
-    status: "fase",
-    Icon: CreditCard,
-  },
-  {
-    id: "ia",
-    label: "IA y escaneos",
-    description: "Consumos, créditos y errores de extracción.",
-    status: "fase",
-    Icon: Brain,
-  },
-  {
     id: "aprendizaje",
-    label: "Aprendizaje IA",
-    description: "Corregir lecturas y guardar aprendizaje limpio.",
-    status: "activo",
+    label: "IA y aprendizaje",
+    description: "Escaneos de prueba y correcciones de lectura IA.",
     Icon: Brain,
-  },
-  {
-    id: "importaciones",
-    label: "Importaciones",
-    description: "Lotes, plataformas y avisos no soportados.",
-    status: "fase",
-    Icon: Import,
-  },
-  {
-    id: "verifactu",
-    label: "VeriFactu",
-    description: "Modo test, certificados y estado operativo.",
-    status: "fase",
-    Icon: FileText,
-  },
-  {
-    id: "sistema",
-    label: "Sistema",
-    description: "Salud de nube, Drive, backups y avisos.",
-    status: "fase",
-    Icon: Cloud,
   },
 ];
 
@@ -416,8 +400,67 @@ async function readAdminJsonResponse<T>(response: Response): Promise<T> {
   }
 }
 
-function menuStatusLabel(status: "activo" | "fase") {
-  return status === "activo" ? "Disponible" : "Siguiente fase";
+function buildCodexHandoffBlock(scope: string) {
+  return [
+    "CODEX_HANDOFF_CONTEXT_V1",
+    `scope=${scope}`,
+    "project=facturacion-autonomos.app",
+    "local_repo=/Users/macbookpro14/Projects/factura-autonomo-real-holdout-qa",
+    "production=https://facturacion-autonomos.app",
+    "github=https://github.com/puntoracingrc/Factu-Autonomo",
+    "admin=/admin?seccion=sistema|usuarios|supabase|vercel|seguridad|errores|aprendizaje",
+    "rules=read-only-first; never expose tokens; never mutate Supabase/Vercel/real user data without explicit approval",
+    "deploy_flow=branch -> commit -> push -> PR -> checks -> merge -> main CI -> Production Domain -> verify production",
+    "verify_after_deploy=/admin 200; protected admin APIs return 401 without auth; Production Domain must pass",
+    "security_focus=RLS owner isolation; CSP enforce; admin MFA aal2; distributed rate limit; no NEXT_PUBLIC secrets",
+    "if_blocked=report exact blocker and do not force destructive rollback",
+  ].join("\n");
+}
+
+function CopyableLogPanel({
+  title,
+  description,
+  log,
+}: {
+  title: string;
+  description: string;
+  log: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = useCallback(async () => {
+    if (!navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(log);
+    } catch {
+      return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2200);
+  }, [log]);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4 text-slate-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="font-bold text-white">{title}</h3>
+          <p className="mt-1 text-sm text-slate-300">{description}</p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void copy()}
+          className="min-h-10 bg-white px-4 text-sm text-slate-900 hover:bg-slate-100"
+        >
+          <Clipboard className="h-4 w-4" />
+          {copied ? "Copiado" : "Copiar log"}
+        </Button>
+      </div>
+      <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-3 text-xs font-semibold leading-5 text-slate-100">
+        {log}
+      </pre>
+    </div>
+  );
 }
 
 function AdminMenu({
@@ -432,15 +475,15 @@ function AdminMenu({
   const visibleMenu = ADMIN_MENU.filter((entry) => sections.includes(entry.id));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {visibleMenu.map(({ id, label, description, status, Icon }) => {
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {visibleMenu.map(({ id, label, description, Icon }) => {
         const selected = current === id;
         return (
           <button
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            className={`rounded-2xl border p-4 text-left shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+            className={`min-h-[116px] rounded-2xl border p-3 text-left shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
               selected
                 ? "border-blue-300 bg-blue-50"
                 : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/60"
@@ -461,38 +504,12 @@ function AdminMenu({
                 <span className="mt-1 block text-sm text-slate-600">
                   {description}
                 </span>
-                <span className="mt-3 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">
-                  {menuStatusLabel(status)}
-                </span>
               </span>
             </div>
           </button>
         );
       })}
     </div>
-  );
-}
-
-function FutureSection({ section }: { section: AdminSection }) {
-  const item = ADMIN_MENU.find((entry) => entry.id === section);
-  if (!item) return null;
-  return (
-    <Card className="mt-6 space-y-3">
-      <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-          <item.Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">{item.label}</h2>
-          <p className="text-sm text-slate-600">{item.description}</p>
-        </div>
-      </div>
-      <p className="text-sm text-slate-600">
-        Lo dejo como zona reservada para crecer por fases. La primera fase
-        operativa es Usuarios, porque ahí están las acciones delicadas de
-        suscripción y acceso.
-      </p>
-    </Card>
   );
 }
 
@@ -1596,6 +1613,7 @@ function buildAdminSecurityLog(health: AdminHealthSnapshot) {
 
   return [
     "FACTU_SECURITY_HEALTH_V1",
+    buildCodexHandoffBlock("admin_security_abuse"),
     `generatedAt=${health.generatedAt}`,
     `overall=${health.level}`,
     `headline=${health.headline}`,
@@ -1616,6 +1634,139 @@ function buildAdminSecurityLog(health: AdminHealthSnapshot) {
     ...(health.recommendations.length > 0
       ? health.recommendations.map((item) => `- ${item}`)
       : ["- none"]),
+  ].join("\n");
+}
+
+function buildSupabaseOperationsLog(health: AdminHealthSnapshot) {
+  const topUserLines =
+    health.topUsers.length > 0
+      ? health.topUsers.slice(0, 8).map((user, index) =>
+          [
+            `- user_${index + 1}`,
+            `rows=${user.rowCount}`,
+            `deleted=${user.deletedRows}`,
+            `documents=${user.documentRows}`,
+            `customers=${user.customerRows}`,
+            `expenses=${user.expenseRows}`,
+            `products=${user.productRows}`,
+            `latestSync=${user.latestSyncAt ?? "none"}`,
+          ].join("|"),
+        )
+      : ["- none"];
+  const typeLines =
+    health.entityTypes.length > 0
+      ? health.entityTypes
+          .slice(0, 12)
+          .map((item) => `- ${item.type}|rows=${item.rows}|deleted=${item.deletedRows}`)
+      : ["- none"];
+
+  return [
+    "FACTU_SUPABASE_OPERATIONS_V1",
+    buildCodexHandoffBlock("admin_supabase_capacity_sync"),
+    `generatedAt=${health.generatedAt}`,
+    `overall=${health.level}`,
+    `plan=${health.plan.supabasePlan}`,
+    `compute=${health.plan.compute}`,
+    `includedDatabaseGb=${health.plan.includedDatabaseGb}`,
+    `comfortableActiveUsers=${health.plan.comfortableActiveUsers}`,
+    `databaseBytes=${health.summary.databaseBytes}`,
+    `databaseLimitBytes=${health.summary.databaseLimitBytes}`,
+    `databaseUsedPercent=${health.summary.databaseUsedPercent}`,
+    `totalUsers=${health.summary.totalUsers}`,
+    `activeUsers7d=${health.summary.activeUsers7d}`,
+    `activeUsers30d=${health.summary.activeUsers30d}`,
+    `cloudUsers=${health.summary.cloudUsers}`,
+    `syncRows=${health.summary.syncRows}`,
+    `deletedRows=${health.summary.deletedRows}`,
+    `syncUpdates24h=${health.summary.syncUpdates24h}`,
+    `syncUpdates7d=${health.summary.syncUpdates7d}`,
+    `syncActiveUsers24h=${health.summary.syncActiveUsers24h}`,
+    `syncActiveUsers7d=${health.summary.syncActiveUsers7d}`,
+    `latestSyncAt=${health.summary.latestSyncAt ?? "none"}`,
+    "topUsersRedacted=",
+    ...topUserLines,
+    "entityTypes=",
+    ...typeLines,
+    "recommendations=",
+    ...(health.recommendations.length > 0
+      ? health.recommendations.map((item) => `- ${item}`)
+      : ["- none"]),
+  ].join("\n");
+}
+
+function buildVercelOperationsLog(
+  vercel: AdminVercelUsageSnapshot | null,
+  notice: string | null,
+) {
+  if (!vercel) {
+    return [
+      "FACTU_VERCEL_OPERATIONS_V1",
+      buildCodexHandoffBlock("admin_vercel_usage"),
+      `configured=${notice ? "partial_or_missing" : "unknown"}`,
+      `notice=${notice ?? "none"}`,
+      "status=no_snapshot",
+    ].join("\n");
+  }
+
+  return [
+    "FACTU_VERCEL_OPERATIONS_V1",
+    buildCodexHandoffBlock("admin_vercel_usage"),
+    `generatedAt=${vercel.generatedAt}`,
+    `overall=${vercel.level}`,
+    `headline=${vercel.headline}`,
+    `periodFrom=${vercel.period.from}`,
+    `periodTo=${vercel.period.to}`,
+    `daysRemaining=${vercel.period.daysRemaining}`,
+    `totalCostUsd=${vercel.summary.totalCostUsd}`,
+    `creditUsedUsd=${vercel.summary.creditUsedUsd}`,
+    `onDemandUsd=${vercel.summary.onDemandUsd}`,
+    `creditUsedPercent=${vercel.summary.creditUsedPercent}`,
+    `lineCount=${vercel.summary.lineCount}`,
+    `primaryProjectSlug=${vercel.summary.primaryProjectSlug ?? "none"}`,
+    "topProjects=",
+    ...(vercel.topProjects.length > 0
+      ? vercel.topProjects.map(
+          (item) =>
+            `- ${item.project}|costUsd=${item.costUsd}|sharePercent=${item.sharePercent}`,
+        )
+      : ["- none"]),
+    "topResources=",
+    ...(vercel.topResources.length > 0
+      ? vercel.topResources.map(
+          (item) =>
+            `- ${item.label}|project=${item.project ?? "team"}|costUsd=${item.costUsd}|usage=${item.usageQuantity ?? "none"} ${item.usageUnit ?? ""}`.trim(),
+        )
+      : ["- none"]),
+    "recommendations=",
+    ...(vercel.recommendations.length > 0
+      ? vercel.recommendations.map((item) => `- ${item}`)
+      : ["- none"]),
+  ].join("\n");
+}
+
+function buildAdminErrorsLog(errors: AdminErrorRow[]) {
+  const errorLines =
+    errors.length > 0
+      ? errors.slice(0, 30).map((item) =>
+          [
+            `- severity=${item.severity}`,
+            `area=${item.area}`,
+            `code=${item.code ?? "none"}`,
+            `route=${item.route ?? "none"}`,
+            `createdAt=${item.created_at}`,
+            `resolved=${item.resolved_at ? "yes" : "no"}`,
+            `message=${item.message.slice(0, 240).replace(/\s+/g, " ")}`,
+          ].join("|"),
+        )
+      : ["- none"];
+
+  return [
+    "FACTU_ADMIN_ERRORS_V1",
+    buildCodexHandoffBlock("admin_recent_errors"),
+    `generatedAt=${new Date().toISOString()}`,
+    `errorCount=${errors.length}`,
+    "errors=",
+    ...errorLines,
   ].join("\n");
 }
 
@@ -1909,6 +2060,276 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
   );
 }
 
+function SupabaseDashboard({ health }: { health: AdminHealthSnapshot }) {
+  const tone = healthToneClasses(health.level);
+  const topUsers = health.topUsers.slice(0, 8);
+  const supabaseLog = buildSupabaseOperationsLog(health);
+
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 ${tone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${tone.badge}`}>
+              <Database className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Supabase · {health.label}
+              </p>
+              <p className="mt-1 text-xl font-black">{health.headline}</p>
+              <p className="mt-1 text-sm">
+                {health.plan.supabasePlan} · {health.plan.compute} ·{" "}
+                {health.plan.includedDatabaseGb} GB incluidos
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+            Actualizado: {formatDateTime(health.generatedAt)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <HealthMetricCard
+          Icon={HardDrive}
+          label="Base Postgres"
+          value={formatBytes(health.summary.databaseBytes)}
+          detail={`${formatPercent(health.summary.databaseUsedPercent)} de ${formatBytes(
+            health.summary.databaseLimitBytes,
+          )}`}
+        />
+        <HealthMetricCard
+          Icon={Users}
+          label="Usuarios activos"
+          value={`${formatInteger(health.summary.activeUsers7d)} / ${formatInteger(
+            health.summary.activeUsers30d,
+          )}`}
+          detail="7 días / 30 días"
+        />
+        <HealthMetricCard
+          Icon={Database}
+          label="Filas cloud"
+          value={formatInteger(health.summary.syncRows)}
+          detail={`${formatInteger(health.summary.deletedRows)} borradas lógicas`}
+        />
+        <HealthMetricCard
+          Icon={TrendingUp}
+          label="Sync 24h"
+          value={formatInteger(health.summary.syncUpdates24h)}
+          detail={`${formatInteger(health.summary.syncActiveUsers24h)} usuario(s) activos`}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-slate-500" />
+            <h3 className="font-bold text-slate-900">Actividad cloud por horas</h3>
+          </div>
+          <HealthHourlyBars points={health.hourly} />
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-500" />
+            <h3 className="font-bold text-slate-900">Estado rápido</h3>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Usuarios cloud</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.cloudUsers)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Último sync</span>
+              <span className="font-bold text-slate-900">
+                {formatDateTime(health.summary.latestSyncAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Actualizaciones 7d</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.syncUpdates7d)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Uso IA mes</span>
+              <span className="font-bold text-slate-900">
+                {formatInteger(health.summary.expenseScansThisMonth)} escaneos
+              </span>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            {health.recommendations.map((item) => (
+              <p key={item} className={`rounded-2xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-bold text-slate-900">Usuarios que más pesan</h3>
+          <div className="space-y-3">
+            {topUsers.length === 0 && (
+              <p className="text-sm text-slate-500">Sin datos cloud todavía.</p>
+            )}
+            {topUsers.map((user) => (
+              <div key={user.userId || user.email} className="rounded-2xl bg-slate-50 p-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="break-all text-sm font-bold text-slate-900">
+                    {user.email}
+                  </p>
+                  <p className="text-sm font-black text-slate-900">
+                    {formatInteger(user.rowCount)} filas
+                  </p>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Doc. {formatInteger(user.documentRows)} · Clientes{" "}
+                  {formatInteger(user.customerRows)} · Gastos{" "}
+                  {formatInteger(user.expenseRows)} · Productos{" "}
+                  {formatInteger(user.productRows)} · Sync{" "}
+                  {formatDateTime(user.latestSyncAt)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 font-bold text-slate-900">Tipos de datos</h3>
+          <div className="space-y-3">
+            {health.entityTypes.length === 0 && (
+              <p className="text-sm text-slate-500">Sin filas cloud todavía.</p>
+            )}
+            {health.entityTypes.slice(0, 10).map((item) => {
+              const width =
+                health.summary.syncRows > 0
+                  ? Math.max(4, Math.round((item.rows / health.summary.syncRows) * 100))
+                  : 0;
+              return (
+                <div key={item.type} className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-bold text-slate-700">{item.type}</span>
+                    <span className="font-bold text-slate-900">
+                      {formatInteger(item.rows)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div className="h-2 rounded-full bg-sky-500" style={{ width: `${width}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <CopyableLogPanel
+        title="Log Supabase para Codex"
+        description="Incluye capacidad, sync y contexto operativo sin emails ni tokens en el bloque copiable."
+        log={supabaseLog}
+      />
+    </div>
+  );
+}
+
+function SecurityDashboard({ health }: { health: AdminHealthSnapshot }) {
+  const abuseTone = healthToneClasses(health.abuse.level);
+  const securityLog = buildAdminSecurityLog(health);
+
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 ${abuseTone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${abuseTone.badge}`}>
+              {health.abuse.level === "action" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <ShieldCheck className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Abuso y scraping · {health.abuse.label}
+              </p>
+              <p className="mt-1 text-xl font-black">{health.abuse.headline}</p>
+              <p className="mt-1 text-sm">
+                {formatInteger(health.abuse.totalRequests)} golpes en{" "}
+                {formatInteger(health.abuse.totalBuckets)} contador(es) recientes
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+            Última señal: {formatDateTime(health.abuse.latestAt)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <HealthMetricCard
+          Icon={ShieldCheck}
+          label="Estado abuso"
+          value={health.abuse.label}
+          detail={health.abuse.headline}
+        />
+        <HealthMetricCard
+          Icon={Siren}
+          label="Errores 24h"
+          value={formatInteger(health.summary.errors24h)}
+          detail={`${formatInteger(health.summary.errors7d)} errores en 7 días`}
+        />
+        <HealthMetricCard
+          Icon={Gauge}
+          label="CSP y rate limit"
+          value={formatInteger(health.abuse.totalRequests)}
+          detail="golpes recientes registrados en rutas protegidas"
+        />
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-2">
+        {health.abuse.namespaces.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-600">
+            Sin señales en rutas protegidas.
+          </div>
+        )}
+        {health.abuse.namespaces.map((item) => {
+          const itemTone = healthToneClasses(item.level);
+          return (
+            <div key={item.namespace} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-black text-slate-900">{item.label}</p>
+                <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${itemTone.soft}`}>
+                  {item.level === "action"
+                    ? "Actuar"
+                    : item.level === "watch"
+                      ? "Vigilar"
+                      : "OK"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {formatInteger(item.requests)} golpes · {item.detail} ·{" "}
+                {formatDateTime(item.latestAt)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <CopyableLogPanel
+        title="Log seguridad para Codex"
+        description="Pensado para investigar scraping, abusos, CSP y rate limits sin copiar IPs, tokens ni emails."
+        log={securityLog}
+      />
+    </div>
+  );
+}
+
 function VercelUsageDashboard({
   vercel,
   notice,
@@ -1918,109 +2339,148 @@ function VercelUsageDashboard({
 }) {
   if (!vercel) {
     return notice ? (
-      <Card className="border-blue-100 bg-blue-50 text-blue-900">
-        {notice}
-      </Card>
+      <div className="space-y-4">
+        <Card className="border-blue-100 bg-blue-50 text-blue-900">
+          {notice}
+        </Card>
+        <CopyableLogPanel
+          title="Log Vercel para Codex"
+          description="Incluye el estado de conexión del panel Vercel y las instrucciones seguras de actuación."
+          log={buildVercelOperationsLog(null, notice)}
+        />
+      </div>
     ) : null;
   }
 
   const tone = healthToneClasses(vercel.level);
   const creditWidth = Math.min(100, Math.max(4, vercel.summary.creditUsedPercent));
+  const vercelLog = buildVercelOperationsLog(vercel, notice);
 
   return (
-    <div className={`rounded-2xl border p-4 ${tone.panel}`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className={`rounded-2xl p-3 ${tone.badge}`}>
-            {vercel.level === "action" ? (
-              <AlertTriangle className="h-5 w-5" />
-            ) : (
-              <Cloud className="h-5 w-5" />
-            )}
-          </div>
-          <div>
-            <p className="text-sm font-bold uppercase tracking-wide">
-              Vercel Pro · {vercel.label}
-            </p>
-            <p className="mt-1 text-xl font-black">{vercel.headline}</p>
-            <p className="mt-1 text-sm">
-              Ciclo {formatDateTime(vercel.period.from)} -{" "}
-              {formatDateTime(vercel.period.to)} · {vercel.period.daysRemaining} dia(s)
-              restantes
-            </p>
-          </div>
-        </div>
-        <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
-          Actualizado: {formatDateTime(vercel.generatedAt)}
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <HealthMetricCard
-          Icon={CreditCard}
-          label="Coste ciclo"
-          value={formatUsd(vercel.summary.totalCostUsd)}
-          detail={`${formatInteger(vercel.summary.lineCount)} línea(s) de uso`}
-        />
-        <HealthMetricCard
-          Icon={Gauge}
-          label="Crédito incluido"
-          value={`${formatUsd(vercel.summary.creditUsedUsd)} / ${formatUsd(
-            vercel.plan.monthlyCreditUsd,
-          )}`}
-          detail={`${formatPercent(vercel.summary.creditUsedPercent)} consumido`}
-        />
-        <HealthMetricCard
-          Icon={TrendingUp}
-          label="Bajo demanda"
-          value={formatUsd(vercel.summary.onDemandUsd)}
-          detail={
-            vercel.summary.onDemandUsd > 0
-              ? "ya hay coste fuera del crédito"
-              : "sin coste fuera del crédito"
-          }
-        />
-        <HealthMetricCard
-          Icon={Cloud}
-          label="Incluido Pro"
-          value={`${formatInteger(vercel.plan.includedEdgeRequests / 1_000_000)}M req.`}
-          detail={`${formatInteger(vercel.plan.includedFastDataTransferGb)} GB transferencia`}
-        />
-      </div>
-
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/70">
-        <div className={`h-full ${tone.bar}`} style={{ width: `${creditWidth}%` }} />
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl bg-white/75 p-4">
-          <h3 className="font-bold text-slate-900">Recursos que más consumen</h3>
-          <div className="mt-3 space-y-3">
-            {vercel.topResources.length === 0 && (
-              <p className="text-sm font-semibold text-slate-500">
-                Sin consumo registrado en el ciclo.
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 ${tone.panel}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`rounded-2xl p-3 ${tone.badge}`}>
+              {vercel.level === "action" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <Cloud className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide">
+                Vercel Pro · {vercel.label}
               </p>
-            )}
-            {vercel.topResources.map((item) => {
-              const quantity = formatUsageQuantity(
-                item.usageQuantity,
-                item.usageUnit,
-              );
-              return (
-                <div key={item.id} className="space-y-1">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+              <p className="mt-1 text-xl font-black">{vercel.headline}</p>
+              <p className="mt-1 text-sm">
+                Ciclo {formatDateTime(vercel.period.from)} -{" "}
+                {formatDateTime(vercel.period.to)} · {vercel.period.daysRemaining} dia(s)
+                restantes
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold">
+            Actualizado: {formatDateTime(vercel.generatedAt)}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <HealthMetricCard
+            Icon={CreditCard}
+            label="Coste ciclo"
+            value={formatUsd(vercel.summary.totalCostUsd)}
+            detail={`${formatInteger(vercel.summary.lineCount)} línea(s) de uso`}
+          />
+          <HealthMetricCard
+            Icon={Gauge}
+            label="Crédito incluido"
+            value={`${formatUsd(vercel.summary.creditUsedUsd)} / ${formatUsd(
+              vercel.plan.monthlyCreditUsd,
+            )}`}
+            detail={`${formatPercent(vercel.summary.creditUsedPercent)} consumido`}
+          />
+          <HealthMetricCard
+            Icon={TrendingUp}
+            label="Bajo demanda"
+            value={formatUsd(vercel.summary.onDemandUsd)}
+            detail={
+              vercel.summary.onDemandUsd > 0
+                ? "ya hay coste fuera del crédito"
+                : "sin coste fuera del crédito"
+            }
+          />
+          <HealthMetricCard
+            Icon={Cloud}
+            label="Incluido Pro"
+            value={`${formatInteger(vercel.plan.includedEdgeRequests / 1_000_000)}M req.`}
+            detail={`${formatInteger(vercel.plan.includedFastDataTransferGb)} GB transferencia`}
+          />
+        </div>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/70">
+          <div className={`h-full ${tone.bar}`} style={{ width: `${creditWidth}%` }} />
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl bg-white/75 p-4">
+            <h3 className="font-bold text-slate-900">Recursos que más consumen</h3>
+            <div className="mt-3 space-y-3">
+              {vercel.topResources.length === 0 && (
+                <p className="text-sm font-semibold text-slate-500">
+                  Sin consumo registrado en el ciclo.
+                </p>
+              )}
+              {vercel.topResources.map((item) => {
+                const quantity = formatUsageQuantity(
+                  item.usageQuantity,
+                  item.usageUnit,
+                );
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">
+                          {item.label}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          {item.project ?? "Equipo completo"}
+                          {quantity ? ` · ${quantity}` : ""}
+                        </p>
+                      </div>
                       <p className="text-sm font-black text-slate-900">
-                        {item.label}
-                      </p>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {item.project ?? "Equipo completo"}
-                        {quantity ? ` · ${quantity}` : ""}
+                        {formatUsd(item.costUsd)}
                       </p>
                     </div>
-                    <p className="text-sm font-black text-slate-900">
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className={`h-2 rounded-full ${tone.bar}`}
+                        style={{ width: `${Math.max(4, item.sharePercent)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/75 p-4">
+            <h3 className="font-bold text-slate-900">Proyectos y avisos</h3>
+            <div className="mt-3 space-y-3">
+              {vercel.topProjects.length === 0 && (
+                <p className="text-sm font-semibold text-slate-500">
+                  La API no ha devuelto desglose por proyecto.
+                </p>
+              )}
+              {vercel.topProjects.map((item) => (
+                <div key={item.project} className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="break-all font-bold text-slate-700">
+                      {item.project}
+                    </span>
+                    <span className="font-black text-slate-900">
                       {formatUsd(item.costUsd)}
-                    </p>
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100">
                     <div
@@ -2029,55 +2489,80 @@ function VercelUsageDashboard({
                     />
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {vercel.recommendations.map((item) => (
+                <p key={item} className={`rounded-2xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
+                  {item}
+                </p>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white/75 p-4">
-          <h3 className="font-bold text-slate-900">Proyectos y avisos</h3>
-          <div className="mt-3 space-y-3">
-            {vercel.topProjects.length === 0 && (
-              <p className="text-sm font-semibold text-slate-500">
-                La API no ha devuelto desglose por proyecto.
-              </p>
-            )}
-            {vercel.topProjects.map((item) => (
-              <div key={item.project} className="space-y-1">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="break-all font-bold text-slate-700">
-                    {item.project}
-                  </span>
-                  <span className="font-black text-slate-900">
-                    {formatUsd(item.costUsd)}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-100">
-                  <div
-                    className={`h-2 rounded-full ${tone.bar}`}
-                    style={{ width: `${Math.max(4, item.sharePercent)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {vercel.recommendations.map((item) => (
-              <p key={item} className={`rounded-2xl px-3 py-2 text-sm font-bold ${tone.soft}`}>
-                {item}
-              </p>
-            ))}
-          </div>
-        </div>
+        {notice && <p className="mt-3 text-sm font-semibold">{notice}</p>}
       </div>
 
-      {notice && <p className="mt-3 text-sm font-semibold">{notice}</p>}
+      <CopyableLogPanel
+        title="Log Vercel para Codex"
+        description="Incluye coste, proyectos y contexto de despliegue sin copiar el token privado."
+        log={vercelLog}
+      />
     </div>
   );
 }
 
-function ErrorsPanel() {
+function ErrorsListDashboard({ errors }: { errors: AdminErrorRow[] }) {
+  const errorsLog = buildAdminErrorsLog(errors);
+
+  return (
+    <div className="space-y-4">
+      <CopyableLogPanel
+        title="Log de errores para Codex"
+        description="Lista eventos recientes saneados y contexto de actuación para diagnosticar sin ver secretos."
+        log={errorsLog}
+      />
+
+      {errors.length === 0 && (
+        <Card className="text-slate-600">Sin errores registrados.</Card>
+      )}
+      {errors.map((item) => (
+        <Card key={item.id} className="space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(item.severity)}`}
+                >
+                  {item.severity}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                  {item.area}
+                </span>
+                {item.code && (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                    {item.code}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 font-bold text-slate-900">{item.message}</p>
+              <p className="text-sm text-slate-600">
+                Usuario: {item.user_id ?? "sin usuario"} · {formatDate(item.created_at)}
+              </p>
+              {item.route && (
+                <p className="break-all text-sm text-slate-500">{item.route}</p>
+              )}
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function OperationsPanel({ section }: { section: OperationsSection }) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
@@ -2087,7 +2572,7 @@ function ErrorsPanel() {
   const [healthNotice, setHealthNotice] = useState<string | null>(null);
   const [vercelNotice, setVercelNotice] = useState<string | null>(null);
 
-  const loadErrors = useCallback(async () => {
+  const loadOperations = useCallback(async () => {
     setLoading(true);
     setError(null);
     setNotice(null);
@@ -2147,29 +2632,38 @@ function ErrorsPanel() {
   }, []);
 
   useEffect(() => {
-    void loadErrors();
-  }, [loadErrors]);
+    void loadOperations();
+  }, [loadOperations]);
 
   const syncErrors = errors.filter((item) => item.area === "sync").length;
   const browserErrors = errors.filter((item) => item.area === "browser").length;
+  const sectionMeta = ADMIN_MENU.find((item) => item.id === section);
+  const SectionIcon = sectionMeta?.Icon ?? Gauge;
 
   return (
     <section className="mt-6 space-y-4">
       <Card className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Errores y salud</h2>
-            <p className="text-sm text-slate-600">
-              Registro técnico seguro para detectar cuentas con problemas sin ver
-              documentos ni secretos.
-            </p>
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+              <SectionIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                {sectionMeta?.label ?? "Panel de control"}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {sectionMeta?.description ??
+                  "Control operativo seguro del proyecto."}
+              </p>
+            </div>
           </div>
-          <Button type="button" variant="secondary" onClick={loadErrors} disabled={loading}>
+          <Button type="button" variant="secondary" onClick={loadOperations} disabled={loading}>
             <RefreshCw className="h-4 w-4" />
             Actualizar
           </Button>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           <div className="rounded-2xl bg-slate-50 p-4">
             <p className="text-sm font-bold text-slate-500">Últimos eventos</p>
             <p className="text-2xl font-bold text-slate-900">{errors.length}</p>
@@ -2182,18 +2676,38 @@ function ErrorsPanel() {
             <p className="text-sm font-bold text-slate-500">Navegador</p>
             <p className="text-2xl font-bold text-slate-900">{browserErrors}</p>
           </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-500">Vercel</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {vercel ? formatUsd(vercel.summary.onDemandUsd) : "—"}
+            </p>
+          </div>
         </div>
       </Card>
 
-      {loading && <Card>Cargando errores y salud...</Card>}
+      {loading && <Card>Cargando datos de administración...</Card>}
       {error && (
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           {error}
         </Card>
       )}
-      {!loading && !error && health && <HealthDashboard health={health} />}
-      {!loading && !error && (
+      {!loading && !error && section === "sistema" && health && (
+        <>
+          <HealthDashboard health={health} />
+          <VercelUsageDashboard vercel={vercel} notice={vercelNotice} />
+        </>
+      )}
+      {!loading && !error && section === "supabase" && health && (
+        <SupabaseDashboard health={health} />
+      )}
+      {!loading && !error && section === "vercel" && (
         <VercelUsageDashboard vercel={vercel} notice={vercelNotice} />
+      )}
+      {!loading && !error && section === "seguridad" && health && (
+        <SecurityDashboard health={health} />
+      )}
+      {!loading && !error && section === "errores" && (
+        <ErrorsListDashboard errors={errors} />
       )}
       {!loading && !error && healthNotice && (
         <Card className="border-blue-100 bg-blue-50 text-blue-900">
@@ -2205,41 +2719,6 @@ function ErrorsPanel() {
           {notice}
         </Card>
       )}
-      {!loading && !error && errors.length === 0 && (
-        <Card className="text-slate-600">Sin errores registrados.</Card>
-      )}
-      {!loading &&
-        !error &&
-        errors.map((item) => (
-          <Card key={item.id} className="space-y-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(item.severity)}`}
-                  >
-                    {item.severity}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                    {item.area}
-                  </span>
-                  {item.code && (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                      {item.code}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 font-bold text-slate-900">{item.message}</p>
-                <p className="text-sm text-slate-600">
-                  Usuario: {item.user_id ?? "sin usuario"} · {formatDate(item.created_at)}
-                </p>
-                {item.route && (
-                  <p className="break-all text-sm text-slate-500">{item.route}</p>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
     </section>
   );
 }
@@ -2778,7 +3257,7 @@ function AdminMfaPanel({
 export default function AdminPage() {
   const { user, cloudEnabled } = useCloudSync();
   const searchParams = useSearchParams();
-  const [section, setSection] = useState<AdminSection>("usuarios");
+  const [section, setSection] = useState<AdminSection>("sistema");
   const [capabilities, setCapabilities] =
     useState<AdminCapabilitiesResponse | null>(null);
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
@@ -2895,15 +3374,13 @@ export default function AdminPage() {
       )}
 
       {capabilities?.fullAdmin && section === "usuarios" && <UsersPanel />}
-      {capabilities?.fullAdmin && section === "errores" && <ErrorsPanel />}
-      {capabilities?.aiLearning && section === "aprendizaje" && (
-        <AiLearningPanel />
-      )}
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
-        section !== "errores" &&
         section !== "aprendizaje" && (
-        <FutureSection section={section} />
+        <OperationsPanel section={section} />
+      )}
+      {capabilities?.aiLearning && section === "aprendizaje" && (
+        <AiLearningPanel />
       )}
     </div>
   );
