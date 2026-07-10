@@ -79,6 +79,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("Guardar esta");
     expect(formPage).toContain("Misma tanda");
     expect(formPage).toContain("se unirán al mismo producto");
+    expect(formPage).toContain("Abono: no actualiza precio");
+    expect(formPage).toContain("No actualizar producto desde este abono");
     expect(formPage).toContain("Contraer ficha y volver al listado");
     expect(formPage).toContain("purchaseLineHasCatalogProduct(line, productKeys)");
     expect(formPage).toContain("text-sky-700");

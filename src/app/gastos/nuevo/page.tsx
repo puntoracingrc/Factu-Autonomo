@@ -59,6 +59,8 @@ import {
 } from "@/lib/expense-classification";
 import { occurrenceKey } from "@/lib/recurring-expenses";
 import {
+  purchaseLineCanFeedProductCatalog,
+  purchaseLineHasPositiveCatalogPrice,
   purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
   purchaseProductKey,
@@ -695,7 +697,9 @@ export default function NuevoGastoPage() {
 
   function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
     return (payload.expense.purchaseLines ?? []).filter(
-      (line) => !purchaseLineHasCatalogProduct(line, productKeys),
+      (line) =>
+        purchaseLineHasPositiveCatalogPrice(line) &&
+        !purchaseLineHasCatalogProduct(line, productKeys),
     );
   }
 
@@ -719,6 +723,7 @@ export default function NuevoGastoPage() {
   ) {
     const line = review.payload.expense.purchaseLines?.[lineIndex];
     if (!line || !selectedForCatalogInScan(line)) return null;
+    if (!purchaseLineHasPositiveCatalogPrice(line)) return null;
 
     const lineKeys = purchaseLineBatchKeys(line);
     if (lineKeys.length === 0) return null;
@@ -736,6 +741,7 @@ export default function NuevoGastoPage() {
 
         const candidateLine = candidateLines[candidateIndex];
         if (
+          !purchaseLineHasPositiveCatalogPrice(candidateLine) ||
           !selectedForCatalogInScan(candidateLine) ||
           purchaseLineHasCatalogProduct(candidateLine, productKeys)
         ) {
@@ -763,16 +769,22 @@ export default function NuevoGastoPage() {
         const description = line.description.trim();
         if (!description) return null;
 
+        const canFeedCatalog = purchaseLineHasPositiveCatalogPrice(line);
         const inCatalog = purchaseLineHasCatalogProduct(line, productKeys);
         const selected = selectedForCatalogInScan(line);
         const batchOwner = selectedBatchCatalogOwnerForLine(review, index);
-        const state = inCatalog
-          ? "catalog"
-          : batchOwner
-            ? "batch"
-            : selected
-              ? "new"
-              : "off";
+        let state: "catalog" | "batch" | "new" | "off" | "credit";
+        if (!canFeedCatalog) {
+          state = "credit";
+        } else if (inCatalog) {
+          state = "catalog";
+        } else if (batchOwner) {
+          state = "batch";
+        } else if (selected) {
+          state = "new";
+        } else {
+          state = "off";
+        }
 
         return {
           key: `${review.id}-${index}`,
@@ -786,7 +798,7 @@ export default function NuevoGastoPage() {
         ): item is {
           key: string;
           description: string;
-          state: "catalog" | "batch" | "new" | "off";
+          state: "catalog" | "batch" | "new" | "off" | "credit";
         } => Boolean(item),
       );
   }
@@ -806,11 +818,15 @@ export default function NuevoGastoPage() {
       ...payload,
       expense: {
         ...payload.expense,
-        purchaseLines: payload.expense.purchaseLines?.map((line) =>
-          purchaseLineHasCatalogProduct(line, productKeys)
-            ? line
-            : { ...line, catalogProduct: enabled },
-        ),
+        purchaseLines: payload.expense.purchaseLines?.map((line) => {
+          if (!purchaseLineHasPositiveCatalogPrice(line)) {
+            return { ...line, catalogProduct: false };
+          }
+          if (purchaseLineHasCatalogProduct(line, productKeys)) {
+            return line;
+          }
+          return { ...line, catalogProduct: enabled };
+        }),
       },
     };
   }
@@ -845,11 +861,15 @@ export default function NuevoGastoPage() {
     );
     if (activeScanReview?.id === review.id) {
       setPurchaseLines((current) =>
-        current.map((line) =>
-          purchaseLineHasCatalogProduct(line, productKeys)
-            ? line
-            : { ...line, catalogProduct: enabled },
-        ),
+        current.map((line) => {
+          if (!purchaseLineHasPositiveCatalogPrice(line)) {
+            return { ...line, catalogProduct: false };
+          }
+          if (purchaseLineHasCatalogProduct(line, productKeys)) {
+            return line;
+          }
+          return { ...line, catalogProduct: enabled };
+        }),
       );
     }
   }
@@ -1493,21 +1513,26 @@ export default function NuevoGastoPage() {
                               <div className="mt-2 space-y-1.5">
                                 <div className="flex flex-wrap gap-2">
                                   {productPreview.slice(0, 8).map((item) => {
-                                    const stateLabel =
-                                      item.state === "catalog"
-                                        ? "En Productos"
-                                        : item.state === "batch"
-                                          ? "Misma tanda"
-                                          : item.state === "new"
-                                            ? "Se creará"
-                                            : "No se añade";
-                                    const stateClass =
-                                      item.state === "catalog" ||
-                                      item.state === "batch"
-                                        ? "bg-green-50 text-green-800 ring-green-100"
-                                        : item.state === "new"
-                                          ? "bg-sky-50 text-sky-800 ring-sky-100"
-                                          : "bg-slate-50 text-slate-600 ring-slate-100";
+                                    let stateLabel = "No se añade";
+                                    let stateClass =
+                                      "bg-slate-50 text-slate-600 ring-slate-100";
+                                    if (item.state === "credit") {
+                                      stateLabel = "Abono: no actualiza";
+                                      stateClass =
+                                        "bg-slate-50 text-slate-700 ring-slate-100";
+                                    } else if (item.state === "catalog") {
+                                      stateLabel = "En Productos";
+                                      stateClass =
+                                        "bg-green-50 text-green-800 ring-green-100";
+                                    } else if (item.state === "batch") {
+                                      stateLabel = "Misma tanda";
+                                      stateClass =
+                                        "bg-green-50 text-green-800 ring-green-100";
+                                    } else if (item.state === "new") {
+                                      stateLabel = "Se creará";
+                                      stateClass =
+                                        "bg-sky-50 text-sky-800 ring-sky-100";
+                                    }
 
                                     return (
                                       <span
@@ -2243,147 +2268,165 @@ export default function NuevoGastoPage() {
                     line,
                     productKeys,
                   );
-                  const lineWillGoToCatalog = line.catalogProduct !== false;
-                  const cardTone = lineInCatalog
-                    ? "border-green-200 bg-green-50"
-                    : lineWillGoToCatalog
-                      ? "border-blue-200 bg-blue-50"
-                      : "border-slate-100 bg-slate-50";
-                  const checkboxTone = lineInCatalog
-                    ? "border-green-200 bg-white text-green-800"
-                    : lineWillGoToCatalog
-                      ? "border-blue-200 bg-white text-blue-800"
-                      : "border-slate-200 bg-white text-slate-700";
+                  const lineCanFeedCatalog =
+                    purchaseLineCanFeedProductCatalog(line);
+                  const lineIsCreditOrReturn =
+                    expensePurchaseLineBaseTotal(line) < 0 ||
+                    line.unitPrice < 0 ||
+                    (line.netUnitPrice ?? 0) < 0;
+                  const lineWillGoToCatalog =
+                    lineCanFeedCatalog && line.catalogProduct !== false;
+                  let cardTone = "border-slate-100 bg-slate-50";
+                  let checkboxTone = "border-slate-200 bg-white text-slate-700";
+                  if (lineIsCreditOrReturn) {
+                    cardTone = "border-slate-200 bg-slate-50";
+                  } else if (lineInCatalog) {
+                    cardTone = "border-green-200 bg-green-50";
+                    checkboxTone = "border-green-200 bg-white text-green-800";
+                  } else if (lineWillGoToCatalog) {
+                    cardTone = "border-blue-200 bg-blue-50";
+                    checkboxTone = "border-blue-200 bg-white text-blue-800";
+                  }
 
                   return (
                     <div
                       key={line.id}
                       className={`rounded-2xl border p-3 ${cardTone}`}
                     >
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                          Línea {index + 1}
-                        </p>
-                        {lineInCatalog ? (
-                          <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-green-800 ring-1 ring-green-200">
-                            Ya está en Productos
-                          </span>
-                        ) : lineWillGoToCatalog ? (
-                          <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-800 ring-1 ring-blue-200">
-                            Se creará al guardar
-                          </span>
-                        ) : null}
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                            Línea {index + 1}
+                          </p>
+                          {lineIsCreditOrReturn ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700 ring-1 ring-slate-200">
+                              Abono: no actualiza precio
+                            </span>
+                          ) : lineInCatalog ? (
+                            <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-green-800 ring-1 ring-green-200">
+                              Ya está en Productos
+                            </span>
+                          ) : lineWillGoToCatalog ? (
+                            <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-800 ring-1 ring-blue-200">
+                              Se creará al guardar
+                            </span>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPurchaseLines((prev) =>
+                              prev.filter((entry) => entry.id !== line.id),
+                            )
+                          }
+                          className="text-sm font-semibold text-red-600"
+                        >
+                          Quitar
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPurchaseLines((prev) =>
-                            prev.filter((entry) => entry.id !== line.id),
-                          )
-                        }
-                        className="text-sm font-semibold text-red-600"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(14rem,1fr)_5.5rem_5rem_7.5rem_6rem_6rem] xl:items-start">
-                      <div className="col-span-2 xl:col-span-1">
-                        <Field label="Producto o servicio">
+                      <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(14rem,1fr)_5.5rem_5rem_7.5rem_6rem_6rem] xl:items-start">
+                        <div className="col-span-2 xl:col-span-1">
+                          <Field label="Producto o servicio">
+                            <Input
+                              value={line.description}
+                              onChange={(e) =>
+                                updatePurchaseLine(line.id, {
+                                  description: e.target.value,
+                                })
+                              }
+                              placeholder="Ej: Lama persiana"
+                            />
+                          </Field>
+                        </div>
+                        <Field label="Cant.">
+                          <NumericFieldInput
+                            value={line.quantity}
+                            onChange={(quantity) =>
+                              updatePurchaseLine(line.id, { quantity })
+                            }
+                          />
+                        </Field>
+                        <Field label="Ud.">
                           <Input
-                            value={line.description}
+                            value={line.unit ?? ""}
                             onChange={(e) =>
                               updatePurchaseLine(line.id, {
-                                description: e.target.value,
+                                unit: e.target.value,
                               })
                             }
-                            placeholder="Ej: Lama persiana"
+                            placeholder="ud"
+                          />
+                        </Field>
+                        <Field label="Precio">
+                          <NumericFieldInput
+                            value={line.unitPrice}
+                            onChange={(unitPrice) =>
+                              updatePurchaseLine(line.id, {
+                                unitPrice,
+                                total: undefined,
+                              })
+                            }
+                          />
+                        </Field>
+                        <Field label="Dto. %">
+                          <NumericFieldInput
+                            value={line.discountPercent ?? 0}
+                            onChange={(discountPercent) =>
+                              updatePurchaseLine(line.id, { discountPercent })
+                            }
+                          />
+                        </Field>
+                        <Field label="IVA">
+                          <NumericFieldInput
+                            value={line.ivaPercent ?? ivaPercent}
+                            onChange={(lineIva) =>
+                              updatePurchaseLine(line.id, {
+                                ivaPercent: lineIva,
+                              })
+                            }
                           />
                         </Field>
                       </div>
-                      <Field label="Cant.">
-                        <NumericFieldInput
-                          value={line.quantity}
-                          onChange={(quantity) =>
-                            updatePurchaseLine(line.id, { quantity })
-                          }
-                        />
-                      </Field>
-                      <Field label="Ud.">
-                        <Input
-                          value={line.unit ?? ""}
-                          onChange={(e) =>
-                            updatePurchaseLine(line.id, {
-                              unit: e.target.value,
-                            })
-                          }
-                          placeholder="ud"
-                        />
-                      </Field>
-                      <Field label="Precio">
-                        <NumericFieldInput
-                          value={line.unitPrice}
-                          onChange={(unitPrice) =>
-                            updatePurchaseLine(line.id, {
-                              unitPrice,
-                              total: undefined,
-                            })
-                          }
-                        />
-                      </Field>
-                      <Field label="Dto. %">
-                        <NumericFieldInput
-                          value={line.discountPercent ?? 0}
-                          onChange={(discountPercent) =>
-                            updatePurchaseLine(line.id, { discountPercent })
-                          }
-                        />
-                      </Field>
-                      <Field label="IVA">
-                        <NumericFieldInput
-                          value={line.ivaPercent ?? ivaPercent}
-                          onChange={(lineIva) =>
-                            updatePurchaseLine(line.id, {
-                              ivaPercent: lineIva,
-                            })
-                          }
-                        />
-                      </Field>
-                    </div>
-                    <p className="mt-3 text-right text-sm font-bold text-slate-700">
-                      Base línea: {formatMoney(expensePurchaseLineBaseTotal(line))}
-                    </p>
-                    <label
-                      className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
-                    >
-                      <span className="flex items-center gap-2 font-bold">
-                        <input
-                          type="checkbox"
-                          checked={lineWillGoToCatalog}
-                          onChange={(e) =>
-                            updatePurchaseLine(line.id, {
-                              catalogProduct: e.target.checked,
-                            })
-                          }
-                          className="h-5 w-5 rounded"
-                        />
-                        {lineInCatalog
-                          ? "Actualizar producto desde esta línea al guardar"
-                          : "Crear producto desde esta línea al guardar"}
-                      </span>
-                      <span className="text-xs font-bold">
-                        {lineInCatalog
-                          ? "Ya existe en Productos"
-                          : lineWillGoToCatalog
-                            ? "Sí, se llevará a Productos"
-                            : "No se llevará a Productos"}
-                      </span>
-                    </label>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Nada se añade al catálogo solo por escanear. Debes revisar
-                      la factura, dejar marcada esta opción y guardar. Desmarca
-                      herramientas, gastos internos o servicios sueltos.
-                    </p>
+                      <p className="mt-3 text-right text-sm font-bold text-slate-700">
+                        Base línea:{" "}
+                        {formatMoney(expensePurchaseLineBaseTotal(line))}
+                      </p>
+                      <label
+                        className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
+                      >
+                        <span className="flex items-center gap-2 font-bold">
+                          <input
+                            type="checkbox"
+                            checked={lineWillGoToCatalog}
+                            disabled={!lineCanFeedCatalog}
+                            onChange={(e) =>
+                              updatePurchaseLine(line.id, {
+                                catalogProduct: e.target.checked,
+                              })
+                            }
+                            className="h-5 w-5 rounded"
+                          />
+                          {lineIsCreditOrReturn
+                            ? "No actualizar producto desde este abono"
+                            : lineInCatalog
+                              ? "Actualizar producto desde esta línea al guardar"
+                              : "Crear producto desde esta línea al guardar"}
+                        </span>
+                        <span className="text-xs font-bold">
+                          {lineIsCreditOrReturn
+                            ? "Cuenta como importe a tu favor, pero no cambia el coste guardado"
+                            : lineInCatalog
+                              ? "Ya existe en Productos"
+                              : lineWillGoToCatalog
+                                ? "Sí, se llevará a Productos"
+                                : "No se llevará a Productos"}
+                        </span>
+                      </label>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {lineIsCreditOrReturn
+                          ? "Este abono se guarda como importe a tu favor, pero no actualiza el coste del producto."
+                          : "Nada se añade al catálogo solo por escanear. Debes revisar la factura, dejar marcada esta opción y guardar. Desmarca herramientas, gastos internos o servicios sueltos."}
+                      </p>
                     </div>
                   );
                 })
