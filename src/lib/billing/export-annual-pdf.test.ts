@@ -80,6 +80,19 @@ describe("export annual pdf", () => {
     expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
+  it("separa el IVA del resultado tras reservar el IRPF", () => {
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([doc], [expense], profile, 2026),
+    );
+
+    expect(commands).toContain("IVA neto a pagar");
+    expect(commands).toContain("10,50");
+    expect(commands).toContain("Resultado tras reservar IRPF");
+    expect(commands).toContain("40,00");
+    expect(commands).not.toContain("Beneficio neto aproximado");
+    expect(commands).not.toContain("29,50");
+  });
+
   it("proyecta el snapshot histórico antes de seleccionar periodo e importes", () => {
     const drifted: Document = {
       ...doc,

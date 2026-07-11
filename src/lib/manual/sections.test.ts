@@ -42,4 +42,12 @@ describe("manual sections", () => {
     expect(manualText).not.toContain("Probar gratis");
     expect(manualText).not.toContain("QR fiscal obligatorio");
   });
+
+  it("explica que el resultado tras reservar IRPF no descuenta el IVA", () => {
+    const taxManual = JSON.stringify(getManualSection("impuestos"));
+
+    expect(taxManual).toContain("resultado tras reservarla");
+    expect(taxManual).toContain("La posición de IVA se muestra aparte");
+    expect(taxManual).toContain("las bases ya están calculadas sin IVA");
+  });
 });

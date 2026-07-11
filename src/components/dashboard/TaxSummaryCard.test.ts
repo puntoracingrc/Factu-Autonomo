@@ -24,3 +24,14 @@ describe("TaxSummaryCard integrity warning", () => {
     expect(source).toContain("La exportación permanece bloqueada");
   });
 });
+
+describe("TaxSummaryCard fiscal semantics", () => {
+  it("presenta el resultado tras IRPF sin mezclarlo con la posición de IVA", () => {
+    expect(source).toContain("Resultado tras reservar IRPF");
+    expect(source).toContain("taxes.profitAfterIrpfReserve");
+    expect(source).toContain("El IVA se muestra por separado");
+    expect(source).not.toContain("Beneficio neto");
+    expect(source).not.toContain("Después de IVA neto");
+    expect(source).not.toContain("taxes.estimatedNetProfit");
+  });
+});

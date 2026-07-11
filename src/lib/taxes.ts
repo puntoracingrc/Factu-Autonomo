@@ -91,10 +91,12 @@ export interface TaxSummary {
   netIva: number;
   ivaToPay: number;
   ivaCredit: number;
+  /** Resultado de las bases de actividad antes de reservar el IRPF. */
   grossProfit: number;
   irpfPercent: number;
   irpfEstimate: number;
-  estimatedNetProfit: number;
+  /** Resultado tras reservar el IRPF estimado; la posición de IVA va aparte. */
+  profitAfterIrpfReserve: number;
 }
 
 export interface TaxSummaryOptions {
@@ -213,7 +215,7 @@ export function calculateTaxSummary(
   const grossProfit = salesBase - expenseBase;
   const rate = normalizeIrpfPercent(irpfPercent);
   const irpfEstimate = grossProfit > 0 ? grossProfit * (rate / 100) : 0;
-  const estimatedNetProfit = grossProfit - irpfEstimate - ivaToPay;
+  const profitAfterIrpfReserve = grossProfit - irpfEstimate;
 
   return {
     vatExempt: vatExempt && salesIva === 0,
@@ -230,6 +232,6 @@ export function calculateTaxSummary(
     grossProfit,
     irpfPercent: rate,
     irpfEstimate,
-    estimatedNetProfit,
+    profitAfterIrpfReserve,
   };
 }

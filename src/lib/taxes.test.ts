@@ -184,7 +184,7 @@ describe("isTaxableSaleDocument", () => {
 });
 
 describe("calculateTaxSummary", () => {
-  it("calcula IVA neto, IRPF y beneficio neto", () => {
+  it("mantiene el IVA separado del resultado tras reservar el IRPF", () => {
     const summary = calculateTaxSummary([issuedInvoice("pagado", 1000)], [expense], {
       irpfPercent: 20,
     });
@@ -196,7 +196,64 @@ describe("calculateTaxSummary", () => {
     expect(summary.ivaToPay).toBeCloseTo(199.5, 1);
     expect(summary.grossProfit).toBe(950);
     expect(summary.irpfEstimate).toBe(190);
-    expect(summary.estimatedNetProfit).toBeCloseTo(560.5, 1);
+    expect(summary.profitAfterIrpfReserve).toBe(760);
+  });
+
+  it("no cambia el resultado tras reservar IRPF al variar la posición de IVA", () => {
+    const standardVat = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000)],
+      [expense],
+      { irpfPercent: 20 },
+    );
+    const reducedVat = calculateTaxSummary(
+      [
+        issuedInvoice("pagado", 1000, {
+          items: [
+            {
+              id: "l1",
+              description: "Servicio",
+              quantity: 1,
+              unitPrice: 1000,
+              ivaPercent: 10,
+            },
+          ],
+        }),
+      ],
+      [expense],
+      { irpfPercent: 20 },
+    );
+
+    expect(standardVat.ivaToPay).toBeCloseTo(199.5, 1);
+    expect(reducedVat.ivaToPay).toBeCloseTo(89.5, 1);
+    expect(standardVat.profitAfterIrpfReserve).toBe(760);
+    expect(reducedVat.profitAfterIrpfReserve).toBe(760);
+  });
+
+  it("mantiene separado un crédito de IVA cuando el beneficio es positivo", () => {
+    const lowVatSale = issuedInvoice("pagado", 1000, {
+      items: [
+        {
+          id: "l1",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 1000,
+          ivaPercent: 10,
+        },
+      ],
+    });
+    const highBaseExpense: Expense = { ...expense, amount: 900 };
+
+    const summary = calculateTaxSummary(
+      [lowVatSale],
+      [highBaseExpense],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary.grossProfit).toBe(100);
+    expect(summary.irpfEstimate).toBe(20);
+    expect(summary.ivaToPay).toBe(0);
+    expect(summary.ivaCredit).toBe(89);
+    expect(summary.profitAfterIrpfReserve).toBe(80);
   });
 
   it("no calcula IVA si el perfil está exento", () => {
@@ -215,7 +272,7 @@ describe("calculateTaxSummary", () => {
     expect(summary.vatExempt).toBe(true);
     expect(summary.salesIva).toBe(0);
     expect(summary.expenseIva).toBe(0);
-    expect(summary.estimatedNetProfit).toBe(950 - 190);
+    expect(summary.profitAfterIrpfReserve).toBe(950 - 190);
   });
 
   it("marca crédito de IVA cuando los gastos superan ventas", () => {
@@ -228,6 +285,7 @@ describe("calculateTaxSummary", () => {
     expect(summary.ivaCredit).toBeGreaterThan(0);
     expect(summary.ivaToPay).toBe(0);
     expect(summary.irpfEstimate).toBe(0);
+    expect(summary.profitAfterIrpfReserve).toBe(summary.grossProfit);
   });
 
   it("usa la rectificativa vigente y deja fuera la factura original rectificada", () => {

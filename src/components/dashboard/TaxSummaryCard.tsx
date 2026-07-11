@@ -169,7 +169,7 @@ function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
   if (taxes.grossProfit <= 0) return null;
 
   const irpfShare = (taxes.irpfEstimate / taxes.grossProfit) * 100;
-  const netShare = Math.max(0, 100 - irpfShare);
+  const afterIrpfShare = Math.max(0, 100 - irpfShare);
 
   return (
     <div>
@@ -181,8 +181,8 @@ function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
         />
         <div
           className="bg-blue-500"
-          style={{ width: `${netShare}%` }}
-          title="Beneficio neto"
+          style={{ width: `${afterIrpfShare}%` }}
+          title="Resultado tras reservar IRPF"
         />
       </div>
       <div className="mt-2 flex flex-wrap justify-between gap-2 text-[11px] text-slate-600">
@@ -192,7 +192,7 @@ function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-blue-500" />
-          Beneficio neto
+          Resultado tras reservar IRPF
         </span>
       </div>
     </div>
@@ -245,7 +245,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
 
       <TaxSection
         title="IRPF estimado"
-        subtitle={`Retención orientativa del ${taxes.irpfPercent}% sobre el beneficio.`}
+        subtitle={`Reserva orientativa del ${taxes.irpfPercent}% sobre el beneficio.`}
         icon={Percent}
         tone="orange"
         chart={<IrpfSplitChart taxes={taxes} />}
@@ -257,8 +257,8 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-orange-700"
         />
         <TaxRow
-          label="Beneficio neto aproximado"
-          value={formatMoney(taxes.estimatedNetProfit)}
+          label="Resultado tras reservar IRPF"
+          value={formatMoney(taxes.profitAfterIrpfReserve)}
           hint="Después del IRPF estimado"
           valueClassName="text-blue-800"
           emphasize
@@ -328,9 +328,9 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-orange-700"
         />
         <TaxRow
-          label="Beneficio neto aproximado"
-          value={formatMoney(taxes.estimatedNetProfit)}
-          hint="Después de IVA neto e IRPF estimado"
+          label="Resultado tras reservar IRPF"
+          value={formatMoney(taxes.profitAfterIrpfReserve)}
+          hint="El IVA se muestra por separado"
           valueClassName="text-blue-800"
           emphasize
         />

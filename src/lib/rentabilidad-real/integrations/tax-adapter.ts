@@ -17,7 +17,7 @@ export function mapExistingTaxSummaryToProfitabilityTaxContext(
     grossProfit: roundMoney(summary.grossProfit),
     irpfPercent: summary.irpfPercent,
     irpfEstimate: roundMoney(summary.irpfEstimate),
-    estimatedNetProfit: roundMoney(summary.estimatedNetProfit),
+    profitAfterIrpfReserve: roundMoney(summary.profitAfterIrpfReserve),
     sourceLink: {
       sourceType: "tax_summary",
       label: "Resumen fiscal",

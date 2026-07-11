@@ -90,6 +90,11 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("2.º trimestre 2026");
     expect(csv).toContain("Autónomo Test");
     expect(csv).toContain("RESUMEN DEL PERIODO");
+    expect(csv).toContain("IVA neto a ingresar;10,50");
+    expect(csv).toContain("Beneficio bruto estimado;50,00");
+    expect(csv).toContain("IRPF estimado (orientativo);10,00");
+    expect(csv).toContain("Resultado tras reservar IRPF;40,00");
+    expect(csv).not.toContain("Beneficio neto");
     expect(csv).toContain("LIBRO DE VENTAS");
     expect(csv).toContain("F-2026-0001");
     expect(csv).toContain("Cliente Test");
