@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GitMerge, Pencil, Search, Truck, Trash2, X } from "lucide-react";
 import { SupplierListSearch } from "@/components/suppliers/SupplierListSearch";
 import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
@@ -24,9 +24,11 @@ import {
   pickCanonicalSupplier,
   sortSuppliers,
   SUPPLIER_AUTO_LINK_SCORE,
+  SUPPLIER_EMAIL_FORMAT_ERROR,
   SUPPLIER_SORT_FIELD_LABELS,
   supplierPurchasedTotal,
   supplierSortDirectionLabel,
+  validateSupplierContact,
   type SupplierSortDirection,
   type SupplierSortField,
 } from "@/lib/suppliers";
@@ -35,6 +37,7 @@ import type { Supplier } from "@/lib/types";
 const EMPTY_FORM = {
   name: "",
   nif: "",
+  email: "",
   phone: "",
   website: "",
   streetType: "",
@@ -60,6 +63,7 @@ export default function ProveedoresPage() {
   const [sortField, setSortField] = useState<SupplierSortField>("nombre");
   const [sortDirection, setSortDirection] =
     useState<SupplierSortDirection>("asc");
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
   const suppliers = useMemo(
     () =>
@@ -149,6 +153,7 @@ export default function ProveedoresPage() {
     setForm({
       name: migrated.name,
       nif: migrated.nif ?? "",
+      email: migrated.email ?? "",
       phone: migrated.phone ?? "",
       website: migrated.website ?? "",
       streetType: migrated.streetType ?? "",
@@ -201,10 +206,18 @@ export default function ProveedoresPage() {
       return;
     }
 
+    const contact = validateSupplierContact(form);
+    if (!contact.ok) {
+      setFormError(contact.error ?? SUPPLIER_EMAIL_FORMAT_ERROR);
+      requestAnimationFrame(() => emailInputRef.current?.focus());
+      return;
+    }
+
     const payload = {
       name: form.name.trim(),
       nif: form.nif.trim() || undefined,
-      phone: form.phone.trim() || undefined,
+      email: contact.email,
+      phone: contact.phone,
       website: form.website.trim() || undefined,
       streetType: form.streetType.trim() || undefined,
       address: form.address.trim() || undefined,
@@ -381,15 +394,46 @@ export default function ProveedoresPage() {
                   <Input
                     value={form.phone}
                     onChange={(e) => updateFormField("phone", e.target.value)}
+                    autoComplete="tel"
                   />
                 </Field>
-                <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+                <Field label="Email">
                   <Input
-                    value={form.website}
-                    onChange={(e) => updateFormField("website", e.target.value)}
-                    placeholder="https://www.ejemplo.com"
+                    ref={emailInputRef}
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => updateFormField("email", e.target.value)}
+                    autoComplete="email"
+                    placeholder="compras@proveedor.com"
+                    aria-invalid={formError === SUPPLIER_EMAIL_FORMAT_ERROR}
+                    aria-describedby={
+                      formError === SUPPLIER_EMAIL_FORMAT_ERROR
+                        ? "supplier-email-error"
+                        : undefined
+                    }
                   />
+                  {formError === SUPPLIER_EMAIL_FORMAT_ERROR ? (
+                    <span
+                      id="supplier-email-error"
+                      role="alert"
+                      className="text-sm font-semibold text-red-700 dark:text-red-300"
+                    >
+                      {formError}
+                    </span>
+                  ) : null}
                 </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+                    <Input
+                      value={form.website}
+                      onChange={(e) =>
+                        updateFormField("website", e.target.value)
+                      }
+                      placeholder="https://www.ejemplo.com"
+                      autoComplete="url"
+                    />
+                  </Field>
+                </div>
               </div>
             </FormSection>
             <FormSection
@@ -443,7 +487,7 @@ export default function ProveedoresPage() {
                 </div>
               </div>
             </FormSection>
-            {formError ? (
+            {formError && formError !== SUPPLIER_EMAIL_FORMAT_ERROR ? (
               <p
                 role="alert"
                 className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"

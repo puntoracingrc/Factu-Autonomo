@@ -144,8 +144,14 @@ function productMatchesDocumentPickRequest(
 
 export default function ProductosPage() {
   const router = useRouter();
-  const { data, addProduct, updateProduct, deleteProduct, mergeProducts } =
-    useAppStore();
+  const {
+    data,
+    addProduct,
+    updateProduct,
+    renameProductFamily: renameProductFamilyInStore,
+    deleteProduct,
+    mergeProducts,
+  } = useAppStore();
   const { checkCanAddProduct } = useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
@@ -831,23 +837,27 @@ export default function ProductosPage() {
       return;
     }
 
-    const affectedProducts = products.filter(
-      (product) => product.family === sourceFamily,
-    );
-    let savedCount = 0;
-    for (const product of affectedProducts) {
-      if (saveProductFamily(product, targetFamily)) savedCount += 1;
+    const newCatalogProducts = products.filter(
+      (product) =>
+        product.family === sourceFamily && !catalogProductForSummary(product),
+    ).length;
+    if (newCatalogProducts > 0) {
+      const limit = checkCanAddProduct(
+        catalogProductCount() + newCatalogProducts - 1,
+      );
+      if (!limit.allowed) {
+        setFamilyNotice(
+          limit.reason ??
+            "No puedes guardar el aprendizaje de todos los productos de esta familia con tu plan actual.",
+        );
+        return;
+      }
     }
 
-    for (const product of data.products) {
-      if (product.family !== sourceFamily || !product.hidden) continue;
-      updateProduct({
-        ...product,
-        family: targetFamily,
-        name: product.name.startsWith("Familia:")
-          ? `Familia: ${targetFamily}`
-          : product.name,
-      });
+    const result = renameProductFamilyInStore(sourceFamily, targetFamily);
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return;
     }
 
     if (family === sourceFamily) setFamily(targetFamily);
@@ -855,7 +865,11 @@ export default function ProductosPage() {
     setFamilyRenameTo("");
     setFamilyRenameOpen(false);
     setFamilyNotice(
-      `Familia "${sourceFamily}" renombrada a "${targetFamily}" en ${savedCount} producto(s).`,
+      `Familia "${sourceFamily}" renombrada a "${targetFamily}" en ${result.productCount} producto(s).${
+        result.ruleMigrated
+          ? " La regla de margen se ha conservado con el nuevo nombre."
+          : ""
+      }`,
     );
   }
 
@@ -1378,7 +1392,11 @@ export default function ProductosPage() {
       />
 
       {familyNotice ? (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800"
+        >
           {familyNotice}
         </div>
       ) : null}

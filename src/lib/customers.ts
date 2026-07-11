@@ -9,6 +9,11 @@ import {
   normalizeResidenceType,
 } from "./customer-address";
 import { isTaxableSaleDocument } from "./taxes";
+import {
+  isValidContactEmail,
+  normalizeContactEmail,
+  normalizeContactPhone,
+} from "./contact-validation";
 import type {
   AddressResidenceType,
   Client,
@@ -203,20 +208,16 @@ function customerComparableName(customer: Customer): string {
   return normalizeComparableCustomerText(getCustomerDisplayName(customer));
 }
 
-const CUSTOMER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-
 export function normalizeCustomerEmail(email?: string | null): string {
-  return email?.trim() ?? "";
+  return normalizeContactEmail(email);
 }
 
 export function normalizeCustomerPhone(phone?: string | null): string {
-  return phone?.trim().replace(/\s+/g, " ") ?? "";
+  return normalizeContactPhone(phone);
 }
 
 export function isValidCustomerEmail(email?: string | null): boolean {
-  const value = normalizeCustomerEmail(email);
-  if (!value) return true;
-  return value.length <= 254 && CUSTOMER_EMAIL_PATTERN.test(value);
+  return isValidContactEmail(email);
 }
 
 export interface CustomerContactValidation {

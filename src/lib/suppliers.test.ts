@@ -10,6 +10,7 @@ import {
   supplierCompareKey,
   supplierPurchasedTotal,
   supplierSimilarityScore,
+  validateSupplierContact,
 } from "./suppliers";
 import type { Expense, Supplier } from "./types";
 
@@ -46,6 +47,28 @@ describe("normalizeSupplierName", () => {
   it("elimina sufijos societarios", () => {
     expect(normalizeSupplierName("ARANDES S.L.")).toBe("ARANDES");
     expect(supplierCompareKey("Leroy Merlin SL")).toBe("leroy merlin");
+  });
+});
+
+describe("validateSupplierContact", () => {
+  it("normaliza el mismo formato de email y teléfono que el resto de contactos", () => {
+    expect(
+      validateSupplierContact({
+        email: " compras@proveedor.test ",
+        phone: " +34 600   123 456 ",
+      }),
+    ).toEqual({
+      ok: true,
+      email: "compras@proveedor.test",
+      phone: "+34 600 123 456",
+    });
+  });
+
+  it("rechaza un email informado con formato inválido", () => {
+    expect(validateSupplierContact({ email: "compras@" })).toEqual({
+      ok: false,
+      error: "Revisa el formato del email",
+    });
   });
 });
 

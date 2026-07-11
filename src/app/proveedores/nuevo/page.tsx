@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Truck, X } from "lucide-react";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
@@ -13,12 +13,15 @@ import { useAppStore } from "@/context/AppStore";
 import {
   findBestSupplierMatch,
   SUPPLIER_AUTO_LINK_SCORE,
+  SUPPLIER_EMAIL_FORMAT_ERROR,
+  validateSupplierContact,
 } from "@/lib/suppliers";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 
 const EMPTY_FORM = {
   name: "",
   nif: "",
+  email: "",
   phone: "",
   website: "",
   streetType: "",
@@ -45,6 +48,7 @@ export default function NuevoProveedorPage() {
   const { data, addSupplier } = useAppStore();
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
   function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
     setFormError(null);
@@ -69,10 +73,18 @@ export default function NuevoProveedorPage() {
       return;
     }
 
+    const contact = validateSupplierContact(form);
+    if (!contact.ok) {
+      setFormError(contact.error ?? SUPPLIER_EMAIL_FORMAT_ERROR);
+      requestAnimationFrame(() => emailInputRef.current?.focus());
+      return;
+    }
+
     const payload = {
       name,
       nif: form.nif.trim() || undefined,
-      phone: form.phone.trim() || undefined,
+      email: contact.email,
+      phone: contact.phone,
       website: form.website.trim() || undefined,
       streetType: form.streetType.trim() || undefined,
       address: form.address.trim() || undefined,
@@ -146,17 +158,46 @@ export default function NuevoProveedorPage() {
               <Input
                 value={form.phone}
                 onChange={(event) => updateFormField("phone", event.target.value)}
+                autoComplete="tel"
               />
             </Field>
-            <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+            <Field label="Email">
               <Input
-                value={form.website}
-                onChange={(event) =>
-                  updateFormField("website", event.target.value)
+                ref={emailInputRef}
+                type="email"
+                value={form.email}
+                onChange={(event) => updateFormField("email", event.target.value)}
+                autoComplete="email"
+                placeholder="compras@proveedor.com"
+                aria-invalid={formError === SUPPLIER_EMAIL_FORMAT_ERROR}
+                aria-describedby={
+                  formError === SUPPLIER_EMAIL_FORMAT_ERROR
+                    ? "new-supplier-email-error"
+                    : undefined
                 }
-                placeholder="https://www.ejemplo.com"
               />
+              {formError === SUPPLIER_EMAIL_FORMAT_ERROR ? (
+                <span
+                  id="new-supplier-email-error"
+                  role="alert"
+                  className="text-sm font-semibold text-red-700 dark:text-red-300"
+                >
+                  {formError}
+                </span>
+              ) : null}
             </Field>
+            <div className="sm:col-span-2">
+              <Field label="Web" hint="Opcional. Ej: www.tienda.com">
+                <Input
+                  value={form.website}
+                  onChange={(event) =>
+                    updateFormField("website", event.target.value)
+                  }
+                  placeholder="https://www.ejemplo.com"
+                  autoComplete="url"
+                />
+              </Field>
+            </div>
           </div>
         </FormSection>
 
@@ -215,7 +256,7 @@ export default function NuevoProveedorPage() {
           </div>
         </FormSection>
 
-        {formError && (
+        {formError && formError !== SUPPLIER_EMAIL_FORMAT_ERROR && (
           <p
             role="alert"
             className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"

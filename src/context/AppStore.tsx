@@ -125,6 +125,10 @@ import {
 } from "@/lib/document-links";
 import { repairDocumentCustomerSnapshot } from "@/lib/document-customer-repair";
 import { normalizeProductCatalogItem, purchaseProductKey } from "@/lib/purchase-products";
+import {
+  renameProductFamilyInAppData,
+  type ProductFamilyRenameResult,
+} from "@/lib/product-family-markups";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -171,6 +175,10 @@ interface AppStoreValue {
   ) => RecurringExpense;
   addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Product;
   updateProduct: (product: Product) => void;
+  renameProductFamily: (
+    sourceFamily: string,
+    targetFamily: string,
+  ) => ProductFamilyRenameResult;
   deleteProduct: (id: string) => void;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (item: RecurringExpenseDraft) => RecurringExpense;
@@ -1256,6 +1264,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setAppData]);
 
+  const renameProductFamily = useCallback(
+    (sourceFamily: string, targetFamily: string): ProductFamilyRenameResult => {
+      const result = renameProductFamilyInAppData(
+        dataRef.current,
+        sourceFamily,
+        targetFamily,
+      );
+      if (result.ok) setAppData(result.data);
+      return result;
+    },
+    [setAppData],
+  );
+
   const deleteProduct = useCallback((id: string) => {
     setAppData((prev) => ({
       ...prev,
@@ -1751,6 +1772,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,
+      renameProductFamily,
       deleteProduct,
       mergeProducts,
       addRecurringExpense,
@@ -1801,6 +1823,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,
+      renameProductFamily,
       deleteProduct,
       mergeProducts,
       addRecurringExpense,
