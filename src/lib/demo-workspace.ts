@@ -1,5 +1,6 @@
 import type { AppData, Document, Expense, Product, Supplier } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
+import { issueDocument, markDocumentSent } from "./document-integrity";
 
 export const DEMO_MODE_STORAGE_KEY = "factura-autonomo-demo-mode";
 export const DEMO_WORKSPACE_STORAGE_KEY = "factura-autonomo-demo-data";
@@ -41,6 +42,42 @@ export function createDemoWorkspaceData(referenceDate = new Date()): AppData {
   const customerOneCreatedAt = isoTimestamp(year, 6, 3);
   const customerTwoCreatedAt = isoTimestamp(year, 6, 18);
   const supplierCreatedAt = isoTimestamp(year, 5, 28);
+
+  const profile: AppData["profile"] = {
+    ...DEFAULT_PROFILE,
+    commercialName: "Reformas Martin Demo",
+    name: "Reformas Martin Demo SL",
+    nif: "B00000000",
+    vatId: "ESB00000000",
+    address: "Calle Demo, 1",
+    city: "Valencia",
+    postalCode: "46000",
+    province: "Valencia",
+    phone: "600 000 000",
+    email: "demo@factura-autonomo.test",
+    iban: "ES00 0000 0000 0000 0000 0000",
+    numbering: {
+      year,
+      lastSequence: {
+        factura: 1,
+        factura_rectificativa: 0,
+        presupuesto: 1,
+        recibo: 0,
+      },
+      formats: {
+        factura: { ...DEFAULT_PROFILE.numbering.formats.factura },
+        factura_rectificativa: {
+          ...DEFAULT_PROFILE.numbering.formats.factura_rectificativa,
+        },
+        presupuesto: { ...DEFAULT_PROFILE.numbering.formats.presupuesto },
+        recibo: { ...DEFAULT_PROFILE.numbering.formats.recibo },
+      },
+    },
+    verifactu: {
+      enabled: false,
+      environment: "test",
+    },
+  };
 
   const customers: AppData["customers"] = [
     {
@@ -146,54 +183,61 @@ export function createDemoWorkspaceData(referenceDate = new Date()): AppData {
     },
   ];
 
-  const documents: Document[] = [
-    {
-      id: "demo-invoice-1",
-      type: "factura",
-      number: `F-${year}-0001`,
-      date: isoDate(year, 6, 24),
-      dueDate: isoDate(year, 7, 9),
-      customerId: "demo-customer-bar-rincon",
-      client: {
-        name: "Bar El Rincon Demo",
-        contactName: "Ana Lopez",
-        nif: "B00000001",
-        email: "ana.demo@example.com",
-        phone: "600 000 001",
-        streetType: "calle",
-        address: "Mayor, 12",
+  const demoInvoice = markDocumentSent(
+    issueDocument(
+      {
+        id: "demo-invoice-1",
+        type: "factura",
+        number: `F-${year}-0001`,
+        date: isoDate(year, 6, 24),
+        dueDate: isoDate(year, 7, 9),
+        customerId: "demo-customer-bar-rincon",
+        client: {
+          name: "Bar El Rincon Demo",
+          contactName: "Ana Lopez",
+          nif: "B00000001",
+          email: "ana.demo@example.com",
+          phone: "600 000 001",
+          streetType: "calle",
+          address: "Mayor, 12",
+        },
+        items: [
+          {
+            id: "demo-invoice-1-line-1",
+            description: "Revision de instalacion",
+            quantity: 3,
+            unit: "h",
+            unitPrice: 38,
+            ivaPercent: 21,
+          },
+          {
+            id: "demo-invoice-1-line-2",
+            description: "Material pequeño",
+            quantity: 2,
+            unit: "ud",
+            unitPrice: 18,
+            ivaPercent: 21,
+          },
+        ],
+        notes: "Factura ficticia. No enviar ni usar fiscalmente.",
+        paymentTerms: "Transferencia",
+        status: "borrador",
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        deliveryStatus: "not_sent",
+        paymentStatus: "pending",
+        acceptanceStatus: "not_applicable",
+        createdAt: isoTimestamp(year, 6, 24, 11),
+        updatedAt: isoTimestamp(year, 6, 24, 11),
       },
-      items: [
-        {
-          id: "demo-invoice-1-line-1",
-          description: "Revision de instalacion",
-          quantity: 3,
-          unit: "h",
-          unitPrice: 38,
-          ivaPercent: 21,
-        },
-        {
-          id: "demo-invoice-1-line-2",
-          description: "Material pequeño",
-          quantity: 2,
-          unit: "ud",
-          unitPrice: 18,
-          ivaPercent: 21,
-        },
-      ],
-      notes: "Factura ficticia. No enviar ni usar fiscalmente.",
-      paymentTerms: "Transferencia",
-      status: "enviado",
-      documentLifecycle: "issued",
-      integrityLock: "locked",
-      deliveryStatus: "sent",
-      paymentStatus: "pending",
-      acceptanceStatus: "not_applicable",
-      issuedAt: isoTimestamp(year, 6, 24, 12),
-      sentAt: isoTimestamp(year, 6, 24, 12),
-      createdAt: isoTimestamp(year, 6, 24, 11),
-      updatedAt: isoTimestamp(year, 6, 24, 12),
-    },
+      profile,
+      isoTimestamp(year, 6, 24, 12),
+    ),
+    isoTimestamp(year, 6, 24, 12),
+  );
+
+  const documents: Document[] = [
+    demoInvoice,
     {
       id: "demo-invoice-draft",
       type: "factura",
@@ -305,41 +349,7 @@ export function createDemoWorkspaceData(referenceDate = new Date()): AppData {
 
   return {
     ...EMPTY_DATA,
-    profile: {
-      ...DEFAULT_PROFILE,
-      commercialName: "Reformas Martin Demo",
-      name: "Reformas Martin Demo SL",
-      nif: "B00000000",
-      vatId: "ESB00000000",
-      address: "Calle Demo, 1",
-      city: "Valencia",
-      postalCode: "46000",
-      province: "Valencia",
-      phone: "600 000 000",
-      email: "demo@factura-autonomo.test",
-      iban: "ES00 0000 0000 0000 0000 0000",
-      numbering: {
-        year,
-        lastSequence: {
-          factura: 1,
-          factura_rectificativa: 0,
-          presupuesto: 1,
-          recibo: 0,
-        },
-        formats: {
-          factura: { ...DEFAULT_PROFILE.numbering.formats.factura },
-          factura_rectificativa: {
-            ...DEFAULT_PROFILE.numbering.formats.factura_rectificativa,
-          },
-          presupuesto: { ...DEFAULT_PROFILE.numbering.formats.presupuesto },
-          recibo: { ...DEFAULT_PROFILE.numbering.formats.recibo },
-        },
-      },
-      verifactu: {
-        enabled: false,
-        environment: "test",
-      },
-    },
+    profile,
     documents,
     expenses,
     recurringExpenses: [
