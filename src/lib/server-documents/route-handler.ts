@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  readJsonBody,
+  rejectOversizedContentLength,
+} from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   handleServerDocumentIngestForServer,
@@ -55,6 +59,9 @@ const CLIENT_CONTROLLED_KEYS = new Set([
   "user_id",
   "userId",
 ]);
+const SERVER_DOCUMENT_INGEST_MAX_BYTES = 256 * 1024;
+const SERVER_DOCUMENT_INGEST_TOO_LARGE_MESSAGE =
+  "La peticion de ingest es demasiado grande.";
 
 function jsonResponse(
   body: SafeServerDocumentResponse,
@@ -145,6 +152,7 @@ async function parseJsonBody(request: Request): Promise<
   | {
       ok: false;
       response: SafeServerDocumentResponse;
+      status: number;
     }
 > {
   if (!isJsonRequest(request)) {
@@ -154,17 +162,29 @@ async function parseJsonBody(request: Request): Promise<
         "invalid_request",
         "La peticion debe enviarse como JSON.",
       ),
+      status: 400,
     };
   }
 
-  try {
-    return { ok: true, body: await request.json() };
-  } catch {
+  const body = await readJsonBody<unknown>(request, {
+    maxBytes: SERVER_DOCUMENT_INGEST_MAX_BYTES,
+    invalidMessage: "Body JSON invalido.",
+    tooLargeMessage: SERVER_DOCUMENT_INGEST_TOO_LARGE_MESSAGE,
+  });
+  if (!body.ok) {
     return {
       ok: false,
-      response: safeRejectedResponse("invalid_request", "Body JSON invalido."),
+      response: safeRejectedResponse(
+        "invalid_request",
+        body.response.status === 413
+          ? SERVER_DOCUMENT_INGEST_TOO_LARGE_MESSAGE
+          : "Body JSON invalido.",
+      ),
+      status: body.response.status,
     };
   }
+
+  return { ok: true, body: body.data };
 }
 
 export async function handleServerDocumentIngestRoute(
@@ -204,16 +224,19 @@ export async function handleServerDocumentIngestRoute(
     return serverDocumentIngestMethodNotAllowedResponse(requestId);
   }
 
-  const parsed = await parseJsonBody(request);
-  if (!parsed.ok) {
-    await recordAudit(parsed.response);
-    return jsonResponse(
-      parsed.response,
-      statusForSafeResponse(parsed.response),
-      requestId,
+  const declaredTooLarge = rejectOversizedContentLength(
+    request,
+    SERVER_DOCUMENT_INGEST_MAX_BYTES,
+    SERVER_DOCUMENT_INGEST_TOO_LARGE_MESSAGE,
+  );
+  if (declaredTooLarge) {
+    const response = safeRejectedResponse(
+      "invalid_request",
+      SERVER_DOCUMENT_INGEST_TOO_LARGE_MESSAGE,
     );
+    await recordAudit(response);
+    return jsonResponse(response, 413, requestId);
   }
-  const action = getSafeServerDocumentAction(parsed.body);
 
   const authenticate =
     dependencies.authenticate ??
@@ -222,7 +245,7 @@ export async function handleServerDocumentIngestRoute(
   const user = await authenticate(request.headers.get("authorization"));
   if (!user?.id) {
     const response = safeRejectedResponse("unauthorized", "No autorizado.");
-    await recordAudit(response, action);
+    await recordAudit(response);
     return jsonResponse(response, 401, requestId);
   }
 
@@ -241,10 +264,17 @@ export async function handleServerDocumentIngestRoute(
         "rate_limited",
         "Demasiados intentos. Prueba de nuevo en unos instantes.",
       );
-      await recordAudit(response, action, user.id);
+      await recordAudit(response, undefined, user.id);
       return jsonResponse(response, 429, requestId);
     }
   }
+
+  const parsed = await parseJsonBody(request);
+  if (!parsed.ok) {
+    await recordAudit(parsed.response, undefined, user.id);
+    return jsonResponse(parsed.response, parsed.status, requestId);
+  }
+  const action = getSafeServerDocumentAction(parsed.body);
 
   const getSupabaseClient =
     dependencies.getSupabaseClient ??

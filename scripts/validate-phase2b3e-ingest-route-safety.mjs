@@ -100,8 +100,14 @@ assertBefore(
 assertBefore(
   handler,
   "if (!isEnabled())",
-  "const authenticate = dependencies.authenticate ?? getUserFromBearer;",
+  "const authenticate =",
   "flag before auth",
+);
+assertBefore(
+  handler,
+  "const authenticate =",
+  "const parsed = await parseJsonBody(request);",
+  "auth before JSON parsing",
 );
 assertBefore(
   handler,
@@ -255,6 +261,10 @@ for (const expected of [
   "metodo no permitido activo devuelve error seguro",
   "content-type invalido devuelve error seguro",
   "rechaza JSON invalido",
+  "autentica antes de consumir o validar el JSON",
+  "content-length excesivo antes de autenticar",
+  "body transmitido que supera el limite",
+  "bloquea la ruta en entorno remoto o productivo",
   "ignora autoridad enviada en el body",
   "no devuelve payload ni snapshots",
   "no filtra errores internos",

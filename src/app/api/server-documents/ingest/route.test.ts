@@ -87,6 +87,23 @@ describe("POST /api/server-documents/ingest", () => {
     expect(isServerDocumentIngestRouteEnabled()).toBe(true);
   });
 
+  it.each([
+    ["NODE_ENV", "production"],
+    ["VERCEL", "1"],
+    ["VERCEL_ENV", "production"],
+    ["VERCEL_ENV", "preview"],
+    ["VERCEL_ENV", "staging"],
+    ["APP_ENV", "production"],
+    ["APP_ENV", "staging"],
+    ["DEPLOY_ENV", "production"],
+    ["DEPLOY_ENV", "staging"],
+  ])("bloquea la ruta en entorno remoto o productivo: %s=%s", (key, value) => {
+    vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
+    vi.stubEnv(key, value);
+
+    expect(isServerDocumentIngestRouteEnabled()).toBe(false);
+  });
+
   it("createDraft valido con flag activa en test usa Bearer y devuelve respuesta segura", async () => {
     vi.stubEnv(SERVER_DOCUMENT_INGEST_ROUTE_FLAG, "true");
     const authenticate = vi.fn(async () => ({ id: "token-user" }) as never);
@@ -425,6 +442,7 @@ describe("POST /api/server-documents/ingest", () => {
 
     const invalid = await handleServerDocumentIngestRoute(request("{"), {
       auditRecorder,
+      authenticate: async () => ({ id: "token-user" }) as never,
       generateRequestId: () => "req-invalid",
     });
     const unauthorized = await handleServerDocumentIngestRoute(
@@ -469,7 +487,6 @@ describe("POST /api/server-documents/ingest", () => {
         requestId: "req-unauthorized",
         status: "rejected",
         reason: "unauthorized",
-        action: "createDraft",
       },
       {
         requestId: "req-conflict",
@@ -548,7 +565,7 @@ describe("POST /api/server-documents/ingest", () => {
     expectNoSensitiveFields(body);
   });
 
-  it("content-type invalido devuelve error seguro sin autenticar ni tocar Supabase", async () => {
+  it("content-type invalido devuelve error seguro despues de autenticar y sin tocar Supabase", async () => {
     const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
     const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
     const handleIngest = vi.fn(async () => acceptedResponse());
@@ -573,13 +590,13 @@ describe("POST /api/server-documents/ingest", () => {
       status: "rejected",
       reason: "invalid_request",
     });
-    expect(authenticate).not.toHaveBeenCalled();
+    expect(authenticate).toHaveBeenCalledOnce();
     expect(getSupabaseClient).not.toHaveBeenCalled();
     expect(handleIngest).not.toHaveBeenCalled();
     expectNoSensitiveFields(body);
   });
 
-  it("rechaza JSON invalido sin autenticar ni tocar Supabase cuando esta activa", async () => {
+  it("rechaza JSON invalido despues de autenticar y sin tocar Supabase", async () => {
     const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
     const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
     const handleIngest = vi.fn(async () => acceptedResponse());
@@ -597,7 +614,7 @@ describe("POST /api/server-documents/ingest", () => {
       status: "rejected",
       reason: "invalid_request",
     });
-    expect(authenticate).not.toHaveBeenCalled();
+    expect(authenticate).toHaveBeenCalledOnce();
     expect(getSupabaseClient).not.toHaveBeenCalled();
     expect(handleIngest).not.toHaveBeenCalled();
     expectNoSensitiveFields(body);
@@ -626,6 +643,67 @@ describe("POST /api/server-documents/ingest", () => {
     });
     expect(getSupabaseClient).not.toHaveBeenCalled();
     expect(handleIngest).not.toHaveBeenCalled();
+  });
+
+  it("autentica antes de consumir o validar el JSON", async () => {
+    const authenticate = vi.fn(async () => null);
+
+    const response = await handleServerDocumentIngestRoute(request("{"), {
+      isEnabled: () => true,
+      authenticate,
+    });
+
+    expect(response.status).toBe(401);
+    expect(authenticate).toHaveBeenCalledOnce();
+    expect(await json(response)).toMatchObject({
+      status: "rejected",
+      reason: "unauthorized",
+    });
+  });
+
+  it("rechaza content-length excesivo antes de autenticar", async () => {
+    const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
+
+    const response = await handleServerDocumentIngestRoute(
+      request(
+        { action: "createDraft" },
+        { "Content-Length": String(256 * 1024 + 1) },
+      ),
+      {
+        isEnabled: () => true,
+        authenticate,
+      },
+    );
+
+    expect(response.status).toBe(413);
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(await json(response)).toMatchObject({
+      status: "rejected",
+      reason: "invalid_request",
+    });
+  });
+
+  it("corta un body transmitido que supera el limite antes de tocar Supabase", async () => {
+    const authenticate = vi.fn(async () => ({ id: "user-a" }) as never);
+    const getSupabaseClient = vi.fn(() => ({} as SupabaseServerDocumentClient));
+
+    const response = await handleServerDocumentIngestRoute(
+      request(JSON.stringify({ payload: "x".repeat(256 * 1024) })),
+      {
+        isEnabled: () => true,
+        authenticate,
+        getSupabaseClient,
+        rateLimiter: null,
+      },
+    );
+
+    expect(response.status).toBe(413);
+    expect(authenticate).toHaveBeenCalledOnce();
+    expect(getSupabaseClient).not.toHaveBeenCalled();
+    expect(await json(response)).toMatchObject({
+      status: "rejected",
+      reason: "invalid_request",
+    });
   });
 
   it("usa el usuario autenticado por Bearer e ignora autoridad enviada en el body", async () => {
@@ -734,5 +812,13 @@ describe("POST /api/server-documents/ingest", () => {
     expect(source).not.toContain("use client");
     expect(source).not.toContain("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY");
     expect(source).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+
+    const envExample = fs.readFileSync(
+      path.join(process.cwd(), ".env.example"),
+      "utf8",
+    );
+    expect(envExample).not.toContain(
+      "NEXT_PUBLIC_SERVER_DOCUMENT_INGEST_ROUTE_ENABLED",
+    );
   });
 });
