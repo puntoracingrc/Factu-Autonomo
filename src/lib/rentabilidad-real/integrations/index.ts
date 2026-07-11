@@ -2,6 +2,7 @@ export * from "./address-adapter";
 export * from "./article-adapter";
 export * from "./existing-data-map";
 export * from "./expense-adapter";
+export * from "./fixed-cost-sources";
 export * from "./invoice-adapter";
 export * from "./profitability-input-builder";
 export * from "./quote-adapter";

@@ -1,7 +1,6 @@
-import { roundMoney } from "@/lib/calculations";
+import { roundMoney, todayISO } from "@/lib/calculations";
 import {
-  mapExistingExpenseToProfitabilityFixedCost,
-  mapExistingRecurringExpenseToProfitabilityFixedCost,
+  mapExistingDataToProfitabilityFixedCosts,
   type ProfitabilityFixedCostSource,
 } from "@/lib/rentabilidad-real/integrations";
 import type { AppData } from "@/lib/types";
@@ -38,9 +37,12 @@ export interface BuildRentabilidadRealHoursProfitabilityInputParams {
   adminHours?: number;
   totalRealHoursOverride?: number;
   irpfProvisionPercentage?: number;
+  referenceDate?: string;
 }
 
-function fixedCostFromSource(source: ProfitabilityFixedCostSource): RentabilidadRealWorkCost {
+function fixedCostFromSource(
+  source: ProfitabilityFixedCostSource,
+): RentabilidadRealWorkCost {
   return {
     id: source.id,
     sourceType:
@@ -60,26 +62,6 @@ function fixedCostFromSource(source: ProfitabilityFixedCostSource): Rentabilidad
         : undefined,
     sourceLink: source.sourceLink,
   };
-}
-
-function fixedCostCandidatesFromData(data: AppData): RentabilidadRealWorkCost[] {
-  const recurringTemplateIds = new Set(
-    data.recurringExpenses.map((expense) => expense.id),
-  );
-
-  return [
-    ...data.expenses
-      .filter(
-        (expense) =>
-          !expense.recurringExpenseId ||
-          !recurringTemplateIds.has(expense.recurringExpenseId),
-      )
-      .map(mapExistingExpenseToProfitabilityFixedCost)
-      .filter((item): item is ProfitabilityFixedCostSource => Boolean(item)),
-    ...data.recurringExpenses.map(
-      mapExistingRecurringExpenseToProfitabilityFixedCost,
-    ),
-  ].map(fixedCostFromSource);
 }
 
 function manualCostToWorkCost(
@@ -121,7 +103,10 @@ export function buildRentabilidadRealHoursProfitabilityInputFromExistingData(
 ): RentabilidadRealHoursProfitabilityInput | null {
   const warnings: RentabilidadRealCalculationWarning[] = [];
   const billingModel = params.billingModel ?? "hours";
-  const fixedCostCandidates = fixedCostCandidatesFromData(data);
+  const fixedCostCandidates = mapExistingDataToProfitabilityFixedCosts(
+    data,
+    params.referenceDate ?? todayISO(),
+  ).map(fixedCostFromSource);
   const selectedFixedCostCandidates = selectedFixedCosts(
     fixedCostCandidates,
     params.selectedFixedCostIds,

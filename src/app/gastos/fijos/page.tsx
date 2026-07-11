@@ -19,10 +19,13 @@ import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
 import {
+  isRecurringExpenseApplicableOn,
+  normalizeRecurringOccurrenceCount,
   recurringDueLabel,
   recurringDurationLabel,
   recurringExpenseTotals,
   recurringFrequencyLabel,
+  recurringExpenseStatusOn,
 } from "@/lib/recurring-expenses";
 import { isVatExempt } from "@/lib/vat-regime";
 import {
@@ -85,19 +88,12 @@ function recurringExpenseForm(item: RecurringExpense) {
     durationKind: item.duration.kind,
     endDate: item.duration.kind === "until_date" ? item.duration.endDate : "",
     occurrenceCount:
-      item.duration.kind === "occurrences" ? String(item.duration.count) : "12",
+      item.duration.kind === "occurrences"
+        ? String(normalizeRecurringOccurrenceCount(item.duration.count) ?? 1)
+        : "12",
     startDate: item.startDate,
     notes: item.notes ?? "",
   };
-}
-
-function recurringExpenseIsClosed(
-  item: RecurringExpense,
-  referenceDate: string,
-) {
-  return (
-    item.duration.kind === "until_date" && item.duration.endDate < referenceDate
-  );
 }
 
 export default function GastosFijosPage() {
@@ -126,8 +122,8 @@ export default function GastosFijosPage() {
   });
 
   const templates = [...data.recurringExpenses].sort((a, b) => {
-    const closedA = recurringExpenseIsClosed(a, today);
-    const closedB = recurringExpenseIsClosed(b, today);
+    const closedA = recurringExpenseStatusOn(a, today) === "closed";
+    const closedB = recurringExpenseStatusOn(b, today) === "closed";
     if (closedA !== closedB) return closedA ? 1 : -1;
     return a.supplierName.localeCompare(b.supplierName, "es");
   });
@@ -141,7 +137,7 @@ export default function GastosFijosPage() {
     };
 
     for (const item of data.recurringExpenses) {
-      if (!item.enabled || recurringExpenseIsClosed(item, today)) continue;
+      if (!isRecurringExpenseApplicableOn(item, today)) continue;
       summary[item.frequency] += 1;
       summary.totalActive += 1;
       summary.monthlyEquivalent +=
@@ -220,7 +216,9 @@ export default function GastosFijosPage() {
     if (form.durationKind === "occurrences") {
       return {
         kind: "occurrences",
-        count: Math.max(1, Number(form.occurrenceCount) || 1),
+        count:
+          normalizeRecurringOccurrenceCount(Number(form.occurrenceCount)) ??
+          1,
       };
     }
     return { kind: "indefinite" };
@@ -639,6 +637,7 @@ export default function GastosFijosPage() {
                 <Input
                   type="number"
                   min={1}
+                  step={1}
                   value={form.occurrenceCount}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -688,12 +687,14 @@ export default function GastosFijosPage() {
           {templates.map((item) => {
             const totals = recurringExpenseTotals(item, vatExempt);
             const hasIva = totals.ivaPercent > 0;
-            const isClosed = recurringExpenseIsClosed(item, today);
-            const statusLabel = isClosed
-              ? "Tramo cerrado"
-              : item.enabled
-                ? "Activo"
-                : "Pausado";
+            const recurringStatus = recurringExpenseStatusOn(item, today);
+            const isClosed = recurringStatus === "closed";
+            const statusLabel = {
+              active: "Activo",
+              paused: "Pausado",
+              upcoming: "Pendiente",
+              closed: "Tramo cerrado",
+            }[recurringStatus];
             return (
               <Card
                 key={item.id}
@@ -708,8 +709,10 @@ export default function GastosFijosPage() {
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         isClosed
                           ? "bg-slate-100 text-slate-600"
-                          : item.enabled
+                          : recurringStatus === "active"
                           ? "bg-emerald-100 text-emerald-800"
+                          : recurringStatus === "upcoming"
+                            ? "bg-blue-100 text-blue-800"
                           : "bg-slate-100 text-slate-500"
                       }`}
                     >

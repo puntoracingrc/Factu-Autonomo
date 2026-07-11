@@ -235,6 +235,38 @@ describe("buildRentabilidadRealHoursProfitabilityInputFromExistingData", () => {
     expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(600);
   });
 
+  it("mensualiza y filtra recurrencias en una simulación manual", () => {
+    const annual = recurringExpenseFixture({
+      id: "annual",
+      amount: 1200,
+      frequency: "annual",
+      startDate: "2026-01-01",
+    });
+    const paused = recurringExpenseFixture({
+      id: "paused",
+      amount: 500,
+      enabled: false,
+    });
+
+    const input = buildRentabilidadRealHoursProfitabilityInputFromExistingData(
+      appData({ recurringExpenses: [annual, paused] }),
+      {
+        sourceType: "manual",
+        projectName: "Proyecto",
+        referenceDate: "2026-07-15",
+        fixedCostAllocationMethod: "hours",
+        monthlyWorkHours: 100,
+        selectedFixedCostIds: ["annual", "paused"],
+      },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "annual",
+    ]);
+    expect(input?.fixedCostCandidates[0]?.amount).toBe(100);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(100);
+  });
+
   it("documento sin client no rompe y usa fallback", () => {
     const invoice = withoutClient(
       documentFixture({ id: "invoice_1", type: "factura" }),

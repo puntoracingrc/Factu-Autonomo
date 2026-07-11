@@ -5,7 +5,10 @@ import {
   collectRecurringOccurrencePreviews,
   expenseFromRecurring,
   getDueSoonRecurringAlerts,
+  isRecurringExpenseApplicableOn,
   listRecurringOccurrenceDates,
+  normalizeRecurringOccurrenceCount,
+  recurringExpenseStatusOn,
   recurringExpenseTotals,
   resolveDueDate,
   syncRecurringExpenses,
@@ -101,6 +104,21 @@ describe("listRecurringOccurrenceDates", () => {
     expect(dates[4]).toBe("2026-05-10");
   });
 
+  it("normaliza una duración decimal al mismo entero en generación y vigencia", () => {
+    const current = template({
+      frequency: "monthly",
+      startDate: "2026-01-01",
+      duration: { kind: "occurrences", count: 1.5 },
+    });
+
+    expect(normalizeRecurringOccurrenceCount(1.5)).toBe(1);
+    expect(listRecurringOccurrenceDates(current, "2026-12-31")).toEqual([
+      "2026-01-31",
+    ]);
+    expect(isRecurringExpenseApplicableOn(current, "2026-01-31")).toBe(true);
+    expect(isRecurringExpenseApplicableOn(current, "2026-02-01")).toBe(false);
+  });
+
   it("genera fechas anuales", () => {
     const dates = listRecurringOccurrenceDates(
       template({
@@ -112,6 +130,56 @@ describe("listRecurringOccurrenceDates", () => {
       "2028-12-31",
     );
     expect(dates).toEqual(["2026-03-15", "2027-03-15", "2028-03-15"]);
+  });
+});
+
+describe("isRecurringExpenseApplicableOn", () => {
+  it("respeta pausa, inicio y final inclusivo", () => {
+    const current = template({
+      frequency: "monthly",
+      startDate: "2026-03-01",
+      duration: { kind: "until_date", endDate: "2026-06-30" },
+    });
+
+    expect(isRecurringExpenseApplicableOn(current, "2026-02-28")).toBe(false);
+    expect(isRecurringExpenseApplicableOn(current, "2026-06-30")).toBe(true);
+    expect(isRecurringExpenseApplicableOn(current, "2026-07-01")).toBe(false);
+    expect(
+      isRecurringExpenseApplicableOn(
+        { ...current, enabled: false },
+        "2026-04-01",
+      ),
+    ).toBe(false);
+  });
+
+  it("cierra la duración por ocurrencias tras sus periodos configurados", () => {
+    const quarterly = template({
+      frequency: "quarterly",
+      startDate: "2026-01-01",
+      duration: { kind: "occurrences", count: 2 },
+    });
+
+    expect(isRecurringExpenseApplicableOn(quarterly, "2026-06-30")).toBe(true);
+    expect(isRecurringExpenseApplicableOn(quarterly, "2026-07-01")).toBe(false);
+  });
+
+  it("distingue estado activo, pausado, futuro y agotado con la misma vigencia", () => {
+    const active = template({ frequency: "monthly" });
+    const future = template({
+      frequency: "monthly",
+      startDate: "2026-08-01",
+    });
+    const exhausted = template({
+      frequency: "monthly",
+      duration: { kind: "occurrences", count: 2 },
+    });
+
+    expect(recurringExpenseStatusOn(active, "2026-07-15")).toBe("active");
+    expect(
+      recurringExpenseStatusOn({ ...active, enabled: false }, "2026-07-15"),
+    ).toBe("paused");
+    expect(recurringExpenseStatusOn(future, "2026-07-15")).toBe("upcoming");
+    expect(recurringExpenseStatusOn(exhausted, "2026-07-15")).toBe("closed");
   });
 });
 

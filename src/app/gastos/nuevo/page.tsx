@@ -57,7 +57,10 @@ import {
   expenseBusinessKindHint,
   inferExpenseBusinessKind,
 } from "@/lib/expense-classification";
-import { occurrenceKey } from "@/lib/recurring-expenses";
+import {
+  normalizeRecurringOccurrenceCount,
+  occurrenceKey,
+} from "@/lib/recurring-expenses";
 import {
   purchaseLineCanFeedProductCatalog,
   purchaseLineHasPositiveCatalogPrice,
@@ -283,7 +286,11 @@ export default function NuevoGastoPage() {
       );
       setFixedOccurrenceCount(
         recurringTemplate.duration.kind === "occurrences"
-          ? String(recurringTemplate.duration.count)
+          ? String(
+              normalizeRecurringOccurrenceCount(
+                recurringTemplate.duration.count,
+              ) ?? 1,
+            )
           : "12",
       );
       setFixedStartDate(recurringTemplate.startDate);
@@ -559,7 +566,9 @@ export default function NuevoGastoPage() {
     if (fixedDurationKind === "occurrences") {
       return {
         kind: "occurrences",
-        count: Math.max(1, Number(fixedOccurrenceCount) || 1),
+        count:
+          normalizeRecurringOccurrenceCount(Number(fixedOccurrenceCount)) ??
+          1,
       };
     }
     return { kind: "indefinite" };
@@ -1936,6 +1945,7 @@ export default function NuevoGastoPage() {
                         <Input
                           type="number"
                           min={1}
+                          step={1}
                           value={fixedOccurrenceCount}
                           onChange={(event) =>
                             setFixedOccurrenceCount(event.target.value)

@@ -6,6 +6,7 @@ import {
   type Expense,
   type RecurringExpense,
 } from "@/lib/types";
+import { calculateRentabilidadRealWorkProfitability } from "./work-profitability-calculator";
 import { buildRentabilidadRealWorkProfitabilityInputFromExistingData } from "./work-profitability-builder";
 
 function deepClone<T>(value: T): T {
@@ -436,6 +437,174 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
       "recurring_1",
     ]);
     expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(50);
+  });
+
+  it("conserva una ocurrencia histórica aunque la plantilla esté pausada hoy", () => {
+    const aprilInvoice = documentFixture({
+      id: "invoice_april",
+      date: "2026-04-15",
+    });
+    const julyInvoice = documentFixture({
+      id: "invoice_july",
+      date: "2026-07-15",
+    });
+    const paused = recurringExpenseFixture({
+      id: "autonomo_paused",
+      amount: 300,
+      startDate: "2026-01-01",
+      enabled: false,
+      updatedAt: "2026-07-01T10:00:00.000Z",
+    });
+    const aprilOccurrence = expenseFixture({
+      id: "autonomo_april",
+      date: "2026-04-30",
+      origin: "recurring",
+      businessKind: "fixed",
+      recurringExpenseId: paused.id,
+      recurringOccurrenceKey: `${paused.id}:2026-04-30`,
+      amount: 300,
+      ivaPercent: 0,
+    });
+    const data = baseAppData({
+      documents: [aprilInvoice, julyInvoice],
+      expenses: [aprilOccurrence],
+      recurringExpenses: [paused],
+    });
+
+    const historical =
+      buildRentabilidadRealWorkProfitabilityInputFromExistingData(data, {
+        sourceDocumentId: aprilInvoice.id,
+      });
+    const current = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      data,
+      { sourceDocumentId: julyInvoice.id },
+    );
+
+    expect(historical?.fixedCostCandidates).toHaveLength(1);
+    expect(historical?.fixedCostCandidates[0]).toMatchObject({
+      id: paused.id,
+      date: aprilOccurrence.date,
+      amount: 300,
+    });
+    expect(historical?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(
+      300,
+    );
+    expect(current?.fixedCostCandidates).toEqual([]);
+    expect(current?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(0);
+  });
+
+  it("usa solo el tramo recurrente aplicable a la fecha del documento", () => {
+    const oldInvoice = documentFixture({
+      id: "invoice_old",
+      date: "2026-04-15",
+    });
+    const currentInvoice = documentFixture({
+      id: "invoice_current",
+      date: "2026-07-15",
+    });
+    const oldTranche = recurringExpenseFixture({
+      id: "autonomo_v1",
+      amount: 300,
+      startDate: "2026-01-01",
+      duration: { kind: "until_date", endDate: "2026-04-30" },
+    });
+    const currentTranche = recurringExpenseFixture({
+      id: "autonomo_v2",
+      amount: 350,
+      startDate: "2026-05-01",
+    });
+    const data = baseAppData({
+      documents: [oldInvoice, currentInvoice],
+      recurringExpenses: [oldTranche, currentTranche],
+    });
+
+    const oldInput = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      data,
+      { sourceDocumentId: "invoice_old" },
+    );
+    const currentInput =
+      buildRentabilidadRealWorkProfitabilityInputFromExistingData(data, {
+        sourceDocumentId: "invoice_current",
+      });
+
+    expect(oldInput?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "autonomo_v1",
+    ]);
+    expect(oldInput?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(
+      300,
+    );
+    expect(currentInput?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "autonomo_v2",
+    ]);
+    expect(
+      currentInput?.fixedCostAllocationInput.totalFixedCostsForPeriod,
+    ).toBe(350);
+  });
+
+  it("excluye plantillas pausadas, futuras y con duración agotada", () => {
+    const invoice = documentFixture({ date: "2026-07-15" });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [invoice],
+        recurringExpenses: [
+          recurringExpenseFixture({ id: "active", amount: 80 }),
+          recurringExpenseFixture({ id: "paused", enabled: false }),
+          recurringExpenseFixture({
+            id: "future",
+            startDate: "2026-08-01",
+          }),
+          recurringExpenseFixture({
+            id: "closed_by_date",
+            duration: { kind: "until_date", endDate: "2026-06-30" },
+          }),
+          recurringExpenseFixture({
+            id: "closed_by_occurrences",
+            startDate: "2026-01-01",
+            duration: { kind: "occurrences", count: 2 },
+          }),
+        ],
+      }),
+      { sourceDocumentId: "invoice_1" },
+    );
+
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "active",
+    ]);
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(80);
+  });
+
+  it("mensualiza un seguro anual antes de repartirlo entre trabajos", () => {
+    const invoice = documentFixture({ date: "2026-07-15" });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [invoice],
+        recurringExpenses: [
+          recurringExpenseFixture({
+            id: "annual_insurance",
+            description: "Seguro anual",
+            amount: 1200,
+            frequency: "annual",
+            startDate: "2026-01-01",
+          }),
+        ],
+      }),
+      {
+        sourceDocumentId: "invoice_1",
+        fixedCostAllocationMethod: "monthly_jobs",
+        monthlyJobs: 10,
+      },
+    );
+
+    expect(input?.fixedCostCandidates[0]).toMatchObject({
+      id: "annual_insurance",
+      amount: 100,
+    });
+    expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(100);
+    expect(
+      input
+        ? calculateRentabilidadRealWorkProfitability(input).allocatedFixedCosts
+        : null,
+    ).toBe(10);
   });
 
   it("no muta AppData", () => {

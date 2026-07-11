@@ -3,7 +3,8 @@ import {
   inferExpenseBusinessKind,
   isFixedExpense,
 } from "@/lib/expense-classification";
-import { expenseTotals } from "@/lib/expenses";
+import { expenseTotals, expenseTotalsFromBase } from "@/lib/expenses";
+import { recurringExpenseMonthlyDivisor } from "@/lib/recurring-expenses";
 import type { Expense, RecurringExpense } from "@/lib/types";
 import type {
   ProfitabilityCostSource,
@@ -69,20 +70,21 @@ export function mapExistingExpenseToProfitabilityFixedCost(
 export function mapExistingRecurringExpenseToProfitabilityFixedCost(
   recurringExpense: RecurringExpense,
 ): ProfitabilityFixedCostSource {
-  const totals = expenseTotals({
-    amount: recurringExpense.amount,
-    ivaPercent: recurringExpense.ivaPercent,
-  });
+  const totals = monthlyRecurringExpenseTotals(
+    recurringExpense.amount,
+    recurringExpense.ivaPercent,
+    recurringExpense.frequency,
+  );
 
   return {
     id: recurringExpense.id,
     date: recurringExpense.startDate,
     supplierName: recurringExpense.supplierName,
     description: recurringExpense.description,
-    amount: roundMoney(totals.base),
+    amount: totals.base,
     ivaPercent: totals.ivaPercent,
-    ivaAmount: roundMoney(totals.iva),
-    total: roundMoney(totals.total),
+    ivaAmount: totals.iva,
+    total: totals.total,
     category: recurringExpense.category,
     frequency: recurringExpense.frequency,
     enabled: recurringExpense.enabled,
@@ -93,6 +95,49 @@ export function mapExistingRecurringExpenseToProfitabilityFixedCost(
       href: "/gastos/fijos",
     },
   };
+}
+
+export function mapExistingRecurringOccurrenceToProfitabilityFixedCost(
+  expense: Expense,
+  recurringExpense: RecurringExpense,
+): ProfitabilityFixedCostSource {
+  const totals = monthlyRecurringExpenseTotals(
+    expense.amount,
+    expense.ivaPercent,
+    recurringExpense.frequency,
+  );
+
+  return {
+    id: recurringExpense.id,
+    date: expense.date,
+    supplierName: expense.supplierName,
+    description: expense.description,
+    amount: totals.base,
+    ivaPercent: totals.ivaPercent,
+    ivaAmount: totals.iva,
+    total: totals.total,
+    category: expense.category,
+    frequency: recurringExpense.frequency,
+    enabled: recurringExpense.enabled,
+    sourceLink: {
+      sourceType: "recurring_expense",
+      sourceId: recurringExpense.id,
+      label: `Gasto fijo recurrente ${expense.description} (ocurrencia histórica)`,
+      href: "/gastos/fijos",
+    },
+  };
+}
+
+function monthlyRecurringExpenseTotals(
+  amount: number,
+  ivaPercent: number,
+  frequency: RecurringExpense["frequency"],
+) {
+  const periodTotals = expenseTotals({ amount, ivaPercent });
+  const monthlyBase = roundMoney(
+    periodTotals.base / recurringExpenseMonthlyDivisor(frequency),
+  );
+  return expenseTotalsFromBase(monthlyBase, periodTotals.ivaPercent);
 }
 
 export function mapExistingProviderScanToProfitabilitySource(

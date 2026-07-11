@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { TaxSummary } from "@/lib/taxes";
-import type { Document, Expense } from "@/lib/types";
-import { mapExistingExpenseToProfitabilityCost } from "./expense-adapter";
+import type { Document, Expense, RecurringExpense } from "@/lib/types";
+import {
+  mapExistingExpenseToProfitabilityCost,
+  mapExistingRecurringExpenseToProfitabilityFixedCost,
+} from "./expense-adapter";
 import { mapExistingInvoiceToProfitabilityIncome } from "./invoice-adapter";
 import { mapExistingQuoteToProfitabilityQuote } from "./quote-adapter";
 import { mapExistingTaxSummaryToProfitabilityTaxContext } from "./tax-adapter";
@@ -76,6 +79,103 @@ describe("rentabilidad real read-only adapters", () => {
       total: 60.5,
       purchaseLineCount: 1,
     });
+  });
+
+  it("normaliza recurrencias mensuales, trimestrales y anuales", () => {
+    const annual: RecurringExpense = {
+      id: "annual_1",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro anual",
+      amount: 1200,
+      ivaPercent: 21,
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+    const before = deepClone(annual);
+
+    const mapped = [
+      mapExistingRecurringExpenseToProfitabilityFixedCost({
+        ...annual,
+        id: "monthly_1",
+        frequency: "monthly",
+      }),
+      mapExistingRecurringExpenseToProfitabilityFixedCost({
+        ...annual,
+        id: "quarterly_1",
+        frequency: "quarterly",
+      }),
+      mapExistingRecurringExpenseToProfitabilityFixedCost(annual),
+    ];
+
+    expect(annual).toEqual(before);
+    expect(
+      mapped.map(({ id, amount, ivaAmount, total, frequency }) => ({
+        id,
+        amount,
+        ivaAmount,
+        total,
+        frequency,
+      })),
+    ).toEqual([
+      {
+        id: "monthly_1",
+        amount: 1200,
+        ivaAmount: 252,
+        total: 1452,
+        frequency: "monthly",
+      },
+      {
+        id: "quarterly_1",
+        amount: 400,
+        ivaAmount: 84,
+        total: 484,
+        frequency: "quarterly",
+      },
+      {
+        id: "annual_1",
+        amount: 100,
+        ivaAmount: 21,
+        total: 121,
+        frequency: "annual",
+      },
+    ]);
+  });
+
+  it("mantiene base más IVA igual al total tras mensualizar", () => {
+    const annual: RecurringExpense = {
+      id: "annual_rounding",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro anual",
+      amount: 100,
+      ivaPercent: 10,
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+
+    const mapped = mapExistingRecurringExpenseToProfitabilityFixedCost(annual);
+
+    expect(mapped).toMatchObject({
+      amount: 8.33,
+      ivaAmount: 0.83,
+      total: 9.16,
+    });
+    expect(mapped.total).toBe(mapped.amount + mapped.ivaAmount);
   });
 
   it("mapExistingInvoiceToProfitabilityIncome does not mutate input", () => {
