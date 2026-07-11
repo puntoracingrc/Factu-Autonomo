@@ -1,26 +1,5 @@
 import type { AppData, Document, BusinessProfile } from "../types";
-import { attachRegisteredVerifactuToSnapshots } from "../document-integrity";
-import { registerDocumentVerifactu } from "./register";
 import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
-
-export function resolveVerifactuRegistrationContext(input: {
-  doc: Document;
-  profile: BusinessProfile;
-  chain: AppData["verifactuChain"];
-  profileOverride?: BusinessProfile;
-  chainOverride?: AppData["verifactuChain"];
-}): {
-  doc: Document;
-  profile: BusinessProfile;
-  chain: AppData["verifactuChain"];
-} {
-  return {
-    doc: input.doc,
-    profile: input.profileOverride ?? input.profile,
-    chain:
-      input.chainOverride === undefined ? input.chain : input.chainOverride,
-  };
-}
 
 export async function withVerifactuOnDocument(input: {
   doc: Document;
@@ -35,23 +14,11 @@ export async function withVerifactuOnDocument(input: {
     input.profile,
   );
 
-  const result = await registerDocumentVerifactu({
-    doc: canonicalDocument,
-    profile: input.profile,
-    chain: input.chain,
-  });
-
-  if (!result) {
-    return { doc: canonicalDocument, chain: input.chain ?? null };
-  }
-
+  // No existe fallback de registro local: un cliente no puede fabricar una
+  // aceptación, un QR ni avanzar la cadena oficial.
   return {
-    doc: attachRegisteredVerifactuToSnapshots({
-      ...canonicalDocument,
-      verifactu: result.verifactu,
-      verifactuPersistence: "simulation",
-    }),
-    chain: result.chain,
+    doc: canonicalDocument,
+    chain: input.chain ?? null,
   };
 }
 

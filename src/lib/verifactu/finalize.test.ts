@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { issueDocument } from "@/lib/document-integrity";
 import {
-  DEFAULT_PROFILE,
-  type BusinessProfile,
-  type Document,
-} from "@/lib/types";
+  attachRegisteredVerifactuToSnapshots,
+  issueDocument,
+} from "@/lib/document-integrity";
+import { DEFAULT_PROFILE, type BusinessProfile, type Document } from "@/lib/types";
 import { finalizeVerifactuDocument } from "./finalize";
 
 const profile: BusinessProfile = {
@@ -69,7 +68,7 @@ describe("finalizeVerifactuDocument snapshot preflight", () => {
     expect(registerLocal).not.toHaveBeenCalled();
   });
 
-  it("informa el bloqueo sin fabricar registro cuando falta token", async () => {
+  it("informa que el registro está desactivado sin fabricar registro", async () => {
     const issued = issuedInvoice();
     const drifted: Document = {
       ...issued,
@@ -85,7 +84,7 @@ describe("finalizeVerifactuDocument snapshot preflight", () => {
         registerLocal,
         authToken: "",
       }),
-    ).rejects.toThrow("No hay una sesión confirmada");
+    ).rejects.toThrow("está desactivado en el servidor");
     expect(registerLocal).not.toHaveBeenCalled();
   });
 
@@ -113,8 +112,81 @@ describe("finalizeVerifactuDocument snapshot preflight", () => {
         registerLocal,
         authToken: "",
       }),
-    ).rejects.toThrow("No hay una sesión confirmada");
+    ).rejects.toThrow("está desactivado en el servidor");
 
+    expect(registerLocal).not.toHaveBeenCalled();
+  });
+
+  it("bloquea una transición simulación a real antes de cualquier efecto remoto", async () => {
+    const issued = issuedInvoice();
+    const historicalSimulation = {
+      ...attachRegisteredVerifactuToSnapshots({
+        ...issued,
+        verifactuPersistence: "server_confirmed",
+        verifactu: {
+          status: "test_registered",
+          recordHash: "a".repeat(64),
+          previousHash: "",
+          recordTimestamp: "2026-07-11T01:00:00+02:00",
+          qrUrl: "https://example.invalid/legacy-simulation",
+          recordType: "alta",
+          environment: "test",
+          submittedAt: "2026-07-11T01:00:00.000Z",
+        },
+      }),
+      verifactuPersistence: "simulation" as const,
+    };
+    const before = structuredClone(historicalSimulation);
+    const fetchMock = vi.fn();
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: historicalSimulation,
+        profile,
+        registerLocal,
+        authToken: "token-de-prueba",
+      }),
+    ).rejects.toThrow("reconciliación de una simulación local");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(registerLocal).not.toHaveBeenCalled();
+    expect(historicalSimulation).toEqual(before);
+  });
+
+  it("bloquea evidencia legacy no reconciliada antes de cualquier efecto remoto", async () => {
+    const issued = issuedInvoice();
+    const historicalLegacy = {
+      ...attachRegisteredVerifactuToSnapshots({
+        ...issued,
+        verifactuPersistence: "server_confirmed",
+        verifactu: {
+          status: "test_registered",
+          recordHash: "b".repeat(64),
+          previousHash: "",
+          recordTimestamp: "2026-07-11T01:00:00+02:00",
+          qrUrl: "https://example.invalid/legacy-unverified",
+          recordType: "alta",
+          environment: "test",
+        },
+      }),
+      verifactuPersistence: "legacy_unverified" as const,
+    };
+    const fetchMock = vi.fn();
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: historicalLegacy,
+        profile,
+        registerLocal,
+        authToken: "token-de-prueba",
+      }),
+    ).rejects.toThrow("evidencia Veri*Factu no atestada");
+
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(registerLocal).not.toHaveBeenCalled();
   });
 });

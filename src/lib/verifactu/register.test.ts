@@ -41,7 +41,7 @@ describe("registerDocumentVerifactu", () => {
     expect(result).toBeNull();
   });
 
-  it("creates chained record with QR for emitted invoice", async () => {
+  it("no crea registro, QR ni cadena local para una factura emitida", async () => {
     const issued = issueDocument(
       invoice("borrador"),
       profile,
@@ -52,13 +52,7 @@ describe("registerDocumentVerifactu", () => {
       profile,
     });
 
-    expect(result).not.toBeNull();
-    expect(result?.verifactu.qrUrl).toContain("prewww2.aeat.es");
-    expect(result?.verifactu.recordHash).toHaveLength(64);
-    expect(result?.chain.recordCount).toBe(1);
-    expect(result?.chain.lastNumSerie).toBe("F-2026-0001");
-    expect(result?.chain.lastFechaExpedicion).toBe("2026-06-09");
-    expect(result?.xml).toContain("<sum:RegFactuSistemaFacturacion");
+    expect(result).toBeNull();
   });
 
   it("rechaza una cadena persistida con huella corta o no hexadecimal", () => {

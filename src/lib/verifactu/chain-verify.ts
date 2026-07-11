@@ -3,6 +3,7 @@ import { resolveIssuerNif } from "../issuer-snapshot";
 import { computeDocumentRecordHash } from "./record-input";
 import { inspectDocumentSnapshotsIntegrity } from "../document-integrity";
 import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
+import { hasAuthenticatedVerifactuAttestation } from "./attestation";
 
 export interface ChainVerifyResult {
   ok: boolean;
@@ -14,6 +15,7 @@ function verifactuDocuments(documents: Document[]): Document[] {
   return documents
     .filter(
       (doc) =>
+        hasAuthenticatedVerifactuAttestation(doc) &&
         doc.verifactuPersistence === "server_confirmed" &&
         (doc.verifactu?.status === "registered" ||
           doc.verifactu?.status === "test_registered") &&

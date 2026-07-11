@@ -69,6 +69,7 @@ import {
 } from "@/lib/invoice-status-actions";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
 import { getCustomerDisplayName } from "@/lib/customers";
+import { hasPublicVerifactuAccreditation } from "@/lib/verifactu/attestation";
 import type { Document, DocumentType } from "@/lib/types";
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
@@ -444,11 +445,8 @@ export function DocumentList({
                         >
                           {documentStatusLabel(doc, type)}
                         </span>
-                        {doc.verifactu &&
-                          doc.verifactuPersistence === "server_confirmed" &&
-                          (doc.verifactu.status === "registered" ||
-                            doc.verifactu.status === "test_registered") &&
-                          type === "factura" && (
+                        {type === "factura" &&
+                          hasPublicVerifactuAccreditation(doc) && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                             Veri*Factu
                           </span>

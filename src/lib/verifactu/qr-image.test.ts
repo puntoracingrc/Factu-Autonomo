@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { generateQrDataUrl, hasVerifactuQr } from "./qr-image";
 import { buildQrUrl } from "./qr";
-import type { Document, VerifactuInfo } from "../types";
+import {
+  DEFAULT_PROFILE,
+  type BusinessProfile,
+  type Document,
+  type VerifactuInfo,
+} from "../types";
+import { issueDocument } from "../document-integrity";
 
 describe("qr image", () => {
   it("generates png data url from AEAT validation url", async () => {
@@ -17,7 +23,7 @@ describe("qr image", () => {
     expect(dataUrl.length).toBeGreaterThan(100);
   });
 
-  it("solo muestra QR para registros confirmados", () => {
+  it("no muestra ni prepara QR basándose solo en datos del cliente", async () => {
     const base: VerifactuInfo = {
       recordHash: "A".repeat(64),
       previousHash: "",
@@ -41,8 +47,29 @@ describe("qr image", () => {
       updatedAt: "2026-07-11T00:00:00.000Z",
     });
 
-    expect(hasVerifactuQr(document(base))).toBe(true);
+    expect(hasVerifactuQr(document(base))).toBe(false);
     expect(hasVerifactuQr(document({ ...base, status: "failed" }))).toBe(false);
     expect(hasVerifactuQr(document({ ...base, status: "pending" }))).toBe(false);
+
+    const { preparePdfArtifacts } = await import("../pdf");
+    const profile: BusinessProfile = {
+      ...DEFAULT_PROFILE,
+      nif: "12345678Z",
+      verifactu: { enabled: true, environment: "test", optInVersion: 1 as const },
+    };
+    await expect(
+      preparePdfArtifacts(document(base), profile),
+    ).resolves.toEqual({});
+    const historicalSimulation = {
+      ...issueDocument(
+        { ...document(base), status: "borrador" },
+        profile,
+        "2026-07-11T00:00:00.000Z",
+      ),
+      verifactuPersistence: "simulation" as const,
+    };
+    await expect(
+      preparePdfArtifacts(historicalSimulation, profile),
+    ).resolves.toEqual({});
   });
 });

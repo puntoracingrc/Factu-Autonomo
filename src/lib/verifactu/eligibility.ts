@@ -4,11 +4,21 @@ import { documentAmounts, isVatExempt } from "../vat-regime";
 import { normalizeIssuerNif } from "./qr";
 import { documentRecordType } from "./record-input";
 import type { VerifactuRecordType, VerifactuSettings } from "./types";
+import { hasAuthenticatedVerifactuAttestation } from "./attestation";
 
 export const DEFAULT_VERIFACTU_SETTINGS: VerifactuSettings = {
   enabled: false,
   environment: "test",
 };
+
+/**
+ * Contención deliberada: la ruta de registro responde 503 y no existe todavía
+ * una atestación de servidor autenticada. Activar este valor requiere cerrar
+ * previamente ambos contratos, no solo cambiar configuración del cliente.
+ */
+export function isVerifactuSubmissionAvailable(): boolean {
+  return false;
+}
 
 export function isVerifactuProductionModeAllowed(): boolean {
   return process.env.NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION === "true";
@@ -30,7 +40,10 @@ export function normalizeVerifactuSettings(
 }
 
 export function isVerifactuEnabled(profile: BusinessProfile): boolean {
-  return normalizeVerifactuSettings(profile.verifactu).enabled;
+  return (
+    isVerifactuSubmissionAvailable() &&
+    normalizeVerifactuSettings(profile.verifactu).enabled
+  );
 }
 
 export function getVerifactuEnvironment(
@@ -49,6 +62,7 @@ export function needsVerifactuRegistration(
   if (doc.status === "borrador") return false;
   if (!resolveIssuerNif(doc, profile)) return false;
   if (
+    hasAuthenticatedVerifactuAttestation(doc) &&
     doc.verifactuPersistence === "server_confirmed" &&
     (doc.verifactu?.status === "registered" ||
       doc.verifactu?.status === "test_registered")

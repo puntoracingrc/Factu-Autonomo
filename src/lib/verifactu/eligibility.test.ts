@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
 import {
+  isVerifactuEnabled,
+  isVerifactuSubmissionAvailable,
   normalizeVerifactuSettings,
   needsVerifactuRegistration,
   verifactuRecordType,
@@ -44,7 +46,7 @@ describe("verifactu eligibility", () => {
     ).toEqual({ enabled: false, environment: "test" });
   });
 
-  it("permite producción solo con marca pública explícita", () => {
+  it("conserva la preferencia de producción sin convertirla en disponibilidad efectiva", () => {
     vi.stubEnv("NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION", "true");
     expect(
       normalizeVerifactuSettings({
@@ -57,10 +59,13 @@ describe("verifactu eligibility", () => {
       environment: "production",
       optInVersion: 1,
     });
+    expect(isVerifactuEnabled(profile)).toBe(false);
   });
 
-  it("requires registration for emitted factura", () => {
-    expect(needsVerifactuRegistration(factura, profile)).toBe(true);
+  it("mantiene el registro inactivo mientras la ruta y la atestación no están disponibles", () => {
+    expect(isVerifactuSubmissionAvailable()).toBe(false);
+    expect(isVerifactuEnabled(profile)).toBe(false);
+    expect(needsVerifactuRegistration(factura, profile)).toBe(false);
   });
 
   it("no requiere registro si falta NIF de emisor", () => {
@@ -85,7 +90,7 @@ describe("verifactu eligibility", () => {
         },
         { ...profile, nif: "" },
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("skips presupuestos", () => {

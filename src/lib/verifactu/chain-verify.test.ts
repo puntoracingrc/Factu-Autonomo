@@ -5,7 +5,6 @@ import {
   attachRegisteredVerifactuToSnapshots,
   issueDocument,
 } from "../document-integrity";
-import { registerDocumentVerifactu } from "./register";
 import { verifyDocumentHashChain } from "./chain-verify";
 
 const profile: BusinessProfile = {
@@ -41,78 +40,50 @@ function invoice(id: string, number: string, date: string): Document {
 }
 
 describe("verifyDocumentHashChain", () => {
-  it("validates a chained sequence", async () => {
-    const firstDoc = invoice("1", "F-2026-0001", "2026-06-09");
-    const first = await registerDocumentVerifactu({
-      doc: firstDoc,
-      profile,
-    });
-    const secondDoc = invoice("2", "F-2026-0002", "2026-06-10");
-    const second = await registerDocumentVerifactu({
-      doc: secondDoc,
-      profile,
-      chain: first?.chain,
-    });
-
-    const docs = [
-      attachRegisteredVerifactuToSnapshots({
-        ...firstDoc,
-        verifactu: first!.verifactu,
-        verifactuPersistence: "server_confirmed",
-      }),
-      attachRegisteredVerifactuToSnapshots({
-        ...secondDoc,
-        verifactu: second!.verifactu,
-        verifactuPersistence: "server_confirmed",
-      }),
-    ];
-
-    const result = await verifyDocumentHashChain({ documents: docs, profile });
-    expect(result.ok).toBe(true);
-    expect(result.checked).toBe(2);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it("detects tampered hash", async () => {
+  it("no presenta un server_confirmed controlado por cliente como cadena autenticada", async () => {
     const issued = invoice("1", "F-2026-0001", "2026-06-09");
-    const reg = await registerDocumentVerifactu({
-      doc: issued,
-      profile,
-    });
-    const registered = attachRegisteredVerifactuToSnapshots({
+    const clientControlled = attachRegisteredVerifactuToSnapshots({
       ...issued,
-      verifactu: reg!.verifactu,
+      verifactu: {
+        recordHash: "a".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-06-09T09:01:00.000Z",
+        qrUrl: "https://example.invalid/client-controlled",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+      },
       verifactuPersistence: "server_confirmed",
     });
-    const tampered: Document = {
-      ...registered,
-      verifactu: {
-        ...registered.verifactu!,
-        recordHash: "0".repeat(64),
-      },
-    };
 
     const result = await verifyDocumentHashChain({
-      documents: [tampered],
+      documents: [clientControlled],
       profile,
     });
-    expect(result.ok).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
+
+    expect(result).toEqual({ ok: true, checked: 0, errors: [] });
   });
 
-  it("no presenta simulaciones ni registros legacy como cadena confirmada", async () => {
+  it("tampoco presenta simulaciones ni registros legacy como cadena confirmada", async () => {
     const issued = invoice("1", "F-2026-0001", "2026-06-09");
-    const reg = await registerDocumentVerifactu({ doc: issued, profile });
-    const simulated = attachRegisteredVerifactuToSnapshots({
+    const sealed = attachRegisteredVerifactuToSnapshots({
       ...issued,
-      verifactu: reg!.verifactu,
-      verifactuPersistence: "simulation",
+      verifactu: {
+        recordHash: "b".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-06-09T09:01:00.000Z",
+        qrUrl: "https://example.invalid/historical",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+      },
+      verifactuPersistence: "server_confirmed",
     });
 
     const result = await verifyDocumentHashChain({
       documents: [
-        simulated,
-        { ...simulated, id: "legacy", verifactuPersistence: "legacy_unverified" },
+        { ...sealed, verifactuPersistence: "simulation" },
+        { ...sealed, id: "legacy", verifactuPersistence: "legacy_unverified" },
       ],
       profile,
     });

@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import type { Document } from "../types";
+import { hasPublicVerifactuAccreditation } from "./attestation";
 
 export async function generateQrDataUrl(
   qrUrl: string,
@@ -17,12 +18,7 @@ export async function generateQrDataUrl(
 }
 
 export function hasVerifactuQr(doc: Document): boolean {
-  return Boolean(
-    doc.verifactuPersistence === "server_confirmed" &&
-    doc.verifactu?.qrUrl &&
-      (doc.verifactu.status === "registered" ||
-        doc.verifactu.status === "test_registered"),
-  );
+  return hasPublicVerifactuAccreditation(doc);
 }
 
 export async function prepareVerifactuQrForPdf(

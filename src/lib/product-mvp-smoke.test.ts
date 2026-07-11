@@ -98,8 +98,8 @@ describe("MVP document smoke", () => {
 
     expect(registered.doc.status).toBe("enviado");
     expect(registered.doc.integrityLock).toBe("locked");
-    expect(registered.doc.verifactu?.environment).toBe("test");
-    expect(registered.doc.verifactu?.qrUrl).toContain("prewww2.aeat.es");
+    expect(registered.doc.verifactu).toBeUndefined();
+    expect(registered.chain).toBeNull();
     expect(pdf.type).toBe("application/pdf");
     expect(pdf.size).toBeGreaterThan(1000);
     expect(quote).toEqual(originalQuote);

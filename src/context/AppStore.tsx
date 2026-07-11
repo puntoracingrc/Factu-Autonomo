@@ -97,10 +97,7 @@ import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
 } from "@/lib/suppliers";
-import {
-  resolveVerifactuRegistrationContext,
-  withVerifactuOnDocument,
-} from "@/lib/verifactu/store";
+import { hasAuthenticatedVerifactuAttestation } from "@/lib/verifactu/attestation";
 import {
   applyGenericDocumentUpdate,
   attachRegisteredVerifactuToSnapshots,
@@ -1739,36 +1736,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     async (
       doc: Document,
       chainOverride?: AppData["verifactuChain"],
-      profileOverride?: BusinessProfile,
+      _profileOverride?: BusinessProfile,
     ): Promise<Document> => {
-      if (doc.verifactu) {
-        const sealed = attachRegisteredVerifactuToSnapshots(doc);
-        setAppData((prev) => ({
-          ...prev,
-          verifactuChain:
-            chainOverride === undefined
-              ? prev.verifactuChain
-              : chainOverride,
-          documents: prev.documents.map((d) =>
-            d.id === sealed.id ? sealed : d,
-          ),
-        }));
-        return sealed;
+      if (!hasAuthenticatedVerifactuAttestation(doc)) {
+        throw new Error(
+          "El cliente no puede confirmar un registro Veri*Factu sin una atestación autenticada del servidor.",
+        );
       }
 
-      const registration = resolveVerifactuRegistrationContext({
-        doc,
-        profile: data.profile,
-        chain: data.verifactuChain,
-        profileOverride,
-        chainOverride,
-      });
-      const applied = await withVerifactuOnDocument(registration);
-
-      const sealed = attachRegisteredVerifactuToSnapshots(applied.doc);
+      const sealed = attachRegisteredVerifactuToSnapshots(doc);
       setAppData((prev) => ({
         ...prev,
-        verifactuChain: applied.chain,
+        verifactuChain:
+          chainOverride === undefined ? prev.verifactuChain : chainOverride,
         documents: prev.documents.map((d) =>
           d.id === sealed.id ? sealed : d,
         ),
@@ -1776,7 +1756,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       return sealed;
     },
-    [data.profile, data.verifactuChain, setAppData],
+    [setAppData],
   );
 
   const value = useMemo(

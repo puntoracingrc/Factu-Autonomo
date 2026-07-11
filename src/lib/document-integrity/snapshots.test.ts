@@ -1038,6 +1038,45 @@ describe("document snapshots", () => {
     );
   });
 
+  it("no permite crear ni volver a sellar una aceptación simulada", () => {
+    const simulatedAcceptance: VerifactuInfo = {
+      recordHash: "A".repeat(64),
+      previousHash: "",
+      recordTimestamp: "2026-06-24T09:55:00.000Z",
+      qrUrl: "https://example.invalid/qr-simulado",
+      status: "test_registered",
+      recordType: "alta",
+      environment: "test",
+    };
+
+    expect(() =>
+      buildDocumentSnapshot(
+        invoice({
+          verifactu: simulatedAcceptance,
+          verifactuPersistence: "simulation",
+        }),
+        profile,
+        { capturedAt: NOW },
+      ),
+    ).toThrow("no supera la comprobación de integridad");
+
+    const issued = issueDocument(
+      invoice({ verifactu: undefined }),
+      profile,
+      NOW,
+    );
+    const before = structuredClone(issued);
+
+    expect(() =>
+      attachRegisteredVerifactuToSnapshots({
+        ...issued,
+        verifactu: simulatedAcceptance,
+        verifactuPersistence: "simulation",
+      }),
+    ).toThrow("no supera la comprobación de integridad");
+    expect(issued).toEqual(before);
+  });
+
   it("sella VeriFactu registrado después de emitir y conserva el QR en el PDF", () => {
     const issued = issueDocument(
       invoice({

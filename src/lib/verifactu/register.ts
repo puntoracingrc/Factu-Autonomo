@@ -3,14 +3,12 @@ import type { BusinessProfile, Document } from "../types";
 import { GENESIS_HASH } from "./constants";
 import { normalizeHuellaAnterior } from "./hash";
 import {
-  documentTotalForVerifactu,
   getVerifactuEnvironment,
   initialChainState,
   needsVerifactuRegistration,
   normalizeVerifactuSettings,
   verifactuRecordType,
 } from "./eligibility";
-import { buildQrUrl } from "./qr";
 import { computeDocumentRecordHash } from "./record-input";
 import { formatAeatRecordTimestamp } from "./timestamp";
 import { resolveTipoFactura } from "./tipo-factura";
@@ -23,10 +21,7 @@ import { buildRegistroFacturacionXml } from "./xml";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { formatQrAmount } from "./qr";
 import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
-import {
-  assertDocumentSnapshotsIntegrity,
-  attachRegisteredVerifactuToSnapshots,
-} from "../document-integrity";
+import { assertDocumentSnapshotsIntegrity } from "../document-integrity";
 
 function normalizeChainHash(hash: string | null | undefined): string {
   const normalized = normalizeHuellaAnterior(hash);
@@ -73,8 +68,6 @@ export async function registerDocumentVerifactu(input: {
   doc: Document;
   profile: BusinessProfile;
   chain?: VerifactuChainState | null;
-  csv?: string;
-  status?: VerifactuInfo["status"];
 }): Promise<VerifactuRegisterResult | null> {
   const requestedProfile = input.profile;
   if (
@@ -110,7 +103,6 @@ export async function registerDocumentVerifactu(input: {
   const environment = getVerifactuEnvironment(profile);
   const chain = resolveChainState(profile, input.chain);
   const recordType = verifactuRecordType(doc);
-  const importe = documentTotalForVerifactu(doc, profile);
   const recordTimestamp = formatAeatRecordTimestamp();
   const previousHash = normalizeHuellaAnterior(chain.lastHash);
 
@@ -123,19 +115,6 @@ export async function registerDocumentVerifactu(input: {
   });
 
   const issuerNif = resolveIssuerNif(doc, profile);
-
-  const qrUrl = buildQrUrl({
-    nif: issuerNif,
-    numserie: doc.number,
-    fecha: doc.date,
-    importe,
-    environment,
-  });
-
-  const csv = input.csv;
-  const status =
-    input.status ??
-    (environment === "test" ? "test_registered" : "registered");
 
   const vatExempt = isVatExempt(profile);
   const amounts = documentAmounts(doc, vatExempt);
@@ -152,12 +131,12 @@ export async function registerDocumentVerifactu(input: {
     recordHash,
     previousHash: chain.lastHash,
     recordTimestamp,
-    qrUrl,
-    ...(csv ? { csv } : {}),
-    status,
+    // Un cálculo local no es una respuesta de AEAT y nunca genera un QR
+    // tributario ni un estado de aceptación.
+    qrUrl: "",
+    status: "pending",
     recordType,
     environment,
-    submittedAt: new Date().toISOString(),
     tipoFactura: resolveTipoFactura(doc),
     cuotaTotal: formatQrAmount(amounts.iva),
     importeTotal: formatQrAmount(amounts.total),
@@ -184,13 +163,9 @@ export async function registerDocumentVerifactu(input: {
   return {
     verifactu,
     xml,
-    chain: {
-      issuerNif: chain.issuerNif,
-      lastHash: recordHash,
-      lastNumSerie: chainNumSerie,
-      lastFechaExpedicion: chainFechaExpedicion,
-      recordCount: chain.recordCount + 1,
-    },
+    // La cadena oficial solo puede avanzar en una transacción autenticada de
+    // servidor. El cálculo local conserva exactamente el estado recibido.
+    chain,
   };
 }
 
@@ -216,16 +191,14 @@ export async function applyVerifactuToDocuments(input: {
     });
     if (!result) continue;
 
-    documents[i] = attachRegisteredVerifactuToSnapshots({
-      ...canonicalDocument,
-      verifactu: result.verifactu,
-      verifactuPersistence: "simulation",
-    });
+    // El candidato sirve únicamente para validación técnica en memoria. No se
+    // persiste como registro, no genera distintivo y no avanza la cadena.
+    documents[i] = canonicalDocument;
     chain = result.chain;
   }
 
   return {
     documents,
-    chain: chain.recordCount > 0 ? chain : input.chain ?? null,
+    chain: input.chain ?? null,
   };
 }
