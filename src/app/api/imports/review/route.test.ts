@@ -146,6 +146,28 @@ describe("POST /api/imports/review", () => {
     expect(reviewImportWithAi).not.toHaveBeenCalled();
   });
 
+  it("falla cerrado en produccion antes de leer el body, cuota o proveedor IA", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://facturacion-autonomos.app/api/imports/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{json-no-valido",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(isImportAiReviewConfigured).not.toHaveBeenCalled();
+    expect(consumeImportAiReview).not.toHaveBeenCalled();
+    expect(reviewImportWithAi).not.toHaveBeenCalled();
+  });
+
   it("mantiene la revision Pro si falla temporalmente el registro de uso IA", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({

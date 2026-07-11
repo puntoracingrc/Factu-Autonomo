@@ -9,6 +9,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { isAiRouteAuthenticationRequired } from "@/lib/server/ai-route-auth-policy";
 
 const OPENAI_REALTIME_CLIENT_SECRETS_URL =
   "https://api.openai.com/v1/realtime/client_secrets";
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     requireEmailConfirmed: true,
   });
 
-  if (isBillingEnforced() && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !user) {
     return NextResponse.json(
       { error: "Inicia sesión con una cuenta Pro para usar voz IA." },
       { status: 401 },

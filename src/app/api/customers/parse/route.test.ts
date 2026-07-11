@@ -150,6 +150,28 @@ describe("POST /api/customers/parse", () => {
     expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
   });
 
+  it("falla cerrado en produccion aunque billing este desactivado", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://facturacion-autonomos.app/api/customers/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{json-no-valido",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(consumeCustomerAiAutofill).not.toHaveBeenCalled();
+    expect(extractCustomerFromText).not.toHaveBeenCalled();
+    expect(enrichCustomerPostalCode).not.toHaveBeenCalled();
+  });
+
   it("usa el usuario del token aunque el cuerpo envie otro userId", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({

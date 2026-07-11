@@ -121,6 +121,20 @@ describe("GET /api/expenses/scan", () => {
     expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
     expect(body.quota.remaining).toBe(Number.MAX_SAFE_INTEGER);
   });
+
+  it("falla cerrado en produccion sin consultar cuota aunque billing este desactivado", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+
+    const response = await GET(request(null));
+
+    expect(response.status).toBe(401);
+    expect(getExpenseScanQuota).not.toHaveBeenCalled();
+    expect(checkRateLimit).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/expenses/scan", () => {
@@ -173,5 +187,28 @@ describe("POST /api/expenses/scan", () => {
       },
       "admin-1",
     );
+  });
+
+  it("falla cerrado en produccion antes de leer el body, cuota o proveedor IA", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://facturacion-autonomos.app/api/expenses/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{body-no-formdata",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(validateScanFile).not.toHaveBeenCalled();
+    expect(consumeExpenseScan).not.toHaveBeenCalled();
+    expect(fileToBase64).not.toHaveBeenCalled();
+    expect(extractExpenseFromImage).not.toHaveBeenCalled();
   });
 });

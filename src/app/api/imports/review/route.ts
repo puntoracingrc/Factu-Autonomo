@@ -14,6 +14,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { isAiRouteAuthenticationRequired } from "@/lib/server/ai-route-auth-policy";
 import { readJsonBody } from "@/lib/server/request-body";
 
 async function canUseImportAi(userId: string): Promise<{
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     requireEmailConfirmed: true,
   });
 
-  if (isBillingEnforced() && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !user) {
     return NextResponse.json(
       { error: "Crea una cuenta e inicia sesión para usar la revisión IA." },
       { status: 401 },

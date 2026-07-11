@@ -53,6 +53,20 @@ describe("POST /api/google-places/address-fill", () => {
     expect(consumeAddressAutofill).not.toHaveBeenCalled();
   });
 
+  it("falla cerrado en produccion antes de consultar plan o consumir cuota", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+
+    const response = await POST(request(null));
+
+    expect(response.status).toBe(401);
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(consumeAddressAutofill).not.toHaveBeenCalled();
+  });
+
   it("rechaza usuarios gratuitos sin consumir credito", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
