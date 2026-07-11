@@ -8,6 +8,7 @@ const migratedCriticalDialogs = [
   "../documents/DocumentShareActions.tsx",
   "../documents/PaymentReminderButton.tsx",
   "../settings/DocumentTemplateDesignerCard.tsx",
+  "../masters/MasterDeleteConfirmationModal.tsx",
   "./ResponsiveEntityPanel.tsx",
 ];
 

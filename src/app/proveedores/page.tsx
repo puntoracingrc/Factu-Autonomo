@@ -6,6 +6,7 @@ import { SupplierListSearch } from "@/components/suppliers/SupplierListSearch";
 import { SupplierSortBar } from "@/components/suppliers/SupplierSortBar";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
+import { MasterDeleteConfirmationModal } from "@/components/masters/MasterDeleteConfirmationModal";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
@@ -17,6 +18,7 @@ import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
+import { analyzeSupplierDeletion } from "@/lib/master-record-deletion";
 import {
   findBestSupplierMatch,
   findDuplicateSupplierGroups,
@@ -64,6 +66,7 @@ export default function ProveedoresPage() {
   const [sortDirection, setSortDirection] =
     useState<SupplierSortDirection>("asc");
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<Supplier | null>(null);
 
   const suppliers = useMemo(
     () =>
@@ -638,11 +641,7 @@ export default function ProveedoresPage() {
                         <Pencil className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm(`¿Borrar a ${supplier.name}?`)) {
-                            deleteSupplier(supplier.id);
-                          }
-                        }}
+                        onClick={() => setDeleteCandidate(supplier)}
                         className="rounded-xl bg-red-50 p-2 text-red-600"
                         title="Borrar"
                         aria-label={`Borrar ${supplier.name}`}
@@ -693,6 +692,21 @@ export default function ProveedoresPage() {
           </div>
         </Card>
       )}
+
+      {deleteCandidate ? (
+        <MasterDeleteConfirmationModal
+          open
+          kind="supplier"
+          name={deleteCandidate.name}
+          impact={analyzeSupplierDeletion(data, deleteCandidate.id)}
+          onClose={() => setDeleteCandidate(null)}
+          onConfirm={() => {
+            deleteSupplier(deleteCandidate.id);
+            if (listFilterId === deleteCandidate.id) setListFilterId(null);
+            setDeleteCandidate(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

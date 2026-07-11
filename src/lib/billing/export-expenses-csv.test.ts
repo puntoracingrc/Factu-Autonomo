@@ -47,4 +47,42 @@ describe("export expenses csv", () => {
     expect(csv).toContain("RESUMEN POR CATEGORÍA");
     expect(csv).toContain("Material");
   });
+
+  it("prefiere el NIF histórico del documento frente al maestro actual", () => {
+    const csv = buildExpensesExportCsv(
+      [
+        {
+          ...expense,
+          purchaseDocument: { supplierNif: "B87654321" },
+        },
+      ],
+      [supplier],
+      {
+        profile: DEFAULT_PROFILE,
+        periodLabel: "2026",
+      },
+    );
+
+    expect(csv).toContain("B87654321");
+    expect(csv).not.toContain("B12345678");
+  });
+
+  it("exporta el NIF histórico aunque la ficha de proveedor ya no exista", () => {
+    const csv = buildExpensesExportCsv(
+      [
+        {
+          ...expense,
+          supplierId: undefined,
+          purchaseDocument: { supplierNif: "B87654321" },
+        },
+      ],
+      [],
+      {
+        profile: DEFAULT_PROFILE,
+        periodLabel: "2026",
+      },
+    );
+
+    expect(csv).toContain("B87654321");
+  });
 });

@@ -20,6 +20,7 @@ import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentAc
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
+import { MasterDeleteConfirmationModal } from "@/components/masters/MasterDeleteConfirmationModal";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
@@ -54,6 +55,7 @@ import {
   type CustomerSortField,
 } from "@/lib/customers";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
+import { analyzeCustomerDeletion } from "@/lib/master-record-deletion";
 import type {
   AddressResidenceType,
   Customer,
@@ -202,6 +204,7 @@ export default function ClientesPage() {
   const [visibleCustomerCount, setVisibleCustomerCount] = useState(
     CUSTOMER_LIST_BATCH_SIZE,
   );
+  const [deleteCandidate, setDeleteCandidate] = useState<Customer | null>(null);
 
   const customerInvoicedTotals = useMemo(
     () => buildCustomerInvoicedTotals(data.customers, data.documents),
@@ -1003,14 +1006,7 @@ export default function ClientesPage() {
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `¿Borrar a ${getCustomerDisplayName(customer)}?`,
-                              )
-                            )
-                              deleteCustomer(customer.id);
-                          }}
+                          onClick={() => setDeleteCandidate(customer)}
                           className="rounded-xl bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                           title="Borrar"
                           aria-label={`Borrar ${getCustomerDisplayName(customer)}`}
@@ -1108,6 +1104,21 @@ export default function ClientesPage() {
           </div>
         </Card>
       )}
+
+      {deleteCandidate ? (
+        <MasterDeleteConfirmationModal
+          open
+          kind="customer"
+          name={getCustomerDisplayName(deleteCandidate)}
+          impact={analyzeCustomerDeletion(data, deleteCandidate.id)}
+          onClose={() => setDeleteCandidate(null)}
+          onConfirm={() => {
+            deleteCustomer(deleteCandidate.id);
+            if (listFilterId === deleteCandidate.id) setListFilterId(null);
+            setDeleteCandidate(null);
+          }}
+        />
+      ) : null}
 
       <UpgradeModal
         open={upgradeOpen}
