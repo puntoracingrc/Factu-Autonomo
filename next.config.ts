@@ -37,6 +37,9 @@ const appNoIndexRoutes = [
   "/rentabilidad-real/:path*",
 ];
 
+const CANONICAL_APP_ORIGIN = "https://facturacion-autonomos.app";
+const LEGACY_VERCEL_HOST = "factu-autonomo.vercel.app";
+
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_VERCEL_ENV:
@@ -56,6 +59,16 @@ const nextConfig: NextConfig = {
         source,
         headers: appNoIndexHeaders,
       })),
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: LEGACY_VERCEL_HOST }],
+        destination: `${CANONICAL_APP_ORIGIN}/:path*`,
+        permanent: true,
+      },
     ];
   },
   webpack: (config, { dev }) => {

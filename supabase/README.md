@@ -94,10 +94,12 @@ Si **Confirm email** está activado en Supabase → Authentication → Providers
    - **Redirect URLs** (añadir una por línea):
      - `https://facturacion-autonomos.app/auth/callback`
      - `http://localhost:3000/auth/callback` (solo desarrollo local)
-     - `https://factu-autonomo.vercel.app/auth/callback` (opcional, URL Vercel legacy)
+     - `http://localhost:3001/auth/callback` (solo desarrollo local)
 3. Tras confirmar, la app redirige a Configuración con sesión lista.
 
 **Importante:** la URL de callback debe coincidir **exactamente** con `NEXT_PUBLIC_APP_URL` + `/auth/callback` en Vercel.
+No añadas `factu-autonomo.vercel.app`: es un dominio retirado que redirige al
+canónico y no debe actuar como origen o callback de autenticación.
 
 Si en local ves `Cannot find module './611.js'`, para el servidor y ejecuta `npm run dev:clean`.
 
