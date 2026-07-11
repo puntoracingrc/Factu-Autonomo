@@ -5,6 +5,11 @@ import {
   getStreetType,
   normalizeStreetFields,
 } from "./customer-address";
+import {
+  isValidContactEmail,
+  normalizeContactEmail,
+  normalizeContactPhone,
+} from "./contact-validation";
 
 const LEGAL_SUFFIX_PATTERN =
   /\b(s\.?\s*l\.?\s*u?\.?|s\.?\s*a\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|sociedad\s+limitada|sociedad\s+anonima)\b/gi;
@@ -14,6 +19,31 @@ export const SUPPLIER_AUTO_LINK_SCORE = 0.82;
 
 /** Por encima de este umbral se sugiere al usuario un proveedor parecido. */
 export const SUPPLIER_SUGGEST_SCORE = 0.65;
+
+export const SUPPLIER_EMAIL_FORMAT_ERROR = "Revisa el formato del email";
+
+export interface SupplierContactValidation {
+  ok: boolean;
+  error?: string;
+  email?: string;
+  phone?: string;
+}
+
+export function validateSupplierContact(
+  input: Pick<Supplier, "email" | "phone">,
+): SupplierContactValidation {
+  const email = normalizeContactEmail(input.email);
+  if (email && !isValidContactEmail(email)) {
+    return { ok: false, error: SUPPLIER_EMAIL_FORMAT_ERROR };
+  }
+
+  const phone = normalizeContactPhone(input.phone);
+  return {
+    ok: true,
+    email: email || undefined,
+    phone: phone || undefined,
+  };
+}
 
 export interface SupplierMatch {
   supplier: Supplier;

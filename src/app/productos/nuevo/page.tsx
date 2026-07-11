@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +29,13 @@ import {
   calculatePurchaseNetUnitCost,
   purchaseNetUnitCostInputFromFields,
 } from "@/lib/product-costs";
+import {
+  parseOptionalProductNumber,
+  PRODUCT_NUMERIC_FIELD_ORDER,
+  validateProductNumericInputs,
+  type ProductNumericErrors,
+  type ProductNumericField,
+} from "@/lib/product-form-validation";
 
 const EMPTY_FORM = {
   sku: "",
@@ -51,13 +58,6 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-function parseAmount(value: string): number | undefined {
-  const normalized = value.replace(",", ".").trim();
-  if (!normalized) return undefined;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 export default function NuevoProductoPage() {
   const router = useRouter();
   const { data, addProduct } = useAppStore();
@@ -65,6 +65,16 @@ export default function NuevoProductoPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [purchaseCostManual, setPurchaseCostManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ProductNumericErrors>({});
+  const numericInputRefs = useRef<
+    Record<ProductNumericField, HTMLInputElement | null>
+  >({
+    salePrice: null,
+    saleIvaPercent: null,
+    purchaseListPrice: null,
+    purchaseDiscountPercent: null,
+    purchaseNetUnitCost: null,
+  });
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
 
@@ -159,7 +169,7 @@ export default function NuevoProductoPage() {
           next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
             next.purchaseListPrice,
             next.purchaseDiscountPercent,
-            parseAmount,
+            parseOptionalProductNumber,
           );
         }
         return next;
@@ -173,12 +183,22 @@ export default function NuevoProductoPage() {
         next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
           next.purchaseListPrice,
           next.purchaseDiscountPercent,
-          parseAmount,
+          parseOptionalProductNumber,
         );
       }
 
       return next;
     });
+    if (
+      PRODUCT_NUMERIC_FIELD_ORDER.includes(field as ProductNumericField)
+    ) {
+      setFieldErrors((current) => {
+        if (!current[field as ProductNumericField]) return current;
+        const next = { ...current };
+        delete next[field as ProductNumericField];
+        return next;
+      });
+    }
     setError(null);
   }
 
@@ -188,6 +208,26 @@ export default function NuevoProductoPage() {
       setError("Escribe el nombre del producto.");
       return;
     }
+
+    const numericValidation = validateProductNumericInputs({
+      salePrice: form.salePrice,
+      saleIvaPercent: form.saleIvaPercent,
+      purchaseListPrice: form.purchaseListPrice,
+      purchaseDiscountPercent: form.purchaseDiscountPercent,
+      purchaseNetUnitCost: form.purchaseNetUnitCost,
+    });
+    if (!numericValidation.ok) {
+      setFieldErrors(numericValidation.errors);
+      setError("Revisa los importes indicados antes de guardar el producto.");
+      const firstInvalidField = numericValidation.firstInvalidField;
+      requestAnimationFrame(() => {
+        if (firstInvalidField) {
+          numericInputRefs.current[firstInvalidField]?.focus();
+        }
+      });
+      return;
+    }
+    setFieldErrors({});
 
     const key = purchaseProductKey(name);
     if (data.products.some((product) => product.key === key)) {
@@ -209,12 +249,14 @@ export default function NuevoProductoPage() {
     const supplier = data.suppliers.find(
       (entry) => entry.name.toLowerCase() === supplierName.toLowerCase(),
     );
-    const salePrice = parseAmount(form.salePrice);
-    const saleIvaPercent = parseAmount(form.saleIvaPercent);
-    const purchaseListPrice = parseAmount(form.purchaseListPrice);
-    const purchaseDiscountPercent = parseAmount(form.purchaseDiscountPercent);
+    const {
+      salePrice,
+      saleIvaPercent,
+      purchaseListPrice,
+      purchaseDiscountPercent,
+    } = numericValidation.values;
     const purchaseNetUnitCost =
-      parseAmount(form.purchaseNetUnitCost) ??
+      numericValidation.values.purchaseNetUnitCost ??
       calculatePurchaseNetUnitCost(purchaseListPrice, purchaseDiscountPercent);
     const calculationKind = form.calculationKind === "area" ? "area" : "none";
     const saleUnit =
@@ -327,7 +369,10 @@ export default function NuevoProductoPage() {
 
       <Card className="space-y-5">
         {error ? (
-          <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+          >
             {error}
           </div>
         ) : null}
@@ -392,22 +437,54 @@ export default function NuevoProductoPage() {
             </Field>
             <Field label="Precio venta" hint="Sin IVA.">
               <Input
+                ref={(node) => {
+                  numericInputRefs.current.salePrice = node;
+                }}
                 inputMode="decimal"
                 value={form.salePrice}
                 onChange={(event) =>
                   updateField("salePrice", event.target.value)
                 }
                 placeholder="0,00"
+                aria-invalid={Boolean(fieldErrors.salePrice)}
+                aria-describedby={
+                  fieldErrors.salePrice ? "sale-price-error" : undefined
+                }
+                className={
+                  fieldErrors.salePrice
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : ""
+                }
+              />
+              <ProductFieldError
+                id="sale-price-error"
+                error={fieldErrors.salePrice}
               />
             </Field>
             <Field label="IVA %">
               <Input
+                ref={(node) => {
+                  numericInputRefs.current.saleIvaPercent = node;
+                }}
                 inputMode="decimal"
                 value={form.saleIvaPercent}
                 onChange={(event) =>
                   updateField("saleIvaPercent", event.target.value)
                 }
                 placeholder="21"
+                aria-invalid={Boolean(fieldErrors.saleIvaPercent)}
+                aria-describedby={
+                  fieldErrors.saleIvaPercent ? "sale-iva-error" : undefined
+                }
+                className={
+                  fieldErrors.saleIvaPercent
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : ""
+                }
+              />
+              <ProductFieldError
+                id="sale-iva-error"
+                error={fieldErrors.saleIvaPercent}
               />
             </Field>
           </div>
@@ -457,32 +534,86 @@ export default function NuevoProductoPage() {
             </Field>
             <Field label="Tarifa proveedor" hint="Antes de descuento, sin IVA.">
               <Input
+                ref={(node) => {
+                  numericInputRefs.current.purchaseListPrice = node;
+                }}
                 inputMode="decimal"
                 value={form.purchaseListPrice}
                 onChange={(event) =>
                   updateField("purchaseListPrice", event.target.value)
                 }
                 placeholder="0,00"
+                aria-invalid={Boolean(fieldErrors.purchaseListPrice)}
+                aria-describedby={
+                  fieldErrors.purchaseListPrice
+                    ? "purchase-list-price-error"
+                    : undefined
+                }
+                className={
+                  fieldErrors.purchaseListPrice
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : ""
+                }
+              />
+              <ProductFieldError
+                id="purchase-list-price-error"
+                error={fieldErrors.purchaseListPrice}
               />
             </Field>
             <Field label="Descuento %">
               <Input
+                ref={(node) => {
+                  numericInputRefs.current.purchaseDiscountPercent = node;
+                }}
                 inputMode="decimal"
                 value={form.purchaseDiscountPercent}
                 onChange={(event) =>
                   updateField("purchaseDiscountPercent", event.target.value)
                 }
                 placeholder="0"
+                aria-invalid={Boolean(fieldErrors.purchaseDiscountPercent)}
+                aria-describedby={
+                  fieldErrors.purchaseDiscountPercent
+                    ? "purchase-discount-error"
+                    : undefined
+                }
+                className={
+                  fieldErrors.purchaseDiscountPercent
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : ""
+                }
+              />
+              <ProductFieldError
+                id="purchase-discount-error"
+                error={fieldErrors.purchaseDiscountPercent}
               />
             </Field>
             <Field label="Coste real" hint="Después de descuento, sin IVA.">
               <Input
+                ref={(node) => {
+                  numericInputRefs.current.purchaseNetUnitCost = node;
+                }}
                 inputMode="decimal"
                 value={form.purchaseNetUnitCost}
                 onChange={(event) =>
                   updateField("purchaseNetUnitCost", event.target.value)
                 }
                 placeholder="0,00"
+                aria-invalid={Boolean(fieldErrors.purchaseNetUnitCost)}
+                aria-describedby={
+                  fieldErrors.purchaseNetUnitCost
+                    ? "purchase-net-cost-error"
+                    : undefined
+                }
+                className={
+                  fieldErrors.purchaseNetUnitCost
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : ""
+                }
+              />
+              <ProductFieldError
+                id="purchase-net-cost-error"
+                error={fieldErrors.purchaseNetUnitCost}
               />
             </Field>
           </div>
@@ -590,5 +721,23 @@ export default function NuevoProductoPage() {
         ))}
       </datalist>
     </div>
+  );
+}
+
+function ProductFieldError({
+  id,
+  error,
+}: {
+  id: string;
+  error?: string;
+}) {
+  if (!error) return null;
+  return (
+    <span
+      id={id}
+      className="text-sm font-semibold text-red-700 dark:text-red-300"
+    >
+      {error}
+    </span>
   );
 }

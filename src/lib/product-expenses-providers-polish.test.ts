@@ -8,13 +8,43 @@ function source(path: string): string {
 describe("product expenses/providers polish wiring", () => {
   it("mantiene creacion y edicion visibles para proveedores", () => {
     const page = source("../app/proveedores/page.tsx");
+    const newPage = source("../app/proveedores/nuevo/page.tsx");
     const store = source("../context/AppStore.tsx");
 
     expect(page).toContain("Nuevo proveedor");
     expect(page).toContain("Editar proveedor");
     expect(page).toContain("Guardar cambios");
+    expect(page).toContain('value={form.email}');
+    expect(newPage).toContain('value={form.email}');
+    expect(page).toContain("validateSupplierContact(form)");
+    expect(newPage).toContain("validateSupplierContact(form)");
+    expect(page).toContain("emailInputRef.current?.focus()");
+    expect(newPage).toContain("emailInputRef.current?.focus()");
     expect(store).toContain("expense.supplierId === supplier.id");
     expect(store).toContain("supplierName: supplier.name");
+  });
+
+  it("bloquea importes de producto inválidos y conserva el foco del campo", () => {
+    const newProductPage = source("../app/productos/nuevo/page.tsx");
+
+    expect(newProductPage).toContain("validateProductNumericInputs({");
+    expect(newProductPage).toContain("setFieldErrors(numericValidation.errors)");
+    expect(newProductPage).toContain(
+      "numericInputRefs.current[firstInvalidField]?.focus()",
+    );
+    expect(newProductPage).toContain(
+      "aria-invalid={Boolean(fieldErrors.salePrice)}",
+    );
+  });
+
+  it("renombra familia y margen mediante una única transición de datos", () => {
+    const productsPage = source("../app/productos/page.tsx");
+    const store = source("../context/AppStore.tsx");
+
+    expect(productsPage).toContain("renameProductFamilyInStore(");
+    expect(productsPage).toContain("La regla de margen se ha conservado");
+    expect(store).toContain("renameProductFamilyInAppData(");
+    expect(store).toContain("if (result.ok) setAppData(result.data)");
   });
 
   it("conecta edicion de gastos desde el listado y el formulario", () => {
