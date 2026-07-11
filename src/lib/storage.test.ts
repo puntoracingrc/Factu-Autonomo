@@ -464,6 +464,87 @@ describe("storage", () => {
     });
   });
 
+  it("conserva un gasto fijo escaneado al guardar y recargar un espacio grande", () => {
+    const store = new Map<string, string>();
+    const quota = 1_200_000;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (value.length > quota) {
+          throw new DOMException("Cuota local agotada", "QuotaExceededError");
+        }
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      clear: () => store.clear(),
+    });
+
+    const recurringExpenseId = "fixed-scanned-template";
+    const recurringOccurrenceKey = `${recurringExpenseId}:2026-07-31`;
+    const historicalExpenses: AppData["expenses"] = Array.from(
+      { length: 700 },
+      (_, index) => ({
+        id: `historical-expense-${index}`,
+        date: "2026-06-30",
+        supplierName: "Proveedor histórico con datos repetidos",
+        description: `Compra histórica ${index}`,
+        amount: 100,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+        notes: "Detalle documental conservado. ".repeat(80),
+        createdAt: NOW,
+      }),
+    );
+    const fixedExpense: AppData["expenses"][number] = {
+      id: "fixed-scanned-expense",
+      date: "2026-07-10",
+      origin: "scan",
+      businessKind: "fixed",
+      supplierName: "Google Commerce Limited",
+      description: "Suscripción mensual de streaming",
+      amount: 13.21,
+      ivaPercent: 21,
+      category: "Suscripciones",
+      paymentMethod: "Tarjeta",
+      recurringExpenseId,
+      recurringOccurrenceKey,
+      createdAt: NOW,
+    };
+    const recurringExpense: AppData["recurringExpenses"][number] = {
+      id: recurringExpenseId,
+      supplierName: fixedExpense.supplierName,
+      description: fixedExpense.description,
+      amount: fixedExpense.amount,
+      ivaPercent: fixedExpense.ivaPercent,
+      category: fixedExpense.category,
+      paymentMethod: fixedExpense.paymentMethod,
+      frequency: "monthly",
+      dueTiming: { kind: "end_of_month" },
+      duration: { kind: "indefinite" },
+      startDate: fixedExpense.date,
+      enabled: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    saveData({
+      ...EMPTY_DATA,
+      expenses: [...historicalExpenses, fixedExpense],
+      recurringExpenses: [recurringExpense],
+    });
+
+    const persisted = localStorage.getItem(STORAGE_KEY);
+    expect(persisted).not.toBeNull();
+    expect(persisted?.length).toBeLessThan(quota);
+
+    const loaded = loadData();
+    expect(loaded.recurringExpenses).toContainEqual(recurringExpense);
+    expect(loaded.expenses).toContainEqual(fixedExpense);
+  });
+
   it("conserva el texto raíz si el JSON persistido está truncado", () => {
     const truncated = '{"documents":[';
     localStorage.setItem(STORAGE_KEY, truncated);

@@ -1,4 +1,5 @@
 import { migrateCustomer } from "./customers";
+import { gzipSync, gunzipSync, strFromU8, strToU8 } from "fflate";
 import { normalizeQuoteDocument } from "./quotes";
 import { normalizeUserReminder } from "./reminder-team";
 import { countersFromDocuments } from "./documents";
@@ -81,6 +82,44 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
 }
 
 const STORAGE_KEY = "factura-autonomo-data";
+const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
+const STORAGE_COMPRESSION_THRESHOLD = 750_000;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)),
+    );
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function serializeStoredData(data: AppData): string {
+  const serialized = JSON.stringify(data);
+  if (serialized.length < STORAGE_COMPRESSION_THRESHOLD) return serialized;
+
+  const compressed = gzipSync(strToU8(serialized), { level: 6 });
+  return `${COMPRESSED_STORAGE_PREFIX}${bytesToBase64(compressed)}`;
+}
+
+function parseStoredData(raw: string): unknown {
+  if (!raw.startsWith(COMPRESSED_STORAGE_PREFIX)) return JSON.parse(raw);
+
+  const encoded = raw.slice(COMPRESSED_STORAGE_PREFIX.length);
+  const serialized = strFromU8(gunzipSync(base64ToBytes(encoded)));
+  return JSON.parse(serialized);
+}
 
 function currentStorageKey(): string {
   return isDemoWorkspaceMode() ? DEMO_WORKSPACE_STORAGE_KEY : STORAGE_KEY;
@@ -890,7 +929,7 @@ export function loadData(): AppData {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = parseStoredData(raw);
   } catch {
     const quarantined: AppData = {
       ...EMPTY_DATA,
@@ -958,12 +997,12 @@ export function saveData(data: AppData): void {
     const storageKey = currentStorageKey();
     const existing = localStorage.getItem(storageKey);
     if (existing && inMemoryDataIsEmpty(data)) {
-      const parsed = JSON.parse(existing) as Partial<AppData>;
+      const parsed = parseStoredData(existing) as Partial<AppData>;
       if (storedDataHasContent(parsed)) {
         return;
       }
     }
-    localStorage.setItem(storageKey, JSON.stringify(data));
+    localStorage.setItem(storageKey, serializeStoredData(data));
   } catch (error) {
     console.error("No se pudo guardar en localStorage:", error);
   }

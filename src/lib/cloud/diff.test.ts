@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import {
   deleteExpenseFromData,
+  saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
 } from "../recurring-expenses";
 import { mergeRemoteOntoLocal } from "./incremental";
@@ -44,6 +45,54 @@ describe("sync por cambios", () => {
     expect(changes).toHaveLength(1);
     expect(changes[0].entityType).toBe("customer");
     expect(changes[0].entityId).toBe("c1");
+  });
+
+  it("encola juntos el gasto fijo escaneado y su regla recurrente", () => {
+    const ids = ["fixed-template", "fixed-expense"];
+    const saved = saveFixedExpenseWithRecurringTemplateToData(
+      EMPTY_DATA,
+      {
+        date: "2026-07-11",
+        origin: "scan",
+        businessKind: "fixed",
+        supplierName: "Google Commerce Limited",
+        description: "Suscripción mensual de streaming",
+        amount: 13.21,
+        ivaPercent: 21,
+        category: "Suscripciones",
+        paymentMethod: "Tarjeta",
+      },
+      {
+        supplierName: "Google Commerce Limited",
+        description: "Suscripción mensual de streaming",
+        amount: 13.21,
+        ivaPercent: 21,
+        category: "Suscripciones",
+        paymentMethod: "Tarjeta",
+        frequency: "monthly",
+        dueTiming: { kind: "end_of_month" },
+        duration: { kind: "indefinite" },
+        startDate: "2026-07-11",
+        enabled: true,
+      },
+      {
+        now: "2026-07-11T20:05:00.000Z",
+        newId: () => ids.shift() ?? "unexpected-id",
+        referenceDate: "2026-07-31",
+      },
+    );
+
+    const changes = diffAppData(EMPTY_DATA, saved.data);
+    expect(
+      changes.map((change) => `${change.entityType}:${change.entityId}`).sort(),
+    ).toEqual([
+      "expense:fixed-expense",
+      "recurring_expense:fixed-template",
+    ]);
+
+    const reloaded = applySyncChanges(EMPTY_DATA, changes);
+    expect(reloaded.expenses[0]?.recurringExpenseId).toBe("fixed-template");
+    expect(reloaded.recurringExpenses[0]?.id).toBe("fixed-template");
   });
 
   it("aplica un cambio remoto sin tocar el resto", () => {
