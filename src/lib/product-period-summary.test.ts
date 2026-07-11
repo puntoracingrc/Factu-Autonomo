@@ -142,6 +142,49 @@ describe("product period summary", () => {
     expect(summary.totalBilledIssued).toBe(121);
   });
 
+  it("muestra el reemplazo rectificativo positivo una sola vez en el periodo", () => {
+    const original = invoice({
+      id: "period-original",
+      date: "2026-06-10",
+      status: "rectificada",
+      rectifiedById: "period-correction",
+    });
+    const correction = invoice({
+      id: "period-correction",
+      number: "FR-2026-0001",
+      date: "2026-06-12",
+      items: [
+        {
+          id: "period-correction-line",
+          description: "Corrección",
+          quantity: 1,
+          unitPrice: 50,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+    });
+
+    const summary = buildProductPeriodSummary(
+      {
+        ...EMPTY_DATA,
+        documents: [original, correction],
+      },
+      june2026,
+    );
+
+    expect(summary.business.issuedInvoicesCount).toBe(1);
+    expect(summary.totalBilledIssued).toBe(60.5);
+    expect(summary.salesIvaEstimated).toBe(10.5);
+    expect(summary.totalPendingCollection).toBe(60.5);
+  });
+
   it("calcula cobrado, pendiente, gastos, IVA estimado y balance", () => {
     const summary = buildProductPeriodSummary(
       {

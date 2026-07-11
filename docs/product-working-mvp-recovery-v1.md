@@ -288,7 +288,8 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - `Facturado` suma facturas emitidas.
 - Los presupuestos no se cuentan como ingresos.
 - Las facturas en borrador no se cuentan como facturado.
-- Las facturas anuladas, rectificadas o rectificativas se excluyen del resumen simple.
+- Las facturas anuladas y las originales ya rectificadas se excluyen del resumen simple.
+- Una rectificativa positiva de corrección sustituye a la original y se cuenta una sola vez; una rectificativa de anulación no se presenta como nueva facturación.
 - `Cobrado` suma facturas marcadas como cobradas localmente.
 - El cobro local no es banco ni pasarela de pago.
 - `Pendiente` suma facturas emitidas pendientes de cobro.

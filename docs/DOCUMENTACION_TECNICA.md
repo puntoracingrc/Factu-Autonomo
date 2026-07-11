@@ -183,6 +183,7 @@ Panel de resumen del negocio:
 | Accesos rápidos | Botones a avisos, clientes, factura, presupuesto, recibo y gasto |
 | `/avisos` | Centro de avisos y recomendaciones (`collectAppRecommendations`) |
 | `UsageBanner` / banners fiscales | Consolidados en `/avisos` (ya no en inicio) |
+| Facturado operativo | Excluye borradores, anulaciones y originales sustituidas; una rectificativa positiva de corrección cuenta como reemplazo vigente una sola vez |
 
 **Integración:** el resumen fiscal (`FiscalSummaryPanel` en `/impuestos`) concentra trimestre, año e historial completo. Los avisos contextuales se generan en `src/lib/recommendations.ts` a partir de perfil, facturas, gastos fijos, billing y sync.
 
