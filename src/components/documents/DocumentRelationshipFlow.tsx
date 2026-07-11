@@ -84,9 +84,11 @@ export function DocumentRelationshipFlow({
           item.role === "gastos" && item.expenseAmount !== undefined
             ? `${formatMoney(item.expenseAmount)} asignados`
             : item.document
-              ? `${formatShortDate(item.document.date)} · ${formatMoney(
-                  documentAmounts(item.document, vatExempt).total,
-                )}`
+              ? compact
+                ? formatMoney(documentAmounts(item.document, vatExempt).total)
+                : `${formatShortDate(item.document.date)} · ${formatMoney(
+                    documentAmounts(item.document, vatExempt).total,
+                  )}`
               : item.value;
         const content = (
           <>
@@ -107,11 +109,9 @@ export function DocumentRelationshipFlow({
               <span className="mt-0.5 block truncate text-sm font-black">
                 {item.value}
               </span>
-              {!compact || item.role === "gastos" ? (
-                <span className="mt-0.5 block whitespace-nowrap text-xs opacity-70">
-                  {subtitle}
-                </span>
-              ) : null}
+              <span className="mt-0.5 block whitespace-nowrap text-xs opacity-70">
+                {subtitle}
+              </span>
             </span>
           </>
         );
@@ -152,8 +152,16 @@ export function DocumentRelationshipFlow({
                   type="button"
                   onClick={() => onRemoveItem?.(item)}
                   className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-red-950 dark:hover:text-red-200"
-                  aria-label={`Desvincular ${item.title} ${item.value}`}
-                  title="Desvincular; no borra el documento"
+                  aria-label={
+                    item.role === "gastos"
+                      ? "Elegir gasto para desvincular"
+                      : `Desvincular ${item.title} ${item.value}`
+                  }
+                  title={
+                    item.role === "gastos"
+                      ? "Elegir qué gasto desvincular"
+                      : "Desvincular; no borra el documento"
+                  }
                 >
                   <X className="h-4 w-4" />
                 </button>

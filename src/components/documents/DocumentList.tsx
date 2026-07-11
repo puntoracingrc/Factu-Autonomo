@@ -621,9 +621,27 @@ export function DocumentList({
                     {documentChain.length > 1 && (
                       <div className="min-w-0 xl:row-span-2">
                         <DocumentRelationshipFlow
-                        items={documentChain}
-                        vatExempt={vatExempt}
+                          items={documentChain}
+                          vatExempt={vatExempt}
                           compact
+                          onExpensesClick={
+                            type === "factura"
+                              ? () => setExpandedRelationshipDocumentId(doc.id)
+                              : undefined
+                          }
+                          removableRoles={
+                            type === "factura" ? ["gastos"] : []
+                          }
+                          onRemoveItem={
+                            type === "factura"
+                              ? (item) => {
+                                  if (item.role === "gastos") {
+                                    setExpandedRelationshipDocumentId(doc.id);
+                                    return;
+                                  }
+                                }
+                              : undefined
+                          }
                         />
                       </div>
                     )}
@@ -708,11 +726,16 @@ export function DocumentList({
                     </div>
                   )}
                   {type === "factura" &&
-                    expandedRelationshipDocumentId === doc.id &&
-                    !integrityBlocked ? (
+                    expandedRelationshipDocumentId === doc.id ? (
                       <div className="min-w-0 xl:col-span-2">
                         <InvoiceRelationshipWorkspace
                           doc={doc}
+                          quoteLinkEditable={
+                            editable &&
+                            !documentChain.some(
+                              (item) => item.role === "presupuesto",
+                            )
+                          }
                           onClose={() => setExpandedRelationshipDocumentId(null)}
                           onExpenseAllocationsChange={(allocations) =>
                             setExpenseAllocationsByDocumentId((current) => ({

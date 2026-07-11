@@ -92,10 +92,12 @@ function relatedWorkDocumentIds(
 
 export function InvoiceRelationshipWorkspace({
   doc,
+  quoteLinkEditable,
   onClose,
   onExpenseAllocationsChange,
 }: {
   doc: Document;
+  quoteLinkEditable: boolean;
   onClose: () => void;
   onExpenseAllocationsChange?: (
     allocations: ExpenseCostAllocationsByExpenseId,
@@ -194,17 +196,6 @@ export function InvoiceRelationshipWorkspace({
       quoteId,
     });
     showFactuToast("Presupuesto vinculado.");
-  }
-
-  function clearQuoteLink() {
-    if (!linkedQuote) return;
-    updateDocumentLink({
-      relation: "quote_invoice",
-      invoiceId: doc.id,
-      quoteId: null,
-    });
-    setQuoteId("");
-    showFactuToast("Vínculo con el presupuesto eliminado.");
   }
 
   function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
@@ -313,10 +304,6 @@ export function InvoiceRelationshipWorkspace({
           items={chainItems}
           vatExempt={vatExempt}
           onExpensesClick={() => setActiveTab("gastos")}
-          removableRoles={["presupuesto"]}
-          onRemoveItem={(item) => {
-            if (item.role === "presupuesto") clearQuoteLink();
-          }}
         />
       </div>
 
@@ -351,6 +338,25 @@ export function InvoiceRelationshipWorkspace({
 
       {activeTab === "presupuesto" ? (
         <div className="mt-4">
+          {!quoteLinkEditable ? (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+              {linkedQuote ? (
+                <>
+                  El presupuesto de origen es una relación histórica y no se
+                  puede cambiar ni desvincular. Puedes abrirlo desde la cadena
+                  superior.
+                </>
+              ) : (
+                <>
+                  Una factura emitida no admite añadir manualmente un
+                  presupuesto de origen. Los vínculos operativos posteriores
+                  usarán una relación de rentabilidad separada.
+                </>
+              )}
+            </div>
+          ) : null}
+          {quoteLinkEditable ? (
+            <>
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <Field
               label="Buscar presupuesto"
@@ -411,6 +417,8 @@ export function InvoiceRelationshipWorkspace({
               ))
             )}
           </div>
+            </>
+          ) : null}
         </div>
       ) : null}
 
