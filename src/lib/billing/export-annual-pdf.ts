@@ -1,8 +1,8 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { documentTotals, formatMoney } from "../calculations";
+import { formatMoney } from "../calculations";
 import { isCollectedDocument } from "../income";
-import { filterDocumentsByYear, filterExpensesByYear } from "../periods";
+import { filterExpensesByYear, isDateInYear } from "../periods";
 import { triggerPdfBlobDownload } from "../pdf";
 import {
   calculateTaxSummary,
@@ -12,9 +12,11 @@ import {
 import type { BusinessProfile, Document, Expense } from "../types";
 import {
   collectedSalesTotal,
+  documentAmounts,
   isVatExempt,
   totalExpensesAmount,
 } from "../vat-regime";
+import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
 
 export function buildAnnualSummaryPdf(
   documents: Document[],
@@ -23,7 +25,12 @@ export function buildAnnualSummaryPdf(
   year: number,
 ): jsPDF {
   const vatExempt = isVatExempt(profile);
-  const yearDocs = filterDocumentsByYear(documents, year);
+  const fiscalDocuments = selectCanonicalFiscalDocumentsForExport(
+    documents,
+    profile,
+    (date) => isDateInYear(date, year),
+  );
+  const yearDocs = fiscalDocuments.documents;
   const yearExpenses = filterExpensesByYear(expenses, year);
   const taxes = calculateTaxSummary(yearDocs, yearExpenses, {
     irpfPercent: profile.irpfPercent,
@@ -49,7 +56,37 @@ export function buildAnnualSummaryPdf(
   pdf.text("Cálculo orientativo — consulta con tu gestor.", 14, 38);
   pdf.setTextColor(0, 0, 0);
 
-  const summaryRows = vatExempt
+  let summaryStartY = 44;
+  if (fiscalDocuments.blockedDocuments.length > 0) {
+    pdf.setFontSize(11);
+    pdf.setTextColor(185, 28, 28);
+    pdf.text("ALERTA DE INTEGRIDAD FISCAL", 14, summaryStartY);
+    pdf.setFontSize(9);
+    const warning = pdf.splitTextToSize(
+      `Se han excluido ${fiscalDocuments.blockedDocuments.length} documento(s) bloqueado(s). Sus importes NO se incluyen en este resumen. Revise las incidencias antes de presentar impuestos.`,
+      182,
+    );
+    pdf.text(warning, 14, summaryStartY + 6);
+    pdf.setTextColor(0, 0, 0);
+
+    autoTable(pdf, {
+      startY: summaryStartY + 8 + warning.length * 4,
+      head: [["ID interno", "Fecha ref.", "Número ref.", "Incidencias"]],
+      body: fiscalDocuments.blockedDocuments.map((document) => [
+        document.id,
+        document.referenceDate,
+        document.referenceNumber,
+        document.issues.join(", "),
+      ]),
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [185, 28, 28] },
+    });
+    summaryStartY =
+      ((pdf as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY ?? summaryStartY + 16) + 8;
+  }
+
+  const summaryRows = vatExempt && taxes.salesIva === 0
     ? [
         ["Ingresos cobrados", formatMoney(periodIncome)],
         ["Gastos", formatMoney(periodSpent)],
@@ -74,7 +111,7 @@ export function buildAnnualSummaryPdf(
       ];
 
   autoTable(pdf, {
-    startY: 44,
+    startY: summaryStartY,
     head: [["Concepto", "Importe"]],
     body: summaryRows,
     styles: { fontSize: 9 },
@@ -83,7 +120,7 @@ export function buildAnnualSummaryPdf(
   });
 
   let cursorY = (pdf as jsPDF & { lastAutoTable?: { finalY: number } })
-    .lastAutoTable?.finalY ?? 44;
+    .lastAutoTable?.finalY ?? summaryStartY;
 
   const sales = yearDocs.filter(isTaxableSaleDocument);
   if (sales.length > 0) {
@@ -93,7 +130,7 @@ export function buildAnnualSummaryPdf(
       startY: cursorY + 14,
       head: [["Fecha", "Número", "Cliente", "Base", "IVA", "Total"]],
       body: sales.map((doc) => {
-        const totals = documentTotals(doc);
+        const totals = documentAmounts(doc, vatExempt);
         return [
           doc.date,
           doc.number,

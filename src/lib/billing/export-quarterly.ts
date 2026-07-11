@@ -1,12 +1,16 @@
-import { documentTotals, formatShortDate } from "../calculations";
+import { formatShortDate } from "../calculations";
 import { isTaxableSaleDocument } from "../taxes";
 import type { BusinessProfile, Document, Expense, Supplier } from "../types";
-import { isVatExempt } from "../vat-regime";
-import { quarterLabel, type Quarter } from "../periods";
-import { filterDocumentsByQuarter, filterExpensesByQuarter } from "../periods";
+import { documentAmounts, isVatExempt } from "../vat-regime";
+import { isDateInQuarter, quarterLabel, type Quarter } from "../periods";
+import { filterExpensesByQuarter } from "../periods";
 import { calculateTaxSummary } from "../taxes";
 import { csvRow, formatCsvAmount, formatCsvExportDate, downloadCsvFile } from "./csv-utils";
 import { buildExpensesTableSection } from "./export-expenses-csv";
+import {
+  selectCanonicalFiscalDocumentsForExport,
+  type FiscalExportBlockedDocument,
+} from "./fiscal-export-documents";
 
 const DOCUMENT_TYPE_LABELS: Record<Document["type"], string> = {
   factura: "Factura",
@@ -19,6 +23,38 @@ function documentTypeLabel(doc: Document): string {
   return DOCUMENT_TYPE_LABELS[doc.type];
 }
 
+function buildIntegrityAuditSection(
+  blockedDocuments: FiscalExportBlockedDocument[],
+): string[] {
+  if (blockedDocuments.length === 0) return [];
+
+  return [
+    "",
+    csvRow(["ALERTA DE INTEGRIDAD FISCAL"]),
+    csvRow(["Documentos excluidos", blockedDocuments.length]),
+    csvRow([
+      "Advertencia",
+      "Los importes de estos documentos NO se incluyen en el resumen ni en el libro de ventas. Revise las incidencias antes de presentar impuestos.",
+    ]),
+    "",
+    csvRow(["DOCUMENTOS EXCLUIDOS POR INTEGRIDAD"]),
+    csvRow([
+      "ID interno",
+      "Fecha de referencia no verificada",
+      "Número de referencia no verificado",
+      "Incidencias",
+    ]),
+    ...blockedDocuments.map((document) =>
+      csvRow([
+        document.id,
+        document.referenceDate,
+        document.referenceNumber,
+        document.issues.join(", "),
+      ]),
+    ),
+  ];
+}
+
 export function buildQuarterlyExportCsv(
   documents: Document[],
   expenses: Expense[],
@@ -29,7 +65,12 @@ export function buildQuarterlyExportCsv(
 ): string {
   const vatExempt = isVatExempt(profile);
   const period = quarterLabel(year, quarter);
-  const quarterDocs = filterDocumentsByQuarter(documents, year, quarter);
+  const fiscalDocuments = selectCanonicalFiscalDocumentsForExport(
+    documents,
+    profile,
+    (date) => isDateInQuarter(date, year, quarter),
+  );
+  const quarterDocs = fiscalDocuments.documents;
   const quarterExpenses = filterExpensesByQuarter(expenses, year, quarter);
   const taxes = calculateTaxSummary(quarterDocs, quarterExpenses, {
     irpfPercent: profile.irpfPercent,
@@ -57,6 +98,7 @@ export function buildQuarterlyExportCsv(
       "Nota",
       "Importes en EUR. Separador ; y decimales con coma (compatible con Excel en español).",
     ]),
+    ...buildIntegrityAuditSection(fiscalDocuments.blockedDocuments),
     "",
     csvRow(["RESUMEN DEL PERIODO"]),
     csvRow(["Concepto", "Importe (EUR)"]),
@@ -84,7 +126,7 @@ export function buildQuarterlyExportCsv(
   ];
 
   for (const doc of taxableDocs) {
-    const totals = documentTotals(doc);
+    const totals = documentAmounts(doc, vatExempt);
     salesBase += totals.subtotal;
     salesIva += totals.iva;
     salesTotal += totals.total;
