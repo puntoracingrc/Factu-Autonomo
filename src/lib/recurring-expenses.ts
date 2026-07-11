@@ -14,6 +14,65 @@ export type RecurringExpenseDraft = Omit<
   "id" | "createdAt" | "updatedAt" | "occurrenceExclusions"
 >;
 
+export interface FixedExpenseSaveOptions {
+  now: string;
+  newId: () => string;
+  referenceDate?: string;
+}
+
+export function saveFixedExpenseWithRecurringTemplateToData(
+  data: AppData,
+  expense: Omit<Expense, "id" | "createdAt"> | Expense,
+  item: RecurringExpenseDraft,
+  options: FixedExpenseSaveOptions,
+): { data: AppData; recurringExpense: RecurringExpense } {
+  const templateId = options.newId();
+  const recurringExpense: RecurringExpense = {
+    ...item,
+    id: templateId,
+    createdAt: options.now,
+    updatedAt: options.now,
+  };
+  const searchLimit = item.startDate
+    ? new Date(`${item.startDate}T00:00:00.000Z`)
+    : null;
+  searchLimit?.setUTCFullYear(searchLimit.getUTCFullYear() + 2);
+  const firstOccurrenceDate =
+    listRecurringOccurrenceDates(
+      recurringExpense,
+      searchLimit?.toISOString().split("T")[0] ?? expense.date,
+    )[0] ?? expense.date;
+  const existingId = "id" in expense ? expense.id : null;
+  const savedExpense: Expense = {
+    ...expense,
+    businessKind: "fixed",
+    recurringExpenseId: templateId,
+    recurringOccurrenceKey: occurrenceKey(templateId, firstOccurrenceDate),
+    id: existingId ?? options.newId(),
+    createdAt: "createdAt" in expense ? expense.createdAt : options.now,
+  };
+  const existingExpenseFound = existingId
+    ? data.expenses.some((entry) => entry.id === existingId)
+    : false;
+  const expenses = existingExpenseFound
+    ? data.expenses.map((entry) =>
+        entry.id === existingId ? savedExpense : entry,
+      )
+    : [...data.expenses, savedExpense];
+
+  return {
+    recurringExpense,
+    data: syncRecurringExpenses(
+      {
+        ...data,
+        recurringExpenses: [...data.recurringExpenses, recurringExpense],
+        expenses,
+      },
+      options.referenceDate,
+    ),
+  };
+}
+
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }

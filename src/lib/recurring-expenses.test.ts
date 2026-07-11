@@ -14,6 +14,7 @@ import {
   recurringExpenseStatusOn,
   recurringExpenseTotals,
   resolveDueDate,
+  saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
   type RecurringExpenseDraft,
 } from "./recurring-expenses";
@@ -80,6 +81,63 @@ describe("resolveDueDate", () => {
     expect(resolveDueDate(2026, 2, { kind: "day_of_month", day: 31 })).toBe(
       "2026-02-28",
     );
+  });
+});
+
+describe("saveFixedExpenseWithRecurringTemplateToData", () => {
+  it("guarda juntos el gasto escaneado y su regla mensual sin duplicar el cargo", () => {
+    const ids = ["fixed-template", "fixed-expense"];
+    const result = saveFixedExpenseWithRecurringTemplateToData(
+      EMPTY_DATA,
+      {
+        date: "2026-07-11",
+        origin: "scan",
+        businessKind: "fixed",
+        supplierName: "Google Commerce Limited",
+        description: "Suscripción mensual de streaming",
+        amount: 13.21,
+        ivaPercent: 21,
+        category: "Suscripciones",
+        paymentMethod: "Tarjeta",
+        purchaseDocument: { invoiceNumber: "GPA-ANONIMIZADO" },
+      },
+      {
+        supplierName: "Google Commerce Limited",
+        description: "Suscripción mensual de streaming",
+        amount: 13.21,
+        ivaPercent: 21,
+        category: "Suscripciones",
+        paymentMethod: "Tarjeta",
+        frequency: "monthly",
+        dueTiming: { kind: "end_of_month" },
+        duration: { kind: "indefinite" },
+        startDate: "2026-07-11",
+        enabled: true,
+      },
+      {
+        now: "2026-07-11T20:05:00.000Z",
+        newId: () => ids.shift() ?? "unexpected-id",
+        referenceDate: "2026-07-31",
+      },
+    );
+
+    expect(result.recurringExpense).toMatchObject({
+      id: "fixed-template",
+      frequency: "monthly",
+      startDate: "2026-07-11",
+    });
+    expect(result.data.recurringExpenses).toEqual([
+      result.recurringExpense,
+    ]);
+    expect(result.data.expenses).toHaveLength(1);
+    expect(result.data.expenses[0]).toMatchObject({
+      id: "fixed-expense",
+      origin: "scan",
+      businessKind: "fixed",
+      recurringExpenseId: "fixed-template",
+      recurringOccurrenceKey: "fixed-template:2026-07-31",
+      purchaseDocument: { invoiceNumber: "GPA-ANONIMIZADO" },
+    });
   });
 });
 

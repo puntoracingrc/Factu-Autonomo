@@ -26,8 +26,7 @@ import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
   deleteRecurringExpenseFromData,
-  listRecurringOccurrenceDates,
-  occurrenceKey,
+  saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
   type RecurringExpenseDraft,
 } from "@/lib/recurring-expenses";
@@ -1269,55 +1268,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       item: RecurringExpenseDraft,
     ): RecurringExpense => {
       const now = new Date().toISOString();
-      const templateId = newId();
-      const created: RecurringExpense = {
-        ...item,
-        id: templateId,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const searchLimit = item.startDate
-        ? new Date(`${item.startDate}T00:00:00.000Z`)
-        : null;
-      searchLimit?.setUTCFullYear(searchLimit.getUTCFullYear() + 2);
-      const firstOccurrenceDate =
-        listRecurringOccurrenceDates(
-          created,
-          searchLimit?.toISOString().split("T")[0] ?? expense.date,
-        )[0] ?? expense.date;
-      const linkedExpense = {
-        ...expense,
-        businessKind: "fixed" as const,
-        recurringExpenseId: templateId,
-        recurringOccurrenceKey: occurrenceKey(templateId, firstOccurrenceDate),
-      };
+      let created: RecurringExpense | null = null;
 
       setAppData((prev) => {
-        const existingId = "id" in expense ? expense.id : null;
-        const existingCreatedAt =
-          "createdAt" in expense ? expense.createdAt : now;
-        const savedExpense: Expense = {
-          ...linkedExpense,
-          id: existingId ?? newId(),
-          createdAt: existingCreatedAt,
-        };
-        const existingExpenseFound = existingId
-          ? prev.expenses.some((entry) => entry.id === existingId)
-          : false;
-
-        const expenses = existingExpenseFound
-          ? prev.expenses.map((entry) =>
-              entry.id === existingId ? savedExpense : entry,
-            )
-          : [...prev.expenses, savedExpense];
-
-        return syncRecurringExpenses({
-          ...prev,
-          recurringExpenses: [...prev.recurringExpenses, created],
-          expenses,
-        });
+        const result = saveFixedExpenseWithRecurringTemplateToData(
+          prev,
+          expense,
+          item,
+          { now, newId },
+        );
+        created = result.recurringExpense;
+        return result.data;
       });
 
+      if (!created) {
+        throw new Error(
+          "No se pudo crear la regla recurrente del gasto fijo",
+        );
+      }
       return created;
     },
     [setAppData],
