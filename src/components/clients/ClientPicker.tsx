@@ -471,7 +471,14 @@ export function ClientPicker({
 }
 
 export function clientToFormValues(client: Client): ClientFormValues {
-  const { streetType, streetLine, addressExtra, residenceType } =
+  const {
+    streetType,
+    streetLine,
+    addressExtra,
+    residenceType,
+    city,
+    postalCode,
+  } =
     clientAddressToFormFields(client);
   const customerType = normalizeCustomerType(client.customerType);
   const name = client.name ?? "";
@@ -493,8 +500,8 @@ export function clientToFormValues(client: Client): ClientFormValues {
     residenceType,
     address: streetLine,
     addressExtra,
-    city: "",
-    postalCode: "",
+    city,
+    postalCode,
     notes: "",
   };
 }

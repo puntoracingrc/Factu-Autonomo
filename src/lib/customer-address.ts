@@ -522,28 +522,76 @@ export function normalizeCustomerStreetFields(customer: Customer): Customer {
 }
 
 export function clientAddressToFormFields(
-  client: Pick<Client, "streetType" | "address" | "addressExtra" | "residenceType">,
+  client: Pick<
+    Client,
+    | "streetType"
+    | "address"
+    | "addressExtra"
+    | "residenceType"
+    | "city"
+    | "postalCode"
+  >,
 ): {
   streetType: string;
   streetLine: string;
   addressExtra: string;
   residenceType: AddressResidenceType;
+  city: string;
+  postalCode: string;
 } {
   const segments = (client.address ?? "")
-    .split(",")
+    .split(/,|\r?\n/)
     .map((segment) => segment.trim())
     .filter(Boolean);
-  const firstSegment = segments[0] ?? client.address?.trim() ?? "";
+  const postalSegmentIndex = segments.findIndex((segment) =>
+    /^\d{5}(?:\s+.*)?$/.test(segment),
+  );
+  const postalSegment =
+    postalSegmentIndex >= 0 ? segments[postalSegmentIndex] : undefined;
+  const postalMatch = postalSegment?.match(/^(\d{5})(?:\s+(.*))?$/);
+  const legacyCity = postalMatch
+    ? [postalMatch[2], ...segments.slice(postalSegmentIndex + 1)]
+        .filter(Boolean)
+        .join(", ")
+    : "";
+  const structuredCity = client.city?.trim() ?? "";
+  const normalizedStructuredCity = structuredCity
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("es");
+  const structuredCitySegmentIndex =
+    postalSegmentIndex < 0 && normalizedStructuredCity
+      ? segments.findIndex(
+          (_, index) =>
+            segments
+              .slice(index)
+              .join(", ")
+              .replace(/\s+/g, " ")
+              .toLocaleLowerCase("es") === normalizedStructuredCity,
+        )
+      : -1;
+  const localitySegmentIndex =
+    postalSegmentIndex >= 0
+      ? postalSegmentIndex
+      : structuredCitySegmentIndex;
+  const addressSegments =
+    localitySegmentIndex >= 0
+      ? segments.slice(0, localitySegmentIndex)
+      : segments;
+  const firstSegment = addressSegments[0] ?? "";
   const explicitAddressExtra = formatAddressExtra(
     client.residenceType,
     client.addressExtra,
   );
   const inferredAddressExtra =
     explicitAddressExtra ||
-    (segments[1] && !/^\d{5}\b/.test(segments[1]) ? segments[1] : "");
+    (addressSegments[1] && !/^\d{5}\b/.test(addressSegments[1])
+      ? addressSegments[1]
+      : "");
   const residenceType = normalizeResidenceType(
     client.residenceType ?? (inferredAddressExtra ? "flat" : undefined),
   );
+  const city = structuredCity || legacyCity;
+  const postalCode = client.postalCode?.trim() || postalMatch?.[1] || "";
 
   if (client.streetType) {
     const type = getStreetType(client.streetType);
@@ -555,6 +603,8 @@ export function clientAddressToFormFields(
         streetLine: firstSegment.replace(prefixPattern, "").trim() || firstSegment,
         addressExtra: inferredAddressExtra,
         residenceType,
+        city,
+        postalCode,
       };
     }
     return {
@@ -562,6 +612,8 @@ export function clientAddressToFormFields(
       streetLine: firstSegment,
       addressExtra: inferredAddressExtra,
       residenceType,
+      city,
+      postalCode,
     };
   }
 
@@ -571,5 +623,7 @@ export function clientAddressToFormFields(
     streetLine,
     addressExtra: inferredAddressExtra,
     residenceType,
+    city,
+    postalCode,
   };
 }

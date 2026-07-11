@@ -1,6 +1,7 @@
 import type { BusinessProfile, Document, DocumentType, LineItem } from "./types";
 import { isEmittedDocument } from "./issuer-snapshot";
 import { businessProfileMissingDocumentLabels } from "./business-profile";
+import { clientAddressToFormFields } from "./customer-address";
 
 export interface EmissionValidationResult {
   ok: boolean;
@@ -68,6 +69,21 @@ export function validateDocumentEmission(
 
   if (doc.items.every((item) => !item.description.trim())) {
     return { ok: false, message: "Añade al menos un concepto." };
+  }
+
+  const address = clientAddressToFormFields(doc.client);
+  const missingClientLabels = invoiceClientMissingDocumentLabels({
+    name: doc.client.name,
+    nif: doc.client.nif,
+    address: address.streetLine,
+    postalCode: address.postalCode,
+    city: address.city,
+  });
+  if (missingClientLabels.length > 0) {
+    return {
+      ok: false,
+      message: `Completa estos datos del cliente antes de emitir la factura: ${missingClientLabels.join(", ")}.`,
+    };
   }
 
   const missing = businessProfileMissingDocumentLabels(profile);

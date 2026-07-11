@@ -286,6 +286,43 @@ export function buildDocumentPdfSnapshot(
   };
 }
 
+export function attachRegisteredVerifactuToSnapshots(
+  doc: Document,
+): Document {
+  const verifactu = doc.verifactu;
+  if (
+    !doc.documentSnapshot ||
+    !verifactu ||
+    (verifactu.status !== "registered" &&
+      verifactu.status !== "test_registered")
+  ) {
+    return doc;
+  }
+
+  const documentSnapshot: DocumentSnapshot = {
+    ...doc.documentSnapshot,
+    verifactu: cloneVerifactu(verifactu),
+    snapshotHash: "",
+  };
+  documentSnapshot.snapshotHash = hashDocumentSnapshot(documentSnapshot);
+
+  const pdfSnapshot = doc.pdfSnapshot
+    ? {
+        ...doc.pdfSnapshot,
+        contentHash: hashDocumentPdfSnapshot({
+          ...doc.pdfSnapshot,
+          documentSnapshotHash: documentSnapshot.snapshotHash,
+        }),
+      }
+    : undefined;
+
+  return {
+    ...doc,
+    documentSnapshot,
+    pdfSnapshot,
+  };
+}
+
 export function hasDocumentSnapshot(
   doc: Document,
 ): doc is Document & { documentSnapshot: DocumentSnapshot } {

@@ -560,6 +560,8 @@ export function customerToClient(customer: Customer): Client {
     residenceType: migrated.residenceType,
     addressExtra: migrated.addressExtra,
     address: formatCustomerAddressBlock(migrated) || migrated.address,
+    city: migrated.city?.trim() || undefined,
+    postalCode: migrated.postalCode?.trim() || undefined,
   };
 }
 
@@ -872,6 +874,8 @@ export function clientInputToSnapshot(input: ClientInput): Client {
     residenceType,
     addressExtra: addressExtra || undefined,
     address: addressBlock || input.address?.trim() || undefined,
+    city: input.city?.trim() || undefined,
+    postalCode: input.postalCode?.trim() || undefined,
   };
 }
 

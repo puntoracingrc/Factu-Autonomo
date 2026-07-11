@@ -13,10 +13,6 @@ import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
-import {
-  formatAddressBlock,
-  residenceTypeAllowsAddressExtra,
-} from "@/lib/customer-address";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -26,7 +22,11 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "@/lib/vat-regime";
-import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import {
+  invoiceClientMissingDocumentLabels,
+  validateDocumentEmission,
+} from "@/lib/invoice-compliance";
+import { clientInputToSnapshot } from "@/lib/customers";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
@@ -99,7 +99,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     initialTextDefaults.paymentTerms,
   );
   const [clientForm, setClientForm] = useState<ClientFormValues>(
-    clientToFormValues(original.client),
+    clientToFormValues(original.documentSnapshot?.customer ?? original.client),
   );
   const [items, setItems] = useState<LineItem[]>(() =>
     normalizeLineItemUnits(itemsForAnulacion(original.items), unitsSettings),
@@ -163,30 +163,21 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   }
 
   function rectificativaClient() {
-    return {
+    return clientInputToSnapshot({
+      customerType: clientForm.customerType,
       firstName: clientForm.firstName,
       lastName: clientForm.lastName,
-      name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
-      nif: clientForm.nif || undefined,
-      email: clientForm.email || undefined,
-      phone: clientForm.phone || undefined,
-      streetType: clientForm.streetType || undefined,
+      contactName: clientForm.contactName,
+      nif: clientForm.nif,
+      email: clientForm.email,
+      phone: clientForm.phone,
+      streetType: clientForm.streetType,
       residenceType: clientForm.residenceType,
-      addressExtra: residenceTypeAllowsAddressExtra(clientForm.residenceType)
-        ? clientForm.addressExtra || undefined
-        : undefined,
-      address:
-        formatAddressBlock({
-          streetType: clientForm.streetType,
-          address: clientForm.address,
-          residenceType: clientForm.residenceType,
-          addressExtra: clientForm.addressExtra,
-          postalCode: clientForm.postalCode,
-          city: clientForm.city,
-        }) ||
-        clientForm.address ||
-        undefined,
-    };
+      address: clientForm.address,
+      addressExtra: clientForm.addressExtra,
+      postalCode: clientForm.postalCode,
+      city: clientForm.city,
+    });
   }
 
   function buildRectificativaDraft(status: Document["status"]): Document {
@@ -269,14 +260,28 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     }
 
     if (!isDraft) {
+      const client = rectificativaClient();
+      const clientLegalLabels = invoiceClientMissingDocumentLabels({
+        name: client.name,
+        nif: client.nif,
+        address: clientForm.address,
+        postalCode: clientForm.postalCode,
+        city: clientForm.city,
+      });
+      if (clientLegalLabels.length > 0) {
+        alert(
+          `Completa estos datos del cliente antes de emitir la factura rectificativa: ${clientLegalLabels.join(", ")}.`,
+        );
+        setSaveAction("idle");
+        return;
+      }
+
       const emissionCheck = validateDocumentEmission(
         {
           type: "factura",
           status: statusOverride,
-          client: {
-            name: `${clientForm.firstName} ${clientForm.lastName}`.trim(),
-          },
-          items,
+          client,
+          items: rectificativaItemsForSave(),
         },
         data.profile,
         "factura",
@@ -288,24 +293,35 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       }
     }
 
-    let saved = addRectificativa(original.id, {
-      date,
-      client: rectificativaClient(),
-      customerId: original.customerId,
-      items: rectificativaItemsForSave(),
-      notes: notes || undefined,
-      paymentTerms: paymentTerms.trim() || undefined,
-      status: statusOverride,
-      sourceQuoteDocumentId: original.sourceQuoteDocumentId,
-      sourceQuoteNumber: original.sourceQuoteNumber,
-      rectification: {
-        originalDocumentId: original.id,
-        originalNumber: original.number,
-        originalDate: original.date,
-        reason: finalReason,
-        type: rectType,
-      },
-    });
+    let saved: Document | null;
+    try {
+      saved = await addRectificativa(original.id, {
+        date,
+        client: rectificativaClient(),
+        customerId: original.customerId,
+        items: rectificativaItemsForSave(),
+        notes: notes || undefined,
+        paymentTerms: paymentTerms.trim() || undefined,
+        status: statusOverride,
+        sourceQuoteDocumentId: original.sourceQuoteDocumentId,
+        sourceQuoteNumber: original.sourceQuoteNumber,
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          reason: finalReason,
+          type: rectType,
+        },
+      });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "No se pudo crear la factura rectificativa.",
+      );
+      setSaveAction("idle");
+      return;
+    }
 
     if (!saved) {
       alert("No se pudo crear la factura rectificativa");
@@ -324,8 +340,6 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       });
       return;
     }
-
-    saved = attachIssuerSnapshot(saved, data.profile);
 
     try {
       saved = await finalizeVerifactuDocument({
@@ -444,6 +458,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
           onChange={(field, value) =>
             setClientForm((prev) => ({ ...prev, [field]: value }))
           }
+          requireInvoiceFields
         />
       </Card>
 

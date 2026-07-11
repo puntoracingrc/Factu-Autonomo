@@ -169,6 +169,8 @@ describe("clientAddressToFormFields", () => {
       streetLine: "Mayor 1",
       addressExtra: "",
       residenceType: "",
+      city: "Madrid",
+      postalCode: "28001",
     });
   });
 
@@ -185,6 +187,109 @@ describe("clientAddressToFormFields", () => {
       streetLine: "Mayor 1",
       addressExtra: "2º 2ª",
       residenceType: "flat",
+      city: "Madrid",
+      postalCode: "28001",
     });
+  });
+
+  it("prioriza CP y ciudad estructurados y elimina el bloque legacy de la vía", () => {
+    expect(
+      clientAddressToFormFields({
+        streetType: "calle",
+        address: "C/ Mayor 1, 2º 2ª, 99999 Ciudad antigua",
+        residenceType: "flat",
+        addressExtra: "2º 2ª",
+        postalCode: "28001",
+        city: "Madrid",
+      }),
+    ).toEqual({
+      streetType: "calle",
+      streetLine: "Mayor 1",
+      addressExtra: "2º 2ª",
+      residenceType: "flat",
+      city: "Madrid",
+      postalCode: "28001",
+    });
+  });
+
+  it("recupera ciudades legacy de varias palabras sin duplicarlas al reconstruir", () => {
+    const fields = clientAddressToFormFields({
+      address: "Calle Mayor 1, 35001 Las Palmas de Gran Canaria",
+    });
+
+    expect(fields).toEqual({
+      streetType: "calle",
+      streetLine: "Mayor 1",
+      addressExtra: "",
+      residenceType: "",
+      city: "Las Palmas de Gran Canaria",
+      postalCode: "35001",
+    });
+    expect(
+      formatAddressBlock({
+        streetType: fields.streetType,
+        address: fields.streetLine,
+        addressExtra: fields.addressExtra,
+        residenceType: fields.residenceType,
+        city: fields.city,
+        postalCode: fields.postalCode,
+      }),
+    ).toBe("C/ Mayor 1, 35001 Las Palmas de Gran Canaria");
+  });
+
+  it("no interpreta una ciudad estructurada sin CP como complemento de dirección", () => {
+    const fields = clientAddressToFormFields({
+      streetType: "calle",
+      address: "C/ Mayor 1, Madrid",
+      city: "Madrid",
+    });
+
+    expect(fields).toEqual({
+      streetType: "calle",
+      streetLine: "Mayor 1",
+      addressExtra: "",
+      residenceType: "",
+      city: "Madrid",
+      postalCode: "",
+    });
+    expect(
+      formatAddressBlock({
+        streetType: fields.streetType,
+        address: fields.streetLine,
+        addressExtra: fields.addressExtra,
+        residenceType: fields.residenceType,
+        city: fields.city,
+        postalCode: fields.postalCode,
+      }),
+    ).toBe("C/ Mayor 1, Madrid");
+  });
+
+  it("conserva complemento y ciudad compuesta sin CP durante el roundtrip", () => {
+    const originalAddress =
+      "C/ Mayor 1, 2º 2ª, Las Palmas de Gran Canaria";
+    const fields = clientAddressToFormFields({
+      address: originalAddress,
+      residenceType: "flat",
+      city: "Las Palmas de Gran Canaria",
+    });
+
+    expect(fields).toEqual({
+      streetType: "calle",
+      streetLine: "Mayor 1",
+      addressExtra: "2º 2ª",
+      residenceType: "flat",
+      city: "Las Palmas de Gran Canaria",
+      postalCode: "",
+    });
+    expect(
+      formatAddressBlock({
+        streetType: fields.streetType,
+        address: fields.streetLine,
+        addressExtra: fields.addressExtra,
+        residenceType: fields.residenceType,
+        city: fields.city,
+        postalCode: fields.postalCode,
+      }),
+    ).toBe(originalAddress);
   });
 });

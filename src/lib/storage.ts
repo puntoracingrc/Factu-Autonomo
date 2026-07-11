@@ -163,10 +163,40 @@ function shouldBackfillHistoricalSnapshot(doc: Document): boolean {
   return deriveDocumentLifecycle(doc) !== "draft";
 }
 
+function isRecoverableLegacyRectificationDraft(doc: Document): boolean {
+  if (!doc.rectification || doc.status !== "borrador") return false;
+  if (doc.number.trim().toUpperCase() !== "BORRADOR") return false;
+  if (doc.verifactu || doc.issuedAt || doc.documentLifecycle === "canceled") {
+    return false;
+  }
+  return (
+    !doc.documentSnapshot ||
+    doc.documentSnapshot.source === "legacy_backfill"
+  );
+}
+
 function normalizeHistoricalDocument(
   doc: Document,
   profile: BusinessProfile,
 ): Document {
+  if (isRecoverableLegacyRectificationDraft(doc)) {
+    return {
+      ...doc,
+      issuer: undefined,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      deliveryStatus: undefined,
+      paymentStatus: undefined,
+      acceptanceStatus: undefined,
+      issuedAt: undefined,
+      sentAt: undefined,
+      paidAt: undefined,
+      acceptedAt: undefined,
+    };
+  }
+
   const lifecycle = deriveDocumentLifecycle(doc);
   const integrityLock = deriveIntegrityLock(doc);
   if (!shouldBackfillHistoricalSnapshot(doc)) {

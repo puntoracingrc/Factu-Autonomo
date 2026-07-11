@@ -98,6 +98,10 @@ export interface Client {
   /** Tipo de inmueble cuando ayuda a entender la dirección. */
   residenceType?: AddressResidenceType;
   address?: string;
+  /** Ciudad congelada en el documento. */
+  city?: string;
+  /** Código postal congelado en el documento. */
+  postalCode?: string;
 }
 
 export interface Customer {

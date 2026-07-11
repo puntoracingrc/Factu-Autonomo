@@ -17,6 +17,7 @@ export {
   DOCUMENT_PDF_RENDERER_VERSION,
   DOCUMENT_PDF_SNAPSHOT_SCHEMA_VERSION,
   DOCUMENT_SNAPSHOT_SCHEMA_VERSION,
+  attachRegisteredVerifactuToSnapshots,
   buildDocumentPdfSnapshot,
   buildDocumentSnapshot,
   deriveLegacySnapshotForReadOnly,
@@ -35,7 +36,11 @@ export type DocumentIntegrityErrorCode =
   | "DOCUMENT_NOT_ISSUED"
   | "DOCUMENT_NUMBER_REQUIRED"
   | "GENERIC_UPDATE_WOULD_LOCK_DOCUMENT"
-  | "INVALID_DOCUMENT_TYPE";
+  | "INVALID_DOCUMENT_TYPE"
+  | "DOCUMENT_EMISSION_INVALID"
+  | "RECTIFICATION_ORIGINAL_MISSING"
+  | "RECTIFICATION_ORIGINAL_INVALID"
+  | "RECTIFICATION_CONFLICT";
 
 const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
   DOCUMENT_ID_MISMATCH: "El documento no coincide con el registro guardado.",
@@ -46,6 +51,13 @@ const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
   GENERIC_UPDATE_WOULD_LOCK_DOCUMENT:
     "La edición genérica no puede emitir ni bloquear documentos.",
   INVALID_DOCUMENT_TYPE: "La operación no es válida para este tipo de documento.",
+  DOCUMENT_EMISSION_INVALID: "Faltan datos obligatorios antes de emitir.",
+  RECTIFICATION_ORIGINAL_MISSING:
+    "No se encuentra la factura original de esta rectificativa.",
+  RECTIFICATION_ORIGINAL_INVALID:
+    "La referencia original no es una factura emitida válida para rectificar.",
+  RECTIFICATION_CONFLICT:
+    "La factura original ya tiene otra rectificativa emitida. Revisa la cadena antes de continuar.",
 };
 
 export class DocumentIntegrityError extends Error {
@@ -66,8 +78,32 @@ function hasLegacyIssuedStatus(doc: Document): boolean {
   return doc.status !== "borrador";
 }
 
+function hasIssuedRectificationEvidence(doc: Document): boolean {
+  const number = doc.number.trim().toUpperCase();
+  const hasFinalNumber = Boolean(number && number !== "BORRADOR");
+  const hasExplicitDraftMarkers =
+    doc.documentLifecycle === "draft" && doc.integrityLock === "unlocked";
+
+  return Boolean(
+    doc.rectification &&
+      (doc.documentSnapshot ||
+        doc.pdfSnapshot ||
+        doc.verifactu ||
+        doc.issuedAt ||
+        doc.documentLifecycle === "issued" ||
+        doc.integrityLock === "locked" ||
+        (hasFinalNumber && !hasExplicitDraftMarkers)),
+  );
+}
+
 function hasIntegrityRelationship(doc: Document): boolean {
-  return Boolean(doc.rectification || doc.rectifiedById);
+  if (doc.rectifiedById) return true;
+  if (!doc.rectification) return false;
+
+  // Una rectificativa puede existir como borrador editable. La relación con la
+  // factura original solo se convierte en evidencia de emisión cuando deja de
+  // ser borrador o ya contiene señales de sellado documental.
+  return doc.status !== "borrador" || hasIssuedRectificationEvidence(doc);
 }
 
 export function deriveDocumentLifecycle(doc: Document): DocumentLifecycle {

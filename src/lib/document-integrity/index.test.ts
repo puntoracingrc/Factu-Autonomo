@@ -154,6 +154,109 @@ describe("document integrity domain", () => {
     expect(updated.integrityLock).toBe("unlocked");
   });
 
+  it("mantiene una rectificativa borrador editable y desbloqueada", () => {
+    const draftRectification = doc({
+      id: "rectification-draft",
+      number: "BORRADOR",
+      issuer: undefined,
+      verifactu: undefined,
+      rectification: {
+        originalDocumentId: "original-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-05-01",
+        reason: "Error en el importe",
+        type: "correccion",
+      },
+    });
+
+    expect(deriveDocumentLifecycle(draftRectification)).toBe("draft");
+    expect(deriveIntegrityLock(draftRectification)).toBe("unlocked");
+    expect(() => assertDocumentEditable(draftRectification)).not.toThrow();
+  });
+
+  it("protege una rectificativa BORRADOR que ya tiene número definitivo", () => {
+    const legacyNumberedRectification = doc({
+      id: "legacy-numbered-rectification",
+      number: "FR-2026-0008",
+      issuer: undefined,
+      verifactu: undefined,
+      documentLifecycle: undefined,
+      integrityLock: undefined,
+      rectification: {
+        originalDocumentId: "original-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-05-01",
+        reason: "Error en el importe",
+        type: "correccion",
+      },
+    });
+
+    expect(deriveDocumentLifecycle(legacyNumberedRectification)).toBe("issued");
+    expect(deriveIntegrityLock(legacyNumberedRectification)).toBe("locked");
+    expectIntegrityError(
+      () => assertDocumentEditable(legacyNumberedRectification),
+      "DOCUMENT_LOCKED",
+    );
+  });
+
+  it("permite al pipeline emitir una FR marcada explícitamente como draft", () => {
+    const pipelineDraft = doc({
+      id: "pipeline-rectification",
+      number: "FR-2026-0009",
+      issuer: undefined,
+      verifactu: undefined,
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      rectification: {
+        originalDocumentId: "original-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-05-01",
+        reason: "Error en el importe",
+        type: "correccion",
+      },
+    });
+
+    expect(deriveDocumentLifecycle(pipelineDraft)).toBe("draft");
+    expect(deriveIntegrityLock(pipelineDraft)).toBe("unlocked");
+
+    const issued = issueDocument(pipelineDraft, profile, NOW);
+    expect(issued).toMatchObject({
+      number: "FR-2026-0009",
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+    });
+  });
+
+  it("mantiene protegido el original enlazado aunque su estado sea borrador", () => {
+    const rectifiedOriginal = doc({
+      rectifiedById: "rectification-1",
+    });
+
+    expect(deriveDocumentLifecycle(rectifiedOriginal)).toBe("issued");
+    expect(deriveIntegrityLock(rectifiedOriginal)).toBe("locked");
+    expectIntegrityError(
+      () => assertDocumentEditable(rectifiedOriginal),
+      "DOCUMENT_LOCKED",
+    );
+  });
+
+  it("trata un registro VeriFactu como evidencia irreversible de emisión", () => {
+    const registeredRectification = doc({
+      number: "BORRADOR",
+      rectification: {
+        originalDocumentId: "original-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-05-01",
+        reason: "Error en el importe",
+        type: "correccion",
+      },
+    });
+
+    expect(deriveDocumentLifecycle(registeredRectification)).toBe("issued");
+    expect(deriveIntegrityLock(registeredRectification)).toBe("locked");
+  });
+
   it("bloquea documentos legacy no borrador", () => {
     const legacy = doc({ status: "enviado" });
 
@@ -276,6 +379,47 @@ describe("document integrity domain", () => {
   it("issueDocument rechaza una segunda emisión", () => {
     const issued = issueDocument(doc(), profile, NOW);
 
+    expectIntegrityError(
+      () => issueDocument(issued, profile, NOW),
+      "DOCUMENT_ALREADY_ISSUED",
+    );
+  });
+
+  it("emite y bloquea una rectificativa FR con sus snapshots canónicos", () => {
+    const rectification = {
+      originalDocumentId: "original-1",
+      originalNumber: "F-2026-0001",
+      originalDate: "2026-05-01",
+      reason: "Error en el importe",
+      type: "correccion" as const,
+    };
+    const draftRectification = doc({
+      id: "rectification-1",
+      number: "FR-2026-0001",
+      issuer: undefined,
+      rectification,
+      verifactu: undefined,
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+    });
+
+    const issued = issueDocument(draftRectification, profile, NOW);
+
+    expect(issued.issuer).toMatchObject({
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+    });
+    expect(issued.documentSnapshot).toMatchObject({
+      source: "issue",
+      documentKind: "factura_rectificativa",
+      number: "FR-2026-0001",
+      rectification,
+    });
+    expect(issued.pdfSnapshot).toBeDefined();
+    expect(issued.status).toBe("enviado");
+    expect(issued.documentLifecycle).toBe("issued");
+    expect(issued.integrityLock).toBe("locked");
     expectIntegrityError(
       () => issueDocument(issued, profile, NOW),
       "DOCUMENT_ALREADY_ISSUED",

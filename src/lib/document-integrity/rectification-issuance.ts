@@ -1,0 +1,121 @@
+import { DocumentIntegrityError } from "@/lib/document-integrity";
+import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import type { BusinessProfile, Document } from "@/lib/types";
+
+export function hasPendingRectificationDraft(
+  documents: Document[],
+  originalDocumentId: string,
+): boolean {
+  return documents.some(
+    (candidate) =>
+      candidate.status === "borrador" &&
+      candidate.rectification?.originalDocumentId === originalDocumentId,
+  );
+}
+
+export function assertRectificationEmissionAllowed(
+  document: Document,
+  documents: Document[],
+): void {
+  const rectification = document.rectification;
+  if (!rectification) return;
+
+  const original = documents.find(
+    (candidate) => candidate.id === rectification.originalDocumentId,
+  );
+  if (!original) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
+  }
+
+  if (original.id === document.id || original.type !== "factura") {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  if (original.rectifiedById && original.rectifiedById !== document.id) {
+    throw new DocumentIntegrityError("RECTIFICATION_CONFLICT");
+  }
+
+  const alreadyLinkedToThisRectification =
+    original.rectifiedById === document.id;
+  if (
+    !alreadyLinkedToThisRectification &&
+    (original.status === "borrador" ||
+      original.status === "anulada" ||
+      original.status === "rectificada")
+  ) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+}
+
+export function preserveRectificationOriginalReference(
+  current: Document,
+  next: Document,
+  documents: Document[],
+): Document {
+  if (!current.rectification) return next;
+
+  const original = documents.find(
+    (candidate) =>
+      candidate.id === current.rectification!.originalDocumentId,
+  );
+  if (!original) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
+  }
+
+  return {
+    ...next,
+    rectification: {
+      ...(next.rectification ?? current.rectification),
+      originalDocumentId: original.id,
+      originalNumber: original.number,
+      originalDate: original.date,
+    },
+  };
+}
+
+/**
+ * Materializa una rectificativa nueva con las mismas garantías de integridad
+ * que cualquier otra factura: los borradores quedan editables y las emisiones
+ * salen con emisor, snapshots y bloqueo documental en una única operación.
+ */
+export function materializeRectificationDocument(
+  source: Document,
+  profile: BusinessProfile,
+  createdAt: Date | string = new Date(),
+): Document {
+  if (!source.rectification) {
+    throw new Error("RECTIFICATION_INFO_REQUIRED");
+  }
+
+  const timestamp =
+    typeof createdAt === "string" ? createdAt : createdAt.toISOString();
+  const requestedStatus = source.status;
+  const draft: Document = {
+    ...source,
+    status: "borrador",
+    issuer: undefined,
+    verifactu: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    deliveryStatus: undefined,
+    paymentStatus: undefined,
+    acceptanceStatus: undefined,
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+    acceptedAt: undefined,
+    createdAt: source.createdAt || timestamp,
+    updatedAt: timestamp,
+  };
+
+  if (requestedStatus === "borrador") return draft;
+
+  return issueDraftDocumentWithStatus(
+    draft,
+    requestedStatus,
+    profile,
+    timestamp,
+  );
+}
