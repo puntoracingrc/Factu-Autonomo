@@ -87,14 +87,14 @@ export function prepareExpenseVatForSave(
   vatExempt = false,
 ): ExpenseVatSavePreparation {
   const rawResolution = resolveExpenseVat(draft, vatExempt);
-  if (vatExempt || isFixedNonDeductible(draft) || draft.amount <= 0) {
+  if (vatExempt || isFixedNonDeductible(draft) || draft.amount === 0) {
     return {
       ok: true,
       purchaseLines: draft.purchaseLines ?? [],
       resolution: rawResolution,
     };
   }
-  if (draft.amount > 0 && rawResolution.blocked) {
+  if (rawResolution.blocked) {
     return {
       ok: false,
       purchaseLines: draft.purchaseLines ?? [],

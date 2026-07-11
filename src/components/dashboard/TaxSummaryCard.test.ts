@@ -76,12 +76,12 @@ describe("TaxSummaryCard fiscal semantics", () => {
   it("explica los gastos no deducibles sin ocultar que siguen en control", () => {
     expect(source).toContain("taxes.nonDeductibleExpenseCount");
     expect(source).toContain("taxes.nonDeductibleExpenseTotal");
-    expect(source).toContain("gasto no deducible");
+    expect(source).toContain("movimiento no deducible");
     expect(source).toContain("sigue en Gastos, balance y rentabilidad");
-    expect(source).toContain("sí reduce el beneficio");
-    expect(source).toContain("aporta 0 a la base");
-    expect(source).toContain("no reduce la");
-    expect(source).toContain("estimación de IRPF");
+    expect(source).toContain("Un gasto reduce el beneficio");
+    expect(source).toContain("un abono revierte coste");
+    expect(source).toContain("aportan 0 a la base");
+    expect(source).toContain("no alteran la estimación fiscal de IRPF");
     expect(source).toMatch(
       /const hasSummaryData =[\s\S]*taxes\.nonDeductibleExpenseCount > 0[\s\S]*taxes\.unsupportedMixedVatExpenses > 0;/,
     );
@@ -89,5 +89,14 @@ describe("TaxSummaryCard fiscal semantics", () => {
     expect(source).not.toContain(
       "No hay ventas ni gastos fiscalmente deducibles en este periodo.",
     );
+  });
+
+  it("presenta bases firmadas como netas sin dibujar barras negativas", () => {
+    expect(source).toContain("IVA deducible neto (gastos y abonos)");
+    expect(source).toContain("Base neta deducible (gastos y abonos)");
+    expect(source).toContain("coste económico neto de gastos y abonos");
+    expect(source).toContain("Math.max(0, value)");
+    expect(source).toContain("taxes.lineVatExpenseCount > 0");
+    expect(source).toContain("taxes.headerVatExpenseCount > 0");
   });
 });

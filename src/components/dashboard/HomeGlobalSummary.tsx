@@ -25,6 +25,7 @@ export function HomeGlobalSummary({ data, embedded = false }: HomeGlobalSummaryP
   );
   const pending = pendingCollection(data.documents);
   const expenses = totalExpensesAmount(data.expenses, vatExempt);
+  const expenseBalanceIsCredit = expenses < 0;
   const balance = income - expenses;
 
   const grid = (
@@ -36,9 +37,11 @@ export function HomeGlobalSummary({ data, embedded = false }: HomeGlobalSummaryP
         </p>
       </Card>
       <Card className="border-slate-100 bg-slate-50/60">
-        <p className="text-xs font-medium text-slate-500">Gastos</p>
+        <p className="text-xs font-medium text-slate-500">
+          {expenseBalanceIsCredit ? "Saldo a favor" : "Gasto neto"}
+        </p>
         <p className="mt-0.5 text-xl font-bold text-slate-800">
-          {formatMoney(expenses)}
+          {formatMoney(Math.abs(expenses))}
         </p>
       </Card>
       <Card className="border-slate-100 bg-slate-50/60">

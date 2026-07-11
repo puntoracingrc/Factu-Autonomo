@@ -43,6 +43,16 @@ function expenseVatTraceLabel(expense: Expense, vatExempt: boolean): string {
   return `IVA ${ratesLabel} · ${sourceLabel}`;
 }
 
+function expenseTreatmentLabel(
+  deductible: boolean,
+  registeredTotal: number,
+): string {
+  const fiscalLabel = deductible ? "Deducible" : "No deducible";
+  return registeredTotal < 0
+    ? `Abono · saldo a favor · ${fiscalLabel}`
+    : fiscalLabel;
+}
+
 export function buildAnnualSummaryPdf(
   documents: Document[],
   expenses: Expense[],
@@ -89,7 +99,7 @@ export function buildAnnualSummaryPdf(
     taxes.nonDeductibleExpenseCount > 0
       ? [
           [
-            "Gastos no deducibles (coste registrado)",
+            "Gastos y abonos no deducibles (coste neto registrado)",
             formatMoney(taxes.nonDeductibleExpenseTotal),
           ],
         ]
@@ -98,9 +108,12 @@ export function buildAnnualSummaryPdf(
   const summaryRows = vatExempt && taxes.salesIva === 0
     ? [
         ["Ingresos cobrados", formatMoney(periodIncome)],
-        ["Gastos registrados", formatMoney(periodSpent)],
-        ["Coste económico de gastos", formatMoney(taxes.operatingExpenseCost)],
-        ["Gastos fiscalmente deducibles", formatMoney(taxes.expenseBase)],
+        ["Gasto neto (abonos descontados)", formatMoney(periodSpent)],
+        [
+          "Coste económico neto de gastos y abonos",
+          formatMoney(taxes.operatingExpenseCost),
+        ],
+        ["Base deducible neta", formatMoney(taxes.expenseBase)],
         ...nonDeductibleRows,
         [
           "Beneficio económico antes de reservar IRPF",
@@ -115,12 +128,15 @@ export function buildAnnualSummaryPdf(
       ]
     : [
         ["Cobrado en el año", formatMoney(periodIncome)],
-        ["Gastado en el año", formatMoney(periodSpent)],
+        ["Gasto neto del año (abonos descontados)", formatMoney(periodSpent)],
         ["Base ventas", formatMoney(taxes.salesBase)],
         ["IVA repercutido", formatMoney(taxes.salesIva)],
-        ["Coste económico de gastos", formatMoney(taxes.operatingExpenseCost)],
-        ["Base deducible gastos", formatMoney(taxes.expenseBase)],
-        ["IVA deducible", formatMoney(taxes.expenseIva)],
+        [
+          "Coste económico neto de gastos y abonos",
+          formatMoney(taxes.operatingExpenseCost),
+        ],
+        ["Base deducible neta de gastos y abonos", formatMoney(taxes.expenseBase)],
+        ["IVA deducible neto", formatMoney(taxes.expenseIva)],
         ...nonDeductibleRows,
         [
           taxes.ivaToPay > 0 ? "IVA neto a pagar" : "IVA a compensar",
@@ -178,7 +194,7 @@ export function buildAnnualSummaryPdf(
 
   if (yearExpenses.length > 0) {
     pdf.setFontSize(12);
-    pdf.text("Gastos", 14, cursorY + 10);
+    pdf.text("Gastos y abonos", 14, cursorY + 10);
     autoTable(pdf, {
       startY: cursorY + 14,
       head: [
@@ -198,7 +214,7 @@ export function buildAnnualSummaryPdf(
           expense.date,
           expense.supplierName,
           expense.description,
-          `${fiscal.deductible ? "Deducible" : "No deducible"}\n${expenseVatTraceLabel(expense, vatExempt)}`,
+          `${expenseTreatmentLabel(fiscal.deductible, fiscal.registeredTotal)}\n${expenseVatTraceLabel(expense, vatExempt)}`,
           formatMoney(fiscal.deductibleBase),
           formatMoney(fiscal.deductibleIva),
           formatMoney(fiscal.registeredTotal),

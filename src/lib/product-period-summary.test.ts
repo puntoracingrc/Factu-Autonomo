@@ -184,6 +184,50 @@ describe("product period summary", () => {
     expect(summary.balanceEstimated).toBe(302.5);
   });
 
+  it("imputa compra y abono por su propia fecha y los compensa en el año", () => {
+    const data = {
+      ...EMPTY_DATA,
+      expenses: [
+        expense({ id: "purchase", date: "2026-01-15" }),
+        expense({ id: "credit", date: "2026-04-15", amount: -50 }),
+      ],
+    };
+    const firstQuarter = buildProductPeriodSummary(data, {
+      kind: "quarter",
+      year: 2026,
+      month: 1,
+      quarter: 1,
+    });
+    const secondQuarter = buildProductPeriodSummary(data, {
+      kind: "quarter",
+      year: 2026,
+      month: 4,
+      quarter: 2,
+    });
+    const year = buildProductPeriodSummary(data, {
+      kind: "year",
+      year: 2026,
+      month: 1,
+      quarter: 1,
+    });
+
+    expect(firstQuarter).toMatchObject({
+      totalExpenses: 60.5,
+      expenseIvaEstimated: 10.5,
+      balanceEstimated: -60.5,
+    });
+    expect(secondQuarter).toMatchObject({
+      totalExpenses: -60.5,
+      expenseIvaEstimated: -10.5,
+      balanceEstimated: 60.5,
+    });
+    expect(year).toMatchObject({
+      totalExpenses: 0,
+      expenseIvaEstimated: 0,
+      balanceEstimated: 0,
+    });
+  });
+
   it("evita NaN y conserva un periodo por defecto estable", () => {
     const summary = buildProductPeriodSummary(
       {

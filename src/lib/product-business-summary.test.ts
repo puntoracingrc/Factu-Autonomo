@@ -187,6 +187,68 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.totalExpenses).toBe(121);
   });
 
+  it("compensa una compra y su abono en gasto, IVA y balances", () => {
+    const purchase = expense({
+      id: "purchase",
+      businessKind: "purchase_invoice",
+    });
+    const credit = expense({
+      id: "credit",
+      amount: -100,
+      businessKind: "purchase_invoice",
+    });
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      expenses: [purchase, credit],
+    });
+
+    expect(summary).toMatchObject({
+      totalExpenses: 0,
+      totalPurchaseExpenses: 0,
+      expenseIvaEstimated: 0,
+      balanceEstimated: 0,
+      cashBalanceEstimated: 0,
+    });
+  });
+
+  it("conserva firmado un abono mixto aislado", () => {
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      expenses: [
+        expense({
+          amount: -200,
+          businessKind: "purchase_invoice",
+          purchaseLines: [
+            {
+              id: "credit-21",
+              description: "Material general",
+              quantity: -1,
+              unitPrice: 100,
+              total: -100,
+              ivaPercent: 21,
+            },
+            {
+              id: "credit-10",
+              description: "Material reducido",
+              quantity: -1,
+              unitPrice: 100,
+              total: -100,
+              ivaPercent: 10,
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(summary).toMatchObject({
+      totalExpenses: -231,
+      totalPurchaseExpenses: -231,
+      expenseIvaEstimated: -31,
+      balanceEstimated: 231,
+      cashBalanceEstimated: 231,
+    });
+  });
+
   it("calcula IVA estimado de facturas emitidas", () => {
     const summary = buildProductBusinessSummary({
       ...EMPTY_DATA,

@@ -24,8 +24,9 @@ describe("product dashboard home", () => {
     expect(component).toContain("Cobrado");
     expect(component).toContain("Pendiente");
     expect(component).toContain("Gastos");
-    expect(component).toContain("Lo que queda después de gastos");
-    expect(component).toContain("IVA para orientarte");
+    expect(component).toContain("Lo que queda después del gasto neto");
+    expect(component).toContain("IVA neto para orientarte");
+    expect(component).toContain("IVA neto de gastos y abonos");
     expect(component).not.toContain("Resumen por periodo");
     expect(periodSelectorIndex).toBeGreaterThan(-1);
     expect(flowChartIndex).toBeGreaterThan(-1);

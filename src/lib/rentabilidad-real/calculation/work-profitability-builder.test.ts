@@ -174,6 +174,53 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     );
   });
 
+  it("una compra y su abono enlazados se compensan sin perder el signo", () => {
+    const invoice = documentFixture({ id: "invoice_1", type: "factura" });
+    const purchase = expenseFixture({
+      id: "expense_purchase",
+      amount: 100,
+      ivaPercent: 21,
+      workDocumentId: invoice.id,
+    });
+    const credit = expenseFixture({
+      id: "expense_credit",
+      amount: -100,
+      ivaPercent: 21,
+      workDocumentId: invoice.id,
+    });
+
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({ documents: [invoice], expenses: [purchase, credit] }),
+      { sourceDocumentId: invoice.id },
+    );
+    const result = input
+      ? calculateRentabilidadRealWorkProfitability(input)
+      : null;
+
+    expect(input?.directCosts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "expense_purchase",
+          amount: 100,
+          ivaAmount: 21,
+          total: 121,
+        }),
+        expect.objectContaining({
+          id: "expense_credit",
+          amount: -100,
+          ivaAmount: -21,
+          total: -121,
+        }),
+      ]),
+    );
+    expect(result).toMatchObject({
+      totalDirectCosts: 0,
+      grossMargin: 1000,
+      operatingProfit: 1000,
+      estimatedIrpfBase: 1000,
+    });
+  });
+
   it("permite aplicar solo parte de un gasto enlazado al trabajo", () => {
     const invoice = documentFixture({
       id: "invoice_1",

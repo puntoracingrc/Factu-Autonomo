@@ -20,6 +20,7 @@ export function PeriodOverviewCards({
   hasNonDeductibleExpenses = false,
 }: PeriodOverviewCardsProps) {
   const balance = income - spent;
+  const expenseBalanceIsCredit = spent < 0;
 
   return (
     <div className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -30,9 +31,11 @@ export function PeriodOverviewCards({
         </p>
       </Card>
       <Card className="border-red-200 bg-red-50">
-        <p className="text-sm font-medium text-red-700">Gastos</p>
+        <p className="text-sm font-medium text-red-700">
+          {expenseBalanceIsCredit ? "Saldo a favor" : "Gasto neto"}
+        </p>
         <p className="mt-1 text-2xl font-bold text-red-900">
-          {formatMoney(spent)}
+          {formatMoney(Math.abs(spent))}
         </p>
       </Card>
       <Card className="border-blue-200 bg-blue-50">

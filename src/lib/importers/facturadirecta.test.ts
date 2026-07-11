@@ -7,6 +7,7 @@ import {
   detectFacturaDirectaRows,
   readFacturaDirectaFiles,
 } from "./facturadirecta";
+import { expenseFiscalAmounts } from "../expenses";
 import { EMPTY_DATA, type Document } from "../types";
 
 const TEST_DATA = {
@@ -306,6 +307,78 @@ describe("FacturaDirecta importer", () => {
     expect(result.unsupported.map((item) => item.label)).toContain(
       "Notas internas de ventas",
     );
+  });
+
+  it("infiere el IVA de un abono cuando base y total comparten signo", () => {
+    const signedPurchases = {
+      ...baseFiles[5],
+      rows: [
+        baseFiles[5].rows[0],
+        {
+          ...baseFiles[5].rows[0],
+          "Fecha registro": "30-06-2026",
+          "Núm.": "AB-2026-0001",
+          "Saldo pendiente": "-121",
+          Subtotal: "-100",
+          Total: "-121",
+        },
+      ],
+    };
+
+    const result = buildFacturaDirectaImport(TEST_DATA, [
+      baseFiles[0],
+      signedPurchases,
+    ]);
+    const credit = result.data.expenses.find(
+      (expense) => expense.id === "facturadirecta:expense:AB-2026-0001",
+    );
+
+    expect(credit).toMatchObject({
+      amount: -100,
+      ivaPercent: 21,
+    });
+    expect(expenseFiscalAmounts(credit!)).toMatchObject({
+      registeredBase: -100,
+      registeredIva: -21,
+      registeredTotal: -121,
+      deductibleBase: -100,
+      deductibleIva: -21,
+    });
+  });
+
+  it("bloquea la evidencia cuando el total firmado es incoherente con la base", () => {
+    const incoherentPurchase = {
+      ...baseFiles[5],
+      rows: [
+        {
+          ...baseFiles[5].rows[0],
+          "Núm.": "AB-2026-0002",
+          "Saldo pendiente": "-79",
+          Subtotal: "-100",
+          Total: "-79",
+        },
+      ],
+    };
+
+    const result = buildFacturaDirectaImport(TEST_DATA, [incoherentPurchase]);
+
+    expect(result.data.expenses[0]).toMatchObject({
+      amount: -100,
+      ivaPercent: 0,
+      purchaseLines: [
+        {
+          catalogProduct: false,
+          total: -100,
+          ivaPercent: -21,
+        },
+      ],
+    });
+    expect(expenseFiscalAmounts(result.data.expenses[0])).toMatchObject({
+      vatSource: "blocked",
+      vatBlocked: true,
+      deductibleIva: 0,
+    });
+    expect(result.warnings.join("\n")).toContain("Quedan bloqueados");
   });
 
   it.each([

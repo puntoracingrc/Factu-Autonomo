@@ -335,8 +335,8 @@ Frases, formas de pago y unidades tienen sección propia en Ajustes (tipo `presu
 | Notas | Opcional |
 
 Las facturas de compra pueden conservar `purchaseLines[]` con base y
-`ivaPercent` por línea. Para gastos positivos, un desglose completo y válido
-usa las líneas cuando sus bases concilian con `Expense.amount` (tolerancia
+`ivaPercent` por línea. Para gastos y abonos, un desglose completo y válido usa
+las líneas cuando sus bases firmadas concilian con `Expense.amount` (tolerancia
 monetaria de 0,02 EUR), aunque todas compartan un solo tipo. El cálculo agrupa
 el IVA por tipo antes de redondear. Por ejemplo, 100 EUR al 21 % y 100 EUR al
 10 % producen una base de 200 EUR, una cuota de 31 EUR y un total de 231 EUR.
@@ -361,8 +361,15 @@ El origen del cálculo es derivado, no se persiste ni requiere migración:
   línea cuyo tipo contradice la cabecera, o varios tipos explícitos. La interfaz
   obliga a revisar y las exportaciones fiscales fallan de forma cerrada.
 
-Los abonos y líneas negativas mantienen el cálculo legacy hasta AUD-P1-13; este
-bloque no cambia sus signos ni su efecto económico.
+Los abonos conservan el mismo contrato firmado que la cabecera: `amount` es la
+base registrada negativa y sus líneas pueden mezclar importes positivos y
+negativos siempre que la suma firmada concilie dentro de 0,02 EUR. El desglose
+completo gobierna también en negativos y se agrupa por tipo antes de redondear;
+por ejemplo, -100 EUR al 21 % y -100 EUR al 10 % producen base -200 EUR, IVA
+-31 EUR y total -231 EUR. Un signo neto opuesto, tipos conflictivos o un
+descuadre con evidencia mixta deja el gasto en `blocked`. Los abonos requieren
+revisión manual, reducen gasto/IVA/coste en su fecha y nunca alimentan el
+catálogo de Productos.
 
 #### Escaneo con IA (`ExpenseScanCard`)
 
@@ -410,9 +417,9 @@ Plantillas `RecurringExpense`:
 |---------|---------|
 | Listado | Ordenación + buscador; formulario oculto hasta «Nuevo proveedor» |
 | Alta / edición | Nombre, NIF, teléfono, web, **tipo de vía** + calle/número, CP, ciudad, notas |
-| Volumen compras | `supplierPurchasedTotal` — suma gastos vinculados (por `supplierId` o similitud de nombre) |
+| Saldo neto de compras | `supplierPurchasedTotal` — suma gastos y resta abonos vinculados (por `supplierId` o similitud de nombre) |
 | Búsqueda | `SupplierListSearch` |
-| Ordenación | `SupplierSortBar`: nombre, **volumen de compras**, dirección |
+| Ordenación | `SupplierSortBar`: nombre o **saldo neto de compras** |
 | Unificación | Manual + banner duplicados; `mergeSuppliers` relink gastos |
 | Eliminación | Con confirmación (sin atajos a facturas — no aplican) |
 
@@ -431,28 +438,29 @@ Resumen orientativo (no sustituye asesoría fiscal):
 | Métrica | Cálculo |
 |---------|---------|
 | Ingresos | Facturas/recibos emitidos y cobrados (excl. borradores, recibos auto) |
-| Gastos registrados | Salida registrada del periodo para control y balance |
+| Gasto neto registrado | Gastos menos abonos del periodo para control y balance |
 | Base de gastos deducible | Solo gastos legacy/deducibles; los no deducibles aportan 0 |
-| Coste económico de gastos | Base si el gasto es deducible; base + IVA si no es deducible |
+| Coste económico neto de gastos y abonos | Base firmada si es deducible; base + IVA firmados si no es deducible |
 | IVA repercutido | De líneas de venta |
-| IVA soportado / deducible | Solo de gastos deducibles (0 si exento o no deducible) |
+| IVA soportado / deducible neto | Cuota firmada de gastos deducibles (0 si exento o no deducible) |
 | Resultado IVA | Repercutido − deducible |
 | Beneficio económico antes de reservar IRPF | Base de ventas − coste económico de gastos; la posición de IVA permanece separada |
 | Base estimada para IRPF | Base de ventas − base de gastos deducible |
 | IRPF estimado | % configurable sobre la base estimada positiva (modelo 130 orientativo) |
 | Resultado económico tras reservar IRPF | Beneficio económico − IRPF estimado; la posición de IVA permanece separada |
 
-Los gastos con `deductibility: "non_deductible"` permanecen en las métricas
-económicas y en Rentabilidad Real, por lo que reducen el beneficio económico.
-El resumen fiscal los cuenta y muestra como excluidos, pero asigna base e IVA
-deducibles 0 y no los resta de la base estimada para IRPF. La ausencia legacy de
+Los movimientos con `deductibility: "non_deductible"` permanecen en las
+métricas económicas y en Rentabilidad Real: un cargo reduce el beneficio y un
+abono revierte coste. El resumen fiscal los cuenta y muestra como excluidos,
+pero asigna base e IVA deducibles 0 y no los resta de la base estimada para
+IRPF. La ausencia legacy de
 la marca equivale a `deductible`; cualquier valor persistido desconocido falla
 cerrado y queda fuera de fiscalidad. CSV y PDF conservan el coste registrado y
 publican el tratamiento fiscal por separado.
 
-El IVA soportado de un gasto positivo usa `purchaseLines` cuando el desglose
-concilia: cada tipo se agrega y redondea por grupo, salvo en el contrato de
-importe íntegro no deducible descrito arriba. El resumen expone cuántos gastos
+El IVA soportado de un gasto o abono usa `purchaseLines` cuando el desglose
+firmado concilia: cada tipo se agrega y redondea por grupo, salvo en el contrato
+de importe íntegro no deducible descrito arriba. El resumen expone cuántos gastos
 se han resuelto por líneas y cuántos usan cabecera o importe íntegro. Si una
 línea explícita contradice la cabecera o aparecen varios tipos y el detalle
 queda incompleto, inválido o descuadrado, el gasto se marca como no resoluble
@@ -461,9 +469,10 @@ bloquea tanto CSV como PDF. No se sustituye ese caso silenciosamente por
 `Expense.ivaPercent`.
 
 Los CSV de gastos/trimestral y el PDF anual publican tipos y origen del cálculo.
-El importador Holded conserva líneas de compra con IDs deterministas y
-`catalogProduct: false`; FacturaDirecta, al no aportar líneas de compra, mantiene
-el fallback de cabecera y muestra un aviso explícito en la previsualización.
+El importador Holded conserva líneas de compra firmadas con IDs deterministas y
+`catalogProduct: false`; FacturaDirecta, al no aportar líneas de compra,
+mantiene el fallback de cabecera, infiere el tipo cuando base y total firmados
+son coherentes y muestra un aviso explícito en la previsualización.
 
 En plantillas recurrentes, el contrato ya existente para
 `non_deductible` interpreta `amount` como importe íntegro e ignora cualquier

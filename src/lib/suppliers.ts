@@ -232,7 +232,7 @@ export type SupplierSortDirection = "asc" | "desc";
 
 export const SUPPLIER_SORT_FIELD_LABELS: Record<SupplierSortField, string> = {
   nombre: "Nombre",
-  compras: "Volumen de compras",
+  compras: "Saldo neto de compras",
 };
 
 export function supplierSortDirectionLabel(

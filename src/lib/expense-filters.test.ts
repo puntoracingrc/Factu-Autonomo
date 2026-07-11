@@ -67,6 +67,63 @@ describe("aggregateExpensesBySupplier", () => {
     const totalPercent = slices.reduce((sum, s) => sum + s.percent, 0);
     expect(totalPercent).toBeCloseTo(100, 1);
   });
+
+  it("solo entrega saldos netos positivos al donut", () => {
+    const slices = aggregateExpensesBySupplier(
+      [
+        ...expenses,
+        {
+          ...expenses[0],
+          id: "credit-s1",
+          amount: -117,
+          description: "Abono total Arandes",
+        },
+        {
+          ...expenses[0],
+          id: "credit-only",
+          supplierId: "supplier-credit",
+          supplierName: "Proveedor con saldo a favor",
+          amount: -100,
+          description: "Abono sin compras",
+        },
+      ],
+      false,
+    );
+
+    expect(slices.some((slice) => slice.key === "id:s1")).toBe(false);
+    expect(
+      slices.some((slice) => slice.key === "id:supplier-credit"),
+    ).toBe(false);
+    expect(slices.every((slice) => slice.amount > 0)).toBe(true);
+    expect(slices.every((slice) => slice.percent >= 0)).toBe(true);
+    expect(slices.reduce((sum, slice) => sum + slice.percent, 0)).toBeCloseTo(
+      100,
+      6,
+    );
+  });
+
+  it("el grupo Otros no incluye proveedores omitidos por tener saldo a favor", () => {
+    const positives = Array.from({ length: 9 }, (_, index) => ({
+      ...expenses[0],
+      id: `positive-${index}`,
+      supplierId: `supplier-${index}`,
+      supplierName: `Proveedor ${index}`,
+      amount: 100 - index,
+    }));
+    const credit = {
+      ...expenses[0],
+      id: "credit-only",
+      supplierId: "supplier-credit",
+      supplierName: "Proveedor con saldo a favor",
+      amount: -100,
+    };
+    const slices = aggregateExpensesBySupplier([...positives, credit], false);
+    const others = slices.find((slice) => slice.key === "__otros__");
+
+    expect(others?.memberKeys).toEqual(["id:supplier-7", "id:supplier-8"]);
+    expect(matchesSupplierFilter(positives[8], "__otros__", slices)).toBe(true);
+    expect(matchesSupplierFilter(credit, "__otros__", slices)).toBe(false);
+  });
 });
 
 describe("supplierFilterKey", () => {

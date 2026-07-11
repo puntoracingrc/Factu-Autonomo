@@ -81,6 +81,7 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
     isCollectedDocument,
   );
   const quarterSpent = totalExpensesAmount(quarterExpenses, vatExempt);
+  const quarterExpenseBalanceIsCredit = quarterSpent < 0;
 
   function handleExport() {
     const csv = buildQuarterlyExportCsv(
@@ -175,8 +176,14 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
             <p className="font-bold text-green-800">{formatMoney(quarterIncome)}</p>
           </div>
           <div className="rounded-xl bg-white px-3 py-2">
-            <p className="text-xs text-slate-500">Gastado en el trimestre</p>
-            <p className="font-bold text-red-700">{formatMoney(quarterSpent)}</p>
+            <p className="text-xs text-slate-500">
+              {quarterExpenseBalanceIsCredit
+                ? "Saldo a favor en el trimestre"
+                : "Gasto neto en el trimestre"}
+            </p>
+            <p className="font-bold text-red-700">
+              {formatMoney(Math.abs(quarterSpent))}
+            </p>
           </div>
         </div>
       }

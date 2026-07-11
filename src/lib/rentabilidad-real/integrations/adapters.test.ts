@@ -117,6 +117,36 @@ describe("rentabilidad real read-only adapters", () => {
     });
   });
 
+  it("propaga un abono firmado como coste e IVA negativos", () => {
+    const credit = baseExpense({
+      id: "expense_credit",
+      amount: -100,
+      ivaPercent: 21,
+      purchaseLines: [
+        {
+          id: "credit_line",
+          description: "Devolución de material",
+          quantity: -1,
+          unitPrice: 100,
+          ivaPercent: 21,
+          total: -100,
+        },
+      ],
+    });
+    const before = deepClone(credit);
+
+    expect(mapExistingExpenseToProfitabilityCost(credit)).toMatchObject({
+      id: "expense_credit",
+      amount: -100,
+      fiscalDeductible: true,
+      ivaPercent: 21,
+      ivaAmount: -21,
+      total: -121,
+      purchaseLineCount: 1,
+    });
+    expect(credit).toEqual(before);
+  });
+
   it("mantiene íntegro un fijo no deducible con líneas documentales", () => {
     const expense = baseExpense({
       amount: 100,

@@ -135,7 +135,7 @@ describe("expense VAT UI save guard", () => {
     });
   });
 
-  it("no autoguarda negativos y conserva su revisión legacy", () => {
+  it("no autoguarda negativos, pero materializa su tipo al guardarlos tras revisión", () => {
     const draft = {
       amount: -100,
       ivaPercent: 21,
@@ -145,7 +145,29 @@ describe("expense VAT UI save guard", () => {
     expect(canAutoSaveScannedExpenseVat(draft)).toBe(false);
     const prepared = prepareExpenseVatForSave(draft);
     expect(prepared.ok).toBe(true);
-    expect(prepared.purchaseLines[0]?.ivaPercent).toBeUndefined();
+    expect(prepared.purchaseLines[0]?.ivaPercent).toBe(21);
+    expect(prepared.resolution).toMatchObject({
+      source: "lines",
+      blocked: false,
+      iva: -21,
+      total: -121,
+    });
+  });
+
+  it("impide guardar un abono cuyas líneas tienen signo neto opuesto", () => {
+    const draft = {
+      amount: -200,
+      ivaPercent: 21,
+      purchaseLines: [line("21", 100, 21), line("10", 100, 10)],
+    };
+
+    expect(canAutoSaveScannedExpenseVat(draft)).toBe(false);
+    const prepared = prepareExpenseVatForSave(draft);
+    expect(prepared.ok).toBe(false);
+    expect(prepared.resolution).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_base_mismatch",
+    });
   });
 
   it("conserva exactamente las líneas de un fijo no deducible", () => {

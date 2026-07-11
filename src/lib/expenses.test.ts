@@ -348,7 +348,7 @@ describe("expenseTotalsFromBase", () => {
     });
   });
 
-  it("conserva cabecera para abonos hasta resolver AUD-P1-13", () => {
+  it("calcula un abono mixto desde líneas firmadas completas y conciliadas", () => {
     const resolved = resolveExpenseVat({
       amount: -200,
       ivaPercent: 21,
@@ -359,11 +359,57 @@ describe("expenseTotalsFromBase", () => {
     });
 
     expect(resolved).toMatchObject({
-      source: "header",
+      source: "lines",
       blocked: false,
+      base: -200,
+      iva: -31,
+      total: -231,
+      reconciliationDifference: 0,
+    });
+    expect(resolved.breakdown).toEqual([
+      { ivaPercent: 21, base: -100, iva: -21, total: -121, lineCount: 1 },
+      { ivaPercent: 10, base: -100, iva: -10, total: -110, lineCount: 1 },
+    ]);
+  });
+
+  it("acepta líneas positivas y negativas cuando su neto concilia con el abono", () => {
+    expect(
+      resolveExpenseVat({
+        amount: -2.02,
+        ivaPercent: 21,
+        purchaseLines: [
+          { quantity: -6, unitPrice: 2.55, total: -11.47, ivaPercent: 21 },
+          { quantity: 6, unitPrice: 2.1, total: 9.45, ivaPercent: 21 },
+        ],
+      }),
+    ).toMatchObject({
+      source: "lines",
+      blocked: false,
+      base: -2.02,
+      iva: -0.42,
+      total: -2.44,
+      reconciliationDifference: 0,
+    });
+  });
+
+  it("bloquea líneas cuyo neto tiene signo opuesto al abono", () => {
+    expect(
+      resolveExpenseVat({
+        amount: -200,
+        ivaPercent: 21,
+        purchaseLines: [
+          { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+          { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        ],
+      }),
+    ).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_base_mismatch",
+      blocked: true,
       base: -200,
       iva: -42,
       total: -242,
+      reconciliationDifference: 400,
     });
   });
 
@@ -579,6 +625,15 @@ describe("expenseTotalsFromBase", () => {
       iva: -21,
       total: -121,
       ivaPercent: 21,
+    });
+  });
+
+  it("redondea de forma simétrica las cuotas negativas", () => {
+    expect(expenseTotalsFromBase(-100.05, 10)).toEqual({
+      base: -100.05,
+      iva: -10.01,
+      total: -110.06,
+      ivaPercent: 10,
     });
   });
 

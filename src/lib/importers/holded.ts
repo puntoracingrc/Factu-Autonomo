@@ -195,6 +195,35 @@ function parseAmount(value: unknown): number {
   return parseFiniteAmount(value) ?? 0;
 }
 
+function inferSignedIvaPercent(
+  base: number,
+  iva: number,
+  fallback = 0,
+): number {
+  if (!Number.isFinite(base) || !Number.isFinite(iva) || base === 0) {
+    return fallback;
+  }
+  if (iva === 0) return 0;
+  if (Math.sign(base) !== Math.sign(iva)) return fallback;
+
+  const rate = roundMoney((iva / base) * 100);
+  return rate >= 0 && rate <= 100 ? rate : fallback;
+}
+
+function incoherentSignedIvaEvidenceRate(
+  base: number,
+  iva: number,
+): number | null {
+  if (!Number.isFinite(base) || !Number.isFinite(iva) || base === 0) {
+    return null;
+  }
+  const rate = roundMoney((iva / base) * 100);
+  const coherent =
+    iva === 0 ||
+    (Math.sign(base) === Math.sign(iva) && rate >= 0 && rate <= 100);
+  return coherent ? null : rate;
+}
+
 function calendarDate(
   year: number,
   month: number,
@@ -690,7 +719,7 @@ function purchaseLineFromHoldedRow(
   purchaseKey: string,
 ): ExpensePurchaseLine {
   const sourceQuantity = parseAmount(get(row, "cantidad"));
-  const quantity = sourceQuantity > 0 ? sourceQuantity : 1;
+  const quantity = sourceQuantity !== 0 ? sourceQuantity : 1;
   const baseLine = parseAmount(get(row, "base_linea"));
   const sourceUnitPrice = parseAmount(get(row, "precio_unitario"));
   const ivaPercentText = get(row, "impuesto_pct");
@@ -704,7 +733,7 @@ function purchaseLineFromHoldedRow(
     description:
       getMemo(row, "descripcion") || "Concepto de compra importado de Holded",
     catalogProduct: false,
-    sourceQuantity: sourceQuantity > 0 ? sourceQuantity : undefined,
+    sourceQuantity: sourceQuantity !== 0 ? sourceQuantity : undefined,
     quantity,
     unitPrice:
       baseLine !== 0 ? roundMoney(baseLine / quantity) : sourceUnitPrice,
@@ -734,19 +763,38 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
     if (productKey) usedProductKeys.push(productKey);
     return purchaseLineFromHoldedRow(line, lineIndex, sourceKey);
   });
-  const lineBaseTotal = purchaseLines.reduce(
-    (sum, line) => sum + (line.total ?? line.quantity * line.unitPrice),
-    0,
+  const lineBaseTotal = roundMoney(
+    purchaseLines.reduce(
+      (sum, line) => sum + (line.total ?? line.quantity * line.unitPrice),
+      0,
+    ),
   );
-  const base = lineBaseTotal > 0 ? roundMoney(lineBaseTotal) : parseAmount(get(row, "base_imponible"));
+  const headerBase = parseAmount(get(row, "base_imponible"));
+  const base =
+    headerBase !== 0 ? headerBase : lineBaseTotal;
   const iva = parseAmount(get(row, "iva_total"));
   const expected = parseAmount(get(row, "total"));
   const calculated = roundMoney(base + iva);
+  const incoherentVatRate = incoherentSignedIvaEvidenceRate(base, iva);
+  if (incoherentVatRate !== null) {
+    purchaseLines.push({
+      id: holdedId(
+        "purchase-line",
+        `${sourceKey}-invalid-vat-evidence`,
+      ),
+      description: "Evidencia fiscal incoherente de cabecera Holded",
+      catalogProduct: false,
+      quantity: 1,
+      unitPrice: base,
+      total: base,
+      ivaPercent: incoherentVatRate,
+    });
+  }
   return {
     lineCount: Math.max(purchaseLines.length, 1),
     usedProductKeys,
     mismatch:
-      expected > 0 && Math.abs(expected - calculated) > 0.02
+      expected !== 0 && Math.abs(expected - calculated) > 0.02
         ? { documentNumber: get(row, "numero") || sourceKey, expected, calculated }
         : undefined,
     expense: {
@@ -761,13 +809,16 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
         getMemo(row, "notas") ||
         "Gasto importado de Holded",
       amount: base || expected,
-      ivaPercent: base > 0 ? roundMoney((iva / base) * 100) : 0,
+      ivaPercent: inferSignedIvaPercent(base, iva),
       category: get(row, "categoria") || "Gasto importado",
       paymentMethod: get(row, "metodo_pago") || "",
       notes: [
         get(row, "numero") ? `Número Holded: ${get(row, "numero")}` : "",
         get(row, "tipo") ? `Tipo Holded: ${get(row, "tipo")}` : "",
         getMemo(row, "notas"),
+        incoherentVatRate !== null
+          ? `IVA de origen incoherente: base ${base}, cuota ${iva}. Revisar antes de exportar.`
+          : "",
         get(row, "adjunto") ? `Adjunto pendiente: ${get(row, "adjunto")}` : "",
       ]
         .filter(Boolean)
@@ -1008,6 +1059,18 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   if (unreadablePurchaseVatLines > 0) {
     warnings.push(
       `${unreadablePurchaseVatLines} línea(s) de compra traen un tipo de IVA ilegible. Se conservarán sin inventar un 0 % y deberán revisarse antes de exportar si contradicen la cabecera.`,
+    );
+  }
+  const incoherentExpenseVatCount = importedExpenses.filter((expense) =>
+    expense.purchaseLines?.some(
+      (line) =>
+        typeof line.ivaPercent === "number" &&
+        (line.ivaPercent < 0 || line.ivaPercent > 100),
+    ),
+  ).length;
+  if (incoherentExpenseVatCount > 0) {
+    warnings.push(
+      `${incoherentExpenseVatCount} gasto(s) traen base y cuota con signos o proporciones de IVA incoherentes. Quedan bloqueados para revisión y no se pueden exportar como fiscalmente completos.`,
     );
   }
   if (unpairedLegacyCancellationIds.length > 0) {

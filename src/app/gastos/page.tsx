@@ -162,7 +162,9 @@ function aggregateFixedExpenses(
     }
   }
 
-  const sorted = [...totals.entries()].sort((a, b) => b[1].amount - a[1].amount);
+  const sorted = [...totals.entries()]
+    .filter(([, value]) => Number.isFinite(value.amount) && value.amount > 0)
+    .sort((a, b) => b[1].amount - a[1].amount);
   const grandTotal = sorted.reduce((sum, [, value]) => sum + value.amount, 0);
   if (grandTotal <= 0) return [];
 
@@ -176,6 +178,7 @@ function aggregateFixedExpenses(
     amount: value.amount,
     percent: (value.amount / grandTotal) * 100,
     color: EXPENSE_CHART_COLORS[index % EXPENSE_CHART_COLORS.length],
+    memberKeys: [key],
   }));
 
   if (rest.length > 0) {
@@ -186,6 +189,7 @@ function aggregateFixedExpenses(
       amount: otrosAmount,
       percent: (otrosAmount / grandTotal) * 100,
       color: EXPENSE_CHART_COLORS[slices.length % EXPENSE_CHART_COLORS.length],
+      memberKeys: rest.map(([key]) => key),
     });
   }
 
@@ -201,6 +205,15 @@ function matchesExpenseFilter(
   if (!filterKey) return true;
 
   if (filterKey === FIXED_EXPENSE_OTHER_KEY) {
+    const grouped = fixedSlices.find(
+      (slice) => slice.key === FIXED_EXPENSE_OTHER_KEY,
+    );
+    if (grouped?.memberKeys) {
+      return (
+        isFixedExpense(expense) &&
+        grouped.memberKeys.includes(fixedExpenseFilterKey(expense))
+      );
+    }
     const mainKeys = fixedSlices
       .filter((slice) => slice.key !== FIXED_EXPENSE_OTHER_KEY)
       .map((slice) => slice.key);
@@ -388,13 +401,29 @@ export default function GastosPage() {
   const supplierOptions = useMemo(
     () => {
       const supplierOptions = uniqueSupplierOptions(purchaseExpenses);
-      const fixedOptions = fixedChartSlices.map((slice) => ({
-        key: slice.key,
-        label: slice.label,
+      const groupedPurchaseOptions = purchaseChartSlices
+        .filter((slice) => slice.key === "__otros__")
+        .map((slice) => ({ key: slice.key, label: `${slice.label} (compras)` }));
+      const fixedOptionsByKey = new Map(
+        periodExpenses
+          .filter(isFixedExpense)
+          .map((expense) => [
+            fixedExpenseFilterKey(expense),
+            fixedExpenseLabel(expense),
+          ]),
+      );
+      for (const slice of fixedChartSlices) {
+        if (slice.key === FIXED_EXPENSE_OTHER_KEY) {
+          fixedOptionsByKey.set(slice.key, slice.label);
+        }
+      }
+      const fixedOptions = [...fixedOptionsByKey].map(([key, label]) => ({
+        key,
+        label,
       }));
-      return [...supplierOptions, ...fixedOptions];
+      return [...supplierOptions, ...groupedPurchaseOptions, ...fixedOptions];
     },
-    [fixedChartSlices, purchaseExpenses],
+    [fixedChartSlices, periodExpenses, purchaseChartSlices, purchaseExpenses],
   );
 
   const filteredExpenses = useMemo(() => {
@@ -425,6 +454,13 @@ export default function GastosPage() {
     (sum, expense) => sum + expenseAmount(expense, vatExempt),
     0,
   );
+  const filteredCreditCount = filteredExpenses.filter(
+    (expense) => expenseAmount(expense, vatExempt) < 0,
+  ).length;
+  const periodCreditCount = periodExpenses.filter(
+    (expense) => expenseAmount(expense, vatExempt) < 0,
+  ).length;
+  const filteredBalanceIsCredit = total < 0;
   const blockedVatExpenseCount = countBlockedExpenseVat(
     filteredExpenses,
     vatExempt,
@@ -855,11 +891,18 @@ export default function GastosPage() {
           />
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 xl:text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              Total gastado
+              {filteredBalanceIsCredit ? "Saldo a favor" : "Gasto neto"}
             </p>
             <p className="mt-1 text-2xl font-bold text-emerald-900">
-              {formatMoney(total)}
+              {formatMoney(Math.abs(total))}
             </p>
+            {filteredCreditCount > 0 && (
+              <p className="mt-1 text-xs font-semibold text-sky-800">
+                Incluye {filteredCreditCount} abono
+                {filteredCreditCount === 1 ? "" : "s"} descontado
+                {filteredCreditCount === 1 ? "" : "s"} del gasto.
+              </p>
+            )}
             {filteredExpenses.length > 0 && (
               <button
                 type="button"
@@ -899,7 +942,9 @@ export default function GastosPage() {
         </div>
       </Card>
 
-      {(purchaseChartSlices.length > 0 || fixedChartSlices.length > 0) && (
+      {(purchaseChartSlices.length > 0 ||
+        fixedChartSlices.length > 0 ||
+        periodCreditCount > 0) && (
         <Card className="mb-4 p-4">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -908,6 +953,12 @@ export default function GastosPage() {
                 Pulsa un segmento o la leyenda para filtrar. Usa restablecer
                 para volver al listado completo.
               </p>
+              {periodCreditCount > 0 && (
+                <p className="mt-1 text-xs font-semibold text-sky-800">
+                  El donut solo representa saldos netos positivos. Los abonos y
+                  saldos a favor siguen incluidos en el total y en el listado.
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -919,6 +970,12 @@ export default function GastosPage() {
             </button>
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
+            {purchaseChartSlices.length === 0 &&
+              fixedChartSlices.length === 0 && (
+                <p className="text-sm font-semibold text-slate-500 lg:col-span-2">
+                  No hay saldos netos positivos que representar en el gráfico.
+                </p>
+              )}
             {purchaseChartSlices.length > 0 && (
               <section>
                 <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">
@@ -965,6 +1022,7 @@ export default function GastosPage() {
             const previousExpense =
               index > 0 ? visibleExpenses[index - 1] : null;
             const expenseVat = resolveExpenseVat(expense, vatExempt);
+            const signedExpenseTotal = expenseAmount(expense, vatExempt);
             const showTimelineDivider =
               !previousExpense ||
               timelineMonthKey(previousExpense.date) !==
@@ -1018,8 +1076,14 @@ export default function GastosPage() {
                     {(expense.purchaseDocument?.invoiceNumber ||
                       expense.purchaseLines?.length ||
                       expense.workDocumentId ||
-                      !isExpenseFiscalDeductible(expense)) && (
+                      !isExpenseFiscalDeductible(expense) ||
+                      signedExpenseTotal < 0) && (
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                        {signedExpenseTotal < 0 && (
+                          <span className="rounded-full bg-sky-50 px-2 py-1 text-sky-800 ring-1 ring-sky-200">
+                            Abono · saldo a favor
+                          </span>
+                        )}
                         {expense.purchaseDocument?.invoiceNumber && (
                           <span className="rounded-full bg-slate-100 px-2 py-1">
                             Fra. {expense.purchaseDocument.invoiceNumber}
@@ -1070,8 +1134,14 @@ export default function GastosPage() {
                     />
                   </Link>
                   <div className="flex items-center justify-end gap-2">
-                    <span className="font-bold text-red-700">
-                      {formatMoney(expenseAmount(expense, vatExempt))}
+                    <span
+                      className={`font-bold ${
+                        signedExpenseTotal < 0
+                          ? "text-sky-800"
+                          : "text-red-700"
+                      }`}
+                    >
+                      {formatMoney(signedExpenseTotal)}
                     </span>
                     <Link
                       href={expenseEditHref(expense, recurringExpenseIds)}

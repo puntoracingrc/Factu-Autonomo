@@ -371,8 +371,41 @@ function parseIvaPercent(code: string): number | undefined {
 }
 
 function inferIvaPercent(base: number, total: number, fallback = 21): number {
-  if (base <= 0 || total <= base) return fallback;
-  return Math.round(((total - base) / base) * 100);
+  if (
+    !Number.isFinite(base) ||
+    !Number.isFinite(total) ||
+    base === 0 ||
+    total === 0 ||
+    Math.sign(base) !== Math.sign(total) ||
+    Math.abs(total) < Math.abs(base)
+  ) {
+    return fallback;
+  }
+
+  const rate = Math.round(((total - base) / base) * 100);
+  return rate >= 0 && rate <= 100 ? rate : fallback;
+}
+
+function incoherentIvaEvidenceRate(
+  base: number,
+  total: number,
+): number | null {
+  if (
+    !Number.isFinite(base) ||
+    !Number.isFinite(total) ||
+    base === 0 ||
+    total === 0
+  ) {
+    return null;
+  }
+  const rate = Math.round(((total - base) / base) * 100);
+  const coherent =
+    total !== 0 &&
+    Math.sign(base) === Math.sign(total) &&
+    Math.abs(total) >= Math.abs(base) &&
+    rate >= 0 &&
+    rate <= 100;
+  return coherent ? null : rate;
 }
 
 function lineIvaPercent(
@@ -854,6 +887,8 @@ function buildExpense(
   const supplier = supplierFromPurchase(row, suppliersByKey);
   const subtotal = parseAmount(get(row, "Subtotal"));
   const total = parseAmount(get(row, "Total"));
+  const amount = subtotal || total;
+  const incoherentVatRate = incoherentIvaEvidenceRate(subtotal, total);
   const dueDates = purchaseDueDates.get(normalizeDocumentNumber(number)) ?? [];
   const dueDateNotes =
     dueDates.length > 0
@@ -878,11 +913,34 @@ function buildExpense(
     supplierId: supplier?.id,
     supplierName: supplier?.name || "",
     description: purchaseDescription(row, supplier),
-    amount: subtotal || total,
+    amount,
     ivaPercent: inferIvaPercent(subtotal, total, 0),
     category: "Compra importada",
     paymentMethod: "",
-    notes: [number, dueDateNotes].filter(Boolean).join("\n") || undefined,
+    notes:
+      [
+        number,
+        dueDateNotes,
+        incoherentVatRate !== null
+          ? `IVA de origen incoherente: base ${subtotal}, total ${total}. Revisar antes de exportar.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n") || undefined,
+    purchaseLines:
+      incoherentVatRate !== null
+        ? [
+            {
+              id: fdId("purchase-line", `${number}-vat-evidence`),
+              description: "Evidencia fiscal incoherente de FacturaDirecta",
+              catalogProduct: false,
+              quantity: 1,
+              unitPrice: amount,
+              total: amount,
+              ivaPercent: incoherentVatRate,
+            },
+          ]
+        : undefined,
     createdAt: isoDateTime(sourceDate, date),
   };
 }
@@ -1347,6 +1405,18 @@ export function buildFacturaDirectaImport(
   if (preview.expenses > 0) {
     warnings.push(
       `${preview.expenses} gasto(s) de FacturaDirecta no traen desglose fiscal por líneas. Su IVA se conservará como cálculo de cabecera hasta revisar la factura original.`,
+    );
+  }
+  const incoherentExpenseVatCount = importedExpenses.filter((expense) =>
+    expense.purchaseLines?.some(
+      (line) =>
+        typeof line.ivaPercent === "number" &&
+        (line.ivaPercent < 0 || line.ivaPercent > 100),
+    ),
+  ).length;
+  if (incoherentExpenseVatCount > 0) {
+    warnings.push(
+      `${incoherentExpenseVatCount} gasto(s) traen base y total con signos o proporciones de IVA incoherentes. Quedan bloqueados para revisión y no se pueden exportar como fiscalmente completos.`,
     );
   }
   if (preview.partialDueDateDocuments > 0) {

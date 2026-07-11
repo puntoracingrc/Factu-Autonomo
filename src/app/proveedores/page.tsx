@@ -637,9 +637,20 @@ export default function ProveedoresPage() {
                           {supplier.website}
                         </a>
                       )}
-                      <p className="mt-1 text-sm font-medium text-emerald-700">
-                        Compras: {formatMoney(purchased)}
-                      </p>
+                      {purchased < 0 ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800 ring-1 ring-sky-200">
+                            Abono · saldo a favor
+                          </span>
+                          <span className="text-sm font-bold text-sky-800">
+                            Saldo a favor: {formatMoney(Math.abs(purchased))}
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium text-emerald-700">
+                          Compras netas: {formatMoney(purchased)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   {!mergeMode && (
