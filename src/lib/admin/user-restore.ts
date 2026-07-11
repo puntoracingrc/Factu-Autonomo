@@ -1,7 +1,10 @@
-import { appDataToSyncChanges, applySyncChanges } from "../cloud/diff";
+import {
+  appDataToSyncChanges,
+  applySyncChanges,
+  emptyCloudBootstrapData,
+} from "../cloud/diff";
 import { normalizeImportedCloudData } from "../cloud/incremental";
 import type { AppData, SyncChange, SyncEntityType } from "../types";
-import { EMPTY_DATA } from "../types";
 
 export const ADMIN_RESTORE_ENTITY_TYPES: SyncEntityType[] = [
   "document",
@@ -14,6 +17,7 @@ export const ADMIN_RESTORE_ENTITY_TYPES: SyncEntityType[] = [
   "user_reminder",
   "profile",
   "counters",
+  "workspace_metadata",
 ];
 
 export interface AdminSyncEntityRow {
@@ -147,7 +151,9 @@ export function syncRowsToChanges(rows: AdminSyncEntityRow[]): SyncChange[] {
 
 export function appDataFromSyncRows(rows: AdminSyncEntityRow[]): AppData {
   const changes = syncRowsToChanges(rows);
-  return normalizeImportedCloudData(applySyncChanges(EMPTY_DATA, changes));
+  return normalizeImportedCloudData(
+    applySyncChanges(emptyCloudBootstrapData(), changes),
+  );
 }
 
 export function summarizeRestoreData(
@@ -211,8 +217,20 @@ function buildRestoreChangeSet(
   target: AppData,
   restoredAt = new Date().toISOString(),
 ): AdminRestoreChange[] {
+  return buildRestoreChangeSetFromChanges(
+    appDataToSyncChanges(current),
+    target,
+    restoredAt,
+  );
+}
+
+function buildRestoreChangeSetFromChanges(
+  currentChanges: SyncChange[],
+  target: AppData,
+  restoredAt: string,
+): AdminRestoreChange[] {
   const currentMap = new Map(
-    appDataToSyncChanges(current).map((change) => [keyFor(change), change]),
+    currentChanges.map((change) => [keyFor(change), change]),
   );
   const targetMap = new Map(
     appDataToSyncChanges(target).map((change) => [keyFor(change), change]),
@@ -221,7 +239,7 @@ function buildRestoreChangeSet(
 
   for (const [key, targetChange] of targetMap) {
     const currentChange = currentMap.get(key);
-    if (!currentChange) {
+    if (!currentChange || currentChange.deleted) {
       changes.push({
         kind: "added",
         change: { ...targetChange, updatedAt: restoredAt },
@@ -240,7 +258,7 @@ function buildRestoreChangeSet(
   }
 
   for (const [key, currentChange] of currentMap) {
-    if (!targetMap.has(key)) {
+    if (!currentChange.deleted && !targetMap.has(key)) {
       changes.push({
         kind: "deleted",
         change: {
@@ -256,6 +274,43 @@ function buildRestoreChangeSet(
   return changes;
 }
 
+export function summarizeRestoreDiffFromRows(
+  currentRows: AdminSyncEntityRow[],
+  target: AppData,
+): AdminRestoreDiffSummary {
+  const changes = buildRestoreChangeSetFromChanges(
+    syncRowsToChanges(currentRows),
+    target,
+    new Date().toISOString(),
+  );
+  const byType = emptyTypeSummary();
+  let added = 0;
+  let updated = 0;
+  let deleted = 0;
+
+  for (const { change, kind } of changes) {
+    const typeSummary = byType[change.entityType];
+    if (kind === "deleted") {
+      typeSummary.deleted += 1;
+      deleted += 1;
+    } else if (kind === "updated") {
+      typeSummary.updated += 1;
+      updated += 1;
+    } else {
+      typeSummary.added += 1;
+      added += 1;
+    }
+  }
+
+  return {
+    added,
+    updated,
+    deleted,
+    totalChanges: changes.length,
+    byType,
+  };
+}
+
 export function buildRestoreChanges(
   current: AppData,
   target: AppData,
@@ -264,6 +319,18 @@ export function buildRestoreChanges(
   return buildRestoreChangeSet(current, target, restoredAt).map(
     ({ change }) => change,
   );
+}
+
+export function buildRestoreChangesFromRows(
+  currentRows: AdminSyncEntityRow[],
+  target: AppData,
+  restoredAt = new Date().toISOString(),
+): SyncChange[] {
+  return buildRestoreChangeSetFromChanges(
+    syncRowsToChanges(currentRows),
+    target,
+    restoredAt,
+  ).map(({ change }) => change);
 }
 
 export function normalizeRestorePointData(raw: unknown): AppData {

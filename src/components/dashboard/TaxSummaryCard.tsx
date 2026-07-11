@@ -348,6 +348,7 @@ export function TaxSummaryCard({
   highlights,
 }: TaxSummaryCardProps) {
   const hasData = taxes.salesBase !== 0 || taxes.expenseBase !== 0;
+  const hasIntegrityBlocks = taxes.integrityBlockedDocuments > 0;
   const defaultSubtitle = taxes.vatExempt
     ? "Perfil exento de IVA: no repercutes ni deduces IVA. Solo se estima el beneficio y el IRPF."
     : "Según facturas y recibos emitidos y gastos registrados. Cálculo orientativo — consulta con tu gestor.";
@@ -366,9 +367,33 @@ export function TaxSummaryCard({
 
       {highlights}
 
+      {hasIntegrityBlocks && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-950"
+        >
+          <p className="text-sm font-bold">Resumen fiscal incompleto</p>
+          <p className="mt-1 text-sm leading-relaxed">
+            Se han excluido {taxes.integrityBlockedDocuments}{" "}
+            {taxes.integrityBlockedDocuments === 1
+              ? "documento fiscal bloqueado"
+              : "documentos fiscales bloqueados"}{" "}
+            por integridad. Sus importes no están incluidos en estos cálculos.
+          </p>
+          <Link
+            href="/facturas"
+            className="mt-2 inline-flex text-sm font-semibold text-red-800 underline"
+          >
+            Revisar documentos bloqueados
+          </Link>
+        </div>
+      )}
+
       {!hasData ? (
         <p className="text-sm text-slate-500">
-          No hay movimientos en este periodo todavía.
+          {hasIntegrityBlocks
+            ? "No hay movimientos fiscales verificables incluidos en este periodo."
+            : "No hay movimientos en este periodo todavía."}
         </p>
       ) : taxes.vatExempt ? (
         <VatExemptSummary taxes={taxes} />

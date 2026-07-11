@@ -1,7 +1,11 @@
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import {
+  assertDocumentSnapshotsIntegrity,
   buildDocumentPdfSnapshot,
+  buildDocumentSnapshotSeal,
   buildDocumentSnapshot,
+  projectCanonicalSnapshotOntoDocument,
+  withDocumentSnapshotIntegritySignal,
 } from "@/lib/document-integrity/snapshots";
 import type {
   BusinessProfile,
@@ -17,8 +21,11 @@ export {
   DOCUMENT_PDF_RENDERER_VERSION,
   DOCUMENT_PDF_SNAPSHOT_SCHEMA_VERSION,
   DOCUMENT_SNAPSHOT_SCHEMA_VERSION,
+  DocumentSnapshotIntegrityError,
+  assertDocumentSnapshotsIntegrity,
   attachRegisteredVerifactuToSnapshots,
   buildDocumentPdfSnapshot,
+  buildDocumentSnapshotSeal,
   buildDocumentSnapshot,
   deriveLegacySnapshotForReadOnly,
   documentKindForSnapshot,
@@ -26,7 +33,20 @@ export {
   hasDocumentSnapshot,
   hashDocumentPdfSnapshot,
   hashDocumentSnapshot,
+  hashStrongDocumentPdfSnapshotContent,
+  hashStrongDocumentSnapshotContent,
+  inspectDocumentSnapshotsIntegrity,
+  projectCanonicalSnapshotOntoDocument,
   stableStringifySnapshot,
+  verifyDocumentPdfSnapshotHash,
+  verifyDocumentSnapshotHash,
+  withDocumentSnapshotIntegritySignal,
+} from "@/lib/document-integrity/snapshots";
+export type {
+  DocumentSnapshotsIntegrityResult,
+  DocumentSnapshotIntegrityRequirements,
+  SnapshotHashAlgorithm,
+  SnapshotHashVerification,
 } from "@/lib/document-integrity/snapshots";
 
 export type DocumentIntegrityErrorCode =
@@ -40,7 +60,9 @@ export type DocumentIntegrityErrorCode =
   | "DOCUMENT_EMISSION_INVALID"
   | "RECTIFICATION_ORIGINAL_MISSING"
   | "RECTIFICATION_ORIGINAL_INVALID"
-  | "RECTIFICATION_CONFLICT";
+  | "RECTIFICATION_DATE_INVALID"
+  | "RECTIFICATION_CONFLICT"
+  | "DERIVED_DOCUMENT_ISSUER_MISMATCH";
 
 const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
   DOCUMENT_ID_MISMATCH: "El documento no coincide con el registro guardado.",
@@ -56,8 +78,12 @@ const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
     "No se encuentra la factura original de esta rectificativa.",
   RECTIFICATION_ORIGINAL_INVALID:
     "La referencia original no es una factura emitida válida para rectificar.",
+  RECTIFICATION_DATE_INVALID:
+    "La fecha de la rectificativa no puede ser anterior a la factura original.",
   RECTIFICATION_CONFLICT:
     "La factura original ya tiene otra rectificativa emitida. Revisa la cadena antes de continuar.",
+  DERIVED_DOCUMENT_ISSUER_MISMATCH:
+    "El NIF del negocio actual no coincide con el emisor histórico del documento de origen.",
 };
 
 export class DocumentIntegrityError extends Error {
@@ -78,6 +104,25 @@ function hasLegacyIssuedStatus(doc: Document): boolean {
   return doc.status !== "borrador";
 }
 
+function hasSnapshotIntegrityEvidence(doc: Document): boolean {
+  return Boolean(
+    doc.documentSnapshot ||
+      doc.pdfSnapshot ||
+      doc.snapshotSeal ||
+      doc.snapshotIntegrityRequired ||
+      doc.issuedAt,
+  );
+}
+
+function isExplicitEditableQuote(doc: Document): boolean {
+  return (
+    doc.type === "presupuesto" &&
+    doc.documentLifecycle === "draft" &&
+    doc.integrityLock === "unlocked" &&
+    !hasSnapshotIntegrityEvidence(doc)
+  );
+}
+
 function hasIssuedRectificationEvidence(doc: Document): boolean {
   const number = doc.number.trim().toUpperCase();
   const hasFinalNumber = Boolean(number && number !== "BORRADOR");
@@ -88,6 +133,8 @@ function hasIssuedRectificationEvidence(doc: Document): boolean {
     doc.rectification &&
       (doc.documentSnapshot ||
         doc.pdfSnapshot ||
+        doc.snapshotSeal ||
+        doc.snapshotIntegrityRequired ||
         doc.verifactu ||
         doc.issuedAt ||
         doc.documentLifecycle === "issued" ||
@@ -107,12 +154,14 @@ function hasIntegrityRelationship(doc: Document): boolean {
 }
 
 export function deriveDocumentLifecycle(doc: Document): DocumentLifecycle {
+  if (isExplicitEditableQuote(doc)) return "draft";
   if (doc.documentLifecycle === "canceled" || doc.status === "anulada") {
     return "canceled";
   }
 
   if (
     doc.documentLifecycle === "issued" ||
+    hasSnapshotIntegrityEvidence(doc) ||
     hasLegacyIssuedStatus(doc) ||
     hasIntegrityRelationship(doc)
   ) {
@@ -123,6 +172,7 @@ export function deriveDocumentLifecycle(doc: Document): DocumentLifecycle {
 }
 
 export function deriveIntegrityLock(doc: Document): DocumentIntegrityLock {
+  if (isExplicitEditableQuote(doc)) return "unlocked";
   if (
     doc.integrityLock === "locked" ||
     deriveDocumentLifecycle(doc) !== "draft" ||
@@ -183,6 +233,18 @@ export function issueDocument(
 
   const timestamp = nowIso(issuedAt);
   const issuer = doc.issuer ?? captureIssuerSnapshot(profile, timestamp);
+  if (
+    doc.documentSnapshot ||
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired
+  ) {
+    assertDocumentSnapshotsIntegrity(doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+  }
   const documentSnapshot =
     doc.documentSnapshot ??
     buildDocumentSnapshot(
@@ -201,18 +263,28 @@ export function issueDocument(
     doc.pdfSnapshot ??
     buildDocumentPdfSnapshot(documentSnapshot, profile, timestamp);
 
-  return {
-    ...doc,
-    issuer,
-    documentSnapshot,
-    pdfSnapshot,
-    status: "enviado",
-    documentLifecycle: "issued",
-    integrityLock: "locked",
-    deliveryStatus: "not_sent",
-    issuedAt: doc.issuedAt ?? timestamp,
-    updatedAt: timestamp,
-  };
+  assertDocumentSnapshotsIntegrity({ documentSnapshot, pdfSnapshot });
+
+  return projectCanonicalSnapshotOntoDocument(
+    withDocumentSnapshotIntegritySignal({
+      ...doc,
+      issuer,
+      documentSnapshot,
+      pdfSnapshot,
+      snapshotSeal: buildDocumentSnapshotSeal(
+        doc.id,
+        documentSnapshot,
+        pdfSnapshot,
+      ),
+      snapshotIntegrityRequired: true,
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      deliveryStatus: "not_sent",
+      issuedAt: doc.issuedAt ?? timestamp,
+      updatedAt: timestamp,
+    }),
+  );
 }
 
 export function markDocumentSent(
@@ -220,6 +292,11 @@ export function markDocumentSent(
   sentAt: Date | string = new Date(),
 ): Document {
   assertIssued(doc);
+  assertDocumentSnapshotsIntegrity(doc, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
 
   const timestamp = nowIso(sentAt);
   const deliveryStatus: DocumentDeliveryStatus = "sent";
@@ -240,8 +317,14 @@ export function markDocumentPaid(
   paidAt: Date | string = new Date(),
 ): Document {
   assertIssued(doc);
+  assertDocumentSnapshotsIntegrity(doc, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
 
-  if (doc.type !== "factura" && doc.type !== "recibo") {
+  const canonicalType = doc.documentSnapshot?.documentType ?? doc.type;
+  if (canonicalType !== "factura" && canonicalType !== "recibo") {
     throw new DocumentIntegrityError("INVALID_DOCUMENT_TYPE");
   }
 
@@ -264,8 +347,13 @@ export function acceptQuote(
   acceptedAt: Date | string = new Date(),
 ): Document {
   assertIssued(doc);
+  assertDocumentSnapshotsIntegrity(doc, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
 
-  if (doc.type !== "presupuesto") {
+  if (doc.documentSnapshot?.documentType !== "presupuesto") {
     throw new DocumentIntegrityError("INVALID_DOCUMENT_TYPE");
   }
 
@@ -288,8 +376,13 @@ export function rejectQuote(
   rejectedAt: Date | string = new Date(),
 ): Document {
   assertIssued(doc);
+  assertDocumentSnapshotsIntegrity(doc, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
 
-  if (doc.type !== "presupuesto") {
+  if (doc.documentSnapshot?.documentType !== "presupuesto") {
     throw new DocumentIntegrityError("INVALID_DOCUMENT_TYPE");
   }
 

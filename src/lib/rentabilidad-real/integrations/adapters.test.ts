@@ -258,6 +258,7 @@ describe("rentabilidad real read-only adapters", () => {
   it("mapExistingTaxSummaryToProfitabilityTaxContext does not mutate input", () => {
     const summary: TaxSummary = {
       vatExempt: false,
+      integrityBlockedDocuments: 0,
       salesBase: 1000,
       salesIva: 210,
       expenseBase: 300,

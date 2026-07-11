@@ -106,6 +106,7 @@ describe("sync queue", () => {
       "document",
       "profile",
       "counters",
+      "workspace_metadata",
     ]);
     expect(changes.every((change) => change.updatedAt === NOW)).toBe(true);
   });

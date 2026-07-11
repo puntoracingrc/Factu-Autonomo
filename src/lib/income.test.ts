@@ -6,7 +6,8 @@ import {
   pendingCollection,
   statusAfterUnmarkingCollection,
 } from "./income";
-import type { Document } from "./types";
+import { issueDocument } from "./document-integrity";
+import { DEFAULT_PROFILE, type Document } from "./types";
 
 function invoice(
   status: Document["status"],
@@ -113,5 +114,23 @@ describe("income helpers", () => {
 
   it("vuelve a enviado al desmarcar cobro", () => {
     expect(statusAfterUnmarkingCollection(invoice("pagado"))).toBe("enviado");
+  });
+
+  it("usa el total histórico sellado para cobrado y pendiente", () => {
+    const issued = issueDocument(
+      invoice("borrador", 121),
+      DEFAULT_PROFILE,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const drifted = {
+      ...issued,
+      items: [{ ...issued.items[0], unitPrice: 999 }],
+    };
+
+    expect(pendingCollection([drifted])).toBeCloseTo(121, 2);
+    expect(collectedIncome([{ ...drifted, status: "pagado" }])).toBeCloseTo(
+      121,
+      2,
+    );
   });
 });

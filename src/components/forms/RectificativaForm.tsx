@@ -51,15 +51,21 @@ import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
+  rectificationLineDisplayTotal,
   rectificationTextDefaults,
   rectificationTypeLabel,
 } from "@/lib/rectificativas";
-import { lineItemFormTotal } from "@/lib/document-form-flow";
-import type { Document, LineItem, RectificationType } from "@/lib/types";
+import type {
+  BusinessProfile,
+  Document,
+  LineItem,
+  RectificationType,
+} from "@/lib/types";
 import { RECTIFICATION_REASONS } from "@/lib/types";
 
 interface RectificativaFormProps {
   original: Document;
+  historicalProfile: BusinessProfile;
 }
 
 interface LineAreaDraft {
@@ -67,7 +73,10 @@ interface LineAreaDraft {
   height: number;
 }
 
-export function RectificativaForm({ original }: RectificativaFormProps) {
+export function RectificativaForm({
+  original,
+  historicalProfile,
+}: RectificativaFormProps) {
   const router = useRouter();
   const { data, addRectificativa, registerVerifactuForDocument } = useAppStore();
   const {
@@ -84,8 +93,10 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   >("idle");
   const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
-  const vatExempt = isVatExempt(data.profile);
-  const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
+  const vatExempt = isVatExempt(historicalProfile);
+  const defaultIva = vatExempt
+    ? 0
+    : (historicalProfile.iva?.defaultRate ?? 21);
   const unitsSettings = normalizeDocumentUnits(data.profile.documentUnits);
   const defaultUnit = unitsSettings.defaultUnitId;
 
@@ -150,6 +161,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
   }
 
   const previewTotals = documentAmounts({ items }, vatExempt);
+  const originalDate = original.documentSnapshot?.date ?? original.date;
   const finalReason =
     reason === "Otros motivos" ? customReason.trim() : reason;
 
@@ -216,6 +228,12 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       alert("Añade al menos un concepto");
       return false;
     }
+    if (date < originalDate) {
+      alert(
+        "La fecha de la rectificativa no puede ser anterior a la factura original.",
+      );
+      return false;
+    }
     return true;
   }
 
@@ -227,9 +245,9 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     try {
       const doc = attachIssuerSnapshot(
         buildRectificativaDraft("borrador"),
-        data.profile,
+        historicalProfile,
       );
-      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
+      await openDocumentPdfPreview(doc, historicalProfile, pdfOptions);
     } catch (error) {
       alert(
         error instanceof Error && error.message === "popup_blocked"
@@ -283,7 +301,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
           client,
           items: rectificativaItemsForSave(),
         },
-        data.profile,
+        historicalProfile,
         "factura",
       );
       if (!emissionCheck.ok) {
@@ -344,7 +362,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
     try {
       saved = await finalizeVerifactuDocument({
         doc: saved,
-        profile: data.profile,
+        profile: historicalProfile,
         chain: data.verifactuChain,
         registerLocal: registerVerifactuForDocument,
       });
@@ -365,7 +383,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
       number: saved.number,
       router,
       download: download
-        ? { doc: saved, profile: data.profile, pdfOptions }
+        ? { doc: saved, profile: historicalProfile, pdfOptions }
         : undefined,
     });
   }
@@ -442,6 +460,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
         <Field label="Fecha de la rectificativa">
           <Input
             type="date"
+            min={originalDate}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -558,6 +577,7 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
                   <Field label="IVA">
                     <IvaPercentSelect
                       value={item.ivaPercent}
+                      settings={historicalProfile.iva}
                       onChange={(ivaPercent) =>
                         updateItem(item.id, { ivaPercent })
                       }
@@ -596,7 +616,8 @@ export function RectificativaForm({ original }: RectificativaFormProps) {
               ) : null}
               <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
                 <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
-                  Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
+                  Total línea:{" "}
+                  {formatMoney(rectificationLineDisplayTotal(item, vatExempt))}
                 </p>
               </div>
             </div>

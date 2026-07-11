@@ -1,9 +1,4 @@
-import {
-  lineIva,
-  lineSubtotal,
-  lineTotal,
-  roundMoney,
-} from "./calculations";
+import { documentTotals, lineMoneyAmounts } from "./calculations";
 import {
   isAreaDocumentUnit,
   isLinearDocumentUnit,
@@ -19,29 +14,41 @@ export interface DocumentFormAmounts {
   total: number;
 }
 
-function nonNegativeFinite(value: number): number {
-  if (!Number.isFinite(value) || value < 0) return 0;
+export interface DocumentFormSignedAmountOptions {
+  allowSignedAmounts?: boolean;
+}
+
+function safeFinite(
+  value: number,
+  options: DocumentFormSignedAmountOptions = {},
+): number {
+  if (!Number.isFinite(value)) return 0;
+  if (!options.allowSignedAmounts && value < 0) return 0;
   return value;
 }
 
 export function sanitizeDocumentFormLineItem(
   item: LineItem,
   vatExempt = false,
+  options: DocumentFormSignedAmountOptions = {},
 ): LineItem {
   return {
     ...item,
     description: item.description ?? "",
-    quantity: nonNegativeFinite(item.quantity),
-    unitPrice: nonNegativeFinite(item.unitPrice),
-    ivaPercent: vatExempt ? 0 : nonNegativeFinite(item.ivaPercent),
+    quantity: safeFinite(item.quantity, options),
+    unitPrice: safeFinite(item.unitPrice, options),
+    ivaPercent: vatExempt ? 0 : safeFinite(item.ivaPercent),
   };
 }
 
 export function sanitizeDocumentFormItems(
   items: LineItem[],
   vatExempt = false,
+  options: DocumentFormSignedAmountOptions = {},
 ): LineItem[] {
-  return items.map((item) => sanitizeDocumentFormLineItem(item, vatExempt));
+  return items.map((item) =>
+    sanitizeDocumentFormLineItem(item, vatExempt, options),
+  );
 }
 
 export function documentFormItemsForEditing(
@@ -58,7 +65,7 @@ export function applyDocumentIvaToItems(
   ivaPercent: number,
   vatExempt = false,
 ): LineItem[] {
-  const resolvedIva = vatExempt ? 0 : nonNegativeFinite(ivaPercent);
+  const resolvedIva = vatExempt ? 0 : safeFinite(ivaPercent);
   return items.map((item) => ({ ...item, ivaPercent: resolvedIva }));
 }
 
@@ -76,23 +83,19 @@ export function applyConfirmedDocumentIvaToItems(
 export function documentFormAmounts(
   items: LineItem[],
   vatExempt = false,
+  options: DocumentFormSignedAmountOptions = {},
 ): DocumentFormAmounts {
-  const safeItems = sanitizeDocumentFormItems(items, vatExempt);
-  const subtotal = safeItems.reduce((sum, item) => sum + lineSubtotal(item), 0);
-  const iva = vatExempt
-    ? 0
-    : safeItems.reduce((sum, item) => sum + lineIva(item), 0);
-
-  return {
-    subtotal: roundMoney(subtotal),
-    iva: roundMoney(iva),
-    total: roundMoney(subtotal + iva),
-  };
+  const safeItems = sanitizeDocumentFormItems(items, vatExempt, options);
+  return documentTotals({ items: safeItems }, vatExempt);
 }
 
-export function lineItemFormTotal(item: LineItem, vatExempt = false): number {
-  const safeItem = sanitizeDocumentFormLineItem(item, vatExempt);
-  return roundMoney(vatExempt ? lineSubtotal(safeItem) : lineTotal(safeItem));
+export function lineItemFormTotal(
+  item: LineItem,
+  vatExempt = false,
+  options: DocumentFormSignedAmountOptions = {},
+): number {
+  const safeItem = sanitizeDocumentFormLineItem(item, vatExempt, options);
+  return lineMoneyAmounts(safeItem, vatExempt).total;
 }
 
 export function applyLineMeasurementDraft(
@@ -109,21 +112,33 @@ export function applyLineMeasurementDraft(
 
 export function firstDocumentFormLineIssue(
   items: LineItem[],
-  options: { requireConcept?: boolean } = {},
+  options: {
+    requireConcept?: boolean;
+    allowSignedAmounts?: boolean;
+  } = {},
 ): string | null {
   const requireConcept = options.requireConcept ?? true;
+  const allowSignedAmounts = options.allowSignedAmounts ?? false;
   let hasValidLine = false;
 
   for (const [index, item] of items.entries()) {
     const lineNumber = index + 1;
     const description = item.description.trim();
-    const hasPrice = Number.isFinite(item.unitPrice) && item.unitPrice > 0;
+    const hasPrice =
+      Number.isFinite(item.unitPrice) &&
+      (allowSignedAmounts ? item.unitPrice !== 0 : item.unitPrice > 0);
 
-    if (!Number.isFinite(item.quantity) || item.quantity < 0) {
+    if (
+      !Number.isFinite(item.quantity) ||
+      (!allowSignedAmounts && item.quantity < 0)
+    ) {
       return `Indica una cantidad válida en la línea ${lineNumber}.`;
     }
 
-    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) {
+    if (
+      !Number.isFinite(item.unitPrice) ||
+      (!allowSignedAmounts && item.unitPrice < 0)
+    ) {
       return `Indica un precio válido en la línea ${lineNumber}.`;
     }
 
@@ -135,8 +150,13 @@ export function firstDocumentFormLineIssue(
       return `Completa el concepto de la línea ${lineNumber} o elimínala.`;
     }
 
-    if (description && item.quantity <= 0) {
-      return `Indica una cantidad mayor que 0 en la línea ${lineNumber}.`;
+    if (
+      description &&
+      (allowSignedAmounts ? item.quantity === 0 : item.quantity <= 0)
+    ) {
+      return allowSignedAmounts
+        ? `Indica una cantidad distinta de 0 en la línea ${lineNumber}.`
+        : `Indica una cantidad mayor que 0 en la línea ${lineNumber}.`;
     }
 
     if (description) hasValidLine = true;
@@ -150,9 +170,10 @@ export function documentFormItemsForSave(
   vatExempt = false,
   options: {
     lineMeasurementDrafts?: Record<string, LineMeasurementDraft>;
+    allowSignedAmounts?: boolean;
   } = {},
 ): LineItem[] {
-  return sanitizeDocumentFormItems(items, vatExempt)
+  return sanitizeDocumentFormItems(items, vatExempt, options)
     .map((item) => {
       const measuredItem = applyLineMeasurementDraft(
         item,

@@ -8,6 +8,7 @@ import {
   applySyncChanges,
   clearSyncedChanges,
   diffAppData,
+  emptyCloudBootstrapData,
   mergePendingChanges,
   type SyncChange,
 } from "./diff";
@@ -153,6 +154,25 @@ export function mergeRemoteOntoLocal(
   return {
     data: applyRemoteChanges(monotonicLocal, toApply),
     applied: toApply.length,
+  };
+}
+
+/**
+ * Reconstruye una descarga completa sin heredar prematuramente el marcador
+ * local de EMPTY_DATA. Si la nube contiene el metadato v1, applySyncChanges lo
+ * repone antes de normalizar; si no, normalizeLoadedData ejecuta la migración
+ * legacy y deja sus sellos en cola para devolverlos a la nube.
+ */
+export function rebuildCloudSnapshot(
+  remoteChanges: SyncChange[],
+): { data: AppData; applied: number } {
+  const merged = mergeRemoteOntoLocal(
+    emptyCloudBootstrapData(),
+    remoteChanges,
+  );
+  return {
+    data: normalizeImportedCloudData(merged.data),
+    applied: merged.applied,
   };
 }
 

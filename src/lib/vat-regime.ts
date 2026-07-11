@@ -1,8 +1,4 @@
-import {
-  documentTotals,
-  expenseTotal,
-  lineSubtotal,
-} from "./calculations";
+import { documentTotals, expenseTotal } from "./calculations";
 import type { BusinessProfile, Document, Expense, LineItem } from "./types";
 
 export function isVatExempt(
@@ -20,15 +16,33 @@ export function zeroIvaItems(items: LineItem[]): LineItem[] {
 }
 
 export function documentAmounts(
-  doc: Pick<Document, "items">,
+  doc: Pick<Document, "items"> &
+    Partial<
+      Pick<
+        Document,
+        | "documentSnapshot"
+        | "snapshotIntegrityRequired"
+        | "snapshotIntegrity"
+      >
+    >,
   vatExempt: boolean,
 ): { subtotal: number; iva: number; total: number } {
-  if (!vatExempt) return documentTotals(doc);
-  const subtotal = doc.items.reduce(
-    (sum, item) => sum + lineSubtotal(item),
-    0,
-  );
-  return { subtotal, iva: 0, total: subtotal };
+  if (doc.snapshotIntegrity?.status === "blocked") {
+    return { subtotal: 0, iva: 0, total: 0 };
+  }
+  const frozen = doc.documentSnapshot?.taxSummary;
+  if (
+    doc.snapshotIntegrityRequired &&
+    doc.documentSnapshot?.documentType !== "presupuesto" &&
+    frozen
+  ) {
+    return {
+      subtotal: frozen.subtotal,
+      iva: frozen.iva,
+      total: frozen.total,
+    };
+  }
+  return documentTotals(doc, vatExempt);
 }
 
 export function expenseAmount(expense: Expense, vatExempt: boolean): number {

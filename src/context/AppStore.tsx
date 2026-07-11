@@ -97,23 +97,34 @@ import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
 } from "@/lib/suppliers";
-import { withVerifactuOnDocument } from "@/lib/verifactu/store";
+import {
+  resolveVerifactuRegistrationContext,
+  withVerifactuOnDocument,
+} from "@/lib/verifactu/store";
 import {
   applyGenericDocumentUpdate,
   attachRegisteredVerifactuToSnapshots,
   deriveDocumentLifecycle,
   DocumentIntegrityError,
+  isDocumentIntegrityLocked,
   issueDocument as issueDocumentWithIntegrity,
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
 } from "@/lib/document-integrity";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
+import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import {
   assertRectificationEmissionAllowed,
+  canonicalRectificationItems,
+  canonicalRectificationReference,
   hasPendingRectificationDraft,
   materializeRectificationDocument,
+  profileForRectificationSource,
   preserveRectificationOriginalReference,
+  resolveCanonicalRectificationSource,
 } from "@/lib/document-integrity/rectification-issuance";
+import { editableQuoteWithLocalStatus } from "@/lib/document-integrity/quote-status";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { todayISO } from "@/lib/calculations";
 import {
@@ -226,6 +237,7 @@ interface AppStoreValue {
   registerVerifactuForDocument: (
     doc: Document,
     chainOverride?: AppData["verifactuChain"],
+    profileOverride?: BusinessProfile,
   ) => Promise<Document>;
 }
 
@@ -307,40 +319,6 @@ function applyEmittedRectificationToOriginal(
   });
 }
 
-function editableQuoteWithLocalStatus(
-  next: Document,
-  updatedAt: string,
-): Document {
-  const accepted = next.status === "aceptado" || next.status === "pagado";
-  const rejected = next.status === "rechazado";
-  const deliveryStatus =
-    next.status === "borrador" ? "not_sent" : (next.deliveryStatus ?? "not_sent");
-
-  return {
-    ...next,
-    issuer: undefined,
-    verifactu: undefined,
-    documentSnapshot: undefined,
-    pdfSnapshot: undefined,
-    documentLifecycle: "draft",
-    integrityLock: "unlocked",
-    deliveryStatus,
-    paymentStatus: "not_applicable",
-    acceptanceStatus: accepted
-      ? "accepted"
-      : rejected
-        ? "rejected"
-        : next.status === "borrador"
-          ? undefined
-          : "pending",
-    issuedAt: undefined,
-    sentAt: deliveryStatus === "sent" ? (next.sentAt ?? updatedAt) : undefined,
-    paidAt: undefined,
-    acceptedAt: accepted ? (next.acceptedAt ?? updatedAt) : undefined,
-    updatedAt,
-  };
-}
-
 function saveEditableDocument(
   current: Document,
   next: Document,
@@ -348,6 +326,12 @@ function saveEditableDocument(
   updatedAt: string,
 ): Document {
   if (current.type === "presupuesto" || next.type === "presupuesto") {
+    if (
+      deriveDocumentLifecycle(current) !== "draft" ||
+      isDocumentIntegrityLocked(current)
+    ) {
+      throw new DocumentIntegrityError("DOCUMENT_LOCKED");
+    }
     return editableQuoteWithLocalStatus(next, updatedAt);
   }
 
@@ -540,6 +524,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         current,
         doc,
         prev.documents,
+        prev.profile,
+      );
+      const emissionProfile = profileForRectificationSource(
+        canonicalDocument,
+        prev.documents,
+        prev.profile,
       );
       const shouldIssue =
         deriveDocumentLifecycle(current) === "draft" &&
@@ -557,7 +547,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saved = saveEditableDocument(
         current,
         prepared.doc,
-        prev.profile,
+        emissionProfile,
         now,
       );
       const nextDocuments = applyEmittedRectificationToOriginal(
@@ -638,6 +628,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           current,
           current,
           prev.documents,
+          prev.profile,
+        );
+        const emissionProfile = profileForRectificationSource(
+          canonicalDocument,
+          prev.documents,
+          prev.profile,
         );
         const prepared = assignFinalInvoiceIdentityIfNeeded(
           canonicalDocument,
@@ -645,10 +641,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           prev.profile.numbering,
         );
         assertRectificationEmissionAllowed(prepared.doc, prev.documents);
-        assertDocumentEmissionValid(prepared.doc, prev.profile);
+        assertDocumentEmissionValid(prepared.doc, emissionProfile);
         issued = issueDocumentWithIntegrity(
           prepared.doc,
-          prev.profile,
+          emissionProfile,
           now,
         );
         const nextDocuments = applyEmittedRectificationToOriginal(
@@ -739,6 +735,25 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         if (!invoice || invoice.type !== "factura" || !isCollectedDocument(invoice)) {
           return prev;
         }
+        let canonicalInvoice: Document;
+        let receiptProfile: BusinessProfile;
+        try {
+          canonicalInvoice = buildCanonicalDocumentForProtectedEffect(
+            invoice,
+            prev.profile,
+          );
+          if (
+            canonicalInvoice.documentSnapshot?.documentType !== "factura"
+          ) {
+            return prev;
+          }
+          receiptProfile = profileForHistoricalDerivedDocument(
+            canonicalInvoice.documentSnapshot,
+            prev.profile,
+          );
+        } catch {
+          return prev;
+        }
 
         const existingReceipt = findReceiptForInvoice(
           prev.documents,
@@ -752,7 +767,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
         const now = new Date().toISOString();
         const numbering = prev.profile.numbering;
-        const receiptDraft = buildReceiptFromInvoice(invoice);
+        const receiptDraft = buildReceiptFromInvoice(canonicalInvoice);
         const year = new Date(receiptDraft.date).getFullYear();
         const { number, sequence } = assignNextDocumentNumberByType(
           prev.documents,
@@ -767,12 +782,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           status: "borrador",
           id: newId(),
           number,
-          issuer: invoice.issuer ?? captureIssuerSnapshot(prev.profile),
+          issuer: captureIssuerSnapshot(receiptProfile),
           createdAt: now,
           updatedAt: now,
         };
         const paidReceipt = markDocumentPaidWithIntegrity(
-          issueDocumentWithIntegrity(receipt, prev.profile, now),
+          issueDocumentWithIntegrity(receipt, receiptProfile, now),
           now,
         );
         result = paidReceipt;
@@ -995,7 +1010,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const quote = prev.documents.find((doc) => doc.id === id);
       if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
 
-      const draft = buildInvoiceDraftFromQuote(quote);
+      let canonicalQuote: Document;
+      try {
+        canonicalQuote = buildCanonicalDocumentForProtectedEffect(
+          quote,
+          prev.profile,
+        );
+      } catch {
+        return prev;
+      }
+      if (canonicalQuote.type !== "presupuesto") return prev;
+
+      const draft = buildInvoiceDraftFromQuote(canonicalQuote);
       const year = new Date(draft.date).getFullYear();
       const numbering = prev.profile.numbering;
       const now = new Date().toISOString();
@@ -1031,8 +1057,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       let created: Document | null = null;
       setAppData((prev) => {
-        const original = prev.documents.find((d) => d.id === originalId);
-        if (!original || !canRectifyInvoice(original)) return prev;
+        const storedOriginal = prev.documents.find((d) => d.id === originalId);
+        if (!storedOriginal) return prev;
+        const { original, profile: rectificationProfile } =
+          resolveCanonicalRectificationSource(storedOriginal, prev.profile);
+        if (!canRectifyInvoice(original)) return prev;
         const existingDraft = hasPendingRectificationDraft(
           prev.documents,
           original.id,
@@ -1058,27 +1087,31 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 numbering,
               ),
             };
-        const rectification: RectificationInfo = {
-          ...doc.rectification,
-          originalDocumentId: original.id,
-          originalNumber: original.number,
-          originalDate: original.date,
-        };
+        const rectification: RectificationInfo = canonicalRectificationReference(
+          original,
+          doc.rectification,
+        );
         const source: Document = {
           ...doc,
           type: "factura",
           id,
           number: assigned.number,
+          items: canonicalRectificationItems(
+            original,
+            doc.items,
+            rectification.type,
+          ),
           rectification,
           createdAt: now,
           updatedAt: now,
         };
+        assertRectificationEmissionAllowed(source, prev.documents);
         if (!isDraft) {
-          assertDocumentEmissionValid(source, prev.profile);
+          assertDocumentEmissionValid(source, rectificationProfile);
         }
         const rectificativa = materializeRectificationDocument(
           source,
-          prev.profile,
+          rectificationProfile,
           now,
         );
 
@@ -1706,12 +1739,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     async (
       doc: Document,
       chainOverride?: AppData["verifactuChain"],
+      profileOverride?: BusinessProfile,
     ): Promise<Document> => {
       if (doc.verifactu) {
         const sealed = attachRegisteredVerifactuToSnapshots(doc);
         setAppData((prev) => ({
           ...prev,
-          verifactuChain: chainOverride ?? prev.verifactuChain,
+          verifactuChain:
+            chainOverride === undefined
+              ? prev.verifactuChain
+              : chainOverride,
           documents: prev.documents.map((d) =>
             d.id === sealed.id ? sealed : d,
           ),
@@ -1719,16 +1756,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return sealed;
       }
 
-      const applied = await withVerifactuOnDocument({
+      const registration = resolveVerifactuRegistrationContext({
         doc,
         profile: data.profile,
         chain: data.verifactuChain,
+        profileOverride,
+        chainOverride,
       });
+      const applied = await withVerifactuOnDocument(registration);
 
       const sealed = attachRegisteredVerifactuToSnapshots(applied.doc);
       setAppData((prev) => ({
         ...prev,
-        verifactuChain: chainOverride ?? applied.chain,
+        verifactuChain: applied.chain,
         documents: prev.documents.map((d) =>
           d.id === sealed.id ? sealed : d,
         ),

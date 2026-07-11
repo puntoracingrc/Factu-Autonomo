@@ -886,17 +886,24 @@ export async function readGenericDocumentFiles(
   );
   const nextDocuments = [...keptDocuments, ...importedDocuments];
   const nextProfile = current.profile;
-  const data = normalizeLoadedData({
-    ...current,
-    customers: [...keptCustomers, ...importedCustomers],
-    suppliers: [...keptSuppliers, ...importedSuppliers],
-    documents: nextDocuments,
-    counters: countersFromDocuments(
-      nextDocuments,
-      nextProfile.numbering.year,
-      nextProfile.numbering,
-    ),
-  });
+  const data = normalizeLoadedData(
+    {
+      ...current,
+      customers: [...keptCustomers, ...importedCustomers],
+      suppliers: [...keptSuppliers, ...importedSuppliers],
+      documents: nextDocuments,
+      counters: countersFromDocuments(
+        nextDocuments,
+        nextProfile.numbering.year,
+        nextProfile.numbering,
+      ),
+    },
+    {
+      legacyBackfillDocumentIds: new Set(
+        importedDocuments.map((document) => document.id),
+      ),
+    },
+  );
 
   const firstIssuer = parsedDocuments.find((item) => item.issuer)?.issuer;
   const detectedProfile = firstIssuer

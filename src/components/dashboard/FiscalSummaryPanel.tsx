@@ -24,6 +24,8 @@ import {
   filterExpensesByQuarter,
   filterExpensesByYear,
   getCurrentQuarter,
+  isDateInQuarter,
+  isDateInYear,
   quarterLabel,
   type Quarter,
 } from "@/lib/periods";
@@ -67,9 +69,16 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     return filterExpensesByQuarter(data.expenses, year, quarter);
   }, [data.expenses, mode, year, quarter]);
 
-  const taxes = calculateTaxSummary(periodDocuments, periodExpenses, {
+  const taxes = calculateTaxSummary(data.documents, periodExpenses, {
     irpfPercent: data.profile.irpfPercent,
     vatExempt,
+    profile: data.profile,
+    isDocumentDateInPeriod:
+      mode === "all"
+        ? () => true
+        : mode === "year"
+          ? (date) => isDateInYear(date, year)
+          : (date) => isDateInQuarter(date, year, quarter),
   });
 
   const periodIncome = collectedSalesTotal(

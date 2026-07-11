@@ -782,18 +782,25 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
     (expense) => !expense.id.startsWith(`${HOLDED_ID_PREFIX}:expense:`),
   );
   const nextDocuments = [...keptDocuments, ...importedDocuments];
-  const data = normalizeLoadedData({
-    ...current,
-    customers: [...keptCustomers, ...importedCustomers],
-    suppliers: [...keptSuppliers, ...importedSuppliers],
-    expenses: [...keptExpenses, ...uniqueById(importedExpenses)],
-    documents: nextDocuments,
-    counters: countersFromDocuments(
-      nextDocuments,
-      current.profile.numbering.year,
-      current.profile.numbering,
-    ),
-  });
+  const data = normalizeLoadedData(
+    {
+      ...current,
+      customers: [...keptCustomers, ...importedCustomers],
+      suppliers: [...keptSuppliers, ...importedSuppliers],
+      expenses: [...keptExpenses, ...uniqueById(importedExpenses)],
+      documents: nextDocuments,
+      counters: countersFromDocuments(
+        nextDocuments,
+        current.profile.numbering.year,
+        current.profile.numbering,
+      ),
+    },
+    {
+      legacyBackfillDocumentIds: new Set(
+        importedDocuments.map((document) => document.id),
+      ),
+    },
+  );
 
   const mixedRoleContacts = (tables.contacts ?? []).filter(
     (row) => normalizeKey(get(row, "tipo_contacto")) === "CLIENTEPROVEEDOR",

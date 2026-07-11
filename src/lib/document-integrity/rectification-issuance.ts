@@ -1,6 +1,107 @@
-import { DocumentIntegrityError } from "@/lib/document-integrity";
+import {
+  assertDocumentSnapshotsIntegrity,
+  DocumentIntegrityError,
+} from "@/lib/document-integrity";
+import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
-import type { BusinessProfile, Document } from "@/lib/types";
+import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
+import {
+  cloneItemsForCorreccion,
+  itemsForAnulacion,
+} from "@/lib/rectificativas";
+import type {
+  BusinessProfile,
+  Document,
+  DocumentSnapshot,
+  LineItem,
+  RectificationInfo,
+  RectificationType,
+} from "@/lib/types";
+
+export interface CanonicalRectificationSource {
+  original: Document;
+  profile: BusinessProfile;
+}
+
+export function verifiedRectificationOriginalSnapshot(
+  original: Document,
+): DocumentSnapshot {
+  assertDocumentSnapshotsIntegrity(original, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
+  const snapshot = original.documentSnapshot!;
+  if (
+    snapshot.documentType !== "factura" ||
+    snapshot.documentKind !== "factura" ||
+    snapshot.rectification
+  ) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+  return snapshot;
+}
+
+export function resolveCanonicalRectificationSource(
+  original: Document,
+  currentProfile: BusinessProfile,
+): CanonicalRectificationSource {
+  const verifiedSnapshot = verifiedRectificationOriginalSnapshot(original);
+  const canonical = buildCanonicalDocumentForProtectedEffect(
+    original,
+    currentProfile,
+  );
+  if (canonical.type !== "factura" || canonical.rectification) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  return {
+    original: canonical,
+    profile: profileForHistoricalDerivedDocument(
+      verifiedSnapshot,
+      currentProfile,
+    ),
+  };
+}
+
+export function canonicalRectificationReference(
+  original: Document,
+  requested: RectificationInfo,
+): RectificationInfo {
+  return {
+    ...requested,
+    originalDocumentId: original.id,
+    originalNumber: original.number,
+    originalDate: original.date,
+  };
+}
+
+export function canonicalRectificationItems(
+  original: Document,
+  requestedItems: LineItem[],
+  type: RectificationType,
+): LineItem[] {
+  return type === "anulacion"
+    ? itemsForAnulacion(original.items)
+    : cloneItemsForCorreccion(requestedItems);
+}
+
+export function profileForRectificationSource(
+  document: Document,
+  documents: Document[],
+  currentProfile: BusinessProfile,
+): BusinessProfile {
+  const originalDocumentId = document.rectification?.originalDocumentId;
+  if (!originalDocumentId) return currentProfile;
+
+  const original = documents.find(
+    (candidate) => candidate.id === originalDocumentId,
+  );
+  if (!original) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
+  }
+  return resolveCanonicalRectificationSource(original, currentProfile).profile;
+}
 
 export function hasPendingRectificationDraft(
   documents: Document[],
@@ -45,12 +146,18 @@ export function assertRectificationEmissionAllowed(
   ) {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
   }
+
+  const originalSnapshot = verifiedRectificationOriginalSnapshot(original);
+  if (document.date < originalSnapshot.date) {
+    throw new DocumentIntegrityError("RECTIFICATION_DATE_INVALID");
+  }
 }
 
 export function preserveRectificationOriginalReference(
   current: Document,
   next: Document,
   documents: Document[],
+  currentProfile: BusinessProfile,
 ): Document {
   if (!current.rectification) return next;
 
@@ -61,15 +168,25 @@ export function preserveRectificationOriginalReference(
   if (!original) {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
   }
+  const canonical = resolveCanonicalRectificationSource(
+    original,
+    currentProfile,
+  ).original;
+  const rectification = canonicalRectificationReference(
+    canonical,
+    {
+      ...(next.rectification ?? current.rectification),
+      type: current.rectification.type,
+    },
+  );
 
   return {
     ...next,
-    rectification: {
-      ...(next.rectification ?? current.rectification),
-      originalDocumentId: original.id,
-      originalNumber: original.number,
-      originalDate: original.date,
-    },
+    items:
+      rectification.type === "anulacion"
+        ? canonicalRectificationItems(canonical, next.items, "anulacion")
+        : next.items,
+    rectification,
   };
 }
 

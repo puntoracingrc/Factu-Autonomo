@@ -298,7 +298,13 @@ describe("document PDF source", () => {
     const issued = issueDocument(invoice(), profile, NOW);
     const partialLegacy: Document = {
       ...mutatedIssuedDocument(issued),
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        source: "legacy_backfill",
+      },
       pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
     };
     const view = buildPdfViewModelForDocument(partialLegacy, changedProfile());
 
@@ -310,7 +316,7 @@ describe("document PDF source", () => {
     expect(partialLegacy.pdfSnapshot).toBeUndefined();
   });
 
-  it("aplica marca y web actuales a snapshots historicos que no los tenian", () => {
+  it("no completa snapshots históricos con marca o web del perfil actual", () => {
     const profileWithoutCommercialName = {
       ...profile,
       commercialName: "",
@@ -325,13 +331,13 @@ describe("document PDF source", () => {
     const view = buildPdfViewModelForDocument(issued, changedProfile());
 
     expect(view.source).toBe("snapshot");
-    expect(view.issuer.commercialName).toBe("Marca cambiada");
-    expect(view.issuer.website).toBe("https://nuevo.example");
+    expect(view.issuer.commercialName).toBeUndefined();
+    expect(view.issuer.website).toBeUndefined();
     expect(view.issuer.vatId).toBeUndefined();
     expect(view.issuer.name).toBe("Punto Racing RC");
     expect(view.issuer.nif).toBe("12345678Z");
-    expect(view.doc.issuer?.commercialName).toBe("Marca cambiada");
-    expect(view.doc.issuer?.website).toBe("https://nuevo.example");
+    expect(view.doc.issuer?.commercialName).toBeUndefined();
+    expect(view.doc.issuer?.website).toBeUndefined();
   });
 
   it("documento legacy bloqueado sin snapshot usa fallback conservador y no persiste snapshot", () => {
@@ -350,7 +356,7 @@ describe("document PDF source", () => {
     expect(legacy.pdfSnapshot).toBeUndefined();
   });
 
-  it("presupuestos usan fuente viva y recibos emitidos usan snapshot", () => {
+  it("presupuestos sellados y recibos emitidos usan snapshot", () => {
     const quote = issueDocument(
       invoice({
         type: "presupuesto",
@@ -379,8 +385,49 @@ describe("document PDF source", () => {
       changedProfile(),
     );
 
-    expect(quoteView.source).toBe("live");
-    expect(quoteView.doc.client.name).toBe("Cliente vivo cambiado");
+    expect(quoteView.source).toBe("snapshot");
+    expect(quoteView.doc.client.name).toBe(
+      quote.documentSnapshot?.customer.name,
+    );
     expect(receiptView.source).toBe("snapshot");
+  });
+
+  it("bloquea un presupuesto sellado cuyo snapshot fue manipulado", () => {
+    const quote = issueDocument(
+      invoice({ type: "presupuesto", number: "P-2026-0099" }),
+      profile,
+      NOW,
+    );
+    const tampered: Document = {
+      ...quote,
+      documentSnapshot: {
+        ...quote.documentSnapshot!,
+        number: "P-MANIPULADO",
+      },
+    };
+
+    expect(isHistoricalPdfRenderRequired(tampered)).toBe(true);
+    expect(() =>
+      buildPdfViewModelForDocument(tampered, changedProfile()),
+    ).toThrow("no supera la comprobación de integridad");
+  });
+
+  it("una factura sellada disfrazada de presupuesto sigue usando snapshot", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const disguised: Document = {
+      ...issued,
+      type: "presupuesto",
+      number: "P-FALSO",
+      items: [{ ...issued.items[0], unitPrice: 999 }],
+    };
+
+    const view = buildPdfViewModelForDocument(disguised, changedProfile());
+
+    expect(view.source).toBe("snapshot");
+    expect(view.doc.type).toBe("factura");
+    expect(view.doc.number).toBe(issued.documentSnapshot?.number);
+    expect(view.doc.items[0].unitPrice).toBe(
+      issued.documentSnapshot?.items[0].unitPrice,
+    );
   });
 });

@@ -10,6 +10,7 @@ export async function finalizeVerifactuDocument(input: {
   registerLocal: (
     doc: Document,
     chainOverride?: VerifactuChainState | null,
+    profileOverride?: BusinessProfile,
   ) => Promise<Document>;
   authToken?: string | null;
 }): Promise<Document> {
@@ -28,9 +29,9 @@ export async function finalizeVerifactuDocument(input: {
 
     if (server?.verifactu) {
       const withServer = { ...input.doc, verifactu: server.verifactu };
-      return input.registerLocal(withServer, server.chain);
+      return input.registerLocal(withServer, server.chain, input.profile);
     }
   }
 
-  return input.registerLocal(input.doc);
+  return input.registerLocal(input.doc, input.chain, input.profile);
 }

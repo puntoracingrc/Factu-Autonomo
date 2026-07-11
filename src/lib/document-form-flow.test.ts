@@ -83,14 +83,28 @@ describe("document form totals flow", () => {
     ).toEqual([4, 4]);
   });
 
-  it("redondea cantidades y precios decimales en totales visibles", () => {
+  it("redondea por línea y mantiene base + IVA igual al total visible", () => {
     const totals = documentFormAmounts([
       item({ quantity: 1.5, unitPrice: 33.33, ivaPercent: 21 }),
     ]);
 
     expect(totals.subtotal).toBe(50);
     expect(totals.iva).toBe(10.5);
-    expect(totals.total).toBe(60.49);
+    expect(totals.total).toBe(60.5);
+  });
+
+  it("muestra exactamente la proyección fiscal de líneas fraccionarias", () => {
+    const lines = [
+      item({ id: "fraction-1", unitPrice: 0.025 }),
+      item({ id: "fraction-2", unitPrice: 0.025 }),
+    ];
+
+    expect(lineItemFormTotal(lines[0])).toBe(0.04);
+    expect(documentFormAmounts(lines)).toEqual({
+      subtotal: 0.06,
+      iva: 0.02,
+      total: 0.08,
+    });
   });
 
   it("una línea vacía o inválida no produce NaN", () => {
@@ -151,6 +165,34 @@ describe("document form totals flow", () => {
     expect(saved).toHaveLength(2);
     expect(saved[0]).toMatchObject({ description: "Servicio", quantity: 2 });
     expect(saved[1]).toMatchObject({ description: "Ajuste", unitPrice: 0 });
+  });
+
+  it("conserva importes firmados solo cuando el formulario edita una rectificativa", () => {
+    const cancellation = item({ unitPrice: -100 });
+    const signedOptions = { allowSignedAmounts: true };
+
+    expect(firstDocumentFormLineIssue([cancellation])).toBe(
+      "Indica un precio válido en la línea 1.",
+    );
+    expect(
+      firstDocumentFormLineIssue([cancellation], signedOptions),
+    ).toBeNull();
+    expect(
+      documentFormItemsForSave([cancellation], false, signedOptions)[0],
+    ).toMatchObject({ quantity: 1, unitPrice: -100, ivaPercent: 21 });
+    expect(documentFormAmounts([cancellation], false, signedOptions)).toEqual({
+      subtotal: -100,
+      iva: -21,
+      total: -121,
+    });
+    expect(lineItemFormTotal(cancellation, false, signedOptions)).toBe(-121);
+
+    expect(
+      firstDocumentFormLineIssue(
+        [item({ quantity: -2, unitPrice: -5 })],
+        signedOptions,
+      ),
+    ).toBeNull();
   });
 
   it("guarda una línea de m2 con cantidad calculada y medidas en el concepto", () => {

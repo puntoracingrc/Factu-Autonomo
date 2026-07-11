@@ -41,6 +41,7 @@ export function DocumentReadOnlyActions({
     doc.type === "presupuesto"
       ? findInvoiceCreatedFromQuote(data.documents, doc.id)
       : undefined;
+  const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
 
   return (
     <div className="mt-6 space-y-4">
@@ -48,6 +49,15 @@ export function DocumentReadOnlyActions({
         Acciones de {typeLabel}
       </p>
       <DocumentLinkBadges document={doc} documents={data.documents} />
+      {integrityBlocked && (
+        <p
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+        >
+          Acciones bloqueadas. Conserva los datos y revisa una copia de
+          seguridad antes de cobrar, compartir o modificar este documento.
+        </p>
+      )}
       {linkedInvoice && (
         <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
           Este presupuesto ya tiene factura creada:{" "}
@@ -60,6 +70,7 @@ export function DocumentReadOnlyActions({
           .
         </p>
       )}
+      {!integrityBlocked && (
       <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
         {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
         {doc.type === "presupuesto" && (
@@ -78,8 +89,9 @@ export function DocumentReadOnlyActions({
         <DocumentLinkManagerButton doc={doc} />
         <DocumentPdfShareActions doc={doc} profile={profile} />
       </div>
+      )}
 
-      {missingContact && (
+      {!integrityBlocked && missingContact && (
         <p className="text-sm text-slate-500">
           Para enviar por email o WhatsApp, añade el contacto del cliente en{" "}
           <Link href="/clientes" className="font-semibold text-blue-600 underline">

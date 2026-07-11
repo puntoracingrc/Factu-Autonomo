@@ -6,6 +6,7 @@ import type {
   SyncChange,
   SyncEntityType,
 } from "../types";
+import { EMPTY_DATA } from "../types";
 import {
   applyRecurringOccurrenceExclusionToData,
   mergeRecurringExpenseOccurrenceExclusions,
@@ -13,6 +14,34 @@ import {
 } from "../recurring-expenses";
 
 export type { SyncChange, SyncEntityType };
+
+export const SNAPSHOT_INTEGRITY_METADATA_ENTITY_ID =
+  "snapshot_integrity_version";
+
+export interface SnapshotIntegrityMetadataPayload {
+  snapshotIntegrityVersion: 1;
+}
+
+export function emptyCloudBootstrapData(): AppData {
+  return {
+    ...EMPTY_DATA,
+    snapshotIntegrityVersion: undefined,
+  };
+}
+
+export function snapshotIntegrityMetadataChange(
+  updatedAt: string,
+): SyncChange {
+  return {
+    entityType: "workspace_metadata",
+    entityId: SNAPSHOT_INTEGRITY_METADATA_ENTITY_ID,
+    deleted: false,
+    payload: {
+      snapshotIntegrityVersion: 1,
+    } satisfies SnapshotIntegrityMetadataPayload,
+    updatedAt,
+  };
+}
 
 function now(): string {
   return new Date().toISOString();
@@ -144,6 +173,13 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
     });
   }
 
+  if (
+    prev.snapshotIntegrityVersion !== 1 &&
+    next.snapshotIntegrityVersion === 1
+  ) {
+    changes.push(snapshotIntegrityMetadataChange(timestamp));
+  }
+
   return changes;
 }
 
@@ -228,6 +264,9 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: data.counters,
       updatedAt: timestamp,
     },
+    ...(data.snapshotIntegrityVersion === 1
+      ? [snapshotIntegrityMetadataChange(timestamp)]
+      : []),
   ];
 }
 
@@ -329,6 +368,29 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
         ...data,
         counters: change.payload as AppData["counters"],
       };
+    case "workspace_metadata": {
+      if (change.entityId !== SNAPSHOT_INTEGRITY_METADATA_ENTITY_ID) {
+        return data;
+      }
+      if (change.deleted) {
+        return {
+          ...data,
+          snapshotIntegrityVersion: 1,
+        };
+      }
+      if (
+        !change.payload ||
+        typeof change.payload !== "object" ||
+        (change.payload as Partial<SnapshotIntegrityMetadataPayload>)
+          .snapshotIntegrityVersion !== 1
+      ) {
+        return data;
+      }
+      return {
+        ...data,
+        snapshotIntegrityVersion: 1,
+      };
+    }
     default:
       return data;
   }

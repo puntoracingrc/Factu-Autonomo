@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/Card";
 import { RectificativaForm } from "@/components/forms/RectificativaForm";
 import { useAppStore } from "@/context/AppStore";
 import { decodeDocumentIdFromPath } from "@/lib/document-links";
+import { resolveCanonicalRectificationSource } from "@/lib/document-integrity/rectification-issuance";
 import { canRectifyInvoice } from "@/lib/rectificativas";
 
 export default function RectificarFacturaPage({
@@ -16,11 +17,25 @@ export default function RectificarFacturaPage({
   const { id: pathId } = use(params);
   const id = decodeDocumentIdFromPath(pathId);
   const { data } = useAppStore();
-  const original = data.documents.find((d) => d.id === id);
+  const storedOriginal = data.documents.find((d) => d.id === id);
 
-  if (!original || original.type !== "factura") {
+  if (!storedOriginal || storedOriginal.type !== "factura") {
     return <p className="text-slate-500">Factura no encontrada.</p>;
   }
+
+  let source: ReturnType<typeof resolveCanonicalRectificationSource>;
+  try {
+    source = resolveCanonicalRectificationSource(storedOriginal, data.profile);
+  } catch {
+    return (
+      <CardMessage
+        title="No se puede rectificar"
+        message="La factura original no supera la comprobación de integridad o no coincide con el emisor histórico. Revisa el documento antes de crear una rectificativa."
+        href="/facturas"
+      />
+    );
+  }
+  const original = source.original;
 
   if (!canRectifyInvoice(original)) {
     return (
@@ -44,7 +59,10 @@ export default function RectificarFacturaPage({
         title="Factura rectificativa"
         subtitle={`Rectifica la factura ${original.number}`}
       />
-      <RectificativaForm original={original} />
+      <RectificativaForm
+        original={original}
+        historicalProfile={source.profile}
+      />
     </div>
   );
 }

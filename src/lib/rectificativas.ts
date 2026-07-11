@@ -2,6 +2,7 @@ import {
   LOCKED_DELETE_MESSAGE,
   canPhysicallyDeleteDocument,
 } from "./document-integrity/deletion";
+import { lineMoneyAmounts } from "./calculations";
 import type { Document, LineItem, RectificationType } from "./types";
 
 export type DeleteWarningLevel = "simple" | "legal" | "legal_strict";
@@ -20,6 +21,7 @@ export function isRectificativa(doc: Document): boolean {
 export function canRectifyInvoice(doc: Document): boolean {
   return (
     doc.type === "factura" &&
+    !doc.rectification &&
     !doc.rectifiedById &&
     doc.status !== "borrador" &&
     doc.status !== "rectificada" &&
@@ -103,18 +105,33 @@ export function canDeleteDocument(doc: Document): boolean {
 
 export function itemsForAnulacion(items: LineItem[]): LineItem[] {
   return items.map((item) => ({
-    ...item,
     id: crypto.randomUUID(),
-    quantity: Math.abs(item.quantity),
-    unitPrice: -Math.abs(item.unitPrice),
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit,
+    // Invertir un solo factor mantiene la cancelación algebraica exacta de
+    // ventas, descuentos y cantidades negativas de la factura original.
+    unitPrice: -item.unitPrice,
+    ivaPercent: item.ivaPercent,
   }));
 }
 
 export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
   return items.map((item) => ({
-    ...item,
     id: crypto.randomUUID(),
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit,
+    unitPrice: item.unitPrice,
+    ivaPercent: item.ivaPercent,
   }));
+}
+
+export function rectificationLineDisplayTotal(
+  item: LineItem,
+  vatExempt = false,
+): number {
+  return lineMoneyAmounts(item, vatExempt).total;
 }
 
 export function rectificationTextDefaults(

@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   appDataFromSyncRows,
   buildRestoreChanges,
+  buildRestoreChangesFromRows,
   summarizeRestoreData,
   summarizeRestoreDiff,
   type AdminSyncEntityRow,
 } from "./user-restore";
-import { EMPTY_DATA, type AppData, type Customer } from "../types";
+import { issueDocument } from "../document-integrity";
+import {
+  EMPTY_DATA,
+  type AppData,
+  type Customer,
+  type Document,
+} from "../types";
 
 function customer(id: string, name: string): Customer {
   return {
@@ -29,6 +36,21 @@ function dataWithCustomers(customers: Customer[]): AppData {
 }
 
 describe("admin user restore", () => {
+  it("restaura explícitamente el metadato de versión desde sync_entities", () => {
+    const restored = appDataFromSyncRows([
+      {
+        entity_type: "workspace_metadata",
+        entity_id: "snapshot_integrity_version",
+        payload: { snapshotIntegrityVersion: 1 },
+        deleted: false,
+        updated_at: "2026-07-11T10:00:00.000Z",
+      },
+    ]);
+
+    expect(restored.snapshotIntegrityVersion).toBe(1);
+    expect(restored.meta?.pendingChanges).toBeUndefined();
+  });
+
   it("reconstruye el estado activo desde sync_entities sin revivir tombstones", () => {
     const rows: AdminSyncEntityRow[] = [
       {
@@ -151,5 +173,62 @@ describe("admin user restore", () => {
         deleted: true,
       }),
     );
+  });
+
+  it("compara contra filas reales y despliega sellos y marcador ausentes", () => {
+    const issued = issueDocument(
+      {
+        id: "legacy-admin-invoice",
+        type: "factura",
+        number: "F-2026-0001",
+        date: "2026-06-30",
+        client: { name: "Cliente" },
+        items: [
+          {
+            id: "line-1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "borrador",
+        createdAt: "2026-06-30T10:00:00.000Z",
+        updatedAt: "2026-06-30T10:00:00.000Z",
+      },
+      EMPTY_DATA.profile,
+      "2026-06-30T10:00:00.000Z",
+    );
+    const legacy: Document = {
+      ...issued,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+    };
+    const rows: AdminSyncEntityRow[] = [
+      {
+        entity_type: "document",
+        entity_id: legacy.id,
+        payload: legacy,
+        deleted: false,
+        updated_at: "2026-07-01T10:00:00.000Z",
+      },
+    ];
+    const target = appDataFromSyncRows(rows);
+
+    const changes = buildRestoreChangesFromRows(
+      rows,
+      target,
+      "2026-07-11T12:00:00.000Z",
+    );
+
+    expect(target.documents[0].snapshotSeal).toBeDefined();
+    expect(
+      changes.map((change) => `${change.entityType}:${change.entityId}`),
+    ).toEqual([
+      `document:${legacy.id}`,
+      "profile:profile",
+      "counters:counters",
+      "workspace_metadata:snapshot_integrity_version",
+    ]);
   });
 });

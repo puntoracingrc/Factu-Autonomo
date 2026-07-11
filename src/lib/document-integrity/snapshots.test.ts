@@ -4,13 +4,18 @@ import {
   attachRegisteredVerifactuToSnapshots,
   applyGenericDocumentUpdate,
   buildDocumentPdfSnapshot,
+  buildDocumentSnapshotSeal,
   buildDocumentSnapshot,
   deriveLegacySnapshotForReadOnly,
   DocumentIntegrityError,
+  DocumentSnapshotIntegrityError,
   getDocumentSnapshotSource,
   hasDocumentSnapshot,
   hashDocumentPdfSnapshot,
   hashDocumentSnapshot,
+  hashStrongDocumentPdfSnapshotContent,
+  hashStrongDocumentSnapshotContent,
+  inspectDocumentSnapshotsIntegrity,
   issueDocument,
   isDocumentIntegrityLocked,
   markDocumentPaid,
@@ -18,11 +23,14 @@ import {
   rejectQuote,
   stableStringifySnapshot,
 } from ".";
+import { legacyFnv1a32 } from "./snapshot-hash";
 import { buildPdfViewModelForDocument } from "./pdf-source";
 import { buildDocumentPdf } from "../pdf";
 import type {
   BusinessProfile,
   Document,
+  DocumentPdfSnapshot,
+  DocumentSnapshot,
   IssuerSnapshot,
   VerifactuInfo,
 } from "../types";
@@ -55,7 +63,7 @@ const profile: BusinessProfile = {
   logoUrl: issuer.logoUrl,
   iva: { rates: [0, 4, 10, 21], defaultRate: 21 },
   vatExempt: false,
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
   documentTemplate: {
     style: "futuro",
     font: "tecnica",
@@ -122,11 +130,138 @@ function invoice(overrides: Partial<Document> = {}): Document {
   };
 }
 
+function legacyHash(value: unknown): string {
+  return `fnv1a32:${legacyFnv1a32(stableStringifySnapshot(value))}`;
+}
+
+function asLegacyDocumentSnapshot(snapshot: DocumentSnapshot): DocumentSnapshot {
+  const content = { ...snapshot } as Record<string, unknown>;
+  delete content.capturedAt;
+  delete content.source;
+  delete content.snapshotHash;
+  const issuerContent = { ...snapshot.issuer } as Record<string, unknown>;
+  delete issuerContent.capturedAt;
+
+  return {
+    ...snapshot,
+    snapshotHash: legacyHash({
+      ...content,
+      issuer: issuerContent,
+      items: snapshot.items.map((item) => {
+        const itemContent = { ...item } as Record<string, unknown>;
+        delete itemContent.id;
+        return itemContent;
+      }),
+    }),
+  };
+}
+
+function asLegacyPdfSnapshot(
+  snapshot: DocumentPdfSnapshot,
+  documentSnapshotHash: string,
+): DocumentPdfSnapshot {
+  const content = {
+    ...snapshot,
+    documentSnapshotHash,
+  } as Record<string, unknown>;
+  delete content.renderedAt;
+  delete content.contentHash;
+  return { ...snapshot, contentHash: legacyHash(content) };
+}
+
+const LEGACY_FNV_GOLDEN_FIXTURE = {
+  documentSnapshot: {
+    schemaVersion: 1,
+    capturedAt: NOW,
+    source: "issue",
+    documentType: "factura",
+    documentKind: "factura",
+    number: "F-2026-0007",
+    date: "2026-06-24",
+    dueDate: "2026-07-24",
+    issuer: {
+      name: "",
+      nif: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      country: "España",
+      capturedAt: NOW,
+    },
+    customer: { name: "José Álvarez 😀", nif: "11111111H" },
+    items: [
+      {
+        id: "line-legacy",
+        description: "Reparación — 1 €",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+        subtotal: 100,
+        ivaAmount: 21,
+        total: 121,
+      },
+    ],
+    taxSummary: {
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+      vatExempt: false,
+      byRate: [
+        {
+          ivaPercent: 21,
+          taxableBase: 100,
+          ivaAmount: 21,
+          total: 121,
+        },
+      ],
+    },
+    currency: "EUR",
+    numbering: {
+      documentKind: "factura",
+      number: "F-2026-0007",
+      year: 2026,
+      format: { template: "F-{year}-{num}", padding: 4 },
+    },
+    fiscalContext: {
+      vatExempt: false,
+      iva: { rates: [0, 4, 10, 21], defaultRate: 21 },
+      verifactu: { enabled: true, environment: "test" },
+    },
+    snapshotHash: "fnv1a32:f72943c9",
+  } satisfies DocumentSnapshot,
+  pdfSnapshot: {
+    schemaVersion: 1,
+    renderedAt: NOW,
+    rendererVersion: "document-pdf-renderer-v1",
+    template: {
+      style: "clasico",
+      font: "moderna",
+      accent: "azul",
+      density: "normal",
+      bodyFontSize: "normal",
+      titleFontSize: "normal",
+      issuerFontSize: "normal",
+      totalFontSize: "normal",
+      showLogo: true,
+      showIssuerBox: false,
+      showPaymentBox: true,
+    },
+    contentHash: "fnv1a32:368988f9",
+  } satisfies DocumentPdfSnapshot,
+};
+
 function expectIntegrityError(action: () => unknown) {
   expect(action).toThrow(DocumentIntegrityError);
 }
 
 describe("document snapshots", () => {
+  it("canonicaliza claves JSON propias sin perder __proto__", () => {
+    const value = JSON.parse('{"__proto__":{"x":1},"b":2,"a":1}');
+    expect(stableStringifySnapshot(value)).toBe(
+      '{"__proto__":{"x":1},"a":1,"b":2}',
+    );
+  });
+
   it("issueDocument crea documentSnapshot y pdfSnapshot", () => {
     const issued = issueDocument(invoice(), profile, NOW);
 
@@ -141,17 +276,464 @@ describe("document snapshots", () => {
       dueDate: "2026-07-24",
       currency: "EUR",
     });
-    expect(issued.documentSnapshot?.snapshotHash).toMatch(/^fnv1a32:/);
+    expect(issued.documentSnapshot?.snapshotHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(issued.pdfSnapshot).toMatchObject({
       schemaVersion: 1,
       renderedAt: NOW,
       rendererVersion: "document-pdf-renderer-v1",
       template: profile.documentTemplate,
     });
-    expect(issued.pdfSnapshot?.contentHash).toMatch(/^fnv1a32:/);
+    expect(issued.pdfSnapshot?.contentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(issued.snapshotIntegrityRequired).toBe(true);
+    expect(issued.snapshotSeal).toMatchObject({
+      version: 1,
+      documentId: issued.id,
+      documentSnapshotHash: issued.documentSnapshot?.snapshotHash,
+      pdfSnapshotHash: issued.pdfSnapshot?.contentHash,
+    });
+    expect(issued.snapshotSeal?.contextHash).toMatch(
+      /^sha256:[a-f0-9]{64}$/,
+    );
   });
 
-  it("issueDocument respeta snapshots existentes y no los reconstruye", () => {
+  it("verifica SHA-256 en snapshots nuevos", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const integrity = inspectDocumentSnapshotsIntegrity(issued);
+
+    expect(integrity).toMatchObject({
+      ok: true,
+      documentSnapshot: { status: "verified", algorithm: "sha256" },
+      pdfSnapshot: { status: "verified", algorithm: "sha256" },
+      issues: [],
+    });
+  });
+
+  it("mantiene lectura y render compatibles con snapshots FNV-1a legacy", () => {
+    const currentDocumentSnapshot = buildDocumentSnapshot(invoice(), profile, {
+      capturedAt: NOW,
+    });
+    const documentSnapshot = asLegacyDocumentSnapshot(currentDocumentSnapshot);
+    const currentPdfSnapshot = buildDocumentPdfSnapshot(
+      documentSnapshot,
+      profile,
+      NOW,
+    );
+    const pdfSnapshot = asLegacyPdfSnapshot(
+      currentPdfSnapshot,
+      documentSnapshot.snapshotHash,
+    );
+    const legacy = invoice({
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      documentSnapshot,
+      pdfSnapshot,
+    });
+
+    const legacyIntegrity = inspectDocumentSnapshotsIntegrity(legacy);
+    expect(legacyIntegrity.issues).toEqual([]);
+    expect(legacyIntegrity).toMatchObject({
+      ok: true,
+      documentSnapshot: { status: "verified", algorithm: "fnv1a32" },
+      pdfSnapshot: { status: "verified", algorithm: "fnv1a32" },
+    });
+    expect(buildDocumentPdf(legacy, profile).getNumberOfPages()).toBe(1);
+    expect(legacy.documentSnapshot).toBe(documentSnapshot);
+    expect(legacy.pdfSnapshot).toBe(pdfSnapshot);
+    const strongSeal = buildDocumentSnapshotSeal(
+      legacy.id,
+      documentSnapshot,
+      pdfSnapshot,
+    );
+    expect(strongSeal.documentSnapshotHash).toMatch(/^fnv1a32:/);
+    expect(strongSeal.documentContentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(strongSeal.pdfContentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(
+      inspectDocumentSnapshotsIntegrity({
+        ...legacy,
+        snapshotSeal: strongSeal,
+        snapshotIntegrityRequired: true,
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("acepta el redondeo histórico solo en snapshots FNV fraccionarios", () => {
+    const current = buildDocumentSnapshot(
+      invoice({
+        items: [
+          {
+            id: "legacy-fraction-1",
+            description: "Fracción 1",
+            quantity: 1,
+            unitPrice: 0.014,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      { capturedAt: NOW },
+    );
+    const documentSnapshot = asLegacyDocumentSnapshot({
+      ...current,
+      taxSummary: {
+        ...current.taxSummary,
+        subtotal: 0.01,
+        iva: 0,
+        total: 0.02,
+      },
+    });
+    const pdfSnapshot = asLegacyPdfSnapshot(
+      buildDocumentPdfSnapshot(documentSnapshot, profile, NOW),
+      documentSnapshot.snapshotHash,
+    );
+    const legacy = invoice({
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      documentSnapshot,
+      pdfSnapshot,
+    });
+
+    const integrity = inspectDocumentSnapshotsIntegrity(legacy);
+    expect(integrity.issues).toEqual([]);
+    expect(integrity.documentSnapshot).toMatchObject({
+      status: "verified",
+      algorithm: "fnv1a32",
+    });
+  });
+
+  it("conserva el redondeo negativo asimétrico únicamente al verificar FNV", () => {
+    const current = buildDocumentSnapshot(
+      invoice({
+        items: [
+          {
+            id: "legacy-negative-half-cent",
+            description: "Fracción negativa histórica",
+            quantity: 0.5,
+            unitPrice: -0.05,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      { capturedAt: NOW },
+    );
+    const legacyLine = {
+      ...current.items[0],
+      subtotal: -0.02,
+      ivaAmount: -0.01,
+      total: -0.03,
+    };
+    const documentSnapshot = asLegacyDocumentSnapshot({
+      ...current,
+      items: [legacyLine],
+      taxSummary: {
+        subtotal: -0.02,
+        iva: -0.01,
+        total: -0.03,
+        vatExempt: false,
+        byRate: [
+          {
+            ivaPercent: 21,
+            taxableBase: -0.02,
+            ivaAmount: -0.01,
+            total: -0.03,
+          },
+        ],
+      },
+    });
+    const pdfSnapshot = asLegacyPdfSnapshot(
+      buildDocumentPdfSnapshot(documentSnapshot, profile, NOW),
+      documentSnapshot.snapshotHash,
+    );
+
+    const integrity = inspectDocumentSnapshotsIntegrity(
+      invoice({
+        status: "enviado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        documentSnapshot,
+        pdfSnapshot,
+      }),
+    );
+
+    expect(integrity.issues).toEqual([]);
+    expect(integrity.documentSnapshot.algorithm).toBe("fnv1a32");
+  });
+
+  it("verifica un fixture FNV literal producido por la versión histórica", () => {
+    const legacy = invoice({
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      documentSnapshot: LEGACY_FNV_GOLDEN_FIXTURE.documentSnapshot,
+      pdfSnapshot: LEGACY_FNV_GOLDEN_FIXTURE.pdfSnapshot,
+    });
+
+    const integrity = inspectDocumentSnapshotsIntegrity(legacy);
+    expect(integrity.issues).toEqual([]);
+    expect(integrity).toMatchObject({
+      ok: true,
+      documentSnapshot: { status: "verified", algorithm: "fnv1a32" },
+      pdfSnapshot: { status: "verified", algorithm: "fnv1a32" },
+    });
+    expect(buildDocumentPdf(legacy, profile).getNumberOfPages()).toBe(1);
+  });
+
+  it("el sello detecta reemplazo o ausencia aunque el hash interno sea válido", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const other = issueDocument(
+      invoice({ notes: "Otro documento autoconsistente" }),
+      profile,
+      NOW,
+    );
+
+    const swapped = {
+      ...issued,
+      documentSnapshot: other.documentSnapshot,
+      pdfSnapshot: other.pdfSnapshot,
+    };
+    const missing = {
+      ...issued,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+    };
+
+    expect(inspectDocumentSnapshotsIntegrity(swapped).issues).toEqual(
+      expect.arrayContaining([
+        "document_strong_hash_mismatch",
+        "pdf_strong_hash_mismatch",
+        "document_seal_mismatch",
+        "pdf_seal_mismatch",
+      ]),
+    );
+    expect(inspectDocumentSnapshotsIntegrity(missing).issues).toEqual([
+      "document_snapshot_missing",
+      "pdf_snapshot_missing",
+    ]);
+    expect(() => buildDocumentPdf(swapped, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+    expect(() => buildDocumentPdf(missing, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+  });
+
+  it("liga el paquete completo a la identidad y metadatos del documento", () => {
+    const issued = issueDocument(invoice({ id: "invoice-a" }), profile, NOW);
+    const other = issueDocument(invoice({ id: "invoice-b" }), profile, NOW);
+    const bundleSwap: Document = {
+      ...issued,
+      documentSnapshot: other.documentSnapshot,
+      pdfSnapshot: other.pdfSnapshot,
+      snapshotSeal: other.snapshotSeal,
+    };
+    const sourceDrift: Document = {
+      ...issued,
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        source: "legacy_backfill",
+      },
+    };
+
+    expect(inspectDocumentSnapshotsIntegrity(bundleSwap).issues).toContain(
+      "document_seal_identity_mismatch",
+    );
+    expect(inspectDocumentSnapshotsIntegrity(sourceDrift).issues).toContain(
+      "snapshot_context_mismatch",
+    );
+    expect(() => buildDocumentPdf(bundleSwap, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+    expect(() => buildDocumentPdf(sourceDrift, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+  });
+
+  it("el sello fuerte cubre IDs de línea y timestamp de render", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const changedLineId: Document = {
+      ...issued,
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        items: [
+          { ...issued.documentSnapshot!.items[0], id: "linea-duplicada" },
+        ],
+      },
+    };
+    const changedRenderTime: Document = {
+      ...issued,
+      pdfSnapshot: {
+        ...issued.pdfSnapshot!,
+        renderedAt: LATER,
+      },
+    };
+
+    expect(
+      inspectDocumentSnapshotsIntegrity(changedLineId).documentSnapshot.status,
+    ).toBe("verified");
+    expect(inspectDocumentSnapshotsIntegrity(changedLineId).issues).toContain(
+      "document_strong_hash_mismatch",
+    );
+    expect(
+      inspectDocumentSnapshotsIntegrity(changedRenderTime).pdfSnapshot.status,
+    ).toBe("verified");
+    expect(
+      inspectDocumentSnapshotsIntegrity(changedRenderTime).issues,
+    ).toContain("pdf_strong_hash_mismatch");
+  });
+
+  it("bloquea el uso y la emisión si el snapshot documental fue alterado", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const tamperedSnapshot = {
+      ...issued.documentSnapshot!,
+      number: "F-2026-9999",
+    };
+    const tampered = { ...issued, documentSnapshot: tamperedSnapshot };
+
+    const integrity = inspectDocumentSnapshotsIntegrity(tampered);
+    expect(integrity.ok).toBe(false);
+    expect(integrity.issues).toContain("document_hash_mismatch");
+    expect(() => buildDocumentPdf(tampered, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+    expect(() =>
+      issueDocument(
+        invoice({ documentSnapshot: tamperedSnapshot, pdfSnapshot: undefined }),
+        profile,
+        NOW,
+      ),
+    ).toThrow("ya está emitido");
+  });
+
+  it("bloquea la fuente PDF si cambia la plantilla congelada", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const tampered = {
+      ...issued,
+      pdfSnapshot: {
+        ...issued.pdfSnapshot!,
+        template: {
+          ...issued.pdfSnapshot!.template,
+          accent: "azul" as const,
+        },
+      },
+    };
+
+    const integrity = inspectDocumentSnapshotsIntegrity(tampered);
+    expect(integrity.ok).toBe(false);
+    expect(integrity.issues).toContain("pdf_hash_mismatch");
+    expect(() => buildPdfViewModelForDocument(tampered, profile)).toThrow(
+      DocumentSnapshotIntegrityError,
+    );
+  });
+
+  it("rechaza semántica fiscal incoherente aunque todos los hashes coincidan", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const documentSnapshot = {
+      ...issued.documentSnapshot!,
+      schemaVersion: 99,
+      items: [
+        {
+          ...issued.documentSnapshot!.items[0],
+          subtotal: 999,
+          total: 1020,
+        },
+      ],
+      taxSummary: {
+        ...issued.documentSnapshot!.taxSummary,
+        subtotal: 999,
+        total: 1020,
+        byRate: [
+          {
+            ...issued.documentSnapshot!.taxSummary.byRate[0],
+            taxableBase: 999,
+            total: 1020,
+          },
+        ],
+      },
+      snapshotHash: "",
+    };
+    documentSnapshot.snapshotHash = hashDocumentSnapshot(documentSnapshot);
+    const pdfSnapshot = {
+      ...issued.pdfSnapshot!,
+      contentHash: "",
+    };
+    pdfSnapshot.contentHash = hashDocumentPdfSnapshot({
+      ...pdfSnapshot,
+      documentSnapshotHash: documentSnapshot.snapshotHash,
+    });
+    const tampered: Document = {
+      ...issued,
+      documentSnapshot,
+      pdfSnapshot,
+      snapshotSeal: {
+        ...issued.snapshotSeal!,
+        documentSnapshotHash: documentSnapshot.snapshotHash,
+        pdfSnapshotHash: pdfSnapshot.contentHash,
+        documentContentHash:
+          hashStrongDocumentSnapshotContent(documentSnapshot),
+        pdfContentHash: hashStrongDocumentPdfSnapshotContent(
+          pdfSnapshot,
+          hashStrongDocumentSnapshotContent(documentSnapshot),
+        ),
+      },
+    };
+
+    const integrity = inspectDocumentSnapshotsIntegrity(tampered);
+    expect(integrity.issues).toContain(
+      "document_snapshot_semantic_invalid",
+    );
+    expect(integrity.documentSnapshot.status).toBe("verified");
+    expect(integrity.pdfSnapshot.status).toBe("verified");
+  });
+
+  it("rechaza tipos runtime inválidos aunque se recalculen todos los hashes", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const documentSnapshot = {
+      ...issued.documentSnapshot!,
+      customer: {
+        ...issued.documentSnapshot!.customer,
+        email: { value: "objeto-no-válido" } as unknown as string,
+      },
+      items: [
+        {
+          ...issued.documentSnapshot!.items[0],
+          unit: { value: "h" } as unknown as string,
+        },
+      ],
+      snapshotHash: "",
+    };
+    documentSnapshot.snapshotHash = hashDocumentSnapshot(documentSnapshot);
+    const pdfSnapshot = { ...issued.pdfSnapshot!, contentHash: "" };
+    pdfSnapshot.contentHash = hashDocumentPdfSnapshot({
+      ...pdfSnapshot,
+      documentSnapshotHash: documentSnapshot.snapshotHash,
+    });
+    const malformed: Document = {
+      ...issued,
+      documentSnapshot,
+      pdfSnapshot,
+      snapshotSeal: {
+        ...issued.snapshotSeal!,
+        documentSnapshotHash: documentSnapshot.snapshotHash,
+        pdfSnapshotHash: pdfSnapshot.contentHash,
+        documentContentHash:
+          hashStrongDocumentSnapshotContent(documentSnapshot),
+        pdfContentHash: hashStrongDocumentPdfSnapshotContent(
+          pdfSnapshot,
+          hashStrongDocumentSnapshotContent(documentSnapshot),
+        ),
+      },
+    };
+
+    const integrity = inspectDocumentSnapshotsIntegrity(malformed);
+    expect(integrity.documentSnapshot.status).toBe("verified");
+    expect(integrity.issues).toContain(
+      "document_snapshot_semantic_invalid",
+    );
+  });
+
+  it("issueDocument no reemite ni vuelve a sellar snapshots existentes", () => {
     const existingDocumentSnapshot = buildDocumentSnapshot(invoice(), profile, {
       capturedAt: NOW,
       source: "legacy_backfill",
@@ -162,17 +744,16 @@ describe("document snapshots", () => {
       NOW,
     );
 
-    const issued = issueDocument(
-      invoice({
-        documentSnapshot: existingDocumentSnapshot,
-        pdfSnapshot: existingPdfSnapshot,
-      }),
-      profile,
-      LATER,
-    );
-
-    expect(issued.documentSnapshot).toBe(existingDocumentSnapshot);
-    expect(issued.pdfSnapshot).toBe(existingPdfSnapshot);
+    expect(() =>
+      issueDocument(
+        invoice({
+          documentSnapshot: existingDocumentSnapshot,
+          pdfSnapshot: existingPdfSnapshot,
+        }),
+        profile,
+        LATER,
+      ),
+    ).toThrow("ya está emitido");
   });
 
   it("snapshot conserva issuer existente", () => {
@@ -232,6 +813,96 @@ describe("document snapshots", () => {
           total: 121,
         },
       ],
+    });
+  });
+
+  it("suma totales y desglose desde las mismas líneas redondeadas", () => {
+    const issued = issueDocument(
+      invoice({
+        items: [
+          {
+            id: "fraction-1",
+            description: "Fracción 1",
+            quantity: 1,
+            unitPrice: 0.025,
+            ivaPercent: 21,
+          },
+          {
+            id: "fraction-2",
+            description: "Fracción 2",
+            quantity: 1,
+            unitPrice: 0.025,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      NOW,
+    );
+    const snapshot = issued.documentSnapshot!;
+    const lineSubtotalTotal = snapshot.items.reduce(
+      (sum, item) => sum + item.subtotal,
+      0,
+    );
+    const lineIvaTotal = snapshot.items.reduce(
+      (sum, item) => sum + item.ivaAmount,
+      0,
+    );
+    const byRateBase = snapshot.taxSummary.byRate.reduce(
+      (sum, row) => sum + row.taxableBase,
+      0,
+    );
+
+    expect(snapshot.taxSummary.subtotal).toBe(lineSubtotalTotal);
+    expect(snapshot.taxSummary.iva).toBe(lineIvaTotal);
+    expect(byRateBase).toBe(lineSubtotalTotal);
+    expect(snapshot.taxSummary.total).toBe(
+      snapshot.items.reduce((sum, item) => sum + item.total, 0),
+    );
+  });
+
+  it("una anulación nueva invierte exactamente una media centésima", () => {
+    const original = buildDocumentSnapshot(
+      invoice({
+        items: [
+          {
+            id: "half-cent-original",
+            description: "Fracción",
+            quantity: 0.5,
+            unitPrice: 0.05,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      { capturedAt: NOW },
+    );
+    const cancellation = buildDocumentSnapshot(
+      invoice({
+        number: "FR-2026-0001",
+        items: [
+          {
+            id: "half-cent-cancellation",
+            description: "Fracción",
+            quantity: 0.5,
+            unitPrice: -0.05,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      { capturedAt: NOW },
+    );
+
+    expect(cancellation.items[0]).toMatchObject({
+      subtotal: -original.items[0].subtotal,
+      ivaAmount: -original.items[0].ivaAmount,
+      total: -original.items[0].total,
+    });
+    expect(cancellation.taxSummary).toMatchObject({
+      subtotal: -original.taxSummary.subtotal,
+      iva: -original.taxSummary.iva,
+      total: -original.taxSummary.total,
     });
   });
 
@@ -334,8 +1005,8 @@ describe("document snapshots", () => {
 
   it("incluye VeriFactu existente en el snapshot sin generar registros nuevos", () => {
     const verifactu: VerifactuInfo = {
-      recordHash: "hash-alta",
-      previousHash: "hash-previo",
+      recordHash: "A".repeat(64),
+      previousHash: "B".repeat(64),
       recordTimestamp: "2026-06-24T09:55:00.000Z",
       qrUrl: "https://example.test/qr",
       csv: "CSV-DE-PRUEBA",
@@ -347,7 +1018,14 @@ describe("document snapshots", () => {
       importeTotal: "121.00",
     };
 
-    const withVerifactu = issueDocument(invoice({ verifactu }), profile, NOW);
+    const withVerifactu = issueDocument(
+      invoice({
+        verifactu,
+        verifactuPersistence: "server_confirmed",
+      }),
+      profile,
+      NOW,
+    );
     const withoutVerifactu = issueDocument(
       invoice({ verifactu: undefined }),
       profile,
@@ -379,8 +1057,8 @@ describe("document snapshots", () => {
     const previousSnapshotHash = issued.documentSnapshot?.snapshotHash;
     const previousPdfHash = issued.pdfSnapshot?.contentHash;
     const verifactu: VerifactuInfo = {
-      recordHash: "hash-rectificativa",
-      previousHash: "hash-previo",
+      recordHash: "C".repeat(64),
+      previousHash: "B".repeat(64),
       recordTimestamp: "2026-06-24T10:01:00.000Z",
       qrUrl: "https://example.test/qr-rectificativa",
       csv: "CSV-RECTIFICATIVA",
@@ -395,6 +1073,7 @@ describe("document snapshots", () => {
     const sealed = attachRegisteredVerifactuToSnapshots({
       ...issued,
       verifactu,
+      verifactuPersistence: "server_confirmed",
     });
     const view = buildPdfViewModelForDocument(sealed, profile);
 
@@ -409,6 +1088,45 @@ describe("document snapshots", () => {
     ).toBe(sealed.pdfSnapshot?.contentHash);
     expect(view.doc.verifactu?.qrUrl).toBe(verifactu.qrUrl);
     expect(view.doc.verifactu?.csv).toBe(verifactu.csv);
+    expect(
+      attachRegisteredVerifactuToSnapshots({ ...sealed, verifactu }),
+    ).toEqual(sealed);
+    expect(() =>
+      attachRegisteredVerifactuToSnapshots({
+        ...sealed,
+        verifactu: { ...verifactu, recordHash: "D".repeat(64) },
+      }),
+    ).toThrow("no supera la comprobación de integridad");
+  });
+
+  it("no permite adjuntar VeriFactu a presupuesto ni recibo", () => {
+    const verifactu: VerifactuInfo = {
+      recordHash: "A".repeat(64),
+      previousHash: "",
+      recordTimestamp: "2026-06-24T10:01:00.000Z",
+      qrUrl: "https://example.test/qr",
+      status: "test_registered",
+      recordType: "alta",
+      environment: "test",
+    };
+
+    for (const [type, number] of [
+      ["presupuesto", "P-2026-0009"],
+      ["recibo", "R-2026-0009"],
+    ] as const) {
+      const issued = issueDocument(
+        invoice({ type, number, verifactu: undefined }),
+        profile,
+        NOW,
+      );
+      expect(() =>
+        attachRegisteredVerifactuToSnapshots({
+          ...issued,
+          verifactu,
+          verifactuPersistence: "server_confirmed",
+        }),
+      ).toThrow("no supera la comprobación de integridad");
+    }
   });
 
   it("cambiar profile despues de emitir no cambia snapshot", () => {
@@ -572,6 +1290,43 @@ describe("document snapshots", () => {
 
     expect(rejected.documentSnapshot).toBe(quote.documentSnapshot);
     expect(rejected.pdfSnapshot).toBe(quote.pdfSnapshot);
+  });
+
+  it("aceptación y rechazo usan el tipo canónico y verifican integridad", () => {
+    const issuedInvoice = issueDocument(invoice(), profile, NOW);
+    const disguised: Document = {
+      ...issuedInvoice,
+      type: "presupuesto",
+    };
+    expect(() => acceptQuote(disguised, LATER)).toThrow(
+      "no es válida para este tipo de documento",
+    );
+    expect(() => rejectQuote(disguised, LATER)).toThrow(
+      "no es válida para este tipo de documento",
+    );
+
+    const quote = issueDocument(
+      invoice({
+        type: "presupuesto",
+        number: "P-2026-0003",
+        verifactu: undefined,
+      }),
+      profile,
+      NOW,
+    );
+    const corrupt: Document = {
+      ...quote,
+      documentSnapshot: {
+        ...quote.documentSnapshot!,
+        number: "P-ALTERADO",
+      },
+    };
+    expect(() => acceptQuote(corrupt, LATER)).toThrow(
+      "no supera la comprobación de integridad",
+    );
+    expect(() => rejectQuote(corrupt, LATER)).toThrow(
+      "no supera la comprobación de integridad",
+    );
   });
 
   it("operaciones repetidas no modifican snapshots ni hashes", () => {

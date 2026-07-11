@@ -19,6 +19,7 @@ import {
   filterDocumentsByQuarter,
   filterExpensesByQuarter,
   getCurrentQuarter,
+  isDateInQuarter,
   quarterLabel,
   type Quarter,
 } from "@/lib/periods";
@@ -56,9 +57,12 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
     [data.expenses, year, quarter],
   );
 
-  const taxes = calculateTaxSummary(quarterDocuments, quarterExpenses, {
+  const taxes = calculateTaxSummary(data.documents, quarterExpenses, {
     irpfPercent: data.profile.irpfPercent,
     vatExempt,
+    profile: data.profile,
+    isDocumentDateInPeriod: (date) =>
+      isDateInQuarter(date, year, quarter),
   });
 
   const quarterIncome = collectedSalesTotal(
