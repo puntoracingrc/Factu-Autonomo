@@ -89,6 +89,9 @@ export function FixedCostAllocationForm({
             <button
               key={method.value}
               type="button"
+              aria-pressed={
+                settings.fixedCostAllocationMethod === method.value
+              }
               onClick={() =>
                 patchSettings({ fixedCostAllocationMethod: method.value })
               }

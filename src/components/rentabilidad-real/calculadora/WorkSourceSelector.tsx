@@ -47,6 +47,7 @@ export function WorkSourceSelector({
         <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
           <button
             type="button"
+            aria-pressed={sourceMode === "quote"}
             onClick={() => onSourceModeChange("quote")}
             className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
               sourceMode === "quote"
@@ -58,6 +59,7 @@ export function WorkSourceSelector({
           </button>
           <button
             type="button"
+            aria-pressed={sourceMode === "invoice"}
             onClick={() => onSourceModeChange("invoice")}
             className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
               sourceMode === "invoice"
