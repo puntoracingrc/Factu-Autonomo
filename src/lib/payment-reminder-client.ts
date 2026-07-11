@@ -1,6 +1,7 @@
 import { showFactuToast } from "./factu/occasional";
 import { isPendingInvoicePayment } from "./income";
 import { paymentReminderSubject } from "./payment-reminder";
+import { MAX_PAYMENT_REMINDER_MESSAGE_LENGTH } from "./email/payment-reminder-request";
 import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 import type { DocumentPdfOptions } from "./pdf";
 import {
@@ -56,6 +57,10 @@ function validatePaymentReminderMessage(
     return "Escribe un mensaje para el cliente.";
   }
 
+  if (message.trim().length > MAX_PAYMENT_REMINDER_MESSAGE_LENGTH) {
+    return `El mensaje es demasiado largo (máx. ${MAX_PAYMENT_REMINDER_MESSAGE_LENGTH} caracteres).`;
+  }
+
   return null;
 }
 
@@ -102,31 +107,34 @@ export async function sendPaymentReminderByEmail(
 
   try {
     const token = await getCurrentAccessToken();
-    const response = await fetch("/api/email/payment-reminder", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        doc: input.doc,
-        profile: input.profile,
-        message,
-      }),
-    });
+    if (token) {
+      const response = await fetch("/api/email/payment-reminder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId: input.doc.id,
+          message,
+        }),
+      });
 
-    const body = (await response.json()) as {
-      ok?: boolean;
-      skipped?: boolean;
-      error?: string;
-    };
+      const body = (await response.json()) as {
+        ok?: boolean;
+        skipped?: boolean;
+        error?: string;
+      };
 
-    if (response.ok && body.ok) {
-      return { ok: true, via: "api" };
-    }
+      if (response.ok && body.ok) {
+        return { ok: true, via: "api" };
+      }
 
-    if (!body.skipped && body.error) {
-      return { ok: false, error: body.error };
+      if (!body.skipped && body.error) {
+        // Solo `skipped` autoriza continuar al mailto/native local de abajo.
+        // Cualquier rechazo no marcado permanece cerrado y nunca reintenta Resend.
+        return { ok: false, error: body.error };
+      }
     }
   } catch {
     // Fallback a mailto si la API no responde.

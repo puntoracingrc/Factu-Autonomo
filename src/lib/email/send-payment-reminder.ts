@@ -1,12 +1,11 @@
 import { buildDocumentPdfBlob } from "../pdf";
 import { buildPaymentReminderEmail } from "./templates/payment-reminder";
+import { MAX_PAYMENT_REMINDER_MESSAGE_LENGTH } from "./payment-reminder-request";
 import { issuerDisplayName, resolveIssuerForDocument } from "../issuer-snapshot";
 import { isPendingInvoicePayment } from "../income";
 import { hasClientEmail } from "../share";
 import type { BusinessProfile, Document } from "../types";
 import { sendEmail } from "./send";
-
-const MAX_MESSAGE_LENGTH = 4000;
 
 function pdfFilename(doc: Document): string {
   const base = doc.number.replace(/[^\w.-]+/g, "_").trim() || "factura";
@@ -50,8 +49,8 @@ export function validatePaymentReminderInput(
   }
   const message = input.message.trim();
   if (!message) return "Escribe un mensaje para el cliente.";
-  if (message.length > MAX_MESSAGE_LENGTH) {
-    return `El mensaje es demasiado largo (máx. ${MAX_MESSAGE_LENGTH} caracteres).`;
+  if (message.length > MAX_PAYMENT_REMINDER_MESSAGE_LENGTH) {
+    return `El mensaje es demasiado largo (máx. ${MAX_PAYMENT_REMINDER_MESSAGE_LENGTH} caracteres).`;
   }
   return null;
 }
