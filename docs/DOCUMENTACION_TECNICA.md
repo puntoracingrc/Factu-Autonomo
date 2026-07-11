@@ -91,6 +91,20 @@ La app funciona principalmente como **SPA cliente** (React + Next.js App Router)
 
 **Principio de diseño:** la app es usable **sin conexión a servicios externos** (excepto funciones que las requieren explícitamente: escaneo IA, sync cloud, Stripe, registro Veri\*Factu en servidor). Los datos del negocio residen en el dispositivo del usuario hasta que activa la cuenta cloud.
 
+### Restauración administrativa
+
+El panel `/admin` puede crear copias privadas de un workspace cloud y calcular
+una vista previa agregada. La aplicación de esas copias está contenida por
+AUD-P1-20: todo el endpoint exige sesión AAL2 aunque la flag MFA global esté
+desactivada, no existe botón de restaurar y `action: "restore"` responde
+`admin_restore_transaction_required` sin leer ni escribir entidades del
+usuario.
+
+Reactivar el apply requiere otro bloque explícito con una única transacción/RPC
+o una saga reanudable: idempotencia, versión/digest ligado a la vista previa,
+serialización por usuario, rollback, evento indivisible y rechazo de cualquier
+cambio sobre documentos emitidos, snapshots, sellos o evidencia Veri\*Factu.
+
 ---
 
 ## 4. Modelo de datos principal

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
-import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
+  getAdminAccessFromRequest,
+  type AdminMfaAccess,
+} from "@/lib/admin/server-access";
+import {
+  ADMIN_RESTORE_ENTITY_TYPES,
   appDataFromSyncRows,
-  buildRestoreChangesFromRows,
   normalizeRestorePointData,
   normalizeRestorePointSummary,
   summarizeRestoreData,
@@ -11,12 +14,16 @@ import {
   type AdminSyncEntityRow,
 } from "@/lib/admin/user-restore";
 import {
+  ADMIN_USER_RESTORE_APPLY_BLOCK_CODE,
+  ADMIN_USER_RESTORE_APPLY_BLOCK_REASON,
+  ADMIN_USER_RESTORE_POINT_MODE,
+} from "@/lib/admin/user-restore-policy";
+import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type { SyncChange } from "@/lib/types";
 
 type RouteParams = {
   params: Promise<{ userId: string }>;
@@ -33,7 +40,6 @@ interface RestorePointBody {
   restorePointId?: unknown;
   label?: unknown;
   reason?: unknown;
-  confirmEmail?: unknown;
 }
 
 const SYNC_PAGE_SIZE = 500;
@@ -60,6 +66,12 @@ function cleanId(value: unknown): string | null {
 async function requireAdmin(request: Request): Promise<AdminAuthResult> {
   const access = await getAdminAccessFromRequest(request);
   if (!access.ok) return access;
+  if (access.mfa.currentLevel !== "aal2") {
+    return {
+      ok: false,
+      response: restoreMfaRequiredResponse(access.mfa),
+    };
+  }
   const rateLimit = await checkRateLimit(
     request,
     {
@@ -87,6 +99,37 @@ async function requireAdmin(request: Request): Promise<AdminAuthResult> {
   return { ok: true, requester: access.user, admin };
 }
 
+function restoreMfaRequiredResponse(mfa: AdminMfaAccess) {
+  return NextResponse.json(
+    {
+      code: "admin_mfa_required",
+      error:
+        "Verificación en dos pasos AAL2 requerida para gestionar copias administrativas.",
+      mfa,
+    },
+    {
+      status: 403,
+      headers: { "X-Admin-MFA-Required": "1" },
+    },
+  );
+}
+
+function restoreApplyBlockedResponse() {
+  return NextResponse.json(
+    {
+      ok: false,
+      blocked: true,
+      mode: ADMIN_USER_RESTORE_POINT_MODE,
+      code: ADMIN_USER_RESTORE_APPLY_BLOCK_CODE,
+      error: ADMIN_USER_RESTORE_APPLY_BLOCK_REASON,
+    },
+    {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
+}
+
 async function fetchTargetEmail(admin: AdminClient, userId: string) {
   const { data, error } = await admin.auth.admin.getUserById(userId);
   if (error || !data.user) {
@@ -101,21 +144,36 @@ async function fetchSyncRows(
 ): Promise<{ rows: AdminSyncEntityRow[]; error?: string }> {
   const rows: AdminSyncEntityRow[] = [];
 
-  for (let page = 0; ; page += 1) {
-    const from = page * SYNC_PAGE_SIZE;
-    const to = from + SYNC_PAGE_SIZE - 1;
-    const { data, error } = await admin
-      .from("sync_entities")
-      .select("entity_type,entity_id,payload,deleted,updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: true })
-      .range(from, to);
+  for (const entityType of ADMIN_RESTORE_ENTITY_TYPES) {
+    let afterEntityId: string | null = null;
 
-    if (error) return { rows, error: error.message };
+    for (;;) {
+      let query = admin
+        .from("sync_entities")
+        .select("entity_type,entity_id,payload,deleted,updated_at")
+        .eq("user_id", userId)
+        .eq("entity_type", entityType)
+        .order("entity_id", { ascending: true });
+      if (afterEntityId) {
+        query = query.gt("entity_id", afterEntityId);
+      }
 
-    const pageRows = (data ?? []) as AdminSyncEntityRow[];
-    rows.push(...pageRows);
-    if (pageRows.length < SYNC_PAGE_SIZE) break;
+      const { data, error } = await query.limit(SYNC_PAGE_SIZE);
+      if (error) return { rows, error: error.message };
+
+      const pageRows = (data ?? []) as AdminSyncEntityRow[];
+      rows.push(...pageRows);
+      if (pageRows.length < SYNC_PAGE_SIZE) break;
+
+      const nextCursor = pageRows.at(-1)?.entity_id;
+      if (!nextCursor || (afterEntityId && nextCursor <= afterEntityId)) {
+        return {
+          rows,
+          error: "No se pudo paginar la copia de forma estable.",
+        };
+      }
+      afterEntityId = nextCursor;
+    }
   }
 
   return { rows };
@@ -209,31 +267,6 @@ async function createRestorePoint(
   };
 }
 
-async function upsertRestoreChanges(
-  admin: AdminClient,
-  userId: string,
-  changes: SyncChange[],
-) {
-  for (let index = 0; index < changes.length; index += SYNC_PAGE_SIZE) {
-    const chunk = changes.slice(index, index + SYNC_PAGE_SIZE);
-    const { error } = await admin.from("sync_entities").upsert(
-      chunk.map((change) => ({
-        user_id: userId,
-        entity_type: change.entityType,
-        entity_id: change.entityId,
-        payload: change.deleted ? null : (change.payload ?? null),
-        deleted: change.deleted,
-        updated_at: change.updatedAt,
-      })),
-      { onConflict: "user_id,entity_type,entity_id" },
-    );
-
-    if (error) return error.message;
-  }
-
-  return null;
-}
-
 export async function GET(request: Request, { params }: RouteParams) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
@@ -257,6 +290,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   return NextResponse.json({
     userId,
     email: target.email,
+    mode: ADMIN_USER_RESTORE_POINT_MODE,
     current: current.summary,
     restorePoints: restorePoints.restorePoints,
   });
@@ -274,6 +308,10 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!bodyResult.ok) return bodyResult.response;
   const body = bodyResult.data;
 
+  if (body.action === "restore") {
+    return restoreApplyBlockedResponse();
+  }
+
   const target = await fetchTargetEmail(auth.admin, userId);
   if ("error" in target) {
     return NextResponse.json({ error: target.error }, { status: 404 });
@@ -290,7 +328,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     if ("error" in created) {
       return NextResponse.json({ error: created.error }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, restorePoint: created.restorePoint });
+    return NextResponse.json({
+      ok: true,
+      mode: ADMIN_USER_RESTORE_POINT_MODE,
+      restorePoint: created.restorePoint,
+    });
   }
 
   const restorePointId = cleanId(body.restorePointId);
@@ -323,71 +365,10 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (body.action === "preview") {
     return NextResponse.json({
       ok: true,
+      mode: ADMIN_USER_RESTORE_POINT_MODE,
       restorePoint: restorePoint.restorePoint,
       current: current.summary,
       diff: diffSummary,
-    });
-  }
-
-  if (body.action === "restore") {
-    const confirmedEmail =
-      typeof body.confirmEmail === "string"
-        ? body.confirmEmail.trim().toLowerCase()
-        : "";
-    const expectedEmail = target.email?.trim().toLowerCase() ?? "";
-    if (!expectedEmail || confirmedEmail !== expectedEmail) {
-      return NextResponse.json(
-        { error: "Escribe el email exacto del usuario para restaurar." },
-        { status: 400 },
-      );
-    }
-
-    const safety = await createRestorePoint(auth.admin, {
-      userId,
-      requesterId: auth.requester.id,
-      label: `Copia de seguridad antes de restaurar ${new Date().toLocaleString(
-        "es-ES",
-      )}`,
-      reason: `Creada automáticamente antes de restaurar ${restorePoint.restorePoint.label}`,
-      source: "pre_restore_safety",
-    });
-    if ("error" in safety) {
-      return NextResponse.json({ error: safety.error }, { status: 500 });
-    }
-
-    const restoredAt = new Date().toISOString();
-    const changes = buildRestoreChangesFromRows(
-      current.rows,
-      restorePoint.data,
-      restoredAt,
-    );
-    const upsertError = await upsertRestoreChanges(auth.admin, userId, changes);
-    if (upsertError) {
-      return NextResponse.json({ error: upsertError }, { status: 500 });
-    }
-
-    const { error: eventError } = await auth.admin
-      .from("admin_user_restore_events")
-      .insert({
-        user_id: userId,
-        restore_point_id: restorePoint.restorePoint.id,
-        safety_restore_point_id: safety.restorePoint.id,
-        restored_by: auth.requester.id,
-        diff_summary: diffSummary,
-        note: cleanOptionalText(body.reason, 500),
-      });
-
-    if (eventError) {
-      return NextResponse.json({ error: eventError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      restoredAt,
-      changes: changes.length,
-      diff: diffSummary,
-      safetyRestorePoint: safety.restorePoint,
-      restorePoint: restorePoint.restorePoint,
     });
   }
 
