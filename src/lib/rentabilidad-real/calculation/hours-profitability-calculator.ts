@@ -1,5 +1,8 @@
 import { roundMoney } from "@/lib/calculations";
-import { allocateRentabilidadRealFixedCosts } from "./fixed-cost-allocation";
+import {
+  allocateRentabilidadRealFixedCosts,
+  allocatedFiscalDeductibleFixedCosts,
+} from "./fixed-cost-allocation";
 import { estimateRentabilidadRealTaxReserve } from "./tax-reserve-estimator";
 import type {
   RentabilidadRealCalculationWarning,
@@ -70,6 +73,21 @@ export function calculateRentabilidadRealHoursProfitability(
   const operatingProfit = roundMoney(
     grossMargin - fixedCostAllocation.allocatedFixedCosts,
   );
+  const fiscalDeductibleDirectCosts = roundMoney(
+    input.directCosts
+      .filter((cost) => cost.fiscalDeductible !== false)
+      .reduce((total, cost) => total + cost.amount, 0),
+  );
+  const fiscalDeductibleFixedCosts =
+    allocatedFiscalDeductibleFixedCosts(
+      input.fixedCostAllocationInput,
+      fixedCostAllocation.allocatedFixedCosts,
+    );
+  const estimatedIrpfBase = roundMoney(
+    input.incomeWithoutIndirectTax -
+      fiscalDeductibleDirectCosts -
+      fiscalDeductibleFixedCosts,
+  );
   const internalAdjustmentsTotal = moneyAmount(input.internalAdjustmentsTotal);
   const internalRealProfit = roundMoney(
     operatingProfit - internalAdjustmentsTotal,
@@ -80,6 +98,7 @@ export function calculateRentabilidadRealHoursProfitability(
       input.directCosts.reduce((total, cost) => total + cost.ivaAmount, 0),
     ),
     operatingProfit,
+    irpfBase: estimatedIrpfBase,
     irpfProvisionPercentage: input.irpfProvisionPercentage,
     hasVatData: true,
   });
@@ -168,6 +187,7 @@ export function calculateRentabilidadRealHoursProfitability(
     fixedCostAllocationMethod: fixedCostAllocation.method,
     grossMargin,
     operatingProfit,
+    estimatedIrpfBase,
     documentedOperatingProfit: operatingProfit,
     internalAdjustmentsTotal,
     internalRealProfit,

@@ -28,7 +28,11 @@ function income(
   };
 }
 
-function cost(amount: number, ivaAmount = 0): RentabilidadRealWorkCost {
+function cost(
+  amount: number,
+  ivaAmount = 0,
+  fiscalDeductible?: boolean,
+): RentabilidadRealWorkCost {
   return {
     id: `cost_${amount}`,
     sourceType: "expense",
@@ -36,6 +40,7 @@ function cost(amount: number, ivaAmount = 0): RentabilidadRealWorkCost {
     supplierName: "Proveedor Demo",
     description: "Material",
     amount,
+    fiscalDeductible,
     ivaAmount,
     total: amount + ivaAmount,
     category: "Material",
@@ -167,6 +172,76 @@ describe("calculateRentabilidadRealWorkProfitability", () => {
     expect(result.operatingProfit).toBe(1000);
     expect(result.estimatedIrpfProvision).toBe(200);
     expect(result.prudentAvailableCash).toBe(800);
+  });
+
+  it("un coste directo no deducible reduce margen y caja, no la base IRPF", () => {
+    const result = calculateRentabilidadRealWorkProfitability(
+      input({
+        directCosts: [cost(121, 0, false)],
+        taxReserve: { irpfProvisionPercentage: 20 },
+      }),
+    );
+
+    expect(result.operatingProfit).toBe(879);
+    expect(result.estimatedIrpfBase).toBe(1000);
+    expect(result.estimatedVatToReserve).toBe(210);
+    expect(result.estimatedIrpfProvision).toBe(200);
+    expect(result.prudentAvailableCash).toBe(679);
+  });
+
+  it("prorratea solo la parte deducible de los costes fijos asignados", () => {
+    const result = calculateRentabilidadRealWorkProfitability(
+      input({
+        fixedCostCandidates: [cost(100, 0, true), cost(120, 0, false)],
+        fixedCostAllocationInput: {
+          method: "monthly_jobs",
+          totalFixedCostsForPeriod: 220,
+          fiscalDeductibleFixedCostsForPeriod: 100,
+          monthlyJobs: 2,
+        },
+        taxReserve: { irpfProvisionPercentage: 20 },
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(110);
+    expect(result.operatingProfit).toBe(890);
+    expect(result.estimatedIrpfBase).toBe(950);
+    expect(result.estimatedIrpfProvision).toBe(190);
+    expect(result.prudentAvailableCash).toBe(700);
+  });
+
+  it("un fijo completamente no deducible no reduce la base IRPF", () => {
+    const result = calculateRentabilidadRealWorkProfitability(
+      input({
+        fixedCostCandidates: [cost(120, 0, false)],
+        fixedCostAllocationInput: {
+          method: "monthly_jobs",
+          totalFixedCostsForPeriod: 120,
+          fiscalDeductibleFixedCostsForPeriod: 0,
+          monthlyJobs: 1,
+        },
+        taxReserve: { irpfProvisionPercentage: 20 },
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(120);
+    expect(result.operatingProfit).toBe(880);
+    expect(result.estimatedIrpfBase).toBe(1000);
+    expect(result.estimatedIrpfProvision).toBe(200);
+    expect(result.prudentAvailableCash).toBe(680);
+  });
+
+  it("mantiene como deducibles los costes legacy sin la marca nueva", () => {
+    const result = calculateRentabilidadRealWorkProfitability(
+      input({
+        directCosts: [cost(100)],
+        taxReserve: { irpfProvisionPercentage: 20 },
+      }),
+    );
+
+    expect(result.estimatedIrpfBase).toBe(900);
+    expect(result.estimatedIrpfProvision).toBe(180);
+    expect(result.prudentAvailableCash).toBe(720);
   });
 
   it("ajustes internos reducen beneficio interno sin tocar resultado documentado ni impuestos", () => {

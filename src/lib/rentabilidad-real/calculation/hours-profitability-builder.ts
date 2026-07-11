@@ -53,6 +53,7 @@ function fixedCostFromSource(
     supplierName: source.supplierName,
     description: source.description,
     amount: source.amount,
+    fiscalDeductible: source.fiscalDeductible,
     ivaAmount: source.ivaAmount,
     total: source.total,
     category: source.category,
@@ -74,6 +75,7 @@ function manualCostToWorkCost(
     supplierName: "Simulación local",
     description: cost.description,
     amount: roundMoney(cost.amount),
+    fiscalDeductible: true,
     ivaAmount: roundMoney(cost.ivaAmount ?? 0),
     total: roundMoney(cost.amount + (cost.ivaAmount ?? 0)),
     category: "Simulación",
@@ -86,6 +88,18 @@ function manualCostToWorkCost(
 
 function sumFixedCosts(costs: RentabilidadRealWorkCost[]): number {
   return roundMoney(costs.reduce((total, cost) => total + cost.amount, 0));
+}
+
+function sumFiscalDeductibleFixedCosts(
+  costs: RentabilidadRealWorkCost[],
+): number {
+  return roundMoney(
+    costs.reduce(
+      (total, cost) =>
+        total + (cost.fiscalDeductible === false ? 0 : cost.amount),
+      0,
+    ),
+  );
 }
 
 function selectedFixedCosts(
@@ -114,6 +128,8 @@ export function buildRentabilidadRealHoursProfitabilityInputFromExistingData(
   const fixedCostAllocationInput = {
     method: params.fixedCostAllocationMethod ?? "hours",
     totalFixedCostsForPeriod: sumFixedCosts(selectedFixedCostCandidates),
+    fiscalDeductibleFixedCostsForPeriod:
+      sumFiscalDeductibleFixedCosts(selectedFixedCostCandidates),
     manualAmount: params.manualAmount,
     monthlyRevenue: params.monthlyRevenue,
     monthlyWorkHours: params.monthlyWorkHours,

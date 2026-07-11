@@ -221,11 +221,16 @@ export function FixedCostAllocationForm({
                     {formatShortDate(cost.date)}
                   </span>
                   <span className="block text-slate-500 dark:text-slate-400">
-                    Base {formatMoney(cost.amount)}
+                    Coste económico {formatMoney(cost.amount)}
                     {cost.total !== cost.amount
-                      ? ` · Total ${formatMoney(cost.total)}`
+                      ? ` · Total registrado ${formatMoney(cost.total)}`
                       : ""}
                   </span>
+                  {cost.fiscalDeductible === false ? (
+                    <span className="mt-1 block text-xs font-black text-amber-700 dark:text-amber-300">
+                      No deducible · base e IVA deducibles 0
+                    </span>
+                  ) : null}
                 </span>
               </label>
             ))}

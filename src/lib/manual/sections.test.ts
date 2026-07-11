@@ -46,8 +46,29 @@ describe("manual sections", () => {
   it("explica que el resultado tras reservar IRPF no descuenta el IVA", () => {
     const taxManual = JSON.stringify(getManualSection("impuestos"));
 
-    expect(taxManual).toContain("resultado tras reservarla");
+    expect(taxManual).toContain("resultado económico tras reservarla");
     expect(taxManual).toContain("La posición de IVA se muestra aparte");
-    expect(taxManual).toContain("las bases ya están calculadas sin IVA");
+    expect(taxManual).toContain("sus bases ya están calculadas sin IVA");
+    expect(taxManual).toContain("base estimada para IRPF");
+  });
+
+  it("separa el coste no deducible del tratamiento fiscal", () => {
+    const manualText = JSON.stringify([
+      getManualSection("gastos"),
+      getManualSection("impuestos"),
+      getManualSection("facturas"),
+    ]);
+
+    expect(manualText).toContain("Extra no desgravable");
+    expect(manualText).toContain("base y el IVA deducibles");
+    expect(manualText).toContain(
+      "no reduce la base ni la reserva estimada de IRPF",
+    );
+    expect(manualText).toContain("sí reduce el beneficio económico");
+    expect(manualText).toContain("sí reduce el margen real");
+    expect(manualText).toContain("no reduce la base ni el IVA");
+    expect(manualText).toContain(
+      "base estimada para IRPF separada del beneficio económico",
+    );
   });
 });

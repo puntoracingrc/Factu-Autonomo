@@ -48,6 +48,21 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Material");
   });
 
+  it("mantiene 14 columnas en cabecera, detalle y total", () => {
+    const csv = buildExpensesExportCsv([expense], [supplier], {
+      profile: DEFAULT_PROFILE,
+      periodLabel: "2026",
+    });
+    const lines = csv.split("\n");
+    const header = lines.find((line) => line.startsWith("Fecha;Proveedor;"));
+    const detail = lines.find((line) => line.includes("Material oficina"));
+    const total = lines.find((line) => line.startsWith("TOTAL GASTOS;"));
+
+    expect(header?.split(";")).toHaveLength(14);
+    expect(detail?.split(";")).toHaveLength(14);
+    expect(total?.split(";")).toHaveLength(14);
+  });
+
   it("prefiere el NIF histórico del documento frente al maestro actual", () => {
     const csv = buildExpensesExportCsv(
       [
@@ -65,6 +80,49 @@ describe("export expenses csv", () => {
 
     expect(csv).toContain("B87654321");
     expect(csv).not.toContain("B12345678");
+  });
+
+  it("conserva el coste no deducible y deja base e IVA fiscales a cero", () => {
+    const csv = buildExpensesExportCsv(
+      [{ ...expense, deductibility: "non_deductible" }],
+      [supplier],
+      {
+        profile: DEFAULT_PROFILE,
+        periodLabel: "2026",
+      },
+    );
+
+    expect(csv).toContain("Tratamiento fiscal");
+    expect(csv).toContain("Coste registrado (EUR)");
+    expect(csv).toContain("Base deducible (EUR)");
+    expect(csv).toContain("IVA deducible (EUR)");
+    expect(csv).toContain(
+      "No deducible;50,00;21;10,50;60,50;0,00;0,00",
+    );
+    expect(csv).toContain("Material;1;60,50;0,00;0,00");
+  });
+
+  it("mantiene el coste completo no deducible en un perfil exento", () => {
+    const csv = buildExpensesExportCsv(
+      [
+        {
+          ...expense,
+          amount: 100,
+          ivaPercent: 21,
+          deductibility: "non_deductible",
+        },
+      ],
+      [supplier],
+      {
+        profile: { ...DEFAULT_PROFILE, vatExempt: true },
+        periodLabel: "2026",
+      },
+    );
+
+    expect(csv).toContain(
+      "No deducible;100,00;0;0,00;100,00;0,00;0,00",
+    );
+    expect(csv).toContain("Material;1;100,00;0,00;0,00");
   });
 
   it("exporta el NIF histórico aunque la ficha de proveedor ya no exista", () => {

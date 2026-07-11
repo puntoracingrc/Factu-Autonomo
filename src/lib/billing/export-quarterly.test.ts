@@ -91,9 +91,13 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Autónomo Test");
     expect(csv).toContain("RESUMEN DEL PERIODO");
     expect(csv).toContain("IVA neto a ingresar;10,50");
-    expect(csv).toContain("Beneficio bruto estimado;50,00");
+    expect(csv).toContain("Coste económico de gastos;50,00");
+    expect(csv).toContain(
+      "Beneficio económico antes de reservar IRPF;50,00",
+    );
+    expect(csv).toContain("Base estimada para IRPF;50,00");
     expect(csv).toContain("IRPF estimado (orientativo);10,00");
-    expect(csv).toContain("Resultado tras reservar IRPF;40,00");
+    expect(csv).toContain("Resultado económico tras reservar IRPF;40,00");
     expect(csv).not.toContain("Beneficio neto");
     expect(csv).toContain("LIBRO DE VENTAS");
     expect(csv).toContain("F-2026-0001");
@@ -131,6 +135,66 @@ describe("export quarterly csv", () => {
     expect(csv).not.toContain("F-LIVE-ALTERADA");
     expect(csv).not.toContain("Cliente alterado");
     expect(csv).not.toContain("999,00");
+  });
+
+  it("mantiene el no deducible en el libro sin reducir la fiscalidad", () => {
+    const csv = buildQuarterlyExportCsv(
+      [doc],
+      [
+        {
+          ...expense,
+          amount: 120,
+          deductibility: "non_deductible",
+        },
+      ],
+      profile,
+      2026,
+      2,
+      [supplier],
+    );
+
+    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("IVA deducible;0,00");
+    expect(csv).toContain(
+      "Gastos no deducibles (coste registrado);145,20",
+    );
+    expect(csv).toContain("Coste económico de gastos;145,20");
+    expect(csv).toContain(
+      "Beneficio económico antes de reservar IRPF;-45,20",
+    );
+    expect(csv).toContain("Base estimada para IRPF;100,00");
+    expect(csv).toContain("IRPF estimado (orientativo);20,00");
+    expect(csv).toContain("Resultado económico tras reservar IRPF;-65,20");
+    expect(csv).toContain("No deducible;120,00;21;25,20;145,20;0,00;0,00");
+  });
+
+  it("exporta un periodo exento con solo gasto no deducible", () => {
+    const csv = buildQuarterlyExportCsv(
+      [],
+      [
+        {
+          ...expense,
+          amount: 100,
+          ivaPercent: 21,
+          deductibility: "non_deductible",
+        },
+      ],
+      { ...profile, vatExempt: true },
+      2026,
+      2,
+      [supplier],
+    );
+
+    expect(csv).toContain("Coste económico de gastos;100,00");
+    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("IVA deducible;0,00");
+    expect(csv).toContain(
+      "Beneficio económico antes de reservar IRPF;-100,00",
+    );
+    expect(csv).toContain("Base estimada para IRPF;0,00");
+    expect(csv).toContain("IRPF estimado (orientativo);0,00");
+    expect(csv).toContain("Resultado económico tras reservar IRPF;-100,00");
+    expect(csv).toContain("No deducible;100,00;0;0,00;100,00;0,00;0,00");
   });
 
   it("mantiene el resumen fiscal congelado de snapshots legacy verificados", () => {

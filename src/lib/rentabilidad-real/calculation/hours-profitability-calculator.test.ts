@@ -5,7 +5,11 @@ import type {
 } from "./types";
 import { calculateRentabilidadRealHoursProfitability } from "./hours-profitability-calculator";
 
-function cost(amount: number, ivaAmount = 0): RentabilidadRealWorkCost {
+function cost(
+  amount: number,
+  ivaAmount = 0,
+  fiscalDeductible?: boolean,
+): RentabilidadRealWorkCost {
   return {
     id: `cost_${amount}`,
     sourceType: "expense",
@@ -13,6 +17,7 @@ function cost(amount: number, ivaAmount = 0): RentabilidadRealWorkCost {
     supplierName: "Proveedor",
     description: "Coste",
     amount,
+    fiscalDeductible,
     ivaAmount,
     total: amount + ivaAmount,
     category: "Servicios",
@@ -189,6 +194,39 @@ describe("calculateRentabilidadRealHoursProfitability", () => {
 
     expect(result.estimatedIrpfProvision).toBe(200);
     expect(result.prudentAvailableCash).toBe(800);
+  });
+
+  it("mantiene un coste directo no deducible fuera de la base IRPF", () => {
+    const result = calculateRentabilidadRealHoursProfitability(
+      input({ directCosts: [cost(121, 0, false)] }),
+    );
+
+    expect(result.operatingProfit).toBe(879);
+    expect(result.estimatedIrpfBase).toBe(1000);
+    expect(result.estimatedVatToReserve).toBe(210);
+    expect(result.estimatedIrpfProvision).toBe(200);
+    expect(result.prudentAvailableCash).toBe(679);
+  });
+
+  it("prorratea la parte deducible de los fijos en la base IRPF por horas", () => {
+    const result = calculateRentabilidadRealHoursProfitability(
+      input({
+        fixedCostCandidates: [cost(100, 0, true), cost(300, 0, false)],
+        fixedCostAllocationInput: {
+          method: "hours",
+          totalFixedCostsForPeriod: 400,
+          fiscalDeductibleFixedCostsForPeriod: 100,
+          monthlyWorkHours: 40,
+        },
+        realWorkedHours: 10,
+      }),
+    );
+
+    expect(result.allocatedFixedCosts).toBe(100);
+    expect(result.operatingProfit).toBe(900);
+    expect(result.estimatedIrpfBase).toBe(975);
+    expect(result.estimatedIrpfProvision).toBe(195);
+    expect(result.prudentAvailableCash).toBe(705);
   });
 
   it("ajustes internos reducen beneficio interno por hora sin tocar IVA, IRPF ni beneficio documentado", () => {

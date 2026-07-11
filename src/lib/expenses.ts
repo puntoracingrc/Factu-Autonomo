@@ -31,7 +31,19 @@ export interface ExpensePurchaseLinePriceAlert {
 export interface WorkDocumentExpenseSummary {
   count: number;
   cost: number;
-  iva: number;
+  deductibleBase: number;
+  deductibleIva: number;
+}
+
+export interface ExpenseFiscalAmounts {
+  deductible: boolean;
+  registeredBase: number;
+  registeredIvaPercent: number;
+  registeredIva: number;
+  registeredTotal: number;
+  deductibleBase: number;
+  deductibleIva: number;
+  operatingCost: number;
 }
 
 export interface PurchaseExpenseDuplicateCandidate {
@@ -70,6 +82,40 @@ export function expenseTotals(
   vatExempt = false,
 ): ExpenseTotals {
   return expenseTotalsFromBase(expense.amount, expense.ivaPercent, vatExempt);
+}
+
+/**
+ * Compatibilidad legacy: los gastos anteriores a la marca se consideran
+ * deducibles. Cualquier valor persistido distinto del enum conocido queda
+ * fuera de fiscalidad de forma conservadora.
+ */
+export function isExpenseFiscalDeductible(
+  expense: Pick<Expense, "deductibility">,
+): boolean {
+  return (
+    expense.deductibility === undefined ||
+    expense.deductibility === "deductible"
+  );
+}
+
+/** Separa el coste registrado del importe que puede alimentar fiscalidad. */
+export function expenseFiscalAmounts(
+  expense: Pick<Expense, "amount" | "ivaPercent" | "deductibility">,
+  vatExempt = false,
+): ExpenseFiscalAmounts {
+  const totals = expenseTotals(expense, vatExempt);
+  const deductible = isExpenseFiscalDeductible(expense);
+
+  return {
+    deductible,
+    registeredBase: totals.base,
+    registeredIvaPercent: totals.ivaPercent,
+    registeredIva: totals.iva,
+    registeredTotal: totals.total,
+    deductibleBase: deductible ? totals.base : 0,
+    deductibleIva: deductible ? totals.iva : 0,
+    operatingCost: deductible ? totals.base : totals.total,
+  };
 }
 
 export function expensePurchaseLineBaseTotal(
@@ -176,7 +222,8 @@ export function summarizeWorkDocumentExpenses(
     summarizeWorkDocumentExpensesById(expenses).get(documentId) ?? {
       count: 0,
       cost: 0,
-      iva: 0,
+      deductibleBase: 0,
+      deductibleIva: 0,
     }
   );
 }
@@ -191,13 +238,19 @@ export function summarizeWorkDocumentExpensesById(
     const current = summaries.get(expense.workDocumentId) ?? {
       count: 0,
       cost: 0,
-      iva: 0,
+      deductibleBase: 0,
+      deductibleIva: 0,
     };
-    const totals = expenseTotals(expense);
+    const fiscal = expenseFiscalAmounts(expense);
     summaries.set(expense.workDocumentId, {
       count: current.count + 1,
-      cost: roundMoney(current.cost + normalizeExpenseAmount(expense.amount)),
-      iva: roundMoney(current.iva + totals.iva),
+      cost: roundMoney(current.cost + fiscal.operatingCost),
+      deductibleBase: roundMoney(
+        current.deductibleBase + fiscal.deductibleBase,
+      ),
+      deductibleIva: roundMoney(
+        current.deductibleIva + fiscal.deductibleIva,
+      ),
     });
   }
 

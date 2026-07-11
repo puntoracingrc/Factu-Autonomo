@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { allocateRentabilidadRealFixedCosts } from "./fixed-cost-allocation";
+import {
+  allocateRentabilidadRealFixedCosts,
+  allocatedFiscalDeductibleFixedCosts,
+} from "./fixed-cost-allocation";
 
 describe("allocateRentabilidadRealFixedCosts", () => {
   it("none devuelve 0 y warning si hay gastos fijos", () => {
@@ -69,5 +72,41 @@ describe("allocateRentabilidadRealFixedCosts", () => {
     expect(result.warnings.map((warning) => warning.code)).toContain(
       "fixed_cost_allocation_incomplete",
     );
+  });
+
+  it("prorratea la imputación según la parte fija deducible", () => {
+    const input = {
+      method: "monthly_jobs" as const,
+      totalFixedCostsForPeriod: 400,
+      fiscalDeductibleFixedCostsForPeriod: 100,
+      monthlyJobs: 4,
+    };
+    const result = allocateRentabilidadRealFixedCosts(input);
+
+    expect(result.allocatedFixedCosts).toBe(100);
+    expect(
+      allocatedFiscalDeductibleFixedCosts(
+        input,
+        result.allocatedFixedCosts,
+      ),
+    ).toBe(25);
+  });
+
+  it("prorratea también un importe manual con mezcla fiscal", () => {
+    const input = {
+      method: "manual_amount" as const,
+      totalFixedCostsForPeriod: 400,
+      fiscalDeductibleFixedCostsForPeriod: 100,
+      manualAmount: 80,
+    };
+    const result = allocateRentabilidadRealFixedCosts(input);
+
+    expect(result.allocatedFixedCosts).toBe(80);
+    expect(
+      allocatedFiscalDeductibleFixedCosts(
+        input,
+        result.allocatedFixedCosts,
+      ),
+    ).toBe(20);
   });
 });

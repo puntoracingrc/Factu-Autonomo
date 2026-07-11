@@ -87,10 +87,40 @@ describe("export annual pdf", () => {
 
     expect(commands).toContain("IVA neto a pagar");
     expect(commands).toContain("10,50");
-    expect(commands).toContain("Resultado tras reservar IRPF");
+    expect(commands).toContain("Resultado económico tras reservar IRPF");
     expect(commands).toContain("40,00");
     expect(commands).not.toContain("Beneficio neto aproximado");
     expect(commands).not.toContain("29,50");
+  });
+
+  it("conserva el coste no deducible y lo excluye de base, IVA e IRPF", () => {
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf(
+        [doc],
+        [
+          {
+            ...expense,
+            amount: 100,
+            deductibility: "non_deductible",
+          },
+        ],
+        profile,
+        2026,
+      ),
+    );
+
+    expect(commands).toContain("Gastado en el año");
+    expect(commands).toContain("Base deducible gastos");
+    expect(commands).toContain("Gastos no deducibles");
+    expect(commands).toContain("No deducible");
+    expect(commands).toContain("121,00");
+    expect(commands).toContain("Coste económico de gastos");
+    expect(commands).toContain("Beneficio económico antes de reservar IRPF");
+    expect(commands).toContain("-21,00");
+    expect(commands).toContain("Base estimada para IRPF");
+    expect(commands).toContain("100,00");
+    expect(commands).toContain("Resultado económico tras reservar IRPF");
+    expect(commands).toContain("-41,00");
   });
 
   it("proyecta el snapshot histórico antes de seleccionar periodo e importes", () => {

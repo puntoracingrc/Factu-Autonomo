@@ -67,6 +67,12 @@ export function WorkProfitabilityResultCards({
       tone: "warning",
     },
     {
+      label: "Base estimada para IRPF",
+      value: formatMoney(result.estimatedIrpfBase),
+      detail:
+        "Ingresos menos costes fiscalmente deducibles; puede diferir del beneficio económico.",
+    },
+    {
       label: "Aparta para IRPF",
       value: formatMoney(result.estimatedIrpfProvision),
       detail: "Orientativo; no es tu declaración final.",

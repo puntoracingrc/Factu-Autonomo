@@ -212,6 +212,78 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     });
   });
 
+  it("conserva 100 + 21 como coste directo no deducible sin reducir IRPF", () => {
+    const invoice = documentFixture({ id: "invoice_1", type: "factura" });
+    const linkedExpense = expenseFixture({
+      id: "expense_non_deductible",
+      amount: 100,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      workDocumentId: "invoice_1",
+    });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({ documents: [invoice], expenses: [linkedExpense] }),
+      {
+        sourceDocumentId: "invoice_1",
+        irpfProvisionPercentage: 20,
+      },
+    );
+
+    expect(input?.directCosts[0]).toMatchObject({
+      amount: 121,
+      fiscalDeductible: false,
+      ivaAmount: 0,
+      total: 121,
+    });
+    const result = input
+      ? calculateRentabilidadRealWorkProfitability(input)
+      : null;
+    expect(result).toMatchObject({
+      operatingProfit: 879,
+      estimatedIrpfBase: 1000,
+      estimatedIrpfProvision: 200,
+      prudentAvailableCash: 679,
+    });
+  });
+
+  it("un override parcial no vuelve deducible el coste no deducible", () => {
+    const invoice = documentFixture({ id: "invoice_1", type: "factura" });
+    const linkedExpense = expenseFixture({
+      id: "expense_non_deductible",
+      amount: 100,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      workDocumentId: "invoice_1",
+    });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({ documents: [invoice], expenses: [linkedExpense] }),
+      {
+        sourceDocumentId: "invoice_1",
+        irpfProvisionPercentage: 20,
+        directCostAmountOverrides: { expense_non_deductible: 60.5 },
+      },
+    );
+
+    expect(input?.directCosts[0]).toMatchObject({
+      amount: 60.5,
+      fiscalDeductible: false,
+      ivaAmount: 0,
+      originalAmount: 121,
+      originalIvaAmount: 0,
+      originalTotal: 121,
+      appliedAmountOverride: 60.5,
+    });
+    const result = input
+      ? calculateRentabilidadRealWorkProfitability(input)
+      : null;
+    expect(result).toMatchObject({
+      operatingProfit: 939.5,
+      estimatedIrpfBase: 1000,
+      estimatedIrpfProvision: 200,
+      prudentAvailableCash: 739.5,
+    });
+  });
+
   it("incluye gastos enlazados a factura y presupuesto relacionado", () => {
     const quote = documentFixture({
       id: "quote_1",
@@ -401,6 +473,52 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
       "recurring_1",
     ]);
     expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(130);
+    expect(
+      input?.fixedCostAllocationInput.fiscalDeductibleFixedCostsForPeriod,
+    ).toBe(130);
+  });
+
+  it("separa la parte no deducible de los fijos seleccionados", () => {
+    const invoice = documentFixture({ id: "invoice_1", type: "factura" });
+    const deductible = recurringExpenseFixture({
+      id: "fixed_deductible",
+      amount: 100,
+      ivaPercent: 0,
+    });
+    const nonDeductible = recurringExpenseFixture({
+      id: "fixed_non_deductible",
+      amount: 120,
+      ivaPercent: 0,
+      deductibility: "non_deductible",
+    });
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [invoice],
+        recurringExpenses: [deductible, nonDeductible],
+      }),
+      {
+        sourceDocumentId: "invoice_1",
+        fixedCostAllocationMethod: "monthly_jobs",
+        monthlyJobs: 2,
+      },
+    );
+
+    expect(input?.fixedCostAllocationInput).toMatchObject({
+      totalFixedCostsForPeriod: 220,
+      fiscalDeductibleFixedCostsForPeriod: 100,
+    });
+    expect(input?.fixedCostCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "fixed_deductible",
+          fiscalDeductible: true,
+        }),
+        expect.objectContaining({
+          id: "fixed_non_deductible",
+          fiscalDeductible: false,
+        }),
+      ]),
+    );
   });
 
   it("no duplica fijo recurrente si ya existe el gasto mensual generado", () => {

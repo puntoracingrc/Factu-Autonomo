@@ -18,6 +18,7 @@ import {
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
+import { isExpenseFiscalDeductible } from "@/lib/expenses";
 import {
   isRecurringExpenseApplicableOn,
   normalizeRecurringOccurrenceCount,
@@ -718,7 +719,7 @@ export default function GastosFijosPage() {
                     >
                       {statusLabel}
                     </span>
-                    {item.deductibility === "non_deductible" && (
+                    {!isExpenseFiscalDeductible(item) && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                         No desgravable
                       </span>

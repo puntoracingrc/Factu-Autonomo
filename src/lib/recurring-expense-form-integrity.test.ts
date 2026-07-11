@@ -30,4 +30,14 @@ describe("recurring expense form integrity", () => {
       /recurringExpenseStatusOn\(item, today\)/,
     );
   });
+
+  it("identifica como no desgravable cualquier estado fiscal no reconocido", () => {
+    const fixedExpenseForm = source("../app/gastos/fijos/page.tsx");
+
+    expect(fixedExpenseForm).toContain("isExpenseFiscalDeductible");
+    expect(fixedExpenseForm).toContain("!isExpenseFiscalDeductible(item)");
+    expect(fixedExpenseForm).not.toContain(
+      'item.deductibility === "non_deductible"',
+    );
+  });
 });

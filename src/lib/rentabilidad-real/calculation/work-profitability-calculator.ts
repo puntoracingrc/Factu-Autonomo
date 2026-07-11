@@ -1,5 +1,8 @@
 import { roundMoney } from "@/lib/calculations";
-import { allocateRentabilidadRealFixedCosts } from "./fixed-cost-allocation";
+import {
+  allocateRentabilidadRealFixedCosts,
+  allocatedFiscalDeductibleFixedCosts,
+} from "./fixed-cost-allocation";
 import { estimateRentabilidadRealTaxReserve } from "./tax-reserve-estimator";
 import type {
   RentabilidadRealCalculationWarning,
@@ -55,6 +58,22 @@ export function calculateRentabilidadRealWorkProfitability(
   const operatingProfit = roundMoney(
     grossMargin - fixedCostAllocation.allocatedFixedCosts,
   );
+  const fiscalDeductibleDirectCosts = sum(
+    input.directCosts
+      .filter((cost) => cost.fiscalDeductible !== false)
+      .map((cost) => cost.amount),
+  );
+  const fiscalDeductibleFixedCosts =
+    allocatedFiscalDeductibleFixedCosts(
+      input.fixedCostAllocationInput,
+      fixedCostAllocation.allocatedFixedCosts,
+    );
+  const estimatedIrpfBase = roundMoney(
+    input.taxReserve?.irpfBase ??
+      incomeWithoutIndirectTax -
+        fiscalDeductibleDirectCosts -
+        fiscalDeductibleFixedCosts,
+  );
   const internalAdjustmentsTotal = positiveMoney(input.internalAdjustmentsTotal);
   const internalRealProfit = roundMoney(
     operatingProfit - internalAdjustmentsTotal,
@@ -71,6 +90,7 @@ export function calculateRentabilidadRealWorkProfitability(
     vatChargedFromIncome,
     deductibleVatFromDirectCosts,
     operatingProfit,
+    irpfBase: estimatedIrpfBase,
     irpfProvisionPercentage: input.taxReserve?.irpfProvisionPercentage,
     hasVatData:
       input.taxReserve?.hasVatData ??
@@ -121,6 +141,7 @@ export function calculateRentabilidadRealWorkProfitability(
     fixedCostAllocationMethod: fixedCostAllocation.method,
     grossMargin,
     operatingProfit,
+    estimatedIrpfBase,
     documentedOperatingProfit: operatingProfit,
     internalAdjustmentsTotal,
     internalRealProfit,

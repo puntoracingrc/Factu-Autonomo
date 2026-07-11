@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { expenseFromRecurring } from "@/lib/recurring-expenses";
 import type { TaxSummary } from "@/lib/taxes";
 import type { Document, Expense, RecurringExpense } from "@/lib/types";
 import {
   mapExistingExpenseToProfitabilityCost,
   mapExistingRecurringExpenseToProfitabilityFixedCost,
+  mapExistingRecurringOccurrenceToProfitabilityFixedCost,
 } from "./expense-adapter";
 import { mapExistingInvoiceToProfitabilityIncome } from "./invoice-adapter";
 import { mapExistingQuoteToProfitabilityQuote } from "./quote-adapter";
@@ -75,9 +77,24 @@ describe("rentabilidad real read-only adapters", () => {
     expect(mapped).toMatchObject({
       id: "expense_1",
       amount: 50,
+      fiscalDeductible: true,
       ivaAmount: 10.5,
       total: 60.5,
       purchaseLineCount: 1,
+    });
+  });
+
+  it("mantiene el coste no deducible completo sin IVA fiscal", () => {
+    const mapped = mapExistingExpenseToProfitabilityCost(
+      baseExpense({ deductibility: "non_deductible" }),
+    );
+
+    expect(mapped).toMatchObject({
+      amount: 60.5,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 60.5,
     });
   });
 
@@ -178,6 +195,174 @@ describe("rentabilidad real read-only adapters", () => {
     expect(mapped.total).toBe(mapped.amount + mapped.ivaAmount);
   });
 
+  it("mensualiza el coste no deducible completo sin deducir su IVA", () => {
+    const recurring: RecurringExpense = {
+      id: "annual_non_deductible",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro no desgravable",
+      amount: 1200,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+
+    expect(
+      mapExistingRecurringExpenseToProfitabilityFixedCost(recurring),
+    ).toMatchObject({
+      amount: 100,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 100,
+    });
+  });
+
+  it("mantiene paridad entre regla activa y ocurrencia histórica no deducible", () => {
+    const recurring: RecurringExpense = {
+      id: "annual_non_deductible_parity",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro no desgravable",
+      amount: 1200,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+    const generated: Expense = {
+      ...expenseFromRecurring(recurring, "2026-07-01"),
+      id: "annual_non_deductible_occurrence",
+      createdAt: "2026-07-01T10:00:00.000Z",
+    };
+    const paused = { ...recurring, enabled: false };
+
+    const active = mapExistingRecurringExpenseToProfitabilityFixedCost(
+      recurring,
+    );
+    const historical =
+      mapExistingRecurringOccurrenceToProfitabilityFixedCost(
+        generated,
+        paused,
+      );
+
+    expect(generated.ivaPercent).toBe(0);
+    expect(active).toMatchObject({
+      amount: 100,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 100,
+    });
+    expect(historical).toMatchObject({
+      amount: 100,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 100,
+    });
+  });
+
+  it("hereda la deducibilidad de la regla y respeta un override de ocurrencia", () => {
+    const recurring: RecurringExpense = {
+      id: "annual_inheritance",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro anual",
+      amount: 1200,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: false,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+    const occurrence = baseExpense({
+      id: "annual_inheritance_occurrence",
+      amount: 1200,
+      ivaPercent: 21,
+      deductibility: undefined,
+      businessKind: "fixed",
+      recurringExpenseId: recurring.id,
+    });
+
+    expect(
+      mapExistingRecurringOccurrenceToProfitabilityFixedCost(
+        occurrence,
+        recurring,
+      ),
+    ).toMatchObject({
+      amount: 100,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 100,
+    });
+    expect(
+      mapExistingRecurringOccurrenceToProfitabilityFixedCost(
+        { ...occurrence, deductibility: "deductible" },
+        recurring,
+      ),
+    ).toMatchObject({
+      amount: 100,
+      fiscalDeductible: true,
+      ivaPercent: 21,
+      ivaAmount: 21,
+      total: 121,
+    });
+  });
+
+  it("falla cerrado ante deducibilidad recurrente desconocida", () => {
+    const recurring: RecurringExpense = {
+      id: "annual_unknown_deductibility",
+      supplierName: "Aseguradora Demo",
+      description: "Seguro con marca desconocida",
+      amount: 1200,
+      ivaPercent: 21,
+      deductibility: "unknown" as never,
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "annual",
+      dueTiming: { kind: "day_of_month", day: 1 },
+      dueMonth: 1,
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+
+    expect(
+      mapExistingRecurringExpenseToProfitabilityFixedCost(recurring),
+    ).toMatchObject({
+      amount: 121,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 121,
+    });
+  });
+
   it("mapExistingInvoiceToProfitabilityIncome does not mutate input", () => {
     const invoice = baseDocument({
       sourceQuoteDocumentId: "quote_1",
@@ -264,10 +449,14 @@ describe("rentabilidad real read-only adapters", () => {
       salesIva: 210,
       expenseBase: 300,
       expenseIva: 63,
+      operatingExpenseCost: 300,
+      nonDeductibleExpenseCount: 0,
+      nonDeductibleExpenseTotal: 0,
       netIva: 147,
       ivaToPay: 147,
       ivaCredit: 0,
       grossProfit: 700,
+      estimatedIrpfBase: 700,
       irpfPercent: 20,
       irpfEstimate: 140,
       profitAfterIrpfReserve: 560,
@@ -280,6 +469,8 @@ describe("rentabilidad real read-only adapters", () => {
     expect(mapped).toMatchObject({
       salesBase: 1000,
       expenseBase: 300,
+      operatingExpenseCost: 300,
+      estimatedIrpfBase: 700,
       ivaToPay: 147,
       profitAfterIrpfReserve: 560,
       sourceLink: {

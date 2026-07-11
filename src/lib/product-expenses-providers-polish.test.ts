@@ -175,6 +175,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(listPage).toContain("expense.category");
     expect(listPage).toContain("expense.paymentMethod");
     expect(listPage).toContain("formatMoney(expenseAmount");
+    expect(listPage).toContain("isExpenseFiscalDeductible(expense)");
+    expect(listPage).toContain("No desgravable");
   });
 
   it("muestra las lineas de compra en el listado de gastos", () => {

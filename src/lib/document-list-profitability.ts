@@ -3,14 +3,16 @@ import { roundMoney } from "./calculations";
 export interface InvoiceListProfitabilityInput {
   salesBase: number;
   salesIva: number;
-  linkedExpenseBase?: number;
-  linkedExpenseIva?: number;
+  linkedExpenseCost?: number;
+  linkedDeductibleExpenseBase?: number;
+  linkedDeductibleExpenseIva?: number;
   irpfPercent?: number;
   vatExempt?: boolean;
 }
 
 export interface InvoiceListProfitability {
   realProfit: number;
+  estimatedIrpfBase: number;
   profitAfterIrpfReserve: number;
   ivaReserve: number;
   irpfReserve: number;
@@ -31,21 +33,30 @@ export function calculateInvoiceListProfitability(
 ): InvoiceListProfitability {
   const salesBase = finiteMoney(input.salesBase);
   const salesIva = input.vatExempt ? 0 : finiteMoney(input.salesIva);
-  const linkedExpenseBase = finiteMoney(input.linkedExpenseBase);
-  const linkedExpenseIva = input.vatExempt
+  const linkedExpenseCost = finiteMoney(input.linkedExpenseCost);
+  const linkedDeductibleExpenseBase = finiteMoney(
+    input.linkedDeductibleExpenseBase,
+  );
+  const linkedDeductibleExpenseIva = input.vatExempt
     ? 0
-    : finiteMoney(input.linkedExpenseIva);
-  const realProfit = roundMoney(salesBase - linkedExpenseBase);
+    : finiteMoney(input.linkedDeductibleExpenseIva);
+  const realProfit = roundMoney(salesBase - linkedExpenseCost);
+  const estimatedIrpfBase = roundMoney(
+    salesBase - linkedDeductibleExpenseBase,
+  );
   const irpfReserve =
-    realProfit > 0
-      ? roundMoney(realProfit * (normalizeIrpfRate(input.irpfPercent) / 100))
+    estimatedIrpfBase > 0
+      ? roundMoney(
+          estimatedIrpfBase * (normalizeIrpfRate(input.irpfPercent) / 100),
+        )
       : 0;
   const ivaReserve = input.vatExempt
     ? 0
-    : Math.max(0, roundMoney(salesIva - linkedExpenseIva));
+    : Math.max(0, roundMoney(salesIva - linkedDeductibleExpenseIva));
 
   return {
     realProfit,
+    estimatedIrpfBase,
     profitAfterIrpfReserve: roundMoney(realProfit - irpfReserve),
     ivaReserve,
     irpfReserve,

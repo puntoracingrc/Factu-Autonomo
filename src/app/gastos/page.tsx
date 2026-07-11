@@ -40,7 +40,10 @@ import {
   buildExpensesExportCsv,
   downloadExpensesCsv,
 } from "@/lib/billing/export-expenses-csv";
-import { findDuplicatePurchaseExpense } from "@/lib/expenses";
+import {
+  findDuplicatePurchaseExpense,
+  isExpenseFiscalDeductible,
+} from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
 import { expenseEditHref } from "@/lib/expense-links";
 import {
@@ -979,7 +982,8 @@ export default function GastosPage() {
                     </div>
                     {(expense.purchaseDocument?.invoiceNumber ||
                       expense.purchaseLines?.length ||
-                      expense.workDocumentId) && (
+                      expense.workDocumentId ||
+                      !isExpenseFiscalDeductible(expense)) && (
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                         {expense.purchaseDocument?.invoiceNumber && (
                           <span className="rounded-full bg-slate-100 px-2 py-1">
@@ -996,6 +1000,11 @@ export default function GastosPage() {
                             {expense.purchaseLines.length} línea(s)
                           </span>
                         ) : null}
+                        {!isExpenseFiscalDeductible(expense) && (
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
+                            No desgravable
+                          </span>
+                        )}
                         {expense.workDocumentId &&
                         documentsById.get(expense.workDocumentId) ? (
                           <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">

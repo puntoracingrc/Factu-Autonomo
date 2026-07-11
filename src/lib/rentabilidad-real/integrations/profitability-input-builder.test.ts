@@ -100,4 +100,24 @@ describe("buildProfitabilityInputDraftFromExistingData", () => {
       ]),
     );
   });
+
+  it("keeps non-deductible costs while excluding them from tax context", () => {
+    const expense = baseExpense({
+      deductibility: "non_deductible",
+    });
+    const data = baseAppData({ expenses: [expense] });
+
+    const draft = buildProfitabilityInputDraftFromExistingData(data);
+
+    expect(draft.directCostCandidates).toHaveLength(1);
+    expect(draft.directCostCandidates[0]).toMatchObject({
+      amount: 48.4,
+      ivaAmount: 0,
+      total: 48.4,
+    });
+    expect(draft.taxContext).toMatchObject({
+      expenseBase: 0,
+      expenseIva: 0,
+    });
+  });
 });

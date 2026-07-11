@@ -29,6 +29,20 @@ describe("estimateRentabilidadRealTaxReserve", () => {
     expect(result.prudentAvailableCash).toBe(-100);
   });
 
+  it("usa una base IRPF separada sin inflar la caja económica", () => {
+    const result = estimateRentabilidadRealTaxReserve({
+      vatChargedFromIncome: 210,
+      deductibleVatFromDirectCosts: 0,
+      operatingProfit: 879,
+      irpfBase: 1000,
+      irpfProvisionPercentage: 20,
+      hasVatData: true,
+    });
+
+    expect(result.estimatedIrpfProvision).toBe(200);
+    expect(result.prudentAvailableCash).toBe(679);
+  });
+
   it("avisa cuando faltan datos de IVA", () => {
     const result = estimateRentabilidadRealTaxReserve({
       vatChargedFromIncome: 0,

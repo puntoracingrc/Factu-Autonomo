@@ -27,11 +27,32 @@ describe("TaxSummaryCard integrity warning", () => {
 
 describe("TaxSummaryCard fiscal semantics", () => {
   it("presenta el resultado tras IRPF sin mezclarlo con la posición de IVA", () => {
-    expect(source).toContain("Resultado tras reservar IRPF");
+    expect(source).toContain("Resultado económico tras reservar IRPF");
     expect(source).toContain("taxes.profitAfterIrpfReserve");
-    expect(source).toContain("El IVA se muestra por separado");
+    expect(source).toContain("el IVA va aparte");
+    expect(source).toContain("Beneficio económico antes de reservar IRPF");
+    expect(source).toContain("Base estimada para IRPF");
+    expect(source).toContain("taxes.estimatedIrpfBase");
     expect(source).not.toContain("Beneficio neto");
     expect(source).not.toContain("Después de IVA neto");
     expect(source).not.toContain("taxes.estimatedNetProfit");
+  });
+
+  it("explica los gastos no deducibles sin ocultar que siguen en control", () => {
+    expect(source).toContain("taxes.nonDeductibleExpenseCount");
+    expect(source).toContain("taxes.nonDeductibleExpenseTotal");
+    expect(source).toContain("gasto no deducible");
+    expect(source).toContain("sigue en Gastos, balance y rentabilidad");
+    expect(source).toContain("sí reduce el beneficio");
+    expect(source).toContain("aporta 0 a la base");
+    expect(source).toContain("no reduce la");
+    expect(source).toContain("estimación de IRPF");
+    expect(source).toMatch(
+      /const hasSummaryData =[\s\S]*taxes\.nonDeductibleExpenseCount > 0;/,
+    );
+    expect(source).toContain("!hasSummaryData");
+    expect(source).not.toContain(
+      "No hay ventas ni gastos fiscalmente deducibles en este periodo.",
+    );
   });
 });
