@@ -17,7 +17,7 @@ export const primerosPasosSection: ManualSection = {
         "Si entras en la app sin cuenta, puedes crear datos en este navegador. Verás un aviso de **Estás probando sin cuenta** o **Tienes datos guardados solo en este navegador**.",
         "Para trabajar ya con tus datos, ve a **Cuenta** y pulsa **Crear cuenta**. El plan Gratis es una cuenta real sin tarjeta, con límites de uso y email verificado.",
       ],
-      tip: "Cuando creas cuenta con email, recibirás un correo de bienvenida de Factu y otro de Supabase para confirmar la cuenta. El que activa el acceso es el de Supabase.",
+      tip: "Cuando creas una cuenta con email, primero recibirás el correo de Supabase que activa el acceso. Tras confirmarlo e iniciar sesión, Factu enviará la bienvenida.",
     },
     {
       title: "2. Abre Ajustes y rellena tus datos",

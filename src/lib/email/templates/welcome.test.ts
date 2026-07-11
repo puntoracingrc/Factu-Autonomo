@@ -13,6 +13,8 @@ describe("welcome email template", () => {
     expect(content.html).toContain("/brand/robot-avatar.png");
     expect(content.html).toContain("Entrar a mi Panel de Control");
     expect(content.html).toContain("Veri*Factu");
+    expect(content.text).toContain("Tu cuenta ya está confirmada");
+    expect(content.text).not.toContain("si aún no has confirmado");
   });
 
   it("escapes an optional recipient name before rendering HTML", () => {

@@ -5,6 +5,7 @@ interface EmailConfirmationUser {
   email?: string | null;
   email_confirmed_at?: string | null;
   confirmed_at?: string | null;
+  phone_confirmed_at?: string | null;
   app_metadata?: Record<string, unknown>;
   user_metadata?: Record<string, unknown>;
 }
@@ -17,14 +18,10 @@ export function isUserEmailConfirmed(
   user: EmailConfirmationUser | null | undefined,
 ): boolean {
   if (!user?.email) return false;
-  if (user.email_confirmed_at || user.confirmed_at) return true;
-  if (metadataBoolean(user.user_metadata?.email_verified)) return true;
-  if (metadataBoolean(user.app_metadata?.email_verified)) return true;
+  if (user.email_confirmed_at) return true;
 
-  const provider =
-    typeof user.app_metadata?.provider === "string"
-      ? user.app_metadata.provider
-      : "";
-
-  return Boolean(provider && provider !== "email");
+  // `confirmed_at` can represent a confirmed phone, and `user_metadata` is
+  // editable by the user. Only accept the email-specific Auth timestamp or an
+  // application claim that can be written exclusively with the service role.
+  return metadataBoolean(user.app_metadata?.email_verified);
 }

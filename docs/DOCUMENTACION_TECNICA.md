@@ -674,7 +674,7 @@ Los escaneos extra se acreditan en `ai_credit_units` y `scan_credits` (compatibi
 | `/api/verifactu/register` | POST | Registro Veri\*Factu + AEAT |
 | `/api/verifactu/status` | GET | Bearer verificado; contrato fail-closed `submissionMode: "unknown"`, sin inferir ni exponer entorno o configuración |
 | `/api/verifactu/declaration` | GET | Contención `404 draft_not_published`; no publica el borrador interno |
-| `/api/email/welcome` | POST | Email bienvenida |
+| `/api/email/welcome` | POST | Bearer con email confirmado; destinatario derivado en servidor, claim distribuido e `Idempotency-Key` de Resend con reintento ambiguo acotado |
 | `/api/email/payment-reminder` | POST | Recordatorio de pago factura |
 
 Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).

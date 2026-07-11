@@ -204,6 +204,11 @@ describe("cloud and Stripe production routes", () => {
   });
 
   it("welcome no convierte en 500 publico un fallo no critico de email", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user_1",
+      email: "cliente@example.com",
+      email_confirmed_at: "2026-07-11T00:00:00.000Z",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(isEmailConfigured).mockReturnValue(true);
     vi.mocked(sendWelcomeEmailForUser).mockResolvedValue({
       ok: false,
@@ -213,11 +218,7 @@ describe("cloud and Stripe production routes", () => {
     const response = await welcomePost(
       new Request("http://localhost/api/email/welcome", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "user_1",
-          email: "cliente@example.com",
-        }),
+        headers: { Authorization: "Bearer token" },
       }),
     );
     const body = await response.json();

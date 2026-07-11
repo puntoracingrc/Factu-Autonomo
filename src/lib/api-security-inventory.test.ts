@@ -73,6 +73,7 @@ const bearerRoutes = [
   "billing/trial/route.ts",
   "customers/parse/route.ts",
   "email/payment-reminder/route.ts",
+  "email/welcome/route.ts",
   "expense-inbox/route.ts",
   "expenses/scan/route.ts",
   "google-drive/token/route.ts",
@@ -86,7 +87,6 @@ const bearerRoutes = [
 ] as const;
 
 const publicConstrainedRoutes = [
-  "email/welcome/route.ts",
   "google-auth/token/route.ts",
   "security/csp-report/route.ts",
   "verifactu/declaration/route.ts",

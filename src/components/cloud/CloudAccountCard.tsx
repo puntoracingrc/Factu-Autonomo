@@ -829,11 +829,13 @@ export function CloudAccountCard() {
           <p className="text-sm font-medium text-red-600">{authError}</p>
           {isEmailNotConfirmedError(authError) ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <p className="font-semibold">¿Solo viste el email de Factu?</p>
+              <p className="font-semibold">
+                ¿No encuentras el correo de confirmación?
+              </p>
               <p className="mt-1">
-                Ese correo es de bienvenida. Necesitas el de{" "}
-                <strong>Supabase</strong> con el enlace «Confirmar cuenta».
-                Revisa spam y promociones.
+                Busca el mensaje de <strong>Supabase</strong> con el enlace
+                «Confirmar cuenta». Revisa spam y promociones. La bienvenida de
+                Factu llegará después de activar la cuenta e iniciar sesión.
               </p>
               <Button
                 variant="secondary"
