@@ -24,6 +24,8 @@ import type {
 } from "@/lib/types";
 import {
   applyRecurringExpenseChangeToData,
+  deleteExpenseFromData,
+  deleteRecurringExpenseFromData,
   listRecurringOccurrenceDates,
   occurrenceKey,
   syncRecurringExpenses,
@@ -1157,10 +1159,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteExpense = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      expenses: prev.expenses.filter((e) => e.id !== id),
-    }));
+    const excludedAt = new Date().toISOString();
+    setAppData((prev) => deleteExpenseFromData(prev, id, excludedAt));
   }, [setAppData]);
 
   const updateExpense = useCallback((expense: Expense) => {
@@ -1395,10 +1395,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteRecurringExpense = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      recurringExpenses: prev.recurringExpenses.filter((entry) => entry.id !== id),
-    }));
+    setAppData((prev) => deleteRecurringExpenseFromData(prev, id));
   }, [setAppData]);
 
   const addUserReminder = useCallback(

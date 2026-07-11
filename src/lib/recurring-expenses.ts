@@ -4,12 +4,14 @@ import type {
   RecurringDueTiming,
   RecurringExpense,
   RecurringExpenseFrequency,
+  RecurringOccurrenceExclusion,
+  RecurringOccurrenceExclusionSyncPayload,
 } from "./types";
 import { expenseTotalsFromBase } from "./expenses";
 
 export type RecurringExpenseDraft = Omit<
   RecurringExpense,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "occurrenceExclusions"
 >;
 
 function pad2(value: number): string {
@@ -170,6 +172,196 @@ export function occurrenceKey(templateId: string, date: string): string {
   return `${templateId}:${date}`;
 }
 
+function isIsoCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const { year, month, day } = parseIso(value);
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= lastDayOfMonth(year, month)
+  );
+}
+
+function occurrenceDateFromKey(templateId: string, key: string): string | null {
+  const prefix = `${templateId}:`;
+  if (!key.startsWith(prefix)) return null;
+  const date = key.slice(prefix.length);
+  if (!isIsoCalendarDate(date)) return null;
+  return occurrenceKey(templateId, date) === key ? date : null;
+}
+
+/**
+ * Normaliza tombstones importados de almacenamiento, backup o cloud. Solo se
+ * aceptan claves de esta plantilla y se conserva una entrada por ocurrencia.
+ */
+export function normalizeRecurringExpense(
+  template: RecurringExpense,
+): RecurringExpense {
+  const raw = Array.isArray(template.occurrenceExclusions)
+    ? template.occurrenceExclusions
+    : [];
+  const byKey = new Map<string, RecurringOccurrenceExclusion>();
+
+  for (const candidate of raw) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const key = typeof candidate.key === "string" ? candidate.key : "";
+    if (!occurrenceDateFromKey(template.id, key)) continue;
+    const excludedAt =
+      typeof candidate.excludedAt === "string" &&
+      Number.isFinite(Date.parse(candidate.excludedAt))
+        ? candidate.excludedAt
+        : template.updatedAt || template.createdAt;
+    const current = byKey.get(key);
+    if (
+      !current ||
+      Date.parse(excludedAt) > Date.parse(current.excludedAt)
+    ) {
+      byKey.set(key, { key, excludedAt });
+    }
+  }
+
+  const occurrenceExclusions = [...byKey.values()].sort((left, right) =>
+    left.key.localeCompare(right.key),
+  );
+  const base: RecurringExpense = { ...template };
+  delete base.occurrenceExclusions;
+  return occurrenceExclusions.length > 0
+    ? { ...base, occurrenceExclusions }
+    : base;
+}
+
+function laterIsoTimestamp(left: string, right: string): string {
+  return Date.parse(left) >= Date.parse(right) ? left : right;
+}
+
+/**
+ * Conserva siempre la unión de exclusiones aunque el resto de la plantilla se
+ * resuelva por último escritor. El segundo argumento aporta los campos LWW.
+ */
+export function mergeRecurringExpenseOccurrenceExclusions(
+  current: RecurringExpense,
+  incoming: RecurringExpense,
+): RecurringExpense {
+  const normalizedCurrent = normalizeRecurringExpense(current);
+  const normalizedIncoming = normalizeRecurringExpense(incoming);
+  const exclusions = new Map<string, RecurringOccurrenceExclusion>();
+
+  for (const exclusion of [
+    ...(normalizedCurrent.occurrenceExclusions ?? []),
+    ...(normalizedIncoming.occurrenceExclusions ?? []),
+  ]) {
+    const existing = exclusions.get(exclusion.key);
+    if (
+      !existing ||
+      Date.parse(exclusion.excludedAt) > Date.parse(existing.excludedAt)
+    ) {
+      exclusions.set(exclusion.key, exclusion);
+    }
+  }
+
+  const merged: RecurringExpense = { ...normalizedIncoming };
+  delete merged.occurrenceExclusions;
+  return exclusions.size > 0
+    ? {
+        ...merged,
+        occurrenceExclusions: [...exclusions.values()].sort((left, right) =>
+          left.key.localeCompare(right.key),
+        ),
+      }
+    : merged;
+}
+
+function recurringTemplateWithExclusion(
+  template: RecurringExpense,
+  exclusion: RecurringOccurrenceExclusion,
+): RecurringExpense {
+  return mergeRecurringExpenseOccurrenceExclusions(template, {
+    ...template,
+    occurrenceExclusions: [exclusion],
+    updatedAt: laterIsoTimestamp(template.updatedAt, exclusion.excludedAt),
+  });
+}
+
+/**
+ * Aplica el tombstone sincronizado como dato monotónico. Además de incorporarlo
+ * a la plantilla elimina cualquier materialización duplicada de esa ocurrencia
+ * y lo añade a un cambio local de plantilla aún pendiente.
+ */
+export function applyRecurringOccurrenceExclusionToData(
+  data: AppData,
+  payload: RecurringOccurrenceExclusionSyncPayload,
+): AppData {
+  if (
+    !payload ||
+    typeof payload.templateId !== "string" ||
+    typeof payload.key !== "string" ||
+    typeof payload.excludedAt !== "string" ||
+    !Number.isFinite(Date.parse(payload.excludedAt)) ||
+    !occurrenceDateFromKey(payload.templateId, payload.key)
+  ) {
+    return data;
+  }
+
+  const template = data.recurringExpenses.find(
+    (entry) => entry.id === payload.templateId,
+  );
+  const updatedTemplate = template
+    ? recurringTemplateWithExclusion(template, {
+        key: payload.key,
+        excludedAt: payload.excludedAt,
+      })
+    : null;
+  const nextPendingChanges = data.meta?.pendingChanges?.map((change) => {
+    if (
+      !updatedTemplate ||
+      change.entityType !== "recurring_expense" ||
+      change.entityId !== payload.templateId ||
+      change.deleted ||
+      !change.payload ||
+      typeof change.payload !== "object"
+    ) {
+      return change;
+    }
+
+    const pendingTemplate = change.payload as RecurringExpense;
+    if (pendingTemplate.id !== payload.templateId) return change;
+    return {
+      ...change,
+      payload: mergeRecurringExpenseOccurrenceExclusions(
+        updatedTemplate,
+        pendingTemplate,
+      ),
+    };
+  });
+
+  return {
+    ...data,
+    expenses: data.expenses.filter(
+      (expense) => expense.recurringOccurrenceKey !== payload.key,
+    ),
+    recurringExpenses: updatedTemplate
+      ? data.recurringExpenses.map((entry) =>
+          entry.id === payload.templateId ? updatedTemplate : entry,
+        )
+      : data.recurringExpenses,
+    meta: data.meta
+      ? {
+          ...data.meta,
+          pendingChanges: nextPendingChanges,
+        }
+      : data.meta,
+  };
+}
+
+function excludedOccurrenceKeys(template: RecurringExpense): Set<string> {
+  return new Set(
+    normalizeRecurringExpense(template).occurrenceExclusions?.map(
+      (exclusion) => exclusion.key,
+    ) ?? [],
+  );
+}
+
 export function listRecurringOccurrenceDates(
   template: RecurringExpense,
   upToDate: string,
@@ -265,11 +457,13 @@ export function syncRecurringExpenses(
 
   const generated: Expense[] = [];
 
-  for (const template of data.recurringExpenses) {
+  for (const sourceTemplate of data.recurringExpenses) {
+    const template = normalizeRecurringExpense(sourceTemplate);
     if (!template.enabled) continue;
+    const excludedKeys = excludedOccurrenceKeys(template);
     for (const date of listRecurringOccurrenceDates(template, referenceDate)) {
       const key = occurrenceKey(template.id, date);
-      if (existingKeys.has(key)) continue;
+      if (existingKeys.has(key) || excludedKeys.has(key)) continue;
       existingKeys.add(key);
       generated.push({
         ...expenseFromRecurring(template, date),
@@ -384,6 +578,85 @@ function expenseBelongsToRecurringTemplate(
   );
 }
 
+function recurringTemplateForExpense(
+  templates: RecurringExpense[],
+  expense: Expense,
+): RecurringExpense | null {
+  const key = expense.recurringOccurrenceKey;
+  if (!key) return null;
+
+  const linked = expense.recurringExpenseId
+    ? templates.find((template) => template.id === expense.recurringExpenseId)
+    : undefined;
+  if (linked && occurrenceDateFromKey(linked.id, key)) return linked;
+
+  return (
+    templates.find((template) => occurrenceDateFromKey(template.id, key)) ??
+    null
+  );
+}
+
+/**
+ * Borra un gasto y, solo si es una ocurrencia materializada de una plantilla,
+ * registra el tombstone exacto que impide regenerarla. Los gastos manuales no
+ * alteran la regla recurrente.
+ */
+export function deleteExpenseFromData(
+  data: AppData,
+  id: string,
+  excludedAt = new Date().toISOString(),
+): AppData {
+  const expense = data.expenses.find((entry) => entry.id === id);
+  if (!expense) return data;
+
+  const template = recurringTemplateForExpense(
+    data.recurringExpenses,
+    expense,
+  );
+  if (!template || !expense.recurringOccurrenceKey) {
+    return {
+      ...data,
+      expenses: data.expenses.filter((entry) => entry.id !== id),
+    };
+  }
+
+  const normalized = normalizeRecurringExpense(template);
+  const key = expense.recurringOccurrenceKey;
+  const alreadyExcluded = normalized.occurrenceExclusions?.some(
+    (exclusion) => exclusion.key === key,
+  );
+  const nextTemplate: RecurringExpense = alreadyExcluded
+    ? normalized
+    : {
+        ...normalized,
+        occurrenceExclusions: [
+          ...(normalized.occurrenceExclusions ?? []),
+          { key, excludedAt },
+        ].sort((left, right) => left.key.localeCompare(right.key)),
+        updatedAt: excludedAt,
+      };
+
+  return {
+    ...data,
+    expenses: data.expenses.filter((entry) => entry.id !== id),
+    recurringExpenses: data.recurringExpenses.map((entry) =>
+      entry.id === template.id ? nextTemplate : entry,
+    ),
+  };
+}
+
+/** Elimina la regla, pero conserva intactos los cargos históricos generados. */
+export function deleteRecurringExpenseFromData(
+  data: AppData,
+  id: string,
+): AppData {
+  if (!data.recurringExpenses.some((entry) => entry.id === id)) return data;
+  return {
+    ...data,
+    recurringExpenses: data.recurringExpenses.filter((entry) => entry.id !== id),
+  };
+}
+
 export function applyRecurringExpenseChangeToData(
   data: AppData,
   id: string,
@@ -395,8 +668,9 @@ export function applyRecurringExpenseChangeToData(
     referenceDate?: string;
   } = {},
 ): AppData {
-  const existing = data.recurringExpenses.find((entry) => entry.id === id);
-  if (!existing) return data;
+  const sourceExisting = data.recurringExpenses.find((entry) => entry.id === id);
+  if (!sourceExisting) return data;
+  const existing = normalizeRecurringExpense(sourceExisting);
 
   const now = options.now ?? new Date().toISOString();
   const referenceDate = options.referenceDate ?? now.split("T")[0];
@@ -446,14 +720,29 @@ export function applyRecurringExpenseChangeToData(
     duration: closedDuration,
     updatedAt: now,
   };
-  const nextTemplate: RecurringExpense = {
+  const nextTemplateId = options.newId?.() ?? crypto.randomUUID();
+  const transferredExclusions = (existing.occurrenceExclusions ?? []).flatMap(
+    (exclusion) => {
+      const date = occurrenceDateFromKey(existing.id, exclusion.key);
+      if (!date || date < effectiveDate) return [];
+      return [
+        {
+          ...exclusion,
+          key: occurrenceKey(nextTemplateId, date),
+        },
+      ];
+    },
+  );
+  const nextTemplate: RecurringExpense = normalizeRecurringExpense({
     ...item,
-    id: options.newId?.() ?? crypto.randomUUID(),
+    id: nextTemplateId,
     startDate: effectiveDate,
     enabled: true,
+    occurrenceExclusions:
+      transferredExclusions.length > 0 ? transferredExclusions : undefined,
     createdAt: now,
     updatedAt: now,
-  };
+  });
 
   return syncRecurringExpenses(
     {
@@ -502,11 +791,15 @@ export function collectRecurringOccurrencePreviews(
   const existingKeys = existingOccurrenceKeys(data.expenses);
   const previews: RecurringOccurrencePreview[] = [];
 
-  for (const template of data.recurringExpenses) {
+  for (const sourceTemplate of data.recurringExpenses) {
+    const template = normalizeRecurringExpense(sourceTemplate);
     if (!template.enabled) continue;
+    const excludedKeys = excludedOccurrenceKeys(template);
 
     for (const date of listRecurringOccurrenceDates(template, horizonEnd)) {
       if (compareIso(date, referenceDate) < 0) continue;
+      const key = occurrenceKey(template.id, date);
+      if (excludedKeys.has(key)) continue;
 
       previews.push({
         templateId: template.id,
@@ -517,7 +810,7 @@ export function collectRecurringOccurrencePreviews(
         deductibility: template.deductibility,
         date,
         daysUntil: daysBetweenIso(referenceDate, date),
-        generated: existingKeys.has(occurrenceKey(template.id, date)),
+        generated: existingKeys.has(key),
       });
     }
   }

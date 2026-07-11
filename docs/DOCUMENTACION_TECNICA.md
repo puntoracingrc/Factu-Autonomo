@@ -616,7 +616,7 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 | Backend | Supabase: `sync_entities` (datos negocio) + tablas billing/referidos/Veri\*Factu |
 | Auth | Email/contraseña, callback `/auth/callback` |
 | Modelo | Incremental: `SyncChange[]` con diff por entidad |
-| Entidades | document, customer, expense, recurring_expense, supplier, profile, counters |
+| Entidades | document, customer, expense, recurring_expense, recurring_occurrence_exclusion, supplier, profile, counters |
 | Merge | Remoto sobre local con resolución por timestamp |
 | Reintento | Cada 30 s si hay cambios pendientes de subir |
 | Descarga periódica | Cada 45 s con pestaña visible (misma cuenta en varios dispositivos) |

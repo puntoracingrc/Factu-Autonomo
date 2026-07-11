@@ -1,5 +1,9 @@
 import { getDataTimestamp, normalizeLoadedData } from "../storage";
-import type { AppData } from "../types";
+import type {
+  AppData,
+  RecurringExpense,
+  RecurringOccurrenceExclusionSyncPayload,
+} from "../types";
 import {
   applySyncChanges,
   clearSyncedChanges,
@@ -7,6 +11,7 @@ import {
   mergePendingChanges,
   type SyncChange,
 } from "./diff";
+import { applyRecurringOccurrenceExclusionToData } from "../recurring-expenses";
 
 export function trackDataDiff(prev: AppData, next: AppData): AppData {
   const incoming = diffAppData(prev, next);
@@ -95,8 +100,42 @@ export function mergeRemoteOntoLocal(
     return { data: local, applied: 0 };
   }
 
+  // Las exclusiones son monotónicas: incluso cuando una plantilla local
+  // pendiente gana por timestamp, primero incorporamos los tombstones que
+  // puedan viajar dentro del payload legacy de la plantilla remota.
+  let monotonicLocal = local;
+  for (const remote of remoteChanges) {
+    if (
+      remote.entityType === "recurring_occurrence_exclusion" &&
+      !remote.deleted &&
+      remote.payload
+    ) {
+      monotonicLocal = applyRecurringOccurrenceExclusionToData(
+        monotonicLocal,
+        remote.payload as RecurringOccurrenceExclusionSyncPayload,
+      );
+      continue;
+    }
+    if (
+      remote.entityType !== "recurring_expense" ||
+      remote.deleted ||
+      !remote.payload ||
+      typeof remote.payload !== "object"
+    ) {
+      continue;
+    }
+    const template = remote.payload as RecurringExpense;
+    for (const exclusion of template.occurrenceExclusions ?? []) {
+      monotonicLocal = applyRecurringOccurrenceExclusionToData(monotonicLocal, {
+        templateId: remote.entityId,
+        key: exclusion.key,
+        excludedAt: exclusion.excludedAt,
+      });
+    }
+  }
+
   const localPending = new Map(
-    (local.meta?.pendingChanges ?? []).map((change) => [
+    (monotonicLocal.meta?.pendingChanges ?? []).map((change) => [
       `${change.entityType}:${change.entityId}`,
       change,
     ]),
@@ -112,7 +151,7 @@ export function mergeRemoteOntoLocal(
   }
 
   return {
-    data: applyRemoteChanges(local, toApply),
+    data: applyRemoteChanges(monotonicLocal, toApply),
     applied: toApply.length,
   };
 }

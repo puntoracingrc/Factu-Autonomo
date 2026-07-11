@@ -1,5 +1,9 @@
 import { hasPendingSyncChanges } from "./incremental";
-import { appDataToSyncChanges, type SyncChange } from "./diff";
+import {
+  appDataToSyncChanges,
+  recurringOccurrenceExclusionSyncChanges,
+  type SyncChange,
+} from "./diff";
 import { getDataTimestamp } from "../storage";
 import type { AppData } from "../types";
 
@@ -15,7 +19,20 @@ export function hasUnsyncedChanges(data: AppData): boolean {
 
 export function buildCloudUploadChanges(data: AppData): SyncChange[] {
   const pending = data.meta?.pendingChanges ?? [];
-  if (pending.length > 0) return pending;
+  if (pending.length > 0) {
+    const exclusions = recurringOccurrenceExclusionSyncChanges(data);
+    if (exclusions.length === 0) return pending;
+    const changes = new Map(
+      pending.map((change) => [
+        `${change.entityType}:${change.entityId}`,
+        change,
+      ]),
+    );
+    for (const exclusion of exclusions) {
+      changes.set(`${exclusion.entityType}:${exclusion.entityId}`, exclusion);
+    }
+    return [...changes.values()];
+  }
   if (!hasUnsyncedChanges(data)) return [];
 
   const updatedAt = new Date().toISOString();

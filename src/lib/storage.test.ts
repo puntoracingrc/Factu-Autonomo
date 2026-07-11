@@ -90,6 +90,47 @@ describe("storage", () => {
     expect(loaded.profile.name).toBe("Mi negocio");
   });
 
+  it("persiste exclusiones recurrentes y acepta recurrencias legacy sin ellas", () => {
+    const recurring = {
+      id: "recurring-storage",
+      supplierName: "Proveedor",
+      description: "Servicio mensual",
+      amount: 40,
+      ivaPercent: 21,
+      category: "Servicios",
+      paymentMethod: "Domiciliación",
+      frequency: "monthly" as const,
+      dueTiming: { kind: "end_of_month" as const },
+      duration: { kind: "indefinite" as const },
+      startDate: "2026-01-01",
+      enabled: true,
+      occurrenceExclusions: [
+        {
+          key: "recurring-storage:2026-02-28",
+          excludedAt: NOW,
+        },
+      ],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: NOW,
+    };
+    saveData({ ...EMPTY_DATA, recurringExpenses: [recurring] });
+
+    expect(loadData().recurringExpenses[0]?.occurrenceExclusions).toEqual(
+      recurring.occurrenceExclusions,
+    );
+
+    const legacyRecurring: AppData["recurringExpenses"][number] = {
+      ...recurring,
+    };
+    delete legacyRecurring.occurrenceExclusions;
+    expect(
+      normalizeLoadedData({
+        ...EMPTY_DATA,
+        recurringExpenses: [legacyRecurring],
+      }).recurringExpenses[0]?.occurrenceExclusions,
+    ).toBeUndefined();
+  });
+
   it("normaliza preferencias de app en datos antiguos y nuevos", () => {
     expect(
       normalizeLoadedData({ profile: {} } as Partial<AppData>).profile

@@ -84,6 +84,50 @@ describe("backup", () => {
     expect(result.profile.name).toBe("Mi negocio");
   });
 
+  it("conserva las exclusiones de ocurrencias al exportar y restaurar", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        recurringExpenses: [
+          {
+            id: "recurring-backup",
+            supplierName: "Proveedor",
+            description: "Servicio mensual",
+            amount: 30,
+            ivaPercent: 21,
+            category: "Servicios",
+            paymentMethod: "Domiciliación",
+            frequency: "monthly",
+            dueTiming: { kind: "end_of_month" },
+            duration: { kind: "indefinite" },
+            startDate: "2026-01-01",
+            enabled: true,
+            occurrenceExclusions: [
+              {
+                key: "recurring-backup:2026-02-28",
+                excludedAt: NOW,
+              },
+            ],
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+
+    const restored = parseBackupJson(payload);
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.recurringExpenses[0]?.occurrenceExclusions).toEqual([
+      {
+        key: "recurring-backup:2026-02-28",
+        excludedAt: NOW,
+      },
+    ]);
+  });
+
   it("rechaza archivos inválidos", () => {
     const result = parseBackupJson({ foo: "bar" });
     expect(result).toHaveProperty("error");
