@@ -4,6 +4,11 @@ import { issueDocument } from "./document-integrity";
 import type { BusinessProfile, Document, Expense } from "./types";
 import { DEFAULT_PROFILE } from "./types";
 
+const TEST_PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  nif: "12345678Z",
+};
+
 function invoice(
   status: Document["status"],
   subtotal = 100,
@@ -35,7 +40,7 @@ function issuedInvoice(
   status: Document["status"],
   subtotal = 100,
   overrides: Partial<Document> = {},
-  profile: BusinessProfile = DEFAULT_PROFILE,
+  profile: BusinessProfile = TEST_PROFILE,
 ): Document {
   const issued = issueDocument(
     invoice("borrador", subtotal, overrides),
@@ -118,6 +123,7 @@ describe("calculateTaxSummary", () => {
   it("no calcula IVA si el perfil está exento", () => {
     const exemptProfile: BusinessProfile = {
       ...DEFAULT_PROFILE,
+      nif: "12345678Z",
       vatExempt: true,
     };
     const summary = calculateTaxSummary(
@@ -178,7 +184,7 @@ describe("calculateTaxSummary", () => {
   it("usa importes congelados y excluye evidencia bloqueada", () => {
     const issued = issueDocument(
       invoice("borrador", 100),
-      DEFAULT_PROFILE,
+      TEST_PROFILE,
       "2026-06-09T10:00:00.000Z",
     );
     const drifted: Document = {

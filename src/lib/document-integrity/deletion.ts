@@ -13,7 +13,20 @@ export function isDocumentDeletionProtected(doc: Document): boolean {
     deriveDocumentLifecycle(doc) !== "draft" ||
     doc.status !== "borrador" ||
     Boolean(doc.documentSnapshot) ||
-    Boolean(doc.pdfSnapshot)
+    Boolean(doc.pdfSnapshot) ||
+    Boolean(doc.snapshotSeal) ||
+    doc.snapshotIntegrityRequired === true ||
+    Boolean(doc.verifactu) ||
+    Boolean(doc.verifactuPersistence) ||
+    Boolean(doc.issuedAt) ||
+    Boolean(doc.sentAt) ||
+    Boolean(doc.paidAt) ||
+    Boolean(doc.acceptedAt) ||
+    doc.deliveryStatus === "sent" ||
+    doc.paymentStatus === "paid" ||
+    doc.paymentStatus === "overdue" ||
+    doc.acceptanceStatus === "accepted" ||
+    doc.acceptanceStatus === "rejected"
   );
 }
 

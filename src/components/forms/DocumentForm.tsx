@@ -81,7 +81,10 @@ import {
   ivaBreakdownByRate,
   validateDocumentEmission,
 } from "@/lib/invoice-compliance";
-import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
+import {
+  businessProfileMissingDocumentLabels,
+  hasUsualSpanishTaxIdShape,
+} from "@/lib/business-profile";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { openDocumentPdfPreview } from "@/lib/pdf";
@@ -448,9 +451,12 @@ export function DocumentForm({
   );
   const effectiveDocumentProfile = rectificationProfileResolution.profile;
   const rectificationProfileBlocked = rectificationProfileResolution.blocked;
-  const missingIssuerLabels = businessProfileMissingDocumentLabels(
-    effectiveDocumentProfile,
-  );
+  const missingIssuerLabels = [
+    ...businessProfileMissingDocumentLabels(effectiveDocumentProfile),
+    ...(!hasUsualSpanishTaxIdShape(effectiveDocumentProfile.nif)
+      ? ["NIF/CIF con formato válido"]
+      : []),
+  ];
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
     existing ? clientToFormValues(existing.client) : EMPTY_CLIENT,

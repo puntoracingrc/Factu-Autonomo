@@ -4,10 +4,12 @@ import {
   inferCustomerTypeFromIdentity,
   looksLikeCompanyName,
 } from "../customers";
+import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
   mergeImportedDocumentsPreservingProtected,
 } from "./protected-documents";
@@ -170,19 +172,48 @@ function isoDate(value: unknown): string {
     return date.toISOString().slice(0, 10);
   }
   const raw = text(value);
-  const numericRaw = Number(raw);
-  if (Number.isFinite(numericRaw) && numericRaw > 20000) {
-    const date = new Date(Date.UTC(1899, 11, 30));
-    date.setUTCDate(date.getUTCDate() + Math.round(numericRaw));
-    return date.toISOString().slice(0, 10);
+  if (!raw) return "";
+  if (/^[+-]?\d+(?:[.,]\d+)?$/.test(raw)) {
+    const numericRaw = Number(raw.replace(",", "."));
+    if (Number.isFinite(numericRaw) && numericRaw > 20000) {
+      const date = new Date(Date.UTC(1899, 11, 30));
+      date.setUTCDate(date.getUTCDate() + Math.round(numericRaw));
+      return date.toISOString().slice(0, 10);
+    }
+    return "";
   }
-  const spanish = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const validClock = (hour?: string, minute?: string, second?: string) =>
+    hour === undefined ||
+    (Number(hour) <= 23 &&
+      Number(minute) <= 59 &&
+      Number(second ?? 0) <= 59);
+  const spanish = raw.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
   if (spanish) {
-    return `${spanish[3]}-${spanish[2].padStart(2, "0")}-${spanish[1].padStart(2, "0")}`;
+    if (!validClock(spanish[4], spanish[5], spanish[6])) return "";
+    const candidate = `${spanish[3]}-${spanish[2].padStart(2, "0")}-${spanish[1].padStart(2, "0")}`;
+    const parsedCandidate = new Date(`${candidate}T00:00:00.000Z`);
+    return Number.isFinite(parsedCandidate.getTime()) &&
+      parsedCandidate.toISOString().slice(0, 10) === candidate
+      ? candidate
+      : "";
+  }
+  const yearFirst = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](?:0\d|1[0-4]):?[0-5]\d)?)?$/,
+  );
+  if (yearFirst) {
+    if (!validClock(yearFirst[4], yearFirst[5], yearFirst[6])) return "";
+    const candidate = `${yearFirst[1]}-${yearFirst[2]}-${yearFirst[3]}`;
+    const parsedCandidate = new Date(`${candidate}T00:00:00.000Z`);
+    return Number.isFinite(parsedCandidate.getTime()) &&
+      parsedCandidate.toISOString().slice(0, 10) === candidate
+      ? candidate
+      : "";
   }
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
+  return "";
 }
 
 function isoDateTime(value: unknown): string {
@@ -562,11 +593,21 @@ function valueAfter(lines: string[], labels: string[]): string {
   return index >= 0 ? lines[index + 1] ?? "" : "";
 }
 
+function valueAfterLast(lines: string[], labels: string[]): string {
+  const normalizedLabels = labels.map(normalizeHeader);
+  for (let index = lines.length - 2; index >= 0; index -= 1) {
+    if (normalizedLabels.includes(normalizeHeader(lines[index]))) {
+      return lines[index + 1] ?? "";
+    }
+  }
+  return "";
+}
+
 function extractTotals(lines: string[]): { base: number; iva: number; total: number } {
   return {
-    base: parseAmount(valueAfter(lines, ["Base imponible"])),
-    iva: parseAmount(valueAfter(lines, ["IVA"])),
-    total: parseAmount(valueAfter(lines, ["Total"])),
+    base: parseAmount(valueAfterLast(lines, ["Base imponible"])),
+    iva: parseAmount(valueAfterLast(lines, ["IVA"])),
+    total: parseAmount(valueAfterLast(lines, ["Total"])),
   };
 }
 
@@ -583,6 +624,8 @@ function parseClientFromLines(lines: string[]): Client {
     : undefined;
   const split = splitName(name);
   const nif = clientNif?.line.replace(/^NIF:\s*/i, "").trim();
+  const postalCode = postalCity.match(/\b(\d{5})\b/)?.[1];
+  const city = postalCity.replace(/\b\d{5}\b/g, "").trim();
   const customerType = inferCustomerTypeFromIdentity({
     ...split,
     name,
@@ -595,7 +638,9 @@ function parseClientFromLines(lines: string[]): Client {
     name,
     nif,
     email,
-    address: [address, postalCity].filter(Boolean).join(", "),
+    address: address || undefined,
+    postalCode,
+    city: city || undefined,
   };
 }
 
@@ -634,6 +679,39 @@ function parseIssuerFromLines(lines: string[]): Partial<BusinessProfile> | undef
     email,
     phone,
   };
+}
+
+function normalizedIssuerTaxId(value: string | undefined): string {
+  return value?.replace(/[\s.-]/g, "").toUpperCase() ?? "";
+}
+
+function assertSingleCompatibleIssuer(
+  parsedDocuments: ParsedDocument[],
+  current: AppData,
+): void {
+  const detectedIssuerNifs = new Set(
+    parsedDocuments.flatMap((item) => {
+      const normalized = normalizedIssuerTaxId(item.issuer?.nif);
+      return normalized && hasUsualSpanishTaxIdShape(normalized)
+        ? [normalized]
+        : [];
+    }),
+  );
+  if (detectedIssuerNifs.size > 1) {
+    throw new Error(
+      "Los documentos seleccionados pertenecen a más de un NIF emisor. No se aplicó ningún cambio; separa el lote por negocio o cuenta.",
+    );
+  }
+
+  const detected = [...detectedIssuerNifs][0];
+  const configured = normalizedIssuerTaxId(current.profile.nif);
+  const configuredIsValid =
+    Boolean(configured) && hasUsualSpanishTaxIdShape(configured);
+  if (detected && configuredIsValid && detected !== configured) {
+    throw new Error(
+      "El NIF emisor detectado en los documentos no coincide con el configurado en esta cuenta. No se aplicó ningún cambio; revisa el lote o usa la cuenta correcta.",
+    );
+  }
 }
 
 function documentStatus(type: DocumentType, rawStatus: string): DocumentStatus {
@@ -677,7 +755,7 @@ function parseLinesFromGrid(grid: Grid): LineItem[] {
   return output;
 }
 
-function parseLinesFromSequentialText(lines: string[]): LineItem[] {
+export function parseLinesFromSequentialText(lines: string[]): LineItem[] {
   const headerIndex = lines.findIndex((line) => normalizeHeader(line) === "codigo");
   if (headerIndex < 0) return [];
   const output: LineItem[] = [];
@@ -730,6 +808,15 @@ function clientFromGrid(grid: Grid | null, fallback: Client): Client {
   const name = valueFromGridPairs(grid, "Cliente") || fallback.name;
   const nif = valueFromGridPairs(grid, "NIF") || fallback.nif;
   const email = valueFromGridPairs(grid, "Email") || fallback.email;
+  const address =
+    valueFromGridPairs(grid, "Dirección") ||
+    valueFromGridPairs(grid, "Direccion") ||
+    fallback.address;
+  const postalCode =
+    valueFromGridPairs(grid, "Código postal") ||
+    valueFromGridPairs(grid, "Codigo postal") ||
+    fallback.postalCode;
+  const city = valueFromGridPairs(grid, "Ciudad") || fallback.city;
   const split = splitName(name);
   const customerType = inferCustomerTypeFromIdentity({
     ...split,
@@ -744,6 +831,9 @@ function clientFromGrid(grid: Grid | null, fallback: Client): Client {
     name,
     nif,
     email,
+    address,
+    postalCode,
+    city,
   };
 }
 
@@ -755,11 +845,24 @@ function parseDocument(file: ExtractedFile): ParsedDocument | null {
     ?.replace(/^(Factura|Presupuesto)\s+/i, "");
   const number = titleNumber || valueFromGridPairs(grid, "Número") || valueAfter(file.lines, ["Número"]);
   if (!number) return null;
-  const date = isoDate(valueFromGridPairs(grid, "Fecha") || valueAfter(file.lines, ["Fecha"]));
-  const dueDate = isoDate(
-    valueFromGridPairs(grid, "Vencimiento") ||
-      valueAfter(file.lines, ["Vencimiento", "Válido hasta", "Valido hasta"]),
+  const date = isoDate(
+    valueFromGridPairs(grid, "Fecha") || valueAfter(file.lines, ["Fecha"]),
   );
+  if (!date) {
+    throw new Error(
+      `El documento ${number} no tiene una fecha válida. No se aplicó ningún cambio; corrige la fecha en el archivo de origen.`,
+    );
+  }
+  const rawDueDate =
+    valueFromGridPairs(grid, "Vencimiento") ||
+    valueAfter(file.lines, ["Vencimiento", "Válido hasta", "Valido hasta"]);
+  const parsedDueDate = isoDate(rawDueDate);
+  if (rawDueDate && !parsedDueDate) {
+    throw new Error(
+      `El documento ${number} tiene un vencimiento no válido. No se aplicó ningún cambio; corrige la fecha en el archivo de origen.`,
+    );
+  }
+  const dueDate = parsedDueDate || undefined;
   const status = documentStatus(
     type,
     valueFromGridPairs(grid, "Estado") || valueAfter(file.lines, ["Estado"]),
@@ -867,38 +970,59 @@ export async function readGenericDocumentFiles(
     .filter((file) => file.kind === "invoice" || file.kind === "estimate")
     .map(parseDocument)
     .filter((item): item is ParsedDocument => Boolean(item));
+  assertSingleCompatibleIssuer(parsedDocuments, current);
   const importedDocuments = parsedDocuments.map((item) => item.document);
+  const listedCustomers = extracted
+    .filter((file) => file.kind === "customers")
+    .flatMap((file) => parseContactList(file, "customer") as Customer[]);
   const importedCustomers = uniqueById([
-    ...extracted
-      .filter((file) => file.kind === "customers")
-      .flatMap((file) => parseContactList(file, "customer") as Customer[]),
+    ...listedCustomers,
     ...parsedDocuments.map((item) => item.customer),
   ]);
-  const importedSuppliers = uniqueById(
-    extracted
-      .filter((file) => file.kind === "suppliers")
-      .flatMap((file) => parseContactList(file, "supplier") as Supplier[]),
+  const listedSuppliers = extracted
+    .filter((file) => file.kind === "suppliers")
+    .flatMap((file) => parseContactList(file, "supplier") as Supplier[]);
+  const importedSuppliers = uniqueById(listedSuppliers);
+  const replacesInvoices = importedDocuments.some(
+    (document) => document.type === "factura",
   );
+  const replacesEstimates = importedDocuments.some(
+    (document) => document.type === "presupuesto",
+  );
+  const replacesCustomers = listedCustomers.length > 0;
+  const replacesSuppliers = listedSuppliers.length > 0;
   const mergedDocuments = mergeImportedDocumentsPreservingProtected({
     current: current.documents,
     imported: importedDocuments,
     belongsToSource: (document) =>
-      document.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
+      (replacesInvoices &&
+        document.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:factura:`)) ||
+      (replacesEstimates &&
+        document.id.startsWith(
+          `${GENERIC_DOCUMENTS_ID_PREFIX}:presupuesto:`,
+        )),
+    compareImportedIssuer: true,
   });
   assertNoProtectedImportReplacements(mergedDocuments);
-  const keptCustomers = current.customers.filter(
-    (customer) => !customer.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
-  );
-  const keptSuppliers = current.suppliers.filter(
-    (supplier) => !supplier.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
-  );
+  const keptCustomers = replacesCustomers
+    ? current.customers.filter(
+        (customer) =>
+          !customer.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:customer:`),
+      )
+    : current.customers;
+  const keptSuppliers = replacesSuppliers
+    ? current.suppliers.filter(
+        (supplier) =>
+          !supplier.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:supplier:`),
+      )
+    : current.suppliers;
   const nextDocuments = mergedDocuments.documents;
   const nextProfile = current.profile;
   const data = normalizeLoadedData(
     {
       ...current,
-      customers: [...keptCustomers, ...importedCustomers],
-      suppliers: [...keptSuppliers, ...importedSuppliers],
+      customers: uniqueById([...keptCustomers, ...importedCustomers]),
+      suppliers: uniqueById([...keptSuppliers, ...importedSuppliers]),
       documents: nextDocuments,
       counters: countersFromDocuments(
         nextDocuments,
@@ -912,6 +1036,11 @@ export async function readGenericDocumentFiles(
       ),
     },
   );
+  const unpairedLegacyCancellationIds =
+    assertAcceptedImportedDocumentsNormalized({
+      normalized: data.documents,
+      acceptedImported: mergedDocuments.acceptedImported,
+    });
 
   const firstIssuer = parsedDocuments.find((item) => item.issuer)?.issuer;
   const detectedProfile = firstIssuer
@@ -973,6 +1102,11 @@ export async function readGenericDocumentFiles(
   };
 
   const warnings: string[] = [];
+  if (unpairedLegacyCancellationIds.length > 0) {
+    warnings.push(
+      `${unpairedLegacyCancellationIds.length} factura(s) anulada(s) no traen su rectificativa enlazada. Se conservarán bloqueadas para consulta y no se usarán en cálculos fiscales hasta completar esa relación.`,
+    );
+  }
   if (unsupportedFiles > 0) {
     warnings.push(
       `${unsupportedFiles} archivo(s) no se han podido clasificar como factura, presupuesto, cliente o proveedor.`,

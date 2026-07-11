@@ -60,6 +60,28 @@ describe("income helpers", () => {
     expect(collectedIncome([paidInvoice, autoReceipt])).toBeCloseTo(121, 0);
   });
 
+  it("no duplica un recibo legacy referido solo desde la factura", () => {
+    const paidInvoice = {
+      ...invoice("pagado", 121),
+      id: "inv-legacy",
+      receiptDocumentId: "receipt-legacy",
+    };
+    const legacyReceipt: Document = {
+      ...invoice("pagado", 121),
+      id: "receipt-legacy",
+      type: "recibo",
+      number: "R-2026-0001",
+      sourceDocumentId: undefined,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["document_relationship_invalid"],
+      },
+    };
+
+    expect(collectedIncome([paidInvoice, legacyReceipt])).toBeCloseTo(121, 0);
+    expect(isCollectedDocument(legacyReceipt)).toBe(false);
+  });
+
   it("excluye anuladas y rectificadas del cobro", () => {
     expect(canMarkAsCollected(invoice("enviado", 100, { rectifiedById: "fr1" }))).toBe(
       false,

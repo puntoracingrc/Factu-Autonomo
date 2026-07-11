@@ -1,6 +1,9 @@
 import type { BusinessProfile, Document, DocumentType, LineItem } from "./types";
 import { isEmittedDocument } from "./issuer-snapshot";
-import { businessProfileMissingDocumentLabels } from "./business-profile";
+import {
+  businessProfileMissingDocumentLabels,
+  hasUsualSpanishTaxIdShape,
+} from "./business-profile";
 import { clientAddressToFormFields } from "./customer-address";
 
 export interface EmissionValidationResult {
@@ -92,6 +95,14 @@ export function validateDocumentEmission(
     return {
       ok: false,
       message: `Revisa estos datos antes de emitir una factura: ${missing.join(", ")}. El NIF no se valida con AEAT desde la app.`,
+    };
+  }
+
+  if (!hasUsualSpanishTaxIdShape(profile.nif)) {
+    return {
+      ok: false,
+      message:
+        "Revisa el NIF/CIF del emisor antes de emitir la factura: no tiene el formato habitual de 9 caracteres.",
     };
   }
 

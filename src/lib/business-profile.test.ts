@@ -83,6 +83,12 @@ describe("business profile document data", () => {
     };
 
     expect(isBusinessProfileReadyForIssuedInvoices(profile)).toBe(true);
+    expect(
+      isBusinessProfileReadyForIssuedInvoices({ ...profile, nif: "SIN NIF" }),
+    ).toBe(false);
+    expect(livePdfIssuerWarning({ ...profile, nif: "SIN NIF" })).toContain(
+      "Completa los datos",
+    );
     expect(businessProfileNotices(profile)).toEqual([]);
     expect(livePdfIssuerWarning(profile)).toBeNull();
   });
@@ -98,7 +104,11 @@ describe("business profile document data", () => {
     const missing = businessProfileQrNotice(DEFAULT_PROFILE);
     const ready = businessProfileQrNotice({
       ...DEFAULT_PROFILE,
+      name: "Mi Negocio",
       nif: "B12345678",
+      address: "Calle Mayor 1",
+      postalCode: "28001",
+      city: "Madrid",
     });
     const copy = [
       missing,

@@ -8,6 +8,7 @@ import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
   mergeImportedDocumentsPreservingProtected,
 } from "./protected-documents";
@@ -189,34 +190,94 @@ function parseAmount(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function isoDate(value: unknown): string {
+function calendarDate(
+  year: number,
+  month: number,
+  day: number,
+): string | undefined {
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return undefined;
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
+function excelSerialDate(value: number): string | undefined {
+  const date = new Date(Date.UTC(1899, 11, 30));
+  date.setUTCDate(date.getUTCDate() + Math.round(value));
+  return Number.isNaN(date.getTime())
+    ? undefined
+    : date.toISOString().slice(0, 10);
+}
+
+function isExcelSerialDate(value: number): boolean {
+  return value > 20000 && value <= 2958465;
+}
+
+function isoDate(value: unknown): string | undefined {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
-  if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
-    const date = new Date(Date.UTC(1899, 11, 30));
-    date.setUTCDate(date.getUTCDate() + Math.round(value));
-    return date.toISOString().slice(0, 10);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return isExcelSerialDate(value) ? excelSerialDate(value) : undefined;
   }
   const raw = text(value);
+  if (!raw) return undefined;
   const numericRaw = Number(raw);
-  if (Number.isFinite(numericRaw) && numericRaw > 20000) {
-    const date = new Date(Date.UTC(1899, 11, 30));
-    date.setUTCDate(date.getUTCDate() + Math.round(numericRaw));
-    return date.toISOString().slice(0, 10);
+  if (Number.isFinite(numericRaw)) {
+    return isExcelSerialDate(numericRaw)
+      ? excelSerialDate(numericRaw)
+      : undefined;
   }
   const spanish = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (spanish) {
-    return `${spanish[3]}-${spanish[2].padStart(2, "0")}-${spanish[1].padStart(2, "0")}`;
+    return calendarDate(
+      Number(spanish[3]),
+      Number(spanish[2]),
+      Number(spanish[1]),
+    );
+  }
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    const calendar = calendarDate(
+      Number(iso[1]),
+      Number(iso[2]),
+      Number(iso[3]),
+    );
+    if (!calendar) return undefined;
+    if (raw === calendar) return calendar;
+    const parsedDateTime = new Date(raw);
+    return Number.isNaN(parsedDateTime.getTime()) ? undefined : calendar;
   }
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
+  return undefined;
 }
 
-function isoDateTime(value: unknown): string {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
-  return `${isoDate(value)}T00:00:00.000Z`;
+function sourceDate(input: {
+  value: unknown;
+  record: string;
+  field: string;
+}): string {
+  const raw = text(input.value);
+  const date = isoDate(input.value);
+  if (date) return date;
+  const problem = raw ? `contiene una fecha inválida ("${raw}")` : "está vacío";
+  throw new Error(
+    `No se puede importar ${input.record}: el campo ${input.field} ${problem}. No se aplicó ningún cambio; corrige esa fecha en la exportación de Holded y vuelve a importar el lote.`,
+  );
+}
+
+function optionalSourceDate(input: {
+  value: unknown;
+  record: string;
+  field: string;
+}): string | undefined {
+  return text(input.value) ? sourceDate(input) : undefined;
 }
 
 function splitName(displayName: string): { firstName: string; lastName: string } {
@@ -539,8 +600,19 @@ function buildDocument(input: {
   const { row, type, lines, customersById, profile } = input;
   const sourceKey = get(row, type === "factura" ? "invoice_id" : "estimate_id") || get(row, "numero");
   const number = get(row, "numero") || sourceKey;
-  const date = isoDate(get(row, "fecha"));
-  const createdAt = isoDateTime(get(row, "fecha"));
+  const record = `${type === "factura" ? "la factura" : "el presupuesto"} "${number || "sin número"}"`;
+  const date = sourceDate({
+    value: get(row, "fecha"),
+    record,
+    field: "fecha",
+  });
+  const createdAt = `${date}T00:00:00.000Z`;
+  const dueDateField = type === "factura" ? "vencimiento" : "valido_hasta";
+  const dueDate = optionalSourceDate({
+    value: get(row, dueDateField),
+    record,
+    field: dueDateField,
+  });
   const status = type === "factura" ? statusFromInvoice(row) : statusFromEstimate(row);
   const clientInfo = clientFromDocumentRow(row, customersById);
   const usedProductKeys: string[] = [];
@@ -568,14 +640,7 @@ function buildDocument(input: {
       type,
       number,
       date,
-      dueDate:
-        type === "factura"
-          ? get(row, "vencimiento")
-            ? isoDate(get(row, "vencimiento"))
-            : undefined
-          : get(row, "valido_hasta")
-            ? isoDate(get(row, "valido_hasta"))
-            : undefined,
+      dueDate,
       customerId: clientInfo.customerId,
       client: clientInfo.client,
       items: finalItems,
@@ -621,6 +686,13 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
   mismatch?: HoldedTotalMismatch;
 } {
   const sourceKey = get(row, "purchase_id") || get(row, "numero") || `purchase-${index + 1}`;
+  const record = `el gasto "${get(row, "numero") || sourceKey}"`;
+  const date = sourceDate({
+    value: get(row, "fecha"),
+    record,
+    field: "fecha",
+  });
+  const createdAt = `${date}T00:00:00.000Z`;
   const supplier = supplierFromPurchaseRow(row, suppliersById);
   const usedProductKeys: string[] = [];
   const lineBaseTotal = lines.reduce((sum, line) => {
@@ -641,7 +713,7 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
         : undefined,
     expense: {
       id: holdedId("expense", sourceKey),
-      date: isoDate(get(row, "fecha")),
+      date,
       origin: "import",
       businessKind: "purchase_invoice",
       supplierId: supplier?.id,
@@ -662,7 +734,7 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
       ]
         .filter(Boolean)
         .join("\n") || undefined,
-      createdAt: isoDateTime(get(row, "fecha")),
+      createdAt,
     },
   };
 }
@@ -707,7 +779,6 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
       "No he encontrado hojas reconocibles de Holded. Para esta primera versión necesito un Excel multihoja con Contactos, Facturas, Gastos o Presupuestos.",
     );
   }
-
   const parsedContacts = (tables.contacts ?? [])
     .map(parseContact)
     .filter((entry): entry is ParsedContact => Boolean(entry));
@@ -717,8 +788,32 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   const importedSuppliers = uniqueById(
     parsedContacts.flatMap((entry) => (entry.supplier ? [entry.supplier] : [])),
   );
-  const customersById = new Map(importedCustomers.map((customer) => [customer.id.replace(`${HOLDED_ID_PREFIX}:customer:`, ""), customer]));
-  const suppliersById = new Map(importedSuppliers.map((supplier) => [supplier.id.replace(`${HOLDED_ID_PREFIX}:supplier:`, ""), supplier]));
+  const usedCustomerSourceKeys = new Set(
+    [...(tables.invoices ?? []), ...(tables.estimates ?? [])]
+      .map((row) => get(row, "cliente_contact_id"))
+      .filter(Boolean),
+  );
+  const usedSupplierSourceKeys = new Set(
+    (tables.purchases ?? [])
+      .map((row) => get(row, "proveedor_contact_id"))
+      .filter(Boolean),
+  );
+  const currentCustomersById = new Map(
+    current.customers.map((customer) => [customer.id, customer]),
+  );
+  const customersById = new Map<string, Customer>();
+  for (const sourceKey of usedCustomerSourceKeys) {
+    const existing = currentCustomersById.get(holdedId("customer", sourceKey));
+    if (existing) customersById.set(sourceKey, existing);
+  }
+  const currentSuppliersById = new Map(
+    current.suppliers.map((supplier) => [supplier.id, supplier]),
+  );
+  const suppliersById = new Map<string, Supplier>();
+  for (const sourceKey of usedSupplierSourceKeys) {
+    const existing = currentSuppliersById.get(holdedId("supplier", sourceKey));
+    if (existing) suppliersById.set(sourceKey, existing);
+  }
   for (const entry of parsedContacts) {
     if (entry.customer) customersById.set(entry.sourceKey, entry.customer);
     if (entry.supplier) suppliersById.set(entry.sourceKey, entry.supplier);
@@ -758,7 +853,12 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
     if (built.mismatch) totalMismatches.push(built.mismatch);
     return built.document;
   });
-  const importedExpenses = (tables.purchases ?? []).map((row, index) => {
+  const importedExpenses = (tables.purchases ?? [])
+    .filter((row) => {
+      const sourceKey = get(row, "purchase_id") || get(row, "numero");
+      return Boolean(sourceKey) && normalizeKey(sourceKey) !== "TOTAL";
+    })
+    .map((row, index) => {
     const built = buildExpense(
       row,
       index,
@@ -768,26 +868,39 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
     built.usedProductKeys.forEach((key) => usedProductKeys.add(key));
     if (built.mismatch) totalMismatches.push(built.mismatch);
     return built.expense;
-  });
-  const importedDocuments = uniqueById([...importedInvoices, ...importedEstimates]);
+    });
+  const importedDocuments = [...importedInvoices, ...importedEstimates];
+  const replacesInvoices = importedInvoices.length > 0;
+  const replacesEstimates = importedEstimates.length > 0;
+  const replacesCustomers = importedCustomers.length > 0;
+  const replacesSuppliers = importedSuppliers.length > 0;
+  const replacesExpenses = importedExpenses.length > 0;
 
   const mergedDocuments = mergeImportedDocumentsPreservingProtected({
     current: current.documents,
     imported: importedDocuments,
     belongsToSource: (document) =>
-      document.id.startsWith(`${HOLDED_ID_PREFIX}:factura:`) ||
-      document.id.startsWith(`${HOLDED_ID_PREFIX}:presupuesto:`),
+      (replacesInvoices &&
+        document.id.startsWith(`${HOLDED_ID_PREFIX}:factura:`)) ||
+      (replacesEstimates &&
+        document.id.startsWith(`${HOLDED_ID_PREFIX}:presupuesto:`)),
   });
   assertNoProtectedImportReplacements(mergedDocuments);
-  const keptCustomers = current.customers.filter(
-    (customer) => !customer.id.startsWith(`${HOLDED_ID_PREFIX}:customer:`),
-  );
-  const keptSuppliers = current.suppliers.filter(
-    (supplier) => !supplier.id.startsWith(`${HOLDED_ID_PREFIX}:supplier:`),
-  );
-  const keptExpenses = current.expenses.filter(
-    (expense) => !expense.id.startsWith(`${HOLDED_ID_PREFIX}:expense:`),
-  );
+  const keptCustomers = replacesCustomers
+    ? current.customers.filter(
+        (customer) => !customer.id.startsWith(`${HOLDED_ID_PREFIX}:customer:`),
+      )
+    : current.customers;
+  const keptSuppliers = replacesSuppliers
+    ? current.suppliers.filter(
+        (supplier) => !supplier.id.startsWith(`${HOLDED_ID_PREFIX}:supplier:`),
+      )
+    : current.suppliers;
+  const keptExpenses = replacesExpenses
+    ? current.expenses.filter(
+        (expense) => !expense.id.startsWith(`${HOLDED_ID_PREFIX}:expense:`),
+      )
+    : current.expenses;
   const nextDocuments = mergedDocuments.documents;
   const data = normalizeLoadedData(
     {
@@ -808,6 +921,11 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
       ),
     },
   );
+  const unpairedLegacyCancellationIds =
+    assertAcceptedImportedDocumentsNormalized({
+      normalized: data.documents,
+      acceptedImported: mergedDocuments.acceptedImported,
+    });
 
   const mixedRoleContacts = (tables.contacts ?? []).filter(
     (row) => normalizeKey(get(row, "tipo_contacto")) === "CLIENTEPROVEEDOR",
@@ -842,6 +960,11 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   const warnings: string[] = [
     "Este importador de Holded está en validación: el archivo usado es un fixture inferido, no una exportación oficial exacta.",
   ];
+  if (unpairedLegacyCancellationIds.length > 0) {
+    warnings.push(
+      `${unpairedLegacyCancellationIds.length} factura(s) anulada(s) no traen su rectificativa enlazada. Se conservarán bloqueadas para consulta y no se usarán en cálculos fiscales hasta completar esa relación.`,
+    );
+  }
   if (mixedRoleContacts > 0) {
     warnings.push(
       `${mixedRoleContacts} contacto(s) vienen como cliente y proveedor. La app los crea como dos fichas vinculadas por el mismo ID de origen porque todavía no existe un contacto con doble rol.`,

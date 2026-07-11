@@ -3,6 +3,7 @@ import {
   inspectDocumentSnapshotsIntegrity,
 } from "../document-integrity";
 import { buildPdfViewModelFromDocumentSnapshot } from "../document-integrity/pdf-source";
+import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
 import { originalStatusAfterRectification } from "../rectificativas";
 import type {
   BusinessProfile,
@@ -145,17 +146,6 @@ function relationshipIssues(
     issues.push("document_relationship_invalid");
   }
 
-  if (stored.receiptDocumentId) {
-    const receipt = candidatesById.get(stored.receiptDocumentId);
-    if (
-      !receipt ||
-      receipt.canonical.type !== "recibo" ||
-      receipt.stored.sourceDocumentId !== stored.id
-    ) {
-      issues.push("document_relationship_invalid");
-    }
-  }
-
   if (canonical.rectification) {
     const original = candidatesById.get(
       canonical.rectification.originalDocumentId,
@@ -218,7 +208,7 @@ export function selectCanonicalFiscalDocumentsForExport(
   const blockedById = new Map<string, FiscalExportBlockedDocument>();
   const candidatesById = new Map<string, CanonicalFiscalCandidate>();
 
-  for (const document of documents) {
+  for (const document of withDocumentRelationshipIntegritySignals(documents)) {
     if (!isPotentialFiscalDocument(document)) continue;
 
     const integrity = inspectDocumentSnapshotsIntegrity(document, {

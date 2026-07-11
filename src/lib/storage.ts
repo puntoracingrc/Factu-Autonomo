@@ -47,6 +47,7 @@ import type {
   Supplier,
   SyncChange,
   UserReminder,
+  WorkspaceIntegrityQuarantineEntry,
 } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
@@ -137,21 +138,289 @@ function blockDocumentAfterMigrationFailure(doc: Document): Document {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function normalizeRecordCollection<T>(input: {
+  rawValue: unknown;
+  collection: string;
+  quarantine: WorkspaceIntegrityQuarantineEntry[];
+  isValid: (value: Record<string, unknown>) => boolean;
+  normalize: (value: Record<string, unknown>) => T;
+}): T[] {
+  if (input.rawValue === undefined) return [];
+  if (!Array.isArray(input.rawValue)) {
+    input.quarantine.push({
+      collection: input.collection,
+      reason: "malformed_collection",
+      rawValue: input.rawValue,
+    });
+    return [];
+  }
+
+  return input.rawValue.flatMap((value, index) => {
+    if (!isRecord(value) || !input.isValid(value)) {
+      input.quarantine.push({
+        collection: input.collection,
+        index,
+        reason: "malformed_record",
+        rawValue: value,
+      });
+      return [];
+    }
+    try {
+      return [input.normalize(value)];
+    } catch {
+      input.quarantine.push({
+        collection: input.collection,
+        index,
+        reason: "malformed_record",
+        rawValue: value,
+      });
+      return [];
+    }
+  });
+}
+
+function isIsoDateString(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    Number.isFinite(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
+function isNormalizableDocument(value: unknown): value is Document {
+  if (!isRecord(value)) return false;
+  const client = value.client;
+  const items = value.items;
+  return Boolean(
+    typeof value.id === "string" &&
+      value.id.trim() &&
+      (value.type === "factura" ||
+        value.type === "presupuesto" ||
+        value.type === "recibo") &&
+      typeof value.number === "string" &&
+      value.number.trim() &&
+      isIsoDateString(value.date) &&
+      isRecord(client) &&
+      typeof client.name === "string" &&
+      Array.isArray(items) &&
+      items.every(
+        (item) =>
+          isRecord(item) &&
+          typeof item.id === "string" &&
+          typeof item.description === "string" &&
+          typeof item.quantity === "number" &&
+          Number.isFinite(item.quantity) &&
+          typeof item.unitPrice === "number" &&
+          Number.isFinite(item.unitPrice) &&
+          typeof item.ivaPercent === "number" &&
+          Number.isFinite(item.ivaPercent),
+      ) &&
+      typeof value.status === "string" &&
+      [
+        "borrador",
+        "enviado",
+        "aceptado",
+        "rechazado",
+        "pagado",
+        "vencido",
+        "rectificada",
+        "anulada",
+      ].includes(value.status) &&
+      typeof value.createdAt === "string" &&
+      typeof value.updatedAt === "string",
+  );
+}
+
+function quarantineMalformedDocument(value: unknown, index: number): Document {
+  const record = isRecord(value) ? value : {};
+  const clientRecord = isRecord(record.client) ? record.client : {};
+  const validStatuses = new Set<Document["status"]>([
+    "borrador",
+    "enviado",
+    "aceptado",
+    "rechazado",
+    "pagado",
+    "vencido",
+    "rectificada",
+    "anulada",
+  ]);
+  const status = validStatuses.has(record.status as Document["status"])
+    ? (record.status as Document["status"])
+    : "enviado";
+  const type =
+    record.type === "presupuesto" || record.type === "recibo"
+      ? record.type
+      : "factura";
+  const items = Array.isArray(record.items)
+    ? record.items.flatMap((item, itemIndex) => {
+        if (!isRecord(item)) return [];
+        const quantity = Number(item.quantity);
+        const unitPrice = Number(item.unitPrice);
+        const ivaPercent = Number(item.ivaPercent);
+        if (
+          !Number.isFinite(quantity) ||
+          !Number.isFinite(unitPrice) ||
+          !Number.isFinite(ivaPercent)
+        ) {
+          return [];
+        }
+        return [
+          {
+            id:
+              typeof item.id === "string"
+                ? item.id
+                : `blocked-line-${index + 1}-${itemIndex + 1}`,
+            description:
+              typeof item.description === "string"
+                ? item.description
+                : "Línea no legible",
+            quantity,
+            unit: typeof item.unit === "string" ? item.unit : undefined,
+            unitPrice,
+            ivaPercent,
+          },
+        ];
+      })
+    : [];
+  const fallbackTimestamp = "1970-01-01T00:00:00.000Z";
+  const existingQuarantine = isRecord(record.integrityQuarantine)
+    ? record.integrityQuarantine
+    : null;
+  const integrityQuarantine =
+    existingQuarantine?.reason === "malformed_document" &&
+    Object.prototype.hasOwnProperty.call(existingQuarantine, "rawDocument")
+      ? existingQuarantine
+      : {
+          reason: "malformed_document" as const,
+          rawDocument: value,
+        };
+
+  return {
+    ...record,
+    id:
+      typeof record.id === "string" && record.id.trim()
+        ? record.id
+        : `blocked-invalid-document-${index + 1}`,
+    type,
+    number:
+      typeof record.number === "string" && record.number.trim()
+        ? record.number
+        : `BLOQUEADO-${index + 1}`,
+    date: isIsoDateString(record.date) ? record.date : "1970-01-01",
+    client: {
+      ...clientRecord,
+      name:
+        typeof clientRecord.name === "string" && clientRecord.name.trim()
+          ? clientRecord.name
+          : "Documento no legible",
+    },
+    items,
+    status,
+    createdAt:
+      typeof record.createdAt === "string"
+        ? record.createdAt
+        : fallbackTimestamp,
+    updatedAt:
+      typeof record.updatedAt === "string"
+        ? record.updatedAt
+        : fallbackTimestamp,
+    snapshotIntegrityRequired: true,
+    integrityQuarantine,
+    documentLifecycle: status === "anulada" ? "canceled" : "issued",
+    integrityLock: "locked",
+  } as Document;
+}
+
 export function normalizeLoadedData(
-  parsed: Partial<AppData>,
+  parsedInput: Partial<AppData> | unknown,
   options: NormalizeLoadedDataOptions = {},
 ): AppData {
-  const profile = migrateProfile(parsed.profile);
+  const parsed = (isRecord(parsedInput) ? parsedInput : {}) as Partial<AppData>;
+  const workspaceIntegrityQuarantine: WorkspaceIntegrityQuarantineEntry[] = [];
+  if (!isRecord(parsedInput)) {
+    workspaceIntegrityQuarantine.push({
+      collection: "workspace",
+      reason: "malformed_collection",
+      rawValue: parsedInput,
+    });
+  }
+  if (Array.isArray(parsed.workspaceIntegrityQuarantine)) {
+    parsed.workspaceIntegrityQuarantine.forEach((entry, index) => {
+      if (
+        isRecord(entry) &&
+        typeof entry.collection === "string" &&
+        (entry.reason === "malformed_collection" ||
+          entry.reason === "malformed_record") &&
+        Object.prototype.hasOwnProperty.call(entry, "rawValue")
+      ) {
+        workspaceIntegrityQuarantine.push(
+          entry as unknown as WorkspaceIntegrityQuarantineEntry,
+        );
+      } else {
+        workspaceIntegrityQuarantine.push({
+          collection: "workspaceIntegrityQuarantine",
+          index,
+          reason: "malformed_record",
+          rawValue: entry,
+        });
+      }
+    });
+  } else if (parsed.workspaceIntegrityQuarantine !== undefined) {
+    workspaceIntegrityQuarantine.push({
+      collection: "workspaceIntegrityQuarantine",
+      reason: "malformed_collection",
+      rawValue: parsed.workspaceIntegrityQuarantine,
+    });
+  }
+  let profile: BusinessProfile;
+  if (parsed.profile !== undefined && !isRecord(parsed.profile)) {
+    workspaceIntegrityQuarantine.push({
+      collection: "profile",
+      reason: "malformed_record",
+      rawValue: parsed.profile,
+    });
+    profile = migrateProfile();
+  } else {
+    try {
+      profile = migrateProfile(
+        parsed.profile as Partial<BusinessProfile> | undefined,
+      );
+    } catch {
+      workspaceIntegrityQuarantine.push({
+        collection: "profile",
+        reason: "malformed_record",
+        rawValue: parsed.profile,
+      });
+      profile = migrateProfile();
+    }
+  }
   const firstIntegrityMigration = parsed.snapshotIntegrityVersion !== 1;
   const migrationTimestamp = new Date().toISOString();
   const migratedDocuments: Document[] = [];
-  const normalizedDocuments = (parsed.documents ?? []).map((document) => {
-    const persisted = preclassifyLegacyVerifactuDocument(
-      normalizeQuoteDocument(document as AppData["documents"][number]),
-    );
-    const explicitLegacyImport =
-      options.legacyBackfillDocumentIds?.has(persisted.id) === true;
+  const rawDocuments: unknown[] = Array.isArray(parsed.documents)
+    ? parsed.documents
+    : parsed.documents === undefined
+      ? []
+      : [parsed.documents];
+  const normalizedDocuments = rawDocuments.map((document, index) => {
     try {
+      if (!isNormalizableDocument(document)) {
+        throw new Error("Documento persistido no normalizable");
+      }
+      const persisted = preclassifyLegacyVerifactuDocument(document);
+      const explicitLegacyImport =
+        options.legacyBackfillDocumentIds?.has(persisted.id) === true;
       const normalized = normalizeQuoteDocument(
         normalizeHistoricalDocument(
           persisted,
@@ -168,7 +437,9 @@ export function normalizeLoadedData(
     } catch {
       // Un registro defectuoso queda visible y bloqueado; nunca invalida el
       // resto del workspace ni se descarta durante la rehidratación.
-      return blockDocumentAfterMigrationFailure(persisted);
+      return blockDocumentAfterMigrationFailure(
+        quarantineMalformedDocument(document, index),
+      );
     }
   });
   const documents = withDocumentRelationshipIntegritySignals(
@@ -186,42 +457,139 @@ export function normalizeLoadedData(
       snapshotIntegrityMetadataChange(migrationTimestamp),
     );
   }
+  const parsedMeta = isRecord(parsed.meta)
+    ? (parsed.meta as unknown as NonNullable<AppData["meta"]>)
+    : undefined;
+  if (parsed.meta !== undefined && !parsedMeta) {
+    workspaceIntegrityQuarantine.push({
+      collection: "meta",
+      reason: "malformed_record",
+      rawValue: parsed.meta,
+    });
+  }
+  const pendingChanges = normalizeRecordCollection<SyncChange>({
+    rawValue: parsedMeta?.pendingChanges,
+    collection: "meta.pendingChanges",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.entityType === "string" &&
+      typeof value.entityId === "string" &&
+      typeof value.deleted === "boolean" &&
+      typeof value.updatedAt === "string",
+    normalize: (value) => value as unknown as SyncChange,
+  });
+  const baseMeta = parsedMeta
+    ? {
+        ...parsedMeta,
+        pendingChanges:
+          pendingChanges.length > 0 || parsedMeta.pendingChanges
+            ? pendingChanges
+            : undefined,
+      }
+    : undefined;
   const meta =
     migrationChanges.length > 0
       ? {
-          ...parsed.meta,
+          ...baseMeta,
           lastModified: migrationTimestamp,
           pendingChanges: mergePendingChanges(
-            parsed.meta?.pendingChanges,
+            pendingChanges,
             migrationChanges,
           ),
         }
-      : parsed.meta;
-  const suppliers = (parsed.suppliers ?? []) as Supplier[];
+      : baseMeta;
+  const customers = normalizeRecordCollection<AppData["customers"][number]>({
+    rawValue: parsed.customers,
+    collection: "customers",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" && typeof value.name === "string",
+    normalize: (value) =>
+      migrateCustomer(value as unknown as AppData["customers"][number]),
+  });
+  const recurringExpenses = normalizeRecordCollection<
+    AppData["recurringExpenses"][number]
+  >({
+    rawValue: parsed.recurringExpenses,
+    collection: "recurringExpenses",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" &&
+      typeof value.supplierName === "string" &&
+      typeof value.description === "string" &&
+      typeof value.amount === "number" &&
+      typeof value.ivaPercent === "number" &&
+      typeof value.startDate === "string" &&
+      isRecord(value.duration),
+    normalize: (value) =>
+      normalizeRecurringExpense(
+        value as unknown as AppData["recurringExpenses"][number],
+      ),
+  });
+  const userReminders = normalizeRecordCollection<UserReminder>({
+    rawValue: parsed.userReminders,
+    collection: "userReminders",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" &&
+      typeof value.text === "string" &&
+      isRecord(value.link),
+    normalize: (value) => normalizeUserReminder(value as unknown as UserReminder),
+  });
+  const products = normalizeRecordCollection<AppData["products"][number]>({
+    rawValue: parsed.products,
+    collection: "products",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" && typeof value.name === "string",
+    normalize: (value) =>
+      normalizeProductCatalogItem(
+        value as unknown as AppData["products"][number],
+      ),
+  });
+  const suppliers = normalizeRecordCollection<Supplier>({
+    rawValue: parsed.suppliers,
+    collection: "suppliers",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" &&
+      typeof value.name === "string" &&
+      isOptionalString(value.nif),
+    normalize: (value) => value as unknown as Supplier,
+  });
+  const normalizedExpenses = normalizeRecordCollection<Expense>({
+    rawValue: parsed.expenses,
+    collection: "expenses",
+    quarantine: workspaceIntegrityQuarantine,
+    isValid: (value) =>
+      typeof value.id === "string" &&
+      typeof value.date === "string" &&
+      typeof value.supplierName === "string" &&
+      typeof value.description === "string" &&
+      typeof value.amount === "number" &&
+      typeof value.ivaPercent === "number",
+    normalize: (value) => value as unknown as Expense,
+  });
   const expenses = linkLooseExpensesToExistingSuppliers(
-    (parsed.expenses ?? []) as Expense[],
+    normalizedExpenses,
     suppliers,
   );
   return {
     ...EMPTY_DATA,
     ...parsed,
     profile,
-    customers: (parsed.customers ?? []).map((customer) =>
-      migrateCustomer(customer as AppData["customers"][number]),
-    ),
-    recurringExpenses: (parsed.recurringExpenses ?? []).map((item) =>
-      normalizeRecurringExpense(item),
-    ),
-    userReminders: (parsed.userReminders ?? []).map((item) =>
-      normalizeUserReminder(item as UserReminder),
-    ),
-    products: (parsed.products ?? []).map((product) =>
-      normalizeProductCatalogItem(product as AppData["products"][number]),
-    ),
+    customers,
+    recurringExpenses,
+    userReminders,
+    products,
     suppliers,
     expenses,
     documents,
     snapshotIntegrityVersion: 1,
+    workspaceIntegrityQuarantine:
+      workspaceIntegrityQuarantine.length > 0
+        ? workspaceIntegrityQuarantine
+        : undefined,
     counters: {
       ...EMPTY_DATA.counters,
       ...parsed.counters,
@@ -287,7 +655,16 @@ function isRecoverableLegacyRectificationDraft(doc: Document): boolean {
   if (doc.number.trim().toUpperCase() !== "BORRADOR") return false;
   if (
     doc.verifactu ||
+    doc.verifactuPersistence ||
     doc.issuedAt ||
+    doc.sentAt ||
+    doc.paidAt ||
+    doc.acceptedAt ||
+    doc.deliveryStatus === "sent" ||
+    doc.paymentStatus === "paid" ||
+    doc.paymentStatus === "overdue" ||
+    doc.acceptanceStatus === "accepted" ||
+    doc.acceptanceStatus === "rejected" ||
     doc.documentLifecycle === "canceled" ||
     doc.snapshotSeal ||
     doc.snapshotIntegrityRequired
@@ -501,23 +878,53 @@ function normalizedDemoWorkspaceData(): AppData {
 
 export function loadData(): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(currentStorageKey());
-    if (!raw) {
-      return isDemoWorkspaceMode()
-        ? normalizedDemoWorkspaceData()
-        : EMPTY_DATA;
-    }
-    const parsed = JSON.parse(raw) as Partial<AppData>;
+    raw = localStorage.getItem(currentStorageKey());
+  } catch {
+    return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
+  }
+  if (!raw) {
+    return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const quarantined: AppData = {
+      ...EMPTY_DATA,
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "workspace",
+          reason: "malformed_collection",
+          rawValue: raw,
+        },
+      ],
+    };
+    saveData(quarantined);
+    return quarantined;
+  }
+
+  try {
     const normalized = normalizeLoadedData(parsed);
     if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
       saveData(normalized);
     }
     return normalized;
   } catch {
-    return isDemoWorkspaceMode()
-      ? normalizedDemoWorkspaceData()
-      : EMPTY_DATA;
+    const quarantined: AppData = {
+      ...EMPTY_DATA,
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "workspace",
+          reason: "malformed_collection",
+          rawValue: raw,
+        },
+      ],
+    };
+    saveData(quarantined);
+    return quarantined;
   }
 }
 
@@ -528,6 +935,7 @@ function storedDataHasContent(parsed: Partial<AppData>): boolean {
     (parsed.expenses?.length ?? 0) > 0 ||
     (parsed.suppliers?.length ?? 0) > 0 ||
     (parsed.products?.length ?? 0) > 0 ||
+    (parsed.workspaceIntegrityQuarantine?.length ?? 0) > 0 ||
     Boolean(parsed.profile?.name?.trim())
   );
 }
@@ -539,6 +947,7 @@ function inMemoryDataIsEmpty(data: AppData): boolean {
     data.expenses.length === 0 &&
     data.suppliers.length === 0 &&
     data.products.length === 0 &&
+    (data.workspaceIntegrityQuarantine?.length ?? 0) === 0 &&
     !data.profile.name.trim()
   );
 }

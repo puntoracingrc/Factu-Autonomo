@@ -1,7 +1,9 @@
 import { countersFromDocuments, formatDocumentNumber } from "../documents";
+import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
   mergeImportedDocumentsPreservingProtected,
 } from "./protected-documents";
@@ -133,22 +135,53 @@ function bool(value: unknown): boolean {
   return value === true;
 }
 
-function isoDate(value: unknown): string {
+function parsedDate(value: unknown): Date | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    return value;
   }
-  const parsed = new Date(String(value ?? ""));
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  const raw = String(value ?? "").trim();
+  if (!raw || /^\d+(?:\.\d+)?$/.test(raw)) return null;
+  const calendar = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+  if (calendar) {
+    const year = Number(calendar[1]);
+    const month = Number(calendar[2]);
+    const day = Number(calendar[3]);
+    const exact = new Date(Date.UTC(year, month - 1, day));
+    if (
+      exact.getUTCFullYear() !== year ||
+      exact.getUTCMonth() !== month - 1 ||
+      exact.getUTCDate() !== day
+    ) {
+      return null;
+    }
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isoDate(value: unknown): string {
+  const parsed = parsedDate(value);
+  if (parsed) return parsed.toISOString().slice(0, 10);
   return new Date().toISOString().slice(0, 10);
 }
 
 function isoDateTime(value: unknown): string {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString();
-  }
-  const parsed = new Date(String(value ?? ""));
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  const parsed = parsedDate(value);
+  if (parsed) return parsed.toISOString();
   return new Date().toISOString();
+}
+
+function requiredFiscalDate(
+  value: unknown,
+  number: string,
+  field: "fecha" | "vencimiento",
+): Date {
+  const parsed = parsedDate(value);
+  if (parsed) return parsed;
+  const label = field === "fecha" ? "una fecha válida" : "un vencimiento válido";
+  throw new Error(
+    `La factura ${number || "sin número"} no tiene ${label}. No se aplicó ningún cambio; corrige la fecha en PC Facturación y vuelve a analizar el lote.`,
+  );
 }
 
 function sourceId(value: unknown, fallback: string): string {
@@ -305,6 +338,29 @@ function parseCompanyProfileCandidate(
   };
 }
 
+function normalizedIssuerTaxId(value: string | undefined): string {
+  return text(value).replace(/[\s.-]/g, "").toUpperCase();
+}
+
+function assertCompatibleIssuerTaxIds(
+  currentNif: string | undefined,
+  detectedNif: string | undefined,
+): void {
+  const normalizedCurrent = normalizedIssuerTaxId(currentNif);
+  const normalizedDetected = normalizedIssuerTaxId(detectedNif);
+  const bothAreValid =
+    Boolean(normalizedCurrent) &&
+    Boolean(normalizedDetected) &&
+    hasUsualSpanishTaxIdShape(normalizedCurrent) &&
+    hasUsualSpanishTaxIdShape(normalizedDetected);
+
+  if (!bothAreValid || normalizedCurrent === normalizedDetected) return;
+
+  throw new Error(
+    "El NIF detectado en PC Facturación no coincide con el NIF configurado en esta cuenta. No se aplicó ningún cambio; revisa el archivo de origen o usa la cuenta correcta antes de importar.",
+  );
+}
+
 function clientFromCustomer(customer: Customer): Client {
   const address = [
     customer.address,
@@ -400,8 +456,16 @@ function buildDocument(input: {
   markUnpaidInvoicesAsPaid: boolean;
 }): Document {
   const number = text(input.row[input.numberField]);
-  const date = isoDate(input.row.Date);
-  const createdAt = isoDateTime(input.row.Date);
+  const fiscalDate =
+    input.type === "factura"
+      ? requiredFiscalDate(input.row.Date, number, "fecha")
+      : null;
+  const date = fiscalDate
+    ? fiscalDate.toISOString().slice(0, 10)
+    : isoDate(input.row.Date);
+  const createdAt = fiscalDate
+    ? fiscalDate.toISOString()
+    : isoDateTime(input.row.Date);
   const items = input.positions.map((row, index) =>
     lineFromPosition(row, index, number),
   );
@@ -418,7 +482,11 @@ function buildDocument(input: {
     date,
     dueDate:
       input.type === "factura" && input.row.DuePayment
-        ? isoDate(input.row.DuePayment)
+        ? requiredFiscalDate(
+            input.row.DuePayment,
+            number,
+            "vencimiento",
+          ).toISOString().slice(0, 10)
         : undefined,
     client: clientFromDocument(input.row, input.customerBySource),
     items,
@@ -610,8 +678,17 @@ export function buildPcFacturacionImport(
   const offers = tables.Offer ?? [];
   const positions = tables.Positions ?? [];
   const detectedProfileCandidate = parseCompanyProfileCandidate(tables.Client?.[0]);
+  assertCompatibleIssuerTaxIds(
+    current.profile.nif,
+    detectedProfileCandidate.nif,
+  );
+  const normalizedCurrentNif = normalizedIssuerTaxId(current.profile.nif);
+  const currentProfileForImportedDocuments =
+    normalizedCurrentNif && hasUsualSpanishTaxIdShape(normalizedCurrentNif)
+      ? current.profile
+      : { ...current.profile, nif: "" };
   const profileForImportedDocuments = fillMissingBusinessProfileFields(
-    current.profile,
+    currentProfileForImportedDocuments,
     detectedProfileCandidate,
   );
   const { numbering, dwi } = applyDwiNumbering(
@@ -635,9 +712,17 @@ export function buildPcFacturacionImport(
   const customersToImport = options.includeUnusedCustomers
     ? parsedCustomers
     : customersWithDocuments;
-  const customerBySource = new Map(
-    parsedCustomers.map((entry) => [entry.sourceId, entry.customer]),
+  const currentCustomersById = new Map(
+    current.customers.map((customer) => [customer.id, customer]),
   );
+  const customerBySource = new Map<string, Customer>();
+  for (const source of usedCustomerNumbers) {
+    const existing = currentCustomersById.get(pcfId("customer", source));
+    if (existing) customerBySource.set(source, existing);
+  }
+  for (const entry of parsedCustomers) {
+    customerBySource.set(entry.sourceId, entry.customer);
+  }
 
   const invoicePositions = groupPositions(positions, "Factura");
   const offerPositions = groupPositions(positions, "Presupuesto");
@@ -673,17 +758,24 @@ export function buildPcFacturacionImport(
     );
 
   const importedDocuments = [...importedInvoices, ...importedOffers];
+  const replacesCustomers = customersToImport.length > 0;
+  const replacesInvoices = importedInvoices.length > 0;
+  const replacesOffers = importedOffers.length > 0;
   const mergedDocuments = mergeImportedDocumentsPreservingProtected({
     current: current.documents,
     imported: importedDocuments,
     belongsToSource: (document) =>
-      document.id.startsWith(`${PCF_ID_PREFIX}:factura:`) ||
-      document.id.startsWith(`${PCF_ID_PREFIX}:presupuesto:`),
+      (replacesInvoices &&
+        document.id.startsWith(`${PCF_ID_PREFIX}:factura:`)) ||
+      (replacesOffers &&
+        document.id.startsWith(`${PCF_ID_PREFIX}:presupuesto:`)),
   });
   assertNoProtectedImportReplacements(mergedDocuments);
-  const keptCustomers = current.customers.filter(
-    (customer) => !customer.id.startsWith(`${PCF_ID_PREFIX}:customer:`),
-  );
+  const keptCustomers = replacesCustomers
+    ? current.customers.filter(
+        (customer) => !customer.id.startsWith(`${PCF_ID_PREFIX}:customer:`),
+      )
+    : current.customers;
   const nextDocuments = mergedDocuments.documents;
   const profileSuggestion = buildBusinessProfileAutofillSuggestion(
     current.profile,
@@ -718,6 +810,11 @@ export function buildPcFacturacionImport(
       ),
     },
   );
+  const unpairedLegacyCancellationIds =
+    assertAcceptedImportedDocumentsNormalized({
+      normalized: data.documents,
+      acceptedImported: mergedDocuments.acceptedImported,
+    });
 
   const preview: PcFacturacionImportPreview = {
     sourceName: PC_FACTURACION_SOURCE_NAME,
@@ -744,6 +841,11 @@ export function buildPcFacturacionImport(
   };
 
   const warnings: string[] = [];
+  if (unpairedLegacyCancellationIds.length > 0) {
+    warnings.push(
+      `${unpairedLegacyCancellationIds.length} factura(s) anulada(s) no traen su rectificativa enlazada. Se conservarán bloqueadas para consulta y no se usarán en cálculos fiscales hasta completar esa relación.`,
+    );
+  }
   if (options.dwiText?.trim() && !dwi) {
     warnings.push(
       "El archivo DWI se ha leído, pero no contiene una numeración reconocible.",

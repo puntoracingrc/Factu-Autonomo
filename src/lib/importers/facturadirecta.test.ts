@@ -7,7 +7,43 @@ import {
   detectFacturaDirectaRows,
   readFacturaDirectaFiles,
 } from "./facturadirecta";
-import { EMPTY_DATA } from "../types";
+import { EMPTY_DATA, type Document } from "../types";
+
+const TEST_DATA = {
+  ...EMPTY_DATA,
+  profile: {
+    ...EMPTY_DATA.profile,
+    name: "Negocio de pruebas",
+    nif: "12345678Z",
+    address: "Calle Pruebas 1",
+    postalCode: "28001",
+    city: "Madrid",
+  },
+};
+
+function asDraft(document: Document): Document {
+  return {
+    ...document,
+    status: "borrador",
+    issuer: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    deliveryStatus: "not_sent",
+    paymentStatus:
+      document.type === "factura" ? "pending" : "not_applicable",
+    acceptanceStatus:
+      document.type === "presupuesto" ? "pending" : "not_applicable",
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+    acceptedAt: undefined,
+  };
+}
 
 const baseFiles = [
   {
@@ -178,6 +214,19 @@ const baseFiles = [
   },
 ] satisfies Parameters<typeof buildFacturaDirectaImport>[1];
 
+function expectImportFailureWithoutChanges(
+  files: Parameters<typeof buildFacturaDirectaImport>[1],
+  expectedMessage: RegExp,
+): void {
+  const current = structuredClone(TEST_DATA);
+  const before = structuredClone(current);
+
+  expect(() => buildFacturaDirectaImport(current, files)).toThrow(
+    expectedMessage,
+  );
+  expect(current).toEqual(before);
+}
+
 describe("FacturaDirecta importer", () => {
   it("detecta listados por cabeceras", () => {
     expect(detectFacturaDirectaRows(baseFiles[0].rows)).toBe("contacts");
@@ -187,7 +236,7 @@ describe("FacturaDirecta importer", () => {
   });
 
   it("importa pack de contactos, ventas, líneas y compras sin copiar lo no soportado", () => {
-    const result = buildFacturaDirectaImport(EMPTY_DATA, baseFiles);
+    const result = buildFacturaDirectaImport(TEST_DATA, baseFiles);
 
     expect(result.preview).toMatchObject({
       customers: 1,
@@ -255,8 +304,100 @@ describe("FacturaDirecta importer", () => {
     );
   });
 
+  it.each([
+    ["vacía", ""],
+    ["cero numérico", 0],
+    ["imposible", "31-02-2026"],
+    ["con hora imposible", "29-06-2026 25:00"],
+  ])(
+    "aborta sin cambios una factura con fecha fuente %s",
+    (_case, invalidDate) => {
+      const invalidSales = {
+        ...baseFiles[2],
+        rows: baseFiles[2].rows
+          .filter((row) => "Tipo" in row && row.Tipo === "Factura")
+          .map((row) => ({ ...row, Fecha: invalidDate })),
+      };
+
+      expectImportFailureWithoutChanges(
+        [invalidSales],
+        /La factura F26 00000001 no tiene una fecha válida en «Fecha»\. No se aplicó ningún cambio/,
+      );
+    },
+  );
+
+  it("aborta sin cambios si el vencimiento directo de una factura es inválido", () => {
+    const invalidSales = {
+      ...baseFiles[2],
+      rows: baseFiles[2].rows
+        .filter((row) => "Tipo" in row && row.Tipo === "Factura")
+        .map((row) => ({ ...row, Vencimiento: "fecha-imposible" })),
+    };
+
+    expectImportFailureWithoutChanges(
+      [invalidSales],
+      /La factura F26 00000001 tiene un vencimiento no válido en «Vencimiento»\. No se aplicó ningún cambio/,
+    );
+  });
+
+  it("aborta sin cambios si un vencimiento auxiliar de ventas es inválido", () => {
+    const salesWithoutDirectDueDate = {
+      ...baseFiles[2],
+      rows: baseFiles[2].rows
+        .filter((row) => "Tipo" in row && row.Tipo === "Factura")
+        .map((row) => ({ ...row, Vencimiento: "" })),
+    };
+    const invalidDueDates = {
+      ...baseFiles[4],
+      rows: baseFiles[4].rows
+        .slice(0, 1)
+        .map((row) => ({ ...row, "Fecha de vencimiento": "2026-02-30" })),
+    };
+
+    expectImportFailureWithoutChanges(
+      [salesWithoutDirectDueDate, invalidDueDates],
+      /La factura F26 00000001 tiene un vencimiento no válido en «Fecha de vencimiento»\. No se aplicó ningún cambio/,
+    );
+  });
+
+  it.each([
+    ["vacía", ""],
+    ["imposible", "2026-02-30"],
+  ])(
+    "aborta sin cambios un gasto con fecha fuente %s",
+    (_case, invalidDate) => {
+      const invalidPurchases = {
+        ...baseFiles[5],
+        rows: baseFiles[5].rows.map((row) => ({
+          ...row,
+          "Fecha registro": invalidDate,
+        })),
+      };
+
+      expectImportFailureWithoutChanges(
+        [invalidPurchases],
+        /El gasto PMD-2026-0007 no tiene una fecha válida en «Fecha registro»\. No se aplicó ningún cambio/,
+      );
+    },
+  );
+
+  it("aborta sin cambios si un vencimiento de compra es inválido", () => {
+    const invalidDueDates = {
+      ...baseFiles[6],
+      rows: baseFiles[6].rows.map((row) => ({
+        ...row,
+        "Fecha de vencimiento": "sin-fecha",
+      })),
+    };
+
+    expectImportFailureWithoutChanges(
+      [baseFiles[5], invalidDueDates],
+      /El gasto PMD-2026-0007 tiene un vencimiento no válido en «Fecha de vencimiento»\. No se aplicó ningún cambio/,
+    );
+  });
+
   it("reimporta FacturaDirecta sin duplicar el lote anterior", () => {
-    const first = buildFacturaDirectaImport(EMPTY_DATA, baseFiles);
+    const first = buildFacturaDirectaImport(TEST_DATA, baseFiles);
     const manualCustomer = {
       ...first.data.customers[0],
       id: "manual-customer",
@@ -274,6 +415,105 @@ describe("FacturaDirecta importer", () => {
     expect(second.data.customers.some((customer) => customer.id === "manual-customer")).toBe(true);
     expect(second.data.documents.filter((doc) => doc.id.startsWith("facturadirecta:factura:"))).toHaveLength(1);
     expect(second.data.products.filter((product) => product.id.startsWith("facturadirecta:product:"))).toHaveLength(1);
+  });
+
+  it("conserva ventas y maestros previos al importar solo compras", () => {
+    const first = buildFacturaDirectaImport(TEST_DATA, baseFiles);
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousDocumentIds = current.documents.map((document) => document.id);
+    const previousCustomerIds = current.customers.map((customer) => customer.id);
+    const previousProductIds = current.products.map((product) => product.id);
+
+    const purchaseOnly = buildFacturaDirectaImport(current, [
+      baseFiles[5],
+      baseFiles[6],
+    ]);
+
+    expect(purchaseOnly.data.documents.map((document) => document.id)).toEqual(
+      previousDocumentIds,
+    );
+    expect(purchaseOnly.data.customers.map((customer) => customer.id)).toEqual(
+      previousCustomerIds,
+    );
+    expect(purchaseOnly.data.products.map((product) => product.id)).toEqual(
+      previousProductIds,
+    );
+    expect(purchaseOnly.data.expenses).toHaveLength(1);
+    expect(purchaseOnly.data.expenses[0]).toMatchObject({
+      supplierId: first.data.suppliers[0].id,
+      supplierName: first.data.suppliers[0].name,
+    });
+  });
+
+  it("conserva gastos y presupuestos al importar solo facturas", () => {
+    const first = buildFacturaDirectaImport(TEST_DATA, baseFiles);
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousExpenseIds = current.expenses.map((expense) => expense.id);
+    const previousEstimateIds = current.documents
+      .filter((document) => document.type === "presupuesto")
+      .map((document) => document.id);
+    const invoiceOnlySales = {
+      ...baseFiles[2],
+      rows: baseFiles[2].rows.filter(
+        (row) => "Tipo" in row && row.Tipo === "Factura",
+      ),
+    };
+
+    const salesOnly = buildFacturaDirectaImport(current, [
+      invoiceOnlySales,
+      baseFiles[3],
+      baseFiles[4],
+    ]);
+
+    expect(salesOnly.data.expenses.map((expense) => expense.id)).toEqual(
+      previousExpenseIds,
+    );
+    expect(
+      salesOnly.data.documents
+        .filter((document) => document.type === "presupuesto")
+        .map((document) => document.id),
+    ).toEqual(previousEstimateIds);
+    expect(
+      salesOnly.data.documents.filter(
+        (document) => document.type === "factura",
+      ),
+    ).toHaveLength(1);
+    expect(
+      salesOnly.data.documents.find(
+        (document) => document.type === "factura",
+      ),
+    ).toMatchObject({
+      customerId: first.data.customers[0].id,
+      client: {
+        address: expect.stringContaining("28013 Madrid"),
+      },
+    });
+  });
+
+  it("interpreta una fecha española con barras sin invertir día y mes", () => {
+    const slashDateSales = {
+      ...baseFiles[2],
+      rows: baseFiles[2].rows
+        .filter((row) => "Tipo" in row && row.Tipo === "Factura")
+        .map((row) => ({ ...row, Fecha: "01/02/2024" })),
+    };
+
+    const result = buildFacturaDirectaImport(TEST_DATA, [
+      baseFiles[0],
+      slashDateSales,
+    ]);
+    const invoice = result.data.documents.find(
+      (document) => document.type === "factura",
+    );
+
+    expect(invoice?.date).toBe("2024-02-01");
+    expect(invoice?.createdAt).toBe(new Date(2024, 1, 1).toISOString());
   });
 });
 
@@ -299,7 +539,7 @@ describe.runIf(realFixturesDir)("FacturaDirecta real fixtures", () => {
       const buffer = readFileSync(join(realFixturesDir, name));
       return new File([new Uint8Array(buffer)], name);
     });
-    const result = await readFacturaDirectaFiles(files, EMPTY_DATA);
+    const result = await readFacturaDirectaFiles(files, TEST_DATA);
 
     expect(result.preview.customers).toBeGreaterThan(0);
     expect(result.preview.suppliers).toBeGreaterThan(0);

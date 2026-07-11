@@ -7,8 +7,13 @@ function historicalDocumentTotal(document: Document): number {
   return documentAmounts(document, false).total;
 }
 
+function hasUsableDocumentIntegrity(doc: Document): boolean {
+  return !doc.integrityQuarantine && doc.snapshotIntegrity?.status !== "blocked";
+}
+
 export function canMarkAsCollected(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
+  if (!hasUsableDocumentIntegrity(doc)) return false;
   if (doc.status === "anulada" || doc.rectifiedById) return false;
   if (deriveDocumentLifecycle(doc) !== "issued") return false;
   return true;
@@ -21,14 +26,23 @@ export function isCollectedDocument(doc: Document): boolean {
 }
 
 export function collectedIncome(documents: Document[]): number {
+  const linkedReceiptIds = new Set(
+    documents.flatMap((document) =>
+      document.receiptDocumentId ? [document.receiptDocumentId] : [],
+    ),
+  );
   return documents
-    .filter(isCollectedDocument)
+    .filter(
+      (document) =>
+        !linkedReceiptIds.has(document.id) && isCollectedDocument(document),
+    )
     .reduce((sum, doc) => sum + historicalDocumentTotal(doc), 0);
 }
 
 export function isPendingInvoicePayment(doc: Document): boolean {
   return (
     doc.type === "factura" &&
+    hasUsableDocumentIntegrity(doc) &&
     doc.status !== "pagado" &&
     doc.status !== "anulada" &&
     doc.status !== "borrador" &&

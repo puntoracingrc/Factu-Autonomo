@@ -14,6 +14,7 @@ import {
 import { loadData, normalizeLoadedData, saveData } from "./storage";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
+import { hasWorkspaceContent } from "./workspace-state";
 
 const STORAGE_KEY = "factura-autonomo-data";
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -443,6 +444,44 @@ describe("storage", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toContain("Ana");
   });
 
+  it("no borra una cuarentena recuperable al intentar guardar vacío", () => {
+    const quarantined: AppData = {
+      ...EMPTY_DATA,
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "customers",
+          reason: "malformed_collection",
+          rawValue: { bad: true },
+        },
+      ],
+    };
+
+    saveData(quarantined);
+    saveData(EMPTY_DATA);
+
+    expect(loadData().workspaceIntegrityQuarantine?.[0].rawValue).toEqual({
+      bad: true,
+    });
+  });
+
+  it("conserva el texto raíz si el JSON persistido está truncado", () => {
+    const truncated = '{"documents":[';
+    localStorage.setItem(STORAGE_KEY, truncated);
+
+    const loaded = loadData();
+    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as AppData;
+
+    expect(loaded.workspaceIntegrityQuarantine?.[0]).toMatchObject({
+      collection: "workspace",
+      reason: "malformed_collection",
+      rawValue: truncated,
+    });
+    expect(hasWorkspaceContent(loaded)).toBe(true);
+    expect(persisted.workspaceIntegrityQuarantine?.[0].rawValue).toBe(
+      truncated,
+    );
+  });
+
   it("usa almacenamiento separado cuando esta activo el modo demo", () => {
     saveData(sampleData());
 
@@ -678,6 +717,69 @@ describe("storage", () => {
     });
     expect(normalized.documents[0].documentSnapshot).toBeUndefined();
     expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
+  });
+
+  it("no degrada una rectificativa BORRADOR legacy con evidencia de cobro", () => {
+    const profile = sampleData().profile;
+    const paidLegacyRectification: Document = {
+      id: "paid-legacy-rectification",
+      type: "factura",
+      number: "BORRADOR",
+      date: "2026-06-24",
+      client: { name: "Ana López" },
+      items: [],
+      status: "borrador",
+      rectification: {
+        originalDocumentId: "invoice-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      paymentStatus: "paid",
+      paidAt: "2026-06-24T10:10:00.000Z",
+      createdAt: "2026-06-24T09:00:00.000Z",
+      updatedAt: "2026-06-24T10:10:00.000Z",
+    };
+    const documentSnapshot = deriveLegacySnapshotForReadOnly(
+      paidLegacyRectification,
+      profile,
+      NOW,
+    );
+    const pdfSnapshot = buildDocumentPdfSnapshot(
+      documentSnapshot,
+      profile,
+      NOW,
+    );
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: undefined,
+      documents: [
+        {
+          ...paidLegacyRectification,
+          documentSnapshot,
+          pdfSnapshot,
+        },
+      ],
+    });
+
+    expect(normalized.documents[0]).toMatchObject({
+      id: paidLegacyRectification.id,
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      paymentStatus: "paid",
+      paidAt: paidLegacyRectification.paidAt,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: expect.arrayContaining(["document_relationship_invalid"]),
+      },
+    });
+    expect(normalized.documents[0].documentSnapshot).toBe(documentSnapshot);
+    expect(normalized.documents[0].pdfSnapshot).toBe(pdfSnapshot);
+    expect(normalized.documents[0].snapshotSeal).toBeUndefined();
   });
 
   it("no degrada a borrador una rectificativa protegida en versión 1", () => {
@@ -1173,6 +1275,157 @@ describe("storage", () => {
     expect(normalized.documents[0].items[0].unitPrice).toBe(
       document.documentSnapshot?.items[0].unitPrice,
     );
+  });
+
+  it("aísla un documento nulo sin ocultar el resto del workspace", () => {
+    const valid = snapshotDocument();
+    const parsed = {
+      ...sampleData(),
+      documents: [null, valid],
+    } as unknown as Partial<AppData>;
+
+    const normalized = normalizeLoadedData(parsed);
+
+    expect(normalized.profile.name).toBe("Mi negocio");
+    expect(normalized.documents).toHaveLength(2);
+    expect(normalized.documents[0]).toMatchObject({
+      id: "blocked-invalid-document-1",
+      integrityLock: "locked",
+      snapshotIntegrity: { status: "blocked" },
+    });
+    expect(normalized.documents[1].id).toBe(valid.id);
+    expect(normalized.documents[1].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("cuarentena una factura sin número y loadData conserva los demás datos", () => {
+    const malformed = {
+      ...snapshotDocument(),
+      id: "missing-number",
+      number: undefined,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+    };
+    const valid = snapshotDocument();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...sampleData(),
+        documents: [malformed, valid],
+      }),
+    );
+
+    const loaded = loadData();
+
+    expect(loaded.profile.name).toBe("Mi negocio");
+    expect(loaded.documents).toHaveLength(2);
+    expect(loaded.documents[0]).toMatchObject({
+      id: "missing-number",
+      number: "BLOQUEADO-1",
+      snapshotIntegrity: { status: "blocked" },
+    });
+    expect(loaded.documents[1].id).toBe(valid.id);
+  });
+
+  it("conserva el payload crudo recuperable al sanear una línea malformada", () => {
+    const malformed = {
+      ...snapshotDocument(),
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      items: [
+        snapshotDocument().items[0],
+        {
+          id: "broken-line",
+          description: "Importe no legible",
+          quantity: "no-es-un-numero",
+          unitPrice: 50,
+          ivaPercent: 21,
+        },
+      ],
+    };
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...sampleData(), documents: [malformed] }),
+    );
+
+    const loaded = loadData();
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
+
+    expect(loaded.documents[0].items).toHaveLength(1);
+    expect(
+      loaded.documents[0].integrityQuarantine?.rawDocument,
+    ).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          id: "broken-line",
+          quantity: "no-es-un-numero",
+        }),
+      ]),
+    });
+    expect(
+      persisted.documents[0].integrityQuarantine?.rawDocument,
+    ).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({ id: "broken-line" }),
+      ]),
+    });
+  });
+
+  it("aísla una colección malformada sin vaciar ni sobrescribir el workspace", () => {
+    const valid = snapshotDocument();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...sampleData(),
+        documents: [valid],
+        customers: { bad: true },
+      }),
+    );
+
+    const loaded = loadData();
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
+
+    expect(loaded.profile.name).toBe("Mi negocio");
+    expect(loaded.documents.map((document) => document.id)).toEqual([
+      valid.id,
+    ]);
+    expect(loaded.customers).toEqual([]);
+    expect(loaded.workspaceIntegrityQuarantine).toEqual([
+      expect.objectContaining({
+        collection: "customers",
+        reason: "malformed_collection",
+        rawValue: { bad: true },
+      }),
+    ]);
+    expect(persisted.workspaceIntegrityQuarantine?.[0].rawValue).toEqual({
+      bad: true,
+    });
+  });
+
+  it("bloquea todos los documentos si el almacenamiento contiene IDs duplicados", () => {
+    const first = snapshotDocument();
+    const second = {
+      ...snapshotDocument(),
+      number: "F-2026-0002",
+    };
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [first, second],
+    });
+
+    expect(
+      normalized.documents.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("normalizeLoadedData conserva snapshots y campos desconocidos", () => {

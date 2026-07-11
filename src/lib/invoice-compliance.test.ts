@@ -98,6 +98,17 @@ describe("invoice compliance", () => {
       postalCode: "28001",
     });
     expect(complete.ok).toBe(true);
+
+    const invalidNif = validateDocumentEmission(doc, {
+      ...DEFAULT_PROFILE,
+      name: "Juan",
+      nif: "SIN NIF",
+      address: "Calle 1",
+      city: "Madrid",
+      postalCode: "28001",
+    });
+    expect(invalidNif.ok).toBe(false);
+    expect(invalidNif.message).toContain("formato habitual de 9 caracteres");
   });
 
   it("bloquea la emisión central si falta identidad fiscal del cliente", () => {
