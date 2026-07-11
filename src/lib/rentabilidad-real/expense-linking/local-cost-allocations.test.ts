@@ -3,7 +3,9 @@ import {
   clearExpenseCostAllocationForWork,
   clearExpenseCostAllocationsForTests,
   getExpenseCostAllocationsForWork,
+  getExpenseLineExclusionsForWork,
   setExpenseCostAllocationForWork,
+  setExpenseLineExclusionsForWork,
 } from "./local-cost-allocations";
 
 function mockLocalStorage() {
@@ -64,6 +66,28 @@ describe("rentabilidad real local expense cost allocations", () => {
     expect(clearExpenseCostAllocationForWork("invoice_1", "expense_1")).toEqual({
       expense_2: 60,
     });
+  });
+
+  it("guarda las líneas excluidas por gasto y documento", () => {
+    expect(
+      setExpenseLineExclusionsForWork("invoice_1", "expense_1", [
+        "line_2",
+        "line_2",
+        "line_3",
+      ]),
+    ).toEqual({ expense_1: ["line_2", "line_3"] });
+    expect(getExpenseLineExclusionsForWork("invoice_1")).toEqual({
+      expense_1: ["line_2", "line_3"],
+    });
+  });
+
+  it("marcar todas las líneas limpia las exclusiones", () => {
+    setExpenseLineExclusionsForWork("invoice_1", "expense_1", ["line_2"]);
+
+    expect(
+      setExpenseLineExclusionsForWork("invoice_1", "expense_1", []),
+    ).toEqual({});
+    expect(getExpenseLineExclusionsForWork("invoice_1")).toEqual({});
   });
 
   it("tolera SSR sin localStorage", () => {

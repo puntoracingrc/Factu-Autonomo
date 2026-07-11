@@ -1,4 +1,6 @@
 import { roundMoney } from "./calculations";
+import { expenseFiscalAmounts, type WorkDocumentExpenseSummary } from "./expenses";
+import type { Expense } from "./types";
 
 export interface InvoiceListProfitabilityInput {
   salesBase: number;
@@ -17,6 +19,43 @@ export interface InvoiceListProfitability {
   ivaReserve: number;
   irpfReserve: number;
   taxReserve: number;
+}
+
+export function summarizeAllocatedWorkExpenses(input: {
+  expenses: Expense[];
+  workDocumentIds: string[];
+  allocations?: Record<string, number>;
+}): WorkDocumentExpenseSummary | undefined {
+  const ids = new Set(input.workDocumentIds);
+  const linkedExpenses = input.expenses.filter(
+    (expense) => expense.workDocumentId && ids.has(expense.workDocumentId),
+  );
+  if (linkedExpenses.length === 0) return undefined;
+
+  return linkedExpenses.reduce<WorkDocumentExpenseSummary>(
+    (summary, expense) => {
+      const fiscal = expenseFiscalAmounts(expense);
+      const allocation = input.allocations?.[expense.id];
+      const appliedCost =
+        allocation === undefined
+          ? fiscal.operatingCost
+          : Math.min(Math.max(allocation, 0), fiscal.operatingCost);
+      const ratio =
+        fiscal.operatingCost > 0 ? appliedCost / fiscal.operatingCost : 1;
+
+      return {
+        count: summary.count + 1,
+        cost: roundMoney(summary.cost + appliedCost),
+        deductibleBase: roundMoney(
+          summary.deductibleBase + fiscal.deductibleBase * ratio,
+        ),
+        deductibleIva: roundMoney(
+          summary.deductibleIva + fiscal.deductibleIva * ratio,
+        ),
+      };
+    },
+    { count: 0, cost: 0, deductibleBase: 0, deductibleIva: 0 },
+  );
 }
 
 function finiteMoney(value: number | undefined): number {

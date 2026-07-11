@@ -2,12 +2,14 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, FileWarning, Link2, Pencil, Search } from "lucide-react";
+import { Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
+import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelationshipFlow";
+import { InvoiceRelationshipWorkspace } from "@/components/documents/InvoiceRelationshipWorkspace";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
@@ -38,11 +40,15 @@ import {
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
-import { calculateInvoiceListProfitability } from "@/lib/document-list-profitability";
 import {
-  getDocumentChainItems,
-  type DocumentChainItem,
-} from "@/lib/document-links";
+  calculateInvoiceListProfitability,
+  summarizeAllocatedWorkExpenses,
+} from "@/lib/document-list-profitability";
+import { getDocumentChainItems } from "@/lib/document-links";
+import {
+  getExpenseCostAllocationsForWork,
+  type ExpenseCostAllocationsByExpenseId,
+} from "@/lib/rentabilidad-real/expense-linking";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
@@ -160,6 +166,10 @@ export function DocumentList({
   const [previewingDocumentId, setPreviewingDocumentId] = useState<string | null>(
     null,
   );
+  const [expandedRelationshipDocumentId, setExpandedRelationshipDocumentId] =
+    useState<string | null>(null);
+  const [expenseAllocationsByDocumentId, setExpenseAllocationsByDocumentId] =
+    useState<Record<string, ExpenseCostAllocationsByExpenseId>>({});
 
   const allDocuments = getDocumentsByType(type);
   const years = useMemo(
@@ -179,6 +189,21 @@ export function DocumentList({
   const workExpenseSummaries = useMemo(() => {
     return summarizeWorkDocumentExpensesById(data.expenses);
   }, [data.expenses]);
+
+  useEffect(() => {
+    if (type !== "factura") return;
+    const nextAllocations: Record<
+      string,
+      ExpenseCostAllocationsByExpenseId
+    > = {};
+    for (const document of data.documents) {
+      if (document.type !== "factura") continue;
+      nextAllocations[document.id] = getExpenseCostAllocationsForWork(
+        document.id,
+      );
+    }
+    setExpenseAllocationsByDocumentId(nextAllocations);
+  }, [data.documents, type]);
 
   const totalCount = allDocuments.length;
   const label = SEARCH_LABELS[type];
@@ -360,8 +385,22 @@ export function DocumentList({
                 timelineMonthKey(doc.date);
             const amounts = documentAmounts(doc, vatExempt);
             const total = amounts.total;
+            const documentChain = getDocumentChainItems(
+              doc,
+              data.documents,
+              data.expenses,
+              expenseAllocationsByDocumentId[doc.id] ?? {},
+            );
             const workExpenseSummary =
-              type === "factura" || type === "presupuesto"
+              type === "factura"
+                ? summarizeAllocatedWorkExpenses({
+                    expenses: data.expenses,
+                    workDocumentIds: documentChain
+                      .map((item) => item.document?.id)
+                      .filter((id): id is string => Boolean(id)),
+                    allocations: expenseAllocationsByDocumentId[doc.id] ?? {},
+                  })
+                : type === "presupuesto"
                 ? workExpenseSummaries.get(doc.id)
                 : undefined;
             const workMargin =
@@ -383,11 +422,6 @@ export function DocumentList({
                   })
                 : null;
             const rect = isRectificativa(doc);
-            const documentChain = getDocumentChainItems(
-              doc,
-              data.documents,
-              data.expenses,
-            );
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
             const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
@@ -426,7 +460,13 @@ export function DocumentList({
                     label={formatTimelineMonthLabel(doc.date)}
                   />
                 )}
-                <Card className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(15rem,auto)]">
+                <Card
+                  className={`grid gap-4 ${
+                    type === "factura"
+                      ? "xl:grid-cols-[minmax(18rem,0.8fr)_minmax(30rem,1.2fr)]"
+                      : "md:grid-cols-[minmax(0,1fr)_minmax(15rem,auto)]"
+                  }`}
+                >
                   <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-slate-900">
@@ -579,11 +619,13 @@ export function DocumentList({
                       )}
                     </div>
                     {documentChain.length > 1 && (
-                      <DocumentChainPanel
-                        className="md:row-span-2"
+                      <div className="min-w-0 xl:row-span-2">
+                        <DocumentRelationshipFlow
                         items={documentChain}
                         vatExempt={vatExempt}
-                      />
+                          compact
+                        />
+                      </div>
                     )}
                   {integrityBlocked ? (
                     <div
@@ -615,7 +657,18 @@ export function DocumentList({
                         profile={data.profile}
                       />
                     )}
-                    <DocumentLinkManagerButton doc={doc} />
+                    <DocumentLinkManagerButton
+                      doc={doc}
+                      expanded={expandedRelationshipDocumentId === doc.id}
+                      onToggle={
+                        type === "factura"
+                          ? () =>
+                              setExpandedRelationshipDocumentId((current) =>
+                                current === doc.id ? null : doc.id,
+                              )
+                          : undefined
+                      }
+                    />
                     <DocumentPdfShareActions
                       doc={doc}
                       profile={data.profile}
@@ -654,6 +707,22 @@ export function DocumentList({
                     <DeleteDocumentButton doc={doc} />
                     </div>
                   )}
+                  {type === "factura" &&
+                    expandedRelationshipDocumentId === doc.id &&
+                    !integrityBlocked ? (
+                      <div className="min-w-0 xl:col-span-2">
+                        <InvoiceRelationshipWorkspace
+                          doc={doc}
+                          onClose={() => setExpandedRelationshipDocumentId(null)}
+                          onExpenseAllocationsChange={(allocations) =>
+                            setExpenseAllocationsByDocumentId((current) => ({
+                              ...current,
+                              [doc.id]: allocations,
+                            }))
+                          }
+                        />
+                      </div>
+                    ) : null}
                 </Card>
               </Fragment>
             );
@@ -683,86 +752,6 @@ export function DocumentList({
         </div>
       )}
     </div>
-  );
-}
-
-const DOCUMENT_CHAIN_ROLE_CLASSES: Record<DocumentChainItem["role"], string> = {
-  factura: "border-blue-100 bg-white text-blue-800 hover:bg-blue-50",
-  rectificativa:
-    "border-orange-100 bg-orange-50 text-orange-800 hover:bg-orange-100",
-  presupuesto:
-    "border-indigo-100 bg-indigo-50 text-indigo-800 hover:bg-indigo-100",
-  recibo: "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
-  gastos: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100",
-};
-
-function DocumentChainPanel({
-  className = "",
-  items,
-  vatExempt,
-}: {
-  className?: string;
-  items: DocumentChainItem[];
-  vatExempt: boolean;
-}) {
-  return (
-    <aside
-      className={`rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-sm md:max-w-xs ${className}`}
-    >
-      <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-        <Link2 className="h-3.5 w-3.5" />
-        Vinculados
-      </div>
-      <div className="space-y-2">
-        {items.map((item, index) => {
-          const subtitle = item.document
-            ? `${formatShortDate(item.document.date)} · ${formatMoney(
-                documentAmounts(item.document, vatExempt).total,
-              )}`
-            : "Abrir listado de gastos";
-          const content = (
-            <>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black shadow-sm">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="font-bold">{item.title}</span>
-                  {item.current && (
-                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                      actual
-                    </span>
-                  )}
-                </span>
-                <span className="block truncate font-semibold text-slate-700">
-                  {item.value}
-                </span>
-                <span className="block truncate text-xs text-slate-500">
-                  {subtitle}
-                </span>
-              </span>
-            </>
-          );
-          const className = `flex min-h-14 items-center gap-2 rounded-xl border px-2.5 py-2 transition-colors ${DOCUMENT_CHAIN_ROLE_CLASSES[item.role]}`;
-
-          return item.href ? (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={className}
-              aria-label={`Abrir ${item.title} ${item.value}`}
-              title={`Abrir ${item.title} ${item.value}`}
-            >
-              {content}
-            </Link>
-          ) : (
-            <div key={item.id} className={className}>
-              {content}
-            </div>
-          );
-        })}
-      </div>
-    </aside>
   );
 }
 
