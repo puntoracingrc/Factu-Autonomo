@@ -18,7 +18,7 @@ export function FactuHelpButton() {
   return (
     <Link
       href={href}
-      className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95"
+      className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 active:scale-95"
       title={`Ayuda: ${helpTitle}`}
       aria-label={`Ayuda: ${helpTitle}. Abre el manual de usuario.`}
     >

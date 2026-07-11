@@ -22,7 +22,7 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "2. Abre Ajustes y rellena tus datos",
       paragraphs: [
-        "Ve a **Ajustes** (icono de engranaje en la barra inferior) y completa al menos tu **nombre** y **NIF/CIF**. Esos datos salen en el PDF de tus facturas.",
+        "En móvil, pulsa **Más → Ajustes**; en ordenador, abre **Ajustes** en el menú lateral. Completa al menos tu **nombre** y **NIF/CIF**. Esos datos salen en el PDF de tus facturas.",
         "Si quieres, añade también dirección, teléfono, email e **IBAN**: el IBAN aparece en facturas pendientes de cobro y en los recordatorios de pago.",
         "Ajustes está organizado por bloques: **Negocio**, **Facturación**, **Fiscalidad** y **Preferencias**. Usa las pastillas superiores para saltar rápido a cada parte. En **Preferencias** puedes activar modo oscuro, vista compacta, pantalla inicial y reducir animaciones.",
       ],
@@ -47,16 +47,11 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "4. Aprende la barra de navegación",
       paragraphs: [
-        "Abajo tienes acceso rápido a **Panel**, **Clientes**, **Facturas**, **Presupuestos**, **Recibos**, **Gastos**, **Productos**, **Proveedores**, **Impuestos** y **Ajustes**.",
-        "En móvil puedes deslizar la barra si no ves todos los iconos. Las flechas laterales aparecen solo cuando queda contenido por mover.",
+        "En móvil, la barra inferior mantiene a la vista **Panel**, **Clientes**, **Facturas** y **Gastos**. Así no tienes que desplazar una lista larga de iconos.",
+        "Pulsa **Más** para abrir **Presupuestos**, **Recibos**, **Productos**, **Rentabilidad Real**, **Proveedores**, **Impuestos** y **Ajustes**. La sección actual aparece marcada también con texto y un icono.",
         "La cabecera se adapta al tamaño de pantalla: en móvil muestra menos texto para dejar espacio a las acciones importantes, y en ordenador enseña más contexto.",
         "Arriba verás el icono de ayuda **?**. Abre la sección del manual correspondiente a la pantalla en la que estés.",
       ],
-      screenshot: {
-        src: "/ayuda/capturas/navegacion-inferior.png",
-        alt: "Barra de navegación inferior de la aplicación",
-        caption: "La barra inferior te lleva a cada sección principal.",
-      },
     },
     {
       title: "5. Instala la app si quieres usarla como acceso directo",

@@ -57,15 +57,6 @@ button:disabled {
   bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-.nav-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.nav-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 .action-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -216,12 +207,6 @@ html[data-app-theme="dark"] .app-side-nav a:not([aria-current="page"]) {
 html[data-app-theme="dark"] .app-side-nav a:not([aria-current="page"]):hover {
   background-color: #1e293b !important;
   color: #f8fafc !important;
-}
-
-html[data-app-theme="dark"] .app-mobile-nav-fade {
-  --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: rgb(15 23 42 / 0.95) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position) !important;
 }
 
 html[data-app-theme="dark"] .demo-mode-banner {

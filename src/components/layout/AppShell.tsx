@@ -1,16 +1,16 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
-  ChartNoAxesCombined,
-  ChevronLeft,
-  ChevronRight,
+  Check,
   Crown,
+  Ellipsis,
   LogIn,
+  X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -40,71 +40,12 @@ import {
 } from "@/lib/app-preferences";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
-  FileText,
-  Home,
-  Landmark,
-  PackageSearch,
-  Receipt,
-  Settings,
-  ShoppingCart,
-  Truck,
-  Users,
-  Wallet,
-} from "lucide-react";
-
-const navItems = [
-  { href: "/", label: "Panel", shortLabel: "Panel", icon: Home },
-  { href: "/clientes", label: "Clientes", shortLabel: "Clientes", icon: Users },
-  {
-    href: "/presupuestos",
-    label: "Presupuestos",
-    shortLabel: "Presup.",
-    icon: Wallet,
-  },
-  {
-    href: "/facturas",
-    label: "Facturas",
-    shortLabel: "Factura",
-    icon: FileText,
-  },
-  { href: "/recibos", label: "Recibos", shortLabel: "Recibos", icon: Receipt },
-  {
-    href: "/gastos",
-    label: "Gastos",
-    shortLabel: "Gastos",
-    icon: ShoppingCart,
-  },
-  {
-    href: "/productos",
-    label: "Productos",
-    shortLabel: "Productos",
-    icon: PackageSearch,
-  },
-  {
-    href: "/rentabilidad-real",
-    label: "Rentabilidad Real",
-    shortLabel: "Rentab.",
-    icon: ChartNoAxesCombined,
-  },
-  {
-    href: "/proveedores",
-    label: "Proveedores",
-    shortLabel: "Proveedor",
-    icon: Truck,
-  },
-  {
-    href: "/impuestos",
-    label: "Impuestos",
-    shortLabel: "Impuestos",
-    icon: Landmark,
-  },
-  {
-    href: "/configuracion",
-    label: "Ajustes",
-    shortLabel: "Ajustes",
-    icon: Settings,
-  },
-];
+  APP_NAV_ITEMS,
+  findActiveAppNavItem,
+  isAppNavItemActive,
+  MOBILE_MORE_NAV_ITEMS,
+  MOBILE_PRIMARY_NAV_ITEMS,
+} from "@/components/layout/app-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -113,12 +54,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
-  const mobileNavRef = useRef<HTMLDivElement>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMoreMenuRef = useRef<HTMLDivElement>(null);
+  const firstMobileMoreLinkRef = useRef<HTMLAnchorElement>(null);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
-  const [navScrollState, setNavScrollState] = useState({
-    canScrollLeft: false,
-    canScrollRight: false,
-  });
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
@@ -129,25 +69,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? appStartPageHref(appPreferences.startPage)
     : "/inicio";
   const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
-
-  const updateNavScrollState = useCallback(() => {
-    const node = mobileNavRef.current;
-    if (!node) return;
-    const maxScrollLeft = node.scrollWidth - node.clientWidth;
-    setNavScrollState({
-      canScrollLeft: node.scrollLeft > 2,
-      canScrollRight: node.scrollLeft < maxScrollLeft - 2,
-    });
-  }, []);
-
-  const scrollMobileNav = useCallback((direction: "left" | "right") => {
-    const node = mobileNavRef.current;
-    if (!node) return;
-    node.scrollBy({
-      left: direction === "left" ? -180 : 180,
-      behavior: appPreferences.reduceMotion ? "auto" : "smooth",
-    });
-  }, [appPreferences.reduceMotion]);
+  const activeMobileMoreItem = findActiveAppNavItem(
+    pathname,
+    MOBILE_MORE_NAV_ITEMS,
+  );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -185,28 +110,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const node = mobileNavRef.current;
-    if (!node) return;
+    setMobileMoreOpen(false);
+  }, [pathname]);
 
-    updateNavScrollState();
-    const frame = window.requestAnimationFrame(updateNavScrollState);
-    const timeout = window.setTimeout(updateNavScrollState, 150);
-    const resizeObserver = new ResizeObserver(updateNavScrollState);
-    resizeObserver.observe(node);
-    if (node.firstElementChild) {
-      resizeObserver.observe(node.firstElementChild);
+  useEffect(() => {
+    if (!mobileMoreOpen) return;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      firstMobileMoreLinkRef.current?.focus();
+    });
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!(event.target instanceof Node)) return;
+      if (mobileMoreMenuRef.current?.contains(event.target)) return;
+      if (mobileMoreButtonRef.current?.contains(event.target)) return;
+      const focusWasInside = mobileMoreMenuRef.current?.contains(
+        document.activeElement,
+      );
+      setMobileMoreOpen(false);
+      if (focusWasInside) {
+        window.requestAnimationFrame(() => {
+          const activeElement = document.activeElement;
+          if (
+            !activeElement ||
+            activeElement === document.body ||
+            mobileMoreMenuRef.current?.contains(activeElement)
+          ) {
+            mobileMoreButtonRef.current?.focus();
+          }
+        });
+      }
     }
-    node.addEventListener("scroll", updateNavScrollState, { passive: true });
-    window.addEventListener("resize", updateNavScrollState);
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMobileMoreOpen(false);
+      window.requestAnimationFrame(() => mobileMoreButtonRef.current?.focus());
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timeout);
-      resizeObserver.disconnect();
-      node.removeEventListener("scroll", updateNavScrollState);
-      window.removeEventListener("resize", updateNavScrollState);
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [pathname, updateNavScrollState]);
+  }, [mobileMoreOpen]);
 
   return (
     <div
@@ -279,15 +228,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Navegación principal"
         >
           <div className="space-y-1">
-            {navItems.map(({ href, label, icon: Icon }) => {
-              const active =
-                href === "/" ? pathname === "/" : pathname.startsWith(href);
+            {APP_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = isAppNavItemActive(pathname, href);
               return (
                 <Link
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors ${
+                  className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                     active
                       ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
@@ -295,6 +243,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
                   <span className="truncate">{label}</span>
+                  {active ? (
+                    <Check
+                      className="ml-auto h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                   {href === "/configuracion" && <CloudSyncNavBadge />}
                 </Link>
               );
@@ -359,7 +313,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {!user ? (
                 <Link
                   href="/inicio"
-                  className="hidden items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:flex"
+                  className="hidden min-h-11 items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:flex"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Inicio
@@ -368,7 +322,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {user ? (
                 <Link
                   href="/cuenta"
-                  className="flex h-9 w-9 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-0 text-xs font-bold text-emerald-800 hover:bg-emerald-100 min-[430px]:h-auto min-[430px]:w-auto min-[430px]:max-w-[9rem] min-[430px]:justify-start min-[430px]:px-2.5 min-[430px]:py-1.5 sm:max-w-[13rem]"
+                  className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-0 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:w-auto min-[430px]:max-w-[9rem] min-[430px]:justify-start min-[430px]:px-2.5 min-[430px]:py-1.5 sm:max-w-[13rem]"
                   title={accountLabel}
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0" />
@@ -379,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   href="/cuenta#inicio-sesion"
-                  className="flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                  className="flex min-h-11 items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   <LogIn className="h-3.5 w-3.5" />
                   <span className="sm:hidden">Entrar</span>
@@ -390,7 +344,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/precios"
                   title={plan === "trial" ? "Prueba Pro" : "Miembro Pro"}
-                  className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold ${
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                     plan === "trial"
                       ? "bg-violet-100 text-violet-800"
                       : "bg-amber-100 text-amber-800"
@@ -406,7 +360,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/precios"
                   title="Hazte Pro"
-                  className="flex items-center gap-1 rounded-xl bg-violet-100 px-2.5 py-1.5 text-xs font-bold text-violet-800"
+                  className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-violet-100 px-2.5 py-1.5 text-xs font-bold text-violet-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   <Crown className="h-3.5 w-3.5" />
                   <span className="hidden min-[430px]:inline">Hazte Pro</span>
@@ -506,68 +460,146 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : null}
       </div>
 
-      <nav className="app-mobile-nav fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom lg:hidden">
+      <nav
+        className="app-mobile-nav fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md nav-safe-bottom lg:hidden"
+        aria-label="Navegación principal móvil"
+      >
         <div className="relative mx-auto max-w-3xl">
-          {navScrollState.canScrollLeft && (
-            <div className="app-mobile-nav-fade absolute inset-y-2 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white via-white/95 to-transparent pl-1 sm:hidden">
-              <button
-                type="button"
-                onClick={() => scrollMobileNav("left")}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                aria-label="Ver opciones anteriores del menú"
-                title="Ver opciones anteriores"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-          {navScrollState.canScrollRight && (
-            <div className="app-mobile-nav-fade absolute inset-y-2 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/95 to-transparent pr-1 sm:hidden">
-              <button
-                type="button"
-                onClick={() => scrollMobileNav("right")}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                aria-label="Ver más opciones del menú"
-                title="Ver más opciones"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
           <div
-            ref={mobileNavRef}
-            className={`nav-scroll mx-auto overflow-x-auto px-2 py-2 sm:px-2 ${
-              navScrollState.canScrollLeft ? "pl-10" : ""
-            } ${navScrollState.canScrollRight ? "pr-10" : ""}`}
-            aria-label="Navegación principal"
+            id="app-mobile-more-sections"
+            ref={mobileMoreMenuRef}
+            hidden={!mobileMoreOpen}
+            className="app-mobile-more-panel absolute bottom-full left-0 right-0 max-h-[65vh] overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-3 pb-3 pt-2 shadow-[0_-16px_35px_rgba(15,23,42,0.16)]"
+            aria-labelledby="app-mobile-more-title"
+            role="region"
           >
-            <div className="flex w-max min-w-full items-stretch justify-start gap-1 sm:justify-center">
-              {navItems.map(({ href, label, shortLabel, icon: Icon }) => {
-                const active =
-                  href === "/" ? pathname === "/" : pathname.startsWith(href);
+            <div className="mb-2 flex min-h-11 items-center justify-between gap-3">
+              <p
+                id="app-mobile-more-title"
+                className="text-sm font-bold text-slate-900"
+              >
+                Más secciones
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  mobileMoreButtonRef.current?.focus();
+                }}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                aria-label="Cerrar más secciones"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            <ul className="grid grid-cols-1 gap-2 min-[260px]:grid-cols-2 sm:grid-cols-3">
+              {MOBILE_MORE_NAV_ITEMS.map(
+                ({ href, label, icon: Icon }, index) => {
+                  const active = isAppNavItemActive(pathname, href);
+                  return (
+                    <li key={href}>
+                      <Link
+                        ref={index === 0 ? firstMobileMoreLinkRef : undefined}
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setMobileMoreOpen(false)}
+                        className={`relative flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                          active
+                            ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <Icon
+                          className="h-5 w-5 shrink-0"
+                          strokeWidth={active ? 2.5 : 2}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1 leading-tight">
+                          {label}
+                        </span>
+                        {active ? (
+                          <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold">
+                            Actual
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                        ) : null}
+                        {href === "/configuracion" && <CloudSyncNavBadge />}
+                      </Link>
+                    </li>
+                  );
+                },
+              )}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-5 items-stretch gap-1 px-2 py-2">
+            {MOBILE_PRIMARY_NAV_ITEMS.map(
+              ({ href, shortLabel, icon: Icon }) => {
+                const active = isAppNavItemActive(pathname, href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative flex h-[3.75rem] w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 transition-colors sm:h-16 sm:w-20 ${
+                    className={`relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                       active
                         ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
                         : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-                    {href === "/configuracion" && <CloudSyncNavBadge />}
-                    <span
-                      className="w-full truncate text-center text-[10px] font-semibold leading-tight sm:text-[11px]"
-                      title={label}
-                    >
+                    <Icon
+                      className="h-5 w-5 shrink-0"
+                      strokeWidth={active ? 2.5 : 2}
+                      aria-hidden="true"
+                    />
+                    {active ? (
+                      <Check
+                        className="absolute right-1.5 top-1.5 h-3.5 w-3.5"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span className="w-full text-center text-[11px] font-semibold leading-tight">
                       {shortLabel}
                     </span>
                   </Link>
                 );
-              })}
-            </div>
+              },
+            )}
+
+            <button
+              ref={mobileMoreButtonRef}
+              type="button"
+              onClick={() => setMobileMoreOpen((open) => !open)}
+              aria-expanded={mobileMoreOpen}
+              aria-controls="app-mobile-more-sections"
+              aria-current={
+                activeMobileMoreItem && !mobileMoreOpen ? "page" : undefined
+              }
+              aria-label={
+                activeMobileMoreItem
+                  ? `Más secciones. Sección actual: ${activeMobileMoreItem.label}`
+                  : "Más secciones"
+              }
+              className={`relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                activeMobileMoreItem
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
+                  : mobileMoreOpen
+                    ? "bg-slate-200 text-slate-950"
+                    : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Ellipsis className="h-5 w-5 shrink-0" aria-hidden="true" />
+              {activeMobileMoreItem ? (
+                <Check
+                  className="absolute right-1.5 top-1.5 h-3.5 w-3.5"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <span className="w-full text-center text-[11px] font-semibold leading-tight">
+                {activeMobileMoreItem ? "Más · Actual" : "Más"}
+              </span>
+            </button>
           </div>
         </div>
       </nav>

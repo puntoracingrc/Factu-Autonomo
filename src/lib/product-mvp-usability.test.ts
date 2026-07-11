@@ -132,22 +132,21 @@ describe("MVP usability polish", () => {
     expect(iconActionSource).toContain("MobileLabel");
   });
 
-  it("mantiene una pista visual de desplazamiento en el menu movil", () => {
+  it("prioriza la navegacion movil y conserva el resto en Mas", () => {
     const appShellSource = readFileSync(
       new URL("../components/layout/AppShell.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(appShellSource).toContain("nav-scroll");
-    expect(appShellSource).toContain("canScrollLeft");
-    expect(appShellSource).toContain("canScrollRight");
-    expect(appShellSource).toContain("Ver opciones anteriores del menú");
-    expect(appShellSource).toContain("Ver más opciones del menú");
-    expect(appShellSource).toContain("ChevronLeft");
-    expect(appShellSource).toContain("ChevronRight");
-    expect(appShellSource).toContain("bg-gradient-to-l");
-    expect(appShellSource).toContain("bg-gradient-to-r");
-    expect(appShellSource).toContain("sm:hidden");
+    expect(appShellSource).toContain("MOBILE_PRIMARY_NAV_ITEMS");
+    expect(appShellSource).toContain("MOBILE_MORE_NAV_ITEMS");
+    expect(appShellSource).toContain("Más secciones");
+    expect(appShellSource).toContain('aria-expanded={mobileMoreOpen}');
+    expect(appShellSource).toContain(
+      'aria-controls="app-mobile-more-sections"',
+    );
+    expect(appShellSource).toContain("grid-cols-5");
+    expect(appShellSource).not.toContain("overflow-x-auto");
   });
 
   it("mantiene la cabecera movil compacta sin estrujar la marca", () => {
@@ -167,7 +166,7 @@ describe("MVP usability polish", () => {
     expect(appShellSource).toContain(
       "hidden text-xs leading-tight text-slate-500 min-[430px]:block",
     );
-    expect(appShellSource).toContain("flex h-9 w-9 items-center");
+    expect(appShellSource).toContain("flex min-h-11 min-w-11 items-center");
     expect(appShellSource).toContain("hidden truncate min-[430px]:inline");
     expect(cloudIndicatorSource).toContain(
       "hidden whitespace-nowrap min-[430px]:inline",
