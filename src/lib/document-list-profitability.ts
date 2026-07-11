@@ -1,4 +1,8 @@
 import { roundMoney } from "./calculations";
+import {
+  expenseAllocatedAmountForWorkIds,
+  explicitExpenseWorkAllocations,
+} from "./expense-work-allocations";
 import { expenseFiscalAmounts, type WorkDocumentExpenseSummary } from "./expenses";
 import type { Expense } from "./types";
 
@@ -27,21 +31,37 @@ export function summarizeAllocatedWorkExpenses(input: {
   allocations?: Record<string, number>;
 }): WorkDocumentExpenseSummary | undefined {
   const ids = new Set(input.workDocumentIds);
-  const linkedExpenses = input.expenses.filter(
-    (expense) => expense.workDocumentId && ids.has(expense.workDocumentId),
-  );
+  const linkedExpenses = input.expenses
+    .map((expense) => {
+      const fiscal = expenseFiscalAmounts(expense);
+      const allocatedAmount = expenseAllocatedAmountForWorkIds(
+        expense,
+        ids,
+        fiscal.operatingCost,
+      );
+      return { expense, fiscal, allocatedAmount };
+    })
+    .filter(({ allocatedAmount }) => allocatedAmount !== 0);
   if (linkedExpenses.length === 0) return undefined;
 
   return linkedExpenses.reduce<WorkDocumentExpenseSummary>(
-    (summary, expense) => {
-      const fiscal = expenseFiscalAmounts(expense);
-      const allocation = input.allocations?.[expense.id];
+    (summary, { expense, fiscal, allocatedAmount }) => {
+      const legacyAllocation =
+        explicitExpenseWorkAllocations(expense).length === 0
+          ? input.allocations?.[expense.id]
+          : undefined;
       const appliedCost =
-        allocation === undefined
-          ? fiscal.operatingCost
-          : Math.min(Math.max(allocation, 0), fiscal.operatingCost);
+        legacyAllocation === undefined
+          ? allocatedAmount
+          : Math.sign(fiscal.operatingCost || 1) *
+            Math.min(
+              Math.abs(legacyAllocation),
+              Math.abs(fiscal.operatingCost),
+            );
       const ratio =
-        fiscal.operatingCost > 0 ? appliedCost / fiscal.operatingCost : 1;
+        fiscal.operatingCost !== 0
+          ? Math.min(Math.abs(appliedCost / fiscal.operatingCost), 1)
+          : 0;
 
       return {
         count: summary.count + 1,

@@ -50,6 +50,7 @@ import {
   resolveExpenseVat,
 } from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
+import { explicitExpenseWorkAllocations } from "@/lib/expense-work-allocations";
 import { expenseEditHref } from "@/lib/expense-links";
 import {
   aggregateExpensesBySupplier,
@@ -1023,6 +1024,7 @@ export default function GastosPage() {
               index > 0 ? visibleExpenses[index - 1] : null;
             const expenseVat = resolveExpenseVat(expense, vatExempt);
             const signedExpenseTotal = expenseAmount(expense, vatExempt);
+            const workAllocations = explicitExpenseWorkAllocations(expense);
             const showTimelineDivider =
               !previousExpense ||
               timelineMonthKey(previousExpense.date) !==
@@ -1076,6 +1078,8 @@ export default function GastosPage() {
                     {(expense.purchaseDocument?.invoiceNumber ||
                       expense.purchaseLines?.length ||
                       expense.workDocumentId ||
+                      workAllocations.length > 0 ||
+                      expense.workAllocationClosed ||
                       !isExpenseFiscalDeductible(expense) ||
                       signedExpenseTotal < 0) && (
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
@@ -1104,13 +1108,30 @@ export default function GastosPage() {
                             No desgravable
                           </span>
                         )}
-                        {expense.workDocumentId &&
+                        {workAllocations.length > 1 ? (
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
+                            {workAllocations.length} trabajos ·{" "}
+                            {formatMoney(
+                              workAllocations.reduce(
+                                (total, allocation) =>
+                                  total + allocation.amount,
+                                0,
+                              ),
+                            )}{" "}
+                            asignados
+                          </span>
+                        ) : expense.workDocumentId &&
                         documentsById.get(expense.workDocumentId) ? (
                           <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
                             Trabajo{" "}
                             {documentShortNumber(
                               documentsById.get(expense.workDocumentId)!,
                             )}
+                          </span>
+                        ) : null}
+                        {expense.workAllocationClosed ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                            Resto fuera de trabajos
                           </span>
                         ) : null}
                       </div>

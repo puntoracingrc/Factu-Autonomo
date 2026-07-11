@@ -413,6 +413,17 @@ export interface ExpenseProviderSummaryInfo {
   summaryIvaAmount?: number;
 }
 
+/** Reparto operativo de un gasto entre trabajos. No modifica el documento fiscal. */
+export interface ExpenseWorkAllocation {
+  workDocumentId: string;
+  /** Coste operativo aplicado a este trabajo, sin alterar el total del gasto. */
+  amount: number;
+  /** Líneas de compra incluidas cuando el gasto tiene detalle estructurado. */
+  includedLineIds?: string[];
+  allocatedAt: string;
+  updatedAt?: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -437,6 +448,10 @@ export interface Expense {
   providerSummary?: ExpenseProviderSummaryInfo;
   /** Factura o presupuesto al que pertenece esta compra para calcular margen del trabajo. */
   workDocumentId?: string;
+  /** Repartos operativos persistentes; permite usar líneas distintas en varios trabajos. */
+  workAllocations?: ExpenseWorkAllocation[];
+  /** El usuario ha indicado que el importe restante no corresponde a ningún trabajo. */
+  workAllocationClosed?: boolean;
   /** Gasto generado desde un gasto fijo */
   recurringExpenseId?: string;
   recurringOccurrenceKey?: string;

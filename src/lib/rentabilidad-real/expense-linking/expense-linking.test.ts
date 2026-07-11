@@ -3,6 +3,7 @@ import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/typ
 import {
   buildExpenseLinkImpact,
   canLinkExpenseToWork,
+  closeExpenseForFutureWork,
   createExpenseWorkDocumentUnlinkPayload,
   createExpenseWorkDocumentUpdatePayload,
   getAlreadyLinkedExpensesForWork,
@@ -129,7 +130,13 @@ describe("rentabilidad real expense linking", () => {
     const payload = createExpenseWorkDocumentUpdatePayload(expense, "doc_1");
 
     expect(expense).toEqual(before);
-    expect(payload).toEqual({ ...expense, workDocumentId: "doc_1" });
+    expect(payload.workDocumentId).toBe("doc_1");
+    expect(payload.workAllocations).toEqual([
+      expect.objectContaining({
+        workDocumentId: "doc_1",
+        amount: 100,
+      }),
+    ]);
   });
 
   it("genera payload de desvinculación sin mutar input", () => {
@@ -187,5 +194,98 @@ describe("rentabilidad real expense linking", () => {
     expect(result[0].warnings.map((warning) => warning.code)).toContain(
       "provider_summary_missing_original",
     );
+  });
+
+  it("mantiene como candidato un gasto con líneas todavía libres", () => {
+    const expense = expenseFixture({
+      purchaseLines: [
+        {
+          id: "line_1",
+          description: "Material trabajo uno",
+          quantity: 1,
+          unitPrice: 60,
+        },
+        {
+          id: "line_2",
+          description: "Material trabajo dos",
+          quantity: 1,
+          unitPrice: 40,
+        },
+      ],
+    });
+    const firstLink = createExpenseWorkDocumentUpdatePayload(
+      expense,
+      "doc_1",
+      ["line_1"],
+    );
+
+    const candidates = getExpenseLinkCandidatesForWork(
+      appData({ expenses: [firstLink] }),
+      ["doc_2"],
+    );
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      status: "partially_linked_elsewhere",
+      availableLineIds: ["line_2"],
+      allocatedElsewhereAmount: 60,
+      remainingAmount: 40,
+    });
+
+    const secondLink = createExpenseWorkDocumentUpdatePayload(
+      firstLink,
+      "doc_2",
+      candidates[0].availableLineIds,
+    );
+    expect(
+      getExpenseLinkCandidatesForWork(appData({ expenses: [secondLink] }), [
+        "doc_3",
+      ]),
+    ).toHaveLength(0);
+    expect(
+      getAlreadyLinkedExpensesForWork(appData({ expenses: [secondLink] }), [
+        "doc_1",
+      ]),
+    ).toHaveLength(1);
+    expect(
+      getAlreadyLinkedExpensesForWork(appData({ expenses: [secondLink] }), [
+        "doc_2",
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it("desvincula solo el trabajo elegido y conserva los demás repartos", () => {
+    const expense = expenseFixture({
+      workDocumentId: "doc_1",
+      workAllocations: [
+        {
+          workDocumentId: "doc_1",
+          amount: 60,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+        {
+          workDocumentId: "doc_2",
+          amount: 40,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const payload = createExpenseWorkDocumentUnlinkPayload(expense, ["doc_1"]);
+
+    expect(payload.workDocumentId).toBe("doc_2");
+    expect(payload.workAllocations).toEqual([
+      expect.objectContaining({ workDocumentId: "doc_2", amount: 40 }),
+    ]);
+  });
+
+  it("permite cerrar el importe restante para retirarlo de candidatos", () => {
+    const expense = closeExpenseForFutureWork(expenseFixture());
+
+    expect(
+      getExpenseLinkCandidatesForWork(appData({ expenses: [expense] }), [
+        "doc_1",
+      ]),
+    ).toHaveLength(0);
   });
 });

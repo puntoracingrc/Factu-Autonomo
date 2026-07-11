@@ -1,5 +1,9 @@
 import { roundMoney } from "./calculations";
 import { isDraftInvoiceNumber, sortDocumentsByNewest } from "./documents";
+import {
+  expenseAllocatedAmountForWorkIds,
+  explicitExpenseWorkAllocations,
+} from "./expense-work-allocations";
 import { expenseFiscalAmounts } from "./expenses";
 import { findInvoiceCreatedFromQuote } from "./quote-to-invoice";
 import { isRectificativa } from "./rectificativas";
@@ -199,17 +203,34 @@ export function getDocumentChainItems(
     [invoice, rectification, quote].map((item) => item?.id).filter(Boolean),
   );
   const linkedExpenses = expenses.filter(
-    (expense) =>
-      expense.workDocumentId && workDocumentIds.has(expense.workDocumentId),
+    (expense) => {
+      const fiscal = expenseFiscalAmounts(expense);
+      return (
+        expenseAllocatedAmountForWorkIds(
+          expense,
+          workDocumentIds as Set<string>,
+          fiscal.operatingCost,
+        ) !== 0
+      );
+    },
   );
   if (linkedExpenses.length > 0) {
     const expenseAmount = linkedExpenses.reduce((total, expense) => {
       const operatingCost = expenseFiscalAmounts(expense).operatingCost;
-      const allocation = expenseAllocations[expense.id];
+      const persistedAllocation = expenseAllocatedAmountForWorkIds(
+        expense,
+        workDocumentIds as Set<string>,
+        operatingCost,
+      );
+      const allocation =
+        explicitExpenseWorkAllocations(expense).length === 0
+          ? expenseAllocations[expense.id]
+          : undefined;
       const appliedCost =
         allocation === undefined
-          ? operatingCost
-          : Math.min(Math.max(allocation, 0), operatingCost);
+          ? persistedAllocation
+          : Math.sign(operatingCost || 1) *
+            Math.min(Math.abs(allocation), Math.abs(operatingCost));
       return roundMoney(total + appliedCost);
     }, 0);
     items.push({

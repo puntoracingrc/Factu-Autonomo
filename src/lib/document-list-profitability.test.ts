@@ -59,6 +59,46 @@ describe("calculateInvoiceListProfitability", () => {
     });
   });
 
+  it("usa el reparto persistente del gasto aunque conserve un vínculo principal", () => {
+    const expense: Expense = {
+      id: "expense-shared",
+      date: "2026-07-11",
+      supplierName: "Proveedor",
+      description: "Material compartido",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "invoice-1",
+      workAllocations: [
+        {
+          workDocumentId: "invoice-1",
+          amount: 65,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+        {
+          workDocumentId: "invoice-2",
+          amount: 35,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+      ],
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+
+    expect(
+      summarizeAllocatedWorkExpenses({
+        expenses: [expense],
+        workDocumentIds: ["invoice-2"],
+        allocations: { "expense-shared": 99 },
+      }),
+    ).toEqual({
+      count: 1,
+      cost: 35,
+      deductibleBase: 35,
+      deductibleIva: 7.35,
+    });
+  });
+
   it("no reserva IRPF si el beneficio es negativo", () => {
     expect(
       calculateInvoiceListProfitability({

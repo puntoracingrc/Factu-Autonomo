@@ -911,6 +911,46 @@ describe("expenseTotalsFromBase", () => {
     });
   });
 
+  it("resume un mismo gasto por los importes asignados a varios trabajos", () => {
+    const shared: Expense = {
+      id: "expense-shared",
+      date: "2026-07-11",
+      supplierName: "Proveedor Demo",
+      description: "Compra para dos trabajos",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "document-1",
+      workAllocations: [
+        {
+          workDocumentId: "document-1",
+          amount: 60,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+        {
+          workDocumentId: "document-2",
+          amount: 40,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+      ],
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+
+    expect(summarizeWorkDocumentExpenses([shared], "document-1")).toEqual({
+      count: 1,
+      cost: 60,
+      deductibleBase: 60,
+      deductibleIva: 12.6,
+    });
+    expect(summarizeWorkDocumentExpenses([shared], "document-2")).toEqual({
+      count: 1,
+      cost: 40,
+      deductibleBase: 40,
+      deductibleIva: 8.4,
+    });
+  });
+
   it("propaga el IVA mixto a los resúmenes de gastos vinculados", () => {
     const mixedLines = [
       {
