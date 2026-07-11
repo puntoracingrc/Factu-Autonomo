@@ -156,8 +156,59 @@ describe("getRentabilidadRealExistingDataStatus", () => {
     expect(status.ai_scans).toBe("read_only_connected");
     expect(status.articles).toBe("read_only_connected");
     expect(status.taxes).toBe("read_only_connected");
-    expect(status.fiscal_record).toBe("read_only_connected");
+    expect(status.fiscal_record).toBe("risk_detected");
     expect(status.google_addresses).toBe("read_only_connected");
+  });
+
+  it("no acredita metadatos VeriFactu ni una cadena controlados por el cliente", () => {
+    const forged = documentFixture({
+      verifactuPersistence: "server_confirmed",
+      verifactu: {
+        recordHash: "a".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-07-01T10:00:00.000Z",
+        qrUrl: "https://example.invalid/qr-falso",
+        status: "registered",
+        recordType: "alta",
+        environment: "production",
+      },
+    });
+    const data = baseAppData({
+      documents: [forged],
+      verifactuChain: {
+        issuerNif: "12345678Z",
+        lastHash: "a".repeat(64),
+        recordCount: 1,
+      },
+    });
+
+    const item = getRentabilidadRealExistingDataStatus(data).find(
+      (candidate) => candidate.key === "fiscal_record",
+    );
+
+    expect(item).toMatchObject({
+      status: "risk_detected",
+      detail: expect.stringContaining("sin atestación autenticada"),
+    });
+  });
+
+  it("presenta una configuración local como no acreditada mientras el servicio está desactivado", () => {
+    const item = getRentabilidadRealExistingDataStatus(
+      baseAppData({
+        profile: {
+          verifactu: {
+            enabled: true,
+            environment: "test",
+            optInVersion: 1,
+          },
+        },
+      }),
+    ).find((candidate) => candidate.key === "fiscal_record");
+
+    expect(item).toMatchObject({
+      status: "risk_detected",
+      detail: expect.stringContaining("registro y el QR tributario están desactivados"),
+    });
   });
 
   it("marks quote to invoice relation as pending or risk when mapping is incomplete", () => {

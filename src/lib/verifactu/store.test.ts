@@ -5,7 +5,10 @@ import {
   inspectDocumentSnapshotsIntegrity,
   issueDocument,
 } from "../document-integrity";
-import { withVerifactuOnDocument } from "./store";
+import {
+  resolveVerifactuRegistrationContext,
+  withVerifactuOnDocument,
+} from "./store";
 
 const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
@@ -44,6 +47,30 @@ function factura(
 }
 
 describe("withVerifactuOnDocument", () => {
+  it("respeta un perfil histórico y una cadena nula explícitos", () => {
+    const currentChain = {
+      issuerNif: profile.nif,
+      lastHash: "A".repeat(64),
+      recordCount: 1,
+    };
+    const historicalProfile = { ...profile, name: "Emisor histórico" };
+    const document = factura();
+
+    expect(
+      resolveVerifactuRegistrationContext({
+        doc: document,
+        profile,
+        chain: currentChain,
+        profileOverride: historicalProfile,
+        chainOverride: null,
+      }),
+    ).toEqual({
+      doc: document,
+      profile: historicalProfile,
+      chain: null,
+    });
+  });
+
   it("no adjunta metadatos, QR ni avanza cadena en el cliente", async () => {
     const result = await withVerifactuOnDocument({
       doc: factura(),

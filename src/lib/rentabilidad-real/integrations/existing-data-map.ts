@@ -1,5 +1,6 @@
 import { isFixedExpense } from "@/lib/expense-classification";
 import type { AppData, Document } from "@/lib/types";
+import { hasAuthenticatedVerifactuAttestation } from "@/lib/verifactu/attestation";
 import type {
   ProfitabilityExistingDataStatus,
   ProfitabilityExistingDataStatusItem,
@@ -62,7 +63,10 @@ export function getRentabilidadRealExistingDataStatus(
       Boolean(expense.purchaseLines?.length),
   );
   const hasTaxableData = documents.length > 0 || expenses.length > 0;
-  const hasFiscalRecord =
+  const hasAuthenticatedFiscalRecord = documents.some(
+    hasAuthenticatedVerifactuAttestation,
+  );
+  const hasUntrustedFiscalMetadata =
     Boolean(data.verifactuChain?.recordCount) ||
     documents.some((doc) => Boolean(doc.verifactu));
   const hasVerifactuConfig = Boolean(data.profile?.verifactu?.enabled);
@@ -174,13 +178,18 @@ export function getRentabilidadRealExistingDataStatus(
     {
       key: "fiscal_record",
       label: "Registro fiscal",
-      status: hasFiscalRecord
+      status: hasAuthenticatedFiscalRecord
         ? "read_only_connected"
-        : hasVerifactuConfig
-          ? "detected"
+        : hasUntrustedFiscalMetadata || hasVerifactuConfig
+          ? "risk_detected"
           : "not_found",
-      detail:
-        "El registro fiscal y Veri*Factu se mantienen en su flujo actual; Rentabilidad Real solo los consultará como evidencia.",
+      detail: hasAuthenticatedFiscalRecord
+        ? "Rentabilidad Real solo consulta evidencia fiscal autenticada y vinculada al documento canónico."
+        : hasUntrustedFiscalMetadata
+          ? "Hay metadatos Veri*Factu locales o históricos sin atestación autenticada. No se consideran registro ni evidencia fiscal."
+          : hasVerifactuConfig
+            ? "La configuración local no activa ni acredita Veri*Factu: el registro y el QR tributario están desactivados."
+            : "No hay ningún registro fiscal autenticado; Veri*Factu y el QR tributario están desactivados.",
       sourceLink: {
         sourceType: "fiscal_record",
         label: "Registro fiscal",

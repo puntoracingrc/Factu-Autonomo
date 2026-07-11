@@ -1736,8 +1736,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     async (
       doc: Document,
       chainOverride?: AppData["verifactuChain"],
-      _profileOverride?: BusinessProfile,
+      profileOverride?: BusinessProfile,
     ): Promise<Document> => {
+      // El perfil ya se aplicó al documento canónico antes de esta frontera.
+      // Conservamos el argumento para que una rectificativa nunca pierda su
+      // contexto histórico cuando exista una atestación real verificable.
+      void profileOverride;
       if (!hasAuthenticatedVerifactuAttestation(doc)) {
         throw new Error(
           "El cliente no puede confirmar un registro Veri*Factu sin una atestación autenticada del servidor.",
