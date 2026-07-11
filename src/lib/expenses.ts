@@ -1,6 +1,7 @@
 import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
 import { isFixedExpense } from "./expense-classification";
+import { explicitExpenseWorkAllocations } from "./expense-work-allocations";
 import { supplierCompareKey } from "./supplier-normalization";
 import type {
   Expense,
@@ -571,24 +572,46 @@ export function summarizeWorkDocumentExpensesById(
   const summaries = new Map<string, WorkDocumentExpenseSummary>();
 
   for (const expense of expenses) {
-    if (!expense.workDocumentId) continue;
-    const current = summaries.get(expense.workDocumentId) ?? {
-      count: 0,
-      cost: 0,
-      deductibleBase: 0,
-      deductibleIva: 0,
-    };
     const fiscal = expenseFiscalAmounts(expense);
-    summaries.set(expense.workDocumentId, {
-      count: current.count + 1,
-      cost: roundMoneySymmetric(current.cost + fiscal.operatingCost),
-      deductibleBase: roundMoneySymmetric(
-        current.deductibleBase + fiscal.deductibleBase,
-      ),
-      deductibleIva: roundMoneySymmetric(
-        current.deductibleIva + fiscal.deductibleIva,
-      ),
-    });
+    const explicit = explicitExpenseWorkAllocations(expense);
+    const allocations =
+      explicit.length > 0
+        ? explicit
+        : expense.workDocumentId
+          ? [
+              {
+                workDocumentId: expense.workDocumentId,
+                amount: fiscal.operatingCost,
+                allocatedAt: expense.createdAt,
+              },
+            ]
+          : [];
+
+    for (const allocation of allocations) {
+      const current = summaries.get(allocation.workDocumentId) ?? {
+        count: 0,
+        cost: 0,
+        deductibleBase: 0,
+        deductibleIva: 0,
+      };
+      const ratio =
+        fiscal.operatingCost === 0
+          ? 0
+          : Math.min(
+              Math.abs(allocation.amount / fiscal.operatingCost),
+              1,
+            );
+      summaries.set(allocation.workDocumentId, {
+        count: current.count + 1,
+        cost: roundMoneySymmetric(current.cost + allocation.amount),
+        deductibleBase: roundMoneySymmetric(
+          current.deductibleBase + fiscal.deductibleBase * ratio,
+        ),
+        deductibleIva: roundMoneySymmetric(
+          current.deductibleIva + fiscal.deductibleIva * ratio,
+        ),
+      });
+    }
   }
 
   return summaries;

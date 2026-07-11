@@ -1,5 +1,7 @@
 import { documentTotals } from "@/lib/calculations";
 import { isFixedExpense } from "@/lib/expense-classification";
+import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
+import { expenseFiscalAmounts } from "@/lib/expenses";
 import { documentStatusLabel } from "@/lib/invoice-status-actions";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import {
@@ -114,12 +116,17 @@ function linkedExpensesCount(
   expenses: Expense[],
 ) {
   const ids = relatedDocumentIds(document, allDocuments);
-  return expenses.filter(
-    (expense) =>
-      Boolean(expense.workDocumentId) &&
-      ids.has(expense.workDocumentId!) &&
-      !isFixedExpense(expense),
-  ).length;
+  return expenses.filter((expense) => {
+    if (isFixedExpense(expense)) return false;
+    const fiscal = expenseFiscalAmounts(expense);
+    return (
+      expenseAllocatedAmountForWorkIds(
+        expense,
+        ids,
+        fiscal.operatingCost,
+      ) !== 0
+    );
+  }).length;
 }
 
 export function buildRentabilidadRealWorkDocumentOptions({

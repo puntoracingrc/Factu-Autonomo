@@ -236,6 +236,9 @@ export default function NuevoGastoPage() {
   );
   const editingRequested = Boolean(editingExpenseId);
   const editingRecurringExpense = Boolean(editingExpense?.recurringExpenseId);
+  const workAllocationManagedFromDocuments = Boolean(
+    editingExpense?.workAllocations?.length,
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1428,7 +1431,9 @@ export default function NuevoGastoPage() {
       purchaseDocument: cleanedPurchaseDocument,
       purchaseLines:
         cleanedPurchaseLines.length > 0 ? cleanedPurchaseLines : undefined,
-      workDocumentId: workDocumentId || undefined,
+      workDocumentId: workAllocationManagedFromDocuments
+        ? editingExpense?.workDocumentId
+        : workDocumentId || undefined,
       origin: expenseOrigin,
       businessKind,
     };
@@ -2239,7 +2244,11 @@ export default function NuevoGastoPage() {
             <FormSection
               variant="search"
               title="Trabajo relacionado"
-              hint="Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
+              hint={
+                workAllocationManagedFromDocuments
+                  ? "Este gasto está repartido desde Facturas. Gestiona allí sus trabajos y líneas para conservar el reparto."
+                  : "Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
+              }
             >
               {selectedWorkDocument ? (
                 <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
@@ -2250,22 +2259,29 @@ export default function NuevoGastoPage() {
                     {documentShortNumber(selectedWorkDocument)} ·{" "}
                     {selectedWorkDocument.client.name}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setWorkDocumentId("")}
-                    className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
-                  >
-                    Quitar vínculo
-                  </button>
+                  {workAllocationManagedFromDocuments ? (
+                    <span className="text-xs font-bold text-blue-700">
+                      Reparto gestionado desde Facturas
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setWorkDocumentId("")}
+                      className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
+                    >
+                      Quitar vínculo
+                    </button>
+                  )}
                 </div>
               ) : null}
-              <Field label="Buscar factura o presupuesto">
-                <Input
-                  value={workDocumentQuery}
-                  onChange={(event) => setWorkDocumentQuery(event.target.value)}
-                  placeholder="Número, cliente o importe..."
-                />
-              </Field>
+              {!workAllocationManagedFromDocuments ? (
+                <><Field label="Buscar factura o presupuesto">
+                  <Input
+                    value={workDocumentQuery}
+                    onChange={(event) => setWorkDocumentQuery(event.target.value)}
+                    placeholder="Número, cliente o importe..."
+                  />
+                </Field>
               <div className="space-y-2">
                 {workDocumentResults.length === 0 ? (
                   <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
@@ -2315,6 +2331,8 @@ export default function NuevoGastoPage() {
                   ))
                 )}
               </div>
+                </>
+              ) : null}
             </FormSection>
           )}
 

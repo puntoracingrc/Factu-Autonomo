@@ -1,4 +1,16 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import {
+  expenseAllocatedAmountForWorkIds,
+  expenseAllocatedLineIds,
+  expenseTotalAllocatedAmount,
+  explicitExpenseWorkAllocations,
+  removeExpenseWorkAllocations,
+  upsertExpenseWorkAllocation,
+} from "@/lib/expense-work-allocations";
+import {
+  expenseFiscalAmounts,
+  expensePurchaseLineBaseTotal,
+} from "@/lib/expenses";
 import { isProviderSummaryPendingOriginal } from "@/lib/provider-summary-expenses";
 import type { AppData, Document, Expense } from "@/lib/types";
 import type {
@@ -87,6 +99,43 @@ function warningsForExpense(
   return warnings;
 }
 
+function selectableLineIds(expense: Expense): string[] {
+  return (expense.purchaseLines ?? [])
+    .filter(
+      (line) => line.id && Math.abs(expensePurchaseLineBaseTotal(line)) > 0,
+    )
+    .map((line) => line.id);
+}
+
+function availableLineIds(expense: Expense): string[] {
+  const allocated = expenseAllocatedLineIds(expense);
+  return selectableLineIds(expense).filter((lineId) => !allocated.has(lineId));
+}
+
+function remainingExpenseAmount(expense: Expense): number {
+  const fullAmount = expenseFiscalAmounts(expense).operatingCost;
+  const allocated = expenseTotalAllocatedAmount(expense, fullAmount);
+  const remainingMagnitude = Math.max(
+    0,
+    Math.abs(fullAmount) - Math.abs(allocated),
+  );
+  return (fullAmount < 0 ? -1 : 1) * remainingMagnitude;
+}
+
+function expenseHasAllocationForWork(
+  expense: Expense,
+  workDocumentIds: readonly string[],
+): boolean {
+  const fiscal = expenseFiscalAmounts(expense);
+  return (
+    expenseAllocatedAmountForWorkIds(
+      expense,
+      workDocumentIds,
+      fiscal.operatingCost,
+    ) !== 0
+  );
+}
+
 function candidateReason(expense: Expense, distanceDays: number | null): string {
   if (isProviderSummaryPendingOriginal(expense)) {
     return "Registrado desde resumen de proveedor; falta la factura original.";
@@ -124,7 +173,19 @@ export function canLinkExpenseToWork(
   expense: Expense,
   targetDocumentId: string,
 ): boolean {
-  return Boolean(targetDocumentId) && !isFixedExpense(expense);
+  if (!targetDocumentId || isFixedExpense(expense) || expense.workAllocationClosed) {
+    return false;
+  }
+  if (
+    expense.workDocumentId &&
+    explicitExpenseWorkAllocations(expense).length === 0
+  ) {
+    return false;
+  }
+  const lines = selectableLineIds(expense);
+  return lines.length > 0
+    ? availableLineIds(expense).length > 0
+    : Math.abs(remainingExpenseAmount(expense)) > 0;
 }
 
 export function getAlreadyLinkedExpensesForWork(
@@ -133,7 +194,7 @@ export function getAlreadyLinkedExpensesForWork(
 ): RentabilidadRealExpenseLinkCandidate[] {
   const ids = new Set(workDocumentIds);
   return appData.expenses
-    .filter((expense) => expense.workDocumentId && ids.has(expense.workDocumentId))
+    .filter((expense) => expenseHasAllocationForWork(expense, [...ids]))
     .filter((expense) => !isFixedExpense(expense))
     .map((expense) => ({
       expense,
@@ -143,6 +204,8 @@ export function getAlreadyLinkedExpensesForWork(
         (warning) => warning.code !== "expense_linked_to_other_document",
       ),
       score: 100,
+      availableLineIds: availableLineIds(expense),
+      remainingAmount: remainingExpenseAmount(expense),
     }));
 }
 
@@ -152,16 +215,33 @@ export function getExpenseLinkCandidatesForWork(
 ): RentabilidadRealExpenseLinkCandidate[] {
   const relatedDocuments = documentsByIds(appData, workDocumentIds);
   return appData.expenses
-    .filter((expense) => !expense.workDocumentId)
     .filter((expense) => !isFixedExpense(expense))
+    .filter((expense) => !expense.workAllocationClosed)
+    .filter((expense) => !expenseHasAllocationForWork(expense, workDocumentIds))
+    .filter((expense) => canLinkExpenseToWork(expense, workDocumentIds[0] ?? ""))
     .map((expense) => {
       const distanceDays = nearestDocumentDateDistance(expense, relatedDocuments);
+      const allocations = explicitExpenseWorkAllocations(expense);
+      const partiallyLinked = allocations.length > 0;
+      const remainingAmount = remainingExpenseAmount(expense);
       return {
         expense,
-        status: "unlinked_candidate" as const,
-        suggestedReason: candidateReason(expense, distanceDays),
+        status: partiallyLinked
+          ? ("partially_linked_elsewhere" as const)
+          : ("unlinked_candidate" as const),
+        suggestedReason: partiallyLinked
+          ? "Parte de este gasto ya está asignada a otro trabajo; queda importe disponible."
+          : candidateReason(expense, distanceDays),
         warnings: warningsForExpense(expense),
         score: candidateScore(expense, distanceDays),
+        availableLineIds: availableLineIds(expense),
+        allocatedElsewhereAmount: partiallyLinked
+          ? expenseTotalAllocatedAmount(
+              expense,
+              expenseFiscalAmounts(expense).operatingCost,
+            )
+          : undefined,
+        remainingAmount,
       };
     })
     .sort((a, b) => b.score - a.score || b.expense.date.localeCompare(a.expense.date));
@@ -173,7 +253,7 @@ export function getIgnoredExpensesForWork(
 ): RentabilidadRealIgnoredExpenseReason[] {
   const ids = new Set(workDocumentIds);
   return appData.expenses.flatMap((expense) => {
-    if (expense.workDocumentId && ids.has(expense.workDocumentId)) return [];
+    if (expenseHasAllocationForWork(expense, [...ids])) return [];
     if (isFixedExpense(expense)) {
       return [
         {
@@ -192,17 +272,25 @@ export function buildExpenseLinkImpact(
   expense: Expense,
   targetDocumentId: string,
 ): RentabilidadRealExpenseLinkImpact {
-  const reassign =
-    Boolean(expense.workDocumentId) && expense.workDocumentId !== targetDocumentId;
+  const partiallyAllocated = explicitExpenseWorkAllocations(expense).some(
+    (allocation) => allocation.workDocumentId !== targetDocumentId,
+  );
+  const legacyReassign =
+    explicitExpenseWorkAllocations(expense).length === 0 &&
+    Boolean(expense.workDocumentId) &&
+    expense.workDocumentId !== targetDocumentId;
   return {
-    action: reassign ? "reassign" : "link",
+    action: legacyReassign ? "reassign" : "link",
     expenseId: expense.id,
     previousWorkDocumentId: expense.workDocumentId,
     nextWorkDocumentId: targetDocumentId,
-    requiresConfirmation: reassign || isFixedExpense(expense),
+    requiresConfirmation:
+      legacyReassign || partiallyAllocated || isFixedExpense(expense),
     warnings: warningsForExpense(expense),
-    message: reassign
-      ? "Este gasto ya está enlazado a otro documento. Si lo reasignas, dejará de estar asociado al anterior."
+    message: legacyReassign
+      ? "Este gasto conserva un vínculo antiguo con otro documento. Debes desvincularlo allí antes de repartirlo."
+      : partiallyAllocated
+      ? "Se asignará a este trabajo solo la parte todavía disponible. Lo ya vinculado a otros trabajos se conservará."
       : "Se enlazará este gasto existente al trabajo seleccionado. No se creará un gasto nuevo.",
   };
 }
@@ -225,16 +313,68 @@ export function buildExpenseUnlinkImpact(
 export function createExpenseWorkDocumentUpdatePayload(
   expense: Expense,
   targetDocumentId: string,
+  includedLineIds?: string[],
 ): Expense {
-  return {
-    ...expense,
+  const fiscal = expenseFiscalAmounts(expense);
+  const lineIds = selectableLineIds(expense);
+  const availableIds = new Set(availableLineIds(expense));
+  const selectedLineIds = (includedLineIds ?? lineIds).filter((lineId) =>
+    availableIds.has(lineId),
+  );
+  let amount = remainingExpenseAmount(expense);
+
+  if (lineIds.length > 0) {
+    const lineBaseById = new Map(
+      (expense.purchaseLines ?? []).map((line) => [
+        line.id,
+        Math.abs(expensePurchaseLineBaseTotal(line)),
+      ]),
+    );
+    const totalBase = lineIds.reduce(
+      (total, lineId) => total + (lineBaseById.get(lineId) ?? 0),
+      0,
+    );
+    const selectedBase = selectedLineIds.reduce(
+      (total, lineId) => total + (lineBaseById.get(lineId) ?? 0),
+      0,
+    );
+    amount =
+      totalBase > 0
+        ? (fiscal.operatingCost < 0 ? -1 : 1) *
+          Math.abs(fiscal.operatingCost) *
+          (selectedBase / totalBase)
+        : 0;
+  }
+
+  return upsertExpenseWorkAllocation(expense, {
     workDocumentId: targetDocumentId,
-  };
+    amount,
+    fullAmount: fiscal.operatingCost,
+    includedLineIds: lineIds.length > 0 ? selectedLineIds : undefined,
+  });
 }
 
-export function createExpenseWorkDocumentUnlinkPayload(expense: Expense): Expense {
-  return {
-    ...expense,
-    workDocumentId: undefined,
-  };
+export function createExpenseWorkDocumentUnlinkPayload(
+  expense: Expense,
+  workDocumentIds?: readonly string[],
+): Expense {
+  return removeExpenseWorkAllocations(
+    expense,
+    workDocumentIds ?? [
+      ...new Set(
+        explicitExpenseWorkAllocations(expense).map(
+          (allocation) => allocation.workDocumentId,
+        ),
+      ),
+      ...(expense.workDocumentId ? [expense.workDocumentId] : []),
+    ],
+  );
+}
+
+export function closeExpenseForFutureWork(expense: Expense): Expense {
+  return { ...expense, workAllocationClosed: true };
+}
+
+export function reopenExpenseForFutureWork(expense: Expense): Expense {
+  return { ...expense, workAllocationClosed: false };
 }

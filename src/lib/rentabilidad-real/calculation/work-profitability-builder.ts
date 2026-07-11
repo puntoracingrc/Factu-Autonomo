@@ -1,4 +1,8 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import {
+  expenseAllocatedAmountForWorkIds,
+  explicitExpenseWorkAllocations,
+} from "@/lib/expense-work-allocations";
 import { roundMoney } from "@/lib/calculations";
 import {
   getAlreadyLinkedExpensesForWork,
@@ -120,14 +124,14 @@ function applyDirectCostAmountOverride(
   if (
     amountOverride === undefined ||
     !Number.isFinite(amountOverride) ||
-    cost.amount <= 0
+    cost.amount === 0
   ) {
     return cost;
   }
 
-  const appliedAmount = Math.min(
-    Math.max(roundMoney(amountOverride), 0),
-    cost.amount,
+  const appliedAmount = roundMoney(
+    Math.sign(cost.amount) *
+      Math.min(Math.abs(roundMoney(amountOverride)), Math.abs(cost.amount)),
   );
   if (appliedAmount === cost.amount) return cost;
 
@@ -304,26 +308,27 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     data,
     relatedDocumentIdList,
   );
-  const seenDirectCostIds = new Set<string>();
   const directCosts = data.expenses
     .filter((expense) => !isFixedExpense(expense))
-    .filter(
-      (expense) =>
-        expense.workDocumentId && relatedDocumentIds.has(expense.workDocumentId),
-    )
-    .filter((expense) => {
-      if (seenDirectCostIds.has(expense.id)) return false;
-      seenDirectCostIds.add(expense.id);
-      return true;
-    })
-    .map(mapExistingExpenseToProfitabilityCost)
-    .map(workCostFromDirectCost)
-    .map((cost) =>
-      applyDirectCostAmountOverride(
-        cost,
-        params.directCostAmountOverrides?.[cost.id],
-      ),
-    );
+    .flatMap((expense) => {
+      const source = mapExistingExpenseToProfitabilityCost(expense);
+      const allocatedAmount = expenseAllocatedAmountForWorkIds(
+        expense,
+        relatedDocumentIds,
+        source.amount,
+      );
+      if (allocatedAmount === 0) return [];
+      const cost = applyDirectCostAmountOverride(
+        {
+          ...workCostFromDirectCost(source),
+          workDocumentId: selectedDocument.id,
+        },
+        explicitExpenseWorkAllocations(expense).length > 0
+          ? allocatedAmount
+          : params.directCostAmountOverrides?.[expense.id] ?? allocatedAmount,
+      );
+      return [cost];
+    });
   const unlinkedDirectCosts = data.expenses.filter(
     (expense) => !isFixedExpense(expense) && !expense.workDocumentId,
   );

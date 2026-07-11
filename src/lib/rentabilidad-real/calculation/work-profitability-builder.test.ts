@@ -259,6 +259,55 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
     });
   });
 
+  it("usa el reparto persistente distinto para cada trabajo", () => {
+    const firstInvoice = documentFixture({ id: "invoice_1", type: "factura" });
+    const secondInvoice = documentFixture({ id: "invoice_2", type: "factura" });
+    const sharedExpense = expenseFixture({
+      id: "expense_shared",
+      amount: 200,
+      ivaPercent: 21,
+      workDocumentId: "invoice_1",
+      workAllocations: [
+        {
+          workDocumentId: "invoice_1",
+          amount: 125,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+        {
+          workDocumentId: "invoice_2",
+          amount: 75,
+          allocatedAt: "2026-07-11T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const first = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [firstInvoice, secondInvoice],
+        expenses: [sharedExpense],
+      }),
+      { sourceDocumentId: "invoice_1" },
+    );
+    const second = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({
+        documents: [firstInvoice, secondInvoice],
+        expenses: [sharedExpense],
+      }),
+      { sourceDocumentId: "invoice_2" },
+    );
+
+    expect(first?.directCosts[0]).toMatchObject({
+      id: "expense_shared",
+      amount: 125,
+      ivaAmount: 26.25,
+    });
+    expect(second?.directCosts[0]).toMatchObject({
+      id: "expense_shared",
+      amount: 75,
+      ivaAmount: 15.75,
+    });
+  });
+
   it("conserva 100 + 21 como coste directo no deducible sin reducir IRPF", () => {
     const invoice = documentFixture({ id: "invoice_1", type: "factura" });
     const linkedExpense = expenseFixture({

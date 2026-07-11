@@ -1,4 +1,6 @@
 import type { AppData, Document } from "@/lib/types";
+import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
+import { expenseFiscalAmounts } from "@/lib/expenses";
 import {
   rentabilidadRealDocumentClientId,
   rentabilidadRealDocumentClientName,
@@ -23,9 +25,16 @@ function clientNameForDocument(document: Document): string {
 
 function hasLinkedExpenses(appData: AppData, documentIds: readonly string[]) {
   const ids = new Set(documentIds);
-  return appData.expenses.some(
-    (expense) => expense.workDocumentId && ids.has(expense.workDocumentId),
-  );
+  return appData.expenses.some((expense) => {
+    const fiscal = expenseFiscalAmounts(expense);
+    return (
+      expenseAllocatedAmountForWorkIds(
+        expense,
+        ids,
+        fiscal.operatingCost,
+      ) !== 0
+    );
+  });
 }
 
 function unitId(
