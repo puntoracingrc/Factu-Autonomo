@@ -1,6 +1,7 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
-import { supplierCompareKey } from "./suppliers";
+import { isFixedExpense } from "./expense-classification";
+import { supplierCompareKey } from "./supplier-normalization";
 import type {
   Expense,
   ExpensePurchaseDocument,
@@ -12,6 +13,52 @@ export interface ExpenseTotals {
   iva: number;
   total: number;
   ivaPercent: number;
+}
+
+export const EXPENSE_VAT_RECONCILIATION_TOLERANCE = 0.02;
+
+export type ExpenseVatSource = "header" | "lines" | "blocked";
+
+export type ExpenseVatIssue =
+  | "mixed_vat_missing_rate"
+  | "mixed_vat_invalid_line"
+  | "mixed_vat_base_mismatch";
+
+export interface ExpenseVatBreakdownRow {
+  ivaPercent: number;
+  base: number;
+  iva: number;
+  total: number;
+  lineCount: number;
+}
+
+export interface ExpenseVatResolution {
+  source: ExpenseVatSource;
+  issue: ExpenseVatIssue | null;
+  blocked: boolean;
+  base: number;
+  iva: number;
+  total: number;
+  /** Tipo legacy de cabecera; no representa por sí solo un desglose mixto. */
+  headerIvaPercent: number;
+  breakdown: ExpenseVatBreakdownRow[];
+  /** Suma de bases de línea menos la base de cabecera. */
+  reconciliationDifference: number;
+}
+
+export type ExpenseVatLineInput = Pick<
+  ExpensePurchaseLine,
+  "quantity" | "unitPrice" | "discountPercent" | "ivaPercent" | "total"
+>;
+
+export interface ExpenseVatInput {
+  amount: number;
+  ivaPercent: number;
+  purchaseLines?: ExpenseVatLineInput[];
+  businessKind?: Expense["businessKind"];
+  deductibility?: Expense["deductibility"];
+  origin?: Expense["origin"];
+  recurringExpenseId?: Expense["recurringExpenseId"];
 }
 
 export interface ExpensePurchaseLinePriceAlert {
@@ -44,6 +91,10 @@ export interface ExpenseFiscalAmounts {
   deductibleBase: number;
   deductibleIva: number;
   operatingCost: number;
+  vatSource: ExpenseVatSource;
+  vatIssue: ExpenseVatIssue | null;
+  vatBlocked: boolean;
+  vatBreakdown: ExpenseVatBreakdownRow[];
 }
 
 export interface PurchaseExpenseDuplicateCandidate {
@@ -78,10 +129,16 @@ export function expenseTotalsFromBase(
 }
 
 export function expenseTotals(
-  expense: Pick<Expense, "amount" | "ivaPercent">,
+  expense: ExpenseVatInput,
   vatExempt = false,
 ): ExpenseTotals {
-  return expenseTotalsFromBase(expense.amount, expense.ivaPercent, vatExempt);
+  const resolved = resolveExpenseVat(expense, vatExempt);
+  return {
+    base: resolved.base,
+    iva: resolved.iva,
+    total: resolved.total,
+    ivaPercent: resolved.headerIvaPercent,
+  };
 }
 
 /**
@@ -100,21 +157,25 @@ export function isExpenseFiscalDeductible(
 
 /** Separa el coste registrado del importe que puede alimentar fiscalidad. */
 export function expenseFiscalAmounts(
-  expense: Pick<Expense, "amount" | "ivaPercent" | "deductibility">,
+  expense: ExpenseVatInput,
   vatExempt = false,
 ): ExpenseFiscalAmounts {
-  const totals = expenseTotals(expense, vatExempt);
+  const vat = resolveExpenseVat(expense, vatExempt);
   const deductible = isExpenseFiscalDeductible(expense);
 
   return {
     deductible,
-    registeredBase: totals.base,
-    registeredIvaPercent: totals.ivaPercent,
-    registeredIva: totals.iva,
-    registeredTotal: totals.total,
-    deductibleBase: deductible ? totals.base : 0,
-    deductibleIva: deductible ? totals.iva : 0,
-    operatingCost: deductible ? totals.base : totals.total,
+    registeredBase: vat.base,
+    registeredIvaPercent: vat.headerIvaPercent,
+    registeredIva: vat.iva,
+    registeredTotal: vat.total,
+    deductibleBase: deductible ? vat.base : 0,
+    deductibleIva: deductible && !vat.blocked ? vat.iva : 0,
+    operatingCost: deductible && !vat.blocked ? vat.base : vat.total,
+    vatSource: vat.source,
+    vatIssue: vat.issue,
+    vatBlocked: vat.blocked,
+    vatBreakdown: vat.breakdown,
   };
 }
 
@@ -143,6 +204,271 @@ export function expensePurchaseLinesBaseTotal(
   return roundMoney(
     lines.reduce((sum, line) => sum + expensePurchaseLineBaseTotal(line), 0),
   );
+}
+
+function isValidExpenseLineIvaPercent(
+  value: number | undefined,
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 100
+  );
+}
+
+function normalizedBreakdownRate(value: number): number {
+  return Math.round(value * 10_000) / 10_000;
+}
+
+function isExpenseVatLineInput(value: unknown): value is ExpenseVatLineInput {
+  return typeof value === "object" && value !== null;
+}
+
+function explicitRuntimeIvaRate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return normalizedBreakdownRate(value);
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? normalizedBreakdownRate(parsed) : null;
+}
+
+function expenseLineHasValidPositiveBase(
+  line: unknown,
+): line is ExpenseVatLineInput {
+  if (!isExpenseVatLineInput(line)) return false;
+  if (
+    line.total !== undefined &&
+    (!Number.isFinite(line.total) || line.total <= 0)
+  ) {
+    return false;
+  }
+  if (line.total === undefined || line.total === 0) {
+    if (!Number.isFinite(line.quantity) || !Number.isFinite(line.unitPrice)) {
+      return false;
+    }
+    if (
+      line.discountPercent !== undefined &&
+      (!Number.isFinite(line.discountPercent) ||
+        line.discountPercent < 0 ||
+        line.discountPercent > 100)
+    ) {
+      return false;
+    }
+  }
+  const base = expensePurchaseLineBaseTotal(line);
+  return Number.isFinite(base) && base > 0;
+}
+
+function buildExpenseVatBreakdown(
+  lines: unknown[],
+): ExpenseVatBreakdownRow[] {
+  const byRate = new Map<number, ExpenseVatBreakdownRow>();
+
+  for (const line of lines) {
+    if (!isExpenseVatLineInput(line)) continue;
+    if (
+      !isValidExpenseLineIvaPercent(line.ivaPercent) ||
+      !expenseLineHasValidPositiveBase(line)
+    ) {
+      continue;
+    }
+    const ivaPercent = normalizedBreakdownRate(line.ivaPercent);
+    const base = expensePurchaseLineBaseTotal(line);
+    const current = byRate.get(ivaPercent) ?? {
+      ivaPercent,
+      base: 0,
+      iva: 0,
+      total: 0,
+      lineCount: 0,
+    };
+    current.base += base;
+    current.lineCount += 1;
+    byRate.set(ivaPercent, current);
+  }
+
+  return [...byRate.values()]
+    .map((row) => {
+      const base = roundMoney(row.base);
+      const iva = roundMoney(base * (row.ivaPercent / 100));
+      return {
+        ...row,
+        base,
+        iva,
+        total: roundMoney(base + iva),
+      };
+    })
+    .sort((left, right) => right.ivaPercent - left.ivaPercent);
+}
+
+function headerExpenseVatResolution(
+  expense: ExpenseVatInput,
+  vatExempt: boolean,
+): ExpenseVatResolution {
+  const header = expenseTotalsFromBase(
+    expense.amount,
+    expense.ivaPercent,
+    vatExempt,
+  );
+  return {
+    source: "header",
+    issue: null,
+    blocked: false,
+    base: header.base,
+    iva: header.iva,
+    total: header.total,
+    headerIvaPercent: header.ivaPercent,
+    breakdown: [
+      {
+        ivaPercent: header.ivaPercent,
+        base: header.base,
+        iva: header.iva,
+        total: header.total,
+        lineCount: 0,
+      },
+    ],
+    reconciliationDifference: 0,
+  };
+}
+
+function blockedExpenseVatResolution(
+  expense: ExpenseVatInput,
+  issue: ExpenseVatIssue,
+  breakdown: ExpenseVatBreakdownRow[],
+  reconciliationDifference: number,
+): ExpenseVatResolution {
+  const header = expenseTotalsFromBase(
+    expense.amount,
+    expense.ivaPercent,
+    false,
+  );
+  return {
+    source: "blocked",
+    issue,
+    blocked: true,
+    base: header.base,
+    iva: header.iva,
+    total: header.total,
+    headerIvaPercent: header.ivaPercent,
+    breakdown,
+    reconciliationDifference,
+  };
+}
+
+/**
+ * Resuelve el IVA registrado de un gasto sin reescribir datos legacy.
+ *
+ * Un desglose positivo, completo y conciliado gobierna el IVA aunque use un
+ * único tipo. Si el desglose está incompleto, solo conserva la cabecera cuando
+ * ninguna evidencia de línea contradice su tipo; cualquier conflicto queda
+ * bloqueado para que una exportación fiscal no pueda ocultarlo. Los gastos
+ * fijos no deducibles (incluidas ocurrencias legacy enlazadas a su plantilla)
+ * conservan el contrato P1-06 de importe íntegro e IVA cero sin reescribir sus
+ * líneas documentales. Los abonos conservan el contrato legacy hasta AUD-P1-13.
+ */
+export function resolveExpenseVat(
+  expense: ExpenseVatInput,
+  vatExempt = false,
+): ExpenseVatResolution {
+  const base = normalizeExpenseAmount(expense.amount);
+  if (
+    isFixedExpense(expense) &&
+    expense.deductibility === "non_deductible"
+  ) {
+    return headerExpenseVatResolution(expense, true);
+  }
+  if (vatExempt || base <= 0) {
+    return headerExpenseVatResolution(expense, vatExempt);
+  }
+
+  const lines: unknown[] = Array.isArray(expense.purchaseLines)
+    ? expense.purchaseLines
+    : [];
+  if (lines.length === 0) {
+    return headerExpenseVatResolution(expense, false);
+  }
+
+  const explicitRates = new Set(
+    lines
+      .map((line) =>
+        explicitRuntimeIvaRate(
+          isExpenseVatLineInput(line) ? line.ivaPercent : undefined,
+        ),
+      )
+      .filter((value): value is number => value !== null),
+  );
+  const headerIvaPercent = normalizedBreakdownRate(
+    normalizeExpenseIvaPercent(expense.ivaPercent),
+  );
+  const hasConflictingVatEvidence =
+    explicitRates.size > 1 ||
+    [...explicitRates].some((rate) => rate !== headerIvaPercent);
+
+  const breakdown = buildExpenseVatBreakdown(lines);
+  const lineBase = roundMoney(
+    lines.reduce<number>(
+      (sum, line) =>
+        sum +
+        (expenseLineHasValidPositiveBase(line)
+          ? expensePurchaseLineBaseTotal(line)
+          : 0),
+      0,
+    ),
+  );
+  const reconciliationDifference = roundMoney(lineBase - base);
+  const hasMissingRate = lines.some(
+    (line) =>
+      isExpenseVatLineInput(line) && line.ivaPercent === undefined,
+  );
+  const hasInvalidLine = lines.some(
+    (line) =>
+      !isExpenseVatLineInput(line) ||
+      !isValidExpenseLineIvaPercent(line.ivaPercent) ||
+      !expenseLineHasValidPositiveBase(line),
+  );
+  const hasBaseMismatch =
+    Math.abs(reconciliationDifference) >
+    EXPENSE_VAT_RECONCILIATION_TOLERANCE;
+
+  if (hasMissingRate || hasInvalidLine || hasBaseMismatch) {
+    if (!hasConflictingVatEvidence) {
+      return headerExpenseVatResolution(expense, false);
+    }
+    const issue: ExpenseVatIssue = hasMissingRate
+      ? "mixed_vat_missing_rate"
+      : hasInvalidLine
+        ? "mixed_vat_invalid_line"
+        : "mixed_vat_base_mismatch";
+    return blockedExpenseVatResolution(
+      expense,
+      issue,
+      breakdown,
+      reconciliationDifference,
+    );
+  }
+
+  const iva = roundMoney(
+    breakdown.reduce((sum, row) => sum + row.iva, 0),
+  );
+  return {
+    source: "lines",
+    issue: null,
+    blocked: false,
+    base,
+    iva,
+    total: roundMoney(base + iva),
+    headerIvaPercent: normalizeExpenseIvaPercent(expense.ivaPercent),
+    breakdown,
+    reconciliationDifference,
+  };
+}
+
+export function isExpenseMixedVatBlocked(
+  expense: ExpenseVatInput,
+  vatExempt = false,
+): boolean {
+  return resolveExpenseVat(expense, vatExempt).blocked;
 }
 
 export function expensePurchaseLineTracksProduct(

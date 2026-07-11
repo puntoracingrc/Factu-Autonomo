@@ -72,7 +72,8 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
   });
   const exportBlocked =
     taxes.integrityBlockedDocuments > 0 ||
-    taxes.unsupportedRectificationDocuments > 0;
+    taxes.unsupportedRectificationDocuments > 0 ||
+    taxes.unsupportedMixedVatExpenses > 0;
 
   const quarterIncome = collectedSalesTotal(
     quarterDocuments,
@@ -157,7 +158,7 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
               disabled={exportBlocked}
               title={
                 exportBlocked
-                  ? "Revisa los documentos indicados en el resumen antes de exportar"
+                  ? "Revisa los bloqueos indicados en el resumen antes de exportar"
                   : undefined
               }
             >

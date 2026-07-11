@@ -6,6 +6,7 @@ import {
   parseHoldedWorkbookBuffer,
   type HoldedInputSheet,
 } from "./holded";
+import { expenseFiscalAmounts } from "../expenses";
 import { EMPTY_DATA, type Document } from "../types";
 
 const TEST_DATA = {
@@ -287,6 +288,14 @@ describe("Holded importer", () => {
       supplierId: "holded:supplier:hol_con_2",
       amount: 40,
       ivaPercent: 21,
+      purchaseLines: [
+        {
+          id: "holded:purchase-line:hol_pur_1-1",
+          catalogProduct: false,
+          total: 40,
+          ivaPercent: 21,
+        },
+      ],
     });
     expect(result.unsupported.map((item) => item.label)).toContain("Adjuntos y PDFs históricos");
     expect(result.warnings.join("\n")).toContain("fixture inferido");
@@ -310,6 +319,130 @@ describe("Holded importer", () => {
     expect(second.data.customers.filter((customer) => customer.id.startsWith("holded:customer:"))).toHaveLength(2);
     expect(second.data.documents.filter((doc) => doc.id.startsWith("holded:factura:"))).toHaveLength(2);
     expect(second.data.customers.some((customer) => customer.id === "manual-customer")).toBe(true);
+  });
+
+  it("conserva el IVA por línea de una compra mixta y calcula su cuota real", () => {
+    const mixedSheets = baseSheets.map((sheet) => {
+      if (sheet.kind === "purchases") {
+        return {
+          ...sheet,
+          rows: sheet.rows.map((row) => ({
+            ...row,
+            base_imponible: 200,
+            iva_total: 31,
+            total: 231,
+          })),
+        };
+      }
+      if (sheet.kind === "purchaseLines") {
+        return {
+          ...sheet,
+          rows: [
+            {
+              purchase_id: "hol_pur_1",
+              linea: 1,
+              descripcion: "Compra general",
+              cantidad: 1,
+              precio_unitario: 100,
+              impuesto_pct: 21,
+              base_linea: 100,
+              iva_linea: 21,
+              total_linea: 121,
+            },
+            {
+              purchase_id: "hol_pur_1",
+              linea: 2,
+              descripcion: "Compra reducida",
+              cantidad: 1,
+              precio_unitario: 100,
+              impuesto_pct: 10,
+              base_linea: 100,
+              iva_linea: 10,
+              total_linea: 110,
+            },
+          ],
+        };
+      }
+      return sheet;
+    });
+
+    const result = buildHoldedImport(TEST_DATA, mixedSheets);
+    const expense = result.data.expenses[0];
+
+    expect(expense.purchaseLines).toMatchObject([
+      {
+        id: "holded:purchase-line:hol_pur_1-1",
+        catalogProduct: false,
+        total: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "holded:purchase-line:hol_pur_1-2",
+        catalogProduct: false,
+        total: 100,
+        ivaPercent: 10,
+      },
+    ]);
+    expect(expenseFiscalAmounts(expense)).toMatchObject({
+      registeredBase: 200,
+      registeredIva: 31,
+      registeredTotal: 231,
+    });
+  });
+
+  it("no convierte en 0 un tipo de IVA de compra ilegible", () => {
+    const invalidVatSheets = baseSheets.map((sheet) => {
+      if (sheet.kind === "purchases") {
+        return {
+          ...sheet,
+          rows: sheet.rows.map((row) => ({
+            ...row,
+            base_imponible: 200,
+            iva_total: 31,
+            total: 231,
+          })),
+        };
+      }
+      if (sheet.kind === "purchaseLines") {
+        return {
+          ...sheet,
+          rows: [
+            {
+              purchase_id: "hol_pur_1",
+              linea: 1,
+              descripcion: "Compra general",
+              cantidad: 1,
+              precio_unitario: 100,
+              impuesto_pct: 21,
+              base_linea: 100,
+            },
+            {
+              purchase_id: "hol_pur_1",
+              linea: 2,
+              descripcion: "Tipo ilegible",
+              cantidad: 1,
+              precio_unitario: 100,
+              impuesto_pct: "N/A",
+              base_linea: 100,
+            },
+          ],
+        };
+      }
+      return sheet;
+    });
+
+    const result = buildHoldedImport(TEST_DATA, invalidVatSheets);
+    const imported = result.data.expenses[0];
+
+    expect(imported.purchaseLines?.[1]?.ivaPercent).toBeUndefined();
+    expect(result.warnings.join("\n")).toContain("tipo de IVA ilegible");
+    expect(result.warnings.join("\n")).toContain("sin inventar un 0 %");
+    expect(expenseFiscalAmounts(imported)).toMatchObject({
+      vatSource: "blocked",
+      vatBlocked: true,
+      deductibleIva: 0,
+      registeredTotal: 231,
+    });
   });
 
   it("conserva ventas y contactos previos al importar solo compras", () => {

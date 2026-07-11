@@ -1,4 +1,5 @@
-import { documentTotals, expenseTotal } from "./calculations";
+import { documentTotals } from "./calculations";
+import { expenseTotals } from "./expenses";
 import type { BusinessProfile, Document, Expense, LineItem } from "./types";
 
 export function isVatExempt(
@@ -46,7 +47,7 @@ export function documentAmounts(
 }
 
 export function expenseAmount(expense: Expense, vatExempt: boolean): number {
-  return vatExempt ? expense.amount : expenseTotal(expense);
+  return expenseTotals(expense, vatExempt).total;
 }
 
 export function collectedSalesTotal(

@@ -58,6 +58,33 @@ const expense: Expense = {
   createdAt: "2026-04-02",
 };
 
+function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    ...expense,
+    id: "mixed-vat-expense",
+    description: "Compra IVA mixto",
+    amount: 200,
+    ivaPercent: 21,
+    purchaseLines: [
+      {
+        id: "line-21",
+        description: "Tipo general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "line-10",
+        description: "Tipo reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 const supplier: Supplier = {
   id: "s1",
   name: "Proveedor",
@@ -165,7 +192,48 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Base estimada para IRPF;100,00");
     expect(csv).toContain("IRPF estimado (orientativo);20,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-65,20");
-    expect(csv).toContain("No deducible;120,00;21;25,20;145,20;0,00;0,00");
+    expect(csv).toContain(
+      "No deducible;120,00;21%;21%: base 120,00 / IVA 25,20;Cabecera o importe íntegro;25,20;145,20;0,00;0,00",
+    );
+  });
+
+  it("resume origen y desglose del IVA mixto conciliado", () => {
+    const csv = buildQuarterlyExportCsv(
+      [doc],
+      [mixedVatExpense()],
+      profile,
+      2026,
+      2,
+      [supplier],
+    );
+
+    expect(csv).toContain("IVA deducible;31,00");
+    expect(csv).toContain("TRAZABILIDAD DEL IVA DE GASTOS");
+    expect(csv).toContain("Líneas conciliadas;1");
+    expect(csv).toContain("Cabecera o contrato de importe íntegro;0");
+    expect(csv).toContain("10% + 21%");
+    expect(csv).toContain("10%: base 100,00 / IVA 10,00");
+    expect(csv).toContain("21%: base 100,00 / IVA 21,00");
+    expect(csv).toContain("31,00;231,00;200,00;31,00");
+  });
+
+  it("bloquea un trimestre con evidencia mixta no conciliada", () => {
+    const error = captureBlockedExport(() =>
+      buildQuarterlyExportCsv(
+        [doc],
+        [mixedVatExpense({ amount: 250 })],
+        profile,
+        2026,
+        2,
+        [supplier],
+      ),
+    );
+
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+      unsupportedMixedVatExpenses: 1,
+    });
   });
 
   it("exporta un periodo exento con solo gasto no deducible", () => {
@@ -194,7 +262,11 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Base estimada para IRPF;0,00");
     expect(csv).toContain("IRPF estimado (orientativo);0,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-100,00");
-    expect(csv).toContain("No deducible;100,00;0;0,00;100,00;0,00;0,00");
+    expect(csv).toContain("Perfil exento — IVA no calculado;1");
+    expect(csv).not.toContain("Cabecera o contrato de importe íntegro");
+    expect(csv).toContain(
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;100,00;0,00;0,00",
+    );
   });
 
   it("mantiene el resumen fiscal congelado de snapshots legacy verificados", () => {

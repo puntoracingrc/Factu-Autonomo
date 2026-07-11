@@ -1,5 +1,9 @@
 import type { Expense, Supplier } from "./types";
-import { expenseTotal } from "./calculations";
+import { expenseTotals } from "./expenses";
+import {
+  normalizeSupplierName,
+  supplierCompareKey,
+} from "./supplier-normalization";
 import {
   formatStreetLine,
   getStreetType,
@@ -11,8 +15,11 @@ import {
   normalizeContactPhone,
 } from "./contact-validation";
 
-const LEGAL_SUFFIX_PATTERN =
-  /\b(s\.?\s*l\.?\s*u?\.?|s\.?\s*a\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|sociedad\s+limitada|sociedad\s+anonima)\b/gi;
+export {
+  normalizeSupplierName,
+  stripAccents,
+  supplierCompareKey,
+} from "./supplier-normalization";
 
 /** Por encima de este umbral se reutiliza el proveedor existente automáticamente. */
 export const SUPPLIER_AUTO_LINK_SCORE = 0.82;
@@ -54,24 +61,6 @@ export interface SupplierMatch {
 export function normalizeSupplierNif(nif?: string | null): string {
   if (!nif?.trim()) return "";
   return nif.replace(/[\s.-]/g, "").toUpperCase();
-}
-
-export function stripAccents(value: string): string {
-  return value.normalize("NFD").replace(/\p{M}/gu, "");
-}
-
-export function normalizeSupplierName(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(LEGAL_SUFFIX_PATTERN, " ")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function supplierCompareKey(name: string): string {
-  return stripAccents(normalizeSupplierName(name)).toLowerCase();
 }
 
 function levenshtein(a: string, b: string): number {
@@ -228,10 +217,14 @@ export function expenseMatchesSupplier(
 export function supplierPurchasedTotal(
   expenses: Expense[],
   supplier: Supplier,
+  vatExempt = false,
 ): number {
   return expenses
     .filter((expense) => expenseMatchesSupplier(expense, supplier))
-    .reduce((sum, expense) => sum + expenseTotal(expense), 0);
+    .reduce(
+      (sum, expense) => sum + expenseTotals(expense, vatExempt).total,
+      0,
+    );
 }
 
 export type SupplierSortField = "nombre" | "compras";
@@ -257,6 +250,7 @@ export function sortSuppliers(
   expenses: Expense[],
   field: SupplierSortField,
   direction: SupplierSortDirection,
+  vatExempt = false,
 ): Supplier[] {
   const factor = direction === "asc" ? 1 : -1;
   const compareText = (left: string, right: string) =>
@@ -272,8 +266,8 @@ export function sortSuppliers(
       case "compras":
         return (
           factor *
-          (supplierPurchasedTotal(expenses, a) -
-            supplierPurchasedTotal(expenses, b))
+          (supplierPurchasedTotal(expenses, a, vatExempt) -
+            supplierPurchasedTotal(expenses, b, vatExempt))
         );
       default:
         return compareText(a.name, b.name);

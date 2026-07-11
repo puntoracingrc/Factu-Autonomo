@@ -247,6 +247,54 @@ function NonDeductibleExpensesNotice({
   );
 }
 
+function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
+  if (taxes.unsupportedMixedVatExpenses === 0) return null;
+
+  return (
+    <div
+      role="alert"
+      className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-950"
+    >
+      <p className="text-sm font-bold">Desglose de IVA mixto incompleto</p>
+      <p className="mt-1 text-sm leading-relaxed">
+        {taxes.unsupportedMixedVatExpenses === 1
+          ? "Hay 1 gasto con varios tipos de IVA cuyas líneas no permiten conciliar la base registrada."
+          : `Hay ${taxes.unsupportedMixedVatExpenses} gastos con varios tipos de IVA cuyas líneas no permiten conciliar la base registrada.`} {" "}
+        El IVA deducible y la posición de IVA no deben considerarse completos.
+        La exportación permanece bloqueada hasta revisar esos gastos.
+      </p>
+      <Link
+        href="/gastos"
+        className="mt-2 inline-flex text-sm font-semibold text-red-800 underline"
+      >
+        Revisar gastos con IVA mixto
+      </Link>
+    </div>
+  );
+}
+
+function HeaderVatCalculationNotice({ taxes }: { taxes: TaxSummary }) {
+  if (taxes.vatExempt || taxes.headerVatExpenseCount === 0) return null;
+
+  return (
+    <div
+      role="status"
+      className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-950"
+    >
+      <p className="text-sm font-bold">
+        Cabecera o contrato de importe íntegro
+      </p>
+      <p className="mt-1 text-sm leading-relaxed">
+        {taxes.headerVatExpenseCount} {" "}
+        {taxes.headerVatExpenseCount === 1 ? "gasto no usa" : "gastos no usan"}
+        {" "}un desglose conciliado para el cálculo: conservan la cabecera o el
+        contrato de importe íntegro no desgravable. La cifra está incluida, pero
+        revisa las líneas si alguna factura contiene varios tipos de IVA.
+      </p>
+    </div>
+  );
+}
+
 function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
   return (
     <div className="space-y-4">
@@ -398,12 +446,16 @@ export function TaxSummaryCard({
   const hasSummaryData =
     taxes.salesBase !== 0 ||
     taxes.expenseBase !== 0 ||
-    taxes.nonDeductibleExpenseCount > 0;
+    taxes.nonDeductibleExpenseCount > 0 ||
+    taxes.unsupportedMixedVatExpenses > 0;
   const hasIntegrityBlocks = taxes.integrityBlockedDocuments > 0;
   const hasUnsupportedRectifications =
     taxes.unsupportedRectificationDocuments > 0;
+  const hasUnsupportedMixedVat = taxes.unsupportedMixedVatExpenses > 0;
   const hasIncompleteSummary =
-    hasIntegrityBlocks || hasUnsupportedRectifications;
+    hasIntegrityBlocks ||
+    hasUnsupportedRectifications ||
+    hasUnsupportedMixedVat;
   const defaultSubtitle = taxes.vatExempt
     ? "Perfil exento de IVA: no repercutes ni deduces IVA. Solo se estima el beneficio y el IRPF."
     : "Según facturas y recibos emitidos y gastos registrados. Cálculo orientativo — consulta con tu gestor.";
@@ -460,6 +512,10 @@ export function TaxSummaryCard({
           </p>
         </div>
       )}
+
+      <UnsupportedMixedVatNotice taxes={taxes} />
+
+      <HeaderVatCalculationNotice taxes={taxes} />
 
       <NonDeductibleExpensesNotice taxes={taxes} />
 

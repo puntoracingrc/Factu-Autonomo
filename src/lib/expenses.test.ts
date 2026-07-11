@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXPENSE_VAT_RECONCILIATION_TOLERANCE,
   expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
   expensePurchaseLineIsEligibleForProductCatalog,
   expensePurchaseLinesBaseTotal,
   expenseFiscalAmounts,
+  expenseTotals,
   expenseTotalsFromBase,
   findDuplicatePurchaseExpense,
   findExpensePurchaseLinePriceAlerts,
   purchaseExpenseDuplicateMatches,
+  resolveExpenseVat,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
   summarizeWorkDocumentExpensesById,
@@ -33,7 +36,7 @@ describe("expenseTotalsFromBase", () => {
         ivaPercent: 21,
         deductibility: "non_deductible",
       }),
-    ).toEqual({
+    ).toMatchObject({
       deductible: false,
       registeredBase: 100,
       registeredIvaPercent: 21,
@@ -42,6 +45,496 @@ describe("expenseTotalsFromBase", () => {
       deductibleBase: 0,
       deductibleIva: 0,
       operatingCost: 121,
+      vatSource: "header",
+      vatIssue: null,
+      vatBlocked: false,
+    });
+  });
+
+  it("calcula IVA mixto desde líneas positivas completas y conciliadas", () => {
+    const mixed = {
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        {
+          id: "line-21",
+          description: "Material general",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+        {
+          id: "line-10",
+          description: "Material reducido",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 10,
+        },
+      ],
+    };
+
+    expect(resolveExpenseVat(mixed)).toEqual({
+      source: "lines",
+      issue: null,
+      blocked: false,
+      base: 200,
+      iva: 31,
+      total: 231,
+      headerIvaPercent: 21,
+      breakdown: [
+        { ivaPercent: 21, base: 100, iva: 21, total: 121, lineCount: 1 },
+        { ivaPercent: 10, base: 100, iva: 10, total: 110, lineCount: 1 },
+      ],
+      reconciliationDifference: 0,
+    });
+    expect(expenseTotals(mixed)).toEqual({
+      base: 200,
+      iva: 31,
+      total: 231,
+      ivaPercent: 21,
+    });
+  });
+
+  it("agrupa bases por tipo y redondea el IVA una sola vez por grupo", () => {
+    const resolved = resolveExpenseVat({
+      amount: 0.1,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 0.03, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 0.03, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 0.04, ivaPercent: 10 },
+      ],
+    });
+
+    expect(resolved.source).toBe("lines");
+    expect(resolved.breakdown).toEqual([
+      { ivaPercent: 21, base: 0.06, iva: 0.01, total: 0.07, lineCount: 2 },
+      { ivaPercent: 10, base: 0.04, iva: 0, total: 0.04, lineCount: 1 },
+    ]);
+    expect(resolved.iva).toBe(0.01);
+    expect(resolved.total).toBe(0.11);
+  });
+
+  it("usa líneas completas de un solo tipo aunque difieran de la cabecera", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "lines",
+      blocked: false,
+      iva: 20,
+      total: 220,
+      headerIvaPercent: 21,
+    });
+  });
+
+  it("usa líneas completas de un tipo igual al de cabecera", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "lines",
+      blocked: false,
+      iva: 42,
+      total: 242,
+      headerIvaPercent: 21,
+    });
+  });
+
+  it("mantiene cabecera legacy cuando no existen líneas", () => {
+    const resolved = resolveExpenseVat({ amount: 200, ivaPercent: 21 });
+
+    expect(resolved).toMatchObject({
+      source: "header",
+      blocked: false,
+      iva: 42,
+      total: 242,
+    });
+  });
+
+  it("bloquea una línea distinta de cabecera si otra no tiene tipo", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        { quantity: 1, unitPrice: 100 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_missing_rate",
+      blocked: true,
+      iva: 42,
+      total: 242,
+    });
+  });
+
+  it("permite cabecera si las líneas incompletas no aportan conflicto", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "header",
+      issue: null,
+      blocked: false,
+      iva: 42,
+      total: 242,
+    });
+  });
+
+  it("bloquea evidencia mixta si falta el tipo de una línea", () => {
+    const expense = {
+      amount: 300,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        { quantity: 1, unitPrice: 100 },
+      ],
+    };
+    const resolved = resolveExpenseVat(expense);
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_missing_rate",
+      blocked: true,
+      base: 300,
+      iva: 63,
+      total: 363,
+      reconciliationDifference: 0,
+    });
+    expect(expenseFiscalAmounts(expense)).toMatchObject({
+      registeredBase: 300,
+      registeredIva: 63,
+      registeredTotal: 363,
+      deductibleBase: 300,
+      deductibleIva: 0,
+      operatingCost: 363,
+      vatBlocked: true,
+    });
+  });
+
+  it("bloquea evidencia mixta con línea malformada", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        { quantity: 1, unitPrice: Number.NaN, ivaPercent: 4 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_invalid_line",
+      blocked: true,
+    });
+  });
+
+  it("no oculta un segundo tipo explícito aunque esté fuera de rango", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 150 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_invalid_line",
+      blocked: true,
+      iva: 42,
+      total: 242,
+    });
+  });
+
+  it("bloquea tipos mixtos numéricos cargados con un tipo runtime inválido", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        {
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: "10" as never,
+        },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_invalid_line",
+      blocked: true,
+    });
+  });
+
+  it("no falla y bloquea si un backup mixto contiene una línea nula", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        null as never,
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_invalid_line",
+      blocked: true,
+    });
+  });
+
+  it("bloquea evidencia mixta cuando la base de líneas no concilia", () => {
+    const resolved = resolveExpenseVat({
+      amount: 250,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+    });
+
+    expect(EXPENSE_VAT_RECONCILIATION_TOLERANCE).toBe(0.02);
+    expect(resolved).toMatchObject({
+      source: "blocked",
+      issue: "mixed_vat_base_mismatch",
+      blocked: true,
+      reconciliationDifference: -50,
+    });
+  });
+
+  it("acepta una diferencia de bases dentro de la tolerancia monetaria", () => {
+    const resolved = resolveExpenseVat({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 99.98, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "lines",
+      blocked: false,
+      reconciliationDifference: -0.02,
+      iva: 31,
+      total: 231,
+    });
+  });
+
+  it("conserva cabecera para abonos hasta resolver AUD-P1-13", () => {
+    const resolved = resolveExpenseVat({
+      amount: -200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: -1, unitPrice: 100, total: -100, ivaPercent: 21 },
+        { quantity: -1, unitPrice: 100, total: -100, ivaPercent: 10 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      source: "header",
+      blocked: false,
+      base: -200,
+      iva: -42,
+      total: -242,
+    });
+  });
+
+  it("fuerza IVA cero para un perfil exento aunque existan líneas mixtas", () => {
+    const resolved = resolveExpenseVat(
+      {
+        amount: 200,
+        ivaPercent: 21,
+        purchaseLines: [
+          { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+          { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        ],
+      },
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      source: "header",
+      blocked: false,
+      base: 200,
+      iva: 0,
+      total: 200,
+      headerIvaPercent: 0,
+    });
+  });
+
+  it("preserva P1-06 para IVA mixto deducible y no deducible", () => {
+    const mixed = {
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+    };
+
+    expect(expenseFiscalAmounts(mixed)).toMatchObject({
+      registeredBase: 200,
+      registeredIva: 31,
+      registeredTotal: 231,
+      deductibleBase: 200,
+      deductibleIva: 31,
+      operatingCost: 200,
+      vatSource: "lines",
+    });
+    expect(
+      expenseFiscalAmounts({
+        ...mixed,
+        deductibility: "non_deductible",
+      }),
+    ).toMatchObject({
+      registeredBase: 200,
+      registeredIva: 31,
+      registeredTotal: 231,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 231,
+      vatSource: "lines",
+    });
+  });
+
+  it("mantiene el importe íntegro P1-06 para un fijo no deducible sin reescribir líneas", () => {
+    const purchaseLines = [
+      { quantity: 1, unitPrice: 60, ivaPercent: 21 },
+      { quantity: 1, unitPrice: 40, ivaPercent: 10 },
+    ];
+    const originalLines = purchaseLines.map((line) => ({ ...line }));
+    const fixedNonDeductible = {
+      amount: 100,
+      ivaPercent: 21,
+      businessKind: "fixed" as const,
+      deductibility: "non_deductible" as const,
+      purchaseLines,
+    };
+
+    expect(resolveExpenseVat(fixedNonDeductible)).toMatchObject({
+      source: "header",
+      blocked: false,
+      base: 100,
+      iva: 0,
+      total: 100,
+      headerIvaPercent: 0,
+    });
+    expect(expenseTotals(fixedNonDeductible)).toEqual({
+      base: 100,
+      iva: 0,
+      total: 100,
+      ivaPercent: 0,
+    });
+    expect(expenseFiscalAmounts(fixedNonDeductible)).toMatchObject({
+      registeredBase: 100,
+      registeredIva: 0,
+      registeredTotal: 100,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 100,
+      vatSource: "header",
+      vatBlocked: false,
+    });
+    expect(purchaseLines).toEqual(originalLines);
+
+    expect(
+      expenseFiscalAmounts({
+        ...fixedNonDeductible,
+        businessKind: undefined,
+        recurringExpenseId: "legacy-recurring-template",
+      }),
+    ).toMatchObject({
+      registeredTotal: 100,
+      registeredIva: 0,
+      operatingCost: 100,
+      vatSource: "header",
+    });
+
+    expect(
+      expenseTotals({
+        ...fixedNonDeductible,
+        businessKind: undefined,
+        origin: "recurring",
+      }),
+    ).toEqual({ base: 100, iva: 0, total: 100, ivaPercent: 0 });
+  });
+
+  it("mantiene line-aware un fijo deducible", () => {
+    const fixedDeductible = {
+      amount: 100,
+      ivaPercent: 21,
+      businessKind: "fixed" as const,
+      deductibility: "deductible" as const,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 60, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 40, ivaPercent: 10 },
+      ],
+    };
+
+    expect(resolveExpenseVat(fixedDeductible)).toMatchObject({
+      source: "lines",
+      blocked: false,
+      base: 100,
+      iva: 16.6,
+      total: 116.6,
+    });
+    expect(expenseFiscalAmounts(fixedDeductible)).toMatchObject({
+      registeredTotal: 116.6,
+      deductibleBase: 100,
+      deductibleIva: 16.6,
+      operatingCost: 100,
+      vatSource: "lines",
+    });
+  });
+
+  it("conserva el coste de cabecera en un mixto bloqueado no deducible", () => {
+    const fiscal = expenseFiscalAmounts({
+      amount: 300,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+        { quantity: 1, unitPrice: 100 },
+      ],
+    });
+
+    expect(fiscal).toMatchObject({
+      registeredIva: 63,
+      registeredTotal: 363,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 363,
+      vatSource: "blocked",
+      vatBlocked: true,
     });
   });
 
@@ -358,6 +851,71 @@ describe("expenseTotalsFromBase", () => {
     expect(summary).toEqual({
       count: 1,
       cost: 121,
+      deductibleBase: 0,
+      deductibleIva: 0,
+    });
+  });
+
+  it("propaga el IVA mixto a los resúmenes de gastos vinculados", () => {
+    const mixedLines = [
+      {
+        id: "linked-21",
+        description: "Material general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "linked-10",
+        description: "Material reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ];
+    const expenses: Expense[] = [
+      {
+        id: "linked-mixed",
+        date: "2026-07-11",
+        supplierName: "Proveedor",
+        description: "Compra mixta",
+        amount: 200,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        purchaseLines: mixedLines,
+        workDocumentId: "work-mixed",
+        createdAt: "2026-07-11T10:00:00.000Z",
+      },
+      {
+        id: "linked-mixed-nondeductible",
+        date: "2026-07-11",
+        supplierName: "Proveedor",
+        description: "Compra mixta no deducible",
+        amount: 200,
+        ivaPercent: 21,
+        deductibility: "non_deductible",
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        purchaseLines: mixedLines,
+        workDocumentId: "work-mixed-nondeductible",
+        createdAt: "2026-07-11T10:00:00.000Z",
+      },
+    ];
+
+    expect(summarizeWorkDocumentExpenses(expenses, "work-mixed")).toEqual({
+      count: 1,
+      cost: 200,
+      deductibleBase: 200,
+      deductibleIva: 31,
+    });
+    expect(
+      summarizeWorkDocumentExpensesById(expenses).get(
+        "work-mixed-nondeductible",
+      ),
+    ).toEqual({
+      count: 1,
+      cost: 231,
       deductibleBase: 0,
       deductibleIva: 0,
     });

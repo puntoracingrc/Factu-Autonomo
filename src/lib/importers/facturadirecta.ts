@@ -1344,6 +1344,11 @@ export function buildFacturaDirectaImport(
       `${preview.estimateFallbackLines} presupuesto(s) no traen líneas estructuradas en el listado y se importarán con una línea resumen.`,
     );
   }
+  if (preview.expenses > 0) {
+    warnings.push(
+      `${preview.expenses} gasto(s) de FacturaDirecta no traen desglose fiscal por líneas. Su IVA se conservará como cálculo de cabecera hasta revisar la factura original.`,
+    );
+  }
   if (preview.partialDueDateDocuments > 0) {
     warnings.push(
       `${preview.partialDueDateDocuments} documento(s) tienen vencimientos parciales. La app guardará una fecha principal y anotará lo demás cuando sea posible.`,

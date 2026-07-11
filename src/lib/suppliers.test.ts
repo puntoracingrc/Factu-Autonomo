@@ -167,6 +167,65 @@ describe("supplierPurchasedTotal", () => {
     expect(expenseMatchesSupplier(expenses[1], supplier)).toBe(true);
     expect(supplierPurchasedTotal(expenses, supplier)).toBe(171);
   });
+
+  it("usa el total canónico de IVA mixto y respeta perfiles exentos", () => {
+    const supplier = suppliers[0];
+    const mixed = expense({
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        {
+          id: "supplier-mixed-21",
+          description: "Tipo general",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+        {
+          id: "supplier-mixed-10",
+          description: "Tipo reducido",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 10,
+        },
+      ],
+    });
+
+    expect(supplierPurchasedTotal([mixed], supplier)).toBe(231);
+    expect(supplierPurchasedTotal([mixed], supplier, true)).toBe(200);
+  });
+
+  it("no añade IVA al importe íntegro de un fijo no deducible", () => {
+    const supplier = suppliers[0];
+    const fixed = expense({
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: 100,
+      ivaPercent: 21,
+      businessKind: "fixed",
+      deductibility: "non_deductible",
+      purchaseLines: [
+        {
+          id: "supplier-fixed-21",
+          description: "General",
+          quantity: 1,
+          unitPrice: 60,
+          ivaPercent: 21,
+        },
+        {
+          id: "supplier-fixed-10",
+          description: "Reducido",
+          quantity: 1,
+          unitPrice: 40,
+          ivaPercent: 10,
+        },
+      ],
+    });
+
+    expect(supplierPurchasedTotal([fixed], supplier)).toBe(100);
+  });
 });
 
 describe("sortSuppliers", () => {

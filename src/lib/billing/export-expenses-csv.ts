@@ -1,7 +1,13 @@
 import { formatShortDate } from "../calculations";
-import { expenseFiscalAmounts } from "../expenses";
+import {
+  expenseFiscalAmounts,
+  isExpenseMixedVatBlocked,
+  resolveExpenseVat,
+  type ExpenseVatResolution,
+} from "../expenses";
 import { isVatExempt } from "../vat-regime";
 import type { BusinessProfile, Expense, Supplier } from "../types";
+import { TaxExportBlockedError } from "../taxes";
 import {
   csvRow,
   formatCsvAmount,
@@ -22,7 +28,9 @@ const EXPENSE_HEADERS = [
   "Concepto",
   "Tratamiento fiscal",
   "Importe registrado (EUR)",
-  "IVA informado (%)",
+  "Tipos IVA aplicados",
+  "Desglose IVA aplicado",
+  "Origen cálculo IVA",
   "Cuota IVA informada (EUR)",
   "Coste registrado (EUR)",
   "Base deducible (EUR)",
@@ -31,6 +39,58 @@ const EXPENSE_HEADERS = [
   "Forma de pago",
   "Notas",
 ] as const;
+
+function formatVatPercent(value: number): string {
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(value)}%`;
+}
+
+function vatTypesLabel(resolution: ExpenseVatResolution): string {
+  const rates = resolution.breakdown
+    .map((row) => row.ivaPercent)
+    .sort((left, right) => left - right);
+  return rates.length > 0
+    ? rates.map(formatVatPercent).join(" + ")
+    : formatVatPercent(resolution.headerIvaPercent);
+}
+
+function vatBreakdownLabel(resolution: ExpenseVatResolution): string {
+  if (resolution.breakdown.length === 0) return "—";
+  return [...resolution.breakdown]
+    .sort((left, right) => left.ivaPercent - right.ivaPercent)
+    .map(
+      (row) =>
+        `${formatVatPercent(row.ivaPercent)}: base ${formatCsvAmount(row.base)} / IVA ${formatCsvAmount(row.iva)}`,
+    )
+    .join(" | ");
+}
+
+function vatSourceLabel(
+  resolution: ExpenseVatResolution,
+  vatExempt: boolean,
+): string {
+  if (vatExempt) return "Perfil exento";
+  if (resolution.source === "lines") return "Líneas conciliadas";
+  if (resolution.source === "blocked") return "Desglose mixto bloqueado";
+  return "Cabecera o importe íntegro";
+}
+
+export function assertExpensesVatExportable(
+  expenses: Expense[],
+  vatExempt: boolean,
+): void {
+  const unsupportedMixedVatExpenses = expenses.filter((expense) =>
+    isExpenseMixedVatBlocked(expense, vatExempt),
+  ).length;
+  if (unsupportedMixedVatExpenses === 0) return;
+
+  throw new TaxExportBlockedError({
+    integrityBlockedDocuments: 0,
+    unsupportedRectificationDocuments: 0,
+    unsupportedMixedVatExpenses,
+  });
+}
 
 function supplierNifById(suppliers: Supplier[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -154,6 +214,7 @@ export function buildExpensesTableSection(
   options?: { sectionTitle?: string },
 ): string[] {
   const vatExempt = isVatExempt(profile);
+  assertExpensesVatExportable(expenses, vatExempt);
   const nifs = supplierNifById(suppliers);
   const sorted = sortExpensesByDate(expenses);
 
@@ -174,6 +235,7 @@ export function buildExpensesTableSection(
 
   for (const expense of sorted) {
     const fiscal = expenseFiscalAmounts(expense, vatExempt);
+    const vat = resolveExpenseVat(expense, vatExempt);
     totalRegisteredBase += fiscal.registeredBase;
     totalRegisteredIva += fiscal.registeredIva;
     totalRegisteredCost += fiscal.registeredTotal;
@@ -188,7 +250,9 @@ export function buildExpensesTableSection(
         expense.description,
         fiscal.deductible ? "Deducible" : "No deducible",
         formatCsvAmount(fiscal.registeredBase),
-        fiscal.registeredIvaPercent,
+        vatTypesLabel(vat),
+        vatBreakdownLabel(vat),
+        vatSourceLabel(vat, vatExempt),
         formatCsvAmount(fiscal.registeredIva),
         formatCsvAmount(fiscal.registeredTotal),
         formatCsvAmount(fiscal.deductibleBase),
@@ -208,6 +272,8 @@ export function buildExpensesTableSection(
       `${sorted.length} registro${sorted.length === 1 ? "" : "s"}`,
       "",
       formatCsvAmount(totalRegisteredBase),
+      "",
+      "",
       "",
       formatCsvAmount(totalRegisteredIva),
       formatCsvAmount(totalRegisteredCost),

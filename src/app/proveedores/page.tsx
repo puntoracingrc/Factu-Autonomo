@@ -35,6 +35,7 @@ import {
   type SupplierSortField,
 } from "@/lib/suppliers";
 import type { Supplier } from "@/lib/types";
+import { isVatExempt } from "@/lib/vat-regime";
 
 const EMPTY_FORM = {
   name: "",
@@ -52,6 +53,7 @@ const EMPTY_FORM = {
 export default function ProveedoresPage() {
   const { data, addSupplier, updateSupplier, deleteSupplier, mergeSuppliers } =
     useAppStore();
+  const vatExempt = isVatExempt(data.profile);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -70,8 +72,14 @@ export default function ProveedoresPage() {
 
   const suppliers = useMemo(
     () =>
-      sortSuppliers(data.suppliers, data.expenses, sortField, sortDirection),
-    [data.suppliers, data.expenses, sortField, sortDirection],
+      sortSuppliers(
+        data.suppliers,
+        data.expenses,
+        sortField,
+        sortDirection,
+        vatExempt,
+      ),
+    [data.suppliers, data.expenses, sortField, sortDirection, vatExempt],
   );
 
   const displayedSuppliers = useMemo(() => {
@@ -566,7 +574,11 @@ export default function ProveedoresPage() {
           {(mergeMode ? mergeVisibleSuppliers : displayedSuppliers).map(
             (supplier) => {
               const selected = selectedIds.includes(supplier.id);
-              const purchased = supplierPurchasedTotal(data.expenses, supplier);
+              const purchased = supplierPurchasedTotal(
+                data.expenses,
+                supplier,
+                vatExempt,
+              );
               const migrated = migrateSupplier(supplier);
               return (
                 <Card

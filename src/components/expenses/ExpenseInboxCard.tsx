@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { expenseInboxItemVatView } from "@/components/expenses/expense-vat-ui";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import { formatMoney, formatShortDate } from "@/lib/calculations";
+import { formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { AiUsageMeter } from "@/lib/billing/scan-limits";
 import type {
@@ -44,14 +45,7 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function itemAmount(item: ExpenseInboxItem): string | null {
-  const amount = item.scanPayload?.expense.amount;
-  return typeof amount === "number" && Number.isFinite(amount)
-    ? formatMoney(amount)
-    : null;
-}
-
-export function ExpenseInboxCard() {
+export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean }) {
   const { user } = useCloudSync();
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
@@ -276,7 +270,7 @@ export function ExpenseInboxCard() {
       {items.length > 0 ? (
         <div className="space-y-2">
           {items.slice(0, 5).map((item) => {
-            const amount = itemAmount(item);
+            const vatView = expenseInboxItemVatView(item, vatExempt);
             const title =
               item.scanPayload?.expense.description ||
               item.attachmentFilename ||
@@ -290,8 +284,21 @@ export function ExpenseInboxCard() {
                   <p className="truncate font-bold text-slate-900">{title}</p>
                   <p className="text-sm text-slate-500">
                     {item.fromEmail ?? "Proveedor"} · {formatShortDate(item.receivedAt)}
-                    {amount ? ` · ${amount}` : ""}
+                    {vatView ? ` · ${vatView.amountLabel}` : ""}
                   </p>
+                  {vatView ? (
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        vatView.resolution.blocked
+                          ? "bg-amber-100 text-amber-900"
+                          : vatView.resolution.source === "lines"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {vatView.sourceLabel}
+                    </span>
+                  ) : null}
                   {item.status === "error" && item.scanError ? (
                     <p className="mt-1 text-sm font-semibold text-red-700">
                       {item.scanError}

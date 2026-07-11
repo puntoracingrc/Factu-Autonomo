@@ -91,6 +91,113 @@ describe("vat-regime", () => {
     expect(expenseAmount(expense, false)).toBeCloseTo(96.8, 1);
   });
 
+  it("usa el total mixto conciliado en el control de gastos", () => {
+    const expense: Expense = {
+      id: "mixed",
+      date: "2026-07-11",
+      supplierName: "P",
+      description: "Gasto mixto",
+      amount: 200,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-07-11",
+      purchaseLines: [
+        {
+          id: "mixed-21",
+          description: "General",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+        {
+          id: "mixed-10",
+          description: "Reducido",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 10,
+        },
+      ],
+    };
+
+    expect(expenseAmount(expense, false)).toBe(231);
+    expect(expenseAmount(expense, true)).toBe(200);
+  });
+
+  it("conserva la cabecera en control si el mixto está bloqueado", () => {
+    const expense: Expense = {
+      id: "mixed-blocked",
+      date: "2026-07-11",
+      supplierName: "P",
+      description: "Gasto mixto incompleto",
+      amount: 300,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-07-11",
+      purchaseLines: [
+        {
+          id: "mixed-21",
+          description: "General",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+        {
+          id: "mixed-10",
+          description: "Reducido",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 10,
+        },
+        {
+          id: "mixed-missing",
+          description: "Sin tipo",
+          quantity: 1,
+          unitPrice: 100,
+        },
+      ],
+    };
+
+    expect(expenseAmount(expense, false)).toBe(363);
+    expect(expenseAmount(expense, true)).toBe(300);
+  });
+
+  it("muestra el importe íntegro de un fijo no deducible en el listado", () => {
+    const expense: Expense = {
+      id: "fixed-non-deductible",
+      date: "2026-07-11",
+      supplierName: "P",
+      description: "Fijo no desgravable",
+      amount: 100,
+      ivaPercent: 21,
+      businessKind: "fixed",
+      deductibility: "non_deductible",
+      category: "Otros",
+      paymentMethod: "Domiciliación",
+      createdAt: "2026-07-11",
+      purchaseLines: [
+        {
+          id: "fixed-21",
+          description: "General",
+          quantity: 1,
+          unitPrice: 60,
+          ivaPercent: 21,
+        },
+        {
+          id: "fixed-10",
+          description: "Reducido",
+          quantity: 1,
+          unitPrice: 40,
+          ivaPercent: 10,
+        },
+      ],
+    };
+
+    expect(expenseAmount(expense, false)).toBe(100);
+    expect(expenseAmount(expense, true)).toBe(100);
+  });
+
   it("pone IVA a cero en líneas", () => {
     expect(zeroIvaItems([{ id: "1", description: "A", quantity: 1, unitPrice: 1, ivaPercent: 21 }])[0].ivaPercent).toBe(0);
   });

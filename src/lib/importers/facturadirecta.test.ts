@@ -299,6 +299,10 @@ describe("FacturaDirecta importer", () => {
       },
     });
     expect(result.data.expenses[0].notes).toContain("2026-07-15");
+    expect(result.warnings.join("\n")).toContain(
+      "no traen desglose fiscal por líneas",
+    );
+    expect(result.warnings.join("\n")).toContain("cálculo de cabecera");
     expect(result.unsupported.map((item) => item.label)).toContain(
       "Notas internas de ventas",
     );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildExpensesExportCsv } from "./export-expenses-csv";
 import { DEFAULT_PROFILE, type Expense, type Supplier } from "../types";
+import { TaxExportBlockedError } from "../taxes";
 
 const supplier: Supplier = {
   id: "s1",
@@ -22,6 +23,33 @@ const expense: Expense = {
   notes: "Factura abril",
   createdAt: "2026-04-02",
 };
+
+function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    ...expense,
+    id: "mixed-vat-expense",
+    description: "Compra con IVA mixto",
+    amount: 200,
+    ivaPercent: 21,
+    purchaseLines: [
+      {
+        id: "line-21",
+        description: "Material general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "line-10",
+        description: "Material reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ],
+    ...overrides,
+  };
+}
 
 describe("export expenses csv", () => {
   it("genera cabecera y columnas útiles para gestoría", () => {
@@ -48,7 +76,7 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Material");
   });
 
-  it("mantiene 14 columnas en cabecera, detalle y total", () => {
+  it("mantiene 16 columnas en cabecera, detalle y total", () => {
     const csv = buildExpensesExportCsv([expense], [supplier], {
       profile: DEFAULT_PROFILE,
       periodLabel: "2026",
@@ -58,9 +86,67 @@ describe("export expenses csv", () => {
     const detail = lines.find((line) => line.includes("Material oficina"));
     const total = lines.find((line) => line.startsWith("TOTAL GASTOS;"));
 
-    expect(header?.split(";")).toHaveLength(14);
-    expect(detail?.split(";")).toHaveLength(14);
-    expect(total?.split(";")).toHaveLength(14);
+    expect(header?.split(";")).toHaveLength(16);
+    expect(detail?.split(";")).toHaveLength(16);
+    expect(total?.split(";")).toHaveLength(16);
+  });
+
+  it("exporta tipos, desglose y origen conciliado para IVA mixto", () => {
+    const csv = buildExpensesExportCsv(
+      [mixedVatExpense()],
+      [supplier],
+      {
+        profile: DEFAULT_PROFILE,
+        periodLabel: "2026",
+      },
+    );
+
+    expect(csv).toContain("Tipos IVA aplicados");
+    expect(csv).toContain("Desglose IVA aplicado");
+    expect(csv).toContain("Origen cálculo IVA");
+    expect(csv).toContain("10% + 21%");
+    expect(csv).toContain("10%: base 100,00 / IVA 10,00");
+    expect(csv).toContain("21%: base 100,00 / IVA 21,00");
+    expect(csv).toContain("Líneas conciliadas");
+    expect(csv).toContain("31,00;231,00;200,00;31,00");
+    expect(csv).toContain("Material;1;231,00;200,00;31,00");
+  });
+
+  it("identifica de forma explícita la cabecera o el importe íntegro", () => {
+    const csv = buildExpensesExportCsv([expense], [supplier], {
+      profile: DEFAULT_PROFILE,
+      periodLabel: "2026",
+    });
+
+    expect(csv).toContain("21%");
+    expect(csv).toContain("21%: base 50,00 / IVA 10,50");
+    expect(csv).toContain("Cabecera o importe íntegro");
+  });
+
+  it("bloquea el CSV standalone ante un desglose mixto no conciliado", () => {
+    expect(() =>
+      buildExpensesExportCsv(
+        [mixedVatExpense({ amount: 250 })],
+        [supplier],
+        {
+          profile: DEFAULT_PROFILE,
+          periodLabel: "2026",
+        },
+      ),
+    ).toThrowError(TaxExportBlockedError);
+
+    try {
+      buildExpensesExportCsv(
+        [mixedVatExpense({ amount: 250 })],
+        [supplier],
+        {
+          profile: DEFAULT_PROFILE,
+          periodLabel: "2026",
+        },
+      );
+    } catch (error) {
+      expect(error).toMatchObject({ unsupportedMixedVatExpenses: 1 });
+    }
   });
 
   it("prefiere el NIF histórico del documento frente al maestro actual", () => {
@@ -97,9 +183,43 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Base deducible (EUR)");
     expect(csv).toContain("IVA deducible (EUR)");
     expect(csv).toContain(
-      "No deducible;50,00;21;10,50;60,50;0,00;0,00",
+      "No deducible;50,00;21%;21%: base 50,00 / IVA 10,50;Cabecera o importe íntegro;10,50;60,50;0,00;0,00",
     );
     expect(csv).toContain("Material;1;60,50;0,00;0,00");
+  });
+
+  it("rotula el contrato de importe íntegro de un fijo no deducible", () => {
+    const csv = buildExpensesExportCsv(
+      [
+        mixedVatExpense({
+          amount: 100,
+          businessKind: "fixed",
+          deductibility: "non_deductible",
+          purchaseLines: [
+            {
+              id: "fixed-21",
+              description: "Cuota general",
+              quantity: 1,
+              unitPrice: 60,
+              ivaPercent: 21,
+            },
+            {
+              id: "fixed-10",
+              description: "Cuota reducida",
+              quantity: 1,
+              unitPrice: 40,
+              ivaPercent: 10,
+            },
+          ],
+        }),
+      ],
+      [supplier],
+      { profile: DEFAULT_PROFILE, periodLabel: "2026" },
+    );
+
+    expect(csv).toContain(
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Cabecera o importe íntegro;0,00;100,00;0,00;0,00",
+    );
   });
 
   it("mantiene el coste completo no deducible en un perfil exento", () => {
@@ -120,8 +240,9 @@ describe("export expenses csv", () => {
     );
 
     expect(csv).toContain(
-      "No deducible;100,00;0;0,00;100,00;0,00;0,00",
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;100,00;0,00;0,00",
     );
+    expect(csv).not.toContain("Cabecera o importe íntegro");
     expect(csv).toContain("Material;1;100,00;0,00;0,00");
   });
 

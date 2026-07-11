@@ -11,6 +11,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
+import {
+  canReconcileExpenseAmountWithLineBase,
+  canAutoSaveScannedExpenseVat,
+  expenseVatIssueMessage,
+  expenseVatSourceLabel,
+  prepareExpenseVatForSave,
+} from "@/components/expenses/expense-vat-ui";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
@@ -51,6 +58,7 @@ import {
   findDuplicatePurchaseExpense,
   findExpensePurchaseLinePriceAlerts,
   purchaseExpenseDuplicateMatches,
+  resolveExpenseVat,
   sanitizeExpensePurchaseDocument,
   sanitizeExpensePurchaseLines,
 } from "@/lib/expenses";
@@ -89,6 +97,7 @@ function emptyPurchaseLine(
 ): ExpensePurchaseLine {
   return {
     id: crypto.randomUUID(),
+    supplierReference: partial.supplierReference,
     description: partial.description ?? "",
     catalogProduct: partial.catalogProduct ?? false,
     sourceQuantity: partial.sourceQuantity,
@@ -215,6 +224,7 @@ export default function NuevoGastoPage() {
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
   const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(null);
   const [inboxLoadError, setInboxLoadError] = useState<string | null>(null);
+  const [vatSubmitError, setVatSubmitError] = useState<string | null>(null);
   const [, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -314,6 +324,7 @@ export default function NuevoGastoPage() {
 
   const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
     const { payload, fileName } = review;
+    setVatSubmitError(null);
     const match = findBestSupplierMatch(data.suppliers, {
       name: payload.supplier.name,
       nif: payload.supplier.nif,
@@ -426,6 +437,7 @@ export default function NuevoGastoPage() {
   }, [fillFormFromScan, inboxItemId, loadedInboxItemId]);
 
   function clearScanForm() {
+    setVatSubmitError(null);
     setDate(todayISO());
     setSupplierName("");
     setDescription("");
@@ -542,12 +554,28 @@ export default function NuevoGastoPage() {
   const expenseVatExempt =
     vatExempt ||
     (businessKind === "fixed" && fixedDeductibility === "non_deductible");
+  const currentExpenseVatContext = {
+    businessKind,
+    deductibility:
+      businessKind === "fixed" ? fixedDeductibility : undefined,
+    origin: expenseOrigin,
+    recurringExpenseId: editingExpense?.recurringExpenseId,
+  };
 
   const currentAmount = expenseTotalsFromBase(
     parseDecimalInput(amountText),
     ivaPercent,
     expenseVatExempt,
   ).base;
+  const currentVatResolution = resolveExpenseVat(
+    {
+      amount: currentAmount,
+      ivaPercent,
+      purchaseLines,
+      ...currentExpenseVatContext,
+    },
+    vatExempt,
+  );
 
   function buildFixedDueTiming(): RecurringDueTiming {
     if (fixedDueKind === "start_of_month") return { kind: "start_of_month" };
@@ -702,6 +730,17 @@ export default function NuevoGastoPage() {
       "Factura con importe negativo detectada: parece un abono, devolución",
       "o saldo a tu favor. Revísala y guárdala si quieres que reste gasto e IVA soportado.",
     ].join(" ");
+  }
+
+  function vatResolutionForScanPayload(payload: ExpenseScanPayload) {
+    return resolveExpenseVat(
+      {
+        amount: payload.expense.amount,
+        ivaPercent: payload.expense.ivaPercent,
+        purchaseLines: payload.expense.purchaseLines,
+      },
+      vatExempt,
+    );
   }
 
   function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
@@ -1013,6 +1052,11 @@ export default function NuevoGastoPage() {
     );
     if (negativeAmountReason) return negativeAmountReason;
 
+    const vatResolution = vatResolutionForScanPayload(review.payload);
+    if (vatResolution.blocked) {
+      return expenseVatIssueMessage(vatResolution.issue);
+    }
+
     const duplicate = duplicateForScanPayload(review.payload);
     if (duplicate) {
       const invoiceNumber =
@@ -1051,6 +1095,18 @@ export default function NuevoGastoPage() {
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
     if (negativeAmountReasonForScanPayload(review.payload)) return "review";
+    if (
+      !canAutoSaveScannedExpenseVat(
+        {
+          amount: review.payload.expense.amount,
+          ivaPercent: review.payload.expense.ivaPercent,
+          purchaseLines: review.payload.expense.purchaseLines,
+        },
+        vatExempt,
+      )
+    ) {
+      return "review";
+    }
     if (duplicateForScanPayload(review.payload)) {
       return providerSummaryUpgradeTargetForScanPayload(review.payload)
         ? "ready"
@@ -1072,6 +1128,20 @@ export default function NuevoGastoPage() {
     savedPayloads: ExpenseScanPayload[] = [],
   ): boolean {
     const { payload } = review;
+    const rawVatResolution = vatResolutionForScanPayload(payload);
+    if (payload.expense.amount > 0 && rawVatResolution.blocked) return false;
+    const vatPreparation = prepareExpenseVatForSave(
+      {
+        amount: payload.expense.amount,
+        ivaPercent: payload.expense.ivaPercent,
+        purchaseLines:
+          payload.expense.purchaseLines?.map((line) =>
+            emptyPurchaseLine(line),
+          ) ?? [],
+      },
+      vatExempt,
+    );
+    if (!vatPreparation.ok) return false;
     const currentDuplicateCandidate = duplicateCandidateForScanPayload(payload);
     const duplicate = duplicateForScanPayload(payload);
     const upgradeTarget =
@@ -1115,7 +1185,7 @@ export default function NuevoGastoPage() {
         undefined,
     });
     const purchaseLines = sanitizeExpensePurchaseLines(
-      payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ?? [],
+      vatPreparation.purchaseLines,
     ).map((line) =>
       expensePurchaseLineIsEligibleForProductCatalog(payload.expense, line)
         ? line
@@ -1286,6 +1356,29 @@ export default function NuevoGastoPage() {
       }
     }
 
+    const vatPreparation = prepareExpenseVatForSave(
+      {
+        amount,
+        ivaPercent: totals.ivaPercent,
+        purchaseLines,
+        ...currentExpenseVatContext,
+      },
+      vatExempt,
+    );
+    if (!vatPreparation.ok) {
+      setVatSubmitError(vatPreparation.reason);
+      setScanFormCollapsed(false);
+      return;
+    }
+    setVatSubmitError(null);
+    const cleanedPurchaseLines = sanitizeExpensePurchaseLines(
+      vatPreparation.purchaseLines,
+    ).map((line) =>
+      expensePurchaseLineIsEligibleForProductCatalog({ amount }, line)
+        ? line
+        : { ...line, catalogProduct: false },
+    );
+
     if (blockingDuplicateExpense) {
       alert(
         `Esta factura de proveedor ya está registrada como «${blockingDuplicateExpense.description}».`,
@@ -1314,13 +1407,6 @@ export default function NuevoGastoPage() {
       supplierId = created.id;
     }
 
-    const cleanedPurchaseLines = sanitizeExpensePurchaseLines(
-      purchaseLines,
-    ).map((line) =>
-      expensePurchaseLineIsEligibleForProductCatalog({ amount }, line)
-        ? line
-        : { ...line, catalogProduct: false },
-    );
     const cleanedPurchaseDocument =
       sanitizeExpensePurchaseDocument(purchaseDocument);
     const expenseDate =
@@ -1484,6 +1570,9 @@ export default function NuevoGastoPage() {
                   const status = scanReviewStatus(review);
                   const warningText = scanReviewWarning(review);
                   const noticeText = scanReviewNotice(review);
+                  const vatResolution = vatResolutionForScanPayload(
+                    review.payload,
+                  );
                   const batchCatalogNotice =
                     batchCatalogProductReasonForScanReview(review);
                   const productPreview =
@@ -1532,8 +1621,19 @@ export default function NuevoGastoPage() {
                             </p>
                             <p className="text-sm text-slate-500">
                               {review.payload.supplier.name} ·{" "}
-                              {formatMoney(review.payload.expense.amount)}
+                              {vatResolution.blocked
+                                ? `Base ${formatMoney(vatResolution.base)} · total por revisar`
+                                : formatMoney(vatResolution.total)}
                               {review.fileName ? ` · ${review.fileName}` : ""}
+                            </p>
+                            <p
+                              className={`mt-1 text-xs font-bold ${
+                                vatResolution.blocked
+                                  ? "text-amber-800"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {expenseVatSourceLabel(vatResolution, vatExempt)}
                             </p>
                             {warningText ? (
                               <p
@@ -2249,6 +2349,12 @@ export default function NuevoGastoPage() {
                 onAmountTextChange={setAmountText}
                 ivaPercent={expenseVatExempt ? 0 : ivaPercent}
                 vatExempt={expenseVatExempt}
+                profileVatExempt={vatExempt}
+                businessKind={businessKind}
+                deductibility={currentExpenseVatContext.deductibility}
+                origin={expenseOrigin}
+                recurringExpenseId={editingExpense?.recurringExpenseId}
+                purchaseLines={purchaseLines}
               />
               {expenseVatExempt ? (
                 <p className="text-sm text-slate-500 sm:col-span-2">
@@ -2323,6 +2429,20 @@ export default function NuevoGastoPage() {
                       { amount: currentAmount },
                       line,
                     );
+                  const lineBase = expensePurchaseLineBaseTotal(line);
+                  const lineIvaPercent = vatExempt
+                    ? 0
+                    : (line.ivaPercent ?? ivaPercent);
+                  const lineAmounts = expenseTotalsFromBase(
+                    lineBase,
+                    lineIvaPercent,
+                    vatExempt,
+                  );
+                  const lineIvaOrigin = vatExempt
+                    ? "perfil exento"
+                    : line.ivaPercent === undefined
+                      ? "cabecera"
+                      : "línea";
                   const lineIsCreditOrReturn =
                     currentAmount < 0 ||
                     expensePurchaseLineBaseTotal(line) < 0 ||
@@ -2430,9 +2550,25 @@ export default function NuevoGastoPage() {
                             }
                           />
                         </Field>
-                        <Field label="IVA">
+                        <Field
+                          label={
+                            !vatExempt && line.ivaPercent === undefined
+                              ? currentVatResolution.blocked
+                                ? "IVA (confirmar)"
+                                : "IVA (cabecera)"
+                              : "IVA"
+                          }
+                        >
                           <NumericFieldInput
-                            value={line.ivaPercent ?? ivaPercent}
+                            value={lineIvaPercent}
+                            disabled={vatExempt}
+                            className={
+                              !vatExempt &&
+                              line.ivaPercent === undefined &&
+                              currentVatResolution.blocked
+                                ? "border-amber-300 bg-amber-50"
+                                : undefined
+                            }
                             onChange={(lineIva) =>
                               updatePurchaseLine(line.id, {
                                 ivaPercent: lineIva,
@@ -2442,9 +2578,35 @@ export default function NuevoGastoPage() {
                         </Field>
                       </div>
                       <p className="mt-3 text-right text-sm font-bold text-slate-700">
-                        Base línea:{" "}
-                        {formatMoney(expensePurchaseLineBaseTotal(line))}
+                        Base {formatMoney(lineAmounts.base)} · IVA{" "}
+                        {lineIvaPercent}% {formatMoney(lineAmounts.iva)} · Total{" "}
+                        {formatMoney(lineAmounts.total)}
                       </p>
+                      <p className="mt-1 text-right text-xs font-semibold text-slate-500">
+                        Origen IVA: {lineIvaOrigin}
+                        {vatExempt && line.ivaPercent !== undefined
+                          ? ` · tipo documental conservado ${line.ivaPercent}%`
+                          : ""}
+                      </p>
+                      {!vatExempt &&
+                      line.ivaPercent === undefined &&
+                      currentVatResolution.blocked ? (
+                        <p className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-amber-800">
+                          Tipo sin confirmar: se muestra {lineIvaPercent}% de
+                          cabecera.
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updatePurchaseLine(line.id, {
+                                ivaPercent: lineIvaPercent,
+                              })
+                            }
+                            className="rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold"
+                          >
+                            Confirmar {lineIvaPercent}%
+                          </button>
+                        </p>
+                      ) : null}
                       <label
                         className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
                       >
@@ -2498,21 +2660,73 @@ export default function NuevoGastoPage() {
                     <p className="text-sm font-semibold text-slate-600">
                       Base líneas: {formatMoney(purchaseLinesBaseTotal)}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAmountText(decimalInputFromNumber(purchaseLinesBaseTotal))
-                      }
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-                    >
-                      Copiar al importe
-                    </button>
-                    <p className="text-xs text-slate-500">
-                      Copia esa suma al importe del gasto.
-                    </p>
+                    {canReconcileExpenseAmountWithLineBase(
+                      currentExpenseVatContext,
+                    ) ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAmountText(
+                              decimalInputFromNumber(purchaseLinesBaseTotal),
+                            );
+                            setVatSubmitError(null);
+                          }}
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+                        >
+                          Conciliar importe con líneas
+                        </button>
+                        <p className="text-xs text-slate-500">
+                          Usa la suma de bases para que el desglose pueda
+                          validarse.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs font-semibold text-amber-800">
+                        En un extra no desgravable, el importe es el coste
+                        íntegro y no se reemplaza por la suma de bases.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
+              {purchaseLines.length > 0 ? (
+                <div
+                  role={currentVatResolution.blocked ? "alert" : "status"}
+                  className={`rounded-xl border px-3 py-2 text-sm ${
+                    currentVatResolution.blocked
+                      ? "border-amber-200 bg-amber-50 text-amber-900"
+                      : "border-blue-100 bg-blue-50 text-blue-900"
+                  }`}
+                >
+                  <p className="font-bold">
+                    {expenseVatSourceLabel(
+                      currentVatResolution,
+                      vatExempt,
+                      currentExpenseVatContext,
+                    )}
+                  </p>
+                  {currentVatResolution.blocked ? (
+                    <p className="mt-1">
+                      {expenseVatIssueMessage(currentVatResolution.issue)}
+                    </p>
+                  ) : (
+                    <p className="mt-1">
+                      Base {formatMoney(currentVatResolution.base)} · IVA{" "}
+                      {formatMoney(currentVatResolution.iva)} · Total{" "}
+                      {formatMoney(currentVatResolution.total)}
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              {vatSubmitError ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+                >
+                  {vatSubmitError}
+                </p>
+              ) : null}
             </div>
           </FormSection>
             </Card>
