@@ -131,6 +131,10 @@ import {
   renameProductFamilyInAppData,
   type ProductFamilyRenameResult,
 } from "@/lib/product-family-markups";
+import {
+  deleteCustomerMasterFromData,
+  deleteSupplierMasterFromData,
+} from "@/lib/master-record-deletion";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -1495,10 +1499,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteSupplier = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      suppliers: prev.suppliers.filter((s) => s.id !== id),
-    }));
+    setAppData((prev) => deleteSupplierMasterFromData(prev, id));
   }, [setAppData]);
 
   const updateSupplier = useCallback((supplier: Supplier) => {
@@ -1612,10 +1613,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }, [setAppData]);
 
   const deleteCustomer = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      customers: prev.customers.filter((c) => c.id !== id),
-    }));
+    setAppData((prev) => deleteCustomerMasterFromData(prev, id));
   }, [setAppData]);
 
   const mergeCustomers = useCallback((

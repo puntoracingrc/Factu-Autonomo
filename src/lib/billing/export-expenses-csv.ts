@@ -43,6 +43,8 @@ function resolveSupplierNif(
   expense: Expense,
   nifs: Map<string, string>,
 ): string {
+  const historicalNif = expense.purchaseDocument?.supplierNif?.trim();
+  if (historicalNif) return historicalNif;
   if (expense.supplierId && nifs.has(expense.supplierId)) {
     return nifs.get(expense.supplierId)!;
   }
