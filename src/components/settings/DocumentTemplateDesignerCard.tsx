@@ -451,20 +451,11 @@ export function DocumentTemplateDesignerCard({
 
                 <div className="rounded-md border border-slate-200 bg-white p-2 text-center">
                   <p className="text-[10px] font-bold text-slate-900">
-                    QR tributario:
+                    QR tributario no disponible
                   </p>
-                  <div className="mx-auto mt-1 grid h-10 w-10 grid-cols-3 gap-0.5 rounded border border-slate-300 bg-white p-1">
-                    {Array.from({ length: 9 }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={
-                          index % 2 === 0 ? "bg-slate-900" : "bg-slate-200"
-                        }
-                      />
-                    ))}
-                  </div>
                   <p className="mx-auto mt-1 max-w-[9rem] text-[9px] leading-tight text-slate-500">
-                    Factura verificable en la sede electrónica de la AEAT
+                    El servicio de registro está desactivado; la vista previa no
+                    genera un QR ficticio.
                   </p>
                 </div>
 
@@ -735,22 +726,11 @@ export function DocumentTemplateDesignerCard({
 
                     <div className="rounded-lg border border-slate-200 bg-white p-4 text-center">
                       <p className="text-sm font-bold text-slate-900">
-                        QR tributario:
+                        QR tributario no disponible
                       </p>
-                      <div className="mx-auto mt-2 grid h-28 w-28 grid-cols-5 gap-0.5 rounded border border-slate-300 bg-white p-2">
-                        {Array.from({ length: 25 }).map((_, index) => (
-                          <span
-                            key={index}
-                            className={
-                              index % 3 === 0 || index % 7 === 0
-                                ? "bg-slate-900"
-                                : "bg-slate-200"
-                            }
-                          />
-                        ))}
-                      </div>
                       <p className="mx-auto mt-2 max-w-[11rem] text-xs leading-tight text-slate-500">
-                        Factura verificable en la sede electrónica de la AEAT
+                        El servicio de registro está desactivado; esta muestra no
+                        genera ni reserva un QR.
                       </p>
                     </div>
                   </section>

@@ -30,7 +30,7 @@ export const facturasSection: ManualSection = {
       paragraphs: [
         "**Guardar borrador** mantiene la factura editable. El borrador no reserva número fiscal, no bloquea el documento y no genera registro Veri*Factu.",
         "**Emitir factura** o **Emitir y descargar PDF** asigna el número definitivo según la numeración actual, guarda la fecha del documento y bloquea la factura.",
-        "Si Veri*Factu está activado, el QR tributario y la huella se generan al emitir, no mientras la factura sigue en borrador.",
+        "El registro Veri*Factu y el QR tributario están desactivados. Emitir una factura no la presenta a AEAT ni genera un distintivo de aceptación.",
       ],
       screenshot: {
         src: "/ayuda/capturas/facturas-pdf.png",

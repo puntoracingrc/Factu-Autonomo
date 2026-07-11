@@ -4,6 +4,7 @@ export interface VerifactuRuntimeStatus {
 
 export type VerifactuRuntimeState =
   | { phase: "loading" }
+  | { phase: "disabled" }
   | { phase: "unknown" }
   | { phase: "unavailable" };
 
@@ -42,7 +43,7 @@ export async function loadVerifactuRuntimeState(
 
     const payload: unknown = await response.json();
     if (!isRuntimeStatus(payload)) return { phase: "unavailable" };
-    return { phase: "unavailable" };
+    return { phase: "disabled" };
   } catch {
     return { phase: "unavailable" };
   }
@@ -52,6 +53,15 @@ export function resolveVerifactuConnectionStatus(
   enabled: boolean,
   runtime: VerifactuRuntimeState,
 ): VerifactuConnectionStatus {
+  if (runtime.phase === "disabled") {
+    return {
+      badge: "Registro desactivado",
+      description:
+        "La ruta de registro Veri*Factu está desactivada: no hay envío a AEAT, QR tributario ni marca de aceptación.",
+      tone: "disabled",
+    };
+  }
+
   if (!enabled) {
     return {
       badge: "Desactivado",

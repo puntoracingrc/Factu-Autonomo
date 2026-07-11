@@ -43,6 +43,7 @@ describe("public VeriFactu containment", () => {
 
     expect(settingsCard).toContain("loadVerifactuRuntimeState");
     expect(runtimeStatus).toContain('phase: "loading"');
+    expect(runtimeStatus).toContain('phase: "disabled"');
     expect(runtimeStatus).toContain('phase: "unavailable"');
     expect(runtimeStatus).toContain("Estado no verificado");
     expect(runtimeStatus).toContain("Estado no disponible");
@@ -53,6 +54,8 @@ describe("public VeriFactu containment", () => {
     expect(settingsCard).toContain("según ámbito");
     expect(settingsCard).toContain("y excepciones");
     expect(settingsCard).toContain('href="/legal/verifactu"');
+    expect(settingsCard).toContain("Registro Veri*Factu no disponible");
+    expect(settingsCard).not.toContain("Activar Veri*Factu");
     expect(settingsCard).not.toContain("Obligatorio para autónomos");
   });
 
@@ -70,25 +73,32 @@ describe("public VeriFactu containment", () => {
     const metadata = source("../../app/inicio/layout.tsx");
 
     for (const publicSurface of [landing, pricing]) {
-      expect(publicSurface).toContain("Preparación VeriFactu/SIF");
-      expect(publicSurface).toContain("modo simulado");
+      expect(publicSurface).toContain("VeriFactu/SIF");
+      expect(publicSurface).toMatch(/registro[^\n]*desactivad/i);
+      expect(publicSurface).toMatch(/QR[^\n]*desactivad/i);
       expect(publicSurface).toContain(
         "No afirmamos que la AEAT haya homologado, validado o revisado",
       );
       expect(publicSurface).toContain('href="/legal/verifactu"');
       expect(publicSurface).not.toMatch(/VeriFactu incluido/i);
+      expect(publicSurface).not.toMatch(/modo simulado/i);
     }
 
-    expect(metadata).toContain("preparación VeriFactu/SIF en modo simulado");
+    expect(metadata).toContain(
+      "información VeriFactu/SIF con registro y QR desactivados",
+    );
     expect(metadata).not.toContain("VeriFactu desde el plan Gratis");
+    expect(metadata).not.toMatch(/modo simulado/i);
   });
 
-  it("hace visible el estado simulado en la explicación enlazada", () => {
+  it("hace visible el estado desactivado en la explicación enlazada", () => {
     const legalInfo = source("../../app/legal/verifactu/page.tsx");
 
     expect(legalInfo).toContain(
-      "Estado actual: preparación VeriFactu/SIF en modo simulado",
+      "Estado actual: registro VeriFactu, envío a AEAT y QR tributario",
     );
+    expect(legalInfo).toContain("desactivados");
+    expect(legalInfo).not.toMatch(/modo simulado/i);
     expect(legalInfo).toContain(
       "borrador técnico y no constituye una declaración válida",
     );

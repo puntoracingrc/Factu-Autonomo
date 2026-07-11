@@ -63,12 +63,12 @@ function formatSpanishDate(date = new Date()): string {
 function buildComponentsDescription(): string {
   return [
     "Componentes software: aplicación web (Next.js/React), API en servidor Node.js,",
-    "generación de PDF, módulo Veri*Factu (huella SHA-256 v0.1.2, QR tributario, XML de registro),",
+    "generación de PDF y componentes internos no operativos para revisar huellas/XML Veri*Factu,",
     "almacenamiento local del navegador y sincronización opcional en Supabase.",
     "Componentes hardware: equipos del usuario final (PC, tablet o móvil) y servidores",
     "del proveedor de hosting (Vercel u equivalente).",
     "Funcionalidades principales: facturas, presupuestos, recibos, facturas rectificativas,",
-    "registro encadenado, QR verificable AEAT, exportación PDF y gestión de clientes/gastos.",
+    "controles de integridad documental, exportación PDF y gestión de clientes/gastos.",
   ].join(" ");
 }
 
@@ -89,10 +89,10 @@ function buildComplianceStatement(version: string): string {
 function buildComplianceAnnexNotes(): string {
   return [
     "Huella de registros según especificación AEAT v0.1.2 (vectores oficiales validados en tests).",
-    "QR tributario conforme a especificación AEAT (validación en prewww2 / www2).",
+    "QR tributario desactivado; ningún dato local se presenta como verificable ante AEAT.",
     "Encadenamiento de registros de facturación de alta; rectificativas como alta (F1/R1/R4).",
     "Verificación in situ en Ajustes → Veri*Factu (productor, NIF, software, versión).",
-    "Remisión a AEAT: transporte SOAP/mTLS preparado; por defecto funciona en modo simulado sin enviar datos a AEAT.",
+    "Remisión a AEAT: servicio desactivado; no se envían datos, no se genera QR tributario y no se acredita aceptación.",
     "El envío real requiere certificado .p12/.pfx, variables de servidor y prueba oficial en entorno AEAT test.",
     "Comprobación de cadena de huellas bajo demanda en Ajustes → Veri*Factu.",
     "Pendiente: registro de eventos completo, validación XSD estricta y aceptación oficial de pruebas AEAT.",

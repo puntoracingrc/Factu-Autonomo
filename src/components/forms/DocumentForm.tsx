@@ -87,7 +87,7 @@ import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
-import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
+import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
 import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
@@ -1500,20 +1500,20 @@ export function DocumentForm({
 
     saved = attachIssuerSnapshot(saved, effectiveDocumentProfile);
 
-    let verifactuNotice: string | undefined;
-    try {
-      saved = await finalizeVerifactuDocument({
-        doc: saved,
-        profile: effectiveDocumentProfile,
-        chain: data.verifactuChain,
-        registerLocal: registerVerifactuForDocument,
-      });
-    } catch (error) {
-      verifactuNotice =
-        error instanceof Error
-          ? `Veri*Factu pendiente: ${error.message}`
-          : "Veri*Factu no confirmó el registro; el documento no se ha marcado como registrado.";
-    }
+    const verifactuOutcome = await finalizeSavedVerifactuDocument({
+      doc: saved,
+      profile: effectiveDocumentProfile,
+      chain: data.verifactuChain,
+      registerLocal: registerVerifactuForDocument,
+    });
+    saved = verifactuOutcome.document;
+    const verifactuNotice =
+      verifactuOutcome.outcome === "saved_without_registration" ||
+      verifactuOutcome.outcome === "saved_with_safety_block"
+        ? verifactuOutcome.notice
+        : undefined;
+    const verifactuSafetyBlocked =
+      verifactuOutcome.outcome === "saved_with_safety_block";
 
     maybeCelebrateFirstInvoice(data.documents, saved);
     if (!existing) clearDocumentSessionDraft(type);
@@ -1524,7 +1524,7 @@ export function DocumentForm({
       number: saved.number,
       router,
       notice: verifactuNotice,
-      download: download
+      download: download && !verifactuSafetyBlocked
         ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
         : undefined,
     });
@@ -1651,7 +1651,8 @@ export function DocumentForm({
           {!existing && type === "factura" && (
             <p className="text-sm text-slate-500 sm:col-span-2">
               El borrador no reserva número fiscal. Al emitir se asignan número
-              y fecha definitivos y, si corresponde, se genera el QR tributario.
+              y fecha definitivos. El registro Veri*Factu y el QR tributario
+              permanecen desactivados.
             </p>
           )}
         </div>

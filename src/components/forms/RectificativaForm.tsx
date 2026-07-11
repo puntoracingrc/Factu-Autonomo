@@ -47,7 +47,7 @@ import {
   isAreaDocumentUnit,
 } from "@/lib/area-calculation";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
-import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
+import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
@@ -359,22 +359,20 @@ export function RectificativaForm({
       return;
     }
 
-    try {
-      saved = await finalizeVerifactuDocument({
-        doc: saved,
-        profile: historicalProfile,
-        chain: data.verifactuChain,
-        registerLocal: registerVerifactuForDocument,
-      });
-    } catch (error) {
-      setSaveAction("idle");
-      alert(
-        error instanceof Error
-          ? `No se pudo completar el registro tributario: ${error.message}`
-          : "No se pudo completar el registro tributario. El documento está guardado; prueba desde el listado.",
-      );
-      return;
-    }
+    const verifactuOutcome = await finalizeSavedVerifactuDocument({
+      doc: saved,
+      profile: historicalProfile,
+      chain: data.verifactuChain,
+      registerLocal: registerVerifactuForDocument,
+    });
+    saved = verifactuOutcome.document;
+    const verifactuNotice =
+      verifactuOutcome.outcome === "saved_without_registration" ||
+      verifactuOutcome.outcome === "saved_with_safety_block"
+        ? verifactuOutcome.notice
+        : undefined;
+    const verifactuSafetyBlocked =
+      verifactuOutcome.outcome === "saved_with_safety_block";
 
     maybeCelebrateFirstRectificativa(data.documents, saved);
     setSaveAction("idle");
@@ -382,7 +380,8 @@ export function RectificativaForm({
       type: "factura",
       number: saved.number,
       router,
-      download: download
+      notice: verifactuNotice,
+      download: download && !verifactuSafetyBlocked
         ? { doc: saved, profile: historicalProfile, pdfOptions }
         : undefined,
     });
