@@ -532,7 +532,7 @@ function buildCodexHandoffBlock(scope: string) {
     "CODEX_HANDOFF_CONTEXT_V1",
     `scope=${scope}`,
     "project=facturacion-autonomos.app",
-    "local_repo=/Users/macbookpro14/Projects/factura-autonomo-real-holdout-qa",
+    "local_repo=<ruta-del-worktree-aislado>",
     "production=https://facturacion-autonomos.app",
     "github=https://github.com/puntoracingrc/Factu-Autonomo",
     "admin=/admin?seccion=sistema|usuarios|supabase|vercel|seguridad|errores|aprendizaje",

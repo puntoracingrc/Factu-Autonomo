@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { resolveOptInFixturePath } from "../../../scripts/private-fixture-paths.mjs";
 import {
   buildFacturaDirectaImport,
   detectFacturaDirectaRows,
@@ -277,7 +278,11 @@ describe("FacturaDirecta importer", () => {
 });
 
 const realFixturesDir =
-  "/Users/macbookpro14/Documents/New project 2/artifacts/competitor-import-fixtures/exports/facturadirecta";
+  resolveOptInFixturePath(
+    "COMPETITOR_IMPORT_FIXTURES_ROOT",
+    "exports",
+    "facturadirecta",
+  ) ?? "";
 const realFixtureNames = [
   "contactos-listado.csv",
   "productos-listado.csv",
@@ -288,7 +293,7 @@ const realFixtureNames = [
   "informe-vencimientos-compras.csv",
 ];
 
-describe.runIf(existsSync(realFixturesDir))("FacturaDirecta real fixtures", () => {
+describe.runIf(realFixturesDir)("FacturaDirecta real fixtures", () => {
   it("lee los CSV reales exportados desde FacturaDirecta", async () => {
     const files = realFixtureNames.map((name) => {
       const buffer = readFileSync(join(realFixturesDir, name));

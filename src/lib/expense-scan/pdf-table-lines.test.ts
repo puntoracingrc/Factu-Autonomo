@@ -27,7 +27,7 @@ describe("extractStilCondalPurchaseLinesFromPdfItems", () => {
     const items = [
       item(1, 2, 2, "STIL CONDAL, S.A."),
       item(1, 2, 7, "Factura n° :"),
-      item(1, 6, 7, "FC121021478"),
+      item(1, 6, 7, "FC000000001"),
       item(1, 1, 12, "Artículo"),
       item(1, 21, 12, "Cant."),
       item(1, 35, 12, "Importe"),

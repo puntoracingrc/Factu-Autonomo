@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  resolveReadableOptInFixturePath,
+  validatePrivateFixtureId,
+} from "../private-fixture-paths.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, "../..");
 export const INVOICE_FIXTURES_ROOT = path.join(
@@ -581,7 +586,7 @@ export function discoverInvoiceFixtures(root = INVOICE_FIXTURES_ROOT) {
       "synthetic_adversarial",
     ),
   );
-  fixtures.push(...discoverPrivateFixtures(path.join(root, "private_real")));
+  fixtures.push(...discoverPrivateFixtures());
   return fixtures.sort((a, b) => a.invoiceId.localeCompare(b.invoiceId));
 }
 
@@ -608,26 +613,35 @@ function discoverSyntheticSuite(suiteRoot, suite) {
   });
 }
 
-function discoverPrivateFixtures(privateRoot) {
-  const groundTruthDir = path.join(privateRoot, "ground_truth");
-  if (!fs.existsSync(groundTruthDir)) return [];
-  return fs
-    .readdirSync(groundTruthDir)
-    .filter((file) => file.endsWith(".json"))
-    .map((file) => {
-      const groundTruthPath = path.join(groundTruthDir, file);
-      const raw = readJson(groundTruthPath);
-      const pdfName = raw.sourcePdf ?? `${path.basename(file, ".json")}.pdf`;
-      return {
-        suite: "private_real",
-        invoiceId: raw.fixtureId ?? path.basename(file, ".json"),
-        layoutId: "private_real",
-        pdfPath: path.join(privateRoot, "pdf", pdfName),
-        fallbackPdfPath: path.join("/Users/macbookpro14/Desktop/stil", pdfName),
-        groundTruthPath,
-        isPrivate: true,
-      };
-    });
+function discoverPrivateFixtures() {
+  const configuredStilPdfPath = resolveReadableOptInFixturePath(
+    "STIL_CONDAL_FIXTURE_PDF",
+  );
+  const configuredStilGroundTruthPath = resolveReadableOptInFixturePath(
+    "STIL_CONDAL_GROUND_TRUTH_JSON",
+  );
+
+  if (!configuredStilPdfPath && !configuredStilGroundTruthPath) return [];
+  if (!configuredStilPdfPath || !configuredStilGroundTruthPath) {
+    throw new Error(
+      "Las fixtures privadas STIL requieren STIL_CONDAL_FIXTURE_PDF y STIL_CONDAL_GROUND_TRUTH_JSON.",
+    );
+  }
+
+  const raw = readJson(configuredStilGroundTruthPath);
+  return [
+    {
+      suite: "private_real",
+      invoiceId: validatePrivateFixtureId(
+        raw.fixtureId,
+        path.basename(configuredStilGroundTruthPath, ".json"),
+      ),
+      layoutId: "private_real",
+      pdfPath: configuredStilPdfPath,
+      groundTruthPath: configuredStilGroundTruthPath,
+      isPrivate: true,
+    },
+  ];
 }
 
 export async function extractPdfRows(pdfPath) {
