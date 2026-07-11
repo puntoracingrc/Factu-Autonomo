@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDeclarationMandatoryFields,
-  buildDeclarationOfConformity,
+  buildDeclarationReviewDraft,
   buildDeclarationStatementEs,
 } from "./declaration";
 
-describe("declaration of conformity art. 15", () => {
+describe("internal declaration review draft", () => {
   it("includes all mandatory fields a–l", () => {
-    const doc = buildDeclarationOfConformity(new Date("2026-06-10T12:00:00Z"));
+    const doc = buildDeclarationReviewDraft(
+      new Date("2026-06-10T12:00:00Z"),
+    );
     const m = doc.mandatory;
 
     expect(m.systemName).toBeTruthy();
@@ -29,6 +31,7 @@ describe("declaration of conformity art. 15", () => {
       complianceNotes: "Notas de prueba",
     });
 
+    expect(text).toContain("BORRADOR TÉCNICO — NO VÁLIDO");
     expect(text).toContain("DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN");
     expect(text).toContain("a) Nombre del sistema informático:");
     expect(text).toContain("b) Código identificador del sistema informático:");
@@ -37,8 +40,9 @@ describe("declaration of conformity art. 15", () => {
     expect(text).toContain("ANEXO");
   });
 
-  it("keeps backward-compatible top-level fields", () => {
-    const doc = buildDeclarationOfConformity();
+  it("mantiene el contrato interno marcado como no válido", () => {
+    const doc = buildDeclarationReviewDraft();
+    expect(doc.publicationStatus).toBe("draft_not_valid");
     expect(doc.modality).toBe("VERI*FACTU");
     expect(doc.softwareName).toBe(doc.mandatory.systemName);
     expect(doc.developerNif).toBe(doc.mandatory.producerNif);

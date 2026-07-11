@@ -483,7 +483,7 @@ Secciones de la página:
 |------|-----------|
 | `/legal/privacidad` | Política de privacidad (borrador) |
 | `/legal/terminos` | Términos de uso (borrador) |
-| `/legal/declaracion-responsable` | Declaración responsable del SIF (art. 15) — datos del productor desde env vars |
+| `/legal/declaracion-responsable` | Estado `noindex` del borrador técnico; no publica declaración, PII ni afirmación de cumplimiento |
 
 ---
 
@@ -672,12 +672,17 @@ Los escaneos extra se acreditan en `ai_credit_units` y `scan_credits` (compatibi
 | `/api/referrals/redeem` | POST | Canjear código de invitación (Bearer) |
 | `/api/webhooks/stripe` | POST | Eventos Stripe |
 | `/api/verifactu/register` | POST | Registro Veri\*Factu + AEAT |
-| `/api/verifactu/status` | GET | Estado software/entorno/cert |
-| `/api/verifactu/declaration` | GET | JSON declaración responsable |
+| `/api/verifactu/status` | GET | Bearer verificado; contrato fail-closed `submissionMode: "unknown"`, sin inferir ni exponer entorno o configuración |
+| `/api/verifactu/declaration` | GET | Contención `404 draft_not_published`; no publica el borrador interno |
 | `/api/email/welcome` | POST | Email bienvenida |
 | `/api/email/payment-reminder` | POST | Recordatorio de pago factura |
 
 Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
+
+La confirmación pública de un modo de envío real queda bloqueada hasta que el
+entorno usado por `/api/verifactu/register` sea propiedad exclusiva del
+servidor (`AUD-P1-15`). La interfaz distingue carga, estado no verificado y
+fallo; ninguno de esos estados se convierte por defecto en modo simulado.
 
 ---
 

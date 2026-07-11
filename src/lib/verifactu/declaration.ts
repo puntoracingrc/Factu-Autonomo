@@ -36,7 +36,8 @@ export interface DeclarationRecommendedAnnex {
   additionalNotes?: string;
 }
 
-export interface DeclarationOfConformity {
+export interface DeclarationReviewDraft {
+  publicationStatus: "draft_not_valid";
   modality: "VERI*FACTU";
   issuedAt: string;
   mandatory: DeclarationMandatoryFields;
@@ -129,6 +130,8 @@ export function buildDeclarationStatementEs(
   annex: DeclarationRecommendedAnnex,
 ): string {
   const lines = [
+    "BORRADOR TÉCNICO — NO VÁLIDO",
+    "",
     "DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN",
     "",
     `a) Nombre del sistema informático: ${fields.systemName}`,
@@ -168,19 +171,24 @@ export function buildDeclarationStatementEs(
   return [...lines, ...annexLines].join("\n");
 }
 
-export function buildDeclarationOfConformity(
+/**
+ * Borrador exclusivamente interno para revisión técnica y jurídica.
+ * No debe servirse desde rutas públicas ni presentarse como certificación.
+ */
+export function buildDeclarationReviewDraft(
   date = new Date(),
-): DeclarationOfConformity {
+): DeclarationReviewDraft {
   const mandatory = buildDeclarationMandatoryFields(date);
   const annex: DeclarationRecommendedAnnex = {
     contactEmail: VERIFACTU_SOFTWARE.developerEmail || undefined,
     websiteUrl: VERIFACTU_SOFTWARE.developerUrl || undefined,
     complianceNotes: buildComplianceAnnexNotes(),
     additionalNotes:
-      "Documento generado automáticamente por el SIF. La versión en español prevalece.",
+      "Borrador técnico generado automáticamente para revisión interna.",
   };
 
   return {
+    publicationStatus: "draft_not_valid",
     modality: "VERI*FACTU",
     issuedAt: date.toISOString().slice(0, 10),
     mandatory,

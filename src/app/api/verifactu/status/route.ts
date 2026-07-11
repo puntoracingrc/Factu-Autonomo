@@ -1,39 +1,41 @@
 import { NextResponse } from "next/server";
-import {
-  getAeatCertificateChannel,
-  getServerVerifactuEnvironment,
-  getVerifactuCertificateConfig,
-  isAeatSubmitConfigured,
-} from "@/lib/verifactu/config";
-import { VERIFACTU_SOFTWARE } from "@/lib/verifactu/constants";
-import { getProducerConfigStatus } from "@/lib/verifactu/producer-config";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 
+function protectStatusResponse<T extends Response>(response: T): T {
+  response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Vary", "Authorization");
+  return response;
+}
+
 export async function GET(request: Request) {
-  const rateLimit = await checkRateLimit(request, {
-    namespace: "verifactu_status",
-    limit: 120,
-    windowMs: 5 * 60_000,
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
   });
-  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+  if (!user) {
+    return protectStatusResponse(
+      NextResponse.json({ error: "Sesión requerida" }, { status: 401 }),
+    );
+  }
 
-  const certificateConfigured = getVerifactuCertificateConfig() !== null;
-  const aeatSubmitRequested = process.env.VERIFACTU_AEAT_SUBMIT === "true";
-
-  return NextResponse.json({
-    software: VERIFACTU_SOFTWARE,
-    environment: getServerVerifactuEnvironment(),
-    aeatSubmitRequested,
-    aeatSubmitConfigured: isAeatSubmitConfigured(),
-    certificateConfigured,
-    certificateChannel: getAeatCertificateChannel(),
-    producerConfig: getProducerConfigStatus(),
-    qrHosts: {
-      test: "https://prewww2.aeat.es",
-      production: "https://www2.agenciatributaria.gob.es",
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "verifactu_status",
+      limit: 120,
+      windowMs: 5 * 60_000,
     },
-  });
+    user.id,
+  );
+  if (!rateLimit.allowed) {
+    return protectStatusResponse(rateLimitExceededResponse(rateLimit));
+  }
+
+  return protectStatusResponse(
+    NextResponse.json({ submissionMode: "unknown" as const }),
+  );
 }

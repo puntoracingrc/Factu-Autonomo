@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { buildDeclarationOfConformity } from "@/lib/verifactu/declaration";
-import { isAeatSubmitConfigured } from "@/lib/verifactu/config";
-import { getServerVerifactuEnvironment } from "@/lib/verifactu/config";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+
+function containDraftResponse<T extends Response>(response: T): T {
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  return response;
+}
 
 export async function GET(request: Request) {
   const rateLimit = await checkRateLimit(request, {
@@ -13,14 +17,14 @@ export async function GET(request: Request) {
     limit: 120,
     windowMs: 5 * 60_000,
   });
-  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+  if (!rateLimit.allowed) {
+    return containDraftResponse(rateLimitExceededResponse(rateLimit));
+  }
 
-  const declaration = buildDeclarationOfConformity();
-  return NextResponse.json({
-    declaration,
-    server: {
-      environment: getServerVerifactuEnvironment(),
-      aeatSubmitConfigured: isAeatSubmitConfigured(),
-    },
-  });
+  return containDraftResponse(
+    NextResponse.json(
+      { status: "draft_not_published" },
+      { status: 404 },
+    ),
+  );
 }

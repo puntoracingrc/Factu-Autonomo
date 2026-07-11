@@ -4,7 +4,7 @@ import { APP_BRAND_NAME } from "@/lib/brand";
 export const metadata: Metadata = {
   title: "Inicio",
   description:
-    "Facturación sencilla para autónomos: facturas, gastos, impuestos orientativos y VeriFactu desde el plan Gratis.",
+    "Facturación sencilla para autónomos: facturas, gastos, impuestos orientativos y preparación VeriFactu/SIF en modo simulado.",
   alternates: {
     canonical: "/inicio",
   },

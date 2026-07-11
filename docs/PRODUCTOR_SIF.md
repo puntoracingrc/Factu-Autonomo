@@ -2,6 +2,11 @@
 
 Esta guía es para **quien desarrolla y comercializa** Factura Autónomo, no para el autónomo que lo usa para facturar.
 
+> **Estado actual:** la declaración generada por el código es un borrador interno
+> no válido, pendiente de revisión técnica y jurídica. La ruta pública solo
+> muestra ese estado y la API no entrega el borrador. No debe presentarse el
+> producto como SIF certificado mientras este bloqueo siga abierto.
+
 ## ¿Hay que registrarse en Hacienda?
 
 **No.** No existe un registro oficial de “software homologado”. El mecanismo es la **declaración responsable** (autocertificación) del **productor**, según:
@@ -46,7 +51,9 @@ Configura en **Vercel** (o `.env.local`):
 | `NEXT_PUBLIC_VERIFACTU_INSTALLATION_ID` | **Sí** | Identificador estable de instalación del SIF |
 | `NEXT_PUBLIC_APP_VERSION` | **Sí** | Versión mostrada en declaración |
 
-Visible para el usuario en **Configuración → Veri*Factu** y en `/legal/declaracion-responsable`.
+Los identificadores técnicos se muestran en **Configuración → Veri*Factu**. La
+ruta `/legal/declaracion-responsable` no publica esos datos mientras la
+declaración definitiva no esté aprobada.
 
 ### 3. Declaración responsable (art. 15)
 
@@ -67,12 +74,18 @@ Debe incluir, **en este orden**, los apartados **a–l**:
 | k | Texto de cumplimiento LGT + RD 1007/2023 + HAC/1177/2024 |
 | l | Fecha y lugar |
 
-La app genera este documento en:
+El código mantiene un borrador interno para revisión. Por contención:
 
-- **UI:** `/legal/declaracion-responsable`
-- **API:** `GET /api/verifactu/declaration`
+- **UI:** `/legal/declaracion-responsable` muestra únicamente que el borrador no es válido.
+- **API:** `GET /api/verifactu/declaration` responde `404 draft_not_published`.
 
-Debe estar **dentro del producto**, accesible de forma rápida e intuitiva, y disponible al adquirir/usar el software.
+La publicación definitiva queda bloqueada hasta cerrar los requisitos técnicos
+y obtener la revisión del productor y jurídica correspondiente.
+
+El endpoint autenticado `/api/verifactu/status` tampoco publica ni deduce el
+entorno de remisión: responde `submissionMode: "unknown"`. La confirmación de
+un modo real queda bloqueada hasta que el registro tome ese entorno
+exclusivamente del servidor (`AUD-P1-15`).
 
 ### 4. Cumplimiento técnico VERI*FACTU
 
@@ -96,7 +109,7 @@ Detalle técnico: `docs/VERIFACTU.md`.
 
 - [ ] Configurar **todas** las variables de productor (no dejar `PENDIENTE-NIF`)
 - [ ] Emitir factura de prueba y validar QR en https://prewww2.aeat.es
-- [ ] Revisar declaración responsable generada (campos a–l completos)
+- [ ] Revisar el borrador interno (campos a–l) sin publicarlo como válido
 - [ ] (Opcional) Certificado FNMT o sello + remisión en prewww10
 - [ ] Asesoría fiscal si vendes a terceros (responsabilidad art. 201.bis LGT)
 
@@ -134,7 +147,7 @@ No hay sello previo. La conformidad se demuestra con:
 ## Checklist rápido antes de producción comercial
 
 1. Tu NIF/CIF y domicilio en variables de entorno
-2. Declaración responsable revisada en `/legal/declaracion-responsable`
+2. Declaración responsable definitiva aprobada y publicada en sustitución de la página de estado
 3. Tests `npm test` en verde (incl. vectores huella AEAT)
 4. QR validado en preproducción AEAT
 5. Textos legales (`/legal/terminos`, `/legal/privacidad`) revisados con asesoría

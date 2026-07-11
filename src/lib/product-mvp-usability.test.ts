@@ -530,8 +530,9 @@ describe("MVP usability polish", () => {
     expect(landingSource).toContain("Demo sin registro");
     expect(landingSource).toContain("Empezar gratis");
     expect(landingSource).toContain("Sin tarjeta para empezar");
-    expect(landingSource).toContain("¿VeriFactu gratis?");
-    expect(landingSource).toContain("incluido desde el plan Gratis");
+    expect(landingSource).toContain("¿Preparación VeriFactu/SIF gratis?");
+    expect(landingSource).toContain("modo simulado está");
+    expect(landingSource).toContain('href="/legal/verifactu"');
     expect(landingSource).not.toContain("Probar gratis");
     expect(demoBannerSource).toContain("Sandbox separado");
     expect(demoBannerSource).toContain("Reiniciar demo");
@@ -795,7 +796,13 @@ describe("MVP usability polish", () => {
     expect(landingSource).toContain("Crea cuenta gratis");
     expect(landingSource).toContain("Confirma tu email");
     expect(landingSource).toContain("Email verificado antes de acciones reales");
-    expect(landingSource).toContain("VeriFactu incluido desde Gratis");
+    expect(landingSource).toContain(
+      "Preparación VeriFactu/SIF en modo simulado",
+    );
+    expect(landingSource).toContain(
+      "No afirmamos que la AEAT haya homologado, validado o revisado",
+    );
+    expect(landingSource).toContain('href="/legal/verifactu"');
     expect(verifactuLegalSource).toContain(
       "No afirmamos que la AEAT haya homologado",
     );
@@ -915,7 +922,8 @@ describe("MVP usability polish", () => {
     expect(settingsSource).toContain("Abrir Cuenta");
     expect(settingsSource).toContain("Drive, copias");
     expect(verifactuSource).toContain("Conexión con AEAT");
-    expect(verifactuSource).toContain("Modo simulado");
+    expect(verifactuSource).toContain("loadVerifactuRuntimeState");
+    expect(verifactuSource).not.toContain("Modo simulado");
     expect(verifactuSource).toContain("no guarda ni muestra claves privadas");
     expect(verifactuSource).not.toContain("docs/FASES.md");
   });

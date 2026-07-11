@@ -205,6 +205,6 @@ Ver `supabase/README.md`. Resumen:
 ## Comprobar
 
 1. https://facturacion-autonomos.app/precios — no debe decir “modo desarrollo”.
-2. https://facturacion-autonomos.app/api/verifactu/status — `developerUrl` debe ser el dominio nuevo.
+2. https://facturacion-autonomos.app/api/verifactu/status — sin bearer verificado debe responder `401`; con sesión responde solo `submissionMode: "unknown"` y Configuración → Veri\*Factu muestra “Estado no verificado”.
 3. Configuración → crear cuenta (requiere Supabase + redirect URLs).
 4. Pago test con tarjeta `4242 4242 4242 4242`.

@@ -85,12 +85,15 @@ const FREE_FEATURES = [
   "Hasta 10 documentos al mes",
   "Hasta 15 clientes",
   "Facturas, presupuestos y recibos en PDF",
-  "VeriFactu incluido",
+  "Preparación VeriFactu/SIF en modo simulado",
   "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
   "2 escaneos IA de prueba",
   "Copia manual export/import",
 ];
+
+const VERIFACTU_PUBLIC_NOTICE =
+  "No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
 
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",
@@ -270,6 +273,16 @@ export default function PreciosPage() {
               </li>
             ))}
           </ul>
+          <p className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
+            {VERIFACTU_PUBLIC_NOTICE}{" "}
+            <Link
+              href="/legal/verifactu"
+              className="font-bold underline underline-offset-2"
+            >
+              Qué incluye y qué no
+            </Link>
+            .
+          </p>
           {!user && (
             <div className="mt-5 space-y-2">
               <ButtonLink href="/cuenta?modo=crear#inicio-sesion" fullWidth>
