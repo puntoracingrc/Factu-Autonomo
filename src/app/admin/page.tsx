@@ -17,7 +17,6 @@ import {
   History,
   Mail,
   RefreshCw,
-  RotateCcw,
   Siren,
   ShieldCheck,
   TrendingUp,
@@ -44,11 +43,12 @@ import type {
   AdminHealthSnapshot,
 } from "@/lib/admin/health";
 import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
-import type {
-  AdminRestoreDataSummary,
-  AdminRestoreDiffSummary,
-  AdminUserRestorePointSummary,
+import {
+  type AdminRestoreDataSummary,
+  type AdminRestoreDiffSummary,
+  type AdminUserRestorePointSummary,
 } from "@/lib/admin/user-restore";
+import { ADMIN_USER_RESTORE_APPLY_BLOCK_REASON } from "@/lib/admin/user-restore-policy";
 import {
   AI_UNITS_PER_SCAN,
   UNLIMITED_AI_CREDIT_UNITS,
@@ -92,6 +92,7 @@ interface AdminUsersResponse {
 }
 
 interface AdminUserRestorePointsResponse {
+  mode?: "preview_only";
   email?: string | null;
   current?: AdminRestoreDataSummary;
   restorePoints?: AdminUserRestorePointSummary[];
@@ -100,12 +101,10 @@ interface AdminUserRestorePointsResponse {
 
 interface AdminUserRestoreActionResponse {
   ok?: boolean;
+  mode?: "preview_only";
   restorePoint?: AdminUserRestorePointSummary;
-  safetyRestorePoint?: AdminUserRestorePointSummary;
   current?: AdminRestoreDataSummary;
   diff?: AdminRestoreDiffSummary;
-  changes?: number;
-  restoredAt?: string;
   error?: string;
 }
 
@@ -782,7 +781,8 @@ function RestoreDiffSummary({ diff }: { diff: AdminRestoreDiffSummary | null }) 
                 {type}
               </p>
               <p className="font-bold text-slate-900">
-                +{value.added} · ~{value.updated} · -{value.deleted}
+                Añadidos {value.added} · Actualizados {value.updated} · Borrados{" "}
+                {value.deleted}
               </p>
             </div>
           ))}
@@ -794,7 +794,7 @@ function RestoreDiffSummary({ diff }: { diff: AdminRestoreDiffSummary | null }) 
 function UserRestorePanel({ user }: { user: AdminUserRow }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState<"idle" | "create" | "preview" | "restore">(
+  const [busy, setBusy] = useState<"idle" | "create" | "preview">(
     "idle",
   );
   const [current, setCurrent] = useState<AdminRestoreDataSummary | null>(null);
@@ -805,15 +805,17 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
   const [label, setLabel] = useState("Copia soporte admin");
   const [reason, setReason] = useState("");
   const [preview, setPreview] = useState<AdminRestoreDiffSummary | null>(null);
-  const [confirmEmail, setConfirmEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const endpoint = `/api/admin/users/${encodeURIComponent(user.id)}/restore-points`;
+  const restorePanelId = `admin-user-restore-${user.id}`;
 
   const loadRestorePoints = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setMessage(null);
+    setPreview(null);
     const token = await getAccessToken();
     if (!token) {
       setError("Sesión no disponible.");
@@ -875,10 +877,9 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
     if (!response.ok || !body.restorePoint) {
       setError(body.error ?? "No se pudo crear la copia.");
     } else {
-      setMessage("Copia de restauración creada.");
       setSelectedRestorePointId(body.restorePoint.id);
-      setPreview(null);
       await loadRestorePoints();
+      setMessage("Copia de restauración creada.");
     }
     setBusy("idle");
   };
@@ -912,49 +913,11 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
     if (!response.ok || !body.diff) {
       setError(body.error ?? "No se pudo preparar la vista previa.");
     } else {
+      setCurrent(body.current ?? null);
       setPreview(body.diff);
-      setMessage("Vista previa lista. Revisa cambios antes de restaurar.");
-    }
-    setBusy("idle");
-  };
-
-  const restoreUser = async () => {
-    if (!selectedRestorePointId) return;
-    setBusy("restore");
-    setError(null);
-    setMessage(null);
-    const token = await getAccessToken();
-    if (!token) {
-      setError("Sesión no disponible.");
-      setBusy("idle");
-      return;
-    }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        action: "restore",
-        restorePointId: selectedRestorePointId,
-        confirmEmail,
-        reason,
-      }),
-    });
-    const body = await readAdminJsonResponse<AdminUserRestoreActionResponse>(
-      response,
-    );
-    if (!response.ok) {
-      setError(body.error ?? "No se pudo restaurar.");
-    } else {
       setMessage(
-        `Usuario restaurado. Se aplicaron ${body.changes ?? 0} cambio(s) y se creó una copia de seguridad previa.`,
+        "Vista previa lista. La aplicación sigue bloqueada y no modifica datos.",
       );
-      setPreview(body.diff ?? null);
-      setConfirmEmail("");
-      await loadRestorePoints();
     }
     setBusy("idle");
   };
@@ -962,8 +925,6 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
   const selectedPoint = restorePoints.find(
     (point) => point.id === selectedRestorePointId,
   );
-  const confirmMatches =
-    confirmEmail.trim().toLowerCase() === user.email.trim().toLowerCase();
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -974,22 +935,24 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
             Restauración de datos
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            Copias privadas para restaurar solo esta cuenta sin tocar al resto.
+            Copias privadas y vista previa de cambios para esta cuenta.
           </p>
         </div>
         <Button
           type="button"
           variant="secondary"
           onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls={restorePanelId}
         >
-          {open ? "Cerrar restauración" : "Abrir restauración"}
+          {open ? "Cerrar copias" : "Abrir copias"}
         </Button>
       </div>
 
       {open && (
-        <div className="mt-4 space-y-4">
+        <div id={restorePanelId} className="mt-4 space-y-4">
           {loading && <p className="text-sm font-semibold text-slate-500">Cargando...</p>}
-          {!loading && (
+          {!loading && !error && (
             <>
               <div className="rounded-2xl bg-slate-100 p-4">
                 <p className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">
@@ -1041,7 +1004,8 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
                     )}
                     {restorePoints.map((point) => (
                       <option key={point.id} value={point.id}>
-                        {formatDateTime(point.createdAt)} · {point.label}
+                        Vista previa · {formatDateTime(point.createdAt)} ·{" "}
+                        {point.label}
                       </option>
                     ))}
                   </select>
@@ -1072,42 +1036,31 @@ function UserRestorePanel({ user }: { user: AdminUserRow }) {
 
               <RestoreDiffSummary diff={preview} />
 
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                <label className="space-y-1 text-sm font-bold text-red-900">
-                  Confirmación para restaurar
-                  <input
-                    value={confirmEmail}
-                    onChange={(event) => setConfirmEmail(event.target.value)}
-                    placeholder={user.email}
-                    className="min-h-11 w-full rounded-xl border border-red-200 bg-white px-3 text-base font-semibold text-slate-900"
-                  />
-                </label>
-                <p className="mt-2 text-sm font-semibold text-red-800">
-                  Escribe el email exacto para restaurar solo esta cuenta. Antes de
-                  aplicar cambios se crea una copia de seguridad automática.
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+                <p className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
+                  <ShieldCheck className="h-4 w-4" />
+                  Aplicación de restauraciones bloqueada
                 </p>
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={restoreUser}
-                  disabled={
-                    busy !== "idle" ||
-                    !selectedRestorePointId ||
-                    !preview ||
-                    !confirmMatches
-                  }
-                  className="mt-3"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Restaurar usuario
-                </Button>
+                <p className="mt-2 text-sm font-semibold">
+                  {ADMIN_USER_RESTORE_APPLY_BLOCK_REASON}
+                </p>
+                <p className="mt-2 text-sm">
+                  Puedes crear copias privadas y revisar su vista previa sin
+                  modificar los datos de la cuenta.
+                </p>
               </div>
             </>
           )}
           {message && (
-            <p className="text-sm font-semibold text-green-700">{message}</p>
+            <p role="status" className="text-sm font-semibold text-green-700">
+              {message}
+            </p>
           )}
-          {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm font-semibold text-red-700">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </div>

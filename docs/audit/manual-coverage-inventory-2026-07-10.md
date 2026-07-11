@@ -736,6 +736,11 @@ Filtros y modos se guardan localmente; los resultados no. Asignar a visibles no 
 
 El acceso exige nube, sesión y capacidades devueltas por servidor. `fullAdmin` habilita Panel, Usuarios, Supabase, Vercel, Seguridad y Errores; una cuenta limitada a aprendizaje solo ve IA. Cuando MFA admin es obligatorio, las operaciones sensibles deben quedar bloqueadas hasta AAL2.
 
+**Actualización AUD-P1-20 (2026-07-11):** crear copias y obtener su vista
+previa siguen disponibles. La aplicación está retirada de la UI y bloqueada en
+la API; todo el perímetro exige AAL2 y un intento directo termina fail-closed
+sin mutar la cuenta.
+
 | Pantalla/campo | Tipo | Req. | Inicial/permitidos | Validación | Persistencia | Efecto |
 |---|---|---|---|---|---|---|
 | Sección | 7 botones/query | O | Panel; Panel/Usuarios/Supabase/Vercel/Seguridad/Errores/IA | solo capacidad autorizada | vista; alerta vista en localStorage | cambia dashboard sin mutar servidor |
@@ -750,9 +755,9 @@ El acceso exige nube, sesión y capacidades devueltas por servidor. `fullAdmin` 
 | Sin límite IA/scan | checkbox | O | según centinela | booleano; ignora créditos al activar | centinela servidor | elimina bloqueo y permite lotes >10 |
 | Motivo de baneo | texto | O | vacío/actual | trim, vacío→null | solo al banear | audit/control |
 | Nombre de copia restore | texto | R para crear | “Copia soporte admin” | no vacío, normalizado, ≤120 | snapshot privado | etiqueta |
-| Motivo restore | texto | O | vacío | trim, ≤500 | snapshot/evento | audit |
-| Copia disponible | select | R preview/restore | primera de hasta 20 | pertenece al usuario | selección UI | fuente |
-| Confirmar email restore | texto | R restore | vacío | igualdad exacta sin distinguir mayúsculas; exige preview | no se guarda | guardia destructiva |
+| Motivo restore | texto | O | vacío | trim, ≤500 | snapshot privado | contexto interno de la copia |
+| Copia disponible | select | R preview | primera de hasta 20 | pertenece al usuario | selección UI | fuente de vista previa |
+| Aplicar restore | bloque informativo | — | bloqueado | AAL2 primero; después fail-closed | ninguna | requiere futura transacción/RPC o saga segura |
 | Código MFA del usuario | texto numérico | R para quitar factor | vacío | 6 dígitos, TTL 15 min, máx. 5 intentos | challenge de soporte | autoriza borrado factor |
 | Confirmar email MFA | texto | R para quitar | vacío | igualdad exacta | no se guarda | segunda guardia |
 | Código MFA admin | texto numérico | R enrolar/verificar | vacío | TOTP/challenge backend | factor Supabase/sesión AAL2 | habilita administración |
@@ -768,8 +773,8 @@ El acceso exige nube, sesión y capacidades devueltas por servidor. `fullAdmin` 
 | Rellenar IA mensual 100% | tarjeta usuario | reinicia consumo mensual, no créditos extra | sin confirm/undo; auditar actor |
 | Banear/Quitar baneo | tarjeta usuario | ban largo o reactivación y metadata | sin confirm; reversible; motivo opcional |
 | Crear copia actual | restore abierto | snapshot privado desde nube | no cambia cuenta; error visible |
-| Ver preview restore | copia elegida | diff por colección | read-only y obligatorio antes de aplicar |
-| Restaurar usuario | preview + email exacto | safety snapshot, upserts/tombstones y evento | sin segundo modal; no undo de un clic; hoy puede quedar parcial (P1) |
+| Ver preview restore | copia elegida | diff por colección | solo lectura; no aplica cambios |
+| Aplicar restauración | no aparece como acción | ninguna; API bloqueada | requiere AAL2 y devuelve `admin_restore_transaction_required` sin escrituras |
 | Ver factores/Enviar código | soporte MFA | lista factores o envía challenge al usuario | requiere AAL2; TTL/rate limit/error |
 | Quitar factor | factor + código + email | elimina MFA y audita | sin modal/undo; usuario debe reenrolar |
 | Actualizar operaciones | panel operativo | carga errores/salud/Vercel/GitHub/dominio/WAF | solo lectura; degradación parcial explicada |

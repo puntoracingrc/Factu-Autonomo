@@ -1,6 +1,6 @@
 # Estado actual de seguridad
 
-Ultima comprobacion: 2026-07-10.
+Ultima comprobacion: 2026-07-11.
 
 Proyecto: `facturacion-autonomos.app`.
 
@@ -71,8 +71,12 @@ plano y solo frenan una peticion cuando supera limites de seguridad o consumo.
 - La revision de Storage no encontro buckets publicos.
 - Supabase Pro mantiene backups diarios con siete dias de retencion y siete
   dias de logs.
-- El panel admin puede restaurar datos de un usuario y crea un punto de
-  seguridad antes de aplicar la restauracion.
+- El panel admin permite crear copias privadas y revisar una vista previa, pero
+  la aplicacion de restauraciones esta bloqueada de forma fail-closed. Un
+  acceso a este perimetro exige AAL2 incluso si la flag MFA global esta
+  desactivada; un intento de apply responde despues sin leer ni mutar los datos
+  hasta existir una transaccion/RPC o saga reanudable con rollback y evidencia
+  indivisible.
 
 ## APIs, archivos y servicios externos
 

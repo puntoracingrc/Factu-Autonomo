@@ -13,6 +13,9 @@ documentos protegidos.
   No se editan ni se regeneran en masa por cambios de interfaz.
 - Importaciones y restauraciones deben pasar por vista previa y resumen de
   cambios antes de aplicar datos.
+- La restauracion administrativa no se puede aplicar mientras no exista una
+  operacion transaccional o saga reanudable que exija AAL2, ligue el apply a la
+  vista previa y bloquee cualquier cambio de documentos protegidos.
 - Antes de una operación delicada debe existir copia local/exportable o punto de
   recuperación.
 
@@ -45,9 +48,9 @@ Los eventos se consultan desde `/admin` en dos sitios:
 
 ## Siguientes fases recomendadas
 
-1. Snapshot automático antes de importaciones grandes o restauraciones.
+1. Diseñar y probar una RPC transaccional o saga reanudable para restauraciones,
+   con idempotencia, CAS de la vista previa, rollback y evidencia indivisible.
 2. Aviso admin si una cuenta acumula muchos errores de sincronización.
 3. Estado de salud por usuario: último sync correcto, cambios pendientes y último
    backup Drive.
 4. Botón admin de exportar diagnóstico seguro sin incluir documentos completos.
-
