@@ -105,6 +105,69 @@ export function expensePurchaseLineTracksProduct(
   return line.catalogProduct !== false;
 }
 
+type ExpenseProductCatalogPriceLine = Pick<
+  ExpensePurchaseLine,
+  | "quantity"
+  | "unitPrice"
+  | "discountPercent"
+  | "netUnitPrice"
+  | "total"
+>;
+
+function expensePurchaseLineCatalogNetUnitCost(
+  line: ExpenseProductCatalogPriceLine,
+): number {
+  const discount = Number.isFinite(line.discountPercent)
+    ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
+    : 0;
+  if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
+    return roundMoney(line.unitPrice * (1 - discount / 100));
+  }
+
+  const quantity = line.quantity || 1;
+  if (
+    line.total !== undefined &&
+    Number.isFinite(line.total) &&
+    line.total > 0 &&
+    quantity > 0
+  ) {
+    return roundMoney(line.total / quantity);
+  }
+
+  return 0;
+}
+
+/** Un abono conserva sus cálculos fiscales, pero nunca alimenta Productos. */
+export function expenseCanFeedProductCatalog(
+  expense: Pick<Expense, "amount">,
+): boolean {
+  return Number.isFinite(expense.amount) && expense.amount > 0;
+}
+
+export function expensePurchaseLineIsEligibleForProductCatalog(
+  expense: Pick<Expense, "amount">,
+  line: ExpenseProductCatalogPriceLine,
+): boolean {
+  return (
+    expenseCanFeedProductCatalog(expense) &&
+    expensePurchaseLineBaseTotal(line) > 0 &&
+    expensePurchaseLineCatalogNetUnitCost(line) > 0 &&
+    (line.netUnitPrice === undefined || line.netUnitPrice > 0)
+  );
+}
+
+/** Única frontera para decidir si una línea seleccionada alimenta Productos. */
+export function expensePurchaseLineCanFeedProductCatalog(
+  expense: Pick<Expense, "amount">,
+  line: ExpenseProductCatalogPriceLine &
+    Pick<ExpensePurchaseLine, "catalogProduct">,
+): boolean {
+  return (
+    expensePurchaseLineTracksProduct(line) &&
+    expensePurchaseLineIsEligibleForProductCatalog(expense, line)
+  );
+}
+
 export function summarizeWorkDocumentExpenses(
   expenses: Expense[],
   documentId: string,
@@ -288,6 +351,7 @@ function expenseSupplierMatches(
 
 export function findExpensePurchaseLinePriceAlerts(input: {
   currentLines: ExpensePurchaseLine[];
+  currentExpenseAmount: number;
   expenses: Expense[];
   supplierId?: string;
   supplierName?: string;
@@ -297,8 +361,10 @@ export function findExpensePurchaseLinePriceAlerts(input: {
 }): ExpensePurchaseLinePriceAlert[] {
   const priceThreshold = input.priceChangeThresholdPercent ?? 15;
   const discountThreshold = input.discountChangeThresholdPoints ?? 5;
+  const currentExpense = { amount: input.currentExpenseAmount };
   const currentLines = sanitizeExpensePurchaseLines(input.currentLines).filter(
-    expensePurchaseLineTracksProduct,
+    (line) =>
+      expensePurchaseLineCanFeedProductCatalog(currentExpense, line),
   );
 
   const previousExpenses = input.expenses
@@ -317,7 +383,9 @@ export function findExpensePurchaseLinePriceAlerts(input: {
     const previousMatch = previousExpenses
       .flatMap((expense) =>
         sanitizeExpensePurchaseLines(expense.purchaseLines)
-          .filter(expensePurchaseLineTracksProduct)
+          .filter((previous) =>
+            expensePurchaseLineCanFeedProductCatalog(expense, previous),
+          )
           .map((previous) => ({
             expense,
             previous,

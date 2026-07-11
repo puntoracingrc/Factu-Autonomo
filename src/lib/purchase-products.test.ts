@@ -366,6 +366,82 @@ describe("purchase products", () => {
     });
   });
 
+  it("no crea un producto desde un abono documental aunque la línea sea positiva", () => {
+    const credit = {
+      ...expense("credit", "2026-07-10", "Arandes", [
+        {
+          id: "credit-line",
+          description: "Motor G50 Radio SH",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ]),
+      amount: -100,
+    };
+
+    expect(buildPurchaseProductSummaries([credit])).toEqual([]);
+    expect(
+      purchaseProductCatalogKeys([], [credit]).has(
+        purchaseProductKey("Motor G50 Radio SH"),
+      ),
+    ).toBe(false);
+  });
+
+  it("no altera compras, histórico ni medias con un abono documental de línea positiva", () => {
+    const purchase = {
+      ...expense("purchase", "2026-07-01", "Arandes", [
+        {
+          id: "purchase-line",
+          description: "Motor G50 Radio SH",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 80,
+          ivaPercent: 21,
+        },
+      ]),
+      amount: 80,
+    };
+    const credit = {
+      ...expense("credit", "2026-07-10", "Arandes", [
+        {
+          id: "credit-line",
+          description: "Motor G50 Radio SH",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ]),
+      amount: -100,
+    };
+
+    expect(buildPurchaseProductSummaries([purchase, credit])).toEqual([
+      expect.objectContaining({
+        purchaseCount: 1,
+        totalQuantity: 1,
+        totalBase: 80,
+        averageUnitPrice: 80,
+        averagePvp: 80,
+        lastUnitPrice: 80,
+        lastPvp: 80,
+        minUnitPrice: 80,
+        maxUnitPrice: 80,
+        lastPurchaseDate: "2026-07-01",
+        usualSupplier: {
+          supplierName: "Arandes",
+          count: 1,
+          totalBase: 80,
+          lastPurchaseDate: "2026-07-01",
+        },
+      }),
+    ]);
+  });
+
   it("marca líneas que ya existen en productos manuales o detectados", () => {
     const expenses = [
       expense("1", "2026-07-01", "Arandes", [
@@ -461,7 +537,7 @@ function expense(
     businessKind: "purchase_invoice",
     supplierName,
     description: supplierName,
-    amount: 0,
+    amount: 1,
     ivaPercent: 21,
     category: "Material",
     paymentMethod: "Tarjeta",

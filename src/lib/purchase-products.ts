@@ -1,7 +1,7 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
 import {
-  expensePurchaseLineTracksProduct,
+  expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
   sanitizeExpensePurchaseLines,
 } from "./expenses";
@@ -383,25 +383,6 @@ function purchaseLineNetUnitCost(
   return 0;
 }
 
-export function purchaseLineHasPositiveCatalogPrice(
-  line: PurchaseCatalogPriceLine,
-): boolean {
-  return (
-    expensePurchaseLineBaseTotal(line) > 0 &&
-    purchaseLineNetUnitCost(line) > 0 &&
-    (line.netUnitPrice === undefined || line.netUnitPrice > 0)
-  );
-}
-
-export function purchaseLineCanFeedProductCatalog(
-  line: PurchaseCatalogPriceLine,
-): boolean {
-  return (
-    expensePurchaseLineTracksProduct(line) &&
-    purchaseLineHasPositiveCatalogPrice(line)
-  );
-}
-
 function isAreaUnit(unit: string | undefined): boolean {
   const normalized = (unit ?? "")
     .toLowerCase()
@@ -514,7 +495,7 @@ export function buildPurchaseProductSummaries(
 
   for (const expense of expenses) {
     const lines = sanitizeExpensePurchaseLines(expense.purchaseLines).filter(
-      purchaseLineCanFeedProductCatalog,
+      (line) => expensePurchaseLineCanFeedProductCatalog(expense, line),
     );
     for (const line of lines) {
       const detectedKey = purchaseProductKey(line.description);
