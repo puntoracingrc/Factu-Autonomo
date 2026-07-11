@@ -51,7 +51,7 @@ describe("qr image", () => {
     expect(hasVerifactuQr(document({ ...base, status: "failed" }))).toBe(false);
     expect(hasVerifactuQr(document({ ...base, status: "pending" }))).toBe(false);
 
-    const { preparePdfArtifacts } = await import("../pdf");
+    const { buildDocumentPdf, preparePdfArtifacts } = await import("../pdf");
     const profile: BusinessProfile = {
       ...DEFAULT_PROFILE,
       nif: "12345678Z",
@@ -71,5 +71,14 @@ describe("qr image", () => {
     await expect(
       preparePdfArtifacts(historicalSimulation, profile),
     ).resolves.toEqual({});
+
+    const forgedPdf = buildDocumentPdf(document(base), profile, {
+      qrDataUrl:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=",
+    });
+    const forgedOutput = forgedPdf.output();
+    expect(forgedOutput).not.toContain("QR tributario");
+    expect(forgedOutput).not.toContain("Factura verificable");
+    expect(forgedOutput).not.toContain("CSV:");
   });
 });

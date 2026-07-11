@@ -26,6 +26,7 @@ import { livePdfIssuerWarning } from "./business-profile";
 import { hasDistinctFiscalName, issuerDisplayName } from "./issuer-snapshot";
 import { isDraftInvoiceNumber } from "./documents";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
+import { hasPublicVerifactuAccreditation } from "./verifactu/attestation";
 
 export interface PdfArtifacts {
   qrDataUrl?: string;
@@ -166,7 +167,13 @@ function drawVerifactuQrBlock(
   startY: number,
   options: { font: "helvetica" | "times" | "courier"; textSize: number },
 ): number {
-  if (!artifacts.qrDataUrl || !doc.verifactu) return startY;
+  if (
+    !artifacts.qrDataUrl ||
+    !doc.verifactu ||
+    !hasPublicVerifactuAccreditation(doc)
+  ) {
+    return startY;
+  }
 
   const qrSize = 35;
   const qrX = 14;
@@ -256,6 +263,9 @@ export function buildDocumentPdfFromViewModel(
 ): jsPDF {
   const pdf = new jsPDF();
   const doc = viewModel.doc;
+  const renderArtifacts = hasPublicVerifactuAccreditation(doc)
+    ? artifacts
+    : { ...artifacts, qrDataUrl: undefined };
   const issuer = viewModel.issuer;
   const template = normalizeDocumentTemplate(viewModel.template);
   const pdfFont = documentTemplatePdfFont(template.font);
@@ -288,7 +298,7 @@ export function buildDocumentPdfFromViewModel(
   pdf.setFont(pdfFont, "normal");
 
   let y = 14;
-  if (template.style === "futuro" && !artifacts.qrDataUrl) {
+  if (template.style === "futuro" && !renderArtifacts.qrDataUrl) {
     pdf.setFillColor(accent[0], accent[1], accent[2]);
     pdf.rect(0, 0, 210, 10, "F");
     pdf.setFillColor(248, 250, 252);
@@ -296,19 +306,19 @@ export function buildDocumentPdfFromViewModel(
     y = Math.max(y, 24);
   }
 
-  if (artifacts.qrDataUrl && doc.verifactu) {
-    y = drawVerifactuQrBlock(pdf, doc, artifacts, y, {
+  if (renderArtifacts.qrDataUrl && doc.verifactu) {
+    y = drawVerifactuQrBlock(pdf, doc, renderArtifacts, y, {
       font: pdfFont,
       textSize: bodyFontSize,
     });
   }
 
   let logoBottomY = 14;
-  if (artifacts.logo && template.showLogo) {
-    const { width: logoW, height: logoH } = pdfLogoDrawSize(artifacts.logo);
+  if (renderArtifacts.logo && template.showLogo) {
+    const { width: logoW, height: logoH } = pdfLogoDrawSize(renderArtifacts.logo);
     const logoX = 196 - logoW;
     try {
-      pdf.addImage(artifacts.logo.dataUrl, "PNG", logoX, 14, logoW, logoH);
+      pdf.addImage(renderArtifacts.logo.dataUrl, "PNG", logoX, 14, logoW, logoH);
       logoBottomY = 14 + logoH;
     } catch {
       // Logo opcional: si falla la decodificación, seguimos sin imagen
