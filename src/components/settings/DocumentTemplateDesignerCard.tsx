@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Crown, Eye, Maximize2, Palette, Sparkles, X } from "lucide-react";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 import {
   DOCUMENT_TEMPLATE_ACCENTS,
   DOCUMENT_TEMPLATE_DENSITIES,
@@ -37,6 +38,8 @@ export function DocumentTemplateDesignerCard({
 }: DocumentTemplateDesignerCardProps) {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [largePreviewOpen, setLargePreviewOpen] = useState(false);
+  const largePreviewTitleId = useId();
+  const largePreviewDescriptionId = useId();
   const normalized = normalizeDocumentTemplate(settings);
   const accent =
     DOCUMENT_TEMPLATE_ACCENTS.find((item) => item.id === normalized.accent) ??
@@ -538,39 +541,53 @@ export function DocumentTemplateDesignerCard({
         </div>
       </div>
 
-      {largePreviewOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-3 sm:p-6">
-          <div className="w-full max-w-5xl">
-            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 shadow-lg">
-              <div>
-                <p className="text-sm font-bold text-slate-900">
-                  Vista previa grande
-                </p>
-                <p className="text-xs text-slate-500">
-                  {styleLabel} · datos ficticios de ejemplo
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLargePreviewOpen(false)}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                aria-label="Cerrar vista previa grande"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div
-              className="mx-auto min-h-[78rem] w-full max-w-[56rem] overflow-hidden rounded-lg bg-white shadow-2xl"
-              data-testid="template-large-preview"
-              style={{
-                fontFamily: previewFontFamily,
-                fontSize: `${previewFontSizes.body}px`,
-              }}
+      <Modal
+        open={largePreviewOpen}
+        onClose={() => setLargePreviewOpen(false)}
+        titleId={largePreviewTitleId}
+        descriptionId={largePreviewDescriptionId}
+        overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 sm:p-6"
+        panelClassName="flex max-h-[calc(100vh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-100 shadow-2xl supports-[height:100dvh]:max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100vh-3rem)] sm:supports-[height:100dvh]:max-h-[calc(100dvh-3rem)]"
+        testId="template-preview-modal"
+      >
+        <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <h2
+              id={largePreviewTitleId}
+              className="text-sm font-bold text-slate-900"
             >
+              Vista previa grande
+            </h2>
+            <p
+              id={largePreviewDescriptionId}
+              className="text-xs text-slate-500"
+            >
+              {styleLabel} · datos ficticios de ejemplo
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLargePreviewOpen(false)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            aria-label="Cerrar vista previa grande"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-5">
+          <div
+            className="mx-auto w-full max-w-[56rem] overflow-hidden rounded-lg bg-white shadow-2xl"
+            data-testid="template-large-preview"
+            style={{
+              fontFamily: previewFontFamily,
+              fontSize: `${previewFontSizes.body}px`,
+            }}
+          >
+            <>
               {isFuture ? (
-                <div className={`${accent.bgClass} p-8 text-white`}>
-                  <div className="flex items-start justify-between gap-8">
+                <div className={`${accent.bgClass} p-4 text-white sm:p-8`}>
+                  <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:gap-8">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
                         Documento verificable
@@ -597,11 +614,11 @@ export function DocumentTemplateDesignerCard({
 
               <div
                 className={
-                  isEditorial ? "grid min-h-[78rem] grid-cols-[11rem_1fr]" : ""
+                  isEditorial ? "grid md:grid-cols-[11rem_1fr]" : ""
                 }
               >
                 {isEditorial ? (
-                  <aside className={`${accent.bgClass} flex flex-col justify-between p-6 text-white`}>
+                  <aside className={`${accent.bgClass} flex flex-col justify-between gap-5 p-5 text-white md:p-6`}>
                     <div>
                       <p className="text-xs font-bold uppercase opacity-80">
                         Factura
@@ -620,10 +637,10 @@ export function DocumentTemplateDesignerCard({
                   </aside>
                 ) : null}
 
-                <div className="space-y-8 p-8">
+                <div className="space-y-6 p-4 sm:space-y-8 sm:p-8">
                   {!isFuture ? (
                     <header
-                      className={`flex items-start justify-between gap-8 ${
+                      className={`flex flex-col items-start justify-between gap-5 sm:flex-row sm:gap-8 ${
                         isClassic ? "border-b border-slate-200 pb-6" : ""
                       }`}
                     >
@@ -667,7 +684,7 @@ export function DocumentTemplateDesignerCard({
                       </div>
                     </header>
                   ) : (
-                    <header className="flex items-center justify-between gap-8">
+                    <header className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center sm:gap-8">
                       <div className="space-y-1 text-sm text-slate-600">
                         <p
                           className="font-bold text-slate-900"
@@ -687,7 +704,7 @@ export function DocumentTemplateDesignerCard({
                     </header>
                   )}
 
-                  <section className="grid gap-4 sm:grid-cols-[1fr_13rem]">
+                  <section className="grid gap-4 md:grid-cols-[1fr_13rem]">
                     <div
                       className={
                         isFuture
@@ -817,10 +834,10 @@ export function DocumentTemplateDesignerCard({
                   </p>
                 </div>
               </div>
-            </div>
+            </>
           </div>
         </div>
-      ) : null}
+      </Modal>
 
       <UpgradeModal
         open={upgradeOpen}
