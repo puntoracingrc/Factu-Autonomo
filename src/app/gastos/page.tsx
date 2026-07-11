@@ -1038,7 +1038,15 @@ export default function GastosPage() {
                     </Link>
                     <button
                       onClick={() => {
-                        if (confirm("¿Borrar este gasto?")) {
+                        const hasRecurringTemplate = Boolean(
+                          expense.recurringExpenseId &&
+                            recurringExpenseIds.has(expense.recurringExpenseId),
+                        );
+                        const prompt =
+                          expense.recurringOccurrenceKey && hasRecurringTemplate
+                            ? "¿Excluir este cargo concreto? La regla de gasto fijo seguirá activa y los demás cargos no cambiarán."
+                            : "¿Borrar este gasto?";
+                        if (confirm(prompt)) {
                           deleteExpense(expense.id);
                         }
                       }}

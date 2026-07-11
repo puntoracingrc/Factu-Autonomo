@@ -8,6 +8,7 @@ export const ADMIN_RESTORE_ENTITY_TYPES: SyncEntityType[] = [
   "customer",
   "expense",
   "recurring_expense",
+  "recurring_occurrence_exclusion",
   "supplier",
   "product",
   "user_reminder",

@@ -221,6 +221,19 @@ export type RecurringDuration =
   | { kind: "until_date"; endDate: string }
   | { kind: "occurrences"; count: number };
 
+export interface RecurringOccurrenceExclusion {
+  /** Clave estable `${recurringExpenseId}:${YYYY-MM-DD}` de la ocurrencia. */
+  key: string;
+  /** Instante en el que el usuario excluyó el cargo generado. */
+  excludedAt: string;
+}
+
+export interface RecurringOccurrenceExclusionSyncPayload
+  extends RecurringOccurrenceExclusion {
+  /** Plantilla a la que pertenece la exclusión estable. */
+  templateId: string;
+}
+
 export interface RecurringExpense {
   id: string;
   supplierName: string;
@@ -239,6 +252,11 @@ export interface RecurringExpense {
   startDate: string;
   enabled: boolean;
   notes?: string;
+  /**
+   * Tombstones de cargos concretos borrados por el usuario. Al vivir en la
+   * plantilla viajan con la copia local, backups y sincronización cloud.
+   */
+  occurrenceExclusions?: RecurringOccurrenceExclusion[];
   createdAt: string;
   updatedAt: string;
 }
@@ -735,6 +753,7 @@ export type SyncEntityType =
   | "customer"
   | "expense"
   | "recurring_expense"
+  | "recurring_occurrence_exclusion"
   | "supplier"
   | "product"
   | "user_reminder"

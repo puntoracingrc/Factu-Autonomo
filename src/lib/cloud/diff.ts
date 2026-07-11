@@ -1,9 +1,16 @@
 import type {
   AppData,
   BusinessProfile,
+  RecurringExpense,
+  RecurringOccurrenceExclusionSyncPayload,
   SyncChange,
   SyncEntityType,
 } from "../types";
+import {
+  applyRecurringOccurrenceExclusionToData,
+  mergeRecurringExpenseOccurrenceExclusions,
+  normalizeRecurringExpense,
+} from "../recurring-expenses";
 
 export type { SyncChange, SyncEntityType };
 
@@ -52,6 +59,53 @@ function diffById<T extends { id: string }>(
   return changes;
 }
 
+function exclusionPayloads(
+  data: AppData,
+): RecurringOccurrenceExclusionSyncPayload[] {
+  return data.recurringExpenses.flatMap((sourceTemplate) => {
+    const template = normalizeRecurringExpense(sourceTemplate);
+    return (template.occurrenceExclusions ?? []).map((exclusion) => ({
+      templateId: template.id,
+      key: exclusion.key,
+      excludedAt: exclusion.excludedAt,
+    }));
+  });
+}
+
+export function recurringOccurrenceExclusionSyncChanges(
+  data: AppData,
+): SyncChange[] {
+  return exclusionPayloads(data).map((payload) => ({
+    entityType: "recurring_occurrence_exclusion",
+    entityId: payload.key,
+    deleted: false,
+    payload,
+    updatedAt: payload.excludedAt,
+  }));
+}
+
+function diffRecurringOccurrenceExclusions(
+  prev: AppData,
+  next: AppData,
+): SyncChange[] {
+  const previous = new Map(
+    exclusionPayloads(prev).map((payload) => [payload.key, payload]),
+  );
+  return exclusionPayloads(next).flatMap((payload) => {
+    const before = previous.get(payload.key);
+    if (before && stableJson(before) === stableJson(payload)) return [];
+    return [
+      {
+        entityType: "recurring_occurrence_exclusion" as const,
+        entityId: payload.key,
+        deleted: false,
+        payload,
+        updatedAt: payload.excludedAt,
+      },
+    ];
+  });
+}
+
 export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
   const timestamp = now();
   const changes: SyncChange[] = [
@@ -64,6 +118,7 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
       next.recurringExpenses,
       timestamp,
     ),
+    ...diffRecurringOccurrenceExclusions(prev, next),
     ...diffById("user_reminder", prev.userReminders, next.userReminders, timestamp),
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
     ...diffById("product", prev.products, next.products, timestamp),
@@ -137,6 +192,7 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: item,
       updatedAt: item.updatedAt || timestamp,
     })),
+    ...recurringOccurrenceExclusionSyncChanges(data),
     ...data.userReminders.map((item) => ({
       entityType: "user_reminder" as const,
       entityId: item.id,
@@ -181,9 +237,14 @@ export function applySyncChanges(
 ): AppData {
   let next: AppData = { ...data };
 
-  const sorted = [...remoteChanges].sort((a, b) =>
-    a.updatedAt.localeCompare(b.updatedAt),
-  );
+  const sorted = [...remoteChanges].sort((a, b) => {
+    const aIsExclusion =
+      a.entityType === "recurring_occurrence_exclusion" && !a.deleted;
+    const bIsExclusion =
+      b.entityType === "recurring_occurrence_exclusion" && !b.deleted;
+    if (aIsExclusion !== bIsExclusion) return aIsExclusion ? 1 : -1;
+    return a.updatedAt.localeCompare(b.updatedAt);
+  });
 
   for (const change of sorted) {
     next = applyOneChange(next, change);
@@ -210,10 +271,37 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
         expenses: applyListChange(data.expenses, change),
       };
     case "recurring_expense":
+      if (change.deleted) {
+        return {
+          ...data,
+          recurringExpenses: applyListChange(data.recurringExpenses, change),
+        };
+      }
+      if (!change.payload || typeof change.payload !== "object") return data;
+      const incomingTemplate = change.payload as RecurringExpense;
+      if (incomingTemplate.id !== change.entityId) return data;
+      const currentTemplate = data.recurringExpenses.find(
+        (entry) => entry.id === change.entityId,
+      );
+      const mergedTemplate = currentTemplate
+        ? mergeRecurringExpenseOccurrenceExclusions(
+            currentTemplate,
+            incomingTemplate,
+          )
+        : normalizeRecurringExpense(incomingTemplate);
       return {
         ...data,
-        recurringExpenses: applyListChange(data.recurringExpenses, change),
+        recurringExpenses: applyListChange(data.recurringExpenses, {
+          ...change,
+          payload: mergedTemplate,
+        }),
       };
+    case "recurring_occurrence_exclusion":
+      if (change.deleted || !change.payload) return data;
+      return applyRecurringOccurrenceExclusionToData(
+        data,
+        change.payload as RecurringOccurrenceExclusionSyncPayload,
+      );
     case "user_reminder":
       return {
         ...data,

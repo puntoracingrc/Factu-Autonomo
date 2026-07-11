@@ -3,11 +3,14 @@ import {
   applyRecurringExpenseChangeToData,
   collectNextRecurringOccurrencePreviews,
   collectRecurringOccurrencePreviews,
+  deleteExpenseFromData,
+  deleteRecurringExpenseFromData,
   expenseFromRecurring,
   getDueSoonRecurringAlerts,
   isRecurringExpenseApplicableOn,
   listRecurringOccurrenceDates,
   normalizeRecurringOccurrenceCount,
+  normalizeRecurringExpense,
   recurringExpenseStatusOn,
   recurringExpenseTotals,
   resolveDueDate,
@@ -200,6 +203,32 @@ describe("collectRecurringOccurrencePreviews", () => {
     );
     expect(previews[0]?.ivaPercent).toBe(0);
   });
+
+  it("no vuelve a avisar de una ocurrencia excluida", () => {
+    const recurring = template({
+      id: "r-alert",
+      frequency: "monthly",
+      dueTiming: { kind: "day_of_month", day: 15 },
+      startDate: "2026-06-01",
+      occurrenceExclusions: [
+        {
+          key: "r-alert:2026-06-15",
+          excludedAt: "2026-06-10T08:00:00.000Z",
+        },
+      ],
+    });
+
+    const previews = collectRecurringOccurrencePreviews(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-06-10",
+      60,
+    );
+
+    expect(previews.map((preview) => preview.date)).not.toContain(
+      "2026-06-15",
+    );
+    expect(previews.map((preview) => preview.date)).toContain("2026-07-15");
+  });
 });
 
 describe("collectNextRecurringOccurrencePreviews", () => {
@@ -327,9 +356,198 @@ describe("syncRecurringExpenses", () => {
     expect(expense.deductibility).toBe("non_deductible");
     expect(expense.amount).toBe(120);
   });
+
+  it("no regenera con otro UUID una ocurrencia borrada al sincronizar de nuevo", () => {
+    const recurring = template({
+      id: "seguro",
+      frequency: "monthly",
+      duration: { kind: "occurrences", count: 2 },
+    });
+    const firstSync = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-02-28",
+    );
+    const january = firstSync.expenses.find(
+      (expense) => expense.recurringOccurrenceKey === "seguro:2026-01-31",
+    );
+    expect(january).toBeDefined();
+
+    const deleted = deleteExpenseFromData(
+      firstSync,
+      january!.id,
+      "2026-03-01T09:00:00.000Z",
+    );
+    const afterReloadSync = syncRecurringExpenses(deleted, "2026-02-28");
+
+    expect(
+      afterReloadSync.expenses.some(
+        (expense) =>
+          expense.recurringOccurrenceKey === "seguro:2026-01-31",
+      ),
+    ).toBe(false);
+    expect(afterReloadSync.expenses).toHaveLength(1);
+    expect(afterReloadSync.recurringExpenses[0]?.occurrenceExclusions).toEqual([
+      {
+        key: "seguro:2026-01-31",
+        excludedAt: "2026-03-01T09:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("excluye solo el cargo borrado y mantiene el histórico y los siguientes", () => {
+    const recurring = template({ id: "alquiler", frequency: "monthly" });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-03-31",
+    );
+    const february = synced.expenses.find(
+      (expense) => expense.recurringOccurrenceKey === "alquiler:2026-02-28",
+    );
+
+    const deleted = deleteExpenseFromData(
+      synced,
+      february!.id,
+      "2026-04-01T08:00:00.000Z",
+    );
+    const nextSync = syncRecurringExpenses(deleted, "2026-04-30");
+
+    expect(
+      nextSync.expenses.map((expense) => expense.recurringOccurrenceKey),
+    ).toEqual([
+      "alquiler:2026-01-31",
+      "alquiler:2026-03-31",
+      "alquiler:2026-04-30",
+    ]);
+  });
+
+  it("al borrar un gasto manual no crea exclusiones en las recurrencias", () => {
+    const recurring = template({ id: "mutua", frequency: "monthly" });
+    const manualExpense = {
+      id: "manual-1",
+      date: "2026-01-15",
+      supplierName: "Papelería",
+      description: "Material",
+      amount: 20,
+      ivaPercent: 21,
+      category: "Compras",
+      paymentMethod: "Tarjeta",
+      origin: "manual" as const,
+      createdAt: "2026-01-15T10:00:00.000Z",
+    };
+
+    const deleted = deleteExpenseFromData(
+      {
+        ...EMPTY_DATA,
+        expenses: [manualExpense],
+        recurringExpenses: [recurring],
+      },
+      manualExpense.id,
+      "2026-02-01T08:00:00.000Z",
+    );
+
+    expect(deleted.expenses).toEqual([]);
+    expect(deleted.recurringExpenses).toEqual([recurring]);
+  });
+
+  it("al borrar la plantilla conserva los cargos históricos", () => {
+    const recurring = template({ id: "hosting", frequency: "monthly" });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-02-28",
+    );
+
+    const deleted = deleteRecurringExpenseFromData(synced, recurring.id);
+
+    expect(deleted.recurringExpenses).toEqual([]);
+    expect(deleted.expenses).toEqual(synced.expenses);
+    expect(syncRecurringExpenses(deleted, "2026-03-31").expenses).toEqual(
+      synced.expenses,
+    );
+  });
+
+  it("normaliza y acota exclusiones importadas a la plantilla exacta", () => {
+    const recurring = template({
+      id: "r-safe",
+      frequency: "monthly",
+      updatedAt: "2026-03-02T00:00:00.000Z",
+      occurrenceExclusions: [
+        {
+          key: "r-safe:2026-02-28",
+          excludedAt: "fecha-invalida",
+        },
+        {
+          key: "otra:2026-02-28",
+          excludedAt: "2026-03-01T00:00:00.000Z",
+        },
+        {
+          key: "r-safe:2026-02-31",
+          excludedAt: "2026-03-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normalizeRecurringExpense(recurring).occurrenceExclusions).toEqual([
+      {
+        key: "r-safe:2026-02-28",
+        excludedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+  });
 });
 
 describe("applyRecurringExpenseChangeToData", () => {
+  it("traslada una exclusión al tramo nuevo al editar la regla", () => {
+    const recurring = template({
+      id: "autonomo",
+      frequency: "monthly",
+      amount: 300,
+      startDate: "2026-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-06-30",
+    );
+    const may = synced.expenses.find(
+      (expense) => expense.recurringOccurrenceKey === "autonomo:2026-05-31",
+    );
+    const withExclusion = deleteExpenseFromData(
+      synced,
+      may!.id,
+      "2026-07-01T08:00:00.000Z",
+    );
+
+    const updated = applyRecurringExpenseChangeToData(
+      withExclusion,
+      "autonomo",
+      draft(recurring, { amount: 350, startDate: "2026-05-01" }),
+      "2026-05-01",
+      {
+        now: "2026-07-08T10:00:00.000Z",
+        newId: () => "autonomo-v2",
+        referenceDate: "2026-06-30",
+      },
+    );
+
+    expect(updated.recurringExpenses[1]?.occurrenceExclusions).toEqual([
+      {
+        key: "autonomo-v2:2026-05-31",
+        excludedAt: "2026-07-01T08:00:00.000Z",
+      },
+    ]);
+    expect(
+      updated.expenses.some(
+        (expense) =>
+          expense.recurringOccurrenceKey === "autonomo-v2:2026-05-31",
+      ),
+    ).toBe(false);
+    expect(
+      updated.expenses.find(
+        (expense) =>
+          expense.recurringOccurrenceKey === "autonomo-v2:2026-06-30",
+      ),
+    ).toMatchObject({ amount: 350, recurringExpenseId: "autonomo-v2" });
+  });
+
   it("crea un tramo nuevo desde la fecha elegida sin tocar meses anteriores", () => {
     const recurring = template({
       id: "autonomo",

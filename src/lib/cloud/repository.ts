@@ -8,6 +8,7 @@ import type { AppData } from "../types";
 const ENTITIES_TABLE = "sync_entities";
 const LEGACY_TABLE = "user_backups";
 const SYNC_PAGE_SIZE = 500;
+const MONOTONIC_EXCLUSION_TYPE = "recurring_occurrence_exclusion";
 
 interface SyncEntityRow {
   entity_type: string;
@@ -56,10 +57,10 @@ export async function pushSyncChanges(
   return syncedAt;
 }
 
-export async function pullSyncChanges(
+async function pullRows(
   userId: string,
-  since?: string,
-): Promise<SyncChange[]> {
+  options: { since?: string; entityType?: string } = {},
+): Promise<SyncEntityRow[]> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return [];
 
@@ -71,12 +72,16 @@ export async function pullSyncChanges(
     let query = supabase
       .from(ENTITIES_TABLE)
       .select("entity_type, entity_id, payload, deleted, updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: true })
-      .range(from, to);
+      .eq("user_id", userId);
 
-    if (since) {
-      query = query.gt("updated_at", since);
+    if (options.entityType) {
+      query = query.eq("entity_type", options.entityType);
+    }
+
+    query = query.order("updated_at", { ascending: true }).range(from, to);
+
+    if (options.since) {
+      query = query.gt("updated_at", options.since);
     }
 
     const { data, error } = await query;
@@ -87,7 +92,27 @@ export async function pullSyncChanges(
     if (pageRows.length < SYNC_PAGE_SIZE) break;
   }
 
-  return rows.map(rowToChange);
+  return rows;
+}
+
+export async function pullSyncChanges(
+  userId: string,
+  since?: string,
+): Promise<SyncChange[]> {
+  const incremental = await pullRows(userId, { since });
+  if (!since) return incremental.map(rowToChange);
+
+  // Estas filas son tombstones monotónicos. Se descargan siempre, aunque sean
+  // anteriores al watermark incremental, para que un escritor obsoleto no las
+  // pierda al adelantar su lastSyncedAt tras subir otros cambios.
+  const exclusions = await pullRows(userId, {
+    entityType: MONOTONIC_EXCLUSION_TYPE,
+  });
+  const byEntity = new Map<string, SyncEntityRow>();
+  for (const row of [...incremental, ...exclusions]) {
+    byEntity.set(`${row.entity_type}:${row.entity_id}`, row);
+  }
+  return [...byEntity.values()].map(rowToChange);
 }
 
 /** Migra una copia completa antigua a entidades incrementales */

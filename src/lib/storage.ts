@@ -17,6 +17,7 @@ import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
+import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
   buildDocumentPdfSnapshot,
   deriveDocumentLifecycle,
@@ -94,7 +95,9 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     customers: (parsed.customers ?? []).map((customer) =>
       migrateCustomer(customer as AppData["customers"][number]),
     ),
-    recurringExpenses: parsed.recurringExpenses ?? [],
+    recurringExpenses: (parsed.recurringExpenses ?? []).map((item) =>
+      normalizeRecurringExpense(item),
+    ),
     userReminders: (parsed.userReminders ?? []).map((item) =>
       normalizeUserReminder(item as UserReminder),
     ),

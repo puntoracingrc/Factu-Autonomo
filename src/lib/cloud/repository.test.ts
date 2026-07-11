@@ -37,7 +37,10 @@ function installPullMock(rows: Row[]) {
   supabaseMock.from.mockImplementation(() => {
     const builder = {
       select: vi.fn(() => builder),
-      eq: vi.fn(() => builder),
+      eq: vi.fn((field: string, value: string) => {
+        if (field === "entity_type") builder.entityType = value;
+        return builder;
+      }),
       order: vi.fn(() => builder),
       range: vi.fn((from: number, to: number) => {
         ranges.push([from, to]);
@@ -51,11 +54,14 @@ function installPullMock(rows: Row[]) {
       }),
       currentRange: [0, 499] as [number, number],
       since: undefined as string | undefined,
+      entityType: undefined as string | undefined,
       then(resolve: (value: { data: Row[]; error: null }) => void) {
         const [from, to] = builder.currentRange;
-        const filtered = builder.since
-          ? rows.filter((row) => row.updated_at > builder.since!)
-          : rows;
+        const filtered = rows.filter(
+          (row) =>
+            (!builder.since || row.updated_at > builder.since) &&
+            (!builder.entityType || row.entity_type === builder.entityType),
+        );
         resolve({ data: filtered.slice(from, to + 1), error: null });
       },
     };
@@ -104,6 +110,41 @@ describe("cloud repository", () => {
     expect(changes.every((change) => change.updatedAt > "2026-06-29T10:01:00.000Z")).toBe(
       true,
     );
+  });
+
+  it("recupera siempre exclusiones monotónicas anteriores al watermark", async () => {
+    const rows: Row[] = [
+      {
+        entity_type: "customer",
+        entity_id: "old-customer",
+        payload: { id: "old-customer" },
+        deleted: false,
+        updated_at: "2026-06-01T10:00:00.000Z",
+      },
+      {
+        entity_type: "recurring_occurrence_exclusion",
+        entity_id: "rent:2026-05-31",
+        payload: {
+          templateId: "rent",
+          key: "rent:2026-05-31",
+          excludedAt: "2026-06-01T10:00:00.000Z",
+        },
+        deleted: false,
+        updated_at: "2026-06-01T10:00:00.000Z",
+      },
+    ];
+    installPullMock(rows);
+
+    const changes = await pullSyncChanges(
+      "user-1",
+      "2026-06-15T10:00:00.000Z",
+    );
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      entityType: "recurring_occurrence_exclusion",
+      entityId: "rent:2026-05-31",
+    });
   });
 
   it("sube cambios en lotes para no depender del limite por defecto", async () => {
