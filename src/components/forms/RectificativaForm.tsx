@@ -577,6 +577,7 @@ export function RectificativaForm({
                   <Field label="IVA">
                     <IvaPercentSelect
                       value={item.ivaPercent}
+                      settings={historicalProfile.iva}
                       onChange={(ivaPercent) =>
                         updateItem(item.id, { ivaPercent })
                       }

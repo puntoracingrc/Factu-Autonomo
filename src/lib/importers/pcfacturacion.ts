@@ -689,17 +689,27 @@ export function buildPcFacturacionImport(
     ...current.profile,
     numbering,
   };
-  const data = normalizeLoadedData({
-    ...current,
-    profile: nextProfile,
-    customers: [...keptCustomers, ...customersToImport.map((entry) => entry.customer)],
-    documents: nextDocuments,
-    counters: countersFromDocuments(
-      nextDocuments,
-      nextProfile.numbering.year,
-      nextProfile.numbering,
-    ),
-  });
+  const data = normalizeLoadedData(
+    {
+      ...current,
+      profile: nextProfile,
+      customers: [
+        ...keptCustomers,
+        ...customersToImport.map((entry) => entry.customer),
+      ],
+      documents: nextDocuments,
+      counters: countersFromDocuments(
+        nextDocuments,
+        nextProfile.numbering.year,
+        nextProfile.numbering,
+      ),
+    },
+    {
+      legacyBackfillDocumentIds: new Set(
+        importedDocuments.map((document) => document.id),
+      ),
+    },
+  );
 
   const preview: PcFacturacionImportPreview = {
     sourceName: PC_FACTURACION_SOURCE_NAME,

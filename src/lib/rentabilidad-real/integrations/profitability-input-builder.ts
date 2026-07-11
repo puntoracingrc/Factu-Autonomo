@@ -68,6 +68,7 @@ export function buildProfitabilityInputDraftFromExistingData(
     calculateTaxSummary(data.documents, data.expenses, {
       irpfPercent: data.profile.irpfPercent,
       vatExempt: data.profile.vatExempt,
+      profile: data.profile,
     }),
   );
   const articleCandidates = data.products

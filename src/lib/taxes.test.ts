@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateTaxSummary, isTaxableSaleDocument } from "./taxes";
 import { issueDocument } from "./document-integrity";
-import type { Document, Expense } from "./types";
+import type { BusinessProfile, Document, Expense } from "./types";
 import { DEFAULT_PROFILE } from "./types";
 
 function invoice(
@@ -29,6 +29,20 @@ function invoice(
     updatedAt: "2026-06-09",
     ...overrides,
   };
+}
+
+function issuedInvoice(
+  status: Document["status"],
+  subtotal = 100,
+  overrides: Partial<Document> = {},
+  profile: BusinessProfile = DEFAULT_PROFILE,
+): Document {
+  const issued = issueDocument(
+    invoice("borrador", subtotal, overrides),
+    profile,
+    "2026-06-09T10:00:00.000Z",
+  );
+  return { ...issued, status };
 }
 
 const expense: Expense = {
@@ -87,7 +101,7 @@ describe("isTaxableSaleDocument", () => {
 
 describe("calculateTaxSummary", () => {
   it("calcula IVA neto, IRPF y beneficio neto", () => {
-    const summary = calculateTaxSummary([invoice("pagado", 1000)], [expense], {
+    const summary = calculateTaxSummary([issuedInvoice("pagado", 1000)], [expense], {
       irpfPercent: 20,
     });
     expect(summary.salesBase).toBe(1000);
@@ -102,9 +116,18 @@ describe("calculateTaxSummary", () => {
   });
 
   it("no calcula IVA si el perfil está exento", () => {
-    const summary = calculateTaxSummary([invoice("pagado", 1000)], [expense], {
+    const exemptProfile: BusinessProfile = {
+      ...DEFAULT_PROFILE,
       vatExempt: true,
-    });
+    };
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000, {}, exemptProfile)],
+      [expense],
+      {
+        vatExempt: true,
+        profile: exemptProfile,
+      },
+    );
     expect(summary.vatExempt).toBe(true);
     expect(summary.salesIva).toBe(0);
     expect(summary.expenseIva).toBe(0);
@@ -113,17 +136,23 @@ describe("calculateTaxSummary", () => {
 
   it("marca crédito de IVA cuando los gastos superan ventas", () => {
     const bigExpense: Expense = { ...expense, amount: 500 };
-    const summary = calculateTaxSummary([invoice("enviado", 100)], [bigExpense], {
-      irpfPercent: 20,
-    });
+    const summary = calculateTaxSummary(
+      [issuedInvoice("enviado", 100)],
+      [bigExpense],
+      { irpfPercent: 20 },
+    );
     expect(summary.ivaCredit).toBeGreaterThan(0);
     expect(summary.ivaToPay).toBe(0);
     expect(summary.irpfEstimate).toBe(0);
   });
 
   it("usa la rectificativa vigente y deja fuera la factura original rectificada", () => {
-    const original = invoice("rectificada", 1000, { rectifiedById: "rect-1" });
-    const rectification = invoice("enviado", 700, {
+    const original: Document = {
+      ...issuedInvoice("enviado", 1000),
+      status: "rectificada",
+      rectifiedById: "rect-1",
+    };
+    const rectification = issuedInvoice("enviado", 700, {
       id: "rect-1",
       number: "FR-2026-0001",
       rectification: {
@@ -133,6 +162,8 @@ describe("calculateTaxSummary", () => {
         reason: "Corrección de datos",
         type: "correccion",
       },
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
     });
 
     const summary = calculateTaxSummary([original, rectification], [], {
@@ -178,7 +209,7 @@ describe("calculateTaxSummary", () => {
     expect(blocked.integrityBlockedDocuments).toBe(1);
   });
 
-  it("cuenta el bloqueo fiscal aunque tipo y estado vivos intenten ocultarlo", () => {
+  it("bloquea en tiempo real una factura sellada disfrazada de presupuesto borrador", () => {
     const issued = issueDocument(
       invoice("borrador", 100),
       DEFAULT_PROFILE,
@@ -189,13 +220,95 @@ describe("calculateTaxSummary", () => {
       type: "presupuesto",
       status: "borrador",
       items: [{ ...issued.items[0], unitPrice: 999 }],
-      snapshotIntegrity: {
-        status: "blocked",
-        issues: ["document_hash_mismatch"],
-      },
     };
 
     expect(calculateTaxSummary([disguised], [])).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
+  });
+
+  it("no pierde el bloqueo si también manipulan el tipo canónico o eliminan la evidencia", () => {
+    const issued = issuedInvoice("enviado", 100);
+    const bothTypesDisguised: Document = {
+      ...issued,
+      type: "presupuesto",
+      status: "borrador",
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        documentType: "presupuesto",
+        documentKind: "presupuesto",
+      },
+    };
+    const stripped: Document = {
+      ...issued,
+      type: "presupuesto",
+      status: "borrador",
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+
+    for (const disguised of [bothTypesDisguised, stripped]) {
+      expect(calculateTaxSummary([disguised], [])).toMatchObject({
+        salesBase: 0,
+        salesIva: 0,
+        integrityBlockedDocuments: 1,
+      });
+    }
+  });
+
+  it("bloquea una factura anulada sin relación rectificativa verificable", () => {
+    const orphanCanceled = issuedInvoice("anulada", 100);
+
+    expect(calculateTaxSummary([orphanCanceled], [])).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
+  });
+
+  it("bloquea un recibo sellado disfrazado de automático sin vínculo recíproco", () => {
+    const receipt = issueDocument(
+      invoice("borrador", 100, {
+        id: "receipt-standalone",
+        type: "recibo",
+        number: "R-2026-0001",
+      }),
+      DEFAULT_PROFILE,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const disguised: Document = {
+      ...receipt,
+      status: "pagado",
+      sourceDocumentId: "invoice-without-reciprocal-link",
+    };
+
+    expect(calculateTaxSummary([disguised], [])).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
+  });
+
+  it("detecta una mutación de taxSummary aunque no exista señal persistida", () => {
+    const issued = issuedInvoice("enviado", 100);
+    const tampered: Document = {
+      ...issued,
+      snapshotIntegrity: undefined,
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        taxSummary: {
+          ...issued.documentSnapshot!.taxSummary,
+          subtotal: 999999,
+        },
+      },
+    };
+
+    expect(calculateTaxSummary([tampered], [])).toMatchObject({
       salesBase: 0,
       salesIva: 0,
       integrityBlockedDocuments: 1,

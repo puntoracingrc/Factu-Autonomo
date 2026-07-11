@@ -1128,19 +1128,26 @@ export function buildFacturaDirectaImport(
     (product) => !product.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:product:`),
   );
   const nextDocuments = [...keptDocuments, ...importedDocuments];
-  const data = normalizeLoadedData({
-    ...current,
-    customers: [...keptCustomers, ...importedCustomers],
-    suppliers: [...keptSuppliers, ...importedSuppliers],
-    expenses: [...keptExpenses, ...importedExpenses],
-    products: [...keptProducts, ...importedProducts],
-    documents: nextDocuments,
-    counters: countersFromDocuments(
-      nextDocuments,
-      current.profile.numbering.year,
-      current.profile.numbering,
-    ),
-  });
+  const data = normalizeLoadedData(
+    {
+      ...current,
+      customers: [...keptCustomers, ...importedCustomers],
+      suppliers: [...keptSuppliers, ...importedSuppliers],
+      expenses: [...keptExpenses, ...importedExpenses],
+      products: [...keptProducts, ...importedProducts],
+      documents: nextDocuments,
+      counters: countersFromDocuments(
+        nextDocuments,
+        current.profile.numbering.year,
+        current.profile.numbering,
+      ),
+    },
+    {
+      legacyBackfillDocumentIds: new Set(
+        importedDocuments.map((document) => document.id),
+      ),
+    },
+  );
   const partialDueDateDocuments = [...salesDueDates.values(), ...purchaseDueDates.values()]
     .filter((rows) => rows.length > 1).length;
   const internalNotes = sales.filter((row) => getMemo(row, "Notas internas")).length;

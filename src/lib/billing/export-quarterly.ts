@@ -72,9 +72,12 @@ export function buildQuarterlyExportCsv(
   );
   const quarterDocs = fiscalDocuments.documents;
   const quarterExpenses = filterExpensesByQuarter(expenses, year, quarter);
-  const taxes = calculateTaxSummary(quarterDocs, quarterExpenses, {
+  const taxes = calculateTaxSummary(documents, quarterExpenses, {
     irpfPercent: profile.irpfPercent,
     vatExempt,
+    profile,
+    isDocumentDateInPeriod: (date) =>
+      isDateInQuarter(date, year, quarter),
   });
 
   const taxableDocs = quarterDocs.filter(isTaxableSaleDocument);

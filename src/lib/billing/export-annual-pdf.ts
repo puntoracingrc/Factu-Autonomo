@@ -32,9 +32,11 @@ export function buildAnnualSummaryPdf(
   );
   const yearDocs = fiscalDocuments.documents;
   const yearExpenses = filterExpensesByYear(expenses, year);
-  const taxes = calculateTaxSummary(yearDocs, yearExpenses, {
+  const taxes = calculateTaxSummary(documents, yearExpenses, {
     irpfPercent: profile.irpfPercent,
     vatExempt,
+    profile,
+    isDocumentDateInPeriod: (date) => isDateInYear(date, year),
   });
   const periodIncome = collectedSalesTotal(
     yearDocs,

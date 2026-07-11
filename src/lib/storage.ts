@@ -20,9 +20,12 @@ import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
   buildDocumentPdfSnapshot,
+  buildDocumentSnapshotSeal,
   deriveDocumentLifecycle,
   deriveIntegrityLock,
   deriveLegacySnapshotForReadOnly,
+  inspectDocumentSnapshotsIntegrity,
+  projectCanonicalSnapshotOntoDocument,
   withDocumentSnapshotIntegritySignal,
 } from "./document-integrity";
 import {
@@ -76,16 +79,37 @@ function currentStorageKey(): string {
   return isDemoWorkspaceMode() ? DEMO_WORKSPACE_STORAGE_KEY : STORAGE_KEY;
 }
 
-export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
+export interface NormalizeLoadedDataOptions {
+  legacyBackfillDocumentIds?: ReadonlySet<string>;
+}
+
+export function normalizeLoadedData(
+  parsed: Partial<AppData>,
+  options: NormalizeLoadedDataOptions = {},
+): AppData {
   const profile = migrateProfile(parsed.profile);
-  const documents = (parsed.documents ?? []).map((document) =>
-    withDocumentSnapshotIntegritySignal(
-      normalizeHistoricalDocument(
-        normalizeQuoteDocument(document as AppData["documents"][number]),
-        profile,
-      ),
-    ),
-  );
+  const firstIntegrityMigration = parsed.snapshotIntegrityVersion !== 1;
+  const documents = (parsed.documents ?? []).map((document) => {
+    const persisted = document as AppData["documents"][number];
+    const explicitLegacyImport =
+      options.legacyBackfillDocumentIds?.has(persisted.id) === true;
+    try {
+      return normalizeQuoteDocument(
+        normalizeHistoricalDocument(
+          persisted,
+          profile,
+          explicitLegacyImport ||
+            (firstIntegrityMigration && !persisted.issuedAt),
+          explicitLegacyImport || firstIntegrityMigration,
+        ),
+      );
+    } catch {
+      return withDocumentSnapshotIntegritySignal({
+        ...persisted,
+        snapshotIntegrityRequired: true,
+      });
+    }
+  });
   const suppliers = (parsed.suppliers ?? []) as Supplier[];
   const expenses = linkLooseExpensesToExistingSuppliers(
     (parsed.expenses ?? []) as Expense[],
@@ -110,6 +134,7 @@ export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
     suppliers,
     expenses,
     documents,
+    snapshotIntegrityVersion: 1,
     counters: {
       ...EMPTY_DATA.counters,
       ...parsed.counters,
@@ -172,7 +197,13 @@ function shouldBackfillHistoricalSnapshot(doc: Document): boolean {
 function isRecoverableLegacyRectificationDraft(doc: Document): boolean {
   if (!doc.rectification || doc.status !== "borrador") return false;
   if (doc.number.trim().toUpperCase() !== "BORRADOR") return false;
-  if (doc.verifactu || doc.issuedAt || doc.documentLifecycle === "canceled") {
+  if (
+    doc.verifactu ||
+    doc.issuedAt ||
+    doc.documentLifecycle === "canceled" ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired
+  ) {
     return false;
   }
   return (
@@ -181,16 +212,44 @@ function isRecoverableLegacyRectificationDraft(doc: Document): boolean {
   );
 }
 
+function normalizeDocumentIntegrityState(
+  doc: Document,
+  requirements: Parameters<
+    typeof withDocumentSnapshotIntegritySignal
+  >[1] = {},
+): Document {
+  const signaled = withDocumentSnapshotIntegritySignal(doc, requirements);
+  if (
+    signaled.documentSnapshot &&
+    signaled.pdfSnapshot &&
+    signaled.snapshotSeal &&
+    inspectDocumentSnapshotsIntegrity(signaled).ok
+  ) {
+    return projectCanonicalSnapshotOntoDocument(signaled);
+  }
+  return signaled;
+}
+
 function normalizeHistoricalDocument(
   doc: Document,
   profile: BusinessProfile,
+  allowLegacySnapshotBackfill: boolean,
+  allowLegacySealMigration: boolean,
 ): Document {
-  if (isRecoverableLegacyRectificationDraft(doc)) {
-    return {
+  if (
+    allowLegacySnapshotBackfill &&
+    allowLegacySealMigration &&
+    !doc.snapshotSeal &&
+    isRecoverableLegacyRectificationDraft(doc)
+  ) {
+    return normalizeDocumentIntegrityState({
       ...doc,
       issuer: undefined,
       documentSnapshot: undefined,
       pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
       documentLifecycle: "draft",
       integrityLock: "unlocked",
       deliveryStatus: undefined,
@@ -200,33 +259,133 @@ function normalizeHistoricalDocument(
       sentAt: undefined,
       paidAt: undefined,
       acceptedAt: undefined,
-    };
+    });
+  }
+
+  const loadedIntegrity = inspectDocumentSnapshotsIntegrity(doc);
+  if (!loadedIntegrity.ok) {
+    // Conserva exactamente la evidencia persistida. Cargar detecta una
+    // corrupción, pero nunca la hace parecer válida reconstruyéndola.
+    return normalizeDocumentIntegrityState({
+      ...doc,
+      documentLifecycle: deriveDocumentLifecycle(doc),
+      integrityLock: deriveIntegrityLock(doc),
+    });
   }
 
   const lifecycle = deriveDocumentLifecycle(doc);
   const integrityLock = deriveIntegrityLock(doc);
+
+  if (doc.documentSnapshot && !doc.pdfSnapshot) {
+    const canCompleteLegacyPair =
+      allowLegacySnapshotBackfill &&
+      doc.documentSnapshot.source === "legacy_backfill" &&
+      lifecycle !== "draft";
+    if (!canCompleteLegacyPair) {
+      return normalizeDocumentIntegrityState(
+        {
+          ...doc,
+          documentLifecycle: lifecycle,
+          integrityLock,
+          snapshotIntegrityRequired: true,
+        },
+        {
+          requireDocumentSnapshot: true,
+          requirePdfSnapshot: true,
+          requireSnapshotSeal: !allowLegacySealMigration,
+        },
+      );
+    }
+
+    const pdfSnapshot = buildDocumentPdfSnapshot(
+      doc.documentSnapshot,
+      profile,
+      doc.issuedAt ?? doc.updatedAt,
+    );
+    return normalizeDocumentIntegrityState({
+      ...doc,
+      documentLifecycle: lifecycle,
+      integrityLock,
+      pdfSnapshot,
+      snapshotIntegrityRequired: true,
+      snapshotSeal: buildDocumentSnapshotSeal(
+        doc.id,
+        doc.documentSnapshot,
+        pdfSnapshot,
+      ),
+    });
+  }
+
+  if (doc.documentSnapshot && doc.pdfSnapshot) {
+    if (!doc.snapshotSeal && !allowLegacySealMigration) {
+      return normalizeDocumentIntegrityState(
+        {
+          ...doc,
+          documentLifecycle: lifecycle,
+          integrityLock,
+          snapshotIntegrityRequired: true,
+        },
+        { requireSnapshotSeal: true },
+      );
+    }
+    return normalizeDocumentIntegrityState({
+      ...doc,
+      documentLifecycle: lifecycle,
+      integrityLock,
+      snapshotIntegrityRequired: true,
+      snapshotSeal:
+        doc.snapshotSeal ??
+        buildDocumentSnapshotSeal(
+          doc.id,
+          doc.documentSnapshot,
+          doc.pdfSnapshot,
+        ),
+    });
+  }
+
   if (!shouldBackfillHistoricalSnapshot(doc)) {
-    return {
+    return normalizeDocumentIntegrityState({
       ...doc,
       documentLifecycle: doc.documentLifecycle ?? lifecycle,
       integrityLock: doc.integrityLock ?? integrityLock,
-    };
+    });
+  }
+
+  if (!allowLegacySnapshotBackfill) {
+    return normalizeDocumentIntegrityState(
+      {
+        ...doc,
+        documentLifecycle: lifecycle,
+        integrityLock,
+        snapshotIntegrityRequired: true,
+      },
+      {
+        requireDocumentSnapshot: true,
+        requirePdfSnapshot: true,
+        requireSnapshotSeal: true,
+      },
+    );
   }
 
   const documentSnapshot = deriveLegacySnapshotForReadOnly(doc, profile);
-  return {
+  const pdfSnapshot = buildDocumentPdfSnapshot(
+    documentSnapshot,
+    profile,
+    doc.issuedAt ?? doc.updatedAt,
+  );
+  return normalizeDocumentIntegrityState({
     ...doc,
     documentLifecycle: "issued",
     integrityLock: "locked",
     documentSnapshot,
-    pdfSnapshot:
-      doc.pdfSnapshot ??
-      buildDocumentPdfSnapshot(
-        documentSnapshot,
-        profile,
-        doc.issuedAt ?? doc.updatedAt,
-      ),
-  };
+    pdfSnapshot,
+    snapshotIntegrityRequired: true,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      doc.id,
+      documentSnapshot,
+      pdfSnapshot,
+    ),
+  });
 }
 
 export function touchAppData(data: AppData): AppData {
@@ -243,16 +402,29 @@ export function getDataTimestamp(data: AppData): string {
   return data.meta?.lastModified ?? "1970-01-01T00:00:00.000Z";
 }
 
+function normalizedDemoWorkspaceData(): AppData {
+  const demo = createDemoWorkspaceData();
+  return normalizeLoadedData(demo, {
+    legacyBackfillDocumentIds: new Set(
+      demo.documents.map((document) => document.id),
+    ),
+  });
+}
+
 export function loadData(): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
   try {
     const raw = localStorage.getItem(currentStorageKey());
     if (!raw) {
-      return isDemoWorkspaceMode() ? createDemoWorkspaceData() : EMPTY_DATA;
+      return isDemoWorkspaceMode()
+        ? normalizedDemoWorkspaceData()
+        : EMPTY_DATA;
     }
     return normalizeLoadedData(JSON.parse(raw));
   } catch {
-    return isDemoWorkspaceMode() ? createDemoWorkspaceData() : EMPTY_DATA;
+    return isDemoWorkspaceMode()
+      ? normalizedDemoWorkspaceData()
+      : EMPTY_DATA;
   }
 }
 

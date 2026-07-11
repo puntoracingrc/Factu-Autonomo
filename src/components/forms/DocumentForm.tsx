@@ -89,6 +89,7 @@ import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
+import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
   applyDocumentProductToLine,
@@ -434,8 +435,21 @@ export function DocumentForm({
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
+  const isRectificationDraft =
+    Boolean(existing?.rectification) && existing?.status === "borrador";
+  const rectificationProfileResolution = useMemo(
+    () =>
+      resolveDocumentFormBusinessProfile(
+        existing,
+        data.documents,
+        data.profile,
+      ),
+    [data.documents, data.profile, existing],
+  );
+  const effectiveDocumentProfile = rectificationProfileResolution.profile;
+  const rectificationProfileBlocked = rectificationProfileResolution.blocked;
   const missingIssuerLabels = businessProfileMissingDocumentLabels(
-    data.profile,
+    effectiveDocumentProfile,
   );
 
   const [clientForm, setClientForm] = useState<ClientFormValues>(
@@ -496,13 +510,13 @@ export function DocumentForm({
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
   );
-  const isRectificationDraft =
-    Boolean(existing?.rectification) && existing?.status === "borrador";
   const activeCustomerId =
     selectedCustomerId ??
     (clientForm.firstName.trim() ? existing?.customerId : undefined);
-  const vatExempt = isVatExempt(data.profile);
-  const defaultIva = vatExempt ? 0 : (data.profile.iva?.defaultRate ?? 21);
+  const vatExempt = isVatExempt(effectiveDocumentProfile);
+  const defaultIva = vatExempt
+    ? 0
+    : (effectiveDocumentProfile.iva?.defaultRate ?? 21);
   const unitsSettings = useMemo(
     () => normalizeDocumentUnits(data.profile.documentUnits),
     [data.profile.documentUnits],
@@ -982,7 +996,7 @@ export function DocumentForm({
         : "Emitir y descargar PDF"
       : `Guardar ${label} y descargar PDF`;
 
-  const shareDoc: Document | null = existing
+  const shareDoc: Document | null = existing && !rectificationProfileBlocked
     ? {
         ...previewDoc,
         id: existing.id,
@@ -1302,6 +1316,12 @@ export function DocumentForm({
 
   async function handlePreview() {
     if (saving || previewLoading) return;
+    if (rectificationProfileBlocked) {
+      setFormError(
+        "No se puede verificar el perfil fiscal histórico de la factura original. Repara su integridad antes de continuar.",
+      );
+      return;
+    }
 
     const lineIssue = firstDocumentFormLineIssue(measuredItems, {
       requireConcept: requiresConcept,
@@ -1314,8 +1334,8 @@ export function DocumentForm({
 
     setPreviewLoading(true);
     try {
-      const doc = attachIssuerSnapshot(previewDoc, data.profile);
-      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
+      const doc = attachIssuerSnapshot(previewDoc, effectiveDocumentProfile);
+      await openDocumentPdfPreview(doc, effectiveDocumentProfile, pdfOptions);
     } catch (error) {
       alert(
         error instanceof Error && error.message === "popup_blocked"
@@ -1332,6 +1352,12 @@ export function DocumentForm({
     statusOverride?: Document["status"],
   ) {
     if (saving) return;
+    if (rectificationProfileBlocked) {
+      setFormError(
+        "No se puede verificar el perfil fiscal histórico de la factura original. Repara su integridad antes de continuar.",
+      );
+      return;
+    }
 
     const lineIssue = firstDocumentFormLineIssue(measuredItems, {
       requireConcept: requiresConcept,
@@ -1435,7 +1461,7 @@ export function DocumentForm({
     if (resolvedStatus !== "borrador") {
       const emissionCheck = validateDocumentEmission(
         { ...payload, type },
-        data.profile,
+        effectiveDocumentProfile,
         type,
       );
       if (!emissionCheck.ok) {
@@ -1472,12 +1498,12 @@ export function DocumentForm({
       recordDocumentCreated();
     }
 
-    saved = attachIssuerSnapshot(saved, data.profile);
+    saved = attachIssuerSnapshot(saved, effectiveDocumentProfile);
 
     try {
       saved = await finalizeVerifactuDocument({
         doc: saved,
-        profile: data.profile,
+        profile: effectiveDocumentProfile,
         chain: data.verifactuChain,
         registerLocal: registerVerifactuForDocument,
       });
@@ -1500,7 +1526,7 @@ export function DocumentForm({
       number: saved.number,
       router,
       download: download
-        ? { doc: saved, profile: data.profile, pdfOptions }
+        ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
         : undefined,
     });
   }
@@ -1655,6 +1681,7 @@ export function DocumentForm({
               >
                 <IvaPercentSelect
                   value={documentIvaPercent}
+                  settings={effectiveDocumentProfile.iva}
                   onChange={(ivaPercent) => {
                     setFormError(null);
                     setDocumentIvaPercent(ivaPercent);
@@ -2049,6 +2076,7 @@ export function DocumentForm({
                       </span>
                       <IvaPercentSelect
                         value={item.ivaPercent}
+                        settings={effectiveDocumentProfile.iva}
                         ariaLabel={`IVA de la línea ${index + 1}`}
                         onChange={(ivaPercent) =>
                           updateItem(item.id, { ivaPercent })
@@ -2245,11 +2273,22 @@ export function DocumentForm({
           <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
             <DocumentPdfShareActions
               doc={shareDoc}
-              profile={data.profile}
+              profile={effectiveDocumentProfile}
               showPreview={false}
             />
           </div>
         </Card>
+      )}
+
+      {rectificationProfileBlocked && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-900"
+        >
+          No se puede verificar el perfil fiscal histórico de la factura
+          original. La rectificativa queda bloqueada hasta reparar su
+          integridad.
+        </div>
       )}
 
       {formError && (
@@ -2266,7 +2305,7 @@ export function DocumentForm({
           variant="secondary"
           fullWidth
           onClick={() => void handlePreview()}
-          disabled={saving || previewLoading}
+          disabled={saving || previewLoading || rectificationProfileBlocked}
         >
           <Eye className="h-5 w-5" />
           {previewLoading ? "Generando vista previa…" : previewButtonLabel}
@@ -2281,7 +2320,9 @@ export function DocumentForm({
               variant="secondary"
               fullWidth
               onClick={() => void handleSave(false, "borrador")}
-              disabled={saving || previewLoading}
+              disabled={
+                saving || previewLoading || rectificationProfileBlocked
+              }
             >
               {saveAction === "save" ? "Guardando…" : "Guardar borrador"}
             </Button>
@@ -2289,7 +2330,7 @@ export function DocumentForm({
           <Button
             fullWidth
             onClick={() => void handleSave(false, finalStatusOverride)}
-            disabled={saving || previewLoading}
+            disabled={saving || previewLoading || rectificationProfileBlocked}
           >
             {saveAction === "save" ? "Guardando…" : primarySaveButtonLabel}
           </Button>
@@ -2297,7 +2338,7 @@ export function DocumentForm({
             variant="secondary"
             fullWidth
             onClick={() => void handleSave(true, finalStatusOverride)}
-            disabled={saving || previewLoading}
+            disabled={saving || previewLoading || rectificationProfileBlocked}
           >
             {saveAction === "save-pdf"
               ? "Guardando y preparando PDF…"

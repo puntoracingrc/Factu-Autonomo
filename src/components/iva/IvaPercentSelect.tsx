@@ -7,6 +7,7 @@ import {
   formatIvaLabel,
   ivaOptionsForValue,
 } from "@/lib/iva";
+import type { IvaSettings } from "@/lib/types";
 
 interface IvaPercentSelectProps {
   value: number;
@@ -15,6 +16,7 @@ interface IvaPercentSelectProps {
   className?: string;
   id?: string;
   ariaLabel?: string;
+  settings?: IvaSettings;
 }
 
 export function IvaPercentSelect({
@@ -24,9 +26,10 @@ export function IvaPercentSelect({
   className,
   id,
   ariaLabel,
+  settings,
 }: IvaPercentSelectProps) {
   const { data } = useAppStore();
-  const iva = data.profile.iva ?? DEFAULT_IVA_SETTINGS;
+  const iva = settings ?? data.profile.iva ?? DEFAULT_IVA_SETTINGS;
   const options = ivaOptionsForValue(iva, value);
 
   return (

@@ -49,23 +49,24 @@ function hasHistoricalEvidence(doc: Document): boolean {
 }
 
 function isPotentialFiscalDocument(doc: Document): boolean {
-  if (
-    !isFiscalType(doc.type) &&
-    !isFiscalType(doc.documentSnapshot?.documentType)
-  ) {
-    return false;
+  const declaresFiscalType =
+    isFiscalType(doc.type) ||
+    isFiscalType(doc.documentSnapshot?.documentType);
+  if (declaresFiscalType) {
+    return hasHistoricalEvidence(doc) || deriveDocumentLifecycle(doc) !== "draft";
   }
-  return hasHistoricalEvidence(doc) || deriveDocumentLifecycle(doc) !== "draft";
-}
 
-function belongsToRequestedPeriod(
-  doc: Document,
-  isDateInPeriod: (date: string) => boolean,
-): boolean {
-  const dates = [doc.documentSnapshot?.date, doc.date].filter(
-    (date): date is string => Boolean(date),
+  if (!hasHistoricalEvidence(doc)) return false;
+
+  // Si los dos tipos se han disfrazado como presupuesto, solo la evidencia
+  // puede aclarar si era fiscal. Una pareja ausente o corrupta es ambigua y
+  // debe bloquearse de forma conservadora, no desaparecer del resumen.
+  return (
+    doc.snapshotIntegrity?.status === "blocked" ||
+    !inspectDocumentSnapshotsIntegrity(doc, {
+      requireDocumentSnapshot: true,
+    }).ok
   );
-  return dates.length === 0 || dates.some(isDateInPeriod);
 }
 
 function blockedReference(
@@ -85,10 +86,7 @@ function addBlockedDocument(
   blockedById: Map<string, FiscalExportBlockedDocument>,
   doc: Document,
   issues: DocumentSnapshotIntegrityIssue[],
-  isDateInPeriod: (date: string) => boolean,
 ): void {
-  if (!belongsToRequestedPeriod(doc, isDateInPeriod)) return;
-
   const previous = blockedById.get(doc.id);
   blockedById.set(
     doc.id,
@@ -99,6 +97,14 @@ function addBlockedDocument(
   );
 }
 
+function hasOperationalFiscalStatus(doc: Document): boolean {
+  return (
+    doc.status === "enviado" ||
+    doc.status === "pagado" ||
+    doc.status === "vencido"
+  );
+}
+
 function relationshipIssues(
   candidate: CanonicalFiscalCandidate,
   candidatesById: Map<string, CanonicalFiscalCandidate>,
@@ -106,7 +112,7 @@ function relationshipIssues(
   const { stored, canonical } = candidate;
   const issues: DocumentSnapshotIntegrityIssue[] = [];
 
-  if (stored.type !== canonical.type || stored.status === "borrador") {
+  if (stored.type !== canonical.type) {
     issues.push("document_relationship_invalid");
   }
 
@@ -114,14 +120,20 @@ function relationshipIssues(
     if (
       stored.rectifiedById ||
       stored.status === "rectificada" ||
-      stored.status === "anulada"
+      stored.status === "anulada" ||
+      stored.receiptDocumentId ||
+      !hasOperationalFiscalStatus(stored)
     ) {
       issues.push("document_relationship_invalid");
     }
 
     if (stored.sourceDocumentId) {
       const source = candidatesById.get(stored.sourceDocumentId);
-      if (!source || source.canonical.type !== "factura") {
+      if (
+        !source ||
+        source.canonical.type !== "factura" ||
+        source.stored.receiptDocumentId !== stored.id
+      ) {
         issues.push("document_relationship_invalid");
       }
     }
@@ -131,6 +143,17 @@ function relationshipIssues(
 
   if (stored.sourceDocumentId) {
     issues.push("document_relationship_invalid");
+  }
+
+  if (stored.receiptDocumentId) {
+    const receipt = candidatesById.get(stored.receiptDocumentId);
+    if (
+      !receipt ||
+      receipt.canonical.type !== "recibo" ||
+      receipt.stored.sourceDocumentId !== stored.id
+    ) {
+      issues.push("document_relationship_invalid");
+    }
   }
 
   if (canonical.rectification) {
@@ -148,7 +171,11 @@ function relationshipIssues(
       original.canonical.type !== "factura" ||
       Boolean(original.canonical.rectification) ||
       original.stored.rectifiedById !== stored.id ||
-      original.stored.status !== expectedOriginalStatus
+      original.stored.status !== expectedOriginalStatus ||
+      canonical.rectification.originalNumber !== original.canonical.number ||
+      canonical.rectification.originalDate !== original.canonical.date ||
+      canonical.date < original.canonical.date ||
+      !hasOperationalFiscalStatus(stored)
     ) {
       issues.push("document_relationship_invalid");
     }
@@ -168,6 +195,8 @@ function relationshipIssues(
       issues.push("document_relationship_invalid");
     }
   } else if (stored.status === "rectificada" || stored.status === "anulada") {
+    issues.push("document_relationship_invalid");
+  } else if (!hasOperationalFiscalStatus(stored)) {
     issues.push("document_relationship_invalid");
   }
 
@@ -206,7 +235,6 @@ export function selectCanonicalFiscalDocumentsForExport(
         blockedById,
         document,
         issues.length > 0 ? issues : ["document_snapshot_missing"],
-        isDateInPeriod,
       );
       continue;
     }
@@ -222,7 +250,6 @@ export function selectCanonicalFiscalDocumentsForExport(
           blockedById,
           document,
           ["document_relationship_invalid"],
-          isDateInPeriod,
         );
         continue;
       }
@@ -233,7 +260,6 @@ export function selectCanonicalFiscalDocumentsForExport(
         blockedById,
         document,
         ["document_snapshot_invalid"],
-        isDateInPeriod,
       );
     }
   }
@@ -245,7 +271,6 @@ export function selectCanonicalFiscalDocumentsForExport(
         blockedById,
         candidate.stored,
         issues,
-        isDateInPeriod,
       );
       continue;
     }

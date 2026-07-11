@@ -74,6 +74,54 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     ]);
   });
 
+  it("bloquea una factura aunque manipulen ambos tipos para disfrazarla de presupuesto", () => {
+    const issued = issueDocument(invoiceDraft(), profile, NOW);
+    const disguised: Document = {
+      ...issued,
+      type: "presupuesto",
+      status: "borrador",
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        documentType: "presupuesto",
+        documentKind: "presupuesto",
+      },
+    };
+
+    const result = select([disguised]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: issued.id,
+        issues: expect.arrayContaining(["document_hash_mismatch"]),
+      }),
+    ]);
+  });
+
+  it("bloquea una emisión despojada de evidencia y mutada a presupuesto", () => {
+    const issued = issueDocument(invoiceDraft(), profile, NOW);
+    const stripped: Document = {
+      ...issued,
+      type: "presupuesto",
+      status: "borrador",
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+
+    const result = select([stripped]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: issued.id,
+        issues: expect.arrayContaining(["document_snapshot_missing"]),
+      }),
+    ]);
+  });
+
   it("bloquea estados y vínculos vivos que excluirían una factura sin soporte", () => {
     const issued = issueDocument(invoiceDraft(), profile, NOW);
 
@@ -118,6 +166,63 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     expect(result.blockedDocuments).toHaveLength(0);
     expect(result.documents.map((document) => document.id)).toEqual([
       invoice.id,
+    ]);
+  });
+
+  it("bloquea un recibo con vínculo unilateral aunque apunte a una factura canónica", () => {
+    const invoice = issueDocument(invoiceDraft(), profile, NOW);
+    const receipt = issueDraftDocumentWithStatus(
+      invoiceDraft({
+        id: "receipt-1",
+        type: "recibo",
+        number: "R-2026-0001",
+        sourceDocumentId: invoice.id,
+      }),
+      "pagado",
+      profile,
+      NOW,
+    );
+
+    const result = select([invoice, receipt]);
+
+    expect(result.documents.map((document) => document.id)).toEqual([
+      invoice.id,
+    ]);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: receipt.id,
+        issues: ["document_relationship_invalid"],
+      }),
+    ]);
+  });
+
+  it("no permite que fechas vivas y evidencia corrupta oculten un bloqueo fuera del periodo", () => {
+    const issued = issueDocument(
+      invoiceDraft({ date: "2026-04-15" }),
+      profile,
+      NOW,
+    );
+    const corrupted: Document = {
+      ...issued,
+      date: "2026-07-15",
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        date: "2026-07-15",
+      },
+    };
+
+    const result = selectCanonicalFiscalDocumentsForExport(
+      [corrupted],
+      profile,
+      (date) => date >= "2026-04-01" && date <= "2026-06-30",
+    );
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: issued.id,
+        issues: expect.arrayContaining(["document_hash_mismatch"]),
+      }),
     ]);
   });
 
