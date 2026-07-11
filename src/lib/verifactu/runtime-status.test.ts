@@ -38,14 +38,14 @@ describe("VeriFactu runtime status", () => {
     );
   });
 
-  it("acepta solo la respuesta mínima unknown y conserva bearer/no-store", async () => {
+  it("acepta la respuesta mínima disabled y conserva bearer/no-store", async () => {
     const fetcher = vi.fn(async () =>
-      Response.json({ submissionMode: "unknown" }),
+      Response.json({ submissionMode: "disabled" }),
     );
 
     await expect(
       loadVerifactuRuntimeState("test-token", fetcher),
-    ).resolves.toEqual({ phase: "unknown" });
+    ).resolves.toEqual({ phase: "unavailable" });
     expect(fetcher).toHaveBeenCalledWith("/api/verifactu/status", {
       cache: "no-store",
       headers: { Authorization: "Bearer test-token" },

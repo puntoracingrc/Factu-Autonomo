@@ -52,3 +52,14 @@ export function isAeatSubmitConfigured(): boolean {
     getVerifactuCertificateConfig() !== null
   );
 }
+
+/**
+ * Interruptor de contención. No se expone el registro público si falta el
+ * transporte mTLS real o la habilitación operativa deliberada del servidor.
+ */
+export function isVerifactuRegistrationApiEnabled(): boolean {
+  // Contención deliberada: faltan vinculación usuario↔NIF/certificado,
+  // persistencia transaccional de registro+cadena e idempotencia por identidad
+  // fiscal. Ninguna variable de entorno puede saltarse esas garantías.
+  return false;
+}

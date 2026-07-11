@@ -6,7 +6,7 @@ import { documentRecordType } from "./record-input";
 import type { VerifactuRecordType, VerifactuSettings } from "./types";
 
 export const DEFAULT_VERIFACTU_SETTINGS: VerifactuSettings = {
-  enabled: true,
+  enabled: false,
   environment: "test",
 };
 
@@ -18,12 +18,14 @@ export function normalizeVerifactuSettings(
   settings?: Partial<VerifactuSettings>,
 ): VerifactuSettings {
   const productionAllowed = isVerifactuProductionModeAllowed();
+  const optedIn = settings?.optInVersion === 1;
   return {
-    enabled: settings?.enabled ?? DEFAULT_VERIFACTU_SETTINGS.enabled,
+    enabled: optedIn && settings?.enabled === true,
     environment:
       productionAllowed && settings?.environment === "production"
         ? "production"
         : "test",
+    ...(optedIn ? { optInVersion: 1 as const } : {}),
   };
 }
 
@@ -46,7 +48,11 @@ export function needsVerifactuRegistration(
   if (doc.type !== "factura") return false;
   if (doc.status === "borrador") return false;
   if (!resolveIssuerNif(doc, profile)) return false;
-  if (doc.verifactu?.status === "registered" || doc.verifactu?.status === "test_registered") {
+  if (
+    doc.verifactuPersistence === "server_confirmed" &&
+    (doc.verifactu?.status === "registered" ||
+      doc.verifactu?.status === "test_registered")
+  ) {
     return false;
   }
   return true;

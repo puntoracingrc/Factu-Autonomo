@@ -29,7 +29,7 @@ describe("public VeriFactu containment", () => {
       /buildDeclaration|verifactu\/declaration|AeatSubmit|ServerVerifactuEnvironment/i,
     );
     expect(statusRoute).toContain("getUserFromBearer");
-    expect(statusRoute).toContain('submissionMode: "unknown"');
+    expect(statusRoute).toContain('submissionMode: "disabled"');
     expect(statusRoute).not.toMatch(
       /VERIFACTU_SOFTWARE|getVerifactuCertificateConfig|getProducerConfigStatus|getServerVerifactuEnvironment|isAeatSubmitConfigured|VERIFACTU_ENVIRONMENT|qrHosts|certificateConfigured|certificateChannel/i,
     );

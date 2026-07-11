@@ -36,6 +36,6 @@ export async function GET(request: Request) {
   }
 
   return protectStatusResponse(
-    NextResponse.json({ submissionMode: "unknown" as const }),
+    NextResponse.json({ submissionMode: "disabled" as const }),
   );
 }

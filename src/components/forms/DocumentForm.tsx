@@ -1500,6 +1500,7 @@ export function DocumentForm({
 
     saved = attachIssuerSnapshot(saved, effectiveDocumentProfile);
 
+    let verifactuNotice: string | undefined;
     try {
       saved = await finalizeVerifactuDocument({
         doc: saved,
@@ -1508,13 +1509,10 @@ export function DocumentForm({
         registerLocal: registerVerifactuForDocument,
       });
     } catch (error) {
-      setSaveAction("idle");
-      setFormError(
+      verifactuNotice =
         error instanceof Error
-          ? `No se pudo completar el registro tributario: ${error.message}`
-          : "No se pudo completar el registro tributario. El documento está guardado; prueba desde el listado.",
-      );
-      return;
+          ? `Veri*Factu pendiente: ${error.message}`
+          : "Veri*Factu no confirmó el registro; el documento no se ha marcado como registrado.";
     }
 
     maybeCelebrateFirstInvoice(data.documents, saved);
@@ -1525,6 +1523,7 @@ export function DocumentForm({
       type,
       number: saved.number,
       router,
+      notice: verifactuNotice,
       download: download
         ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
         : undefined,

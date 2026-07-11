@@ -1,6 +1,7 @@
 import type { AppData, Document, BusinessProfile } from "../types";
-import { needsVerifactuRegistration } from "./eligibility";
-import { registerDocumentVerifactu, resolveChainState } from "./register";
+import { attachRegisteredVerifactuToSnapshots } from "../document-integrity";
+import { registerDocumentVerifactu } from "./register";
+import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
 
 export function resolveVerifactuRegistrationContext(input: {
   doc: Document;
@@ -29,22 +30,27 @@ export async function withVerifactuOnDocument(input: {
   doc: Document;
   chain: AppData["verifactuChain"];
 }> {
-  if (!needsVerifactuRegistration(input.doc, input.profile)) {
-    return { doc: input.doc, chain: input.chain ?? null };
-  }
+  const canonicalDocument = buildCanonicalDocumentForProtectedEffect(
+    input.doc,
+    input.profile,
+  );
 
   const result = await registerDocumentVerifactu({
-    doc: input.doc,
+    doc: canonicalDocument,
     profile: input.profile,
-    chain: resolveChainState(input.profile, input.chain),
+    chain: input.chain,
   });
 
   if (!result) {
-    return { doc: input.doc, chain: input.chain ?? null };
+    return { doc: canonicalDocument, chain: input.chain ?? null };
   }
 
   return {
-    doc: { ...input.doc, verifactu: result.verifactu },
+    doc: attachRegisteredVerifactuToSnapshots({
+      ...canonicalDocument,
+      verifactu: result.verifactu,
+      verifactuPersistence: "simulation",
+    }),
     chain: result.chain,
   };
 }

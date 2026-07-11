@@ -10,7 +10,7 @@ import {
 const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
   nif: "12345678Z",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 const factura: Document = {
@@ -30,17 +30,33 @@ describe("verifactu eligibility", () => {
     vi.unstubAllEnvs();
   });
 
+  it("permanece desactivado hasta que el usuario lo activa expresamente", () => {
+    expect(normalizeVerifactuSettings()).toEqual({
+      enabled: false,
+      environment: "test",
+    });
+    expect(DEFAULT_PROFILE.verifactu?.enabled).toBe(false);
+  });
+
   it("normaliza producción a pruebas si no está habilitada explícitamente", () => {
     expect(
       normalizeVerifactuSettings({ enabled: true, environment: "production" }),
-    ).toEqual({ enabled: true, environment: "test" });
+    ).toEqual({ enabled: false, environment: "test" });
   });
 
   it("permite producción solo con marca pública explícita", () => {
     vi.stubEnv("NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION", "true");
     expect(
-      normalizeVerifactuSettings({ enabled: true, environment: "production" }),
-    ).toEqual({ enabled: true, environment: "production" });
+      normalizeVerifactuSettings({
+        enabled: true,
+        environment: "production",
+        optInVersion: 1,
+      }),
+    ).toEqual({
+      enabled: true,
+      environment: "production",
+      optInVersion: 1,
+    });
   });
 
   it("requires registration for emitted factura", () => {

@@ -7,6 +7,7 @@ import {
   getVerifactuEnvironment,
   initialChainState,
   needsVerifactuRegistration,
+  normalizeVerifactuSettings,
   verifactuRecordType,
 } from "./eligibility";
 import { buildQrUrl } from "./qr";
@@ -21,6 +22,11 @@ import type {
 import { buildRegistroFacturacionXml } from "./xml";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { formatQrAmount } from "./qr";
+import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
+import {
+  assertDocumentSnapshotsIntegrity,
+  attachRegisteredVerifactuToSnapshots,
+} from "../document-integrity";
 
 function normalizeChainHash(hash: string | null | undefined): string {
   const normalized = normalizeHuellaAnterior(hash);
@@ -40,11 +46,19 @@ export function resolveChainState(
   const lastHash = normalizeChainHash(
     chain.lastHash === GENESIS_HASH ? "" : chain.lastHash,
   );
+  if (!Number.isSafeInteger(chain.recordCount) || chain.recordCount < 0) {
+    throw new Error("El contador de la cadena VeriFactu no es válido");
+  }
   if (
     lastHash &&
-    (!chain.lastNumSerie?.trim() || !chain.lastFechaExpedicion?.trim())
+    (!chain.lastNumSerie?.trim() ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(chain.lastFechaExpedicion?.trim() ?? "") ||
+      chain.recordCount < 1)
   ) {
-    return base;
+    throw new Error("La cadena VeriFactu persistida está incompleta");
+  }
+  if (!lastHash && chain.recordCount !== 0) {
+    throw new Error("La cadena VeriFactu persistida no contiene su última huella");
   }
   return {
     issuerNif: chain.issuerNif,
@@ -62,7 +76,35 @@ export async function registerDocumentVerifactu(input: {
   csv?: string;
   status?: VerifactuInfo["status"];
 }): Promise<VerifactuRegisterResult | null> {
-  const { doc, profile } = input;
+  const requestedProfile = input.profile;
+  if (
+    input.doc.documentSnapshot ||
+    input.doc.pdfSnapshot ||
+    input.doc.snapshotSeal ||
+    input.doc.snapshotIntegrityRequired
+  ) {
+    assertDocumentSnapshotsIntegrity(input.doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+  }
+  const doc = buildCanonicalDocumentForProtectedEffect(
+    input.doc,
+    requestedProfile,
+  );
+  const snapshot = doc.documentSnapshot;
+  const profile: BusinessProfile = snapshot
+    ? {
+        ...requestedProfile,
+        name: snapshot.issuer.name,
+        nif: snapshot.issuer.nif,
+        vatExempt: snapshot.fiscalContext.vatExempt,
+        verifactu: normalizeVerifactuSettings(
+          snapshot.fiscalContext.verifactu,
+        ),
+      }
+    : requestedProfile;
   if (!needsVerifactuRegistration(doc, profile)) return null;
 
   const environment = getVerifactuEnvironment(profile);
@@ -162,16 +204,23 @@ export async function applyVerifactuToDocuments(input: {
 
   for (let i = 0; i < documents.length; i++) {
     const doc = documents[i];
-    if (!needsVerifactuRegistration(doc, input.profile)) continue;
+    const canonicalDocument = buildCanonicalDocumentForProtectedEffect(
+      doc,
+      input.profile,
+    );
 
     const result = await registerDocumentVerifactu({
-      doc,
+      doc: canonicalDocument,
       profile: input.profile,
       chain,
     });
     if (!result) continue;
 
-    documents[i] = { ...doc, verifactu: result.verifactu };
+    documents[i] = attachRegisteredVerifactuToSnapshots({
+      ...canonicalDocument,
+      verifactu: result.verifactu,
+      verifactuPersistence: "simulation",
+    });
     chain = result.chain;
   }
 

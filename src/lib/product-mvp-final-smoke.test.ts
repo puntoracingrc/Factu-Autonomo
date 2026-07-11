@@ -26,7 +26,7 @@ const profile: BusinessProfile = {
   postalCode: "28001",
   email: "beta@example.com",
   phone: "600000000",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 const quote: Document = {

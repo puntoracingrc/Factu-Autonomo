@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
-import { registerDocumentVerifactu } from "./register";
+import { issueDocument } from "../document-integrity";
+import { registerDocumentVerifactu, resolveChainState } from "./register";
 
 function invoice(status: Document["status"] = "enviado"): Document {
   return {
@@ -28,7 +29,7 @@ function invoice(status: Document["status"] = "enviado"): Document {
 const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
   nif: "12345678Z",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 describe("registerDocumentVerifactu", () => {
@@ -41,8 +42,13 @@ describe("registerDocumentVerifactu", () => {
   });
 
   it("creates chained record with QR for emitted invoice", async () => {
+    const issued = issueDocument(
+      invoice("borrador"),
+      profile,
+      "2026-06-09T10:00:00.000Z",
+    );
     const result = await registerDocumentVerifactu({
-      doc: invoice("enviado"),
+      doc: issued,
       profile,
     });
 
@@ -53,5 +59,26 @@ describe("registerDocumentVerifactu", () => {
     expect(result?.chain.lastNumSerie).toBe("F-2026-0001");
     expect(result?.chain.lastFechaExpedicion).toBe("2026-06-09");
     expect(result?.xml).toContain("<sum:RegFactuSistemaFacturacion");
+  });
+
+  it("rechaza una cadena persistida con huella corta o no hexadecimal", () => {
+    expect(() =>
+      resolveChainState(profile, {
+        issuerNif: profile.nif,
+        lastHash: "abc123",
+        lastNumSerie: "F-2026-0001",
+        lastFechaExpedicion: "2026-06-09",
+        recordCount: 1,
+      }),
+    ).toThrow("SHA-256");
+    expect(() =>
+      resolveChainState(profile, {
+        issuerNif: profile.nif,
+        lastHash: "G".repeat(64),
+        lastNumSerie: "F-2026-0001",
+        lastFechaExpedicion: "2026-06-09",
+        recordCount: 1,
+      }),
+    ).toThrow("SHA-256");
   });
 });

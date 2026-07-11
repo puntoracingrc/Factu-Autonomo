@@ -84,21 +84,15 @@ export function parseAeatSubmitResponse(input: {
   const normalizedEnvio = normalizeStatus(estadoEnvio);
   const normalizedRegistro = normalizeStatus(estadoRegistro);
   const envioOk =
-    !normalizedEnvio ||
-    normalizedEnvio === "correcto" ||
-    normalizedEnvio === "correcta" ||
-    normalizedEnvio === "parcialmentecorrecto" ||
-    normalizedEnvio === "parcialmentecorrecta";
+    normalizedEnvio === "correcto" || normalizedEnvio === "correcta";
   const registroOk =
-    !normalizedRegistro ||
     normalizedRegistro === "correcta" ||
-    normalizedRegistro === "correcto" ||
-    normalizedRegistro === "aceptadaconerrores" ||
-    normalizedRegistro === "anulada";
+    normalizedRegistro === "correcto";
   const httpOk = input.statusCode >= 200 && input.statusCode < 300;
+  const hasPositiveAeatStatus = Boolean(normalizedRegistro && csv);
 
   return {
-    ok: httpOk && envioOk && registroOk && !fault,
+    ok: httpOk && hasPositiveAeatStatus && envioOk && registroOk && !fault,
     ...(csv ? { csv } : {}),
     ...(estadoEnvio ? { estadoEnvio } : {}),
     ...(estadoRegistro ? { estadoRegistro } : {}),
@@ -180,8 +174,10 @@ export async function submitRegistroToAeat(input: {
     }
 
     return {
-      ok: true,
-      rawResponse: "SIMULATED_TEST_MODE",
+      ok: false,
+      errorMessage:
+        "El transporte AEAT real no está configurado; no se simula un registro aceptado.",
+      rawResponse: "SIMULATED_TEST_MODE_DISABLED",
     };
   }
 

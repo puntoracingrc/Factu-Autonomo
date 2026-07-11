@@ -41,13 +41,21 @@ export async function finishDocumentSave(input: {
   type: DocumentType;
   number: string;
   router: AppRouter;
+  notice?: string;
   download?: {
     doc: Document;
     profile: BusinessProfile;
     pdfOptions?: DocumentPdfOptions;
   };
 }): Promise<void> {
-  toastDocumentSaved(input.type, input.number);
+  if (input.notice) {
+    showFactuToast(
+      `${SAVED_LABELS[input.type]} ${input.number} ${SAVED_PARTICIPLE[input.type]}. ${input.notice}`,
+      8000,
+    );
+  } else {
+    toastDocumentSaved(input.type, input.number);
+  }
 
   if (input.download) {
     try {

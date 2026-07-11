@@ -17,12 +17,17 @@ export async function generateQrDataUrl(
 }
 
 export function hasVerifactuQr(doc: Document): boolean {
-  return Boolean(doc.verifactu?.qrUrl);
+  return Boolean(
+    doc.verifactuPersistence === "server_confirmed" &&
+    doc.verifactu?.qrUrl &&
+      (doc.verifactu.status === "registered" ||
+        doc.verifactu.status === "test_registered"),
+  );
 }
 
 export async function prepareVerifactuQrForPdf(
   doc: Document,
 ): Promise<string | undefined> {
-  if (!doc.verifactu?.qrUrl) return undefined;
-  return generateQrDataUrl(doc.verifactu.qrUrl);
+  if (!hasVerifactuQr(doc)) return undefined;
+  return generateQrDataUrl(doc.verifactu!.qrUrl);
 }

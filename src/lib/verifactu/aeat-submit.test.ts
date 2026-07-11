@@ -11,13 +11,13 @@ describe("aeat submit", () => {
     vi.restoreAllMocks();
   });
 
-  it("simulates success in test mode when real send is disabled", async () => {
+  it("no simula éxito cuando el transporte real está desactivado", async () => {
     const result = await submitRegistroToAeat({
       xml: "<sum:RegFactuSistemaFacturacion/>",
       environment: "test",
     });
-    expect(result.ok).toBe(true);
-    expect(result.rawResponse).toBe("SIMULATED_TEST_MODE");
+    expect(result.ok).toBe(false);
+    expect(result.rawResponse).toBe("SIMULATED_TEST_MODE_DISABLED");
   });
 
   it("reports missing certificate when real send is enabled", async () => {
@@ -72,5 +72,34 @@ describe("aeat submit", () => {
     expect(result.ok).toBe(true);
     expect(result.csv).toBe("TESTCSV123");
     expect(result.estadoRegistro).toBe("Correcta");
+  });
+
+  it("no acepta HTTP 200 sin una señal positiva de AEAT", () => {
+    for (const rawResponse of ["", "<html>proxy ok</html>"]) {
+      expect(
+        parseAeatSubmitResponse({ statusCode: 200, rawResponse }).ok,
+      ).toBe(false);
+    }
+  });
+
+  it("no acepta estados AEAT desconocidos", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 200,
+      rawResponse:
+        "<EstadoEnvio>Parcialmente correcto</EstadoEnvio><EstadoRegistro>Pendiente</EstadoRegistro>",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("no convierte aceptación parcial o ausencia de CSV en registro limpio", () => {
+    for (const rawResponse of [
+      "<EstadoEnvio>Parcialmente correcto</EstadoEnvio><EstadoRegistro>AceptadaConErrores</EstadoRegistro><CSV>CSV</CSV>",
+      "<EstadoEnvio>Correcto</EstadoEnvio><EstadoRegistro>Correcta</EstadoRegistro>",
+      "<EstadoEnvio>Correcto</EstadoEnvio><EstadoRegistro>Anulada</EstadoRegistro><CSV>CSV</CSV>",
+    ]) {
+      expect(
+        parseAeatSubmitResponse({ statusCode: 200, rawResponse }).ok,
+      ).toBe(false);
+    }
   });
 });

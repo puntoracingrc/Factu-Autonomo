@@ -78,12 +78,14 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         profile: data.profile,
       });
       if (result.checked === 0) {
-        setChainStatus("No hay facturas con registro Veri*Factu todavía.");
+        setChainStatus(
+          "No hay registros con confirmación de servidor e integridad local verificable.",
+        );
         return;
       }
       if (result.ok) {
         setChainStatus(
-          `Cadena OK: ${result.checked} registro(s) verificados según spec AEAT v0.1.2.`,
+          `Comprobación local correcta: ${result.checked} registro(s) confirmados por servidor. No acredita por sí sola una presentación ante la AEAT.`,
         );
         return;
       }
@@ -102,8 +104,8 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Veri*Factu</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Registro encadenado y QR tributario en PDF (entorno de pruebas por
-            defecto). Fecha general de adaptación al RRSIF para contribuyentes
+            Preparación técnica de registro encadenado y QR; el registro real
+            permanece bloqueado. Fecha general de adaptación al RRSIF para contribuyentes
             no sujetos a Sociedades: <strong>1 julio 2027</strong>, según ámbito
             y excepciones.{" "}
             <Link
@@ -148,14 +150,19 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         <input
           type="checkbox"
           checked={settings.enabled}
+          disabled={runtimeStatus.phase !== "unknown"}
           onChange={(e) =>
-            onChange({ ...settings, enabled: e.target.checked })
+            onChange({
+              ...settings,
+              enabled: e.target.checked,
+              optInVersion: 1,
+            })
           }
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <span className="text-sm font-medium text-slate-800">
-          Activar Veri*Factu en facturas emitidas. Puedes dejarlo desactivado
-          hasta que lo necesites.
+          Activar Veri*Factu en facturas emitidas. Permanecerá bloqueado hasta
+          que el registro servidor disponga de todas las garantías necesarias.
         </span>
       </label>
 
@@ -212,7 +219,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
       </div>
 
       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-        <p className="font-semibold">Verificación in situ (SIF)</p>
+        <p className="font-semibold">Identificación técnica del borrador SIF</p>
         <ul className="mt-2 space-y-1 text-emerald-800">
           <li>Productor: {VERIFACTU_SOFTWARE.developerName}</li>
           <li>NIF productor: {VERIFACTU_SOFTWARE.developerNif}</li>
@@ -221,6 +228,10 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           <li>Versión: {VERIFACTU_SOFTWARE.softwareVersion}</li>
           <li>Instalación: {VERIFACTU_SOFTWARE.installationId}</li>
         </ul>
+        <p className="mt-2 text-xs text-emerald-800">
+          Estos datos no acreditan homologación, conformidad ni presentación
+          ante la AEAT.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -230,7 +241,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           onClick={handleVerifyChain}
           disabled={checking}
         >
-          {checking ? "Verificando…" : "Verificar cadena de huellas"}
+          {checking ? "Comprobando…" : "Comprobar huellas locales"}
         </Button>
         <Link
           href="/legal/declaracion-responsable"

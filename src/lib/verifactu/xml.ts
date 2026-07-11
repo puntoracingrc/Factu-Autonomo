@@ -1,4 +1,7 @@
-import { lineIva, lineSubtotal, roundMoney } from "../calculations";
+import {
+  lineMoneyAmounts,
+  roundMoneySymmetric,
+} from "../calculations";
 import type { BusinessProfile, Document } from "../types";
 import {
   AEAT_VERIFACTU_NAMESPACES,
@@ -28,7 +31,7 @@ function requiredText(value: string | undefined, fallback: string): string {
 }
 
 function formatPercent(value: number): string {
-  return formatQrAmount(roundMoney(value));
+  return formatQrAmount(roundMoneySymmetric(value));
 }
 
 function issuerName(doc: Document, profile: BusinessProfile): string {
@@ -73,8 +76,9 @@ function buildDetalleDesglose(input: {
   for (const item of input.doc.items) {
     const rate = input.vatExempt ? 0 : item.ivaPercent;
     const current = grouped.get(rate) ?? { base: 0, iva: 0 };
-    current.base += lineSubtotal(item);
-    current.iva += input.vatExempt ? 0 : lineIva(item);
+    const amounts = lineMoneyAmounts(item, input.vatExempt);
+    current.base += amounts.subtotal;
+    current.iva += amounts.iva;
     grouped.set(rate, current);
   }
 
@@ -85,8 +89,8 @@ function buildDetalleDesglose(input: {
   const detalles = [...grouped.entries()]
     .sort(([left], [right]) => left - right)
     .map(([rate, totals]) => {
-      const base = formatQrAmount(roundMoney(totals.base));
-      const cuota = formatQrAmount(roundMoney(totals.iva));
+      const base = formatQrAmount(roundMoneySymmetric(totals.base));
+      const cuota = formatQrAmount(roundMoneySymmetric(totals.iva));
       if (input.vatExempt) {
         return `
           <sum1:DetalleDesglose>
