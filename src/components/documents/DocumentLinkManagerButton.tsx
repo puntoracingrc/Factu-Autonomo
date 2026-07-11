@@ -205,6 +205,7 @@ export function DocumentLinkManagerButton({
         onClose={closeModal}
         titleId={modalTitleId}
         descriptionId={modalDescriptionId}
+        closeOnBackdrop={false}
         overlayClassName="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
         panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl supports-[height:100dvh]:max-h-[92dvh] sm:p-5"
         testId="document-link-modal"
@@ -341,7 +342,7 @@ function DocumentLinkSection({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             href={documentDetailPath(selectedDocument)}
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <Link2 className="h-4 w-4" />
             {documentShortNumber(selectedDocument)} · {selectedDocument.client.name}
@@ -349,7 +350,7 @@ function DocumentLinkSection({
           <button
             type="button"
             onClick={() => setPickerOpen((current) => !current)}
-            className="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             {pickerOpen ? "Ocultar búsqueda" : "Cambiar"}
           </button>

@@ -185,8 +185,9 @@ export function PaymentReminderButton({
         onClose={handleClose}
         titleId={titleId}
         descriptionId={descriptionId}
+        closeOnBackdrop={false}
         initialFocusSelector="[data-modal-initial-focus]"
-        panelClassName="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl supports-[height:100dvh]:max-h-[90dvh]"
+        panelClassName="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl supports-[height:100dvh]:max-h-[90dvh]"
         testId="payment-reminder-modal"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
@@ -218,7 +219,7 @@ export function PaymentReminderButton({
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5">
+        <div className="p-5">
           <Field
             label="Mensaje para el cliente"
             hint={PAYMENT_REMINDER_COPY.fieldHint}
@@ -234,7 +235,7 @@ export function PaymentReminderButton({
           <button
             type="button"
             onClick={() => setMessage(defaultMessage)}
-            className="mt-2 text-sm font-semibold text-blue-600 underline"
+            className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-blue-600 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             Restaurar texto sugerido
           </button>

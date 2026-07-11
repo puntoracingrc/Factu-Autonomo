@@ -47,4 +47,17 @@ describe("migración de diálogos críticos", () => {
     expect(source).toContain("sticky top-0");
     expect(source).toContain("max-h-[calc(100dvh-1rem)]");
   });
+
+  it("mantiene accesibles las acciones al aumentar el zoom", () => {
+    const reminder = readFileSync(
+      new URL("../documents/PaymentReminderButton.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(reminder).toContain('closeOnBackdrop={false}');
+    expect(reminder).toContain("max-h-[90vh]");
+    expect(reminder).toContain("overflow-y-auto rounded-2xl");
+    expect(reminder).not.toContain("flex-col overflow-hidden");
+    expect(reminder).toContain("inline-flex min-h-11");
+  });
 });

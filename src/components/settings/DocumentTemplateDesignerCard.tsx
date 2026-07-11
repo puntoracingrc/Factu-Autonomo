@@ -328,7 +328,7 @@ export function DocumentTemplateDesignerCard({
             <button
               type="button"
               onClick={() => setLargePreviewOpen(true)}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-slate-600 hover:bg-white hover:text-slate-900"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-slate-600 hover:bg-white hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
               <Maximize2 className="h-3.5 w-3.5" />
               Ver grande

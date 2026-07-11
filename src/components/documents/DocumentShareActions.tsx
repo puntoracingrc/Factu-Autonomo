@@ -352,7 +352,7 @@ export function DocumentShareActions({
         onClose={closeChooser}
         titleId={chooserTitleId}
         descriptionId={chooserDescriptionId}
-        panelClassName="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl supports-[height:100dvh]:max-h-[90dvh]"
+        panelClassName="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl supports-[height:100dvh]:max-h-[90dvh]"
         testId="document-send-method-modal"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
@@ -380,7 +380,7 @@ export function DocumentShareActions({
           </button>
         </div>
 
-        <div className="space-y-3 overflow-y-auto p-5">
+        <div className="space-y-3 p-5">
           {(chooser === "email"
             ? emailMethodChoices
             : whatsAppMethodChoices
