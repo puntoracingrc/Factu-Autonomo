@@ -31,6 +31,7 @@ export function expenseIvaAmount(expense: Expense): number {
 
 export interface TaxSummary {
   vatExempt: boolean;
+  integrityBlockedDocuments: number;
   salesBase: number;
   salesIva: number;
   expenseBase: number;
@@ -49,6 +50,25 @@ export interface TaxSummaryOptions {
   vatExempt?: boolean;
 }
 
+function isIntegrityBlockedFiscalDocument(document: Document): boolean {
+  if (document.snapshotIntegrity?.status !== "blocked") return false;
+
+  const declaredTypes = [document.type, document.documentSnapshot?.documentType];
+  if (
+    !declaredTypes.some((type) => type === "factura" || type === "recibo")
+  ) {
+    return false;
+  }
+
+  // Un recibo automático refleja el cobro de su factura y nunca es una venta
+  // fiscal adicional, aunque su evidencia también esté bloqueada.
+  if (document.sourceDocumentId && declaredTypes.includes("recibo")) {
+    return false;
+  }
+
+  return true;
+}
+
 export function calculateTaxSummary(
   documents: Document[],
   expenses: Expense[],
@@ -56,7 +76,14 @@ export function calculateTaxSummary(
 ): TaxSummary {
   const irpfPercent = options.irpfPercent ?? DEFAULT_IRPF_PERCENT;
   const vatExempt = Boolean(options.vatExempt);
-  const sales = documents.filter(isTaxableSaleDocument);
+  const integrityBlockedDocuments = documents.filter(
+    isIntegrityBlockedFiscalDocument,
+  ).length;
+  const sales = documents.filter(
+    (document) =>
+      document.snapshotIntegrity?.status !== "blocked" &&
+      isTaxableSaleDocument(document),
+  );
   const salesAmounts = sales.map((document) =>
     documentAmounts(document, vatExempt),
   );
@@ -86,6 +113,7 @@ export function calculateTaxSummary(
 
   return {
     vatExempt,
+    integrityBlockedDocuments,
     salesBase,
     salesIva,
     expenseBase,

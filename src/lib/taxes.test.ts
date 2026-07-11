@@ -155,20 +155,50 @@ describe("calculateTaxSummary", () => {
       items: [{ ...issued.items[0], unitPrice: 999 }],
     };
 
-    expect(calculateTaxSummary([drifted], []).salesBase).toBe(100);
-    expect(
-      calculateTaxSummary(
-        [
-          {
-            ...drifted,
-            snapshotIntegrity: {
-              status: "blocked",
-              issues: ["document_hash_mismatch"],
-            },
+    expect(calculateTaxSummary([drifted], [])).toMatchObject({
+      salesBase: 100,
+      integrityBlockedDocuments: 0,
+    });
+
+    const blocked = calculateTaxSummary(
+      [
+        {
+          ...drifted,
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["document_hash_mismatch"],
           },
-        ],
-        [],
-      ).salesBase,
-    ).toBe(0);
+        },
+      ],
+      [],
+    );
+
+    expect(blocked.salesBase).toBe(0);
+    expect(blocked.salesIva).toBe(0);
+    expect(blocked.integrityBlockedDocuments).toBe(1);
+  });
+
+  it("cuenta el bloqueo fiscal aunque tipo y estado vivos intenten ocultarlo", () => {
+    const issued = issueDocument(
+      invoice("borrador", 100),
+      DEFAULT_PROFILE,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const disguised: Document = {
+      ...issued,
+      type: "presupuesto",
+      status: "borrador",
+      items: [{ ...issued.items[0], unitPrice: 999 }],
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["document_hash_mismatch"],
+      },
+    };
+
+    expect(calculateTaxSummary([disguised], [])).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
   });
 });
