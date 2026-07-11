@@ -166,10 +166,24 @@ export interface Document {
   rectifiedById?: string;
   /** Registro Veri*Factu (hash encadenado, QR, CSV) */
   verifactu?: VerifactuInfo;
+  /** Origen operativo de la confirmación; no forma parte del snapshot fiscal. */
+  verifactuPersistence?:
+    | "server_confirmed"
+    | "legacy_unverified"
+    | "simulation";
   /** Snapshot fiscal/documental congelado al emitir. */
   documentSnapshot?: DocumentSnapshot;
   /** Snapshot mínimo de configuración PDF congelado al emitir. */
   pdfSnapshot?: DocumentPdfSnapshot;
+  /**
+   * Sello externo a los snapshots. Permite distinguir una ausencia legacy
+   * migrable de la pérdida posterior de contenido que ya era obligatorio.
+   */
+  snapshotSeal?: DocumentSnapshotSeal;
+  /** Expectativa persistente: este documento ya debe conservar sello y pareja. */
+  snapshotIntegrityRequired?: true;
+  /** Señal local segura: impide usar snapshots cuyo hash no se puede verificar. */
+  snapshotIntegrity?: DocumentSnapshotIntegritySignal;
   /** Ciclo documental nuevo; `status` se mantiene como compatibilidad UI. */
   documentLifecycle?: DocumentLifecycle;
   /** Bloqueo de integridad: documentos emitidos/cancelados no admiten edición genérica. */
@@ -190,6 +204,44 @@ export interface Document {
   receiptDocumentId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type DocumentSnapshotIntegrityIssue =
+  | "document_snapshot_missing"
+  | "document_hash_mismatch"
+  | "document_hash_unsupported"
+  | "document_snapshot_invalid"
+  | "document_snapshot_semantic_invalid"
+  | "document_relationship_invalid"
+  | "draft_snapshot_state_invalid"
+  | "pdf_snapshot_missing"
+  | "pdf_hash_mismatch"
+  | "pdf_hash_unsupported"
+  | "pdf_snapshot_invalid"
+  | "pdf_snapshot_semantic_invalid"
+  | "pdf_without_document_snapshot"
+  | "snapshot_seal_missing"
+  | "snapshot_seal_invalid"
+  | "document_seal_identity_mismatch"
+  | "snapshot_context_mismatch"
+  | "document_strong_hash_mismatch"
+  | "pdf_strong_hash_mismatch"
+  | "document_seal_mismatch"
+  | "pdf_seal_mismatch";
+
+export interface DocumentSnapshotSeal {
+  version: 1;
+  documentId: string;
+  contextHash: string;
+  documentContentHash: string;
+  pdfContentHash: string;
+  documentSnapshotHash: string;
+  pdfSnapshotHash: string;
+}
+
+export interface DocumentSnapshotIntegritySignal {
+  status: "blocked";
+  issues: DocumentSnapshotIntegrityIssue[];
 }
 
 export interface Supplier {
@@ -521,6 +573,8 @@ export interface NumberingSnapshot {
 export interface VerifactuSettings {
   enabled: boolean;
   environment: "test" | "production";
+  /** Consentimiento explícito introducido al pasar VeriFactu a opt-in seguro. */
+  optInVersion?: 1;
 }
 
 export interface VerifactuChainState {
@@ -791,6 +845,8 @@ export interface AppData {
   };
   /** Estado de la cadena de huellas Veri*Factu por NIF emisor */
   verifactuChain?: VerifactuChainState | null;
+  /** Marca que la migración local de presencia obligatoria ya se completó. */
+  snapshotIntegrityVersion?: 1;
   meta?: AppMeta;
 }
 
@@ -829,7 +885,7 @@ export const DEFAULT_PROFILE: BusinessProfile = {
   },
   vatExempt: false,
   verifactu: {
-    enabled: true,
+    enabled: false,
     environment: "test",
   },
   numbering: {
@@ -851,6 +907,7 @@ export const DEFAULT_PROFILE: BusinessProfile = {
 
 export const EMPTY_DATA: AppData = {
   profile: DEFAULT_PROFILE,
+  snapshotIntegrityVersion: 1,
   documents: [],
   expenses: [],
   recurringExpenses: [],

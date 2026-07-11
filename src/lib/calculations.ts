@@ -4,6 +4,18 @@ export function roundMoney(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
+/**
+ * Redondeo monetario simétrico para nuevas proyecciones fiscales.
+ * `roundMoney` se conserva para verificar snapshots FNV históricos, creados
+ * con el comportamiento asimétrico de `Math.round` para importes negativos.
+ */
+export function roundMoneySymmetric(amount: number): number {
+  const rounded =
+    Math.sign(amount) *
+    (Math.round((Math.abs(amount) + Number.EPSILON) * 100) / 100);
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
 /** Precio unitario con IVA a partir del precio sin IVA. */
 export function unitPriceGross(unitPrice: number, ivaPercent: number): number {
   return roundMoney(unitPrice * (1 + ivaPercent / 100));
@@ -30,11 +42,39 @@ export function lineTotal(item: LineItem): number {
   return lineSubtotal(item) + lineIva(item);
 }
 
-export function documentTotals(doc: Pick<Document, "items">) {
-  const subtotal = doc.items.reduce((sum, item) => sum + lineSubtotal(item), 0);
-  const iva = doc.items.reduce((sum, item) => sum + lineIva(item), 0);
-  const total = subtotal + iva;
-  return { subtotal, iva, total };
+export function lineMoneyAmounts(
+  item: LineItem,
+  vatExempt = false,
+): { subtotal: number; iva: number; total: number } {
+  const subtotal = roundMoneySymmetric(lineSubtotal(item));
+  const iva = vatExempt ? 0 : roundMoneySymmetric(lineIva(item));
+  return {
+    subtotal,
+    iva,
+    total: roundMoneySymmetric(subtotal + iva),
+  };
+}
+
+export function documentTotals(
+  doc: Pick<Document, "items">,
+  vatExempt = false,
+) {
+  const amounts = doc.items.reduce(
+    (sum, item) => {
+      const line = lineMoneyAmounts(item, vatExempt);
+      return {
+        subtotal: sum.subtotal + line.subtotal,
+        iva: sum.iva + line.iva,
+        total: sum.total + line.total,
+      };
+    },
+    { subtotal: 0, iva: 0, total: 0 },
+  );
+  return {
+    subtotal: roundMoneySymmetric(amounts.subtotal),
+    iva: roundMoneySymmetric(amounts.iva),
+    total: roundMoneySymmetric(amounts.total),
+  };
 }
 
 export function expenseTotal(expense: Expense): number {

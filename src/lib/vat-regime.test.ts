@@ -5,7 +5,8 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "./vat-regime";
-import type { Expense } from "./types";
+import { issueDocument } from "./document-integrity";
+import { DEFAULT_PROFILE, type Document, type Expense } from "./types";
 
 describe("vat-regime", () => {
   it("detecta perfil exento", () => {
@@ -29,6 +30,49 @@ describe("vat-regime", () => {
       true,
     );
     expect(amounts).toEqual({ subtotal: 100, iva: 0, total: 100 });
+  });
+
+  it("usa el régimen fiscal congelado de cada documento emitido", () => {
+    const draft: Document = {
+      id: "frozen-vat",
+      type: "factura",
+      number: "F-2026-0001",
+      date: "2026-07-11",
+      client: { name: "Cliente" },
+      items: [
+        {
+          id: "line-1",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "borrador",
+      createdAt: "2026-07-11T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const exempt = issueDocument(
+      draft,
+      { ...DEFAULT_PROFILE, vatExempt: true },
+      "2026-07-11T00:00:00.000Z",
+    );
+    const taxable = issueDocument(
+      { ...draft, id: "frozen-taxable", number: "F-2026-0002" },
+      { ...DEFAULT_PROFILE, vatExempt: false },
+      "2026-07-11T00:00:00.000Z",
+    );
+
+    expect(documentAmounts(exempt, false)).toEqual({
+      subtotal: 100,
+      iva: 0,
+      total: 100,
+    });
+    expect(documentAmounts(taxable, true)).toEqual({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
   });
 
   it("usa importe base en gastos exentos", () => {

@@ -86,18 +86,6 @@ function doc(overrides: Partial<Document> = {}): Document {
     notes: "Notas visibles",
     paymentTerms: "Transferencia",
     rectification: undefined,
-    verifactu: {
-      recordHash: "hash",
-      previousHash: "",
-      recordTimestamp: "2026-06-24T09:00:00.000Z",
-      qrUrl: "https://example.com/qr",
-      status: "test_registered",
-      recordType: "alta",
-      environment: "test",
-      tipoFactura: "F1",
-      cuotaTotal: "21.00",
-      importeTotal: "121.00",
-    },
     status: "borrador",
     createdAt: "2026-06-24T09:00:00.000Z",
     updatedAt: "2026-06-24T09:00:00.000Z",
@@ -244,6 +232,19 @@ describe("document integrity domain", () => {
   it("trata un registro VeriFactu como evidencia irreversible de emisión", () => {
     const registeredRectification = doc({
       number: "BORRADOR",
+      verifactuPersistence: "legacy_unverified",
+      verifactu: {
+        recordHash: "a".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-06-24T09:00:00.000Z",
+        qrUrl: "https://example.com/qr",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+        tipoFactura: "F1",
+        cuotaTotal: "21.00",
+        importeTotal: "121.00",
+      },
       rectification: {
         originalDocumentId: "original-1",
         originalNumber: "F-2026-0001",

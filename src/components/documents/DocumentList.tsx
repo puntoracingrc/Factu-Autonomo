@@ -386,6 +386,7 @@ export function DocumentList({
             );
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
+            const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
             const statusHint = documentStatusHint(doc, type);
             const linkedInvoice =
               type === "presupuesto"
@@ -407,6 +408,7 @@ export function DocumentList({
             const linkedCustomerName = linkedCustomer
               ? getCustomerDisplayName(linkedCustomer)
               : "";
+            const customerRepairRequiresAudit = !editable;
             const missingShareContact =
               !hasClientEmail(contactDoc) && !hasClientPhone(contactDoc);
             const displayNumber = isDraftInvoiceNumber(doc)
@@ -442,9 +444,18 @@ export function DocumentList({
                         >
                           {documentStatusLabel(doc, type)}
                         </span>
-                        {doc.verifactu && type === "factura" && (
+                        {doc.verifactu &&
+                          doc.verifactuPersistence === "server_confirmed" &&
+                          (doc.verifactu.status === "registered" ||
+                            doc.verifactu.status === "test_registered") &&
+                          type === "factura" && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                             Veri*Factu
+                          </span>
+                        )}
+                        {integrityBlocked && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+                            Integridad bloqueada
                           </span>
                         )}
                         {linkedInvoice && (
@@ -472,7 +483,7 @@ export function DocumentList({
                             >
                               Revisar cliente
                             </span>
-                            {linkedCustomer && (
+                            {linkedCustomer && !customerRepairRequiresAudit && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -489,6 +500,14 @@ export function DocumentList({
                               >
                                 Usar ficha actual
                               </button>
+                            )}
+                            {linkedCustomer && customerRepairRequiresAudit && (
+                              <span
+                                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
+                                title="El destinatario histórico no se puede reescribir sin un historial auditable. Usa el flujo de rectificación cuando corresponda."
+                              >
+                                Protegido tras emisión
+                              </span>
                             )}
                           </>
                         )}
@@ -565,7 +584,17 @@ export function DocumentList({
                         vatExempt={vatExempt}
                       />
                     )}
-                  <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
+                  {integrityBlocked ? (
+                    <div
+                      role="alert"
+                      className="md:col-start-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+                    >
+                      Acciones bloqueadas. Conserva los datos y revisa una copia de
+                      seguridad antes de cobrar, compartir, rectificar o regenerar
+                      este documento.
+                    </div>
+                  ) : (
+                    <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
                     {type === "presupuesto" && (
                       <MarkAsAcceptedButton doc={doc} />
                     )}
@@ -622,7 +651,8 @@ export function DocumentList({
                       </IconActionButton>
                     )}
                     <DeleteDocumentButton doc={doc} />
-                  </div>
+                    </div>
+                  )}
                 </Card>
               </Fragment>
             );

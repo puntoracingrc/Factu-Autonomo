@@ -31,6 +31,19 @@ export function DocumentPdfShareActions({
   const [printLoading, setPrintLoading] = useState(false);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const canShare = canShareDocumentFromList(doc);
+  const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+
+  if (integrityBlocked) {
+    return (
+      <p
+        role="alert"
+        className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+      >
+        PDF, impresión y envío bloqueados: la copia histórica no supera la
+        comprobación de integridad.
+      </p>
+    );
+  }
 
   async function handlePdfPreview() {
     setPreviewLoading(true);

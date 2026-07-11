@@ -3,8 +3,10 @@ import {
   documentTotals,
   expenseTotal,
   lineIva,
+  lineMoneyAmounts,
   lineSubtotal,
   lineTotal,
+  roundMoneySymmetric,
   unitPriceFromGross,
   unitPriceGross,
 } from "./calculations";
@@ -56,6 +58,23 @@ describe("line calculations", () => {
     expect(lineSubtotal(line)).toBe(-100);
     expect(lineTotal(line)).toBe(-121);
   });
+
+  it("redondea medias centésimas con el mismo valor absoluto en ambos signos", () => {
+    expect(roundMoneySymmetric(0.025)).toBe(0.03);
+    expect(roundMoneySymmetric(-0.025)).toBe(-0.03);
+
+    const original = lineMoneyAmounts(
+      item({ quantity: 0.5, unitPrice: 0.05, ivaPercent: 21 }),
+    );
+    const cancellation = lineMoneyAmounts(
+      item({ quantity: 0.5, unitPrice: -0.05, ivaPercent: 21 }),
+    );
+    expect(cancellation).toEqual({
+      subtotal: -original.subtotal,
+      iva: -original.iva,
+      total: -original.total,
+    });
+  });
 });
 
 describe("documentTotals", () => {
@@ -73,14 +92,17 @@ describe("documentTotals", () => {
     expect(totals.total).toBeCloseTo(207.2, 2);
   });
 
-  it("cuadra con la suma línea a línea", () => {
+  it("cuadra con la suma monetaria redondeada línea a línea", () => {
     const items = [
       item({ id: "1", description: "Servicio", unitPrice: 123.45, ivaPercent: 21 }),
       item({ id: "2", description: "Material", quantity: 2, unitPrice: 19.99, ivaPercent: 21 }),
     ];
     const totals = documentTotals({ items });
-    const sumLines = items.reduce((sum, line) => sum + lineTotal(line), 0);
-    expect(totals.total).toBeCloseTo(sumLines, 5);
+    const sumLines = items.reduce(
+      (sum, line) => sum + lineMoneyAmounts(line).total,
+      0,
+    );
+    expect(totals.total).toBeCloseTo(sumLines, 2);
   });
 
   it("devuelve cero con documento vacío", () => {
@@ -89,6 +111,17 @@ describe("documentTotals", () => {
       iva: 0,
       total: 0,
     });
+  });
+
+  it("suma la misma proyección redondeada que las líneas fiscales", () => {
+    const totals = documentTotals({
+      items: [
+        item({ id: "fraction-1", unitPrice: 0.025 }),
+        item({ id: "fraction-2", unitPrice: 0.025 }),
+      ],
+    });
+
+    expect(totals).toEqual({ subtotal: 0.06, iva: 0.02, total: 0.08 });
   });
 });
 

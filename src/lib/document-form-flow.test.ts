@@ -83,14 +83,28 @@ describe("document form totals flow", () => {
     ).toEqual([4, 4]);
   });
 
-  it("redondea cantidades y precios decimales en totales visibles", () => {
+  it("redondea por línea y mantiene base + IVA igual al total visible", () => {
     const totals = documentFormAmounts([
       item({ quantity: 1.5, unitPrice: 33.33, ivaPercent: 21 }),
     ]);
 
     expect(totals.subtotal).toBe(50);
     expect(totals.iva).toBe(10.5);
-    expect(totals.total).toBe(60.49);
+    expect(totals.total).toBe(60.5);
+  });
+
+  it("muestra exactamente la proyección fiscal de líneas fraccionarias", () => {
+    const lines = [
+      item({ id: "fraction-1", unitPrice: 0.025 }),
+      item({ id: "fraction-2", unitPrice: 0.025 }),
+    ];
+
+    expect(lineItemFormTotal(lines[0])).toBe(0.04);
+    expect(documentFormAmounts(lines)).toEqual({
+      subtotal: 0.06,
+      iva: 0.02,
+      total: 0.08,
+    });
   });
 
   it("una línea vacía o inválida no produce NaN", () => {

@@ -4,6 +4,7 @@ import {
   isDocumentIntegrityLocked,
 } from "@/lib/document-integrity";
 import {
+  assertDocumentSnapshotsIntegrity,
   deriveLegacySnapshotForReadOnly,
 } from "@/lib/document-integrity/snapshots";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
@@ -75,6 +76,7 @@ function docFromSnapshot(
   return {
     ...base,
     type: snapshot.documentType,
+    status: base.status === "borrador" ? "enviado" : base.status,
     number: snapshot.number,
     date: snapshot.date,
     dueDate: snapshot.dueDate,
@@ -96,13 +98,9 @@ function docFromSnapshot(
 
 function issuerFromSnapshot(
   snapshot: DocumentSnapshot,
-  profile: BusinessProfile,
 ): IssuerProfile {
   return {
-    commercialName:
-      snapshot.issuer.commercialName?.trim() ||
-      profile.commercialName?.trim() ||
-      undefined,
+    commercialName: snapshot.issuer.commercialName?.trim() || undefined,
     name: snapshot.issuer.name,
     nif: snapshot.issuer.nif,
     vatId: snapshot.issuer.vatId,
@@ -113,10 +111,7 @@ function issuerFromSnapshot(
     country: snapshot.issuer.country,
     phone: snapshot.issuer.phone,
     email: snapshot.issuer.email,
-    website:
-      snapshot.issuer.website?.trim() ||
-      profile.website?.trim() ||
-      undefined,
+    website: snapshot.issuer.website?.trim() || undefined,
     iban: snapshot.issuer.iban,
     logoUrl: snapshot.issuer.logoUrl,
   };
@@ -127,6 +122,9 @@ function logoUrlFromIssuer(issuer: IssuerProfile): string | undefined {
 }
 
 function liveViewModel(doc: Document, profile: BusinessProfile): DocumentPdfViewModel {
+  if (doc.documentSnapshot || doc.pdfSnapshot) {
+    assertDocumentSnapshotsIntegrity(doc);
+  }
   const issuer = resolveIssuerForDocument(doc, profile);
   const vatExempt = Boolean(profile.vatExempt);
 
@@ -154,7 +152,7 @@ function snapshotViewModel(
   source: DocumentPdfSourceKind,
   hasOriginalDocumentSnapshot: boolean,
 ): DocumentPdfViewModel {
-  const issuer = issuerFromSnapshot(snapshot, profile);
+  const issuer = issuerFromSnapshot(snapshot);
   const template = normalizeDocumentTemplate(
     pdfSnapshot?.template ?? profile.documentTemplate,
   );
@@ -177,11 +175,17 @@ function snapshotViewModel(
 }
 
 export function isHistoricalPdfRenderRequired(doc: Document): boolean {
+  const hasHistoricalEvidence = Boolean(
+    doc.documentSnapshot ||
+      doc.pdfSnapshot ||
+      doc.snapshotSeal ||
+      doc.snapshotIntegrityRequired ||
+      doc.snapshotIntegrity,
+  );
+  if (hasHistoricalEvidence) return true;
   if (doc.type === "presupuesto") return false;
 
   return (
-    Boolean(doc.documentSnapshot) ||
-    Boolean(doc.pdfSnapshot) ||
     deriveDocumentLifecycle(doc) !== "draft" ||
     isDocumentIntegrityLocked(doc)
   );
@@ -209,6 +213,7 @@ export function buildPdfViewModelFromDocumentSnapshot(
   snapshot = doc.documentSnapshot,
 ): DocumentPdfViewModel {
   if (!snapshot) {
+    assertDocumentSnapshotsIntegrity(doc);
     return snapshotViewModel(
       doc,
       profile,
@@ -218,6 +223,17 @@ export function buildPdfViewModelFromDocumentSnapshot(
       false,
     );
   }
+
+  // Rendering, previews, downloads and sharing all pass through this boundary.
+  // Recalculate both hashes instead of trusting a persisted integrity signal.
+  assertDocumentSnapshotsIntegrity({
+    id: doc.id,
+    status: doc.status,
+    documentSnapshot: snapshot,
+    pdfSnapshot: doc.pdfSnapshot,
+    snapshotSeal: doc.snapshotSeal,
+    snapshotIntegrityRequired: doc.snapshotIntegrityRequired,
+  });
 
   return snapshotViewModel(
     doc,
@@ -238,6 +254,39 @@ export function buildPdfViewModelForDocument(
   }
 
   return buildPdfViewModelFromDocumentSnapshot(doc, profile);
+}
+
+export function buildCanonicalDocumentForProtectedEffect(
+  doc: Document,
+  profile: BusinessProfile,
+): Document {
+  if (
+    doc.documentSnapshot ||
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired
+  ) {
+    assertDocumentSnapshotsIntegrity(doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+    return buildPdfViewModelFromDocumentSnapshot(
+      doc,
+      profile,
+      doc.documentSnapshot,
+    ).doc;
+  }
+
+  if (deriveDocumentLifecycle(doc) !== "draft") {
+    assertDocumentSnapshotsIntegrity(doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+  }
+
+  return buildPdfViewModelForDocument(doc, profile).doc;
 }
 
 export function documentPdfViewAmounts(view: DocumentPdfViewModel): {

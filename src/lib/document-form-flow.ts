@@ -1,9 +1,4 @@
-import {
-  lineIva,
-  lineSubtotal,
-  lineTotal,
-  roundMoney,
-} from "./calculations";
+import { documentTotals, lineMoneyAmounts } from "./calculations";
 import {
   isAreaDocumentUnit,
   isLinearDocumentUnit,
@@ -78,21 +73,12 @@ export function documentFormAmounts(
   vatExempt = false,
 ): DocumentFormAmounts {
   const safeItems = sanitizeDocumentFormItems(items, vatExempt);
-  const subtotal = safeItems.reduce((sum, item) => sum + lineSubtotal(item), 0);
-  const iva = vatExempt
-    ? 0
-    : safeItems.reduce((sum, item) => sum + lineIva(item), 0);
-
-  return {
-    subtotal: roundMoney(subtotal),
-    iva: roundMoney(iva),
-    total: roundMoney(subtotal + iva),
-  };
+  return documentTotals({ items: safeItems }, vatExempt);
 }
 
 export function lineItemFormTotal(item: LineItem, vatExempt = false): number {
   const safeItem = sanitizeDocumentFormLineItem(item, vatExempt);
-  return roundMoney(vatExempt ? lineSubtotal(safeItem) : lineTotal(safeItem));
+  return lineMoneyAmounts(safeItem, vatExempt).total;
 }
 
 export function applyLineMeasurementDraft(
