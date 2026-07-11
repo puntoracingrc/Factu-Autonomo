@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyConfirmedDocumentIvaToItems,
+  applyDocumentIvaToItems,
   documentFormAmounts,
+  documentFormItemsForEditing,
   documentFormItemsForSave,
   firstDocumentFormLineIssue,
   lineItemFormTotal,
@@ -34,6 +37,50 @@ describe("document form totals flow", () => {
       iva: 0,
       total: 100,
     });
+  });
+
+  it("guardar y reabrir un borrador conserva el IVA 21% + 10% por línea", () => {
+    const mixedItems = [
+      item({ id: "line-21", description: "Servicio", ivaPercent: 21 }),
+      item({ id: "line-10", description: "Producto", ivaPercent: 10 }),
+    ];
+
+    const savedItems = documentFormItemsForSave(mixedItems);
+    const reopenedItems = documentFormItemsForEditing(savedItems);
+
+    expect(reopenedItems.map((line) => line.ivaPercent)).toEqual([21, 10]);
+    expect(documentFormAmounts(reopenedItems)).toEqual({
+      subtotal: 200,
+      iva: 31,
+      total: 231,
+    });
+  });
+
+  it("solo homogeneiza el IVA cuando se invoca la acción global", () => {
+    const mixedItems = [
+      item({ id: "line-21", ivaPercent: 21 }),
+      item({ id: "line-10", ivaPercent: 10 }),
+    ];
+
+    expect(
+      documentFormItemsForEditing(mixedItems).map(
+        (line) => line.ivaPercent,
+      ),
+    ).toEqual([21, 10]);
+    expect(
+      applyDocumentIvaToItems(mixedItems, 4).map((line) => line.ivaPercent),
+    ).toEqual([4, 4]);
+
+    expect(
+      applyConfirmedDocumentIvaToItems(mixedItems, 4, false).map(
+        (line) => line.ivaPercent,
+      ),
+    ).toEqual([21, 10]);
+    expect(
+      applyConfirmedDocumentIvaToItems(mixedItems, 4, true).map(
+        (line) => line.ivaPercent,
+      ),
+    ).toEqual([4, 4]);
   });
 
   it("redondea cantidades y precios decimales en totales visibles", () => {

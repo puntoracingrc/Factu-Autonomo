@@ -44,6 +44,35 @@ export function sanitizeDocumentFormItems(
   return items.map((item) => sanitizeDocumentFormLineItem(item, vatExempt));
 }
 
+export function documentFormItemsForEditing(
+  items: LineItem[],
+  vatExempt = false,
+): LineItem[] {
+  return vatExempt
+    ? items.map((item) => ({ ...item, ivaPercent: 0 }))
+    : items.map((item) => ({ ...item }));
+}
+
+export function applyDocumentIvaToItems(
+  items: LineItem[],
+  ivaPercent: number,
+  vatExempt = false,
+): LineItem[] {
+  const resolvedIva = vatExempt ? 0 : nonNegativeFinite(ivaPercent);
+  return items.map((item) => ({ ...item, ivaPercent: resolvedIva }));
+}
+
+export function applyConfirmedDocumentIvaToItems(
+  items: LineItem[],
+  ivaPercent: number,
+  confirmed: boolean,
+  vatExempt = false,
+): LineItem[] {
+  return confirmed
+    ? applyDocumentIvaToItems(items, ivaPercent, vatExempt)
+    : items;
+}
+
 export function documentFormAmounts(
   items: LineItem[],
   vatExempt = false,

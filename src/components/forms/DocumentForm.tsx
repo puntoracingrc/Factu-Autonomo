@@ -45,8 +45,10 @@ import {
 } from "@/lib/calculations";
 import { isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
 import {
+  applyConfirmedDocumentIvaToItems,
   applyLineMeasurementDraft,
   documentFormAmounts,
+  documentFormItemsForEditing,
   documentFormItemsForSave,
   firstDocumentFormLineIssue,
   lineItemFormTotal,
@@ -76,6 +78,7 @@ import {
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import {
   invoiceClientMissingDocumentLabels,
+  ivaBreakdownByRate,
   validateDocumentEmission,
 } from "@/lib/invoice-compliance";
 import { businessProfileMissingDocumentLabels } from "@/lib/business-profile";
@@ -514,12 +517,7 @@ export function DocumentForm({
 
   const [items, setItems] = useState<LineItem[]>(() => {
     const baseItems = existing?.items.length
-      ? vatExempt
-        ? zeroIvaItems(existing.items)
-        : existing.items.map((item) => ({
-            ...item,
-            ivaPercent: effectiveDocumentIva,
-          }))
+      ? documentFormItemsForEditing(existing.items, vatExempt)
       : [emptyLine(effectiveDocumentIva, defaultUnit)];
     return normalizeLineItemUnits(baseItems, unitsSettings);
   });
@@ -728,7 +726,9 @@ export function DocumentForm({
             draftLine.basePrice,
             markupPercent,
           ),
-          ivaPercent: effectiveDocumentIva,
+          ivaPercent: vatExempt
+            ? 0
+            : (draftLine.line.ivaPercent ?? effectiveDocumentIva),
         },
       };
     });
@@ -764,6 +764,7 @@ export function DocumentForm({
     findProductSummaryForDraftLine,
     type,
     unitsSettings,
+    vatExempt,
   ]);
 
   function applySessionDraft(draft: DocumentSessionDraft) {
@@ -859,17 +860,6 @@ export function DocumentForm({
 
   useEffect(() => {
     setItems((prev) => {
-      const next = prev.map((item) => ({
-        ...item,
-        ivaPercent: effectiveDocumentIva,
-      }));
-      itemsRef.current = next;
-      return next;
-    });
-  }, [effectiveDocumentIva]);
-
-  useEffect(() => {
-    setItems((prev) => {
       const next = normalizeLineItemUnits(prev, unitsSettings);
       itemsRef.current = next;
       return next;
@@ -921,6 +911,10 @@ export function DocumentForm({
   };
 
   const totals = documentFormAmounts(measuredItems, vatExempt);
+  const ivaBreakdown = useMemo(
+    () => (vatExempt ? [] : ivaBreakdownByRate(safeItems)),
+    [safeItems, vatExempt],
+  );
   const documentMargin = useMemo(() => {
     return measuredItems.reduce(
       (summary, item) => {
@@ -997,7 +991,7 @@ export function DocumentForm({
   const requiresInvoiceClientFields = type === "factura";
   const lineGridClass = vatExempt
     ? "lg:grid-cols-[2rem_minmax(12rem,1fr)_4.5rem_minmax(8rem,10rem)_5rem_6rem_5.5rem_6.5rem_7.5rem]"
-    : "lg:grid-cols-[2rem_minmax(12rem,1fr)_4.5rem_minmax(8rem,10rem)_5rem_6rem_5.5rem_6rem_6.5rem_7.5rem]";
+    : "lg:grid-cols-[2rem_minmax(12rem,1fr)_4.5rem_minmax(8rem,10rem)_5rem_6rem_5.5rem_5.5rem_6rem_6.5rem_7.5rem]";
   const compactInputClass = "!h-10 !min-h-10 !rounded-lg !px-3 !text-sm";
 
   function updateItem(id: string, patch: Partial<LineItem>) {
@@ -1056,6 +1050,32 @@ export function DocumentForm({
       if (!current || description.trim()) return prev;
       return removeLineProductPricing(prev, id);
     });
+  }
+
+  function handleApplyDocumentIva() {
+    const currentItems = itemsRef.current;
+    if (
+      !currentItems.some(
+        (item) => item.ivaPercent !== effectiveDocumentIva,
+      )
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Se sustituirá el IVA de todas las líneas por el ${effectiveDocumentIva} %. ¿Quieres continuar?`,
+    );
+    const next = applyConfirmedDocumentIvaToItems(
+      currentItems,
+      effectiveDocumentIva,
+      confirmed,
+      vatExempt,
+    );
+    if (next === currentItems) return;
+
+    setFormError(null);
+    itemsRef.current = next;
+    setItems(next);
   }
 
   function handleSelectProductForLine(
@@ -1622,8 +1642,11 @@ export function DocumentForm({
             </button>
           </div>
           {!vatExempt && (
-            <div className="w-full sm:w-56">
-              <Field label="IVA del documento">
+            <div className="w-full space-y-2 sm:w-64">
+              <Field
+                label="IVA para nuevas líneas"
+                hint="Cada línea conserva su propio tipo."
+              >
                 <IvaPercentSelect
                   value={documentIvaPercent}
                   onChange={(ivaPercent) => {
@@ -1632,6 +1655,16 @@ export function DocumentForm({
                   }}
                 />
               </Field>
+              <button
+                type="button"
+                onClick={handleApplyDocumentIva}
+                disabled={items.every(
+                  (item) => item.ivaPercent === effectiveDocumentIva,
+                )}
+                className="min-h-10 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                Aplicar a todas las líneas
+              </button>
             </div>
           )}
         </div>
@@ -1639,7 +1672,7 @@ export function DocumentForm({
           <QuickCalculator onClose={() => setCalculatorOpen(false)} />
         )}
         <div className="space-y-3">
-          <div className="space-y-3 lg:space-y-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
+          <div className="space-y-3 lg:space-y-0 lg:overflow-x-auto lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
             <div
               className={`hidden ${lineGridClass} rounded-t-2xl bg-slate-100 px-2 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:grid lg:items-center lg:gap-2`}
             >
@@ -1652,6 +1685,7 @@ export function DocumentForm({
                 {vatExempt ? "Precio" : "Sin IVA"}
               </span>
               <span>Inc.</span>
+              {!vatExempt && <span className="text-center">IVA</span>}
               {!vatExempt && <span className="text-right">Con IVA</span>}
               <span className="text-right">Total</span>
               <span aria-hidden="true" />
@@ -1693,7 +1727,7 @@ export function DocumentForm({
               );
               const grossPrice = unitPriceGross(
                 displayedItem.unitPrice,
-                effectiveDocumentIva,
+                displayedItem.ivaPercent,
               );
               const lineTotal = lineItemFormTotal(displayedItem, vatExempt);
               const measureSummary =
@@ -2003,6 +2037,22 @@ export function DocumentForm({
                   {!vatExempt && (
                     <div className="min-w-0">
                       <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                        IVA
+                      </span>
+                      <IvaPercentSelect
+                        value={item.ivaPercent}
+                        ariaLabel={`IVA de la línea ${index + 1}`}
+                        onChange={(ivaPercent) =>
+                          updateItem(item.id, { ivaPercent })
+                        }
+                        className={compactInputClass}
+                      />
+                    </div>
+                  )}
+
+                  {!vatExempt && (
+                    <div className="min-w-0">
+                      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
                         Con IVA
                       </span>
                       <NumericFieldInput
@@ -2010,7 +2060,7 @@ export function DocumentForm({
                         onChange={(gross) =>
                           handleLineUnitPriceChange(
                             item.id,
-                            unitPriceFromGross(gross, effectiveDocumentIva),
+                            unitPriceFromGross(gross, item.ivaPercent),
                           )
                         }
                         className={compactInputClass}
@@ -2124,6 +2174,16 @@ export function DocumentForm({
         </Field>
         <div className="mt-4 space-y-1 text-right text-slate-700">
           {!vatExempt && <p>Base: {formatMoney(totals.subtotal)}</p>}
+          {!vatExempt && ivaBreakdown.length > 0 && (
+            <div className="ml-auto max-w-md space-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+              {ivaBreakdown.map((row) => (
+                <p key={row.rate}>
+                  IVA {row.rate}% · Base {formatMoney(row.base)} · Cuota{" "}
+                  {formatMoney(row.quota)}
+                </p>
+              ))}
+            </div>
+          )}
           {!vatExempt && <p>IVA: {formatMoney(totals.iva)}</p>}
           <p className="text-xl font-bold text-blue-700">
             Total: {formatMoney(totals.total)}
