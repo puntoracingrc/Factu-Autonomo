@@ -80,7 +80,7 @@ export function buildQuarterlyExportCsv(
       formatCsvAmount(taxes.operatingExpenseCost),
     ]),
     csvRow([
-      "Base deducible gastos",
+      "Gasto neto deducible en IRPF",
       formatCsvAmount(taxes.expenseBase),
     ]),
     csvRow(["IVA deducible", formatCsvAmount(taxes.expenseIva)]),

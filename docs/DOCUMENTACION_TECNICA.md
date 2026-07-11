@@ -795,6 +795,32 @@ fallo; ninguno de esos estados se convierte por defecto en modo simulado.
 | Cloud | `src/lib/cloud/*` |
 | UX | `src/lib/factu/*` (asistente Factu, hitos, toasts) |
 
+### Recargo de equivalencia en gastos importados
+
+`provider-summary-expenses.ts` persiste por separado la base, la cuota y el
+tipo de IVA, la cuota y el tipo de recargo de equivalencia y el total que
+consta en el resumen. `expenses.ts` es la frontera canónica que recompone esas
+magnitudes para todos los consumidores.
+
+Cuando existe recargo, el IVA soportado y el propio recargo se consideran no
+recuperables: `registeredTotal`, `operatingCost` y
+`deductibleIrpfExpense` incluyen base + IVA + recargo, mientras
+`deductibleVatBase` y `deductibleIva` son cero. El alias histórico
+`deductibleBase` conserva el significado de gasto IRPF para no romper
+consumidores. CSV y PDF muestran el recargo separado y rotulan expresamente la
+diferencia entre IRPF e IVA.
+
+Los registros pendientes anteriores a AUD-P2-26 solo recuperan la cuota desde
+`total - base - IVA` si la combinación de tipo de IVA y recargo coincide de
+forma inequívoca con los tipos oficiales. Signos, cuota/tipo, IVA/base y total
+se reconcilian con tolerancia monetaria; cualquier contradicción reutiliza el
+bloqueo fiscal fail-closed y no puede exportarse. Un original completado que
+contradiga el resumen también queda bloqueado, sin construir un total híbrido.
+
+Los vínculos legacy sin reparto explícito adoptan el coste canónico nuevo. Las
+asignaciones explícitas anteriores conservan su importe persistido: no se
+reinterpretan ni migran silenciosamente dentro de AUD-P2-26.
+
 ---
 
 ## 11. Tests y calidad

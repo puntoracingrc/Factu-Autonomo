@@ -381,6 +381,33 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.totalExpenses).toBe(121);
   });
 
+  it("propaga el recargo al Panel sin tratar su IVA como recuperable", () => {
+    const surcharge = expense({
+      businessKind: "purchase_invoice",
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: NOW,
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    });
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      expenses: [surcharge],
+    });
+
+    expect(summary).toMatchObject({
+      totalExpenses: 126.2,
+      totalPurchaseExpenses: 126.2,
+      expenseIvaEstimated: 0,
+      balanceEstimated: -126.2,
+    });
+  });
+
   it("compensa una compra y su abono en gasto, IVA y balances", () => {
     const purchase = expense({
       id: "purchase",

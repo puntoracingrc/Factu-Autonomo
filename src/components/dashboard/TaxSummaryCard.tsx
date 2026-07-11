@@ -243,8 +243,8 @@ function NonDeductibleExpensesNotice({
       <p className="mt-1 text-sm leading-relaxed">
         Su saldo económico neto de {formatMoney(taxes.nonDeductibleExpenseTotal)}
         {" "}sigue en Gastos, balance y rentabilidad. Un gasto reduce el beneficio
-        económico y un abono revierte coste; ambos aportan 0 a la base e IVA
-        deducibles y no alteran la estimación fiscal de IRPF.
+        económico y un abono revierte coste; ambos aportan 0 al gasto deducible
+        de IRPF y al IVA deducible, y no alteran la estimación fiscal de IRPF.
       </p>
     </div>
   );
@@ -258,11 +258,11 @@ function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
       role="alert"
       className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-950"
     >
-      <p className="text-sm font-bold">Desglose de IVA mixto incompleto</p>
+      <p className="text-sm font-bold">Evidencia fiscal de gasto incompleta</p>
       <p className="mt-1 text-sm leading-relaxed">
         {taxes.unsupportedMixedVatExpenses === 1
-          ? "Hay 1 gasto con varios tipos de IVA cuyas líneas no permiten conciliar la base registrada."
-          : `Hay ${taxes.unsupportedMixedVatExpenses} gastos con varios tipos de IVA cuyas líneas no permiten conciliar la base registrada.`} {" "}
+          ? "Hay 1 gasto cuya base, IVA, recargo, total o desglose no permiten conciliar la evidencia registrada."
+          : `Hay ${taxes.unsupportedMixedVatExpenses} gastos cuya base, IVA, recargo, total o desglose no permiten conciliar la evidencia registrada.`} {" "}
         El IVA deducible y la posición de IVA no deben considerarse completos.
         La exportación permanece bloqueada hasta revisar esos gastos.
       </p>
@@ -270,7 +270,7 @@ function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
         href="/gastos"
         className="mt-2 inline-flex text-sm font-semibold text-red-800 underline"
       >
-        Revisar gastos con IVA mixto
+        Revisar gastos
       </Link>
     </div>
   );
@@ -316,7 +316,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-violet-800"
         />
         <TaxRow
-          label="Base neta deducible (gastos y abonos)"
+          label="Gasto neto deducible en IRPF"
           value={formatMoney(taxes.expenseBase)}
           valueClassName="text-emerald-700"
         />
@@ -334,7 +334,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="Base estimada para IRPF"
           value={formatMoney(taxes.estimatedIrpfBase)}
-          hint="Ingresos − base neta deducible de gastos y abonos"
+          hint="Ingresos − gasto neto deducible en IRPF"
           valueClassName="text-slate-800"
         />
         <TaxRow
@@ -383,7 +383,7 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="IVA deducible neto (gastos y abonos)"
           value={formatMoney(taxes.expenseIva)}
-          hint={`Base neta deducible: ${formatMoney(taxes.expenseBase)}`}
+          hint={`Gasto neto deducible en IRPF: ${formatMoney(taxes.expenseBase)}`}
           valueClassName="text-emerald-700"
         />
         <TaxRow
@@ -411,7 +411,7 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="Base estimada para IRPF"
           value={formatMoney(taxes.estimatedIrpfBase)}
-          hint="Ventas − base neta deducible de gastos y abonos"
+          hint="Ventas − gasto neto deducible en IRPF"
           valueClassName="text-slate-800"
         />
         <TaxRow

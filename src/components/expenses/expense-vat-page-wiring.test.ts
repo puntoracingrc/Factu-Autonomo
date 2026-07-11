@@ -50,7 +50,7 @@ describe("expense VAT page fail-closed wiring", () => {
     expect(page).toContain("const blockedVatExpenseCount = countBlockedExpenseVat(");
     expect(page).toContain("if (blockedVatExpenseCount > 0) return;");
     expect(page).toContain("disabled={blockedVatExpenseCount > 0}");
-    expect(page).toContain("con desglose de IVA");
+    expect(page).toContain("con evidencia fiscal");
   });
 
   it("no reconcilia un fijo no deducible contra la suma de bases", () => {

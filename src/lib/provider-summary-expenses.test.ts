@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseTotals } from "./expenses";
+import { expenseTotals, resolveExpenseVat } from "./expenses";
 import {
   createProviderSummaryExpense,
   isProviderSummaryCompleted,
@@ -53,6 +53,56 @@ FD/222386
 01/04/2026
 IBAÑEZ DE OPACUA MUÑOZ, ALBERT
 01/04/2026 12,54 21 2,63 15,17
+`;
+
+const EQUIVALENCE_SURCHARGE_SUMMARY_TEXT = `
+Listado de Facturas Emitidas
+Proveedor Recargo SL
+Factura
+Fecha
+Cliente
+Vto.
+Base Imp.
+%Iva
+IVA
+R.E.
+Total
+%Rec
+RE/1001
+01/04/2026
+AUTONOMO DEMO
+01/04/2026
+100,00
+21
+21,00
+5,20
+126,20
+5,20
+`;
+
+const EQUIVALENCE_SURCHARGE_CREDIT_SUMMARY_TEXT = `
+Listado de Facturas Emitidas
+Proveedor Recargo SL
+Factura
+Fecha
+Cliente
+Vto.
+Base Imp.
+%Iva
+IVA
+R.E.
+Total
+%Rec
+AB/1002
+02/04/2026
+AUTONOMO DEMO
+02/04/2026
+-100,00
+21
+-21,00
+-5,20
+-126,20
+5,20
 `;
 
 function expenseFixture(overrides: Partial<Expense> = {}): Expense {
@@ -112,6 +162,74 @@ describe("provider summary expenses", () => {
       ivaAmount: 2.63,
       total: 15.17,
     });
+  });
+
+  it("conserva el recargo separado y el total exacto del resumen", () => {
+    const parsed = parseProviderInvoiceSummaryText(
+      EQUIVALENCE_SURCHARGE_SUMMARY_TEXT,
+    );
+
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]).toMatchObject({
+      invoiceNumber: "RE/1001",
+      base: 100,
+      ivaPercent: 21,
+      ivaAmount: 21,
+      recargoPercent: 5.2,
+      recargoAmount: 5.2,
+      total: 126.2,
+    });
+
+    const expense = createProviderSummaryExpense(parsed.rows[0], {
+      providerName: parsed.providerName,
+      summaryId: "summary-recargo",
+      importedAt: "2026-07-11T10:00:00.000Z",
+    });
+
+    expect(expense.providerSummary).toMatchObject({
+      summaryInvoiceTotal: 126.2,
+      summaryIvaPercent: 21,
+      summaryIvaAmount: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+    });
+    expect(expenseTotals(expense)).toEqual({
+      base: 100,
+      iva: 21,
+      total: 126.2,
+      ivaPercent: 21,
+      recargoEquivalencia: 5.2,
+      recargoEquivalenciaPercent: 5.2,
+    });
+    expect(expenseTotals(expense, true)).toEqual({
+      base: 100,
+      iva: 0,
+      documentIva: 21,
+      documentIvaPercent: 21,
+      total: 126.2,
+      ivaPercent: 0,
+      recargoEquivalencia: 5.2,
+      recargoEquivalenciaPercent: 5.2,
+    });
+  });
+
+  it("interpreta un abono real con IVA y recargo firmados", () => {
+    const parsed = parseProviderInvoiceSummaryText(
+      EQUIVALENCE_SURCHARGE_CREDIT_SUMMARY_TEXT,
+    );
+
+    expect(parsed.warnings).toEqual([]);
+    expect(parsed.rows).toEqual([
+      expect.objectContaining({
+        invoiceNumber: "AB/1002",
+        base: -100,
+        ivaPercent: 21,
+        ivaAmount: -21,
+        recargoPercent: 5.2,
+        recargoAmount: -5.2,
+        total: -126.2,
+      }),
+    ]);
   });
 
   it("crea gastos provisionales que ya cuentan como gasto", () => {
@@ -211,5 +329,84 @@ describe("provider summary expenses", () => {
     expect(merged.providerSummary?.completedAt).toBe(
       "2026-07-07T12:00:00.000Z",
     );
+  });
+
+  it("completa el original sin perder ni duplicar el recargo", () => {
+    const row = parseProviderInvoiceSummaryText(
+      EQUIVALENCE_SURCHARGE_SUMMARY_TEXT,
+    ).rows[0];
+    const pending: Expense = {
+      ...createProviderSummaryExpense(row, {
+        providerName: "Proveedor Recargo SL",
+        summaryId: "summary-re-completed",
+        importedAt: "2026-07-11T10:00:00.000Z",
+      }),
+      id: "expense-re-completed",
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+    const completed = mergeProviderSummaryWithOriginal(pending, {
+      date: "2026-04-01",
+      origin: "scan",
+      businessKind: "purchase_invoice",
+      supplierName: "Proveedor Recargo SL",
+      description: "Compra con factura original",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      purchaseLines: [
+        {
+          id: "line-re",
+          description: "Material",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    expect(completed.providerSummary).toMatchObject({
+      status: "completed_with_original",
+      summaryRecargoAmount: 5.2,
+      summaryRecargoPercent: 5.2,
+    });
+    expect(expenseTotals(completed)).toMatchObject({
+      base: 100,
+      iva: 21,
+      recargoEquivalencia: 5.2,
+      total: 126.2,
+    });
+  });
+
+  it("bloquea un original completado que contradice la base del resumen", () => {
+    const row = parseProviderInvoiceSummaryText(
+      EQUIVALENCE_SURCHARGE_SUMMARY_TEXT,
+    ).rows[0];
+    const pending: Expense = {
+      ...createProviderSummaryExpense(row, {
+        providerName: "Proveedor Recargo SL",
+        summaryId: "summary-re-drift",
+      }),
+      id: "expense-re-drift",
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+    const completed = mergeProviderSummaryWithOriginal(pending, {
+      date: "2026-04-01",
+      origin: "scan",
+      businessKind: "purchase_invoice",
+      supplierName: "Proveedor Recargo SL",
+      description: "Original distinto",
+      amount: 80,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+    });
+
+    expect(resolveExpenseVat(completed)).toMatchObject({
+      source: "blocked",
+      issue: "provider_summary_tax_mismatch",
+      blocked: true,
+    });
+    expect(expenseTotals(completed).total).toBe(126.2);
   });
 });

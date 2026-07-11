@@ -180,7 +180,7 @@ describe("export quarterly csv", () => {
       [supplier],
     );
 
-    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("Gasto neto deducible en IRPF;0,00");
     expect(csv).toContain("IVA deducible;0,00");
     expect(csv).toContain(
       "Gastos no deducibles (coste registrado);145,20",
@@ -195,7 +195,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("IRPF estimado (orientativo);20,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-65,20");
     expect(csv).toContain(
-      "No deducible;120,00;21%;21%: base 120,00 / IVA 25,20;Cabecera o importe íntegro;25,20;145,20;0,00;0,00",
+      "No deducible;120,00;21%;21%: base 120,00 / IVA 25,20;Cabecera o importe íntegro;25,20;;0,00;145,20;0,00;0,00;0,00",
     );
   });
 
@@ -216,7 +216,38 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("10% + 21%");
     expect(csv).toContain("10%: base 100,00 / IVA 10,00");
     expect(csv).toContain("21%: base 100,00 / IVA 21,00");
-    expect(csv).toContain("31,00;231,00;200,00;31,00");
+    expect(csv).toContain("31,00;;0,00;231,00;200,00;200,00;31,00");
+  });
+
+  it("incluye el recargo no recuperable en resumen y libro", () => {
+    const surchargeExpense: Expense = {
+      ...expense,
+      amount: 100,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    };
+    const csv = buildQuarterlyExportCsv(
+      [doc],
+      [surchargeExpense],
+      profile,
+      2026,
+      2,
+      [supplier],
+    );
+
+    expect(csv).toContain("Coste económico de gastos;126,20");
+    expect(csv).toContain("Gasto neto deducible en IRPF;126,20");
+    expect(csv).toContain("IVA deducible;0,00");
+    expect(csv).toContain("Recargo equivalencia (%)");
+    expect(csv).toContain("21,00;5,2%;5,20;126,20;126,20;0,00;0,00");
   });
 
   it("bloquea un trimestre con evidencia mixta no conciliada", () => {
@@ -256,7 +287,7 @@ describe("export quarterly csv", () => {
     );
 
     expect(csv).toContain("Coste económico de gastos;100,00");
-    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("Gasto neto deducible en IRPF;0,00");
     expect(csv).toContain("IVA deducible;0,00");
     expect(csv).toContain(
       "Beneficio económico antes de reservar IRPF;-100,00",
@@ -267,7 +298,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Perfil exento — IVA no calculado;1");
     expect(csv).not.toContain("Cabecera o contrato de importe íntegro");
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;100,00;0,00;0,00",
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
   });
 
@@ -309,7 +340,7 @@ describe("export quarterly csv", () => {
     );
 
     expect(csv).toContain("Coste económico de gastos;0,00");
-    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("Gasto neto deducible en IRPF;0,00");
     expect(csv).toContain("IVA deducible;0,00");
     expect(csv).toContain(
       "Criterio gastos;Importes firmados: los abonos y saldos a favor se muestran en negativo",

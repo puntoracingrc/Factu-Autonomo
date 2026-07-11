@@ -54,7 +54,7 @@ describe("TaxSummaryCard fiscal semantics", () => {
       "if (taxes.vatExempt || taxes.headerVatExpenseCount === 0) return null",
     );
     expect(source).toContain("taxes.unsupportedMixedVatExpenses");
-    expect(source).toContain("Desglose de IVA mixto incompleto");
+    expect(source).toContain("Evidencia fiscal de gasto incompleta");
     expect(source).toContain(
       "El IVA deducible y la posición de IVA no deben considerarse completos",
     );
@@ -80,7 +80,7 @@ describe("TaxSummaryCard fiscal semantics", () => {
     expect(source).toContain("sigue en Gastos, balance y rentabilidad");
     expect(source).toContain("Un gasto reduce el beneficio");
     expect(source).toContain("un abono revierte coste");
-    expect(source).toContain("aportan 0 a la base");
+    expect(source).toContain("aportan 0 al gasto deducible");
     expect(source).toContain("no alteran la estimación fiscal de IRPF");
     expect(source).toMatch(
       /const hasSummaryData =[\s\S]*taxes\.nonDeductibleExpenseCount > 0[\s\S]*taxes\.unsupportedMixedVatExpenses > 0;/,
@@ -93,7 +93,7 @@ describe("TaxSummaryCard fiscal semantics", () => {
 
   it("presenta bases firmadas como netas sin dibujar barras negativas", () => {
     expect(source).toContain("IVA deducible neto (gastos y abonos)");
-    expect(source).toContain("Base neta deducible (gastos y abonos)");
+    expect(source).toContain("Gasto neto deducible en IRPF");
     expect(source).toContain("coste económico neto de gastos y abonos");
     expect(source).toContain("Math.max(0, value)");
     expect(source).toContain("taxes.lineVatExpenseCount > 0");

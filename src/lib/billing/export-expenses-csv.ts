@@ -32,8 +32,11 @@ const EXPENSE_HEADERS = [
   "Desglose IVA aplicado",
   "Origen cálculo IVA",
   "Cuota IVA informada (EUR)",
+  "Recargo equivalencia (%)",
+  "Recargo equivalencia (EUR)",
   "Coste registrado (EUR)",
-  "Base deducible (EUR)",
+  "Gasto deducible IRPF (EUR)",
+  "Base deducible IVA (EUR)",
   "IVA deducible (EUR)",
   "Categoría",
   "Forma de pago",
@@ -82,7 +85,10 @@ function vatSourceLabel(
 ): string {
   if (vatExempt) return "Perfil exento";
   if (resolution.source === "lines") return "Líneas conciliadas";
-  if (resolution.source === "blocked") return "Desglose mixto bloqueado";
+  if (resolution.issue === "provider_summary_tax_mismatch") {
+    return "Resumen fiscal bloqueado";
+  }
+  if (resolution.source === "blocked") return "Evidencia fiscal bloqueada";
   return "Cabecera o importe íntegro";
 }
 
@@ -166,7 +172,8 @@ function buildCategorySummaryRows(
     {
       count: number;
       registeredTotal: number;
-      deductibleBase: number;
+      deductibleIrpfExpense: number;
+      deductibleVatBase: number;
       deductibleIva: number;
     }
   >();
@@ -176,12 +183,14 @@ function buildCategorySummaryRows(
     const current = byCategory.get(expense.category) ?? {
       count: 0,
       registeredTotal: 0,
-      deductibleBase: 0,
+      deductibleIrpfExpense: 0,
+      deductibleVatBase: 0,
       deductibleIva: 0,
     };
     current.count += 1;
     current.registeredTotal += fiscal.registeredTotal;
-    current.deductibleBase += fiscal.deductibleBase;
+    current.deductibleIrpfExpense += fiscal.deductibleIrpfExpense;
+    current.deductibleVatBase += fiscal.deductibleVatBase;
     current.deductibleIva += fiscal.deductibleIva;
     byCategory.set(expense.category, current);
   }
@@ -197,7 +206,8 @@ function buildCategorySummaryRows(
       "Categoría",
       "Nº gastos",
       "Coste registrado (EUR)",
-      "Base deducible (EUR)",
+      "Gasto deducible IRPF (EUR)",
+      "Base deducible IVA (EUR)",
       "IVA deducible (EUR)",
     ]),
   ];
@@ -208,7 +218,8 @@ function buildCategorySummaryRows(
         category,
         totals.count,
         formatCsvAmount(totals.registeredTotal),
-        formatCsvAmount(totals.deductibleBase),
+        formatCsvAmount(totals.deductibleIrpfExpense),
+        formatCsvAmount(totals.deductibleVatBase),
         formatCsvAmount(totals.deductibleIva),
       ]),
     );
@@ -230,8 +241,10 @@ export function buildExpensesTableSection(
 
   let totalRegisteredBase = 0;
   let totalRegisteredIva = 0;
+  let totalRegisteredEquivalenceSurcharge = 0;
   let totalRegisteredCost = 0;
-  let totalDeductibleBase = 0;
+  let totalDeductibleIrpfExpense = 0;
+  let totalDeductibleVatBase = 0;
   let totalDeductibleIva = 0;
 
   const lines: string[] = [];
@@ -248,8 +261,11 @@ export function buildExpensesTableSection(
     const vat = resolveExpenseVat(expense, vatExempt);
     totalRegisteredBase += fiscal.registeredBase;
     totalRegisteredIva += fiscal.registeredIva;
+    totalRegisteredEquivalenceSurcharge +=
+      fiscal.registeredEquivalenceSurcharge ?? 0;
     totalRegisteredCost += fiscal.registeredTotal;
-    totalDeductibleBase += fiscal.deductibleBase;
+    totalDeductibleIrpfExpense += fiscal.deductibleIrpfExpense;
+    totalDeductibleVatBase += fiscal.deductibleVatBase;
     totalDeductibleIva += fiscal.deductibleIva;
 
     lines.push(
@@ -267,8 +283,15 @@ export function buildExpensesTableSection(
         vatBreakdownLabel(vat),
         vatSourceLabel(vat, vatExempt),
         formatCsvAmount(fiscal.registeredIva),
+        fiscal.registeredEquivalenceSurchargePercent === undefined
+          ? ""
+          : formatVatPercent(
+              fiscal.registeredEquivalenceSurchargePercent,
+            ),
+        formatCsvAmount(fiscal.registeredEquivalenceSurcharge ?? 0),
         formatCsvAmount(fiscal.registeredTotal),
-        formatCsvAmount(fiscal.deductibleBase),
+        formatCsvAmount(fiscal.deductibleIrpfExpense),
+        formatCsvAmount(fiscal.deductibleVatBase),
         formatCsvAmount(fiscal.deductibleIva),
         expense.category,
         expense.paymentMethod,
@@ -289,8 +312,11 @@ export function buildExpensesTableSection(
       "",
       "",
       formatCsvAmount(totalRegisteredIva),
+      "",
+      formatCsvAmount(totalRegisteredEquivalenceSurcharge),
       formatCsvAmount(totalRegisteredCost),
-      formatCsvAmount(totalDeductibleBase),
+      formatCsvAmount(totalDeductibleIrpfExpense),
+      formatCsvAmount(totalDeductibleVatBase),
       formatCsvAmount(totalDeductibleIva),
       "",
       "",

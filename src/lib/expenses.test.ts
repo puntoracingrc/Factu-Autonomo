@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EXPENSE_VAT_RECONCILIATION_TOLERANCE,
+  EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE,
   expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
   expensePurchaseLineIsEligibleForProductCatalog,
@@ -48,6 +49,240 @@ describe("expenseTotalsFromBase", () => {
       vatSource: "header",
       vatIssue: null,
       vatBlocked: false,
+    });
+  });
+
+  it("trata IVA y recargo de equivalencia como coste no recuperable", () => {
+    const expense = {
+      amount: 100,
+      ivaPercent: 21,
+      providerSummary: {
+        status: "pending_original" as const,
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    };
+
+    expect(expenseFiscalAmounts(expense)).toMatchObject({
+      deductible: true,
+      registeredBase: 100,
+      registeredIvaPercent: 21,
+      registeredIva: 21,
+      registeredEquivalenceSurcharge: 5.2,
+      registeredTotal: 126.2,
+      deductibleIrpfExpense: 126.2,
+      deductibleVatBase: 0,
+      deductibleBase: 126.2,
+      deductibleIva: 0,
+      operatingCost: 126.2,
+      vatBlocked: false,
+    });
+    expect(
+      expenseFiscalAmounts({
+        ...expense,
+        deductibility: "non_deductible" as const,
+      }),
+    ).toMatchObject({
+      registeredTotal: 126.2,
+      deductibleIrpfExpense: 0,
+      deductibleVatBase: 0,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 126.2,
+    });
+  });
+
+  it("recupera el recargo de resúmenes legacy sin campos explícitos", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: 100,
+        ivaPercent: 21,
+        providerSummary: {
+          status: "pending_original",
+          summaryId: "legacy-summary-re",
+          importedAt: "2026-07-10T10:00:00.000Z",
+          summaryInvoiceTotal: 126.2,
+          summaryIvaAmount: 21,
+        },
+      }),
+    ).toMatchObject({
+      registeredEquivalenceSurcharge: 5.2,
+      registeredTotal: 126.2,
+      deductibleBase: 126.2,
+      deductibleIva: 0,
+      operatingCost: 126.2,
+    });
+  });
+
+  it("no confunde una diferencia de redondeo legacy con recargo", () => {
+    const fiscal = expenseFiscalAmounts({
+      amount: 100,
+      ivaPercent: 21,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "legacy-summary-rounding",
+        importedAt: "2026-07-10T10:00:00.000Z",
+        summaryInvoiceTotal: 121.04,
+        summaryIvaAmount: 21,
+      },
+    });
+
+    expect(EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE).toBe(0.05);
+    expect(fiscal.registeredEquivalenceSurcharge).toBeUndefined();
+    expect(fiscal.registeredTotal).toBe(121);
+    expect(fiscal.deductibleIva).toBe(21);
+  });
+
+  it("bloquea un total o una cuota de recargo incoherentes", () => {
+    const malformed = {
+      amount: 100,
+      ivaPercent: 21,
+      providerSummary: {
+        status: "pending_original" as const,
+        summaryId: "summary-re-invalid",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 999,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 50,
+      },
+    };
+
+    expect(resolveExpenseVat(malformed)).toMatchObject({
+      source: "blocked",
+      issue: "provider_summary_tax_mismatch",
+      blocked: true,
+    });
+    expect(expenseFiscalAmounts(malformed)).toMatchObject({
+      registeredTotal: 999,
+      registeredEquivalenceSurcharge: 50,
+      deductibleIva: 0,
+      operatingCost: 999,
+      vatIssue: "provider_summary_tax_mismatch",
+      vatBlocked: true,
+    });
+  });
+
+  it("bloquea una diferencia legacy que no corresponde a un tipo oficial", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: 100,
+        ivaPercent: 21,
+        providerSummary: {
+          status: "pending_original",
+          summaryId: "legacy-summary-ambiguous",
+          importedAt: "2026-07-10T10:00:00.000Z",
+          summaryInvoiceTotal: 130,
+          summaryIvaAmount: 21,
+        },
+      }),
+    ).toMatchObject({
+      registeredEquivalenceSurcharge: 9,
+      registeredTotal: 130,
+      deductibleIva: 0,
+      operatingCost: 130,
+      vatIssue: "provider_summary_tax_mismatch",
+      vatBlocked: true,
+    });
+  });
+
+  it("bloquea si el IVA del resumen contradice líneas conciliadas", () => {
+    const fiscal = expenseFiscalAmounts({
+      amount: 200,
+      ivaPercent: 21,
+      purchaseLines: [
+        { quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re-mixed-conflict",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 247.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 42,
+        summaryRecargoPercent: 2.6,
+        summaryRecargoAmount: 5.2,
+      },
+    });
+
+    expect(fiscal).toMatchObject({
+      vatSource: "blocked",
+      vatIssue: "provider_summary_tax_mismatch",
+      vatBlocked: true,
+      deductibleIva: 0,
+      operatingCost: 247.2,
+    });
+    expect(fiscal.vatBreakdown).toEqual([
+      { ivaPercent: 21, base: 100, iva: 21, total: 121, lineCount: 1 },
+      { ivaPercent: 10, base: 100, iva: 10, total: 110, lineCount: 1 },
+    ]);
+  });
+
+  it("alinea la cuota documental redondeada en un resumen pendiente", () => {
+    expect(
+      resolveExpenseVat({
+        amount: 10.03,
+        ivaPercent: 21,
+        providerSummary: {
+          status: "pending_original",
+          summaryId: "summary-re-rounding",
+          importedAt: "2026-07-11T10:00:00.000Z",
+          summaryInvoiceTotal: 12.65,
+          summaryIvaPercent: 21,
+          summaryIvaAmount: 2.1,
+          summaryRecargoPercent: 5.2,
+          summaryRecargoAmount: 0.52,
+        },
+      }),
+    ).toMatchObject({
+      source: "header",
+      blocked: false,
+      base: 10.03,
+      iva: 2.1,
+      total: 12.13,
+      breakdown: [
+        {
+          ivaPercent: 21,
+          base: 10.03,
+          iva: 2.1,
+          total: 12.13,
+          lineCount: 0,
+        },
+      ],
+    });
+  });
+
+  it("conserva signos simétricos en el abono con recargo", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: -100,
+        ivaPercent: 21,
+        providerSummary: {
+          status: "pending_original",
+          summaryId: "summary-re-credit",
+          importedAt: "2026-07-11T10:00:00.000Z",
+          summaryInvoiceTotal: -126.2,
+          summaryIvaPercent: 21,
+          summaryIvaAmount: -21,
+          summaryRecargoPercent: 5.2,
+          summaryRecargoAmount: -5.2,
+        },
+      }),
+    ).toMatchObject({
+      registeredBase: -100,
+      registeredIva: -21,
+      registeredEquivalenceSurcharge: -5.2,
+      registeredTotal: -126.2,
+      deductibleBase: -126.2,
+      deductibleIva: 0,
+      operatingCost: -126.2,
     });
   });
 

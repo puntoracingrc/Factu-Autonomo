@@ -128,6 +128,48 @@ describe("backup", () => {
     ]);
   });
 
+  it("conserva la evidencia anidada de recargo al exportar y restaurar", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        expenses: [
+          {
+            id: "expense-re",
+            date: "2026-04-01",
+            supplierName: "Proveedor Recargo SL",
+            description: "Compra con recargo",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            providerSummary: {
+              status: "pending_original",
+              summaryId: "summary-re",
+              importedAt: NOW,
+              summaryInvoiceTotal: 126.2,
+              summaryIvaPercent: 21,
+              summaryIvaAmount: 21,
+              summaryRecargoPercent: 5.2,
+              summaryRecargoAmount: 5.2,
+            },
+            createdAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+    const restored = parseBackupJson(payload);
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.expenses[0]?.providerSummary).toMatchObject({
+      summaryIvaPercent: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+      summaryInvoiceTotal: 126.2,
+    });
+  });
+
   it("rechaza archivos inválidos", () => {
     const result = parseBackupJson({ foo: "bar" });
     expect(result).toHaveProperty("error");

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import { summarizeWorkDocumentExpenses } from "@/lib/expenses";
 import {
   buildExpenseLinkImpact,
   canLinkExpenseToWork,
@@ -252,6 +253,123 @@ describe("rentabilidad real expense linking", () => {
         "doc_2",
       ]),
     ).toHaveLength(1);
+  });
+
+  it("reparte una asignación nueva con recargo una sola vez entre líneas", () => {
+    const expense = expenseFixture({
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+      purchaseLines: [
+        {
+          id: "line_60",
+          description: "Material 60%",
+          quantity: 1,
+          unitPrice: 60,
+          ivaPercent: 21,
+        },
+        {
+          id: "line_40",
+          description: "Material 40%",
+          quantity: 1,
+          unitPrice: 40,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const first = createExpenseWorkDocumentUpdatePayload(
+      expense,
+      "doc_1",
+      ["line_60"],
+    );
+    const second = createExpenseWorkDocumentUpdatePayload(
+      first,
+      "doc_2",
+      ["line_40"],
+    );
+
+    expect(first.workAllocations?.[0].amount).toBe(75.72);
+    expect(second.workAllocations?.map((allocation) => allocation.amount)).toEqual([
+      75.72,
+      50.48,
+    ]);
+    expect(
+      second.workAllocations?.reduce(
+        (total, allocation) => total + allocation.amount,
+        0,
+      ),
+    ).toBeCloseTo(126.2, 2);
+  });
+
+  it("actualiza a 126,20 un vínculo legacy completo sin reparto explícito", () => {
+    const expense = expenseFixture({
+      workDocumentId: "doc_1",
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "legacy-summary-re",
+        importedAt: "2026-07-10T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaAmount: 21,
+      },
+    });
+
+    expect(summarizeWorkDocumentExpenses([expense], "doc_1")).toMatchObject({
+      count: 1,
+      cost: 126.2,
+      deductibleBase: 126.2,
+      deductibleIva: 0,
+    });
+  });
+
+  it("no ofrece un resto falso si una asignación antigua ya cubre todas las líneas", () => {
+    const expense = expenseFixture({
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "legacy-summary-re",
+        importedAt: "2026-07-10T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaAmount: 21,
+      },
+      workDocumentId: "doc_1",
+      workAllocations: [
+        {
+          workDocumentId: "doc_1",
+          amount: 100,
+          includedLineIds: ["line_60", "line_40"],
+          allocatedAt: "2026-07-10T10:00:00.000Z",
+        },
+      ],
+      purchaseLines: [
+        {
+          id: "line_60",
+          description: "Material 60%",
+          quantity: 1,
+          unitPrice: 60,
+          ivaPercent: 21,
+        },
+        {
+          id: "line_40",
+          description: "Material 40%",
+          quantity: 1,
+          unitPrice: 40,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    expect(
+      getExpenseLinkCandidatesForWork(appData({ expenses: [expense] }), [
+        "doc_2",
+      ]),
+    ).toHaveLength(0);
   });
 
   it("desvincula solo el trabajo elegido y conserva los demás repartos", () => {

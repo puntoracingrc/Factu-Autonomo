@@ -199,6 +199,45 @@ describe("storage", () => {
     expect(loaded.profile.name).toBe("Mi negocio");
   });
 
+  it("persiste la evidencia separada del recargo de equivalencia", () => {
+    saveData({
+      ...sampleData(),
+      expenses: [
+        {
+          id: "expense-re",
+          date: "2026-04-01",
+          origin: "import",
+          businessKind: "purchase_invoice",
+          supplierName: "Proveedor Recargo SL",
+          description: "Factura RE/1001 pendiente de original",
+          amount: 100,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Tarjeta",
+          providerSummary: {
+            status: "pending_original",
+            summaryId: "summary-re",
+            importedAt: NOW,
+            summaryInvoiceTotal: 126.2,
+            summaryIvaPercent: 21,
+            summaryIvaAmount: 21,
+            summaryRecargoPercent: 5.2,
+            summaryRecargoAmount: 5.2,
+          },
+          createdAt: NOW,
+        },
+      ],
+    });
+
+    expect(loadData().expenses[0]?.providerSummary).toMatchObject({
+      summaryInvoiceTotal: 126.2,
+      summaryIvaPercent: 21,
+      summaryIvaAmount: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+    });
+  });
+
   it("marca como bloqueado un snapshot manipulado al rehidratar", () => {
     const issued = snapshotDocument();
     const loaded = normalizeLoadedData({
