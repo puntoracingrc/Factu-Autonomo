@@ -3,11 +3,11 @@ import type { User } from "@supabase/supabase-js";
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   appDataFromSyncRows,
-  buildRestoreChanges,
+  buildRestoreChangesFromRows,
   normalizeRestorePointData,
   normalizeRestorePointSummary,
   summarizeRestoreData,
-  summarizeRestoreDiff,
+  summarizeRestoreDiffFromRows,
   type AdminSyncEntityRow,
 } from "@/lib/admin/user-restore";
 import {
@@ -315,7 +315,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: current.error }, { status: 500 });
   }
 
-  const diffSummary = summarizeRestoreDiff(current.data, restorePoint.data);
+  const diffSummary = summarizeRestoreDiffFromRows(
+    current.rows,
+    restorePoint.data,
+  );
 
   if (body.action === "preview") {
     return NextResponse.json({
@@ -353,7 +356,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const restoredAt = new Date().toISOString();
-    const changes = buildRestoreChanges(current.data, restorePoint.data, restoredAt);
+    const changes = buildRestoreChangesFromRows(
+      current.rows,
+      restorePoint.data,
+      restoredAt,
+    );
     const upsertError = await upsertRestoreChanges(auth.admin, userId, changes);
     if (upsertError) {
       return NextResponse.json({ error: upsertError }, { status: 500 });

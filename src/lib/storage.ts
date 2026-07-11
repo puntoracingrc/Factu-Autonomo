@@ -19,6 +19,10 @@ import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
+  mergePendingChanges,
+  snapshotIntegrityMetadataChange,
+} from "./cloud/diff";
+import {
   buildDocumentPdfSnapshot,
   buildDocumentSnapshotSeal,
   deriveDocumentLifecycle,
@@ -40,6 +44,7 @@ import type {
   DocumentType,
   Expense,
   Supplier,
+  SyncChange,
   UserReminder,
 } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
@@ -89,12 +94,14 @@ export function normalizeLoadedData(
 ): AppData {
   const profile = migrateProfile(parsed.profile);
   const firstIntegrityMigration = parsed.snapshotIntegrityVersion !== 1;
+  const migrationTimestamp = new Date().toISOString();
+  const migratedDocuments: Document[] = [];
   const documents = (parsed.documents ?? []).map((document) => {
     const persisted = document as AppData["documents"][number];
     const explicitLegacyImport =
       options.legacyBackfillDocumentIds?.has(persisted.id) === true;
     try {
-      return normalizeQuoteDocument(
+      const normalized = normalizeQuoteDocument(
         normalizeHistoricalDocument(
           persisted,
           profile,
@@ -103,6 +110,10 @@ export function normalizeLoadedData(
           explicitLegacyImport || firstIntegrityMigration,
         ),
       );
+      if (!persisted.snapshotSeal && normalized.snapshotSeal) {
+        migratedDocuments.push(normalized);
+      }
+      return normalized;
     } catch {
       return withDocumentSnapshotIntegritySignal({
         ...persisted,
@@ -110,6 +121,29 @@ export function normalizeLoadedData(
       });
     }
   });
+  const migrationChanges: SyncChange[] = migratedDocuments.map((document) => ({
+    entityType: "document",
+    entityId: document.id,
+    deleted: false,
+    payload: document,
+    updatedAt: migrationTimestamp,
+  }));
+  if (firstIntegrityMigration || migrationChanges.length > 0) {
+    migrationChanges.push(
+      snapshotIntegrityMetadataChange(migrationTimestamp),
+    );
+  }
+  const meta =
+    migrationChanges.length > 0
+      ? {
+          ...parsed.meta,
+          lastModified: migrationTimestamp,
+          pendingChanges: mergePendingChanges(
+            parsed.meta?.pendingChanges,
+            migrationChanges,
+          ),
+        }
+      : parsed.meta;
   const suppliers = (parsed.suppliers ?? []) as Supplier[];
   const expenses = linkLooseExpensesToExistingSuppliers(
     (parsed.expenses ?? []) as Expense[],
@@ -144,7 +178,7 @@ export function normalizeLoadedData(
         profile.numbering,
       ),
     },
-    meta: parsed.meta,
+    meta,
   };
 }
 
@@ -420,7 +454,12 @@ export function loadData(): AppData {
         ? normalizedDemoWorkspaceData()
         : EMPTY_DATA;
     }
-    return normalizeLoadedData(JSON.parse(raw));
+    const parsed = JSON.parse(raw) as Partial<AppData>;
+    const normalized = normalizeLoadedData(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+      saveData(normalized);
+    }
+    return normalized;
   } catch {
     return isDemoWorkspaceMode()
       ? normalizedDemoWorkspaceData()

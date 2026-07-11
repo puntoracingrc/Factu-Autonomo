@@ -18,7 +18,7 @@ import {
   markChangesSynced,
   markFullySynced,
   mergeRemoteOntoLocal,
-  normalizeImportedCloudData,
+  rebuildCloudSnapshot,
 } from "@/lib/cloud/incremental";
 import {
   countSyncEntities,
@@ -56,7 +56,6 @@ import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { loadData } from "@/lib/storage";
 import { pickNewerAppData } from "@/lib/cloud/sync";
-import { EMPTY_DATA } from "@/lib/types";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
 import {
@@ -474,10 +473,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (remoteChanges.length > 0) {
-          const { data: merged, applied } = mergeRemoteOntoLocal(
-            workingData,
-            remoteChanges,
-          );
+          const { data: merged, applied } =
+            !since && !hasWorkspaceContent(workingData)
+              ? rebuildCloudSnapshot(remoteChanges)
+              : mergeRemoteOntoLocal(workingData, remoteChanges);
           workingData = merged;
           dataRef.current = workingData;
           skipPush.current = true;
@@ -655,11 +654,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       const remoteChanges = await pullSyncChanges(user.id);
 
       if (remoteChanges.length > 0) {
-        const { data: cloudSnapshot, applied } = mergeRemoteOntoLocal(
-          EMPTY_DATA,
-          remoteChanges,
-        );
-        const normalized = normalizeImportedCloudData(cloudSnapshot);
+        const { data: normalized, applied } =
+          rebuildCloudSnapshot(remoteChanges);
         const synced = markFullySynced(normalized);
         clearSyncPending();
         replaceLocalDataFromCloud(synced);

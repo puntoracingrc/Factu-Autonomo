@@ -812,7 +812,8 @@ export type SyncEntityType =
   | "product"
   | "user_reminder"
   | "profile"
-  | "counters";
+  | "counters"
+  | "workspace_metadata";
 
 export interface SyncChange {
   entityType: SyncEntityType;

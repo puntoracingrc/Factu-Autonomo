@@ -80,6 +80,7 @@ describe("storage", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("guarda y recupera datos", () => {
@@ -603,6 +604,56 @@ describe("storage", () => {
     );
     expect(imported.documents[0].snapshotSeal).toBeDefined();
     expect(imported.documents[0].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("persiste y encola una sola vez el sello generado en la primera carga local", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-11T12:00:00.000Z"));
+    const issued = snapshotDocument();
+    const legacy: Document = {
+      ...issued,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+    };
+    const raw = {
+      ...sampleData(),
+      snapshotIntegrityVersion: undefined,
+      documents: [legacy],
+      meta: {
+        lastModified: "2026-07-10T12:00:00.000Z",
+      },
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+
+    const first = loadData();
+    const firstPending = first.meta?.pendingChanges ?? [];
+    expect(first.documents[0].snapshotSeal).toBeDefined();
+    expect(
+      firstPending.map((change) => `${change.entityType}:${change.entityId}`),
+    ).toEqual([
+      `document:${issued.id}`,
+      "workspace_metadata:snapshot_integrity_version",
+    ]);
+
+    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as AppData;
+    expect(persisted.snapshotIntegrityVersion).toBe(1);
+    expect(persisted.documents[0].snapshotSeal).toBeDefined();
+
+    vi.setSystemTime(new Date("2026-07-11T13:00:00.000Z"));
+    const second = loadData();
+    expect(second.meta?.pendingChanges).toEqual(firstPending);
+
+    saveData({
+      ...second,
+      meta: {
+        ...second.meta,
+        lastModified: "2026-07-11T14:00:00.000Z",
+        lastSyncedAt: "2026-07-11T14:00:00.000Z",
+        pendingChanges: undefined,
+      },
+    });
+    const stable = loadData();
+    expect(stable.meta?.pendingChanges).toBeUndefined();
   });
 
   it("no sella una pareja legacy existente si sus hashes están corruptos", () => {

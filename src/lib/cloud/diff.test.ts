@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applySyncChanges, diffAppData } from "./diff";
+import {
+  applySyncChanges,
+  appDataToSyncChanges,
+  diffAppData,
+  emptyCloudBootstrapData,
+  snapshotIntegrityMetadataChange,
+} from "./diff";
 import { EMPTY_DATA } from "../types";
 import type {
   AppData,
@@ -57,6 +63,46 @@ describe("sync por cambios", () => {
 
     const merged = applySyncChanges(local, remote);
     expect(merged.customers).toHaveLength(2);
+  });
+
+  it("sincroniza el marcador de integridad como metadato monotónico", () => {
+    const legacy = {
+      ...EMPTY_DATA,
+      snapshotIntegrityVersion: undefined,
+    };
+    const versioned = { ...legacy, snapshotIntegrityVersion: 1 as const };
+
+    expect(diffAppData(legacy, versioned)).toEqual([
+      expect.objectContaining({
+        entityType: "workspace_metadata",
+        entityId: "snapshot_integrity_version",
+        deleted: false,
+        payload: { snapshotIntegrityVersion: 1 },
+      }),
+    ]);
+    expect(diffAppData(versioned, legacy)).toEqual([]);
+    expect(
+      appDataToSyncChanges(versioned).at(-1),
+    ).toMatchObject({
+      entityType: "workspace_metadata",
+      entityId: "snapshot_integrity_version",
+      payload: { snapshotIntegrityVersion: 1 },
+    });
+
+    const applied = applySyncChanges(legacy, [
+      snapshotIntegrityMetadataChange("2026-07-11T12:00:00.000Z"),
+    ]);
+    expect(applied.snapshotIntegrityVersion).toBe(1);
+
+    const tombstoneIgnored = applySyncChanges(applied, [
+      {
+        ...snapshotIntegrityMetadataChange("2026-07-11T13:00:00.000Z"),
+        deleted: true,
+        payload: undefined,
+      },
+    ]);
+    expect(tombstoneIgnored.snapshotIntegrityVersion).toBe(1);
+    expect(emptyCloudBootstrapData().snapshotIntegrityVersion).toBeUndefined();
   });
 
   it("sincroniza juntos el borrado del cargo y su exclusión persistente", () => {
