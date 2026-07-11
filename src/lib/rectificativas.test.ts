@@ -5,12 +5,15 @@ import {
 } from "./documents";
 import {
   canRectifyInvoice,
+  cloneItemsForCorreccion,
   getDeletePolicy,
   itemsForAnulacion,
   originalStatusAfterRectification,
+  rectificationLineDisplayTotal,
   rectificationTextDefaults,
 } from "./rectificativas";
 import { issueDocument } from "./document-integrity";
+import { lineMoneyAmounts } from "./calculations";
 import { EMPTY_DATA, type Document } from "./types";
 
 function invoice(
@@ -59,7 +62,7 @@ describe("facturas rectificativas", () => {
     ).toBe(false);
   });
 
-  it("permite rectificar una rectificativa emitida si todavía no fue sustituida", () => {
+  it("no permite rectificar una rectificativa hasta soportar su cadena", () => {
     expect(
       canRectifyInvoice(
         invoice("2", "FR-2026-0001", "enviado", {
@@ -72,13 +75,107 @@ describe("facturas rectificativas", () => {
           },
         }),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("anulación genera importes negativos", () => {
     const original = invoice("1", "F-2026-0001", "pagado");
     const negated = itemsForAnulacion(original.items);
     expect(negated[0].unitPrice).toBe(-100);
+    expect(rectificationLineDisplayTotal(negated[0])).toBe(-121);
+  });
+
+  it("muestra el importe monetario real de líneas rectificativas negativas", () => {
+    expect(
+      rectificationLineDisplayTotal({
+        id: "negative-line",
+        description: "Abono",
+        quantity: 1,
+        unitPrice: -100,
+        ivaPercent: 21,
+      }),
+    ).toBe(-121);
+  });
+
+  it("invierte algebraicamente descuentos y cantidades negativas", () => {
+    const original = [
+      {
+        id: "sale",
+        description: "Venta",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "discount",
+        description: "Descuento",
+        quantity: 1,
+        unitPrice: -10,
+        ivaPercent: 21,
+      },
+      {
+        id: "return",
+        description: "Devolución previa",
+        quantity: -2,
+        unitPrice: 5,
+        ivaPercent: 21,
+      },
+    ];
+
+    const cancellation = itemsForAnulacion(original);
+    const originalBase = original.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const cancellationBase = cancellation.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+
+    expect(cancellationBase).toBe(-originalBase);
+    expect(cancellation[1].unitPrice).toBe(10);
+    expect(cancellation[2].quantity).toBe(-2);
+  });
+
+  it("cancela exactamente cada importe redondeado en medias centésimas", () => {
+    const original = {
+      id: "fraction",
+      description: "Fracción",
+      quantity: 0.5,
+      unitPrice: 0.05,
+      ivaPercent: 21,
+    };
+    const [cancellation] = itemsForAnulacion([original]);
+    const originalAmounts = lineMoneyAmounts(original);
+    const cancellationAmounts = lineMoneyAmounts(cancellation);
+
+    expect(cancellationAmounts).toEqual({
+      subtotal: -originalAmounts.subtotal,
+      iva: -originalAmounts.iva,
+      total: -originalAmounts.total,
+    });
+  });
+
+  it("no arrastra importes derivados del snapshot a líneas editables", () => {
+    const snapshotLine = {
+      id: "snapshot-line",
+      description: "Servicio",
+      quantity: 1,
+      unitPrice: 100,
+      ivaPercent: 21,
+      subtotal: 100,
+      ivaAmount: 21,
+      total: 121,
+    };
+
+    for (const line of [
+      ...itemsForAnulacion([snapshotLine]),
+      ...cloneItemsForCorreccion([snapshotLine]),
+    ]) {
+      expect(line).not.toHaveProperty("subtotal");
+      expect(line).not.toHaveProperty("ivaAmount");
+      expect(line).not.toHaveProperty("total");
+    }
   });
 
   it("mantiene forma de pago y notas de la factura original", () => {

@@ -51,10 +51,10 @@ import { finalizeVerifactuDocument } from "@/lib/verifactu/finalize";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
+  rectificationLineDisplayTotal,
   rectificationTextDefaults,
   rectificationTypeLabel,
 } from "@/lib/rectificativas";
-import { lineItemFormTotal } from "@/lib/document-form-flow";
 import type {
   BusinessProfile,
   Document,
@@ -161,6 +161,7 @@ export function RectificativaForm({
   }
 
   const previewTotals = documentAmounts({ items }, vatExempt);
+  const originalDate = original.documentSnapshot?.date ?? original.date;
   const finalReason =
     reason === "Otros motivos" ? customReason.trim() : reason;
 
@@ -225,6 +226,12 @@ export function RectificativaForm({
     }
     if (items.every((i) => !i.description.trim())) {
       alert("Añade al menos un concepto");
+      return false;
+    }
+    if (date < originalDate) {
+      alert(
+        "La fecha de la rectificativa no puede ser anterior a la factura original.",
+      );
       return false;
     }
     return true;
@@ -453,6 +460,7 @@ export function RectificativaForm({
         <Field label="Fecha de la rectificativa">
           <Input
             type="date"
+            min={originalDate}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -607,7 +615,8 @@ export function RectificativaForm({
               ) : null}
               <div className="mt-3 flex justify-end border-t border-slate-200/70 pt-3">
                 <p className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-100">
-                  Total línea: {formatMoney(lineItemFormTotal(item, vatExempt))}
+                  Total línea:{" "}
+                  {formatMoney(rectificationLineDisplayTotal(item, vatExempt))}
                 </p>
               </div>
             </div>

@@ -1,11 +1,18 @@
-import { DocumentIntegrityError } from "@/lib/document-integrity";
+import {
+  assertDocumentSnapshotsIntegrity,
+  DocumentIntegrityError,
+} from "@/lib/document-integrity";
 import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
 import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
-import { itemsForAnulacion } from "@/lib/rectificativas";
+import {
+  cloneItemsForCorreccion,
+  itemsForAnulacion,
+} from "@/lib/rectificativas";
 import type {
   BusinessProfile,
   Document,
+  DocumentSnapshot,
   LineItem,
   RectificationInfo,
   RectificationType,
@@ -16,26 +23,44 @@ export interface CanonicalRectificationSource {
   profile: BusinessProfile;
 }
 
+export function verifiedRectificationOriginalSnapshot(
+  original: Document,
+): DocumentSnapshot {
+  assertDocumentSnapshotsIntegrity(original, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
+  const snapshot = original.documentSnapshot!;
+  if (
+    snapshot.documentType !== "factura" ||
+    snapshot.documentKind !== "factura" ||
+    snapshot.rectification
+  ) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+  return snapshot;
+}
+
 export function resolveCanonicalRectificationSource(
   original: Document,
   currentProfile: BusinessProfile,
 ): CanonicalRectificationSource {
+  const verifiedSnapshot = verifiedRectificationOriginalSnapshot(original);
   const canonical = buildCanonicalDocumentForProtectedEffect(
     original,
     currentProfile,
   );
-  const snapshot = canonical.documentSnapshot;
-  if (
-    canonical.type !== "factura" ||
-    !snapshot ||
-    snapshot.documentType !== "factura"
-  ) {
+  if (canonical.type !== "factura" || canonical.rectification) {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
   }
 
   return {
     original: canonical,
-    profile: profileForHistoricalDerivedDocument(snapshot, currentProfile),
+    profile: profileForHistoricalDerivedDocument(
+      verifiedSnapshot,
+      currentProfile,
+    ),
   };
 }
 
@@ -58,7 +83,7 @@ export function canonicalRectificationItems(
 ): LineItem[] {
   return type === "anulacion"
     ? itemsForAnulacion(original.items)
-    : requestedItems.map((item) => ({ ...item }));
+    : cloneItemsForCorreccion(requestedItems);
 }
 
 export function profileForRectificationSource(
@@ -120,6 +145,11 @@ export function assertRectificationEmissionAllowed(
       original.status === "rectificada")
   ) {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  const originalSnapshot = verifiedRectificationOriginalSnapshot(original);
+  if (document.date < originalSnapshot.date) {
+    throw new DocumentIntegrityError("RECTIFICATION_DATE_INVALID");
   }
 }
 

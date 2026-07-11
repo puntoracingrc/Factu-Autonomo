@@ -15,6 +15,7 @@ import {
   profileForRectificationSource,
   preserveRectificationOriginalReference,
   resolveCanonicalRectificationSource,
+  verifiedRectificationOriginalSnapshot,
 } from "./rectification-issuance";
 
 const NOW = "2026-07-10T10:00:00.000Z";
@@ -54,6 +55,22 @@ function rectification(status: Document["status"]): Document {
     },
     createdAt: NOW,
     updatedAt: NOW,
+  };
+}
+
+function issuedOriginal(overrides: Partial<Document> = {}): Document {
+  return {
+    ...issueDocument(
+      {
+        ...rectification("borrador"),
+        id: "invoice-1",
+        number: "F-2026-0001",
+        rectification: undefined,
+      },
+      EMPTY_DATA.profile,
+      NOW,
+    ),
+    ...overrides,
   };
 }
 
@@ -188,14 +205,10 @@ describe("materializeRectificationDocument", () => {
 
   it("permite completar la misma relación y bloquea una original ausente", () => {
     const candidate = rectification("borrador");
-    const original: Document = {
-      ...candidate,
-      id: "invoice-1",
-      number: "F-2026-0001",
-      rectification: undefined,
+    const original = issuedOriginal({
       rectifiedById: candidate.id,
       status: "rectificada",
-    };
+    });
 
     expect(() =>
       assertRectificationEmissionAllowed(candidate, [original, candidate]),
@@ -203,6 +216,33 @@ describe("materializeRectificationDocument", () => {
     expect(() =>
       assertRectificationEmissionAllowed(candidate, [candidate]),
     ).toThrow("No se encuentra la factura original");
+  });
+
+  it("rechaza una fecha anterior a la fecha fiscal original", () => {
+    const candidate = { ...rectification("borrador"), date: "2026-07-09" };
+    const original = issuedOriginal();
+
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, [original, candidate]),
+    ).toThrow("no puede ser anterior a la factura original");
+  });
+
+  it("rechaza una rectificativa como origen hasta soportar la cadena", () => {
+    const issuedRectification = materializeRectificationDocument(
+      rectification("enviado"),
+      EMPTY_DATA.profile,
+      NOW,
+    );
+
+    expect(() =>
+      verifiedRectificationOriginalSnapshot(issuedRectification),
+    ).toThrow("no es una factura emitida válida");
+    expect(() =>
+      resolveCanonicalRectificationSource(
+        issuedRectification,
+        EMPTY_DATA.profile,
+      ),
+    ).toThrow("no es una factura emitida válida");
   });
 
   it("impide que una edición cambie la factura original congelada", () => {

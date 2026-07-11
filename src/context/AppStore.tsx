@@ -1101,6 +1101,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           createdAt: now,
           updatedAt: now,
         };
+        assertRectificationEmissionAllowed(source, prev.documents);
         if (!isDraft) {
           assertDocumentEmissionValid(source, rectificationProfile);
         }
