@@ -36,6 +36,7 @@ Reglas:
 - Extrae tantas líneas como aparezcan, hasta 50. Si hay más de 50, devuelve las 50 primeras en el mismo orden y añade un warning indicando que hay más líneas.
 - Si una línea tiene columna REF., Código, Artículo, Referencia o similar, pon ese valor en purchaseLines[].supplierReference. Ejemplo: REF. "SM-502" no es descripción; es supplierReference.
 - En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece. Si hay columna "Precio Neto", ponla en netUnitPrice.
+- Si aparecen varios tipos de IVA, conserva el ivaPercent real de cada línea. No los sustituyas por el tipo de cabecera ni por un porcentaje medio.
 - Distingue cantidad original y cantidad cobrada: sourceQuantity es Cant./Uds./Piezas; quantity y chargeQuantity son lo que multiplica el precio neto.
 - Si una línea tiene ancho y alto, se calcula por m2: unit "M2", calculationBasis "m2", quantity/chargeQuantity = M2 y sourceQuantity = Cant.
 - Si una línea tiene solo una medida de largo/alto/ancho útil, se calcula por metro lineal: unit "ML", calculationBasis "ml", quantity/chargeQuantity = ML y sourceQuantity = Cant.

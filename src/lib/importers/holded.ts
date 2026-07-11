@@ -21,6 +21,7 @@ import type {
   Document,
   DocumentStatus,
   Expense,
+  ExpensePurchaseLine,
   LineItem,
   Supplier,
 } from "../types";
@@ -177,17 +178,21 @@ function holdedId(kind: string, sourceKey: string): string {
   return `${HOLDED_ID_PREFIX}:${kind}:${slug}`;
 }
 
-function parseAmount(value: unknown): number {
+function parseFiniteAmount(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const raw = text(value);
-  if (!raw) return 0;
+  if (!raw) return undefined;
   const clean = raw.replace(/\s/g, "").replace(/[€%]/g, "");
   const normalized =
     clean.includes(",") && clean.includes(".")
       ? clean.replace(/\./g, "").replace(",", ".")
       : clean.replace(",", ".");
   const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseAmount(value: unknown): number {
+  return parseFiniteAmount(value) ?? 0;
 }
 
 function calendarDate(
@@ -679,6 +684,35 @@ function supplierFromPurchaseRow(row: Row, suppliersById: Map<string, Supplier>)
   return suppliersById.get(get(row, "proveedor_contact_id"));
 }
 
+function purchaseLineFromHoldedRow(
+  row: Row,
+  index: number,
+  purchaseKey: string,
+): ExpensePurchaseLine {
+  const sourceQuantity = parseAmount(get(row, "cantidad"));
+  const quantity = sourceQuantity > 0 ? sourceQuantity : 1;
+  const baseLine = parseAmount(get(row, "base_linea"));
+  const sourceUnitPrice = parseAmount(get(row, "precio_unitario"));
+  const ivaPercentText = get(row, "impuesto_pct");
+
+  return {
+    id: holdedId(
+      "purchase-line",
+      `${purchaseKey}-${get(row, "linea") || index + 1}`,
+    ),
+    supplierReference: get(row, "sku") || undefined,
+    description:
+      getMemo(row, "descripcion") || "Concepto de compra importado de Holded",
+    catalogProduct: false,
+    sourceQuantity: sourceQuantity > 0 ? sourceQuantity : undefined,
+    quantity,
+    unitPrice:
+      baseLine !== 0 ? roundMoney(baseLine / quantity) : sourceUnitPrice,
+    ivaPercent: parseFiniteAmount(ivaPercentText),
+    total: baseLine !== 0 ? roundMoney(baseLine) : undefined,
+  };
+}
+
 function buildExpense(row: Row, index: number, suppliersById: Map<string, Supplier>, lines: Row[]): {
   expense: Expense;
   lineCount: number;
@@ -695,17 +729,21 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
   const createdAt = `${date}T00:00:00.000Z`;
   const supplier = supplierFromPurchaseRow(row, suppliersById);
   const usedProductKeys: string[] = [];
-  const lineBaseTotal = lines.reduce((sum, line) => {
+  const purchaseLines = lines.map((line, lineIndex) => {
     const productKey = get(line, "product_id") || get(line, "sku");
     if (productKey) usedProductKeys.push(productKey);
-    return sum + parseAmount(get(line, "base_linea"));
-  }, 0);
+    return purchaseLineFromHoldedRow(line, lineIndex, sourceKey);
+  });
+  const lineBaseTotal = purchaseLines.reduce(
+    (sum, line) => sum + (line.total ?? line.quantity * line.unitPrice),
+    0,
+  );
   const base = lineBaseTotal > 0 ? roundMoney(lineBaseTotal) : parseAmount(get(row, "base_imponible"));
   const iva = parseAmount(get(row, "iva_total"));
   const expected = parseAmount(get(row, "total"));
   const calculated = roundMoney(base + iva);
   return {
-    lineCount: Math.max(lines.length, 1),
+    lineCount: Math.max(purchaseLines.length, 1),
     usedProductKeys,
     mismatch:
       expected > 0 && Math.abs(expected - calculated) > 0.02
@@ -734,6 +772,7 @@ function buildExpense(row: Row, index: number, suppliersById: Map<string, Suppli
       ]
         .filter(Boolean)
         .join("\n") || undefined,
+      purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
       createdAt,
     },
   };
@@ -960,6 +999,17 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   const warnings: string[] = [
     "Este importador de Holded está en validación: el archivo usado es un fixture inferido, no una exportación oficial exacta.",
   ];
+  const unreadablePurchaseVatLines = (tables.purchaseLines ?? []).filter(
+    (row) => {
+      const rawVat = get(row, "impuesto_pct");
+      return rawVat !== "" && parseFiniteAmount(rawVat) === undefined;
+    },
+  ).length;
+  if (unreadablePurchaseVatLines > 0) {
+    warnings.push(
+      `${unreadablePurchaseVatLines} línea(s) de compra traen un tipo de IVA ilegible. Se conservarán sin inventar un 0 % y deberán revisarse antes de exportar si contradicen la cabecera.`,
+    );
+  }
   if (unpairedLegacyCancellationIds.length > 0) {
     warnings.push(
       `${unpairedLegacyCancellationIds.length} factura(s) anulada(s) no traen su rectificativa enlazada. Se conservarán bloqueadas para consulta y no se usarán en cálculos fiscales hasta completar esa relación.`,

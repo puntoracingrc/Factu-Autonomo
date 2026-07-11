@@ -190,7 +190,10 @@ describe("product expenses/providers polish wiring", () => {
     expect(linesPreview).toContain("Líneas detectadas");
     expect(linesPreview).toContain("purchaseLineHasCatalogProduct(line");
     expect(linesPreview).toContain("artículo creado");
-    expect(linesPreview).toContain("formatMoney(line.base)");
+    expect(linesPreview).toContain("formatMoney(line.amounts.base)");
+    expect(linesPreview).toContain("formatMoney(line.amounts.iva)");
+    expect(linesPreview).toContain("formatMoney(line.amounts.total)");
+    expect(linesPreview).toContain("line.ivaOrigin");
     expect(listPage).not.toContain("EXPENSE_LINE_PREVIEW_LIMIT");
   });
 

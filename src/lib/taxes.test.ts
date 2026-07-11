@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertTaxSummaryExportable,
   calculateTaxSummary,
+  expenseIvaAmount,
   isTaxableSaleDocument,
   selectTaxableFiscalDocumentsForPeriod,
   TaxExportBlockedError,
@@ -141,6 +142,32 @@ const expense: Expense = {
   createdAt: "2026-06-09",
 };
 
+function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    ...expense,
+    id: "mixed-expense",
+    amount: 200,
+    ivaPercent: 21,
+    purchaseLines: [
+      {
+        id: "mixed-21",
+        description: "Material general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "mixed-10",
+        description: "Material reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 describe("isTaxableSaleDocument", () => {
   it("incluye facturas emitidas y excluye borradores", () => {
     expect(isTaxableSaleDocument(invoice("enviado"))).toBe(true);
@@ -199,6 +226,150 @@ describe("calculateTaxSummary", () => {
     expect(summary.estimatedIrpfBase).toBe(950);
     expect(summary.irpfEstimate).toBe(190);
     expect(summary.profitAfterIrpfReserve).toBe(760);
+    expect(summary.lineVatExpenseCount).toBe(0);
+    expect(summary.headerVatExpenseCount).toBe(1);
+    expect(summary.unsupportedMixedVatExpenses).toBe(0);
+  });
+
+  it("usa el desglose mixto conciliado en IVA, IRPF y coste económico", () => {
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000)],
+      [mixedVatExpense()],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary.expenseBase).toBe(200);
+    expect(summary.expenseIva).toBe(31);
+    expect(summary.operatingExpenseCost).toBe(200);
+    expect(summary.netIva).toBe(179);
+    expect(summary.grossProfit).toBe(800);
+    expect(summary.estimatedIrpfBase).toBe(800);
+    expect(summary.irpfEstimate).toBe(160);
+    expect(summary.profitAfterIrpfReserve).toBe(640);
+    expect(summary.lineVatExpenseCount).toBe(1);
+    expect(summary.headerVatExpenseCount).toBe(0);
+    expect(summary.unsupportedMixedVatExpenses).toBe(0);
+    expect(expenseIvaAmount(mixedVatExpense())).toBe(31);
+  });
+
+  it("bloquea fiscalmente un IVA mixto explícito sin conciliar", () => {
+    const blockedExpense = mixedVatExpense({
+      amount: 300,
+      purchaseLines: [
+        ...(mixedVatExpense().purchaseLines ?? []),
+        {
+          id: "mixed-missing",
+          description: "Línea sin tipo",
+          quantity: 1,
+          unitPrice: 100,
+        },
+      ],
+    });
+    const summary = calculateTaxSummary([], [blockedExpense]);
+
+    expect(summary.expenseBase).toBe(300);
+    expect(summary.expenseIva).toBe(0);
+    expect(summary.operatingExpenseCost).toBe(363);
+    expect(summary.lineVatExpenseCount).toBe(0);
+    expect(summary.headerVatExpenseCount).toBe(0);
+    expect(summary.unsupportedMixedVatExpenses).toBe(1);
+    expect(expenseIvaAmount(blockedExpense)).toBe(0);
+
+    let error: TaxExportBlockedError | null = null;
+    try {
+      assertTaxSummaryExportable(summary);
+    } catch (caught) {
+      error = caught as TaxExportBlockedError;
+    }
+    expect(error).toBeInstanceOf(TaxExportBlockedError);
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+      unsupportedMixedVatExpenses: 1,
+    });
+  });
+
+  it("conserva el coste de cabecera pero no el IVA fiscal de un mixto bloqueado no deducible", () => {
+    const blockedExpense = mixedVatExpense({
+      amount: 300,
+      deductibility: "non_deductible",
+      purchaseLines: [
+        ...(mixedVatExpense().purchaseLines ?? []),
+        {
+          id: "mixed-missing-nondeductible",
+          description: "Línea sin tipo",
+          quantity: 1,
+          unitPrice: 100,
+        },
+      ],
+    });
+    const summary = calculateTaxSummary([], [blockedExpense]);
+
+    expect(summary.expenseBase).toBe(0);
+    expect(summary.expenseIva).toBe(0);
+    expect(summary.operatingExpenseCost).toBe(363);
+    expect(summary.nonDeductibleExpenseTotal).toBe(363);
+    expect(summary.unsupportedMixedVatExpenses).toBe(1);
+  });
+
+  it("respeta el importe íntegro de un fijo no deducible y mantiene line-aware el deducible", () => {
+    const fixedLines = [
+      {
+        id: "fixed-21",
+        description: "Cuota general",
+        quantity: 1,
+        unitPrice: 60,
+        ivaPercent: 21,
+      },
+      {
+        id: "fixed-10",
+        description: "Cuota reducida",
+        quantity: 1,
+        unitPrice: 40,
+        ivaPercent: 10,
+      },
+    ];
+    const fixedNonDeductible = mixedVatExpense({
+      id: "fixed-non-deductible",
+      amount: 100,
+      businessKind: "fixed",
+      deductibility: "non_deductible",
+      purchaseLines: fixedLines,
+    });
+    const nonDeductibleSummary = calculateTaxSummary(
+      [],
+      [fixedNonDeductible],
+    );
+
+    expect(nonDeductibleSummary).toMatchObject({
+      expenseBase: 0,
+      expenseIva: 0,
+      operatingExpenseCost: 100,
+      nonDeductibleExpenseTotal: 100,
+      lineVatExpenseCount: 0,
+      headerVatExpenseCount: 1,
+      unsupportedMixedVatExpenses: 0,
+    });
+    expect(expenseIvaAmount(fixedNonDeductible)).toBe(0);
+
+    const deductibleSummary = calculateTaxSummary(
+      [],
+      [
+        {
+          ...fixedNonDeductible,
+          id: "fixed-deductible",
+          deductibility: "deductible",
+        },
+      ],
+    );
+    expect(deductibleSummary).toMatchObject({
+      expenseBase: 100,
+      expenseIva: 16.6,
+      operatingExpenseCost: 100,
+      lineVatExpenseCount: 1,
+      headerVatExpenseCount: 0,
+      unsupportedMixedVatExpenses: 0,
+    });
   });
 
   it("excluye gastos no deducibles de base, IVA e IRPF fiscales", () => {

@@ -3,6 +3,7 @@ import { MAX_IMAGE_BYTES } from "./limits";
 import { resolveScanMimeType, validateScanFile } from "./file-validation";
 import {
   filterWarningsAfterPdfLineExtraction,
+  mergePdfPurchaseLineVat,
   resolveExpenseScanMaxTokens,
 } from "./openai";
 
@@ -74,5 +75,44 @@ describe("filterWarningsAfterPdfLineExtraction", () => {
         "fixed",
       ),
     ).toEqual(["Revisar si conviene configurar como gasto fijo."]);
+  });
+});
+
+describe("mergePdfPurchaseLineVat", () => {
+  it("conserva los tipos de IVA visuales al ampliar una tabla PDF", () => {
+    const merged = mergePdfPurchaseLineVat(
+      [
+        { supplierReference: "A-1", description: "Material", quantity: 1, unitPrice: 100 },
+        { supplierReference: "B-2", description: "Transporte", quantity: 1, unitPrice: 100 },
+        { supplierReference: "C-3", description: "Embalaje", quantity: 1, unitPrice: 10 },
+      ],
+      [
+        { supplierReference: "A-1", description: "Material", quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { supplierReference: "B-2", description: "Transporte", quantity: 1, unitPrice: 100, ivaPercent: 10 },
+      ],
+    );
+
+    expect(merged.map((line) => line.ivaPercent)).toEqual([21, 10, undefined]);
+  });
+
+  it("no asigna IVA por posición ni por una clave ambigua", () => {
+    const merged = mergePdfPurchaseLineVat(
+      [
+        { description: "Fila distinta", quantity: 1, unitPrice: 100 },
+        { description: "Repetida", quantity: 1, unitPrice: 50 },
+        { description: "Repetida", quantity: 1, unitPrice: 50 },
+      ],
+      [
+        { description: "Otra fila", quantity: 1, unitPrice: 100, ivaPercent: 21 },
+        { description: "Repetida", quantity: 1, unitPrice: 50, ivaPercent: 10 },
+        { description: "Repetida", quantity: 1, unitPrice: 50, ivaPercent: 4 },
+      ],
+    );
+
+    expect(merged.map((line) => line.ivaPercent)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 });

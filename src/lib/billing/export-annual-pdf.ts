@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney } from "../calculations";
-import { expenseFiscalAmounts } from "../expenses";
+import { expenseFiscalAmounts, resolveExpenseVat } from "../expenses";
 import { isCollectedDocument } from "../income";
 import { filterExpensesByYear, isDateInYear } from "../periods";
 import { triggerPdfBlobDownload } from "../pdf";
@@ -18,6 +18,30 @@ import {
   totalExpensesAmount,
 } from "../vat-regime";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
+
+function formatVatPercent(value: number): string {
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(value)}%`;
+}
+
+function expenseVatTraceLabel(expense: Expense, vatExempt: boolean): string {
+  if (vatExempt) return "IVA: perfil exento";
+  const resolution = resolveExpenseVat(expense, vatExempt);
+  const rates = resolution.breakdown
+    .map((row) => row.ivaPercent)
+    .sort((left, right) => left - right);
+  const ratesLabel = (rates.length > 0 ? rates : [resolution.headerIvaPercent])
+    .map(formatVatPercent)
+    .join(" + ");
+  const sourceLabel =
+    resolution.source === "lines"
+      ? "líneas conciliadas"
+      : resolution.source === "blocked"
+        ? "desglose mixto bloqueado"
+        : "cabecera o importe íntegro";
+  return `IVA ${ratesLabel} · ${sourceLabel}`;
+}
 
 export function buildAnnualSummaryPdf(
   documents: Document[],
@@ -174,7 +198,7 @@ export function buildAnnualSummaryPdf(
           expense.date,
           expense.supplierName,
           expense.description,
-          fiscal.deductible ? "Deducible" : "No deducible",
+          `${fiscal.deductible ? "Deducible" : "No deducible"}\n${expenseVatTraceLabel(expense, vatExempt)}`,
           formatMoney(fiscal.deductibleBase),
           formatMoney(fiscal.deductibleIva),
           formatMoney(fiscal.registeredTotal),
@@ -182,6 +206,15 @@ export function buildAnnualSummaryPdf(
       }),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [220, 38, 38] },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 33 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 21, halign: "right" },
+        5: { cellWidth: 21, halign: "right" },
+        6: { cellWidth: 23, halign: "right" },
+      },
     });
   }
 

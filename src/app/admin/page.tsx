@@ -29,6 +29,7 @@ import { useSearchParams } from "next/navigation";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
+import { resolveExpenseVat } from "@/lib/expenses";
 import {
   ADMIN_PLAN_OPTIONS,
   ADMIN_STATUS_OPTIONS,
@@ -3380,12 +3381,25 @@ function UsersPanel() {
 
 function scanSummary(payload: ExpenseScanPayload | null) {
   if (!payload) return [];
+  const vat = resolveExpenseVat(payload.expense);
+  const vatTypes = vat.breakdown
+    .map((row) => `${row.ivaPercent.toLocaleString("es-ES")}%`)
+    .join(" + ");
+  const vatSource =
+    vat.source === "lines"
+      ? "Líneas conciliadas"
+      : vat.source === "blocked"
+        ? "Desglose mixto bloqueado"
+        : "Cabecera legacy";
   return [
     ["Proveedor", payload.supplier.name],
     ["Tipo", payload.expense.businessKind ?? "Compra"],
     ["Descripción", payload.expense.description],
     ["Base", payload.expense.amount.toLocaleString("es-ES")],
-    ["IVA", `${payload.expense.ivaPercent}%`],
+    ["Tipos IVA", vatTypes || `${payload.expense.ivaPercent}%`],
+    ["Cuota IVA", vat.iva.toLocaleString("es-ES")],
+    ["Total", vat.total.toLocaleString("es-ES")],
+    ["Origen IVA", vatSource],
     ["Líneas", String(payload.expense.purchaseLines?.length ?? 0)],
   ];
 }

@@ -13,6 +13,7 @@ export const impuestosSection: ManualSection = {
         "Verás las bases de ventas y gastos deducibles, el coste económico de los gastos, la posición de IVA, el beneficio económico, la base estimada para IRPF, la reserva orientativa y el resultado económico tras reservarla.",
         "La posición de IVA se muestra aparte: no se descuenta del beneficio ni del resultado económico porque sus bases ya están calculadas sin IVA.",
         "Los gastos marcados como **No deducibles** siguen en el gasto registrado, el balance y la rentabilidad y sí reducen el beneficio económico. Aportan cero a la base e IVA deducibles, por lo que no reducen la base ni la reserva estimada de IRPF. El resumen muestra un aviso con ese coste.",
+        "El resumen distingue los gastos cuyo IVA se calcula desde líneas conciliadas de los que usan la cabecera o el contrato de importe íntegro para un fijo no desgravable. Si detecta evidencia de tipos de IVA en conflicto y líneas incompletas o descuadradas, muestra un bloqueo de revisión y no presenta la exportación como completa.",
         "Son cifras **orientativas** para preparar el 303 o hablar con tu gestor; no sustituyen la declaración oficial.",
       ],
       screenshot: {
@@ -26,6 +27,7 @@ export const impuestosSection: ManualSection = {
         "Con plan **Pro**, en vista por trimestre aparece el botón **CSV**. Descargas un único archivo con:",
         "cabecera de tu negocio, resumen del periodo, libro de ventas y libro de gastos.",
         "El resumen separa coste económico, beneficio económico y base estimada para IRPF. El libro conserva los gastos no deducibles con su coste y los identifica expresamente; sus columnas de base e IVA deducibles quedan a cero.",
+        "Cada gasto publica sus tipos, cuota, desglose y origen del cálculo. Los gastos legacy sin líneas siguen como **IVA de cabecera** y los fijos no desgravables como **importe íntegro**; un desglose mixto inconsistente bloquea el CSV hasta su corrección.",
       ],
       screenshot: {
         src: "/ayuda/capturas/impuestos-csv.png",
@@ -37,6 +39,7 @@ export const impuestosSection: ManualSection = {
       paragraphs: [
         "En vista por **año** puedes descargar un PDF resumen del ejercicio.",
         "El PDF separa coste económico, base fiscal deducible y base estimada para IRPF, e identifica cada gasto no deducible.",
+        "En la tabla de gastos también aparecen de forma compacta el origen y los tipos de IVA. Igual que el CSV, el PDF no se genera si hay un desglose mixto conocido pero sin conciliar.",
       ],
       screenshot: {
         src: "/ayuda/capturas/impuestos-pdf-anual.png",

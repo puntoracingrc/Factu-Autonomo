@@ -57,6 +57,33 @@ const expense: Expense = {
   createdAt: "2026-04-02",
 };
 
+function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    ...expense,
+    id: "mixed-vat-expense",
+    description: "Compra IVA mixto",
+    amount: 200,
+    ivaPercent: 21,
+    purchaseLines: [
+      {
+        id: "line-21",
+        description: "Tipo general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "line-10",
+        description: "Tipo reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function pdfCommands(pdf: jsPDF): string {
   const pages = (
     pdf.internal as unknown as { pages: Array<string[] | null> }
@@ -121,6 +148,50 @@ describe("export annual pdf", () => {
     expect(commands).toContain("100,00");
     expect(commands).toContain("Resultado económico tras reservar IRPF");
     expect(commands).toContain("-41,00");
+  });
+
+  it("muestra tipos y origen sin añadir columnas al detalle anual", () => {
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([doc], [mixedVatExpense()], profile, 2026),
+    );
+
+    expect(commands).toContain("IVA 10% + 21%");
+    expect(commands).toContain("líneas");
+    expect(commands).toContain("conciliadas");
+    expect(commands).toContain("31,00");
+    expect(commands).toContain("231,00");
+    expect(commands).toContain("200,00");
+  });
+
+  it("bloquea el PDF anual ante evidencia mixta no conciliada", () => {
+    const error = captureBlockedExport(() =>
+      buildAnnualSummaryPdf(
+        [doc],
+        [mixedVatExpense({ amount: 250 })],
+        profile,
+        2026,
+      ),
+    );
+
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+      unsupportedMixedVatExpenses: 1,
+    });
+  });
+
+  it("rotula el perfil exento sin presentarlo como cabecera o importe íntegro", () => {
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf(
+        [doc],
+        [expense],
+        { ...profile, vatExempt: true },
+        2026,
+      ),
+    );
+
+    expect(commands).toContain("IVA: perfil exento");
+    expect(commands).not.toContain("cabecera o importe íntegro");
   });
 
   it("proyecta el snapshot histórico antes de seleccionar periodo e importes", () => {

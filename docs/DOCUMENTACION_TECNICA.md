@@ -1,6 +1,6 @@
 # Documentación técnica — Factu Autónomo
 
-**Versión del documento:** junio 2026  
+**Versión del documento:** julio 2026
 **Repositorio:** `puntoracingrc/Factu-Autonomo`  
 **Producción:** https://facturacion-autonomos.app  
 **Contacto:** info@facturacion-autonomos.app
@@ -334,6 +334,36 @@ Frases, formas de pago y unidades tienen sección propia en Ajustes (tipo `presu
 | Forma de pago | Efectivo, Tarjeta, Transferencia, Bizum, Domiciliación |
 | Notas | Opcional |
 
+Las facturas de compra pueden conservar `purchaseLines[]` con base y
+`ivaPercent` por línea. Para gastos positivos, un desglose completo y válido
+usa las líneas cuando sus bases concilian con `Expense.amount` (tolerancia
+monetaria de 0,02 EUR), aunque todas compartan un solo tipo. El cálculo agrupa
+el IVA por tipo antes de redondear. Por ejemplo, 100 EUR al 21 % y 100 EUR al
+10 % producen una base de 200 EUR, una cuota de 31 EUR y un total de 231 EUR.
+
+La excepción deliberada es el contrato ya cerrado en AUD-P1-06: si
+`isFixedExpense(expense)` y `deductibility === "non_deductible"`, `amount` es el
+importe íntegro registrado, el IVA fiscal es 0 y el origen permanece en
+`header`. Las líneas se conservan como evidencia documental, sin reescribir sus
+tipos ni gobernar el total. Esto cubre también ocurrencias legacy identificadas
+por `origin === "recurring"` o `recurringExpenseId`. Un fijo deducible no usa
+esta excepción: su desglose completo y conciliado sigue siendo `lines`. Un
+perfil exento aplica igualmente IVA fiscal 0 sin borrar los tipos que pudiera
+traer el documento del proveedor.
+
+El origen del cálculo es derivado, no se persiste ni requiere migración:
+
+- `lines`: desglose fiscal por líneas conciliado.
+- `header`: compatibilidad con gastos legacy, importadores sin líneas, un
+  detalle incompleto que no contradice el tipo de cabecera o el importe íntegro
+  de un fijo no deducible.
+- `blocked`: el desglose es incompleto, inválido o no concilia y existe una
+  línea cuyo tipo contradice la cabecera, o varios tipos explícitos. La interfaz
+  obliga a revisar y las exportaciones fiscales fallan de forma cerrada.
+
+Los abonos y líneas negativas mantienen el cálculo legacy hasta AUD-P1-13; este
+bloque no cambia sus signos ni su efecto económico.
+
 #### Escaneo con IA (`ExpenseScanCard`)
 
 Flujo:
@@ -420,12 +450,28 @@ la marca equivale a `deductible`; cualquier valor persistido desconocido falla
 cerrado y queda fuera de fiscalidad. CSV y PDF conservan el coste registrado y
 publican el tratamiento fiscal por separado.
 
+El IVA soportado de un gasto positivo usa `purchaseLines` cuando el desglose
+concilia: cada tipo se agrega y redondea por grupo, salvo en el contrato de
+importe íntegro no deducible descrito arriba. El resumen expone cuántos gastos
+se han resuelto por líneas y cuántos usan cabecera o importe íntegro. Si una
+línea explícita contradice la cabecera o aparecen varios tipos y el detalle
+queda incompleto, inválido o descuadrado, el gasto se marca como no resoluble
+fiscalmente, se muestra un aviso de revisión y `assertTaxSummaryExportable`
+bloquea tanto CSV como PDF. No se sustituye ese caso silenciosamente por
+`Expense.ivaPercent`.
+
+Los CSV de gastos/trimestral y el PDF anual publican tipos y origen del cálculo.
+El importador Holded conserva líneas de compra con IDs deterministas y
+`catalogProduct: false`; FacturaDirecta, al no aportar líneas de compra, mantiene
+el fallback de cabecera y muestra un aviso explícito en la previsualización.
+
 En plantillas recurrentes, el contrato ya existente para
 `non_deductible` interpreta `amount` como importe íntegro e ignora cualquier
-porcentaje de IVA residual. Rentabilidad Real reutiliza ese contrato al
-mensualizar tanto la regla activa como una ocurrencia histórica, evitando que el
-coste cambie al pausar la plantilla. Un valor desconocido conserva el coste
-registrado completo, pero falla cerrado para base e IVA deducibles.
+porcentaje de IVA residual para el cálculo, sin borrar tipos documentales de
+línea. Rentabilidad Real reutiliza ese contrato al mensualizar tanto la regla
+activa como una ocurrencia histórica, evitando que el coste cambie al pausar la
+plantilla. Un valor desconocido conserva el coste registrado completo, pero
+falla cerrado para base e IVA deducibles.
 
 AUD-P2-03 permanece diferido y fuera de este bloque: las capturas actuales del
 manual no se regeneran ni se consideran evidencia visual de estas etiquetas.

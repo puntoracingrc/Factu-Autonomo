@@ -1,6 +1,10 @@
 import { extractPdfScanHintsFromPdfBase64 } from "./pdf-table-lines";
 import { buildExpenseScanPrompt } from "./prompt";
-import { normalizeExpenseScanPayload, type ExpenseScanPayload } from "./schema";
+import {
+  normalizeExpenseScanPayload,
+  type ExpenseScanPayload,
+  type ExpenseScanPurchaseLine,
+} from "./schema";
 
 const EXPENSE_SCAN_MODEL =
   process.env.OPENAI_EXPENSE_SCAN_MODEL?.trim() || "gpt-4o";
@@ -58,6 +62,56 @@ export function filterWarningsAfterPdfLineExtraction(
 function buildPdfTextHint(textRows: string): string {
   if (!textRows.trim()) return "";
   return `\n\nTexto seleccionable extraído del PDF por el servidor. Úsalo para no perder líneas de tablas largas o repetidas. Si el PDF visual y este texto difieren, prioriza el PDF visual para datos generales, pero conserva las filas de compra que aparezcan aquí:\n${textRows}`;
+}
+
+function purchaseLineMatchKey(line: ExpenseScanPurchaseLine): string {
+  return [line.supplierReference, line.description]
+    .filter(Boolean)
+    .join(" ")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * El lector determinista de PDFs recupera mejor tablas largas, pero algunas
+ * plantillas no imprimen el tipo de IVA en cada fila. Conserva el tipo que ya
+ * hubiera identificado la lectura visual para no degradar un desglose mixto.
+ */
+export function mergePdfPurchaseLineVat(
+  pdfLines: ExpenseScanPurchaseLine[],
+  visualLines: ExpenseScanPurchaseLine[] = [],
+): ExpenseScanPurchaseLine[] {
+  const pdfKeyCounts = new Map<string, number>();
+  const visualKeyCounts = new Map<string, number>();
+  for (const line of pdfLines) {
+    const key = purchaseLineMatchKey(line);
+    if (key) pdfKeyCounts.set(key, (pdfKeyCounts.get(key) ?? 0) + 1);
+  }
+  for (const line of visualLines) {
+    const key = purchaseLineMatchKey(line);
+    if (key) visualKeyCounts.set(key, (visualKeyCounts.get(key) ?? 0) + 1);
+  }
+  const visualByUniqueKey = new Map(
+    visualLines
+      .map((line) => [purchaseLineMatchKey(line), line] as const)
+      .filter(
+        ([key]) =>
+          Boolean(key) &&
+          pdfKeyCounts.get(key) === 1 &&
+          visualKeyCounts.get(key) === 1,
+      ),
+  );
+
+  return pdfLines.map((line) => {
+    if (line.ivaPercent !== undefined) return line;
+    const visual = visualByUniqueKey.get(purchaseLineMatchKey(line));
+    return visual?.ivaPercent === undefined
+      ? line
+      : { ...line, ivaPercent: visual.ivaPercent };
+  });
 }
 
 function buildScanContent(base64: string, mimeType: string, pdfTextRows = "") {
@@ -172,15 +226,22 @@ export async function extractExpenseFromImage(
 
   if (pdfHints?.stilCondal.lines.length) {
     const pdfLines = pdfHints.stilCondal;
-    const currentLineCount = data.expense.purchaseLines?.length ?? 0;
+    const visualLines = data.expense.purchaseLines ?? [];
+    const currentLineCount = visualLines.length;
     if (pdfLines.lines.length > currentLineCount) {
-      data.expense.purchaseLines = pdfLines.lines;
+      const mergedLines = mergePdfPurchaseLineVat(pdfLines.lines, visualLines);
+      data.expense.purchaseLines = mergedLines;
       data.warnings = filterWarningsAfterPdfLineExtraction(
         data.warnings,
         pdfLines.lines.length,
         data.expense.businessKind,
       );
       data.warnings.push(...pdfLines.warnings);
+      if (mergedLines.some((line) => line.ivaPercent === undefined)) {
+        data.warnings.push(
+          "Revisa el IVA de cada línea: el lector del PDF recuperó filas sin tipo individual.",
+        );
+      }
     }
   }
 

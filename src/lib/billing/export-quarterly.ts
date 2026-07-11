@@ -100,6 +100,18 @@ export function buildQuarterlyExportCsv(
       formatCsvAmount(taxes.profitAfterIrpfReserve),
     ]),
     "",
+    csvRow(["TRAZABILIDAD DEL IVA DE GASTOS"]),
+    csvRow(["Origen del cálculo", "Nº gastos"]),
+    ...(vatExempt
+      ? [csvRow(["Perfil exento — IVA no calculado", quarterExpenses.length])]
+      : [
+          csvRow(["Líneas conciliadas", taxes.lineVatExpenseCount]),
+          csvRow([
+            "Cabecera o contrato de importe íntegro",
+            taxes.headerVatExpenseCount,
+          ]),
+        ]),
+    "",
     csvRow(["LIBRO DE VENTAS"]),
     "",
     csvRow([

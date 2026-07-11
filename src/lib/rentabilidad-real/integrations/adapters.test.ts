@@ -84,6 +84,76 @@ describe("rentabilidad real read-only adapters", () => {
     });
   });
 
+  it("propaga el IVA mixto conciliado a Rentabilidad Real", () => {
+    const mapped = mapExistingExpenseToProfitabilityCost(
+      baseExpense({
+        amount: 200,
+        ivaPercent: 21,
+        purchaseLines: [
+          {
+            id: "mixed-21",
+            description: "Material general",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+          {
+            id: "mixed-10",
+            description: "Material reducido",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 10,
+          },
+        ],
+      }),
+    );
+
+    expect(mapped).toMatchObject({
+      amount: 200,
+      fiscalDeductible: true,
+      ivaAmount: 31,
+      total: 231,
+      purchaseLineCount: 2,
+    });
+  });
+
+  it("mantiene íntegro un fijo no deducible con líneas documentales", () => {
+    const expense = baseExpense({
+      amount: 100,
+      ivaPercent: 21,
+      businessKind: "fixed",
+      deductibility: "non_deductible",
+      purchaseLines: [
+        {
+          id: "fixed-21",
+          description: "Cuota general",
+          quantity: 1,
+          unitPrice: 60,
+          ivaPercent: 21,
+        },
+        {
+          id: "fixed-10",
+          description: "Cuota reducida",
+          quantity: 1,
+          unitPrice: 40,
+          ivaPercent: 10,
+        },
+      ],
+    });
+    const before = deepClone(expense);
+
+    expect(mapExistingExpenseToProfitabilityCost(expense)).toMatchObject({
+      amount: 100,
+      fiscalDeductible: false,
+      ivaPercent: 0,
+      ivaAmount: 0,
+      total: 100,
+      businessKind: "fixed",
+      purchaseLineCount: 2,
+    });
+    expect(expense).toEqual(before);
+  });
+
   it("mantiene el coste no deducible completo sin IVA fiscal", () => {
     const mapped = mapExistingExpenseToProfitabilityCost(
       baseExpense({ deductibility: "non_deductible" }),
@@ -445,6 +515,9 @@ describe("rentabilidad real read-only adapters", () => {
       vatExempt: false,
       integrityBlockedDocuments: 0,
       unsupportedRectificationDocuments: 0,
+      lineVatExpenseCount: 0,
+      headerVatExpenseCount: 0,
+      unsupportedMixedVatExpenses: 0,
       salesBase: 1000,
       salesIva: 210,
       expenseBase: 300,

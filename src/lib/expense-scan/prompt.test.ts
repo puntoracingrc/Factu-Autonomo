@@ -10,5 +10,7 @@ describe("buildExpenseScanPrompt", () => {
     expect(prompt).toContain("Crystal Reports/Stil Condal");
     expect(prompt).toContain("AUTC45");
     expect(prompt).toContain("continúa en la fila siguiente");
+    expect(prompt).toContain("ivaPercent real de cada línea");
+    expect(prompt).toContain("porcentaje medio");
   });
 });

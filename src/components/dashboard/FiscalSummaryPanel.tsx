@@ -87,9 +87,10 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   });
   const exportBlocked =
     taxes.integrityBlockedDocuments > 0 ||
-    taxes.unsupportedRectificationDocuments > 0;
+    taxes.unsupportedRectificationDocuments > 0 ||
+    taxes.unsupportedMixedVatExpenses > 0;
   const exportBlockedTitle = exportBlocked
-    ? "Revisa los documentos indicados en el resumen antes de exportar"
+    ? "Revisa los bloqueos indicados en el resumen antes de exportar"
     : undefined;
 
   const periodIncome = collectedSalesTotal(
