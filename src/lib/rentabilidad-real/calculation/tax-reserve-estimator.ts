@@ -29,9 +29,10 @@ export function estimateRentabilidadRealTaxReserve(
       normalizeAmount(input.deductibleVatFromDirectCosts),
   );
   const operatingProfit = normalizeAmount(input.operatingProfit);
+  const irpfBase = normalizeAmount(input.irpfBase ?? operatingProfit);
   const estimatedIrpfProvision =
-    operatingProfit > 0
-      ? roundMoney(operatingProfit * (irpfProvisionPercentage / 100))
+    irpfBase > 0
+      ? roundMoney(irpfBase * (irpfProvisionPercentage / 100))
       : 0;
   const warnings: RentabilidadRealCalculationWarning[] = [
     {

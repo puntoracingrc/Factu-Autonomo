@@ -257,6 +257,10 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
             income={periodIncome}
             spent={periodSpent}
             grossProfit={taxes.grossProfit}
+            estimatedIrpfBase={taxes.estimatedIrpfBase}
+            hasNonDeductibleExpenses={
+              taxes.nonDeductibleExpenseCount > 0
+            }
           />
         ) : (
           <div className="mb-4 grid grid-cols-2 gap-3">

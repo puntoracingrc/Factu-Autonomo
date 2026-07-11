@@ -9,6 +9,34 @@ function positive(value: number | undefined): number {
   return Number.isFinite(value) && (value ?? 0) > 0 ? value ?? 0 : 0;
 }
 
+/**
+ * Aplica a la imputación económica la misma proporción deducible que tienen
+ * los costes fijos seleccionados. Sin el campo nuevo se conserva el contrato
+ * legacy: toda la imputación se considera deducible.
+ */
+export function allocatedFiscalDeductibleFixedCosts(
+  input: RentabilidadRealFixedCostAllocationInput,
+  allocatedFixedCosts: number,
+): number {
+  const allocated = positive(allocatedFixedCosts);
+  if (allocated === 0) return 0;
+
+  const selectedTotal = positive(input.totalFixedCostsForPeriod);
+  if (input.fiscalDeductibleFixedCostsForPeriod === undefined) {
+    return roundMoney(allocated);
+  }
+
+  // Un importe manual sin costes seleccionados no permite inferir una mezcla;
+  // se mantiene la semántica legacy para no reclasificarlo silenciosamente.
+  if (selectedTotal === 0) return roundMoney(allocated);
+
+  const deductibleTotal = positive(
+    input.fiscalDeductibleFixedCostsForPeriod,
+  );
+  const deductibleShare = Math.min(deductibleTotal / selectedTotal, 1);
+  return roundMoney(allocated * deductibleShare);
+}
+
 function missingWarning(message: string): RentabilidadRealCalculationWarning {
   return {
     code: "fixed_cost_allocation_incomplete",

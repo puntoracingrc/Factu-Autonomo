@@ -1,5 +1,5 @@
 import { formatShortDate } from "../calculations";
-import { expenseIvaAmount } from "../taxes";
+import { expenseFiscalAmounts } from "../expenses";
 import { isVatExempt } from "../vat-regime";
 import type { BusinessProfile, Expense, Supplier } from "../types";
 import {
@@ -20,10 +20,13 @@ const EXPENSE_HEADERS = [
   "Proveedor",
   "NIF/CIF proveedor",
   "Concepto",
-  "Base imponible (EUR)",
-  "IVA (%)",
-  "Cuota IVA (EUR)",
-  "Total (EUR)",
+  "Tratamiento fiscal",
+  "Importe registrado (EUR)",
+  "IVA informado (%)",
+  "Cuota IVA informada (EUR)",
+  "Coste registrado (EUR)",
+  "Base deducible (EUR)",
+  "IVA deducible (EUR)",
   "Categoría",
   "Forma de pago",
   "Notas",
@@ -90,22 +93,26 @@ function buildCategorySummaryRows(
 ): string[] {
   const byCategory = new Map<
     string,
-    { count: number; base: number; iva: number; total: number }
+    {
+      count: number;
+      registeredTotal: number;
+      deductibleBase: number;
+      deductibleIva: number;
+    }
   >();
 
   for (const expense of expenses) {
-    const iva = vatExempt ? 0 : expenseIvaAmount(expense);
-    const total = expense.amount + iva;
+    const fiscal = expenseFiscalAmounts(expense, vatExempt);
     const current = byCategory.get(expense.category) ?? {
       count: 0,
-      base: 0,
-      iva: 0,
-      total: 0,
+      registeredTotal: 0,
+      deductibleBase: 0,
+      deductibleIva: 0,
     };
     current.count += 1;
-    current.base += expense.amount;
-    current.iva += iva;
-    current.total += total;
+    current.registeredTotal += fiscal.registeredTotal;
+    current.deductibleBase += fiscal.deductibleBase;
+    current.deductibleIva += fiscal.deductibleIva;
     byCategory.set(expense.category, current);
   }
 
@@ -119,9 +126,9 @@ function buildCategorySummaryRows(
     csvRow([
       "Categoría",
       "Nº gastos",
-      "Base imponible (EUR)",
-      "Cuota IVA (EUR)",
-      "Total (EUR)",
+      "Coste registrado (EUR)",
+      "Base deducible (EUR)",
+      "IVA deducible (EUR)",
     ]),
   ];
 
@@ -130,9 +137,9 @@ function buildCategorySummaryRows(
       csvRow([
         category,
         totals.count,
-        formatCsvAmount(totals.base),
-        formatCsvAmount(totals.iva),
-        formatCsvAmount(totals.total),
+        formatCsvAmount(totals.registeredTotal),
+        formatCsvAmount(totals.deductibleBase),
+        formatCsvAmount(totals.deductibleIva),
       ]),
     );
   }
@@ -150,9 +157,11 @@ export function buildExpensesTableSection(
   const nifs = supplierNifById(suppliers);
   const sorted = sortExpensesByDate(expenses);
 
-  let totalBase = 0;
-  let totalIva = 0;
-  let totalAmount = 0;
+  let totalRegisteredBase = 0;
+  let totalRegisteredIva = 0;
+  let totalRegisteredCost = 0;
+  let totalDeductibleBase = 0;
+  let totalDeductibleIva = 0;
 
   const lines: string[] = [];
 
@@ -164,11 +173,12 @@ export function buildExpensesTableSection(
   lines.push(csvRow([...EXPENSE_HEADERS]));
 
   for (const expense of sorted) {
-    const iva = vatExempt ? 0 : expenseIvaAmount(expense);
-    const total = expense.amount + iva;
-    totalBase += expense.amount;
-    totalIva += iva;
-    totalAmount += total;
+    const fiscal = expenseFiscalAmounts(expense, vatExempt);
+    totalRegisteredBase += fiscal.registeredBase;
+    totalRegisteredIva += fiscal.registeredIva;
+    totalRegisteredCost += fiscal.registeredTotal;
+    totalDeductibleBase += fiscal.deductibleBase;
+    totalDeductibleIva += fiscal.deductibleIva;
 
     lines.push(
       csvRow([
@@ -176,10 +186,13 @@ export function buildExpensesTableSection(
         expense.supplierName,
         resolveSupplierNif(expense, nifs),
         expense.description,
-        formatCsvAmount(expense.amount),
-        expense.ivaPercent,
-        formatCsvAmount(iva),
-        formatCsvAmount(total),
+        fiscal.deductible ? "Deducible" : "No deducible",
+        formatCsvAmount(fiscal.registeredBase),
+        fiscal.registeredIvaPercent,
+        formatCsvAmount(fiscal.registeredIva),
+        formatCsvAmount(fiscal.registeredTotal),
+        formatCsvAmount(fiscal.deductibleBase),
+        formatCsvAmount(fiscal.deductibleIva),
         expense.category,
         expense.paymentMethod,
         expense.notes ?? "",
@@ -193,10 +206,13 @@ export function buildExpensesTableSection(
       "",
       "",
       `${sorted.length} registro${sorted.length === 1 ? "" : "s"}`,
-      formatCsvAmount(totalBase),
       "",
-      formatCsvAmount(totalIva),
-      formatCsvAmount(totalAmount),
+      formatCsvAmount(totalRegisteredBase),
+      "",
+      formatCsvAmount(totalRegisteredIva),
+      formatCsvAmount(totalRegisteredCost),
+      formatCsvAmount(totalDeductibleBase),
+      formatCsvAmount(totalDeductibleIva),
       "",
       "",
       "",

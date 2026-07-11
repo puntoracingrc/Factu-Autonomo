@@ -83,6 +83,8 @@ export interface ProfitabilityCostSource {
   supplierName: string;
   description: string;
   amount: number;
+  /** `undefined` en datos legacy equivale a deducible. */
+  fiscalDeductible?: boolean;
   ivaPercent: number;
   ivaAmount: number;
   total: number;
@@ -101,6 +103,8 @@ export interface ProfitabilityFixedCostSource {
   supplierName: string;
   description: string;
   amount: number;
+  /** `undefined` en datos legacy equivale a deducible. */
+  fiscalDeductible?: boolean;
   ivaPercent: number;
   ivaAmount: number;
   total: number;
@@ -116,10 +120,12 @@ export interface ProfitabilityTaxContext {
   salesIva: number;
   expenseBase: number;
   expenseIva: number;
+  operatingExpenseCost: number;
   netIva: number;
   ivaToPay: number;
   ivaCredit: number;
   grossProfit: number;
+  estimatedIrpfBase: number;
   irpfPercent: number;
   irpfEstimate: number;
   profitAfterIrpfReserve: number;

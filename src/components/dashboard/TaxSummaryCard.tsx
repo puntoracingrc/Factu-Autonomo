@@ -166,9 +166,9 @@ function VatFlowChart({ taxes }: { taxes: TaxSummary }) {
 }
 
 function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
-  if (taxes.grossProfit <= 0) return null;
+  if (taxes.estimatedIrpfBase <= 0) return null;
 
-  const irpfShare = (taxes.irpfEstimate / taxes.grossProfit) * 100;
+  const irpfShare = (taxes.irpfEstimate / taxes.estimatedIrpfBase) * 100;
   const afterIrpfShare = Math.max(0, 100 - irpfShare);
 
   return (
@@ -182,7 +182,7 @@ function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
         <div
           className="bg-blue-500"
           style={{ width: `${afterIrpfShare}%` }}
-          title="Resultado tras reservar IRPF"
+          title="Parte de la base no reservada"
         />
       </div>
       <div className="mt-2 flex flex-wrap justify-between gap-2 text-[11px] text-slate-600">
@@ -192,7 +192,7 @@ function IrpfSplitChart({ taxes }: { taxes: TaxSummary }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-blue-500" />
-          Resultado tras reservar IRPF
+          Parte de la base no reservada
         </span>
       </div>
     </div>
@@ -204,16 +204,44 @@ function ProfitBridge({ taxes }: { taxes: TaxSummary }) {
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3">
       <div>
         <p className="text-sm font-semibold text-slate-800">
-          Beneficio antes del IRPF
+          Beneficio económico antes de reservar IRPF
         </p>
         <p className="text-xs text-slate-500">
           {taxes.vatExempt
-            ? "Ingresos − gastos"
-            : "Ingresos (base) − gastos (base)"}
+            ? "Ingresos − coste económico de los gastos"
+            : "Ingresos (base) − coste económico de los gastos"}
         </p>
       </div>
       <p className="text-lg font-bold tabular-nums text-slate-900">
         {formatMoney(taxes.grossProfit)}
+      </p>
+    </div>
+  );
+}
+
+function NonDeductibleExpensesNotice({
+  taxes,
+}: {
+  taxes: TaxSummary;
+}) {
+  if (taxes.nonDeductibleExpenseCount === 0) return null;
+
+  return (
+    <div
+      role="status"
+      className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
+    >
+      <p className="text-sm font-bold">
+        {taxes.nonDeductibleExpenseCount}{" "}
+        {taxes.nonDeductibleExpenseCount === 1
+          ? "gasto no deducible"
+          : "gastos no deducibles"}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed">
+        Su coste económico de {formatMoney(taxes.nonDeductibleExpenseTotal)}
+        {" "}sigue en Gastos, balance y rentabilidad y sí reduce el beneficio
+        económico, pero aporta 0 a la base e IVA deducibles y no reduce la
+        estimación de IRPF.
       </p>
     </div>
   );
@@ -235,7 +263,11 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-violet-800"
         />
         <TaxRow
-          label="Gastos (sin IVA deducible)"
+          label={
+            taxes.nonDeductibleExpenseCount > 0
+              ? "Gastos fiscalmente deducibles"
+              : "Gastos (sin IVA deducible)"
+          }
           value={formatMoney(taxes.expenseBase)}
           valueClassName="text-emerald-700"
         />
@@ -245,21 +277,27 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
 
       <TaxSection
         title="IRPF estimado"
-        subtitle={`Reserva orientativa del ${taxes.irpfPercent}% sobre el beneficio.`}
+        subtitle={`Reserva orientativa del ${taxes.irpfPercent}% sobre la base fiscal estimada.`}
         icon={Percent}
         tone="orange"
         chart={<IrpfSplitChart taxes={taxes} />}
       >
         <TaxRow
+          label="Base estimada para IRPF"
+          value={formatMoney(taxes.estimatedIrpfBase)}
+          hint="Ingresos − base de gastos deducible"
+          valueClassName="text-slate-800"
+        />
+        <TaxRow
           label={`IRPF estimado (${taxes.irpfPercent}%)`}
           value={formatMoney(taxes.irpfEstimate)}
-          hint="Sobre el beneficio positivo"
+          hint="Sobre la base estimada positiva"
           valueClassName="text-orange-700"
         />
         <TaxRow
-          label="Resultado tras reservar IRPF"
+          label="Resultado económico tras reservar IRPF"
           value={formatMoney(taxes.profitAfterIrpfReserve)}
-          hint="Después del IRPF estimado"
+          hint="Beneficio económico − reserva estimada"
           valueClassName="text-blue-800"
           emphasize
         />
@@ -296,7 +334,11 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="IVA deducible (gastos)"
           value={formatMoney(taxes.expenseIva)}
-          hint={`Base: ${formatMoney(taxes.expenseBase)}`}
+          hint={`${
+            taxes.nonDeductibleExpenseCount > 0
+              ? "Base deducible"
+              : "Base"
+          }: ${formatMoney(taxes.expenseBase)}`}
           valueClassName="text-emerald-700"
         />
         <TaxRow
@@ -316,21 +358,27 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
 
       <TaxSection
         title="IRPF estimado"
-        subtitle={`Cuota orientativa del ${taxes.irpfPercent}% y beneficio que te quedaría.`}
+        subtitle={`Reserva orientativa del ${taxes.irpfPercent}% sobre la base fiscal estimada.`}
         icon={Landmark}
         tone="orange"
         chart={<IrpfSplitChart taxes={taxes} />}
       >
         <TaxRow
+          label="Base estimada para IRPF"
+          value={formatMoney(taxes.estimatedIrpfBase)}
+          hint="Ventas − base de gastos deducible"
+          valueClassName="text-slate-800"
+        />
+        <TaxRow
           label={`IRPF estimado (${taxes.irpfPercent}%)`}
           value={formatMoney(taxes.irpfEstimate)}
-          hint="Sobre el beneficio positivo"
+          hint="Sobre la base estimada positiva"
           valueClassName="text-orange-700"
         />
         <TaxRow
-          label="Resultado tras reservar IRPF"
+          label="Resultado económico tras reservar IRPF"
           value={formatMoney(taxes.profitAfterIrpfReserve)}
-          hint="El IVA se muestra por separado"
+          hint="Beneficio económico − reserva; el IVA va aparte"
           valueClassName="text-blue-800"
           emphasize
         />
@@ -347,7 +395,10 @@ export function TaxSummaryCard({
   headerExtra,
   highlights,
 }: TaxSummaryCardProps) {
-  const hasData = taxes.salesBase !== 0 || taxes.expenseBase !== 0;
+  const hasSummaryData =
+    taxes.salesBase !== 0 ||
+    taxes.expenseBase !== 0 ||
+    taxes.nonDeductibleExpenseCount > 0;
   const hasIntegrityBlocks = taxes.integrityBlockedDocuments > 0;
   const hasUnsupportedRectifications =
     taxes.unsupportedRectificationDocuments > 0;
@@ -410,7 +461,9 @@ export function TaxSummaryCard({
         </div>
       )}
 
-      {!hasData ? (
+      <NonDeductibleExpensesNotice taxes={taxes} />
+
+      {!hasSummaryData ? (
         <p className="text-sm text-slate-500">
           {hasIncompleteSummary
             ? "No hay movimientos fiscales verificables incluidos en este periodo."

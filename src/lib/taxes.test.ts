@@ -192,11 +192,75 @@ describe("calculateTaxSummary", () => {
     expect(summary.salesIva).toBe(210);
     expect(summary.expenseBase).toBe(50);
     expect(summary.expenseIva).toBe(10.5);
+    expect(summary.operatingExpenseCost).toBe(50);
     expect(summary.netIva).toBeCloseTo(199.5, 1);
     expect(summary.ivaToPay).toBeCloseTo(199.5, 1);
     expect(summary.grossProfit).toBe(950);
+    expect(summary.estimatedIrpfBase).toBe(950);
     expect(summary.irpfEstimate).toBe(190);
     expect(summary.profitAfterIrpfReserve).toBe(760);
+  });
+
+  it("excluye gastos no deducibles de base, IVA e IRPF fiscales", () => {
+    const nonDeductibleExpense: Expense = {
+      ...expense,
+      id: "non-deductible",
+      amount: 120,
+      ivaPercent: 21,
+      deductibility: "non_deductible",
+    };
+
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000)],
+      [expense, nonDeductibleExpense],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary.expenseBase).toBe(50);
+    expect(summary.expenseIva).toBe(10.5);
+    expect(summary.nonDeductibleExpenseCount).toBe(1);
+    expect(summary.nonDeductibleExpenseTotal).toBe(145.2);
+    expect(summary.operatingExpenseCost).toBeCloseTo(195.2, 1);
+    expect(summary.grossProfit).toBeCloseTo(804.8, 1);
+    expect(summary.estimatedIrpfBase).toBe(950);
+    expect(summary.irpfEstimate).toBe(190);
+    expect(summary.profitAfterIrpfReserve).toBeCloseTo(614.8, 1);
+  });
+
+  it("trata valores desconocidos de deducibilidad como no fiscales", () => {
+    const summary = calculateTaxSummary(
+      [],
+      [{ ...expense, deductibility: "unknown" as never }],
+    );
+
+    expect(summary.expenseBase).toBe(0);
+    expect(summary.expenseIva).toBe(0);
+    expect(summary.nonDeductibleExpenseCount).toBe(1);
+    expect(summary.nonDeductibleExpenseTotal).toBe(60.5);
+    expect(summary.operatingExpenseCost).toBe(60.5);
+    expect(summary.estimatedIrpfBase).toBe(0);
+    expect(summary.irpfEstimate).toBe(0);
+    expect(summary.profitAfterIrpfReserve).toBe(-60.5);
+  });
+
+  it("reserva IRPF sobre la base fiscal aunque el coste real deje pérdidas", () => {
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 100)],
+      [
+        {
+          ...expense,
+          amount: 100,
+          deductibility: "non_deductible",
+        },
+      ],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary.operatingExpenseCost).toBe(121);
+    expect(summary.grossProfit).toBe(-21);
+    expect(summary.estimatedIrpfBase).toBe(100);
+    expect(summary.irpfEstimate).toBe(20);
+    expect(summary.profitAfterIrpfReserve).toBe(-41);
   });
 
   it("no cambia el resultado tras reservar IRPF al variar la posición de IVA", () => {
@@ -263,7 +327,15 @@ describe("calculateTaxSummary", () => {
     };
     const summary = calculateTaxSummary(
       [issuedInvoice("pagado", 1000, {}, exemptProfile)],
-      [expense],
+      [
+        expense,
+        {
+          ...expense,
+          id: "non-deductible-exempt",
+          amount: 120,
+          deductibility: "non_deductible",
+        },
+      ],
       {
         vatExempt: true,
         profile: exemptProfile,
@@ -272,7 +344,46 @@ describe("calculateTaxSummary", () => {
     expect(summary.vatExempt).toBe(true);
     expect(summary.salesIva).toBe(0);
     expect(summary.expenseIva).toBe(0);
-    expect(summary.profitAfterIrpfReserve).toBe(950 - 190);
+    expect(summary.expenseBase).toBe(50);
+    expect(summary.nonDeductibleExpenseCount).toBe(1);
+    expect(summary.nonDeductibleExpenseTotal).toBe(120);
+    expect(summary.operatingExpenseCost).toBe(170);
+    expect(summary.grossProfit).toBe(830);
+    expect(summary.estimatedIrpfBase).toBe(950);
+    expect(summary.irpfEstimate).toBe(190);
+    expect(summary.profitAfterIrpfReserve).toBe(640);
+  });
+
+  it("perfil exento con solo no deducibles conserva la pérdida económica", () => {
+    const exemptProfile: BusinessProfile = {
+      ...TEST_PROFILE,
+      vatExempt: true,
+    };
+    const summary = calculateTaxSummary(
+      [],
+      [
+        {
+          ...expense,
+          amount: 100,
+          ivaPercent: 21,
+          deductibility: "non_deductible",
+        },
+      ],
+      {
+        vatExempt: true,
+        profile: exemptProfile,
+        irpfPercent: 20,
+      },
+    );
+
+    expect(summary.expenseBase).toBe(0);
+    expect(summary.expenseIva).toBe(0);
+    expect(summary.nonDeductibleExpenseTotal).toBe(100);
+    expect(summary.operatingExpenseCost).toBe(100);
+    expect(summary.grossProfit).toBe(-100);
+    expect(summary.estimatedIrpfBase).toBe(0);
+    expect(summary.irpfEstimate).toBe(0);
+    expect(summary.profitAfterIrpfReserve).toBe(-100);
   });
 
   it("marca crédito de IVA cuando los gastos superan ventas", () => {

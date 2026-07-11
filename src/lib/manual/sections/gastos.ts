@@ -41,6 +41,7 @@ export const gastosSection: ManualSection = {
       title: "3. Exportar CSV",
       paragraphs: [
         "Pulsa **Exportar CSV** en el bloque de filtros para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
+        "Cada fila indica el **tratamiento fiscal**, el coste registrado y, por separado, la base y el IVA deducibles. Un gasto **No deducible** conserva su coste, pero muestra base e IVA deducibles a cero.",
         "El archivo respeta los filtros que tengas activos.",
         "La exportación manual de copia de datos está en **Cuenta**; este CSV es el listado de gastos para revisión o gestor.",
       ],
@@ -54,6 +55,8 @@ export const gastosSection: ManualSection = {
       title: "4. Gastos fijos",
       paragraphs: [
         "En **Gastos fijos** defines pagos recurrentes (alquiler, software, cuota de autónomos, etc.). La app crea el gasto automáticamente cuando toca y lo verás en **Gastos y compras**.",
+        "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Sigue contando en Gastos, balance y Rentabilidad Real y sí reduce el beneficio económico, pero no genera base ni IVA deducibles y no reduce la base ni la reserva estimada de IRPF.",
+        "Las ocurrencias no desgravables aparecen identificadas en el listado y en los CSV/PDF fiscales.",
         "Desde esa pantalla puedes volver al listado principal con **Volver**.",
       ],
       screenshot: {

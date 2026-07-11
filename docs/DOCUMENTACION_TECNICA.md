@@ -401,13 +401,34 @@ Resumen orientativo (no sustituye asesoría fiscal):
 | Métrica | Cálculo |
 |---------|---------|
 | Ingresos | Facturas/recibos emitidos y cobrados (excl. borradores, recibos auto) |
-| Gastos | Suma de gastos del periodo |
+| Gastos registrados | Salida registrada del periodo para control y balance |
+| Base de gastos deducible | Solo gastos legacy/deducibles; los no deducibles aportan 0 |
+| Coste económico de gastos | Base si el gasto es deducible; base + IVA si no es deducible |
 | IVA repercutido | De líneas de venta |
-| IVA soportado / deducible | De gastos (0 si exento) |
+| IVA soportado / deducible | Solo de gastos deducibles (0 si exento o no deducible) |
 | Resultado IVA | Repercutido − deducible |
-| Beneficio antes del IRPF | Base de ventas − base de gastos; ambas sin IVA |
-| IRPF estimado | % configurable sobre el beneficio anterior (modelo 130 orientativo) |
-| Resultado tras reservar IRPF | Beneficio anterior − IRPF estimado; la posición de IVA permanece separada |
+| Beneficio económico antes de reservar IRPF | Base de ventas − coste económico de gastos; la posición de IVA permanece separada |
+| Base estimada para IRPF | Base de ventas − base de gastos deducible |
+| IRPF estimado | % configurable sobre la base estimada positiva (modelo 130 orientativo) |
+| Resultado económico tras reservar IRPF | Beneficio económico − IRPF estimado; la posición de IVA permanece separada |
+
+Los gastos con `deductibility: "non_deductible"` permanecen en las métricas
+económicas y en Rentabilidad Real, por lo que reducen el beneficio económico.
+El resumen fiscal los cuenta y muestra como excluidos, pero asigna base e IVA
+deducibles 0 y no los resta de la base estimada para IRPF. La ausencia legacy de
+la marca equivale a `deductible`; cualquier valor persistido desconocido falla
+cerrado y queda fuera de fiscalidad. CSV y PDF conservan el coste registrado y
+publican el tratamiento fiscal por separado.
+
+En plantillas recurrentes, el contrato ya existente para
+`non_deductible` interpreta `amount` como importe íntegro e ignora cualquier
+porcentaje de IVA residual. Rentabilidad Real reutiliza ese contrato al
+mensualizar tanto la regla activa como una ocurrencia histórica, evitando que el
+coste cambie al pausar la plantilla. Un valor desconocido conserva el coste
+registrado completo, pero falla cerrado para base e IVA deducibles.
+
+AUD-P2-03 permanece diferido y fuera de este bloque: las capturas actuales del
+manual no se regeneran ni se consideran evidencia visual de estas etiquetas.
 
 **Filtros:** trimestre, año, todo.
 

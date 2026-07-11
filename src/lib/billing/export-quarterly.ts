@@ -75,13 +75,28 @@ export function buildQuarterlyExportCsv(
     csvRow(["Concepto", "Importe (EUR)"]),
     csvRow(["Base imponible ventas", formatCsvAmount(taxes.salesBase)]),
     csvRow(["IVA repercutido", formatCsvAmount(taxes.salesIva)]),
-    csvRow(["Base imponible gastos", formatCsvAmount(taxes.expenseBase)]),
+    csvRow([
+      "Coste económico de gastos",
+      formatCsvAmount(taxes.operatingExpenseCost),
+    ]),
+    csvRow(["Base deducible gastos", formatCsvAmount(taxes.expenseBase)]),
     csvRow(["IVA deducible", formatCsvAmount(taxes.expenseIva)]),
+    csvRow([
+      "Gastos no deducibles (coste registrado)",
+      formatCsvAmount(taxes.nonDeductibleExpenseTotal),
+    ]),
     csvRow(["IVA neto a ingresar", formatCsvAmount(taxes.netIva)]),
-    csvRow(["Beneficio bruto estimado", formatCsvAmount(taxes.grossProfit)]),
+    csvRow([
+      "Beneficio económico antes de reservar IRPF",
+      formatCsvAmount(taxes.grossProfit),
+    ]),
+    csvRow([
+      "Base estimada para IRPF",
+      formatCsvAmount(taxes.estimatedIrpfBase),
+    ]),
     csvRow(["IRPF estimado (orientativo)", formatCsvAmount(taxes.irpfEstimate)]),
     csvRow([
-      "Resultado tras reservar IRPF",
+      "Resultado económico tras reservar IRPF",
       formatCsvAmount(taxes.profitAfterIrpfReserve),
     ]),
     "",

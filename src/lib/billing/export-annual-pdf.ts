@@ -1,13 +1,13 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney } from "../calculations";
+import { expenseFiscalAmounts } from "../expenses";
 import { isCollectedDocument } from "../income";
 import { filterExpensesByYear, isDateInYear } from "../periods";
 import { triggerPdfBlobDownload } from "../pdf";
 import {
   assertTaxSummaryExportable,
   calculateTaxSummary,
-  expenseIvaAmount,
   taxableSaleDocumentsForPeriod,
 } from "../taxes";
 import type { BusinessProfile, Document, Expense } from "../types";
@@ -61,15 +61,31 @@ export function buildAnnualSummaryPdf(
   pdf.setTextColor(0, 0, 0);
 
   const summaryStartY = 44;
+  const nonDeductibleRows =
+    taxes.nonDeductibleExpenseCount > 0
+      ? [
+          [
+            "Gastos no deducibles (coste registrado)",
+            formatMoney(taxes.nonDeductibleExpenseTotal),
+          ],
+        ]
+      : [];
 
   const summaryRows = vatExempt && taxes.salesIva === 0
     ? [
         ["Ingresos cobrados", formatMoney(periodIncome)],
-        ["Gastos", formatMoney(periodSpent)],
-        ["Beneficio antes del IRPF", formatMoney(taxes.grossProfit)],
+        ["Gastos registrados", formatMoney(periodSpent)],
+        ["Coste económico de gastos", formatMoney(taxes.operatingExpenseCost)],
+        ["Gastos fiscalmente deducibles", formatMoney(taxes.expenseBase)],
+        ...nonDeductibleRows,
+        [
+          "Beneficio económico antes de reservar IRPF",
+          formatMoney(taxes.grossProfit),
+        ],
+        ["Base estimada para IRPF", formatMoney(taxes.estimatedIrpfBase)],
         [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
         [
-          "Resultado tras reservar IRPF",
+          "Resultado económico tras reservar IRPF",
           formatMoney(taxes.profitAfterIrpfReserve),
         ],
       ]
@@ -78,16 +94,22 @@ export function buildAnnualSummaryPdf(
         ["Gastado en el año", formatMoney(periodSpent)],
         ["Base ventas", formatMoney(taxes.salesBase)],
         ["IVA repercutido", formatMoney(taxes.salesIva)],
-        ["Base gastos", formatMoney(taxes.expenseBase)],
+        ["Coste económico de gastos", formatMoney(taxes.operatingExpenseCost)],
+        ["Base deducible gastos", formatMoney(taxes.expenseBase)],
         ["IVA deducible", formatMoney(taxes.expenseIva)],
+        ...nonDeductibleRows,
         [
           taxes.ivaToPay > 0 ? "IVA neto a pagar" : "IVA a compensar",
           formatMoney(taxes.ivaToPay > 0 ? taxes.ivaToPay : taxes.ivaCredit),
         ],
-        ["Beneficio antes del IRPF", formatMoney(taxes.grossProfit)],
+        [
+          "Beneficio económico antes de reservar IRPF",
+          formatMoney(taxes.grossProfit),
+        ],
+        ["Base estimada para IRPF", formatMoney(taxes.estimatedIrpfBase)],
         [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
         [
-          "Resultado tras reservar IRPF",
+          "Resultado económico tras reservar IRPF",
           formatMoney(taxes.profitAfterIrpfReserve),
         ],
       ];
@@ -135,15 +157,27 @@ export function buildAnnualSummaryPdf(
     pdf.text("Gastos", 14, cursorY + 10);
     autoTable(pdf, {
       startY: cursorY + 14,
-      head: [["Fecha", "Proveedor", "Descripción", "Base", "Total"]],
+      head: [
+        [
+          "Fecha",
+          "Proveedor",
+          "Descripción",
+          "Tratamiento",
+          "Base deducible",
+          "IVA deducible",
+          "Coste registrado",
+        ],
+      ],
       body: yearExpenses.map((expense) => {
-        const iva = vatExempt ? 0 : expenseIvaAmount(expense);
+        const fiscal = expenseFiscalAmounts(expense, vatExempt);
         return [
           expense.date,
           expense.supplierName,
           expense.description,
-          formatMoney(expense.amount),
-          formatMoney(expense.amount + iva),
+          fiscal.deductible ? "Deducible" : "No deducible",
+          formatMoney(fiscal.deductibleBase),
+          formatMoney(fiscal.deductibleIva),
+          formatMoney(fiscal.registeredTotal),
         ];
       }),
       styles: { fontSize: 8 },

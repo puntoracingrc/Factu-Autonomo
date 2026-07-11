@@ -205,6 +205,17 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.expenseIvaEstimated).toBe(21);
   });
 
+  it("conserva el coste no deducible y lo excluye del IVA orientativo", () => {
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      expenses: [expense({ deductibility: "non_deductible" })],
+    });
+
+    expect(summary.totalExpenses).toBe(121);
+    expect(summary.expenseIvaEstimated).toBe(0);
+    expect(summary.balanceEstimated).toBe(-121);
+  });
+
   it("evita NaN e importes negativos en totales", () => {
     const summary = buildProductBusinessSummary({
       ...EMPTY_DATA,

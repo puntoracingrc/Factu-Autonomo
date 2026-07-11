@@ -373,8 +373,11 @@ export function DocumentList({
                 ? calculateInvoiceListProfitability({
                     salesBase: amounts.subtotal,
                     salesIva: amounts.iva,
-                    linkedExpenseBase: workExpenseSummary?.cost,
-                    linkedExpenseIva: workExpenseSummary?.iva,
+                    linkedExpenseCost: workExpenseSummary?.cost,
+                    linkedDeductibleExpenseBase:
+                      workExpenseSummary?.deductibleBase,
+                    linkedDeductibleExpenseIva:
+                      workExpenseSummary?.deductibleIva,
                     irpfPercent: data.profile.irpfPercent,
                     vatExempt,
                   })

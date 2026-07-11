@@ -13,10 +13,13 @@ también el IVA a pagar del resultado. Eso mezclaba una posición fiscal de IVA
 con un resultado de actividad ya calculado sin IVA y publicaba la mezcla como
 «beneficio neto aproximado».
 
-El contrato queda separado así:
+El contrato quedó separado así para gastos deducibles y AUD-P1-06 lo amplía
+después para preservar también el coste económico no deducible:
 
-- `grossProfit = salesBase - expenseBase`;
-- `irpfEstimate` solo se calcula sobre un `grossProfit` positivo;
+- `operatingExpenseCost` suma base deducible y coste completo no deducible;
+- `grossProfit = salesBase - operatingExpenseCost`;
+- `estimatedIrpfBase = salesBase - expenseBase` deducible;
+- `irpfEstimate` solo se calcula sobre una `estimatedIrpfBase` positiva;
 - `profitAfterIrpfReserve = grossProfit - irpfEstimate`;
 - `netIva`, `ivaToPay` e `ivaCredit` permanecen como posición de IVA separada.
 
@@ -26,13 +29,14 @@ resultado tras reservarla es 760 EUR. El IVA a pagar de 199,50 EUR se muestra
 aparte y no vuelve a descontarse de esas bases.
 
 La UI, el CSV trimestral, el PDF anual, el adaptador de Rentabilidad Real, el
-manual y la documentación técnica usan el mismo contrato y la etiqueta
-«Resultado tras reservar IRPF». Las exportaciones conservan sus bloqueos cuando
-la evidencia fiscal está incompleta o dañada.
+manual y la documentación técnica usan el mismo contrato, refinado por P1-06,
+y la etiqueta «Resultado económico tras reservar IRPF». Las exportaciones
+conservan sus bloqueos cuando la evidencia fiscal está incompleta o dañada.
 
 ## Límites frente al resto de la auditoría
 
-- AUD-P1-06 sigue pendiente: este bloque no decide qué gastos son deducibles.
+- AUD-P1-06 se resuelve en su bloque independiente posterior; no reabre la
+  separación de IVA ya cerrada aquí.
 - AUD-P1-07 sigue pendiente: no cambia el desglose de facturas de gasto con IVA
   mixto.
 - AUD-P1-13 sigue pendiente: no cambia signos de abonos ni cálculos del Panel.

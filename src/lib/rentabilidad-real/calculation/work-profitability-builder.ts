@@ -103,6 +103,7 @@ function workCostFromDirectCost(
     supplierName: cost.supplierName,
     description: cost.description,
     amount: cost.amount,
+    fiscalDeductible: cost.fiscalDeductible,
     ivaAmount: cost.ivaAmount,
     total: cost.total,
     category: cost.category,
@@ -158,6 +159,7 @@ function workCostFromFixedCost(
     supplierName: cost.supplierName,
     description: cost.description,
     amount: cost.amount,
+    fiscalDeductible: cost.fiscalDeductible,
     ivaAmount: cost.ivaAmount,
     total: cost.total,
     category: cost.category,
@@ -184,18 +186,28 @@ function findLinkedInvoice(
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
-function selectedFixedCostTotal(
+function selectedFixedCostTotals(
   fixedCostCandidates: RentabilidadRealWorkCost[],
   selectedFixedCostIds: string[] | undefined,
-): number {
-  if (selectedFixedCostIds === undefined) {
-    return fixedCostCandidates.reduce((total, cost) => total + cost.amount, 0);
-  }
+): { operating: number; fiscalDeductible: number } {
+  const selectedIds =
+    selectedFixedCostIds === undefined
+      ? null
+      : new Set(selectedFixedCostIds);
+  const costs =
+    selectedIds === null
+      ? fixedCostCandidates
+      : fixedCostCandidates.filter((cost) => selectedIds.has(cost.id));
 
-  const selectedIds = new Set(selectedFixedCostIds);
-  const costs = fixedCostCandidates.filter((cost) => selectedIds.has(cost.id));
-
-  return costs.reduce((total, cost) => total + cost.amount, 0);
+  return costs.reduce(
+    (totals, cost) => ({
+      operating: totals.operating + cost.amount,
+      fiscalDeductible:
+        totals.fiscalDeductible +
+        (cost.fiscalDeductible === false ? 0 : cost.amount),
+    }),
+    { operating: 0, fiscalDeductible: 0 },
+  );
 }
 
 function sourceTypeForDocument(doc: Document): RentabilidadRealWorkSourceType {
@@ -393,7 +405,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     data,
     selectedDocument.date,
   ).map(workCostFromFixedCost);
-  const totalFixedCostsForPeriod = selectedFixedCostTotal(
+  const selectedFixedCosts = selectedFixedCostTotals(
     fixedCostCandidates,
     params.selectedFixedCostIds,
   );
@@ -421,7 +433,9 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     fixedCostCandidates,
     fixedCostAllocationInput: {
       method: params.fixedCostAllocationMethod ?? "none",
-      totalFixedCostsForPeriod,
+      totalFixedCostsForPeriod: selectedFixedCosts.operating,
+      fiscalDeductibleFixedCostsForPeriod:
+        selectedFixedCosts.fiscalDeductible,
       manualAmount: params.manualAmount,
       monthlyRevenue: params.monthlyRevenue,
       monthlyJobs: params.monthlyJobs,

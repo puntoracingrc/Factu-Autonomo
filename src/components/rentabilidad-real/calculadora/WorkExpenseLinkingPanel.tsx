@@ -24,7 +24,7 @@ import {
   sanitizeDecimalTyping,
 } from "@/lib/decimal-input";
 import { uniqueSupplierOptions } from "@/lib/expense-filters";
-import { expenseTotals } from "@/lib/expenses";
+import { expenseFiscalAmounts } from "@/lib/expenses";
 import { purchaseProductCatalogKeys } from "@/lib/purchase-products";
 import {
   buildExpenseLinkImpact,
@@ -221,12 +221,12 @@ export function WorkExpenseLinkingPanel({
   }
 
   function setAppliedAmount(expense: Expense, amount: number) {
-    const totals = expenseTotals(expense);
+    const fiscal = expenseFiscalAmounts(expense);
     const nextAllocations = setExpenseCostAllocationForWork(
       targetDocumentId,
       expense.id,
       amount,
-      totals.base,
+      fiscal.operatingCost,
     );
     onDirectCostAmountOverridesChange(nextAllocations);
   }
@@ -515,10 +515,10 @@ function ExpenseRow({
   onAllocationAmountReset?: () => void;
 }) {
   const expense = candidate.expense;
-  const totals = expenseTotals(expense);
-  const appliedAmount = allocationAmount ?? totals.base;
+  const fiscal = expenseFiscalAmounts(expense);
+  const appliedAmount = allocationAmount ?? fiscal.operatingCost;
   const hasPartialAllocation =
-    allocationAmount !== undefined && allocationAmount < totals.base;
+    allocationAmount !== undefined && allocationAmount < fiscal.operatingCost;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
@@ -532,9 +532,16 @@ function ExpenseRow({
             {originLabel(expense)}
           </p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Base {formatMoney(totals.base)} · IVA {formatMoney(totals.iva)} ·
-            Total {formatMoney(totals.total)}
+            Base registrada {formatMoney(fiscal.registeredBase)} · IVA
+            registrado {formatMoney(fiscal.registeredIva)} · Total registrado{" "}
+            {formatMoney(fiscal.registeredTotal)}
           </p>
+          {!fiscal.deductible ? (
+            <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              No deducible: reduce la rentabilidad por su coste completo, pero
+              su base e IVA fiscalmente deducibles siguen en 0.
+            </p>
+          ) : null}
           <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             {candidate.suggestedReason}
           </p>
@@ -578,9 +585,10 @@ function ExpenseRow({
                 </Button>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                Gasto completo: {formatMoney(totals.base)} sin IVA. Si solo una
-                parte pertenece a este trabajo, aplica aquí ese importe. El gasto
-                original no se modifica.
+                Coste completo para rentabilidad:{" "}
+                {formatMoney(fiscal.operatingCost)}. Si solo una parte pertenece
+                a este trabajo, aplica aquí ese importe. El gasto original no se
+                modifica y su asignación fiscal permanece separada.
               </p>
             </div>
           ) : null}

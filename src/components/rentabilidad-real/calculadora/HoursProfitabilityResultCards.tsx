@@ -22,6 +22,7 @@ export function HoursProfitabilityResultCards({
     ["Caja interna por hora", formatMoney(result.internalPrudentCashPerRealHour)],
     ["Horas no facturadas", `${result.unbilledHours.toLocaleString("es-ES")} h`],
     ["IVA estimado a reservar", formatMoney(result.estimatedVatToReserve)],
+    ["Base estimada para IRPF", formatMoney(result.estimatedIrpfBase)],
     ["Provisión IRPF estimada", formatMoney(result.estimatedIrpfProvision)],
     ["Caja prudente", formatMoney(result.prudentAvailableCash)],
     [

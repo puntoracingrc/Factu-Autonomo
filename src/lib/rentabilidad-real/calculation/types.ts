@@ -31,6 +31,8 @@ export interface RentabilidadRealWorkCost {
   supplierName: string;
   description: string;
   amount: number;
+  /** `undefined` conserva la semántica legacy: coste fiscalmente deducible. */
+  fiscalDeductible?: boolean;
   ivaAmount: number;
   total: number;
   originalAmount?: number;
@@ -60,6 +62,8 @@ export interface RentabilidadRealCalculationWarning {
 export interface RentabilidadRealFixedCostAllocationInput {
   method: RentabilidadRealFixedCostAllocationMethod;
   totalFixedCostsForPeriod: number;
+  /** Parte fiscalmente deducible del total seleccionado; legacy undefined = todo. */
+  fiscalDeductibleFixedCostsForPeriod?: number;
   manualAmount?: number;
   workRevenue?: number;
   monthlyRevenue?: number;
@@ -78,6 +82,8 @@ export interface RentabilidadRealTaxReserveInput {
   vatChargedFromIncome: number;
   deductibleVatFromDirectCosts: number;
   operatingProfit: number;
+  /** Base fiscal separada del margen económico; legacy undefined usa operatingProfit. */
+  irpfBase?: number;
   irpfProvisionPercentage?: number;
   hasVatData: boolean;
 }
@@ -122,6 +128,7 @@ export interface RentabilidadRealWorkProfitabilityResult {
   fixedCostAllocationMethod: RentabilidadRealFixedCostAllocationMethod;
   grossMargin: number;
   operatingProfit: number;
+  estimatedIrpfBase: number;
   documentedOperatingProfit: number;
   internalAdjustmentsTotal: number;
   internalRealProfit: number;
@@ -189,6 +196,7 @@ export interface RentabilidadRealHoursProfitabilityResult {
   fixedCostAllocationMethod: RentabilidadRealFixedCostAllocationMethod;
   grossMargin: number;
   operatingProfit: number;
+  estimatedIrpfBase: number;
   documentedOperatingProfit: number;
   internalAdjustmentsTotal: number;
   internalRealProfit: number;

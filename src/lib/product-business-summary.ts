@@ -3,7 +3,7 @@ import { roundMoney } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { sortDocumentsByNewest } from "./documents";
 import { isCollectedDocument, isPendingInvoicePayment } from "./income";
-import { expenseTotals } from "./expenses";
+import { expenseFiscalAmounts, expenseTotals } from "./expenses";
 import { isRectificativa } from "./rectificativas";
 import type { AppData, Document, Expense } from "./types";
 
@@ -66,7 +66,9 @@ function expenseTotal(expense: Expense, vatExempt: boolean): number {
 }
 
 function expenseIva(expense: Expense, vatExempt: boolean): number {
-  return safeMoney(expenseTotals(expense, vatExempt).iva);
+  return safeMoney(
+    expenseFiscalAmounts(expense, vatExempt).deductibleIva,
+  );
 }
 
 function isFixedExpense(expense: Expense): boolean {

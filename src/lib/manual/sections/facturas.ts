@@ -44,7 +44,7 @@ export const facturasSection: ManualSection = {
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
-        "El listado muestra **Beneficio tras IRPF** y **Reserva impuestos** como referencia rápida. Si has vinculado compras a esa factura desde **Gastos**, el beneficio descuenta esos costes vinculados y la provisión orientativa de IRPF; no modifica el PDF ni la factura emitida.",
+        "El listado muestra **Beneficio tras IRPF** y **Reserva impuestos** como referencia rápida. Si has vinculado compras a esa factura desde **Gastos**, el beneficio descuenta esos costes vinculados y la provisión orientativa de IRPF; no modifica el PDF ni la factura emitida. Un coste vinculado no deducible sí reduce el margen real, pero no reduce la base ni el IVA usados para estimar las reservas fiscales. En **Rentabilidad Real** verás esa base estimada para IRPF separada del beneficio económico.",
       ],
     },
     {

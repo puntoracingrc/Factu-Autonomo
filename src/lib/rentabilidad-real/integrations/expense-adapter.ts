@@ -3,8 +3,14 @@ import {
   inferExpenseBusinessKind,
   isFixedExpense,
 } from "@/lib/expense-classification";
-import { expenseTotals, expenseTotalsFromBase } from "@/lib/expenses";
-import { recurringExpenseMonthlyDivisor } from "@/lib/recurring-expenses";
+import {
+  expenseFiscalAmounts,
+  isExpenseFiscalDeductible,
+} from "@/lib/expenses";
+import {
+  recurringExpenseMonthlyDivisor,
+  recurringExpenseTotals,
+} from "@/lib/recurring-expenses";
 import type { Expense, RecurringExpense } from "@/lib/types";
 import type {
   ProfitabilityCostSource,
@@ -15,17 +21,18 @@ import type {
 export function mapExistingExpenseToProfitabilityCost(
   expense: Expense,
 ): ProfitabilityCostSource {
-  const totals = expenseTotals(expense);
+  const fiscal = expenseFiscalAmounts(expense);
 
   return {
     id: expense.id,
     date: expense.date,
     supplierName: expense.supplierName,
     description: expense.description,
-    amount: roundMoney(totals.base),
-    ivaPercent: totals.ivaPercent,
-    ivaAmount: roundMoney(totals.iva),
-    total: roundMoney(totals.total),
+    amount: roundMoney(fiscal.operatingCost),
+    fiscalDeductible: fiscal.deductible,
+    ivaPercent: fiscal.deductible ? fiscal.registeredIvaPercent : 0,
+    ivaAmount: roundMoney(fiscal.deductibleIva),
+    total: roundMoney(fiscal.registeredTotal),
     category: expense.category,
     businessKind: inferExpenseBusinessKind(expense),
     origin: expense.origin ?? "manual",
@@ -46,17 +53,18 @@ export function mapExistingExpenseToProfitabilityFixedCost(
 ): ProfitabilityFixedCostSource | null {
   if (!isFixedExpense(expense)) return null;
 
-  const totals = expenseTotals(expense);
+  const fiscal = expenseFiscalAmounts(expense);
 
   return {
     id: expense.id,
     date: expense.date,
     supplierName: expense.supplierName,
     description: expense.description,
-    amount: roundMoney(totals.base),
-    ivaPercent: totals.ivaPercent,
-    ivaAmount: roundMoney(totals.iva),
-    total: roundMoney(totals.total),
+    amount: roundMoney(fiscal.operatingCost),
+    fiscalDeductible: fiscal.deductible,
+    ivaPercent: fiscal.deductible ? fiscal.registeredIvaPercent : 0,
+    ivaAmount: roundMoney(fiscal.deductibleIva),
+    total: roundMoney(fiscal.registeredTotal),
     category: expense.category,
     sourceLink: {
       sourceType: "expense",
@@ -74,6 +82,7 @@ export function mapExistingRecurringExpenseToProfitabilityFixedCost(
     recurringExpense.amount,
     recurringExpense.ivaPercent,
     recurringExpense.frequency,
+    recurringExpense.deductibility,
   );
 
   return {
@@ -82,6 +91,7 @@ export function mapExistingRecurringExpenseToProfitabilityFixedCost(
     supplierName: recurringExpense.supplierName,
     description: recurringExpense.description,
     amount: totals.base,
+    fiscalDeductible: totals.fiscalDeductible,
     ivaPercent: totals.ivaPercent,
     ivaAmount: totals.iva,
     total: totals.total,
@@ -105,6 +115,7 @@ export function mapExistingRecurringOccurrenceToProfitabilityFixedCost(
     expense.amount,
     expense.ivaPercent,
     recurringExpense.frequency,
+    expense.deductibility ?? recurringExpense.deductibility,
   );
 
   return {
@@ -113,6 +124,7 @@ export function mapExistingRecurringOccurrenceToProfitabilityFixedCost(
     supplierName: expense.supplierName,
     description: expense.description,
     amount: totals.base,
+    fiscalDeductible: totals.fiscalDeductible,
     ivaPercent: totals.ivaPercent,
     ivaAmount: totals.iva,
     total: totals.total,
@@ -132,12 +144,30 @@ function monthlyRecurringExpenseTotals(
   amount: number,
   ivaPercent: number,
   frequency: RecurringExpense["frequency"],
+  deductibility?: RecurringExpense["deductibility"],
 ) {
-  const periodTotals = expenseTotals({ amount, ivaPercent });
-  const monthlyBase = roundMoney(
-    periodTotals.base / recurringExpenseMonthlyDivisor(frequency),
-  );
-  return expenseTotalsFromBase(monthlyBase, periodTotals.ivaPercent);
+  const period = recurringExpenseTotals({
+    amount,
+    ivaPercent,
+    deductibility,
+  });
+  const fiscalDeductible = isExpenseFiscalDeductible({ deductibility });
+  const divisor = recurringExpenseMonthlyDivisor(frequency);
+  const periodOperatingCost = fiscalDeductible
+    ? period.base
+    : period.total;
+  const monthlyAmount = roundMoney(periodOperatingCost / divisor);
+  const monthlyIva = fiscalDeductible
+    ? roundMoney(period.iva / divisor)
+    : 0;
+
+  return {
+    base: monthlyAmount,
+    iva: monthlyIva,
+    total: roundMoney(monthlyAmount + monthlyIva),
+    fiscalDeductible,
+    ivaPercent: fiscalDeductible ? period.ivaPercent : 0,
+  };
 }
 
 export function mapExistingProviderScanToProfitabilitySource(

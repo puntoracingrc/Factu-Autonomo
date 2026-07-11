@@ -4,6 +4,7 @@ import {
   expensePurchaseLineBaseTotal,
   expensePurchaseLineIsEligibleForProductCatalog,
   expensePurchaseLinesBaseTotal,
+  expenseFiscalAmounts,
   expenseTotalsFromBase,
   findDuplicatePurchaseExpense,
   findExpensePurchaseLinePriceAlerts,
@@ -22,6 +23,51 @@ describe("expenseTotalsFromBase", () => {
       iva: 21,
       total: 121,
       ivaPercent: 21,
+    });
+  });
+
+  it("separa coste operativo de base e IVA fiscalmente deducibles", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: 100,
+        ivaPercent: 21,
+        deductibility: "non_deductible",
+      }),
+    ).toEqual({
+      deductible: false,
+      registeredBase: 100,
+      registeredIvaPercent: 21,
+      registeredIva: 21,
+      registeredTotal: 121,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 121,
+    });
+  });
+
+  it("mantiene como deducibles los gastos legacy sin marca", () => {
+    expect(
+      expenseFiscalAmounts({ amount: 100, ivaPercent: 21 }),
+    ).toMatchObject({
+      deductible: true,
+      deductibleBase: 100,
+      deductibleIva: 21,
+      operatingCost: 100,
+    });
+  });
+
+  it("excluye de fiscalidad valores de deducibilidad desconocidos", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: 100,
+        ivaPercent: 21,
+        deductibility: "unknown" as never,
+      }),
+    ).toMatchObject({
+      deductible: false,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 121,
     });
   });
 
@@ -278,12 +324,42 @@ describe("expenseTotalsFromBase", () => {
     expect(summarizeWorkDocumentExpenses(expenses, "document-1")).toEqual({
       count: 2,
       cost: 150.5,
-      iva: 31.61,
+      deductibleBase: 150.5,
+      deductibleIva: 31.61,
     });
     expect(summarizeWorkDocumentExpensesById(expenses).get("document-2")).toEqual({
       count: 1,
       cost: 80,
-      iva: 16.8,
+      deductibleBase: 80,
+      deductibleIva: 16.8,
+    });
+  });
+
+  it("mantiene un coste no deducible en margen sin usarlo para reservas", () => {
+    const summary = summarizeWorkDocumentExpenses(
+      [
+        {
+          id: "expense-non-deductible",
+          date: "2026-06-01",
+          supplierName: "Proveedor Demo",
+          description: "Coste no desgravable",
+          amount: 100,
+          ivaPercent: 21,
+          deductibility: "non_deductible",
+          category: "Otros",
+          paymentMethod: "Tarjeta",
+          workDocumentId: "document-1",
+          createdAt: "2026-06-01T10:00:00.000Z",
+        },
+      ],
+      "document-1",
+    );
+
+    expect(summary).toEqual({
+      count: 1,
+      cost: 121,
+      deductibleBase: 0,
+      deductibleIva: 0,
     });
   });
 

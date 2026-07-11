@@ -7,6 +7,8 @@ interface PeriodOverviewCardsProps {
   income: number;
   spent: number;
   grossProfit: number;
+  estimatedIrpfBase: number;
+  hasNonDeductibleExpenses?: boolean;
 }
 
 /** Cuatro métricas del periodo (trimestre): ingresos, gastos, balance y beneficio bruto. */
@@ -14,6 +16,8 @@ export function PeriodOverviewCards({
   income,
   spent,
   grossProfit,
+  estimatedIrpfBase,
+  hasNonDeductibleExpenses = false,
 }: PeriodOverviewCardsProps) {
   const balance = income - spent;
 
@@ -38,10 +42,17 @@ export function PeriodOverviewCards({
         </p>
       </Card>
       <Card className="border-violet-200 bg-violet-50">
-        <p className="text-sm font-medium text-violet-700">Beneficio bruto est.</p>
+        <p className="text-sm font-medium text-violet-700">
+          Beneficio económico est.
+        </p>
         <p className="mt-1 text-2xl font-bold text-violet-900">
           {formatMoney(grossProfit)}
         </p>
+        {hasNonDeductibleExpenses && (
+          <p className="mt-1 text-xs text-violet-700">
+            Base estimada para IRPF: {formatMoney(estimatedIrpfBase)}
+          </p>
+        )}
       </Card>
     </div>
   );
