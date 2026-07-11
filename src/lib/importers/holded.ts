@@ -7,6 +7,10 @@ import {
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import {
+  assertNoProtectedImportReplacements,
+  mergeImportedDocumentsPreservingProtected,
+} from "./protected-documents";
 import type { BusinessProfileAutofillSuggestion } from "../business-profile-autofill";
 import type {
   AppData,
@@ -767,11 +771,14 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   });
   const importedDocuments = uniqueById([...importedInvoices, ...importedEstimates]);
 
-  const keptDocuments = current.documents.filter(
-    (document) =>
-      !document.id.startsWith(`${HOLDED_ID_PREFIX}:factura:`) &&
-      !document.id.startsWith(`${HOLDED_ID_PREFIX}:presupuesto:`),
-  );
+  const mergedDocuments = mergeImportedDocumentsPreservingProtected({
+    current: current.documents,
+    imported: importedDocuments,
+    belongsToSource: (document) =>
+      document.id.startsWith(`${HOLDED_ID_PREFIX}:factura:`) ||
+      document.id.startsWith(`${HOLDED_ID_PREFIX}:presupuesto:`),
+  });
+  assertNoProtectedImportReplacements(mergedDocuments);
   const keptCustomers = current.customers.filter(
     (customer) => !customer.id.startsWith(`${HOLDED_ID_PREFIX}:customer:`),
   );
@@ -781,7 +788,7 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
   const keptExpenses = current.expenses.filter(
     (expense) => !expense.id.startsWith(`${HOLDED_ID_PREFIX}:expense:`),
   );
-  const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const nextDocuments = mergedDocuments.documents;
   const data = normalizeLoadedData(
     {
       ...current,
@@ -797,7 +804,7 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
     },
     {
       legacyBackfillDocumentIds: new Set(
-        importedDocuments.map((document) => document.id),
+        mergedDocuments.acceptedImported.map((document) => document.id),
       ),
     },
   );

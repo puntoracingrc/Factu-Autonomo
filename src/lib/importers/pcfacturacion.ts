@@ -2,6 +2,10 @@ import { countersFromDocuments, formatDocumentNumber } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertNoProtectedImportReplacements,
+  mergeImportedDocumentsPreservingProtected,
+} from "./protected-documents";
+import {
   inferCustomerTypeFromIdentity,
   looksLikeCompanyName,
 } from "../customers";
@@ -669,14 +673,18 @@ export function buildPcFacturacionImport(
     );
 
   const importedDocuments = [...importedInvoices, ...importedOffers];
-  const keptDocuments = current.documents.filter(
-    (doc) => !doc.id.startsWith(`${PCF_ID_PREFIX}:factura:`) &&
-      !doc.id.startsWith(`${PCF_ID_PREFIX}:presupuesto:`),
-  );
+  const mergedDocuments = mergeImportedDocumentsPreservingProtected({
+    current: current.documents,
+    imported: importedDocuments,
+    belongsToSource: (document) =>
+      document.id.startsWith(`${PCF_ID_PREFIX}:factura:`) ||
+      document.id.startsWith(`${PCF_ID_PREFIX}:presupuesto:`),
+  });
+  assertNoProtectedImportReplacements(mergedDocuments);
   const keptCustomers = current.customers.filter(
     (customer) => !customer.id.startsWith(`${PCF_ID_PREFIX}:customer:`),
   );
-  const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const nextDocuments = mergedDocuments.documents;
   const profileSuggestion = buildBusinessProfileAutofillSuggestion(
     current.profile,
     completeBusinessProfileIvaFromDocuments(
@@ -706,7 +714,7 @@ export function buildPcFacturacionImport(
     },
     {
       legacyBackfillDocumentIds: new Set(
-        importedDocuments.map((document) => document.id),
+        mergedDocuments.acceptedImported.map((document) => document.id),
       ),
     },
   );

@@ -32,6 +32,7 @@ import {
   projectCanonicalSnapshotOntoDocument,
   withDocumentSnapshotIntegritySignal,
 } from "./document-integrity";
+import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
 import {
   DEMO_WORKSPACE_STORAGE_KEY,
   createDemoWorkspaceData,
@@ -144,7 +145,7 @@ export function normalizeLoadedData(
   const firstIntegrityMigration = parsed.snapshotIntegrityVersion !== 1;
   const migrationTimestamp = new Date().toISOString();
   const migratedDocuments: Document[] = [];
-  const documents = (parsed.documents ?? []).map((document) => {
+  const normalizedDocuments = (parsed.documents ?? []).map((document) => {
     const persisted = preclassifyLegacyVerifactuDocument(
       normalizeQuoteDocument(document as AppData["documents"][number]),
     );
@@ -170,6 +171,9 @@ export function normalizeLoadedData(
       return blockDocumentAfterMigrationFailure(persisted);
     }
   });
+  const documents = withDocumentRelationshipIntegritySignals(
+    normalizedDocuments,
+  );
   const migrationChanges: SyncChange[] = migratedDocuments.map((document) => ({
     entityType: "document",
     entityId: document.id,

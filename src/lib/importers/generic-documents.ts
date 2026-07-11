@@ -8,6 +8,10 @@ import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertNoProtectedImportReplacements,
+  mergeImportedDocumentsPreservingProtected,
+} from "./protected-documents";
+import {
   buildBusinessProfileAutofillSuggestion,
   type BusinessProfileAutofillSuggestion,
 } from "../business-profile-autofill";
@@ -875,16 +879,20 @@ export async function readGenericDocumentFiles(
       .filter((file) => file.kind === "suppliers")
       .flatMap((file) => parseContactList(file, "supplier") as Supplier[]),
   );
-  const keptDocuments = current.documents.filter(
-    (document) => !document.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
-  );
+  const mergedDocuments = mergeImportedDocumentsPreservingProtected({
+    current: current.documents,
+    imported: importedDocuments,
+    belongsToSource: (document) =>
+      document.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
+  });
+  assertNoProtectedImportReplacements(mergedDocuments);
   const keptCustomers = current.customers.filter(
     (customer) => !customer.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
   );
   const keptSuppliers = current.suppliers.filter(
     (supplier) => !supplier.id.startsWith(`${GENERIC_DOCUMENTS_ID_PREFIX}:`),
   );
-  const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const nextDocuments = mergedDocuments.documents;
   const nextProfile = current.profile;
   const data = normalizeLoadedData(
     {
@@ -900,7 +908,7 @@ export async function readGenericDocumentFiles(
     },
     {
       legacyBackfillDocumentIds: new Set(
-        importedDocuments.map((document) => document.id),
+        mergedDocuments.acceptedImported.map((document) => document.id),
       ),
     },
   );

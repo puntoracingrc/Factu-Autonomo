@@ -7,6 +7,10 @@ import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertNoProtectedImportReplacements,
+  mergeImportedDocumentsPreservingProtected,
+} from "./protected-documents";
+import {
   buildBusinessProfileAutofillSuggestion,
   completeBusinessProfileIvaFromDocuments,
   type BusinessProfileAutofillSuggestion,
@@ -1110,11 +1114,14 @@ export function buildFacturaDirectaImport(
     .filter((row) => get(row, "Núm.") && get(row, "Moneda") !== "TOTAL")
     .map((row, index) => buildExpense(row, index, suppliersByKey, purchaseDueDates)));
 
-  const keptDocuments = current.documents.filter(
-    (document) =>
-      !document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:factura:`) &&
-      !document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:presupuesto:`),
-  );
+  const mergedDocuments = mergeImportedDocumentsPreservingProtected({
+    current: current.documents,
+    imported: importedDocuments,
+    belongsToSource: (document) =>
+      document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:factura:`) ||
+      document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:presupuesto:`),
+  });
+  assertNoProtectedImportReplacements(mergedDocuments);
   const keptCustomers = current.customers.filter(
     (customer) => !customer.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:customer:`),
   );
@@ -1127,7 +1134,7 @@ export function buildFacturaDirectaImport(
   const keptProducts = current.products.filter(
     (product) => !product.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:product:`),
   );
-  const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const nextDocuments = mergedDocuments.documents;
   const data = normalizeLoadedData(
     {
       ...current,
@@ -1144,7 +1151,7 @@ export function buildFacturaDirectaImport(
     },
     {
       legacyBackfillDocumentIds: new Set(
-        importedDocuments.map((document) => document.id),
+        mergedDocuments.acceptedImported.map((document) => document.id),
       ),
     },
   );
