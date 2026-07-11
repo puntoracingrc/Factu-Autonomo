@@ -9,6 +9,13 @@ import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
+  downloadResendAttachment,
+  ExpenseInboxDownloadError,
+  MAX_RESEND_ATTACHMENT_BYTES,
+  MAX_RESEND_ATTACHMENTS_TOTAL_BYTES,
+  splitResendAttachmentBatch,
+} from "@/lib/expense-inbox-download";
+import {
   buildExpenseInboxAddress,
   buildPrivateExpenseInboxAliasToken,
   classifyExpenseInboxDelivery,
@@ -66,8 +73,6 @@ export interface ExpenseInboxIngestResult {
   message: string;
 }
 
-const MAX_INBOX_ATTACHMENTS_PER_EMAIL = 10;
-const RESEND_API_BASE_URL = "https://api.resend.com";
 const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
 const ALIAS_HISTORY_ENTITY_TYPE = "expense_inbox_alias_history";
 const ITEM_ENTITY_TYPE = "expense_inbox_item";
@@ -1195,7 +1200,8 @@ async function ingestNormalizedExpenseInboxEmail(
     message: "Email procesado.",
   };
 
-  const attachments = email.attachments.slice(0, MAX_INBOX_ATTACHMENTS_PER_EMAIL);
+  const { selected: attachments, overflow } =
+    splitResendAttachmentBatch(email.attachments);
   for (const attachment of attachments) {
     const status = await processAttachment({
       userId: alias.user_id,
@@ -1216,9 +1222,7 @@ async function ingestNormalizedExpenseInboxEmail(
     }
   }
 
-  if (email.attachments.length > MAX_INBOX_ATTACHMENTS_PER_EMAIL) {
-    result.ignored += email.attachments.length - MAX_INBOX_ATTACHMENTS_PER_EMAIL;
-  }
+  result.ignored += overflow.length;
 
   return result;
 }
@@ -1244,52 +1248,22 @@ export async function ingestExpenseInboxEmail(
 async function fetchResendAttachment(input: {
   emailId: string;
   attachment: ResendReceivedAttachmentMetadata;
+  maxBytes: number;
+  timeoutMs: number;
 }): Promise<ExpenseInboxAttachmentInput> {
-  const apiKey = getResendApiKey();
-  const metadataResponse = await fetch(
-    `${RESEND_API_BASE_URL}/emails/receiving/${encodeURIComponent(
-      input.emailId,
-    )}/attachments/${encodeURIComponent(input.attachment.id)}`,
-    {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      cache: "no-store",
-    },
-  );
-
-  if (!metadataResponse.ok) {
-    const body = await metadataResponse.text();
-    throw new Error(
-      body || `Resend no devolvió el adjunto ${input.attachment.filename ?? ""}.`,
-    );
-  }
-
-  const metadata = (await metadataResponse.json()) as Record<string, unknown>;
-  const downloadUrl =
-    typeof metadata.download_url === "string" ? metadata.download_url : "";
-  if (!downloadUrl) {
-    throw new Error("Resend no devolvió URL de descarga para el adjunto.");
-  }
-
-  const fileResponse = await fetch(downloadUrl, { cache: "no-store" });
-  if (!fileResponse.ok) {
-    throw new Error("No se pudo descargar el adjunto recibido por Resend.");
-  }
-
-  const buffer = Buffer.from(await fileResponse.arrayBuffer());
+  const downloaded = await downloadResendAttachment({
+    apiKey: getResendApiKey(),
+    emailId: input.emailId,
+    attachmentId: input.attachment.id,
+    declaredSize: input.attachment.size ?? undefined,
+    maxBytes: input.maxBytes,
+    timeoutMs: input.timeoutMs,
+  });
   return {
-    filename:
-      typeof metadata.filename === "string"
-        ? metadata.filename
-        : input.attachment.filename,
-    contentType:
-      typeof metadata.content_type === "string"
-        ? metadata.content_type
-        : input.attachment.contentType,
-    contentBase64: buffer.toString("base64"),
-    size:
-      typeof metadata.size === "number"
-        ? metadata.size
-        : buffer.byteLength || input.attachment.size,
+    filename: downloaded.filename ?? input.attachment.filename,
+    contentType: downloaded.contentType ?? input.attachment.contentType,
+    contentBase64: downloaded.buffer.toString("base64"),
+    size: downloaded.buffer.byteLength,
   };
 }
 
@@ -1309,10 +1283,13 @@ export async function ingestResendExpenseInboxEmail(
   }
 
   const attachments: ExpenseInboxAttachmentInput[] = [];
-  for (const attachment of received.attachments.slice(
-    0,
-    MAX_INBOX_ATTACHMENTS_PER_EMAIL,
-  )) {
+  const { selected, overflow } = splitResendAttachmentBatch(
+    received.attachments,
+  );
+  let remainingBytes = MAX_RESEND_ATTACHMENTS_TOTAL_BYTES;
+  const downloadDeadline = Date.now() + 30_000;
+
+  for (const attachment of selected) {
     const baseAttachment: ExpenseInboxAttachmentInput = {
       filename: attachment.filename,
       contentType: attachment.contentType,
@@ -1327,25 +1304,57 @@ export async function ingestResendExpenseInboxEmail(
       continue;
     }
 
-    attachments.push(
-      await fetchResendAttachment({
+    const declaredSize = attachment.size ?? undefined;
+    const maxBytes = Math.min(MAX_RESEND_ATTACHMENT_BYTES, remainingBytes);
+    if (
+      maxBytes <= 0 ||
+      (declaredSize !== undefined &&
+        (!Number.isSafeInteger(declaredSize) ||
+          declaredSize < 0 ||
+          declaredSize > maxBytes))
+    ) {
+      attachments.push(baseAttachment);
+      continue;
+    }
+
+    const timeoutMs = Math.min(10_000, downloadDeadline - Date.now());
+    if (timeoutMs <= 0) {
+      throw new ExpenseInboxDownloadError(
+        "timeout",
+        "La descarga de adjuntos agotó el tiempo total permitido.",
+      );
+    }
+
+    try {
+      const downloaded = await fetchResendAttachment({
         emailId: received.emailId,
         attachment,
-      }),
-    );
+        maxBytes,
+        timeoutMs,
+      });
+      remainingBytes -= downloaded.size ?? 0;
+      attachments.push(downloaded);
+    } catch (error) {
+      if (
+        error instanceof ExpenseInboxDownloadError &&
+        error.failure === "too_large"
+      ) {
+        attachments.push(baseAttachment);
+        continue;
+      }
+      throw error;
+    }
   }
 
   return ingestNormalizedExpenseInboxEmail({
     ...received.email,
     attachments: [
       ...attachments,
-      ...received.attachments
-        .slice(MAX_INBOX_ATTACHMENTS_PER_EMAIL)
-        .map((attachment) => ({
-          filename: attachment.filename,
-          contentType: attachment.contentType,
-          size: attachment.size,
-        })),
+      ...overflow.map((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        size: attachment.size,
+      })),
     ],
   });
 }
