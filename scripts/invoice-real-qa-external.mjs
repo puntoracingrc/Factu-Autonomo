@@ -19,10 +19,13 @@ import {
   evaluateFormsLayoutDocument,
 } from "./invoice-real-qa/adapters/forms-layout-adapter.mjs";
 import { REPO_ROOT, writeJson } from "./invoice-benchmark/lib.mjs";
+import { resolveOptInFixturePath } from "./private-fixture-paths.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const isDirectRun = process.argv[1] === __filename;
-const DEFAULT_EXTERNAL_ROOT = "/Users/macbookpro14/Desktop/task test";
+const CONFIGURED_EXTERNAL_ROOT = resolveOptInFixturePath(
+  "INVOICE_REAL_QA_EXTERNAL_ROOT",
+);
 const ARTIFACTS_ROOT = path.join(REPO_ROOT, "artifacts/invoice-real-qa");
 const INSPECTION_ROOT = path.join(ARTIFACTS_ROOT, "external-inspection");
 const PRIVATE_QA_ROOT = path.join(REPO_ROOT, "test/fixtures/invoices/private_real_qa");
@@ -84,7 +87,8 @@ if (isDirectRun) {
   }
 }
 
-export async function inspectExternalHoldout(datasetPath = DEFAULT_EXTERNAL_ROOT) {
+export async function inspectExternalHoldout(datasetPath) {
+  datasetPath = requireExternalDatasetPath(datasetPath);
   ensureBaseDirs();
   const report = inspectDataset(datasetPath);
   fs.mkdirSync(INSPECTION_ROOT, { recursive: true });
@@ -96,7 +100,8 @@ export async function inspectExternalHoldout(datasetPath = DEFAULT_EXTERNAL_ROOT
   }
 }
 
-async function importExternalSample(datasetPath = DEFAULT_EXTERNAL_ROOT, limits = {}) {
+async function importExternalSample(datasetPath, limits = {}) {
+  datasetPath = requireExternalDatasetPath(datasetPath);
   ensureBaseDirs();
   assertExternalGitignoreConfigured();
   const report = inspectDataset(datasetPath);
@@ -1075,7 +1080,16 @@ function latestExternalOutputDir() {
 }
 
 function firstPathArg(args) {
-  return args.find((arg) => arg && !arg.startsWith("--")) ?? DEFAULT_EXTERNAL_ROOT;
+  return (
+    args.find((arg) => arg && !arg.startsWith("--")) ?? CONFIGURED_EXTERNAL_ROOT
+  );
+}
+
+function requireExternalDatasetPath(datasetPath) {
+  if (datasetPath) return path.resolve(datasetPath);
+  throw new Error(
+    "Indica la ruta del dataset o configura INVOICE_REAL_QA_EXTERNAL_ROOT.",
+  );
 }
 
 function parseLimits(args) {

@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
+
+import { resolveOptInFixturePath } from "../private-fixture-paths.mjs";
 
 import {
   calculationBasisFromUnit,
@@ -15,8 +15,19 @@ import {
   readJson,
 } from "./lib.mjs";
 
-const privateStilPdfPath = "/Users/macbookpro14/Desktop/stil/Factura_FC121021478.pdf";
-const testWithPrivateStilPdf = existsSync(privateStilPdfPath) ? it : it.skip;
+const privateStilPdfPath = resolveOptInFixturePath("STIL_CONDAL_FIXTURE_PDF") ?? "";
+const privateStilGroundTruthPath =
+  resolveOptInFixturePath("STIL_CONDAL_GROUND_TRUTH_JSON") ?? "";
+if (Boolean(privateStilPdfPath) !== Boolean(privateStilGroundTruthPath)) {
+  throw new Error(
+    "Las fixtures privadas STIL requieren STIL_CONDAL_FIXTURE_PDF y STIL_CONDAL_GROUND_TRUTH_JSON.",
+  );
+}
+const testWithPrivateStilFixture =
+  privateStilPdfPath && privateStilGroundTruthPath ? it : it.skip;
+const hasPrivateStilFixture = Boolean(
+  privateStilPdfPath && privateStilGroundTruthPath,
+);
 
 describe("invoice benchmark helpers", () => {
   it("normalizes Spanish money and dates", () => {
@@ -36,12 +47,14 @@ describe("invoice benchmark helpers", () => {
     expect(formulaForBasis("ml")).toBe("ml * netPrice");
   });
 
-  it("discovers the imported synthetic and private fixtures", () => {
+  it("discovers portable fixtures and only loads private data after opt-in", () => {
     const fixtures = discoverInvoiceFixtures();
     expect(fixtures.filter((fixture) => fixture.suite.startsWith("synthetic")).length).toBe(403);
     expect(fixtures.filter((fixture) => fixture.suite === "synthetic_adversarial")).toHaveLength(173);
     expect(fixtures.filter((fixture) => fixture.invoiceId.startsWith("synthetic_adv_decl_"))).toHaveLength(23);
-    expect(fixtures.some((fixture) => fixture.suite === "private_real")).toBe(true);
+    expect(fixtures.some((fixture) => fixture.suite === "private_real")).toBe(
+      hasPrivateStilFixture,
+    );
   });
 
   it("parses a basic visible table without requiring hidden references", async () => {
@@ -134,24 +147,16 @@ describe("invoice benchmark helpers", () => {
     expect(comparison.failures.length).toBeGreaterThan(0);
   });
 
-  testWithPrivateStilPdf("uses the real STIL extractor bridge for the private fixture", async () => {
+  testWithPrivateStilFixture("uses the STIL extractor bridge for an opted-in private fixture", async () => {
     const fixtures = discoverInvoiceFixtures();
-    const fixture = fixtures.find(
-      (item) => item.invoiceId === "stil_condal_FC121021478_private_fixture",
-    );
+    const fixture = fixtures.find((item) => item.suite === "private_real");
     expect(fixture).toBeTruthy();
 
     const expected = normalizeExpectedInvoice(readJson(fixture.groundTruthPath), fixture);
     const actual = await parseStilCondalPdf(privateStilPdfPath);
     const comparison = compareInvoices(expected, actual);
 
-    expect(actual.lines).toHaveLength(40);
-    expect(actual.groups).toHaveLength(8);
-    expect(actual.totals).toMatchObject({
-      taxBase: 3118.51,
-      vatAmount: 654.89,
-      total: 3773.4,
-    });
+    expect(actual.lines.length).toBeGreaterThan(0);
     expect(comparison.failures).toEqual([]);
   });
 });

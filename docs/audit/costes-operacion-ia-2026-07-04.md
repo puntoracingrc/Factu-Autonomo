@@ -32,7 +32,7 @@ Lectura: ahora mismo el uso real es bajo. Aun asi, una media global mezcla tarea
 
 ### Vercel
 
-CSV `/Users/macbookpro14/Desktop/vercel-costs.csv`, periodo 2026-06-15 a 2026-07-14:
+CSV privado local `vercel-costs.csv` (no versionado), periodo 2026-06-15 a 2026-07-14:
 
 | Proyecto | Coste USD |
 |---|---:|

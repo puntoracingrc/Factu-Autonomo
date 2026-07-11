@@ -293,3 +293,4 @@ console.log(
 for (const item of summary.topFailureCategories.slice(0, 8)) {
   console.log(`- ${item.category}: ${item.count}`);
 }
+if (summary.failed > 0) process.exitCode = 1;

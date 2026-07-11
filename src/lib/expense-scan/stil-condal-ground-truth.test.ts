@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { resolveOptInFixturePath } from "../../../scripts/private-fixture-paths.mjs";
 import { extractPdfScanHintsFromPdfBase64 } from "./pdf-table-lines";
 
 interface StilCondalExpectedLine {
@@ -43,45 +43,44 @@ interface StilCondalGroundTruth {
   };
 }
 
-const groundTruthPath = path.join(
-  process.cwd(),
-  "test/fixtures/invoices/private_real/ground_truth/stil_condal_FC121021478.expected.json",
-);
-const groundTruth = JSON.parse(
-  readFileSync(groundTruthPath, "utf8"),
-) as StilCondalGroundTruth;
+const privatePdfPath = resolveOptInFixturePath("STIL_CONDAL_FIXTURE_PDF") ?? "";
+const privateGroundTruthPath =
+  resolveOptInFixturePath("STIL_CONDAL_GROUND_TRUTH_JSON") ?? "";
+if (Boolean(privatePdfPath) !== Boolean(privateGroundTruthPath)) {
+  throw new Error(
+    "Las fixtures privadas STIL requieren STIL_CONDAL_FIXTURE_PDF y STIL_CONDAL_GROUND_TRUTH_JSON.",
+  );
+}
+const testWithPrivateFixture =
+  privatePdfPath && privateGroundTruthPath ? it : it.skip;
 
-const privatePdfPath =
-  process.env.STIL_CONDAL_FIXTURE_PDF ??
-  "/Users/macbookpro14/Desktop/stil/Factura_FC121021478.pdf";
-const testWithPrivatePdf = existsSync(privatePdfPath) ? it : it.skip;
+function readPrivateGroundTruth(): StilCondalGroundTruth {
+  return JSON.parse(
+    readFileSync(privateGroundTruthPath, "utf8"),
+  ) as StilCondalGroundTruth;
+}
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
 describe("Stil Condal private ground truth", () => {
-  it("mantiene el contrato esperado sin publicar el PDF real", () => {
+  testWithPrivateFixture("mantiene el contrato esperado sin publicar datos reales", () => {
+    const groundTruth = readPrivateGroundTruth();
     expect(groundTruth.privacy.doNotCommitRawPdfToPublicRepo).toBe(true);
-    expect(groundTruth.expected.lineCount).toBe(40);
-    expect(groundTruth.expected.productGroupCount).toBe(8);
-    expect(groundTruth.expected.totals).toMatchObject({
-      taxBase: 3118.51,
-      vatAmount: 654.89,
-      total: 3773.4,
-      advancePaid: 3773.4,
-      amountDue: 0,
-    });
+    expect(groundTruth.expected.lineCount).toBeGreaterThan(0);
+    expect(groundTruth.expected.productGroupCount).toBeGreaterThan(0);
     expect(
       roundMoney(
         groundTruth.expected.lines.reduce((sum, line) => sum + line.amount, 0),
       ),
-    ).toBe(3118.51);
+    ).toBe(roundMoney(groundTruth.expected.totals.taxBase));
   });
 
-  testWithPrivatePdf(
-    "extrae las 40 líneas con base de cálculo, neto y grupo de producto",
+  testWithPrivateFixture(
+    "extrae las líneas con base de cálculo, neto y grupo de producto",
     async () => {
+      const groundTruth = readPrivateGroundTruth();
       const base64 = readFileSync(privatePdfPath).toString("base64");
       const result = await extractPdfScanHintsFromPdfBase64(base64);
       const lines = result.stilCondal.lines;

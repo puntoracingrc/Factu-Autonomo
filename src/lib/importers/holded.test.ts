@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { resolveOptInFixturePath } from "../../../scripts/private-fixture-paths.mjs";
 import {
   buildHoldedImport,
   parseHoldedWorkbookBuffer,
@@ -276,9 +277,14 @@ describe("Holded importer", () => {
 });
 
 const realFixture =
-  "/Users/macbookpro14/Documents/New project 2/artifacts/competitor-import-fixtures/exports/holded/holded-synthetic-export-v1.xlsx";
+  resolveOptInFixturePath(
+    "COMPETITOR_IMPORT_FIXTURES_ROOT",
+    "exports",
+    "holded",
+    "holded-synthetic-export-v1.xlsx",
+  ) ?? "";
 
-describe.runIf(existsSync(realFixture))("Holded synthetic XLSX fixture", () => {
+describe.runIf(realFixture)("Holded synthetic XLSX fixture", () => {
   it("lee el XLSX multihoja inferido", async () => {
     const file = readFileSync(realFixture);
     const sheets = parseHoldedWorkbookBuffer(
