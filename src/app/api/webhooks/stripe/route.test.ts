@@ -33,10 +33,6 @@ vi.mock("@/lib/billing/sync-billing-profile", () => ({
   syncBillingProfileFromCustomerId: vi.fn(async () => null),
 }));
 
-vi.mock("@/lib/email/welcome", () => ({
-  sendWelcomeEmailForUser: vi.fn(async () => undefined),
-}));
-
 function stripeRequest() {
   return new Request("http://localhost/api/webhooks/stripe", {
     method: "POST",

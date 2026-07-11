@@ -59,6 +59,11 @@ import { pickNewerAppData } from "@/lib/cloud/sync";
 import { EMPTY_DATA } from "@/lib/types";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
+import {
+  isRetryableWelcomeStatus,
+  WELCOME_MAX_CLIENT_RETRIES,
+  welcomeRetryDelayMs,
+} from "@/lib/email/welcome-client-retry";
 
 export type SyncStatus =
   "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
@@ -147,6 +152,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulledForUser = useRef<string | null>(null);
+  const welcomeRequestedForUser = useRef<string | null>(null);
+  const welcomeRetryUser = useRef<string | null>(null);
+  const welcomeRetryAttempts = useRef(0);
+  const welcomeRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [welcomeRetryRevision, setWelcomeRetryRevision] = useState(0);
   const syncing = useRef(false);
   const dataRef = useRef(data);
 
@@ -779,6 +789,98 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe?.();
   }, [cloudEnabled]);
 
+  const welcomeUserId = user?.id ?? null;
+
+  useEffect(() => {
+    const clearRetryTimer = () => {
+      if (!welcomeRetryTimer.current) return;
+      clearTimeout(welcomeRetryTimer.current);
+      welcomeRetryTimer.current = null;
+    };
+
+    if (!welcomeUserId || !cloudEnabled || demoMode || !emailConfirmed) {
+      clearRetryTimer();
+      welcomeRequestedForUser.current = null;
+      welcomeRetryAttempts.current = 0;
+      if (!welcomeUserId) welcomeRetryUser.current = null;
+      return;
+    }
+
+    if (welcomeRetryUser.current !== welcomeUserId) {
+      clearRetryTimer();
+      welcomeRetryUser.current = welcomeUserId;
+      welcomeRetryAttempts.current = 0;
+      welcomeRequestedForUser.current = null;
+    }
+    if (welcomeRequestedForUser.current === welcomeUserId) return;
+
+    let cancelled = false;
+    welcomeRequestedForUser.current = welcomeUserId;
+
+    const scheduleRetry = (retryAfter?: string | null) => {
+      if (
+        cancelled ||
+        welcomeRetryAttempts.current >= WELCOME_MAX_CLIENT_RETRIES
+      ) {
+        return;
+      }
+
+      const retryIndex = welcomeRetryAttempts.current;
+      welcomeRetryAttempts.current += 1;
+      clearRetryTimer();
+      welcomeRetryTimer.current = setTimeout(() => {
+        welcomeRetryTimer.current = null;
+        if (welcomeRetryUser.current !== welcomeUserId) return;
+        welcomeRequestedForUser.current = null;
+        setWelcomeRetryRevision((revision) => revision + 1);
+      }, welcomeRetryDelayMs({ retryIndex, retryAfter }));
+    };
+
+    void getSupabaseClientAsync()
+      .then(async (supabase) => {
+        if (!supabase) {
+          scheduleRetry();
+          return;
+        }
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+        const session = sessionData.session;
+        if (
+          sessionError ||
+          !session?.access_token ||
+          session.user.id !== welcomeUserId
+        ) {
+          scheduleRetry();
+          return;
+        }
+
+        const response = await fetch("/api/email/welcome", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (cancelled || welcomeRetryUser.current !== welcomeUserId) return;
+        if (response.ok) {
+          welcomeRetryAttempts.current = 0;
+          return;
+        }
+        if (isRetryableWelcomeStatus(response.status)) {
+          scheduleRetry(response.headers.get("Retry-After"));
+        }
+      })
+      .catch(() => scheduleRetry());
+
+    return () => {
+      cancelled = true;
+      clearRetryTimer();
+    };
+  }, [
+    cloudEnabled,
+    demoMode,
+    emailConfirmed,
+    welcomeRetryRevision,
+    welcomeUserId,
+  ]);
+
   useEffect(() => {
     schedulePush();
     return () => {
@@ -946,17 +1048,6 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
       const registeredEmail = data.user?.email ?? email.trim();
       const needsEmailConfirmation = Boolean(data.user && !data.session);
-
-      if (data.user?.id && data.user.email) {
-        void fetch("/api/email/welcome", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: data.user.id,
-            email: data.user.email,
-          }),
-        }).catch(() => undefined);
-      }
 
       if (data.session?.user) {
         setUser(data.session.user);

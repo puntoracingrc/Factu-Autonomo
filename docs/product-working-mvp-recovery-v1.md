@@ -238,6 +238,7 @@ Objetivo: volver a un flujo práctico de clientes, presupuestos, facturas, PDF, 
 - En producción, las URLs apuntan al dominio público.
 - El webhook valida firma con `STRIPE_WEBHOOK_SECRET`.
 - La respuesta del email de bienvenida no bloquea el alta si el proveedor rechaza el envío.
+- La bienvenida se solicita tras confirmar e iniciar sesión; el servidor deriva el destinatario del Bearer, registra un claim distribuido y reutiliza una `Idempotency-Key` de Resend solo dentro de su ventana segura.
 - No se añaden precios nuevos ni productos nuevos desde esta nota.
 - No hay AEAT real.
 - No hay XML real nuevo.

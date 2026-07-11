@@ -19,7 +19,6 @@ import {
 } from "@/lib/billing/stripe-events";
 import { getStripe, planFromStripePriceId } from "@/lib/billing/stripe";
 import { APP_BRAND_NAME } from "@/lib/brand";
-import { sendWelcomeEmailForUser } from "@/lib/email/welcome";
 import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -146,15 +145,6 @@ async function handleCheckoutCompleted(
         currentPeriodEnd: subscriptionPeriodEnd(subscription),
       });
 
-      const customerEmail =
-        session.customer_details?.email?.trim() ||
-        session.customer_email?.trim();
-      if (customerEmail) {
-        void sendWelcomeEmailForUser({
-          userId,
-          email: customerEmail,
-        }).catch(() => undefined);
-      }
     }
   }
 
