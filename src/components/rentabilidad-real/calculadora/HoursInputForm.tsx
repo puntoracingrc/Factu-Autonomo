@@ -101,6 +101,7 @@ export function HoursInputForm({
             <button
               key={model.value}
               type="button"
+              aria-pressed={settings.billingModel === model.value}
               onClick={() => patch({ billingModel: model.value })}
               className={`min-h-11 rounded-lg border px-3 text-sm font-black transition-colors ${
                 settings.billingModel === model.value
@@ -210,6 +211,9 @@ export function HoursInputForm({
             <button
               key={method.value}
               type="button"
+              aria-pressed={
+                settings.fixedCostAllocationMethod === method.value
+              }
               onClick={() => patch({ fixedCostAllocationMethod: method.value })}
               className={`min-h-11 rounded-lg border px-3 text-sm font-black transition-colors ${
                 settings.fixedCostAllocationMethod === method.value

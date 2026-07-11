@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Plus, RotateCcw, Search, Send, Trash2, X } from "lucide-react";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { ReminderRealtimeVoiceInput } from "@/components/reminders/ReminderRealtimeVoiceInput";
@@ -27,6 +27,10 @@ import {
 } from "@/lib/reminder-voice-intent";
 import { appendVoiceTranscript } from "@/lib/reminder-voice";
 import { getCustomerDisplayName } from "@/lib/customers";
+import {
+  getComboboxOptionId,
+  resolveComboboxKeyboardAction,
+} from "@/lib/combobox-navigation";
 import type {
   Document,
   DocumentType,
@@ -602,16 +606,18 @@ export function UserRemindersPanel() {
                       <button
                         type="button"
                         onClick={() => reopenUserReminder(item.id)}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-white"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-white"
                         title="Marcar como pendiente"
+                        aria-label="Marcar recordatorio como pendiente"
                       >
                         <RotateCcw className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => deleteUserReminder(item.id)}
-                        className="rounded-lg p-2 text-red-500 hover:bg-white"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-red-500 hover:bg-white"
                         title="Eliminar"
+                        aria-label="Eliminar recordatorio"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -640,6 +646,8 @@ function DocumentPickerSearch({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const comboboxId = useId();
+  const listboxId = `document-picker-listbox-${comboboxId}`;
 
   const selectedDocument = useMemo(
     () =>
@@ -692,27 +700,37 @@ function DocumentPickerSearch({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || results.length === 0) {
-      if (event.key === "Enter" && results.length === 1) {
-        event.preventDefault();
-        applyDocument(results[0]);
-      }
-      return;
-    }
+    const popupVisible = open && !selectedDocumentId;
+    const action = resolveComboboxKeyboardAction({
+      key: event.key,
+      itemCount: selectedDocumentId ? 0 : results.length,
+      highlightedIndex: highlight,
+      open: popupVisible,
+    });
+    if (action.type === "none") return;
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setHighlight((value) => Math.min(value + 1, results.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setHighlight((value) => Math.max(value - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      applyDocument(results[highlight]);
-    } else if (event.key === "Escape") {
+    event.preventDefault();
+    if (action.type === "close") {
       setOpen(false);
+    } else if (action.type === "highlight") {
+      setOpen(true);
+      setHighlight(action.index);
+    } else {
+      const document = results[action.index];
+      if (document) applyDocument(document);
     }
   }
+
+  const popupOpen = open && !selectedDocumentId;
+  const activeIndex =
+    results.length > 0 ? Math.min(highlight, results.length - 1) : -1;
+
+  useEffect(() => {
+    if (!popupOpen || activeIndex < 0) return;
+    document
+      .getElementById(getComboboxOptionId(listboxId, results[activeIndex].id))
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, listboxId, popupOpen, results]);
 
   return (
     <div className="relative" ref={containerRef}>
@@ -723,6 +741,15 @@ function DocumentPickerSearch({
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <Input
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={popupOpen}
+            aria-controls={listboxId}
+            aria-activedescendant={
+              popupOpen && activeIndex >= 0
+                ? getComboboxOptionId(listboxId, results[activeIndex].id)
+                : undefined
+            }
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
@@ -747,21 +774,34 @@ function DocumentPickerSearch({
         </div>
       </Field>
 
-      {open && !selectedDocumentId && (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+      {popupOpen && (
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label="Documentos encontrados"
+          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
+        >
           {results.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-slate-500">
+            <li
+              role="status"
+              className="px-4 py-3 text-sm text-slate-500"
+            >
               No hay documentos que coincidan
             </li>
           ) : (
             results.map((document, index) => (
-              <li key={document.id}>
+              <li key={document.id} role="presentation">
                 <button
+                  id={getComboboxOptionId(listboxId, document.id)}
                   type="button"
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  tabIndex={-1}
                   onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setHighlight(index)}
                   onClick={() => applyDocument(document)}
                   className={`w-full px-4 py-3 text-left transition-colors ${
-                    index === highlight
+                    index === activeIndex
                       ? "bg-blue-50 text-blue-900"
                       : "hover:bg-slate-50"
                   }`}

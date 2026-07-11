@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Field, Input } from "@/components/ui/Field";
 import { filterCustomers, getCustomerDisplayName } from "@/lib/customers";
+import {
+  getComboboxOptionId,
+  resolveComboboxKeyboardAction,
+} from "@/lib/combobox-navigation";
 import type { Customer } from "@/lib/types";
 
 interface CustomerListSearchProps {
@@ -21,6 +25,8 @@ export function CustomerListSearch({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const comboboxId = useId();
+  const listboxId = `customer-search-listbox-${comboboxId}`;
 
   const results = useMemo(
     () => (search.trim() ? filterCustomers(customers, search) : []),
@@ -65,27 +71,39 @@ export function CustomerListSearch({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || results.length === 0) {
-      if (event.key === "Enter" && results.length === 1) {
-        event.preventDefault();
-        applyCustomer(results[0]);
-      }
-      return;
-    }
+    const popupVisible =
+      open && Boolean(search.trim()) && selectedCustomerId === null;
+    const action = resolveComboboxKeyboardAction({
+      key: event.key,
+      itemCount: selectedCustomerId === null ? results.length : 0,
+      highlightedIndex: highlight,
+      open: popupVisible,
+    });
+    if (action.type === "none") return;
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setHighlight((value) => Math.min(value + 1, results.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setHighlight((value) => Math.max(value - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      applyCustomer(results[highlight]);
-    } else if (event.key === "Escape") {
+    event.preventDefault();
+    if (action.type === "close") {
       setOpen(false);
+    } else if (action.type === "highlight") {
+      setOpen(true);
+      setHighlight(action.index);
+    } else {
+      const customer = results[action.index];
+      if (customer) applyCustomer(customer);
     }
   }
+
+  const popupOpen =
+    open && Boolean(search.trim()) && selectedCustomerId === null;
+  const activeIndex =
+    results.length > 0 ? Math.min(highlight, results.length - 1) : -1;
+
+  useEffect(() => {
+    if (!popupOpen || activeIndex < 0) return;
+    document
+      .getElementById(getComboboxOptionId(listboxId, results[activeIndex].id))
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, listboxId, popupOpen, results]);
 
   return (
     <div className="relative" ref={containerRef}>
@@ -96,6 +114,15 @@ export function CustomerListSearch({
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <Input
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={popupOpen}
+            aria-controls={listboxId}
+            aria-activedescendant={
+              popupOpen && activeIndex >= 0
+                ? getComboboxOptionId(listboxId, results[activeIndex].id)
+                : undefined
+            }
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
@@ -120,21 +147,34 @@ export function CustomerListSearch({
         </div>
       </Field>
 
-      {open && search.trim() && !selectedCustomerId && (
-        <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+      {popupOpen && (
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label="Clientes encontrados"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
+        >
           {results.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-slate-500">
+            <li
+              role="status"
+              className="px-4 py-3 text-sm text-slate-500"
+            >
               No hay clientes que coincidan
             </li>
           ) : (
             results.map((customer, index) => (
-              <li key={customer.id}>
+              <li key={customer.id} role="presentation">
                 <button
+                  id={getComboboxOptionId(listboxId, customer.id)}
                   type="button"
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  tabIndex={-1}
                   onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setHighlight(index)}
                   onClick={() => applyCustomer(customer)}
                   className={`w-full px-4 py-3 text-left transition-colors ${
-                    index === highlight
+                    index === activeIndex
                       ? "bg-blue-50 text-blue-900"
                       : "hover:bg-slate-50"
                   }`}

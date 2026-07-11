@@ -23,6 +23,7 @@ export function HoursSourceSelector({
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
         <button
           type="button"
+          aria-pressed={sourceType === "document"}
           onClick={() => onSourceTypeChange("document")}
           className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
             sourceType === "document"
@@ -34,6 +35,7 @@ export function HoursSourceSelector({
         </button>
         <button
           type="button"
+          aria-pressed={sourceType === "manual"}
           onClick={() => onSourceTypeChange("manual")}
           className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
             sourceType === "manual"

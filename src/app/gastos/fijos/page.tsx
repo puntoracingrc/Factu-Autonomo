@@ -757,8 +757,9 @@ export default function GastosFijosPage() {
                   <button
                     type="button"
                     onClick={() => startEdit(item)}
-                    className="rounded-xl bg-blue-50 p-2 text-blue-700"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-blue-50 p-2 text-blue-700"
                     title="Editar"
+                    aria-label={`Editar gasto fijo ${item.description}`}
                   >
                     <Pencil className="h-5 w-5" />
                   </button>
@@ -771,8 +772,9 @@ export default function GastosFijosPage() {
                         deleteRecurringExpense(item.id);
                       }
                     }}
-                    className="rounded-xl bg-red-50 p-2 text-red-600"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 p-2 text-red-600"
                     title="Borrar"
+                    aria-label={`Borrar gasto fijo ${item.description}`}
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>

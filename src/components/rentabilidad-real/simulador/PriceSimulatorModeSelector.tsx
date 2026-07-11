@@ -51,6 +51,7 @@ export function PriceSimulatorModeSelector({
           <button
             key={item.value}
             type="button"
+            aria-pressed={active}
             onClick={() => onModeChange(item.value)}
             className={`min-h-28 rounded-lg border p-4 text-left transition-colors ${
               active

@@ -69,6 +69,7 @@ export function PriceSimulatorInputs({
         <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
           <button
             type="button"
+            aria-pressed={settings.sourceMode === "manual"}
             onClick={() => patch({ sourceMode: "manual" })}
             className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
               settings.sourceMode === "manual"
@@ -80,6 +81,7 @@ export function PriceSimulatorInputs({
           </button>
           <button
             type="button"
+            aria-pressed={settings.sourceMode === "document"}
             onClick={() => patch({ sourceMode: "document" })}
             className={`min-h-11 rounded-md px-3 text-sm font-black transition-colors ${
               settings.sourceMode === "document"
@@ -225,6 +227,9 @@ export function PriceSimulatorInputs({
             <button
               key={method.value}
               type="button"
+              aria-pressed={
+                settings.fixedCostAllocationMethod === method.value
+              }
               onClick={() => patch({ fixedCostAllocationMethod: method.value })}
               className={`min-h-11 rounded-lg border px-3 text-sm font-black transition-colors ${
                 settings.fixedCostAllocationMethod === method.value
