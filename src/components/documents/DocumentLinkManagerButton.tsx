@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, Link2, Search, Unlink, X } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
+import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
@@ -34,6 +35,8 @@ export function DocumentLinkManagerButton({
   const [receiptId, setReceiptId] = useState("");
   const [invoiceForQuoteId, setInvoiceForQuoteId] = useState("");
   const [invoiceForReceiptId, setInvoiceForReceiptId] = useState("");
+  const modalTitleId = useId();
+  const modalDescriptionId = useId();
 
   const linkedQuote =
     doc.type === "factura" ? findQuoteLinkedToInvoice(data.documents, doc) : undefined;
@@ -197,87 +200,92 @@ export function DocumentLinkManagerButton({
         )}
       </IconActionButton>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-        >
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xl font-bold text-slate-900">{title}</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Organiza documentos relacionados. Esto no cambia el PDF
-                  emitido, la numeración, el QR ni los importes.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                aria-label="Cerrar vínculos"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {doc.type === "factura" ? (
-                <>
-                  <DocumentLinkSection
-                    title="Presupuesto relacionado"
-                    hint="Útil cuando la factura viene de un presupuesto, aunque la hayas terminado editando."
-                    documents={linkableDocuments(data.documents, "presupuesto")}
-                    selectedId={quoteId}
-                    onSelectedIdChange={setQuoteId}
-                    vatExempt={vatExempt}
-                    onSave={() => confirmQuoteForInvoice(quoteId || null)}
-                    onClear={() => confirmQuoteForInvoice(null)}
-                  />
-                  <DocumentLinkSection
-                    title="Recibo relacionado"
-                    hint="Útil para localizar el justificante de cobro asociado a esta factura."
-                    documents={linkableDocuments(data.documents, "recibo")}
-                    selectedId={receiptId}
-                    onSelectedIdChange={setReceiptId}
-                    vatExempt={vatExempt}
-                    onSave={() => confirmReceiptForInvoice(receiptId || null)}
-                    onClear={() => confirmReceiptForInvoice(null)}
-                  />
-                </>
-              ) : null}
-
-              {doc.type === "presupuesto" ? (
-                <DocumentLinkSection
-                  title="Factura relacionada"
-                  hint="Selecciona la factura que salió de este presupuesto."
-                  documents={linkableDocuments(data.documents, "factura")}
-                  selectedId={invoiceForQuoteId}
-                  onSelectedIdChange={setInvoiceForQuoteId}
-                  vatExempt={vatExempt}
-                  onSave={() => confirmInvoiceForQuote(invoiceForQuoteId || null)}
-                  onClear={() => confirmInvoiceForQuote(null)}
-                />
-              ) : null}
-
-              {doc.type === "recibo" ? (
-                <DocumentLinkSection
-                  title="Factura relacionada"
-                  hint="Selecciona la factura cuyo pago justifica este recibo."
-                  documents={linkableDocuments(data.documents, "factura")}
-                  selectedId={invoiceForReceiptId}
-                  onSelectedIdChange={setInvoiceForReceiptId}
-                  vatExempt={vatExempt}
-                  onSave={() => confirmInvoiceForReceipt(invoiceForReceiptId || null)}
-                  onClear={() => confirmInvoiceForReceipt(null)}
-                />
-              ) : null}
-            </div>
+      <Modal
+        open={open}
+        onClose={closeModal}
+        titleId={modalTitleId}
+        descriptionId={modalDescriptionId}
+        closeOnBackdrop={false}
+        overlayClassName="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
+        panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl supports-[height:100dvh]:max-h-[92dvh] sm:p-5"
+        testId="document-link-modal"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id={modalTitleId} className="text-xl font-bold text-slate-900">
+              {title}
+            </h2>
+            <p
+              id={modalDescriptionId}
+              className="mt-1 text-sm text-slate-500"
+            >
+              Organiza documentos relacionados. Esto no cambia el PDF emitido,
+              la numeración, el QR ni los importes.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={closeModal}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            aria-label="Cerrar vínculos"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      ) : null}
+
+        <div className="mt-4 space-y-4">
+          {doc.type === "factura" ? (
+            <>
+              <DocumentLinkSection
+                title="Presupuesto relacionado"
+                hint="Útil cuando la factura viene de un presupuesto, aunque la hayas terminado editando."
+                documents={linkableDocuments(data.documents, "presupuesto")}
+                selectedId={quoteId}
+                onSelectedIdChange={setQuoteId}
+                vatExempt={vatExempt}
+                onSave={() => confirmQuoteForInvoice(quoteId || null)}
+                onClear={() => confirmQuoteForInvoice(null)}
+              />
+              <DocumentLinkSection
+                title="Recibo relacionado"
+                hint="Útil para localizar el justificante de cobro asociado a esta factura."
+                documents={linkableDocuments(data.documents, "recibo")}
+                selectedId={receiptId}
+                onSelectedIdChange={setReceiptId}
+                vatExempt={vatExempt}
+                onSave={() => confirmReceiptForInvoice(receiptId || null)}
+                onClear={() => confirmReceiptForInvoice(null)}
+              />
+            </>
+          ) : null}
+
+          {doc.type === "presupuesto" ? (
+            <DocumentLinkSection
+              title="Factura relacionada"
+              hint="Selecciona la factura que salió de este presupuesto."
+              documents={linkableDocuments(data.documents, "factura")}
+              selectedId={invoiceForQuoteId}
+              onSelectedIdChange={setInvoiceForQuoteId}
+              vatExempt={vatExempt}
+              onSave={() => confirmInvoiceForQuote(invoiceForQuoteId || null)}
+              onClear={() => confirmInvoiceForQuote(null)}
+            />
+          ) : null}
+
+          {doc.type === "recibo" ? (
+            <DocumentLinkSection
+              title="Factura relacionada"
+              hint="Selecciona la factura cuyo pago justifica este recibo."
+              documents={linkableDocuments(data.documents, "factura")}
+              selectedId={invoiceForReceiptId}
+              onSelectedIdChange={setInvoiceForReceiptId}
+              vatExempt={vatExempt}
+              onSave={() => confirmInvoiceForReceipt(invoiceForReceiptId || null)}
+              onClear={() => confirmInvoiceForReceipt(null)}
+            />
+          ) : null}
+        </div>
+      </Modal>
     </>
   );
 }
@@ -334,7 +342,7 @@ function DocumentLinkSection({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             href={documentDetailPath(selectedDocument)}
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <Link2 className="h-4 w-4" />
             {documentShortNumber(selectedDocument)} · {selectedDocument.client.name}
@@ -342,7 +350,7 @@ function DocumentLinkSection({
           <button
             type="button"
             onClick={() => setPickerOpen((current) => !current)}
-            className="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             {pickerOpen ? "Ocultar búsqueda" : "Cambiar"}
           </button>
