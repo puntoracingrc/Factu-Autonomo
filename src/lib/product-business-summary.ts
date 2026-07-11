@@ -2,9 +2,12 @@ import { documentAmounts } from "./vat-regime";
 import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { sortDocumentsByNewest } from "./documents";
-import { isCollectedDocument, isPendingInvoicePayment } from "./income";
+import {
+  canMarkAsCollected,
+  isCollectedDocument,
+  isPendingInvoicePayment,
+} from "./income";
 import { expenseFiscalAmounts, expenseTotals } from "./expenses";
-import { isRectificativa } from "./rectificativas";
 import type { AppData, Document, Expense } from "./types";
 
 export interface ProductBusinessSummary {
@@ -52,9 +55,17 @@ function safeDifference(left: number, right: number): number {
 
 export function isIssuedBusinessInvoice(document: Document): boolean {
   if (document.type !== "factura") return false;
-  if (document.status === "anulada" || document.rectifiedById) return false;
-  if (isRectificativa(document)) return false;
-  return deriveDocumentLifecycle(document) === "issued";
+  if (!canMarkAsCollected(document)) return false;
+  const rectification =
+    document.documentSnapshot?.rectification ?? document.rectification;
+  if (!rectification) return true;
+
+  // En la vista operativa una R4 positiva sustituye a la original. Una
+  // anulación sigue siendo un movimiento fiscal firmado, no nueva facturación.
+  return (
+    rectification.type === "correccion" &&
+    documentAmounts(document, false).total > 0
+  );
 }
 
 function invoiceTotal(document: Document, vatExempt: boolean): number {

@@ -3,9 +3,32 @@ import {
   buildProductBusinessSummary,
   isIssuedBusinessInvoice,
 } from "./product-business-summary";
-import { EMPTY_DATA, type Document, type Expense } from "./types";
+import { issueDocument, markDocumentPaid } from "./document-integrity";
+import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type BusinessProfile,
+  type Document,
+  type Expense,
+} from "./types";
 
 const NOW = "2026-06-27T10:00:00.000Z";
+const TEST_PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autónomo Demo",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
+const TEST_CLIENT = {
+  name: "Cliente Demo",
+  nif: "B12345678",
+  address: "Calle Cliente 2",
+  postalCode: "28002",
+  city: "Madrid",
+};
 
 function invoice(overrides: Partial<Document> = {}): Document {
   return {
@@ -139,7 +162,7 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.totalPendingCollection).toBe(121);
   });
 
-  it("incluye rectificativas vigentes positivas en pendientes de cobro", () => {
+  it("usa la rectificativa positiva vigente en facturado, IVA y pendiente", () => {
     const original = invoice({
       id: "original",
       status: "rectificada",
@@ -171,11 +194,182 @@ describe("buildProductBusinessSummary", () => {
       documents: [original, rectification],
     });
 
+    expect(isIssuedBusinessInvoice(original)).toBe(false);
+    expect(isIssuedBusinessInvoice(rectification)).toBe(true);
+    expect(summary.issuedInvoicesCount).toBe(1);
+    expect(summary.totalBilledIssued).toBe(60.5);
+    expect(summary.salesIvaEstimated).toBe(10.5);
+    expect(summary.balanceEstimated).toBe(60.5);
     expect(summary.pendingInvoicesCount).toBe(1);
     expect(summary.totalPendingCollection).toBe(60.5);
     expect(summary.pendingInvoices.map((document) => document.id)).toEqual([
       "rect-1",
     ]);
+  });
+
+  it("mantiene fuera del facturado las anulaciones y rectificativas bloqueadas", () => {
+    const cancellation = invoice({
+      id: "rect-cancellation",
+      number: "FR-2026-0002",
+      items: [
+        {
+          id: "line-cancellation",
+          description: "Anulación",
+          quantity: 1,
+          unitPrice: -100,
+          ivaPercent: 21,
+        },
+      ],
+      rectification: {
+        originalDocumentId: "original-cancellation",
+        originalNumber: "F-2026-0002",
+        originalDate: "2026-06-26",
+        reason: "Anulación total",
+        type: "anulacion",
+      },
+    });
+    const blockedCorrection = invoice({
+      id: "rect-blocked",
+      number: "FR-2026-0003",
+      rectification: {
+        originalDocumentId: "original-blocked",
+        originalNumber: "F-2026-0003",
+        originalDate: "2026-06-26",
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["document_relationship_invalid"],
+      },
+    });
+
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [cancellation, blockedCorrection],
+    });
+
+    expect(isIssuedBusinessInvoice(cancellation)).toBe(false);
+    expect(isIssuedBusinessInvoice(blockedCorrection)).toBe(false);
+    expect(summary.issuedInvoicesCount).toBe(0);
+    expect(summary.totalBilledIssued).toBe(0);
+    expect(summary.salesIvaEstimated).toBe(0);
+  });
+
+  it("cobra la corrección sellada con sus importes congelados aunque cambien las líneas vivas", () => {
+    const originalIssued = issueDocument(
+      invoice({
+        id: "sealed-original",
+        status: "borrador",
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        client: TEST_CLIENT,
+      }),
+      TEST_PROFILE,
+      NOW,
+    );
+    const correctionIssued = issueDocument(
+      invoice({
+        id: "sealed-correction",
+        number: "FR-2026-0004",
+        status: "borrador",
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        client: TEST_CLIENT,
+        items: [
+          {
+            id: "sealed-correction-line",
+            description: "Corrección",
+            quantity: 1,
+            unitPrice: 50,
+            ivaPercent: 21,
+          },
+        ],
+        rectification: {
+          originalDocumentId: originalIssued.id,
+          originalNumber: originalIssued.number,
+          originalDate: originalIssued.date,
+          reason: "Corrección de datos",
+          type: "correccion",
+        },
+      }),
+      TEST_PROFILE,
+      NOW,
+    );
+    const [original, checkedCorrection] =
+      withDocumentRelationshipIntegritySignals([
+        {
+          ...originalIssued,
+          status: "rectificada",
+          rectifiedById: correctionIssued.id,
+        },
+        correctionIssued,
+      ]);
+    const paidCorrection = markDocumentPaid(checkedCorrection, NOW);
+    const liveDrift: Document = {
+      ...paidCorrection,
+      items: paidCorrection.items.map((item) => ({
+        ...item,
+        unitPrice: 999,
+      })),
+      rectification: {
+        ...paidCorrection.rectification!,
+        type: "anulacion",
+      },
+    };
+
+    expect(original.snapshotIntegrity).toBeUndefined();
+    expect(checkedCorrection.snapshotIntegrity).toBeUndefined();
+
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      profile: TEST_PROFILE,
+      documents: [original, liveDrift],
+    });
+
+    expect(summary).toMatchObject({
+      issuedInvoicesCount: 1,
+      collectedInvoicesCount: 1,
+      pendingInvoicesCount: 0,
+      totalBilledIssued: 60.5,
+      totalCollectedLocal: 60.5,
+      totalPendingCollection: 0,
+      salesIvaEstimated: 10.5,
+    });
+  });
+
+  it("excluye una corrección en cuarentena de todos los importes de venta", () => {
+    const quarantined = invoice({
+      id: "rect-quarantined",
+      number: "FR-2026-0005",
+      status: "pagado",
+      paymentStatus: "paid",
+      rectification: {
+        originalDocumentId: "original-quarantined",
+        originalNumber: "F-2026-0005",
+        originalDate: "2026-06-26",
+        reason: "Corrección de datos",
+        type: "correccion",
+      },
+      integrityQuarantine: {
+        reason: "malformed_document",
+        rawDocument: { id: "raw-quarantined" },
+      },
+    });
+
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [quarantined],
+    });
+
+    expect(isIssuedBusinessInvoice(quarantined)).toBe(false);
+    expect(summary).toMatchObject({
+      issuedInvoicesCount: 0,
+      collectedInvoicesCount: 0,
+      totalBilledIssued: 0,
+      totalCollectedLocal: 0,
+      salesIvaEstimated: 0,
+    });
   });
 
   it("suma gastos registrados", () => {

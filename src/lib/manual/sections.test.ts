@@ -52,6 +52,16 @@ describe("manual sections", () => {
     expect(taxManual).toContain("base estimada para IRPF");
   });
 
+  it("explica cómo cuenta el Panel una rectificativa positiva", () => {
+    const homeManual = JSON.stringify(getManualSection("inicio"));
+
+    expect(homeManual).toContain("corrección rectificativa positiva");
+    expect(homeManual).toContain("cuenta el reemplazo vigente una sola vez");
+    expect(homeManual).toContain(
+      "una rectificativa de anulación no se presenta como nueva facturación",
+    );
+  });
+
   it("separa el coste no deducible del tratamiento fiscal", () => {
     const manualText = JSON.stringify([
       getManualSection("gastos"),
