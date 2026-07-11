@@ -87,6 +87,22 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).not.toContain("Revisa la factura antes de guardar");
   });
 
+  it("aplica el guard de abonos en alta manual, escaneo, lote y buzón", () => {
+    const formPage = source("../app/gastos/nuevo/page.tsx");
+    const expenses = source("./expenses.ts");
+    const purchaseProducts = source("./purchase-products.ts");
+
+    expect(expenses).toContain("expenseCanFeedProductCatalog(expense)");
+    expect(purchaseProducts).toContain(
+      "expensePurchaseLineCanFeedProductCatalog(expense, line)",
+    );
+    expect(formPage).toContain("currentExpenseAmount: payload.expense.amount");
+    expect(formPage).toContain("currentExpenseAmount: currentAmount");
+    expect(
+      formPage.match(/expensePurchaseLineIsEligibleForProductCatalog/g),
+    ).toHaveLength(8);
+  });
+
   it("muestra progreso mientras se escanea un lote de facturas", () => {
     const formPage = source("../app/gastos/nuevo/page.tsx");
     const scanCard = source("../components/expenses/ExpenseScanCard.tsx");

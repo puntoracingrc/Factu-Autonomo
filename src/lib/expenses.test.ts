@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
+  expensePurchaseLineIsEligibleForProductCatalog,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
   findDuplicatePurchaseExpense,
@@ -106,6 +108,53 @@ describe("expenseTotalsFromBase", () => {
       total: -60,
     });
     expect(expensePurchaseLineBaseTotal(lines[0])).toBe(-60);
+  });
+
+  it("solo deja alimentar Productos a compras positivas con líneas positivas", () => {
+    const positiveLine = {
+      id: "positive-line",
+      description: "Motor G50",
+      catalogProduct: true,
+      quantity: 1,
+      unitPrice: 100,
+    };
+    const negativeLine = {
+      ...positiveLine,
+      id: "negative-line",
+      quantity: -1,
+      total: -100,
+    };
+
+    expect(
+      expensePurchaseLineCanFeedProductCatalog(
+        { amount: 100 },
+        positiveLine,
+      ),
+    ).toBe(true);
+    expect(
+      expensePurchaseLineCanFeedProductCatalog(
+        { amount: -100 },
+        positiveLine,
+      ),
+    ).toBe(false);
+    expect(
+      expensePurchaseLineCanFeedProductCatalog(
+        { amount: 100 },
+        negativeLine,
+      ),
+    ).toBe(false);
+    expect(
+      expensePurchaseLineIsEligibleForProductCatalog(
+        { amount: 100 },
+        positiveLine,
+      ),
+    ).toBe(true);
+    expect(
+      expensePurchaseLineCanFeedProductCatalog(
+        { amount: 100 },
+        { ...positiveLine, catalogProduct: false },
+      ),
+    ).toBe(false);
   });
 
   it("limpia datos de factura de proveedor vacíos", () => {
@@ -271,6 +320,7 @@ describe("expenseTotalsFromBase", () => {
           discountPercent: 0,
         },
       ],
+      currentExpenseAmount: 13,
       expenses: [previousExpense],
       supplierId: "supplier-1",
     });
@@ -319,6 +369,7 @@ describe("expenseTotalsFromBase", () => {
             discountPercent: 8,
           },
         ],
+        currentExpenseAmount: 10.5,
         expenses: [previousExpense],
         supplierId: "supplier-1",
       }),
@@ -334,6 +385,7 @@ describe("expenseTotalsFromBase", () => {
             unitPrice: 13,
           },
         ],
+        currentExpenseAmount: 13,
         expenses: [previousExpense],
         supplierId: "supplier-2",
       }),
@@ -373,10 +425,57 @@ describe("expenseTotalsFromBase", () => {
           unitPrice: 150,
         },
       ],
+      currentExpenseAmount: 150,
       expenses: [previousExpense],
       supplierId: "supplier-1",
     });
 
     expect(alerts).toHaveLength(0);
+  });
+
+  it("no usa abonos documentales como precio actual ni referencia histórica", () => {
+    const positiveLine = {
+      id: "line",
+      description: "Motor G50",
+      catalogProduct: true,
+      quantity: 1,
+      unitPrice: 130,
+    };
+    const historicalCredit: Expense = {
+      id: "credit",
+      date: "2026-06-01",
+      supplierId: "supplier-1",
+      supplierName: "Proveedor Demo",
+      description: "Abono con línea positiva",
+      amount: -100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Transferencia",
+      purchaseLines: [{ ...positiveLine, unitPrice: 100 }],
+      createdAt: "2026-06-01T10:00:00.000Z",
+    };
+    const historicalPurchase: Expense = {
+      ...historicalCredit,
+      id: "purchase",
+      description: "Compra válida",
+      amount: 100,
+    };
+
+    expect(
+      findExpensePurchaseLinePriceAlerts({
+        currentLines: [positiveLine],
+        currentExpenseAmount: 130,
+        expenses: [historicalCredit],
+        supplierId: "supplier-1",
+      }),
+    ).toEqual([]);
+    expect(
+      findExpensePurchaseLinePriceAlerts({
+        currentLines: [positiveLine],
+        currentExpenseAmount: -130,
+        expenses: [historicalPurchase],
+        supplierId: "supplier-1",
+      }),
+    ).toEqual([]);
   });
 });

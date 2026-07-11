@@ -43,7 +43,9 @@ import {
   parseDecimalInput,
 } from "@/lib/decimal-input";
 import {
+  expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
+  expensePurchaseLineIsEligibleForProductCatalog,
   expensePurchaseLinesBaseTotal,
   expenseTotalsFromBase,
   findDuplicatePurchaseExpense,
@@ -62,8 +64,6 @@ import {
   occurrenceKey,
 } from "@/lib/recurring-expenses";
 import {
-  purchaseLineCanFeedProductCatalog,
-  purchaseLineHasPositiveCatalogPrice,
   purchaseLineHasCatalogProduct,
   purchaseProductCatalogKeys,
   purchaseProductKey,
@@ -707,7 +707,10 @@ export default function NuevoGastoPage() {
   function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
     return (payload.expense.purchaseLines ?? []).filter(
       (line) =>
-        purchaseLineHasPositiveCatalogPrice(line) &&
+        expensePurchaseLineIsEligibleForProductCatalog(
+          payload.expense,
+          line,
+        ) &&
         !purchaseLineHasCatalogProduct(line, productKeys),
     );
   }
@@ -732,7 +735,11 @@ export default function NuevoGastoPage() {
   ) {
     const line = review.payload.expense.purchaseLines?.[lineIndex];
     if (!line || !selectedForCatalogInScan(line)) return null;
-    if (!purchaseLineHasPositiveCatalogPrice(line)) return null;
+    if (
+      !expensePurchaseLineCanFeedProductCatalog(review.payload.expense, line)
+    ) {
+      return null;
+    }
 
     const lineKeys = purchaseLineBatchKeys(line);
     if (lineKeys.length === 0) return null;
@@ -750,7 +757,10 @@ export default function NuevoGastoPage() {
 
         const candidateLine = candidateLines[candidateIndex];
         if (
-          !purchaseLineHasPositiveCatalogPrice(candidateLine) ||
+          !expensePurchaseLineCanFeedProductCatalog(
+            candidateReview.payload.expense,
+            candidateLine,
+          ) ||
           !selectedForCatalogInScan(candidateLine) ||
           purchaseLineHasCatalogProduct(candidateLine, productKeys)
         ) {
@@ -778,7 +788,10 @@ export default function NuevoGastoPage() {
         const description = line.description.trim();
         if (!description) return null;
 
-        const canFeedCatalog = purchaseLineHasPositiveCatalogPrice(line);
+        const canFeedCatalog = expensePurchaseLineIsEligibleForProductCatalog(
+          review.payload.expense,
+          line,
+        );
         const inCatalog = purchaseLineHasCatalogProduct(line, productKeys);
         const selected = selectedForCatalogInScan(line);
         const batchOwner = selectedBatchCatalogOwnerForLine(review, index);
@@ -828,7 +841,12 @@ export default function NuevoGastoPage() {
       expense: {
         ...payload.expense,
         purchaseLines: payload.expense.purchaseLines?.map((line) => {
-          if (!purchaseLineHasPositiveCatalogPrice(line)) {
+          if (
+            !expensePurchaseLineIsEligibleForProductCatalog(
+              payload.expense,
+              line,
+            )
+          ) {
             return { ...line, catalogProduct: false };
           }
           if (purchaseLineHasCatalogProduct(line, productKeys)) {
@@ -871,7 +889,12 @@ export default function NuevoGastoPage() {
     if (activeScanReview?.id === review.id) {
       setPurchaseLines((current) =>
         current.map((line) => {
-          if (!purchaseLineHasPositiveCatalogPrice(line)) {
+          if (
+            !expensePurchaseLineIsEligibleForProductCatalog(
+              { amount: currentAmount },
+              line,
+            )
+          ) {
             return { ...line, catalogProduct: false };
           }
           if (purchaseLineHasCatalogProduct(line, productKeys)) {
@@ -901,6 +924,10 @@ export default function NuevoGastoPage() {
       .map((line, index) => ({ line, index }))
       .filter(
         ({ line }) =>
+          expensePurchaseLineCanFeedProductCatalog(
+            review.payload.expense,
+            line,
+          ) &&
           selectedForCatalogInScan(line) &&
           !purchaseLineHasCatalogProduct(line, productKeys),
       );
@@ -970,6 +997,7 @@ export default function NuevoGastoPage() {
 
     return findExpensePurchaseLinePriceAlerts({
       currentLines,
+      currentExpenseAmount: payload.expense.amount,
       expenses: data.expenses,
       supplierId: match?.supplier.id,
       supplierName: match?.supplier.name ?? payload.supplier.name,
@@ -1088,6 +1116,10 @@ export default function NuevoGastoPage() {
     });
     const purchaseLines = sanitizeExpensePurchaseLines(
       payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ?? [],
+    ).map((line) =>
+      expensePurchaseLineIsEligibleForProductCatalog(payload.expense, line)
+        ? line
+        : { ...line, catalogProduct: false },
     );
 
     const expensePayload: Omit<Expense, "id" | "createdAt"> = {
@@ -1193,6 +1225,7 @@ export default function NuevoGastoPage() {
     () =>
       findExpensePurchaseLinePriceAlerts({
         currentLines: purchaseLines,
+        currentExpenseAmount: currentAmount,
         expenses: data.expenses,
         supplierId: selectedSupplierId ?? undefined,
         supplierName,
@@ -1200,6 +1233,7 @@ export default function NuevoGastoPage() {
       }),
     [
       data.expenses,
+      currentAmount,
       editingExpense?.id,
       purchaseLines,
       selectedSupplierId,
@@ -1280,7 +1314,13 @@ export default function NuevoGastoPage() {
       supplierId = created.id;
     }
 
-    const cleanedPurchaseLines = sanitizeExpensePurchaseLines(purchaseLines);
+    const cleanedPurchaseLines = sanitizeExpensePurchaseLines(
+      purchaseLines,
+    ).map((line) =>
+      expensePurchaseLineIsEligibleForProductCatalog({ amount }, line)
+        ? line
+        : { ...line, catalogProduct: false },
+    );
     const cleanedPurchaseDocument =
       sanitizeExpensePurchaseDocument(purchaseDocument);
     const expenseDate =
@@ -2279,8 +2319,12 @@ export default function NuevoGastoPage() {
                     productKeys,
                   );
                   const lineCanFeedCatalog =
-                    purchaseLineCanFeedProductCatalog(line);
+                    expensePurchaseLineIsEligibleForProductCatalog(
+                      { amount: currentAmount },
+                      line,
+                    );
                   const lineIsCreditOrReturn =
+                    currentAmount < 0 ||
                     expensePurchaseLineBaseTotal(line) < 0 ||
                     line.unitPrice < 0 ||
                     (line.netUnitPrice ?? 0) < 0;
