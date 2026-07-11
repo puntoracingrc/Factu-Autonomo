@@ -1,5 +1,8 @@
 import { Card, PageHeader } from "@/components/ui/Card";
 import { APP_BRAND_NAME } from "@/lib/brand";
+import { termsPageMetadata } from "@/lib/legal-metadata";
+
+export const metadata = termsPageMetadata;
 
 export default function TerminosPage() {
   return (

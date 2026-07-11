@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { middleware } from "../../middleware";
+import { middleware } from "@/middleware";
 
 describe("private route middleware", () => {
   it("adds no-store and noindex headers to matched private app pages", () => {
