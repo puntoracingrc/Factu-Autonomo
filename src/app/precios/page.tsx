@@ -85,7 +85,7 @@ const FREE_FEATURES = [
   "Hasta 10 documentos al mes",
   "Hasta 15 clientes",
   "Facturas, presupuestos y recibos en PDF",
-  "Preparación VeriFactu/SIF en modo simulado",
+  "Información VeriFactu/SIF (registro y QR desactivados)",
   "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
   "2 escaneos IA de prueba",
@@ -93,7 +93,7 @@ const FREE_FEATURES = [
 ];
 
 const VERIFACTU_PUBLIC_NOTICE =
-  "No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
+  "El registro y el QR tributario están desactivados; ninguna factura se presenta como aceptada por AEAT. No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
 
 const PRO_FEATURES = [
   "Documentos y clientes ilimitados",

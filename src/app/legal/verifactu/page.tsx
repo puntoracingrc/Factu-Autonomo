@@ -41,7 +41,8 @@ export default function LegalVerifactuPage() {
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <div className="not-prose rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
           <p className="font-bold">
-            Estado actual: preparación VeriFactu/SIF en modo simulado.
+            Estado actual: registro VeriFactu, envío a AEAT y QR tributario
+            desactivados.
           </p>
           <p className="mt-2">
             No afirmamos que la AEAT haya homologado, validado o revisado
@@ -63,12 +64,12 @@ export default function LegalVerifactuPage() {
         <h2>Resumen claro</h2>
         <ul>
           <li>
-            El plan Gratis incluye el acceso básico a las funciones
-            VeriFactu/SIF con cuenta verificada.
+            La app ofrece información sobre VeriFactu/SIF, pero actualmente no
+            registra ni remite facturas a la AEAT.
           </li>
           <li>
-            El uso real depende de tener bien configurados los datos fiscales,
-            la modalidad y, cuando corresponda, la conexión con AEAT.
+            Ningún dato local, estado <code>server_confirmed</code> o huella
+            calculada por el cliente acredita una aceptación de la AEAT.
           </li>
           <li>
             No afirmamos que la AEAT haya homologado, validado o revisado
@@ -79,12 +80,12 @@ export default function LegalVerifactuPage() {
         <ul>
           <li>Genera documentos de facturación con numeración y datos fiscales.</li>
           <li>
-            Prepara huella, encadenamiento, registros técnicos y material
-            VeriFactu cuando el módulo está activado y configurado.
+            Mantiene controles internos de integridad documental sin
+            presentarlos como registro fiscal ni confirmación externa.
           </li>
           <li>
-            Reserva el QR tributario en el PDF cuando procede según la
-            configuración de emisión.
+            No genera ni muestra QR tributario o distintivo VeriFactu mientras
+            no exista una atestación autenticada del servidor.
           </li>
           <li>
             Mantiene funciones de rectificación para no alterar facturas emitidas.
@@ -97,8 +98,8 @@ export default function LegalVerifactuPage() {
             tu caso.
           </li>
           <li>
-            No envía registros reales a AEAT si faltan certificado, variables de
-            servidor, entorno o activación de envío real.
+            La ruta de registro está desactivada y responde como servicio no
+            disponible; no se envían registros reales a AEAT.
           </li>
           <li>
             No convierte presupuestos, gastos o recibos en obligaciones SIF:
@@ -117,18 +118,17 @@ export default function LegalVerifactuPage() {
         </p>
         <h2>Modalidad y configuración</h2>
         <p>
-          La app se orienta a trabajar con funciones VeriFactu/SIF. La modalidad
-          VERI*FACTU exige remisión de registros a la Sede electrónica de la
-          Agencia Tributaria después de su producción. Algunas funciones pueden
-          depender de certificado, variables de entorno, proveedor de
-          alojamiento, estado de producción y configuración de cada cuenta.
+          La modalidad VERI*FACTU exige remisión de registros a la Sede
+          electrónica de la Agencia Tributaria después de su producción. Esta
+          app no ofrece actualmente esa operación. Su futura activación requiere
+          controles fiscales, identidad del emisor, persistencia atómica y
+          atestación autenticada que hoy no están disponibles.
         </p>
         <h2>Plan gratis</h2>
         <p>
-          Las funciones básicas de emisión y preparación VeriFactu/SIF se
-          contemplan como parte del uso gratuito con cuenta verificada. Las
-          funciones Pro pueden afectar a nube, importación, IA o
-          personalización, no al derecho a emitir documentos básicos.
+          La emisión de documentos básicos y la información sobre VeriFactu/SIF
+          forman parte del uso gratuito. Esto no incluye registro, remisión a
+          AEAT, QR tributario ni acreditación de aceptación.
         </p>
         <h2>Fuentes oficiales</h2>
         <ul>

@@ -4,6 +4,7 @@ import {
   buildRegistroAnulacionPayload,
   computeRegistroAltaHash,
   computeRegistroAnulacionHash,
+  normalizeHuellaAnterior,
   type RegistroAltaHashInput,
   type RegistroAnulacionHashInput,
 } from "./hash";
@@ -127,5 +128,12 @@ describe("verifactu hash AEAT v0.1.2", () => {
       huellaAnterior: first,
     });
     expect(second).toBe(secondVector.expectedHash);
+  });
+
+  it("normaliza una huella previa válida y rechaza valores cortos o no hex", () => {
+    expect(normalizeHuellaAnterior("a".repeat(64))).toBe("A".repeat(64));
+    expect(normalizeHuellaAnterior("  ")).toBeNull();
+    expect(() => normalizeHuellaAnterior("abc123")).toThrow("SHA-256");
+    expect(() => normalizeHuellaAnterior("G".repeat(64))).toThrow("SHA-256");
   });
 });

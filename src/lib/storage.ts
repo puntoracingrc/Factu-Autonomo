@@ -88,6 +88,54 @@ export interface NormalizeLoadedDataOptions {
   legacyBackfillDocumentIds?: ReadonlySet<string>;
 }
 
+function hasAcceptedVerifactuStatus(doc: Document): boolean {
+  return (
+    doc.verifactu?.status === "registered" ||
+    doc.verifactu?.status === "test_registered"
+  );
+}
+
+/**
+ * Los clientes antiguos podían persistir un éxito local/simulado sin indicar
+ * su procedencia. Se conserva esa evidencia, pero nunca se eleva a confirmación
+ * de servidor ni se usa para fabricar a posteriori el snapshot que falta.
+ */
+function preclassifyLegacyVerifactuDocument(doc: Document): Document {
+  if (!hasAcceptedVerifactuStatus(doc)) return doc;
+
+  const classified: Document = doc.verifactuPersistence
+    ? doc
+    : { ...doc, verifactuPersistence: "legacy_unverified" };
+
+  if (classified.documentSnapshot) return classified;
+
+  return {
+    ...classified,
+    snapshotIntegrityRequired: true,
+  };
+}
+
+function blockDocumentAfterMigrationFailure(doc: Document): Document {
+  const signaled = withDocumentSnapshotIntegritySignal({
+    ...doc,
+    snapshotIntegrityRequired: true,
+    documentLifecycle:
+      doc.documentLifecycle === "canceled" || doc.status === "anulada"
+        ? "canceled"
+        : "issued",
+    integrityLock: "locked",
+  });
+  const issues = new Set(signaled.snapshotIntegrity?.issues ?? []);
+  issues.add("document_snapshot_invalid");
+  return {
+    ...signaled,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [...issues],
+    },
+  };
+}
+
 export function normalizeLoadedData(
   parsed: Partial<AppData>,
   options: NormalizeLoadedDataOptions = {},
@@ -97,7 +145,9 @@ export function normalizeLoadedData(
   const migrationTimestamp = new Date().toISOString();
   const migratedDocuments: Document[] = [];
   const documents = (parsed.documents ?? []).map((document) => {
-    const persisted = document as AppData["documents"][number];
+    const persisted = preclassifyLegacyVerifactuDocument(
+      normalizeQuoteDocument(document as AppData["documents"][number]),
+    );
     const explicitLegacyImport =
       options.legacyBackfillDocumentIds?.has(persisted.id) === true;
     try {
@@ -115,10 +165,9 @@ export function normalizeLoadedData(
       }
       return normalized;
     } catch {
-      return withDocumentSnapshotIntegritySignal({
-        ...persisted,
-        snapshotIntegrityRequired: true,
-      });
+      // Un registro defectuoso queda visible y bloqueado; nunca invalida el
+      // resto del workspace ni se descarta durante la rehidratación.
+      return blockDocumentAfterMigrationFailure(persisted);
     }
   });
   const migrationChanges: SyncChange[] = migratedDocuments.map((document) => ({
@@ -224,6 +273,7 @@ function linkLooseExpensesToExistingSuppliers(
 
 function shouldBackfillHistoricalSnapshot(doc: Document): boolean {
   if (doc.documentSnapshot) return false;
+  if (doc.snapshotIntegrityRequired) return false;
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
   return deriveDocumentLifecycle(doc) !== "draft";
 }

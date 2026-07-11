@@ -7,7 +7,7 @@ const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
   name: "Autonomo Test",
   nif: "12345678Z",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 const doc: Document = {
@@ -82,5 +82,39 @@ describe("registro facturacion xml", () => {
     expect(xml).toContain("<sum1:NumSerieFactura>F-2026-0001</sum1:NumSerieFactura>");
     expect(xml).toContain("<sum1:FechaExpedicionFactura>09-06-2026</sum1:FechaExpedicionFactura>");
     expect(xml).toContain("<sum1:Huella>ABC123</sum1:Huella>");
+  });
+
+  it("usa el mismo redondeo por línea en desglose y totales fraccionarios", () => {
+    const fractional = {
+      ...doc,
+      items: [
+        { ...doc.items[0], id: "fraction-1", unitPrice: 0.025 },
+        { ...doc.items[0], id: "fraction-2", unitPrice: 0.025 },
+      ],
+    };
+    const xml = buildRegistroFacturacionXml({
+      doc: fractional,
+      profile,
+      issuerNif: "12345678Z",
+      numserie: fractional.number,
+      fecha: fractional.date,
+      importe: 0.08,
+      cuotaTotal: 0.02,
+      tipoFactura: "F1",
+      recordType: "alta",
+      recordHash: "A".repeat(64),
+      previousHash: "",
+      recordTimestamp: "2026-06-09T11:00:00+02:00",
+      vatExempt: false,
+    });
+
+    expect(xml).toContain(
+      "<sum1:BaseImponibleOimporteNoSujeto>0.06</sum1:BaseImponibleOimporteNoSujeto>",
+    );
+    expect(xml).toContain(
+      "<sum1:CuotaRepercutida>0.02</sum1:CuotaRepercutida>",
+    );
+    expect(xml).toContain("<sum1:CuotaTotal>0.02</sum1:CuotaTotal>");
+    expect(xml).toContain("<sum1:ImporteTotal>0.08</sum1:ImporteTotal>");
   });
 });

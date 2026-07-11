@@ -966,8 +966,7 @@ export function buildDocumentSnapshot(
     verifactu &&
     (verifactu.status === "registered" ||
       verifactu.status === "test_registered") &&
-    doc.verifactuPersistence !== "server_confirmed" &&
-    doc.verifactuPersistence !== "simulation"
+    doc.verifactuPersistence !== "server_confirmed"
   ) {
     throw new DocumentSnapshotIntegrityError([
       "document_snapshot_semantic_invalid",
@@ -1039,8 +1038,7 @@ export function attachRegisteredVerifactuToSnapshots(
     return projectCanonicalSnapshotOntoDocument(doc);
   }
   if (
-    doc.verifactuPersistence !== "server_confirmed" &&
-    doc.verifactuPersistence !== "simulation"
+    doc.verifactuPersistence !== "server_confirmed"
   ) {
     throw new DocumentSnapshotIntegrityError([
       "document_snapshot_semantic_invalid",

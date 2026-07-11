@@ -3,13 +3,12 @@ import type { BusinessProfile, Document } from "../types";
 import { GENESIS_HASH } from "./constants";
 import { normalizeHuellaAnterior } from "./hash";
 import {
-  documentTotalForVerifactu,
   getVerifactuEnvironment,
   initialChainState,
   needsVerifactuRegistration,
+  normalizeVerifactuSettings,
   verifactuRecordType,
 } from "./eligibility";
-import { buildQrUrl } from "./qr";
 import { computeDocumentRecordHash } from "./record-input";
 import { formatAeatRecordTimestamp } from "./timestamp";
 import { resolveTipoFactura } from "./tipo-factura";
@@ -21,6 +20,8 @@ import type {
 import { buildRegistroFacturacionXml } from "./xml";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { formatQrAmount } from "./qr";
+import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
+import { assertDocumentSnapshotsIntegrity } from "../document-integrity";
 
 function normalizeChainHash(hash: string | null | undefined): string {
   const normalized = normalizeHuellaAnterior(hash);
@@ -40,11 +41,19 @@ export function resolveChainState(
   const lastHash = normalizeChainHash(
     chain.lastHash === GENESIS_HASH ? "" : chain.lastHash,
   );
+  if (!Number.isSafeInteger(chain.recordCount) || chain.recordCount < 0) {
+    throw new Error("El contador de la cadena VeriFactu no es válido");
+  }
   if (
     lastHash &&
-    (!chain.lastNumSerie?.trim() || !chain.lastFechaExpedicion?.trim())
+    (!chain.lastNumSerie?.trim() ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(chain.lastFechaExpedicion?.trim() ?? "") ||
+      chain.recordCount < 1)
   ) {
-    return base;
+    throw new Error("La cadena VeriFactu persistida está incompleta");
+  }
+  if (!lastHash && chain.recordCount !== 0) {
+    throw new Error("La cadena VeriFactu persistida no contiene su última huella");
   }
   return {
     issuerNif: chain.issuerNif,
@@ -59,16 +68,41 @@ export async function registerDocumentVerifactu(input: {
   doc: Document;
   profile: BusinessProfile;
   chain?: VerifactuChainState | null;
-  csv?: string;
-  status?: VerifactuInfo["status"];
 }): Promise<VerifactuRegisterResult | null> {
-  const { doc, profile } = input;
+  const requestedProfile = input.profile;
+  if (
+    input.doc.documentSnapshot ||
+    input.doc.pdfSnapshot ||
+    input.doc.snapshotSeal ||
+    input.doc.snapshotIntegrityRequired
+  ) {
+    assertDocumentSnapshotsIntegrity(input.doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+  }
+  const doc = buildCanonicalDocumentForProtectedEffect(
+    input.doc,
+    requestedProfile,
+  );
+  const snapshot = doc.documentSnapshot;
+  const profile: BusinessProfile = snapshot
+    ? {
+        ...requestedProfile,
+        name: snapshot.issuer.name,
+        nif: snapshot.issuer.nif,
+        vatExempt: snapshot.fiscalContext.vatExempt,
+        verifactu: normalizeVerifactuSettings(
+          snapshot.fiscalContext.verifactu,
+        ),
+      }
+    : requestedProfile;
   if (!needsVerifactuRegistration(doc, profile)) return null;
 
   const environment = getVerifactuEnvironment(profile);
   const chain = resolveChainState(profile, input.chain);
   const recordType = verifactuRecordType(doc);
-  const importe = documentTotalForVerifactu(doc, profile);
   const recordTimestamp = formatAeatRecordTimestamp();
   const previousHash = normalizeHuellaAnterior(chain.lastHash);
 
@@ -81,19 +115,6 @@ export async function registerDocumentVerifactu(input: {
   });
 
   const issuerNif = resolveIssuerNif(doc, profile);
-
-  const qrUrl = buildQrUrl({
-    nif: issuerNif,
-    numserie: doc.number,
-    fecha: doc.date,
-    importe,
-    environment,
-  });
-
-  const csv = input.csv;
-  const status =
-    input.status ??
-    (environment === "test" ? "test_registered" : "registered");
 
   const vatExempt = isVatExempt(profile);
   const amounts = documentAmounts(doc, vatExempt);
@@ -110,12 +131,12 @@ export async function registerDocumentVerifactu(input: {
     recordHash,
     previousHash: chain.lastHash,
     recordTimestamp,
-    qrUrl,
-    ...(csv ? { csv } : {}),
-    status,
+    // Un cálculo local no es una respuesta de AEAT y nunca genera un QR
+    // tributario ni un estado de aceptación.
+    qrUrl: "",
+    status: "pending",
     recordType,
     environment,
-    submittedAt: new Date().toISOString(),
     tipoFactura: resolveTipoFactura(doc),
     cuotaTotal: formatQrAmount(amounts.iva),
     importeTotal: formatQrAmount(amounts.total),
@@ -142,13 +163,9 @@ export async function registerDocumentVerifactu(input: {
   return {
     verifactu,
     xml,
-    chain: {
-      issuerNif: chain.issuerNif,
-      lastHash: recordHash,
-      lastNumSerie: chainNumSerie,
-      lastFechaExpedicion: chainFechaExpedicion,
-      recordCount: chain.recordCount + 1,
-    },
+    // La cadena oficial solo puede avanzar en una transacción autenticada de
+    // servidor. El cálculo local conserva exactamente el estado recibido.
+    chain,
   };
 }
 
@@ -162,21 +179,26 @@ export async function applyVerifactuToDocuments(input: {
 
   for (let i = 0; i < documents.length; i++) {
     const doc = documents[i];
-    if (!needsVerifactuRegistration(doc, input.profile)) continue;
+    const canonicalDocument = buildCanonicalDocumentForProtectedEffect(
+      doc,
+      input.profile,
+    );
 
     const result = await registerDocumentVerifactu({
-      doc,
+      doc: canonicalDocument,
       profile: input.profile,
       chain,
     });
     if (!result) continue;
 
-    documents[i] = { ...doc, verifactu: result.verifactu };
+    // El candidato sirve únicamente para validación técnica en memoria. No se
+    // persiste como registro, no genera distintivo y no avanza la cadena.
+    documents[i] = canonicalDocument;
     chain = result.chain;
   }
 
   return {
     documents,
-    chain: chain.recordCount > 0 ? chain : input.chain ?? null,
+    chain: input.chain ?? null,
   };
 }

@@ -64,11 +64,11 @@ export default function TerminosPage() {
         </p>
         <h2>VeriFactu y normativa</h2>
         <p>
-          La app incorpora herramientas orientadas al cumplimiento VeriFactu/SIF
-          cuando estén activadas y configuradas. No afirmamos homologación ni
-          validación comercial por parte de AEAT. Aun así, el usuario debe
-          comprobar que su uso concreto se ajusta a su actividad, plazos y
-          obligaciones.
+          La app muestra información sobre VeriFactu/SIF, pero el registro, la
+          remisión a AEAT, el QR tributario y cualquier distintivo de aceptación
+          están actualmente desactivados. No afirmamos homologación ni validación
+          comercial por parte de AEAT. El usuario debe comprobar que su uso
+          concreto se ajusta a su actividad, plazos y obligaciones.
         </p>
         <h2>Disponibilidad</h2>
         <p>

@@ -1,163 +1,192 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  BusinessProfile,
-  Document,
-  VerifactuChainState,
-} from "../types";
-import { DEFAULT_PROFILE } from "../types";
-import { finalizeVerifactuDocument } from "./finalize";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  resolveVerifactuRegistrationContext,
-  withVerifactuOnDocument,
-} from "./store";
+  attachRegisteredVerifactuToSnapshots,
+  issueDocument,
+} from "@/lib/document-integrity";
+import { DEFAULT_PROFILE, type BusinessProfile, type Document } from "@/lib/types";
+import { finalizeVerifactuDocument } from "./finalize";
 
-const { submitVerifactuToServerMock } = vi.hoisted(() => ({
-  submitVerifactuToServerMock: vi.fn(),
-}));
-
-vi.mock("./client-api", () => ({
-  submitVerifactuToServer: submitVerifactuToServerMock,
-}));
-
-const historicalProfile: BusinessProfile = {
+const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
-  name: "Emisor histórico",
+  name: "Emisor de pruebas",
   nif: "12345678Z",
-  vatExempt: false,
-  iva: { rates: [21], defaultRate: 21 },
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
-const currentProfile: BusinessProfile = {
-  ...historicalProfile,
-  name: "Emisor actual",
-  vatExempt: true,
-  iva: { rates: [0], defaultRate: 0 },
-};
-
-const historicalChain: VerifactuChainState = {
-  issuerNif: "12345678Z",
-  lastHash: "A".repeat(64),
-  lastNumSerie: "F-2026-0001",
-  lastFechaExpedicion: "2026-06-01",
-  recordCount: 1,
-};
-
-const currentChain: VerifactuChainState = {
-  issuerNif: "12345678Z",
-  lastHash: "B".repeat(64),
-  lastNumSerie: "F-2026-0099",
-  lastFechaExpedicion: "2026-07-10",
-  recordCount: 99,
-};
-
-const rectification: Document = {
-  id: "rectification-1",
-  type: "factura",
-  number: "FR-2026-0001",
-  date: "2026-07-11",
-  client: { name: "Cliente" },
-  items: [
+function issuedInvoice(unitPrice = 100): Document {
+  return issueDocument(
     {
-      id: "line-1",
-      description: "Rectificación",
-      quantity: 1,
-      unitPrice: -100,
-      ivaPercent: 21,
+      id: "vf-preflight",
+      type: "factura",
+      number: "F-2026-0042",
+      date: "2026-07-11",
+      client: { name: "Cliente" },
+      items: [
+        {
+          id: "line-1",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice,
+          ivaPercent: 21,
+        },
+      ],
+      status: "borrador",
+      createdAt: "2026-07-11T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
     },
-  ],
-  status: "enviado",
-  rectification: {
-    originalDocumentId: "invoice-1",
-    originalNumber: "F-2026-0001",
-    originalDate: "2026-06-01",
-    reason: "Corrección",
-    type: "correccion",
-  },
-  issuer: {
-    name: historicalProfile.name,
-    nif: historicalProfile.nif,
-    address: historicalProfile.address,
-    city: historicalProfile.city,
-    postalCode: historicalProfile.postalCode,
-    capturedAt: "2026-06-01T10:00:00.000Z",
-  },
-  createdAt: "2026-07-11T10:00:00.000Z",
-  updatedAt: "2026-07-11T10:00:00.000Z",
-};
+    profile,
+    "2026-07-11T00:00:00.000Z",
+  );
+}
 
-describe("finalizeVerifactuDocument", () => {
-  beforeEach(() => {
-    submitVerifactuToServerMock.mockReset();
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("finalizeVerifactuDocument snapshot preflight", () => {
+  it("no hace fetch ni mutación local si el snapshot está manipulado", async () => {
+    const issued = issuedInvoice();
+    const other = issuedInvoice(200);
+    const tampered: Document = {
+      ...issued,
+      documentSnapshot: other.documentSnapshot,
+      pdfSnapshot: other.pdfSnapshot,
+    };
+    const fetchMock = vi.fn();
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: tampered,
+        profile,
+        registerLocal,
+        authToken: "token-de-prueba",
+      }),
+    ).rejects.toThrow("no supera la comprobación de integridad");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(registerLocal).not.toHaveBeenCalled();
   });
 
-  it("usa perfil y cadena efectivos en el fallback local de una rectificativa", async () => {
-    submitVerifactuToServerMock.mockResolvedValue(null);
-
-    const result = await finalizeVerifactuDocument({
-      doc: rectification,
-      profile: historicalProfile,
-      chain: historicalChain,
-      authToken: "test-token",
-      registerLocal: async (doc, chainOverride, profileOverride) => {
-        const context = resolveVerifactuRegistrationContext({
-          doc,
-          profile: currentProfile,
-          chain: currentChain,
-          profileOverride,
-          chainOverride,
-        });
-        return (await withVerifactuOnDocument(context)).doc;
-      },
-    });
-
-    expect(result.verifactu).toMatchObject({
-      previousHash: historicalChain.lastHash,
-      cuotaTotal: "-21.00",
-      importeTotal: "-121.00",
-    });
-  });
-
-  it("propaga perfil y cadena efectivos al persistir el registro del servidor", async () => {
-    const serverChain: VerifactuChainState = {
-      ...historicalChain,
-      lastHash: "C".repeat(64),
-      lastNumSerie: rectification.number,
-      lastFechaExpedicion: rectification.date,
-      recordCount: 2,
+  it("informa que el registro está desactivado sin fabricar registro", async () => {
+    const issued = issuedInvoice();
+    const drifted: Document = {
+      ...issued,
+      number: "FALSA-VIVA",
+      items: [{ ...issued.items[0], unitPrice: 999 }],
     };
-    const serverVerifactu: NonNullable<Document["verifactu"]> = {
-      recordHash: serverChain.lastHash,
-      previousHash: historicalChain.lastHash,
-      recordTimestamp: "2026-07-11T12:00:00+02:00",
-      qrUrl: "https://prewww2.aeat.es/verifactu",
-      status: "test_registered",
-      recordType: "alta",
-      environment: "test",
-      tipoFactura: "R4",
-      cuotaTotal: "-21.00",
-      importeTotal: "-121.00",
-    };
-    submitVerifactuToServerMock.mockResolvedValue({
-      verifactu: serverVerifactu,
-      chain: serverChain,
-      persisted: true,
-    });
     const registerLocal = vi.fn(async (doc: Document) => doc);
 
-    const result = await finalizeVerifactuDocument({
-      doc: rectification,
-      profile: historicalProfile,
-      chain: historicalChain,
-      authToken: "test-token",
-      registerLocal,
-    });
+    await expect(
+      finalizeVerifactuDocument({
+        doc: drifted,
+        profile,
+        registerLocal,
+        authToken: "",
+      }),
+    ).rejects.toThrow("está desactivado en el servidor");
+    expect(registerLocal).not.toHaveBeenCalled();
+  });
 
-    expect(result.verifactu).toEqual(serverVerifactu);
-    expect(registerLocal).toHaveBeenCalledWith(
-      expect.objectContaining({ verifactu: serverVerifactu }),
-      serverChain,
-      historicalProfile,
-    );
+  it("no permite que el estado VeriFactu vivo omita la evaluación canónica", async () => {
+    const issued = issuedInvoice();
+    const drifted: Document = {
+      ...issued,
+      verifactu: {
+        status: "test_registered",
+        recordHash: "falso-vivo",
+        previousHash: "",
+        recordTimestamp: "2026-07-11T01:00:00+02:00",
+        qrUrl: "https://example.invalid/falso",
+        recordType: "alta",
+        environment: "test",
+        submittedAt: "2026-07-11T01:00:00.000Z",
+      },
+    };
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: drifted,
+        profile,
+        registerLocal,
+        authToken: "",
+      }),
+    ).rejects.toThrow("está desactivado en el servidor");
+
+    expect(registerLocal).not.toHaveBeenCalled();
+  });
+
+  it("bloquea una transición simulación a real antes de cualquier efecto remoto", async () => {
+    const issued = issuedInvoice();
+    const historicalSimulation = {
+      ...attachRegisteredVerifactuToSnapshots({
+        ...issued,
+        verifactuPersistence: "server_confirmed",
+        verifactu: {
+          status: "test_registered",
+          recordHash: "a".repeat(64),
+          previousHash: "",
+          recordTimestamp: "2026-07-11T01:00:00+02:00",
+          qrUrl: "https://example.invalid/legacy-simulation",
+          recordType: "alta",
+          environment: "test",
+          submittedAt: "2026-07-11T01:00:00.000Z",
+        },
+      }),
+      verifactuPersistence: "simulation" as const,
+    };
+    const before = structuredClone(historicalSimulation);
+    const fetchMock = vi.fn();
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: historicalSimulation,
+        profile,
+        registerLocal,
+        authToken: "token-de-prueba",
+      }),
+    ).rejects.toThrow("reconciliación de una simulación local");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(registerLocal).not.toHaveBeenCalled();
+    expect(historicalSimulation).toEqual(before);
+  });
+
+  it("bloquea evidencia legacy no reconciliada antes de cualquier efecto remoto", async () => {
+    const issued = issuedInvoice();
+    const historicalLegacy = {
+      ...attachRegisteredVerifactuToSnapshots({
+        ...issued,
+        verifactuPersistence: "server_confirmed",
+        verifactu: {
+          status: "test_registered",
+          recordHash: "b".repeat(64),
+          previousHash: "",
+          recordTimestamp: "2026-07-11T01:00:00+02:00",
+          qrUrl: "https://example.invalid/legacy-unverified",
+          recordType: "alta",
+          environment: "test",
+        },
+      }),
+      verifactuPersistence: "legacy_unverified" as const,
+    };
+    const fetchMock = vi.fn();
+    const registerLocal = vi.fn(async (doc: Document) => doc);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      finalizeVerifactuDocument({
+        doc: historicalLegacy,
+        profile,
+        registerLocal,
+        authToken: "token-de-prueba",
+      }),
+    ).rejects.toThrow("evidencia Veri*Factu no atestada");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(registerLocal).not.toHaveBeenCalled();
   });
 });

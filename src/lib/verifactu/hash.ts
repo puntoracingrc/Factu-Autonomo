@@ -90,7 +90,10 @@ export function normalizeHuellaAnterior(
 ): string | null {
   const trimmed = previousHash?.trim() ?? "";
   if (!trimmed) return null;
-  return trimmed;
+  if (!/^[a-f\d]{64}$/i.test(trimmed)) {
+    throw new Error("La huella anterior no es un SHA-256 hexadecimal válido");
+  }
+  return trimmed.toUpperCase();
 }
 
 export async function computeRecordHash(input: {

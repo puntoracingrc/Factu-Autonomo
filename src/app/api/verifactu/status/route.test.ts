@@ -51,7 +51,7 @@ describe("GET /api/verifactu/status", () => {
     expect(response.headers.get("vary")).toBe("Authorization");
   });
 
-  it("devuelve únicamente un modo desconocido sin inferir configuración", async () => {
+  it("devuelve únicamente el modo desactivado sin inferir configuración", async () => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-1",
     } as Awaited<ReturnType<typeof getUserFromBearer>>);
@@ -60,7 +60,7 @@ describe("GET /api/verifactu/status", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toEqual({ submissionMode: "unknown" });
+    expect(body).toEqual({ submissionMode: "disabled" });
     expect(JSON.stringify(body)).not.toMatch(
       /software|producer|developer|nif|address|certificate|channel|host|config|test|production|simulated/i,
     );

@@ -1,6 +1,9 @@
 import type { BusinessProfile, Document } from "../types";
 import { resolveIssuerNif } from "../issuer-snapshot";
 import { computeDocumentRecordHash } from "./record-input";
+import { inspectDocumentSnapshotsIntegrity } from "../document-integrity";
+import { buildCanonicalDocumentForProtectedEffect } from "../document-integrity/pdf-source";
+import { hasAuthenticatedVerifactuAttestation } from "./attestation";
 
 export interface ChainVerifyResult {
   ok: boolean;
@@ -10,7 +13,14 @@ export interface ChainVerifyResult {
 
 function verifactuDocuments(documents: Document[]): Document[] {
   return documents
-    .filter((doc) => doc.verifactu?.recordHash)
+    .filter(
+      (doc) =>
+        hasAuthenticatedVerifactuAttestation(doc) &&
+        doc.verifactuPersistence === "server_confirmed" &&
+        (doc.verifactu?.status === "registered" ||
+          doc.verifactu?.status === "test_registered") &&
+        Boolean(doc.verifactu.recordHash),
+    )
     .sort((a, b) => {
       const ta = a.verifactu?.recordTimestamp ?? "";
       const tb = b.verifactu?.recordTimestamp ?? "";
@@ -31,7 +41,8 @@ export async function verifyDocumentHashChain(input: {
   const errors: string[] = [];
 
   const chainDocs = verifactuDocuments(input.documents).filter((doc) => {
-    const nif = resolveIssuerNif(doc, input.profile);
+    const nif =
+      doc.documentSnapshot?.issuer.nif ?? resolveIssuerNif(doc, input.profile);
     return !targetNif || normalizeIssuer(nif) === targetNif;
   });
 
@@ -48,6 +59,20 @@ export async function verifyDocumentHashChain(input: {
   for (const doc of chainDocs) {
     const vf = doc.verifactu!;
     const label = doc.number;
+    const integrity = inspectDocumentSnapshotsIntegrity(doc, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+      requireSnapshotSeal: true,
+    });
+    if (!integrity.ok) {
+      errors.push(`${label}: la evidencia documental local no es íntegra`);
+      expectedPrevious = vf.recordHash;
+      continue;
+    }
+    const canonical = buildCanonicalDocumentForProtectedEffect(
+      doc,
+      input.profile,
+    );
 
     const storedPrevious = vf.previousHash?.trim() ?? "";
     if (storedPrevious !== expectedPrevious) {
@@ -58,7 +83,7 @@ export async function verifyDocumentHashChain(input: {
 
     try {
       const recomputed = await computeDocumentRecordHash({
-        doc,
+        doc: canonical,
         profile: input.profile,
         recordType: vf.recordType,
         previousHash: storedPrevious || null,

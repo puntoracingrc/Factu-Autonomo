@@ -26,7 +26,7 @@ const profile: BusinessProfile = {
   postalCode: "28001",
   email: "beta@example.com",
   phone: "600000000",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 const quote: Document = {
@@ -141,8 +141,8 @@ describe("product MVP final smoke", () => {
     expect(documentTotals(invoice).total).toBe(documentTotals(quote).total);
     expect(hasClientEmail(registered.doc)).toBe(true);
     expect(hasClientPhone(registered.doc)).toBe(true);
-    expect(registered.doc.verifactu?.environment).toBe("test");
-    expect(registered.doc.verifactu?.qrUrl).toContain("prewww2.aeat.es");
+    expect(registered.doc.verifactu).toBeUndefined();
+    expect(registered.chain).toBeNull();
     expect(pdf.type).toBe("application/pdf");
     expect(pdf.size).toBeGreaterThan(1000);
   });

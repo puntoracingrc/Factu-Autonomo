@@ -4,6 +4,8 @@ export interface VerifactuServerRegisterResponse {
   verifactu: Document["verifactu"];
   chain: VerifactuChainState;
   persisted: boolean;
+  aeatOk: boolean;
+  duplicate?: boolean;
 }
 
 const VERIFACTU_REGISTER_TIMEOUT_MS = 20_000;

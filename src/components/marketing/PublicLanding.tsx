@@ -59,14 +59,14 @@ const firstSteps = [
 
 const trustItems = [
   "Gratis real, sin tarjeta",
-  "Preparación VeriFactu/SIF en modo simulado",
+  "Información VeriFactu/SIF; registro y QR desactivados",
   "Email verificado antes de acciones reales",
   "Datos locales y nube opcional",
   "Fiscal orientativo, revisable con tu gestor",
 ];
 
 const VERIFACTU_PUBLIC_NOTICE =
-  "No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
+  "El registro, el envío a AEAT, el QR tributario y cualquier marca de aceptación están desactivados. No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
 
 const visitorPath = [
   {
@@ -261,9 +261,8 @@ export function PublicLanding() {
               <div className="mt-5 flex max-w-2xl items-start gap-2 text-sm font-medium text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                 <p>
-                  ¿Preparación VeriFactu/SIF gratis? Sí: el modo simulado está
-                  disponible desde el plan Gratis con cuenta verificada, sin
-                  tarjeta. {VERIFACTU_PUBLIC_NOTICE}{" "}
+                  ¿Qué incluye hoy sobre VeriFactu/SIF? Información de alcance
+                  y controles internos de integridad. {VERIFACTU_PUBLIC_NOTICE}{" "}
                   <Link
                     href="/legal/verifactu"
                     className="font-bold text-blue-700 underline underline-offset-2"

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
 import {
+  isVerifactuEnabled,
+  isVerifactuSubmissionAvailable,
   normalizeVerifactuSettings,
   needsVerifactuRegistration,
   verifactuRecordType,
@@ -10,7 +12,7 @@ import {
 const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
   nif: "12345678Z",
-  verifactu: { enabled: true, environment: "test" },
+  verifactu: { enabled: true, environment: "test", optInVersion: 1 },
 };
 
 const factura: Document = {
@@ -30,21 +32,40 @@ describe("verifactu eligibility", () => {
     vi.unstubAllEnvs();
   });
 
+  it("permanece desactivado hasta que el usuario lo activa expresamente", () => {
+    expect(normalizeVerifactuSettings()).toEqual({
+      enabled: false,
+      environment: "test",
+    });
+    expect(DEFAULT_PROFILE.verifactu?.enabled).toBe(false);
+  });
+
   it("normaliza producción a pruebas si no está habilitada explícitamente", () => {
     expect(
       normalizeVerifactuSettings({ enabled: true, environment: "production" }),
-    ).toEqual({ enabled: true, environment: "test" });
+    ).toEqual({ enabled: false, environment: "test" });
   });
 
-  it("permite producción solo con marca pública explícita", () => {
+  it("conserva la preferencia de producción sin convertirla en disponibilidad efectiva", () => {
     vi.stubEnv("NEXT_PUBLIC_VERIFACTU_ALLOW_PRODUCTION", "true");
     expect(
-      normalizeVerifactuSettings({ enabled: true, environment: "production" }),
-    ).toEqual({ enabled: true, environment: "production" });
+      normalizeVerifactuSettings({
+        enabled: true,
+        environment: "production",
+        optInVersion: 1,
+      }),
+    ).toEqual({
+      enabled: true,
+      environment: "production",
+      optInVersion: 1,
+    });
+    expect(isVerifactuEnabled(profile)).toBe(false);
   });
 
-  it("requires registration for emitted factura", () => {
-    expect(needsVerifactuRegistration(factura, profile)).toBe(true);
+  it("mantiene el registro inactivo mientras la ruta y la atestación no están disponibles", () => {
+    expect(isVerifactuSubmissionAvailable()).toBe(false);
+    expect(isVerifactuEnabled(profile)).toBe(false);
+    expect(needsVerifactuRegistration(factura, profile)).toBe(false);
   });
 
   it("no requiere registro si falta NIF de emisor", () => {
@@ -69,7 +90,7 @@ describe("verifactu eligibility", () => {
         },
         { ...profile, nif: "" },
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("skips presupuestos", () => {

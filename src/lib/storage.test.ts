@@ -62,6 +62,38 @@ function snapshotDocument(): Document {
   );
 }
 
+function legacyAcceptedDocument(): Document {
+  return {
+    id: "legacy-verifactu",
+    type: "factura",
+    number: "F-2026-0009",
+    date: "2026-06-20",
+    client: { name: "Cliente legacy" },
+    items: [
+      {
+        id: "legacy-line",
+        description: "Servicio legacy",
+        quantity: 1,
+        unitPrice: 80,
+        ivaPercent: 21,
+      },
+    ],
+    status: "enviado",
+    verifactu: {
+      recordHash: "A".repeat(64),
+      previousHash: "",
+      recordTimestamp: "2026-06-20T10:00:00+02:00",
+      qrUrl: "https://prewww2.aeat.es/legacy",
+      status: "test_registered",
+      recordType: "alta",
+      environment: "test",
+      submittedAt: "2026-06-20T08:00:00.000Z",
+    },
+    createdAt: "2026-06-20T08:00:00.000Z",
+    updatedAt: "2026-06-20T08:00:00.000Z",
+  };
+}
+
 describe("storage", () => {
   beforeEach(() => {
     const store = new Map<string, string>();
@@ -110,6 +142,73 @@ describe("storage", () => {
     expect(loaded.documents[0].snapshotIntegrity?.issues).toContain(
       "document_hash_mismatch",
     );
+  });
+
+  it("clasifica éxitos VeriFactu legacy antes de intentar construir snapshots", () => {
+    const loaded = normalizeLoadedData({
+      ...sampleData(),
+      profile: {
+        ...sampleData().profile,
+        verifactu: { enabled: true, environment: "test" },
+      },
+      documents: [legacyAcceptedDocument()],
+    });
+    const legacy = loaded.documents[0];
+
+    expect(legacy.verifactuPersistence).toBe("legacy_unverified");
+    expect(legacy.verifactu?.recordHash).toBe("A".repeat(64));
+    expect(legacy.documentSnapshot).toBeUndefined();
+    expect(legacy.snapshotIntegrityRequired).toBe(true);
+    expect(legacy.snapshotIntegrity?.status).toBe("blocked");
+    expect(legacy.snapshotIntegrity?.issues).toEqual(
+      expect.arrayContaining([
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ]),
+    );
+    expect(loaded.profile.verifactu).toEqual({
+      enabled: false,
+      environment: "test",
+    });
+  });
+
+  it("loadData conserva un workspace mixto aunque un registro legacy quede bloqueado", () => {
+    const healthy = snapshotDocument();
+    const legacy = legacyAcceptedDocument();
+    const existing = sampleData();
+    saveData({
+      ...existing,
+      documents: [healthy, legacy],
+      expenses: [
+        {
+          id: "expense-preserved",
+          date: "2026-06-21",
+          supplierName: "Proveedor conservado",
+          description: "Gasto conservado",
+          amount: 25,
+          ivaPercent: 21,
+          category: "Otros",
+          paymentMethod: "Tarjeta",
+          createdAt: "2026-06-21T08:00:00.000Z",
+        },
+      ],
+    });
+
+    const loaded = loadData();
+    const migratedLegacy = loaded.documents.find(
+      (document) => document.id === legacy.id,
+    );
+
+    expect(loaded.documents).toHaveLength(2);
+    expect(loaded.documents.some((document) => document.id === healthy.id)).toBe(
+      true,
+    );
+    expect(loaded.customers).toHaveLength(1);
+    expect(loaded.expenses[0]?.id).toBe("expense-preserved");
+    expect(migratedLegacy?.verifactuPersistence).toBe("legacy_unverified");
+    expect(migratedLegacy?.verifactu).toEqual(legacy.verifactu);
+    expect(migratedLegacy?.snapshotIntegrity?.status).toBe("blocked");
   });
 
   it("persiste exclusiones recurrentes y acepta recurrencias legacy sin ellas", () => {

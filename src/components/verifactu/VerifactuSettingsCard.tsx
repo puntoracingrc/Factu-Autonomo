@@ -5,11 +5,9 @@ import Link from "next/link";
 import { Send, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Field } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { verifyDocumentHashChain } from "@/lib/verifactu/chain-verify";
 import {
-  isVerifactuProductionModeAllowed,
   normalizeVerifactuSettings,
 } from "@/lib/verifactu/eligibility";
 import { getProducerConfigStatus } from "@/lib/verifactu/producer-config";
@@ -26,10 +24,9 @@ interface Props {
   onChange: (settings: VerifactuSettings) => void;
 }
 
-export function VerifactuSettingsCard({ form, onChange }: Props) {
+export function VerifactuSettingsCard({ form }: Props) {
   const { data } = useAppStore();
   const settings = normalizeVerifactuSettings(form.verifactu);
-  const productionAllowed = isVerifactuProductionModeAllowed();
   const producer = getProducerConfigStatus();
   const [chainStatus, setChainStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -78,12 +75,14 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         profile: data.profile,
       });
       if (result.checked === 0) {
-        setChainStatus("No hay facturas con registro Veri*Factu todavía.");
+        setChainStatus(
+          "No hay registros con atestación autenticada del servidor. Los datos locales no acreditan una presentación ante la AEAT.",
+        );
         return;
       }
       if (result.ok) {
         setChainStatus(
-          `Cadena OK: ${result.checked} registro(s) verificados según spec AEAT v0.1.2.`,
+          `Comprobación local correcta: ${result.checked} registro(s) confirmados por servidor. No acredita por sí sola una presentación ante la AEAT.`,
         );
         return;
       }
@@ -102,8 +101,8 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Veri*Factu</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Registro encadenado y QR tributario en PDF (entorno de pruebas por
-            defecto). Fecha general de adaptación al RRSIF para contribuyentes
+            El registro, el QR tributario y cualquier marca de aceptación están
+            desactivados. Fecha general de adaptación al RRSIF para contribuyentes
             no sujetos a Sociedades: <strong>1 julio 2027</strong>, según ámbito
             y excepciones.{" "}
             <Link
@@ -144,46 +143,27 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
         )}
       </div>
 
-      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="flex items-center gap-3">
         <input
           type="checkbox"
-          checked={settings.enabled}
-          onChange={(e) =>
-            onChange({ ...settings, enabled: e.target.checked })
-          }
-          className="h-4 w-4 rounded border-slate-300"
+          checked={false}
+          disabled
+          readOnly
+          className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <span className="text-sm font-medium text-slate-800">
-          Activar Veri*Factu en facturas emitidas. Puedes dejarlo desactivado
-          hasta que lo necesites.
+          Registro Veri*Factu no disponible. Las facturas se guardan sin envío,
+          QR tributario ni distintivo de aceptación.
         </span>
-      </label>
-
-      {settings.enabled && (
-        <Field
-          label="Entorno AEAT"
-          hint="El envío real solo se activa cuando hay certificado y configuración de servidor completa."
-        >
-          <select
-            value={settings.environment}
-            onChange={(e) =>
-              onChange(
-                normalizeVerifactuSettings({
-                  ...settings,
-                  environment:
-                    e.target.value === "production" ? "production" : "test",
-                }),
-              )
-            }
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
-          >
-            <option value="test">Pruebas (prewww2.aeat.es)</option>
-            <option value="production" disabled={!productionAllowed}>
-              Producción
-            </option>
-          </select>
-        </Field>
-      )}
+        </div>
+        {settings.enabled && (
+          <p className="mt-2 pl-7 text-xs text-slate-600">
+            Tu preferencia anterior se conserva como dato histórico, pero no
+            activa ninguna operación mientras el servicio siga deshabilitado.
+          </p>
+        )}
+      </div>
 
       <div
         className={`rounded-xl border px-4 py-3 text-sm ${connectionStyles.panelClass}`}
@@ -212,7 +192,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
       </div>
 
       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-        <p className="font-semibold">Verificación in situ (SIF)</p>
+        <p className="font-semibold">Identificación técnica del borrador SIF</p>
         <ul className="mt-2 space-y-1 text-emerald-800">
           <li>Productor: {VERIFACTU_SOFTWARE.developerName}</li>
           <li>NIF productor: {VERIFACTU_SOFTWARE.developerNif}</li>
@@ -221,6 +201,10 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           <li>Versión: {VERIFACTU_SOFTWARE.softwareVersion}</li>
           <li>Instalación: {VERIFACTU_SOFTWARE.installationId}</li>
         </ul>
+        <p className="mt-2 text-xs text-emerald-800">
+          Estos datos no acreditan homologación, conformidad ni presentación
+          ante la AEAT.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -230,7 +214,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           onClick={handleVerifyChain}
           disabled={checking}
         >
-          {checking ? "Verificando…" : "Verificar cadena de huellas"}
+          {checking ? "Comprobando…" : "Comprobar huellas locales"}
         </Button>
         <Link
           href="/legal/declaracion-responsable"

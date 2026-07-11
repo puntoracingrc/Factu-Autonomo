@@ -38,18 +38,32 @@ describe("VeriFactu runtime status", () => {
     );
   });
 
-  it("acepta solo la respuesta mínima unknown y conserva bearer/no-store", async () => {
+  it("acepta la respuesta mínima disabled y conserva bearer/no-store", async () => {
     const fetcher = vi.fn(async () =>
-      Response.json({ submissionMode: "unknown" }),
+      Response.json({ submissionMode: "disabled" }),
     );
 
     await expect(
       loadVerifactuRuntimeState("test-token", fetcher),
-    ).resolves.toEqual({ phase: "unknown" });
+    ).resolves.toEqual({ phase: "disabled" });
     expect(fetcher).toHaveBeenCalledWith("/api/verifactu/status", {
       cache: "no-store",
       headers: { Authorization: "Bearer test-token" },
     });
+  });
+
+  it("explica el modo disabled sin sugerir simulación ni aceptación", () => {
+    const connection = resolveVerifactuConnectionStatus(true, {
+      phase: "disabled",
+    });
+
+    expect(connection.badge).toBe("Registro desactivado");
+    expect(connection.description).toContain("no hay envío a AEAT");
+    expect(connection.description).toContain("QR tributario");
+    expect(connection.description).toContain("marca de aceptación");
+    expect(`${connection.badge} ${connection.description}`).not.toMatch(
+      /simulad|registrado|aceptad[oa] por AEAT/i,
+    );
   });
 
   it("no llama a la API sin bearer", async () => {
