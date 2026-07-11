@@ -72,6 +72,57 @@ function dataWithDocument(updatedAt: string): AppData {
   };
 }
 
+function expense(createdAt = "2026-06-29T10:00:00.000Z"): AppData["expenses"][number] {
+  return {
+    id: "expense-drive-test",
+    date: "2026-06-29",
+    supplierName: "Proveedor Drive",
+    description: "Material de prueba",
+    amount: 100,
+    ivaPercent: 21,
+    category: "Material",
+    paymentMethod: "Transferencia",
+    purchaseLines: [
+      {
+        id: "expense-line-drive-test",
+        description: "Pieza",
+        quantity: 1,
+        unitPrice: 100,
+      },
+    ],
+    createdAt,
+  };
+}
+
+function recurringExpense(
+  updatedAt = "2026-06-29T10:00:00.000Z",
+): AppData["recurringExpenses"][number] {
+  return {
+    id: "recurring-drive-test",
+    supplierName: "Proveedor recurrente",
+    description: "Cuota mensual",
+    amount: 50,
+    ivaPercent: 21,
+    category: "Suministros",
+    paymentMethod: "Domiciliación",
+    frequency: "monthly",
+    dueTiming: { kind: "start_of_month" },
+    duration: { kind: "indefinite" },
+    startDate: "2026-06-01",
+    enabled: true,
+    createdAt: "2026-06-29T10:00:00.000Z",
+    updatedAt,
+  };
+}
+
+function importantSettings(data: AppData) {
+  return {
+    enabled: true as const,
+    frequency: "important" as const,
+    lastAutoSignature: buildDriveBackupSignature(data, "important", NOW),
+  };
+}
+
 describe("Google Drive backup", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -237,6 +288,19 @@ describe("Google Drive backup", () => {
     ).toBe(true);
   });
 
+  it("mantiene la frecuencia manual fuera del programador automático", () => {
+    const data = dataWithDocument("2026-06-29T10:00:00.000Z");
+
+    expect(buildDriveBackupSignature(data, "manual", NOW)).toBe("");
+    expect(
+      shouldRunAutomaticDriveBackup(
+        { enabled: true, frequency: "manual" },
+        data,
+        NOW,
+      ),
+    ).toMatchObject({ due: false, reason: "disabled", signature: "" });
+  });
+
   it("detecta cambios importantes en documentos y gastos", () => {
     const data = dataWithDocument("2026-06-29T10:00:00.000Z");
     const signature = buildDriveBackupSignature(data, "important", NOW);
@@ -265,6 +329,215 @@ describe("Google Drive backup", () => {
         NOW,
       ).due,
     ).toBe(true);
+  });
+
+  it("programa copia importante al dar de alta, editar y borrar un gasto", () => {
+    const initial = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const added: AppData = {
+      ...initial,
+      expenses: [expense()],
+    };
+    expect(
+      shouldRunAutomaticDriveBackup(importantSettings(initial), added, NOW).due,
+    ).toBe(true);
+
+    const edits: AppData["expenses"][number][] = [
+      { ...added.expenses[0], amount: 175 },
+      { ...added.expenses[0], supplierName: "Proveedor corregido" },
+      {
+        ...added.expenses[0],
+        purchaseLines: [
+          { ...added.expenses[0].purchaseLines![0], discountPercent: 10 },
+        ],
+      },
+    ];
+    for (const editedExpense of edits) {
+      expect(
+        shouldRunAutomaticDriveBackup(
+          importantSettings(added),
+          { ...added, expenses: [editedExpense] },
+          NOW,
+        ).due,
+      ).toBe(true);
+    }
+
+    const deleted: AppData = {
+      ...added,
+      expenses: [],
+    };
+    expect(
+      shouldRunAutomaticDriveBackup(importantSettings(added), deleted, NOW)
+        .due,
+    ).toBe(true);
+  });
+
+  it("detecta alta, edición y borrado de una recurrencia", () => {
+    const initial = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const added: AppData = {
+      ...initial,
+      recurringExpenses: [recurringExpense()],
+    };
+    expect(
+      shouldRunAutomaticDriveBackup(importantSettings(initial), added, NOW).due,
+    ).toBe(true);
+
+    const edited: AppData = {
+      ...added,
+      recurringExpenses: [
+        { ...added.recurringExpenses[0], frequency: "annual", amount: 600 },
+      ],
+    };
+    expect(
+      shouldRunAutomaticDriveBackup(importantSettings(added), edited, NOW).due,
+    ).toBe(true);
+
+    const deleted: AppData = {
+      ...edited,
+      recurringExpenses: [],
+    };
+    expect(
+      shouldRunAutomaticDriveBackup(importantSettings(edited), deleted, NOW)
+        .due,
+    ).toBe(true);
+  });
+
+  it("limita la frecuencia importante a documentos, gastos y recurrencias", () => {
+    const initial = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const changedProfile: AppData = {
+      ...initial,
+      profile: { ...initial.profile, commercialName: "Nuevo nombre" },
+    };
+
+    expect(
+      shouldRunAutomaticDriveBackup(
+        importantSettings(initial),
+        changedProfile,
+        NOW,
+      ).due,
+    ).toBe(false);
+  });
+
+  it("cubre con cada cambio todos los datos exportables de AppData", () => {
+    const initial = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const baseline = buildDriveBackupSignature(initial, "every_change", NOW);
+    const surfaces: Array<[string, AppData]> = [
+      [
+        "profile",
+        {
+          ...initial,
+          profile: { ...initial.profile, commercialName: "Perfil cambiado" },
+        },
+      ],
+      [
+        "documents",
+        {
+          ...initial,
+          documents: [{ ...initial.documents[0], notes: "Nota nueva" }],
+        },
+      ],
+      ["expenses", { ...initial, expenses: [expense()] }],
+      [
+        "recurringExpenses",
+        { ...initial, recurringExpenses: [recurringExpense()] },
+      ],
+      [
+        "userReminders",
+        {
+          ...initial,
+          userReminders: [
+            {
+              id: "reminder-drive-test",
+              text: "Revisar copia",
+              link: { kind: "none" },
+              target: "self",
+              completed: false,
+              createdAt: "2026-06-29T10:00:00.000Z",
+              updatedAt: "2026-06-29T10:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      [
+        "suppliers",
+        {
+          ...initial,
+          suppliers: [
+            {
+              id: "supplier-drive-test",
+              name: "Proveedor de prueba",
+              createdAt: "2026-06-29T10:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      [
+        "customers",
+        {
+          ...initial,
+          customers: [
+            {
+              id: "customer-drive-test",
+              firstName: "Cliente",
+              lastName: "Prueba",
+              name: "Cliente Prueba",
+              createdAt: "2026-06-29T10:00:00.000Z",
+              updatedAt: "2026-06-29T10:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      [
+        "products",
+        {
+          ...initial,
+          products: [
+            {
+              id: "product-drive-test",
+              key: "producto-prueba",
+              name: "Producto prueba",
+              family: "Material",
+              source: "manual",
+              createdAt: "2026-06-29T10:00:00.000Z",
+              updatedAt: "2026-06-29T10:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      [
+        "counters",
+        { ...initial, counters: { ...initial.counters, recibo: 2 } },
+      ],
+      [
+        "verifactuChain",
+        {
+          ...initial,
+          verifactuChain: {
+            issuerNif: "12345678Z",
+            lastHash: "hash-prueba",
+            recordCount: 1,
+          },
+        },
+      ],
+    ];
+
+    for (const [surface, changed] of surfaces) {
+      expect(
+        buildDriveBackupSignature(changed, "every_change", NOW),
+        surface,
+      ).not.toBe(baseline);
+    }
+  });
+
+  it("ignora meta en la firma porque no forma parte del archivo exportado", () => {
+    const initial = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const onlyMetaChanged: AppData = {
+      ...initial,
+      meta: { lastModified: "2026-06-29T11:00:00.000Z" },
+    };
+
+    expect(buildDriveBackupSignature(onlyMetaChanged, "every_change", NOW)).toBe(
+      buildDriveBackupSignature(initial, "every_change", NOW),
+    );
   });
 
   it("crea carpeta y sube un JSON de copia usando el permiso de Drive", async () => {

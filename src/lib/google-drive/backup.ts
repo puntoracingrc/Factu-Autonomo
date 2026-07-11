@@ -1,4 +1,4 @@
-import { createBackupPayload } from "@/lib/backup";
+import { createBackupData, createBackupPayload } from "@/lib/backup";
 import type { AppData } from "@/lib/types";
 
 export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -297,11 +297,41 @@ export function buildDriveBackupFileName(
   return `${DRIVE_BACKUP_FILE_PREFIX}${stamp}.json`;
 }
 
-function newestTimestamp(items: Array<{ createdAt?: string; updatedAt?: string }>): string {
-  return items.reduce((newest, item) => {
-    const candidate = item.updatedAt ?? item.createdAt ?? "";
-    return candidate > newest ? candidate : newest;
-  }, "");
+function stableBackupValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableBackupValue);
+  if (!isRecord(value)) return value;
+
+  return Object.keys(value)
+    .filter((key) => value[key] !== undefined)
+    .sort()
+    .reduce<Record<string, unknown>>((result, key) => {
+      result[key] = stableBackupValue(value[key]);
+      return result;
+    }, {});
+}
+
+/**
+ * Huella compacta para detectar cambios, no para verificar autenticidad.
+ * Combina dos acumuladores independientes y la longitud para que la firma
+ * almacenada en localStorage siga siendo pequeña incluso con copias grandes.
+ */
+function buildContentChangeSignature(value: unknown): string {
+  const content = JSON.stringify(stableBackupValue(value));
+  let fnv = 0x811c9dc5;
+  let djb = 0x1505;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const code = content.charCodeAt(index);
+    fnv ^= code;
+    fnv = Math.imul(fnv, 0x01000193);
+    djb = Math.imul(djb, 33) ^ code;
+  }
+
+  return [
+    content.length.toString(36),
+    (fnv >>> 0).toString(16).padStart(8, "0"),
+    (djb >>> 0).toString(16).padStart(8, "0"),
+  ].join(":");
 }
 
 export function buildDriveBackupSignature(
@@ -310,19 +340,17 @@ export function buildDriveBackupSignature(
   now = new Date(),
 ): string {
   if (frequency === "daily") return now.toISOString().slice(0, 10);
+  if (frequency === "manual") return "";
+  const backupData = createBackupData(data);
   if (frequency === "every_change") {
-    return data.meta?.lastModified ?? newestTimestamp(data.documents);
+    return `every-change-v2:${buildContentChangeSignature(backupData)}`;
   }
   if (frequency === "important") {
-    return [
-      data.documents.length,
-      data.expenses.length,
-      data.recurringExpenses.length,
-      data.userReminders.length,
-      newestTimestamp(data.documents),
-      newestTimestamp(data.expenses),
-      newestTimestamp(data.recurringExpenses),
-    ].join("|");
+    return `important-v2:${buildContentChangeSignature({
+      documents: backupData.documents,
+      expenses: backupData.expenses,
+      recurringExpenses: backupData.recurringExpenses,
+    })}`;
   }
   return "";
 }

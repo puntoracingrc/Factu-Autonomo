@@ -98,7 +98,7 @@ describe("backup", () => {
       exportedAt: NOW,
       source: "local",
       warning:
-        "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No se sube a ningún servidor ni restaura datos automáticamente.",
+        "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No restaura datos automáticamente. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.",
     });
   });
 

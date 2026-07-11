@@ -7,7 +7,9 @@ export const BACKUP_VERSION = 1;
 export const BACKUP_APP_ID = "factura-autonomo";
 export const BACKUP_SOURCE = "local";
 export const BACKUP_WARNING =
-  "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No se sube a ningún servidor ni restaura datos automáticamente.";
+  "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No restaura datos automáticamente. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
+export const BACKUP_SCOPE_NOTICE =
+  "Incluye el perfil, documentos, gastos, recurrencias y fichas maestras de Factu. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
 
 export interface BackupMetadata {
   app: typeof BACKUP_APP_ID;

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
 import {
+  BACKUP_SCOPE_NOTICE,
   buildBackupRestoreDraft,
   downloadBackup,
   getBackupRestoreBlocker,
@@ -222,6 +223,7 @@ export function DataOwnershipCard() {
           Esta copia puede contener datos personales y fiscales. No se sube a
           ningún servidor y no aplica datos automáticamente.
         </p>
+        <p className="mt-2 text-xs text-slate-500">{BACKUP_SCOPE_NOTICE}</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Button variant="secondary" onClick={handleBackupExport}>
             <Download className="h-5 w-5" />

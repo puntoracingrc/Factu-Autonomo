@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/Card";
 import { Field, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { BACKUP_SCOPE_NOTICE } from "@/lib/backup";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_SETTINGS_EVENT,
@@ -377,6 +378,9 @@ export function GoogleDriveBackupCard() {
           Guardamos las {DRIVE_BACKUP_RETENTION_LIMIT} últimas copias. Al subir
           una nueva, las más antiguas se retiran de la carpeta de Drive.
         </div>
+        <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          {BACKUP_SCOPE_NOTICE}
+        </p>
 
         {!driveConfigured ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
