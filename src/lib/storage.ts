@@ -23,6 +23,7 @@ import {
   deriveDocumentLifecycle,
   deriveIntegrityLock,
   deriveLegacySnapshotForReadOnly,
+  withDocumentSnapshotIntegritySignal,
 } from "./document-integrity";
 import {
   DEMO_WORKSPACE_STORAGE_KEY,
@@ -78,9 +79,11 @@ function currentStorageKey(): string {
 export function normalizeLoadedData(parsed: Partial<AppData>): AppData {
   const profile = migrateProfile(parsed.profile);
   const documents = (parsed.documents ?? []).map((document) =>
-    normalizeHistoricalDocument(
-      normalizeQuoteDocument(document as AppData["documents"][number]),
-      profile,
+    withDocumentSnapshotIntegritySignal(
+      normalizeHistoricalDocument(
+        normalizeQuoteDocument(document as AppData["documents"][number]),
+        profile,
+      ),
     ),
   );
   const suppliers = (parsed.suppliers ?? []) as Supplier[];

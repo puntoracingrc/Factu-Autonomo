@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateTaxSummary, isTaxableSaleDocument } from "./taxes";
+import { issueDocument } from "./document-integrity";
 import type { Document, Expense } from "./types";
+import { DEFAULT_PROFILE } from "./types";
 
 function invoice(
   status: Document["status"],
@@ -140,5 +142,33 @@ describe("calculateTaxSummary", () => {
     expect(summary.salesBase).toBe(700);
     expect(summary.salesIva).toBe(147);
     expect(summary.grossProfit).toBe(700);
+  });
+
+  it("usa importes congelados y excluye evidencia bloqueada", () => {
+    const issued = issueDocument(
+      invoice("borrador", 100),
+      DEFAULT_PROFILE,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const drifted: Document = {
+      ...issued,
+      items: [{ ...issued.items[0], unitPrice: 999 }],
+    };
+
+    expect(calculateTaxSummary([drifted], []).salesBase).toBe(100);
+    expect(
+      calculateTaxSummary(
+        [
+          {
+            ...drifted,
+            snapshotIntegrity: {
+              status: "blocked",
+              issues: ["document_hash_mismatch"],
+            },
+          },
+        ],
+        [],
+      ).salesBase,
+    ).toBe(0);
   });
 });

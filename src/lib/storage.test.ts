@@ -90,6 +90,27 @@ describe("storage", () => {
     expect(loaded.profile.name).toBe("Mi negocio");
   });
 
+  it("marca como bloqueado un snapshot manipulado al rehidratar", () => {
+    const issued = snapshotDocument();
+    const loaded = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          ...issued,
+          documentSnapshot: {
+            ...issued.documentSnapshot!,
+            number: "F-MANIPULADA",
+          },
+        },
+      ],
+    });
+
+    expect(loaded.documents[0].snapshotIntegrity?.status).toBe("blocked");
+    expect(loaded.documents[0].snapshotIntegrity?.issues).toContain(
+      "document_hash_mismatch",
+    );
+  });
+
   it("persiste exclusiones recurrentes y acepta recurrencias legacy sin ellas", () => {
     const recurring = {
       id: "recurring-storage",

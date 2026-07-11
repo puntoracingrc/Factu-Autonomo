@@ -108,6 +108,8 @@ import {
   markDocumentSent as markDocumentSentWithIntegrity,
 } from "@/lib/document-integrity";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
+import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import {
   assertRectificationEmissionAllowed,
   hasPendingRectificationDraft,
@@ -322,6 +324,9 @@ function editableQuoteWithLocalStatus(
     verifactu: undefined,
     documentSnapshot: undefined,
     pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
     documentLifecycle: "draft",
     integrityLock: "unlocked",
     deliveryStatus,
@@ -739,6 +744,25 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         if (!invoice || invoice.type !== "factura" || !isCollectedDocument(invoice)) {
           return prev;
         }
+        let canonicalInvoice: Document;
+        let receiptProfile: BusinessProfile;
+        try {
+          canonicalInvoice = buildCanonicalDocumentForProtectedEffect(
+            invoice,
+            prev.profile,
+          );
+          if (
+            canonicalInvoice.documentSnapshot?.documentType !== "factura"
+          ) {
+            return prev;
+          }
+          receiptProfile = profileForHistoricalDerivedDocument(
+            canonicalInvoice.documentSnapshot,
+            prev.profile,
+          );
+        } catch {
+          return prev;
+        }
 
         const existingReceipt = findReceiptForInvoice(
           prev.documents,
@@ -752,7 +776,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
         const now = new Date().toISOString();
         const numbering = prev.profile.numbering;
-        const receiptDraft = buildReceiptFromInvoice(invoice);
+        const receiptDraft = buildReceiptFromInvoice(canonicalInvoice);
         const year = new Date(receiptDraft.date).getFullYear();
         const { number, sequence } = assignNextDocumentNumberByType(
           prev.documents,
@@ -767,12 +791,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           status: "borrador",
           id: newId(),
           number,
-          issuer: invoice.issuer ?? captureIssuerSnapshot(prev.profile),
+          issuer: captureIssuerSnapshot(receiptProfile),
           createdAt: now,
           updatedAt: now,
         };
         const paidReceipt = markDocumentPaidWithIntegrity(
-          issueDocumentWithIntegrity(receipt, prev.profile, now),
+          issueDocumentWithIntegrity(receipt, receiptProfile, now),
           now,
         );
         result = paidReceipt;
@@ -995,7 +1019,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const quote = prev.documents.find((doc) => doc.id === id);
       if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
 
-      const draft = buildInvoiceDraftFromQuote(quote);
+      let canonicalQuote: Document;
+      try {
+        canonicalQuote = buildCanonicalDocumentForProtectedEffect(
+          quote,
+          prev.profile,
+        );
+      } catch {
+        return prev;
+      }
+      if (canonicalQuote.type !== "presupuesto") return prev;
+
+      const draft = buildInvoiceDraftFromQuote(canonicalQuote);
       const year = new Date(draft.date).getFullYear();
       const numbering = prev.profile.numbering;
       const now = new Date().toISOString();
