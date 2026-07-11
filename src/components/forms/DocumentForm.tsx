@@ -496,6 +496,8 @@ export function DocumentForm({
   const [status, setStatus] = useState<Document["status"]>(
     existing?.status ?? "borrador",
   );
+  const isRectificationDraft =
+    Boolean(existing?.rectification) && existing?.status === "borrador";
   const activeCustomerId =
     selectedCustomerId ??
     (clientForm.firstName.trim() ? existing?.customerId : undefined);
@@ -536,8 +538,9 @@ export function DocumentForm({
     () =>
       documentFormItemsForSave(items, vatExempt, {
         lineMeasurementDrafts: lineAreaDrafts,
+        allowSignedAmounts: isRectificationDraft,
       }),
-    [items, lineAreaDrafts, vatExempt],
+    [isRectificationDraft, items, lineAreaDrafts, vatExempt],
   );
   const productSummaries = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -910,7 +913,9 @@ export function DocumentForm({
     updatedAt: new Date().toISOString(),
   };
 
-  const totals = documentFormAmounts(measuredItems, vatExempt);
+  const totals = documentFormAmounts(measuredItems, vatExempt, {
+    allowSignedAmounts: isRectificationDraft,
+  });
   const ivaBreakdown = useMemo(
     () => (vatExempt ? [] : ivaBreakdownByRate(safeItems)),
     [safeItems, vatExempt],
@@ -963,7 +968,6 @@ export function DocumentForm({
   const finalStatusOverride: Document["status"] = isDraftStatus
     ? "enviado"
     : status;
-  const isRectificationDraft = Boolean(existing?.rectification) && isDraftStatus;
   const previewButtonLabel = "Vista previa PDF";
   const primarySaveButtonLabel =
     type === "factura" && isDraftStatus
@@ -1301,6 +1305,7 @@ export function DocumentForm({
 
     const lineIssue = firstDocumentFormLineIssue(measuredItems, {
       requireConcept: requiresConcept,
+      allowSignedAmounts: isRectificationDraft,
     });
     if (lineIssue) {
       setFormError(`${lineIssue} Revisa las líneas antes de abrir el PDF.`);
@@ -1330,6 +1335,7 @@ export function DocumentForm({
 
     const lineIssue = firstDocumentFormLineIssue(measuredItems, {
       requireConcept: requiresConcept,
+      allowSignedAmounts: isRectificationDraft,
     });
     if (lineIssue) {
       setFormError(lineIssue);
@@ -1729,7 +1735,9 @@ export function DocumentForm({
                 displayedItem.unitPrice,
                 displayedItem.ivaPercent,
               );
-              const lineTotal = lineItemFormTotal(displayedItem, vatExempt);
+              const lineTotal = lineItemFormTotal(displayedItem, vatExempt, {
+                allowSignedAmounts: isRectificationDraft,
+              });
               const measureSummary =
                 isMeasuredLine && hasMeasureDraft
                   ? lineMeasurementDescriptionSuffix(item.unit, measureDraft)

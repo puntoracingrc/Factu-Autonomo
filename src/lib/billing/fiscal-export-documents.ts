@@ -3,10 +3,12 @@ import {
   inspectDocumentSnapshotsIntegrity,
 } from "../document-integrity";
 import { buildPdfViewModelFromDocumentSnapshot } from "../document-integrity/pdf-source";
+import { originalStatusAfterRectification } from "../rectificativas";
 import type {
   BusinessProfile,
   Document,
   DocumentSnapshotIntegrityIssue,
+  DocumentType,
 } from "../types";
 
 export interface FiscalExportBlockedDocument {
@@ -21,15 +23,39 @@ export interface FiscalExportDocumentSelection {
   blockedDocuments: FiscalExportBlockedDocument[];
 }
 
-function isIssuedFiscalDocument(doc: Document): boolean {
-  const declaredTypes = [doc.type, doc.documentSnapshot?.documentType];
+interface CanonicalFiscalCandidate {
+  stored: Document;
+  canonical: Document;
+}
+
+function isFiscalType(
+  type: DocumentType | undefined,
+): type is "factura" | "recibo" {
+  return type === "factura" || type === "recibo";
+}
+
+function hasHistoricalEvidence(doc: Document): boolean {
+  return Boolean(
+    doc.documentSnapshot ||
+      doc.pdfSnapshot ||
+      doc.snapshotSeal ||
+      doc.snapshotIntegrityRequired ||
+      doc.snapshotIntegrity ||
+      doc.issuedAt ||
+      doc.documentLifecycle === "issued" ||
+      doc.documentLifecycle === "canceled" ||
+      doc.integrityLock === "locked",
+  );
+}
+
+function isPotentialFiscalDocument(doc: Document): boolean {
   if (
-    !declaredTypes.some((type) => type === "factura" || type === "recibo")
+    !isFiscalType(doc.type) &&
+    !isFiscalType(doc.documentSnapshot?.documentType)
   ) {
     return false;
   }
-  if (doc.sourceDocumentId && declaredTypes.includes("recibo")) return false;
-  return deriveDocumentLifecycle(doc) !== "draft";
+  return hasHistoricalEvidence(doc) || deriveDocumentLifecycle(doc) !== "draft";
 }
 
 function belongsToRequestedPeriod(
@@ -55,6 +81,99 @@ function blockedReference(
   };
 }
 
+function addBlockedDocument(
+  blockedById: Map<string, FiscalExportBlockedDocument>,
+  doc: Document,
+  issues: DocumentSnapshotIntegrityIssue[],
+  isDateInPeriod: (date: string) => boolean,
+): void {
+  if (!belongsToRequestedPeriod(doc, isDateInPeriod)) return;
+
+  const previous = blockedById.get(doc.id);
+  blockedById.set(
+    doc.id,
+    blockedReference(doc, [
+      ...(previous?.issues ?? []),
+      ...issues,
+    ]),
+  );
+}
+
+function relationshipIssues(
+  candidate: CanonicalFiscalCandidate,
+  candidatesById: Map<string, CanonicalFiscalCandidate>,
+): DocumentSnapshotIntegrityIssue[] {
+  const { stored, canonical } = candidate;
+  const issues: DocumentSnapshotIntegrityIssue[] = [];
+
+  if (stored.type !== canonical.type || stored.status === "borrador") {
+    issues.push("document_relationship_invalid");
+  }
+
+  if (canonical.type === "recibo") {
+    if (
+      stored.rectifiedById ||
+      stored.status === "rectificada" ||
+      stored.status === "anulada"
+    ) {
+      issues.push("document_relationship_invalid");
+    }
+
+    if (stored.sourceDocumentId) {
+      const source = candidatesById.get(stored.sourceDocumentId);
+      if (!source || source.canonical.type !== "factura") {
+        issues.push("document_relationship_invalid");
+      }
+    }
+
+    return [...new Set(issues)];
+  }
+
+  if (stored.sourceDocumentId) {
+    issues.push("document_relationship_invalid");
+  }
+
+  if (canonical.rectification) {
+    const original = candidatesById.get(
+      canonical.rectification.originalDocumentId,
+    );
+    const expectedOriginalStatus = originalStatusAfterRectification(
+      canonical.rectification.type,
+    );
+    if (
+      stored.rectifiedById ||
+      stored.status === "rectificada" ||
+      stored.status === "anulada" ||
+      !original ||
+      original.canonical.type !== "factura" ||
+      Boolean(original.canonical.rectification) ||
+      original.stored.rectifiedById !== stored.id ||
+      original.stored.status !== expectedOriginalStatus
+    ) {
+      issues.push("document_relationship_invalid");
+    }
+    return [...new Set(issues)];
+  }
+
+  if (stored.rectifiedById) {
+    const rectification = candidatesById.get(stored.rectifiedById);
+    const relation = rectification?.canonical.rectification;
+    if (
+      !rectification ||
+      rectification.canonical.type !== "factura" ||
+      !relation ||
+      relation.originalDocumentId !== stored.id ||
+      stored.status !== originalStatusAfterRectification(relation.type)
+    ) {
+      issues.push("document_relationship_invalid");
+    }
+  } else if (stored.status === "rectificada" || stored.status === "anulada") {
+    issues.push("document_relationship_invalid");
+  }
+
+  return [...new Set(issues)];
+}
+
 /**
  * Prepara exclusivamente documentos fiscales verificables para una exportación.
  * La fecha, titular, líneas e importes proceden del snapshot canónico, nunca de
@@ -67,10 +186,11 @@ export function selectCanonicalFiscalDocumentsForExport(
   isDateInPeriod: (date: string) => boolean,
 ): FiscalExportDocumentSelection {
   const selected: Document[] = [];
-  const blockedDocuments: FiscalExportBlockedDocument[] = [];
+  const blockedById = new Map<string, FiscalExportBlockedDocument>();
+  const candidatesById = new Map<string, CanonicalFiscalCandidate>();
 
   for (const document of documents) {
-    if (!isIssuedFiscalDocument(document)) continue;
+    if (!isPotentialFiscalDocument(document)) continue;
 
     const integrity = inspectDocumentSnapshotsIntegrity(document, {
       requireDocumentSnapshot: true,
@@ -82,14 +202,12 @@ export function selectCanonicalFiscalDocumentsForExport(
     const issues = [...signaledIssues, ...integrity.issues];
 
     if (issues.length > 0 || !document.documentSnapshot) {
-      if (belongsToRequestedPeriod(document, isDateInPeriod)) {
-        blockedDocuments.push(
-          blockedReference(
-            document,
-            issues.length > 0 ? issues : ["document_snapshot_missing"],
-          ),
-        );
-      }
+      addBlockedDocument(
+        blockedById,
+        document,
+        issues.length > 0 ? issues : ["document_snapshot_missing"],
+        isDateInPeriod,
+      );
       continue;
     }
 
@@ -99,22 +217,55 @@ export function selectCanonicalFiscalDocumentsForExport(
         profile,
         document.documentSnapshot,
       ).doc;
-      if (isDateInPeriod(canonical.date)) {
-        selected.push({
-          ...canonical,
-          // Proyección efímera ya verificada: obliga a los cálculos fiscales a
-          // consumir taxSummary, también para snapshots legacy sin sello fuerte.
-          snapshotIntegrityRequired: true,
-        });
-      }
-    } catch {
-      if (belongsToRequestedPeriod(document, isDateInPeriod)) {
-        blockedDocuments.push(
-          blockedReference(document, ["document_snapshot_invalid"]),
+      if (!isFiscalType(canonical.type) || document.type !== canonical.type) {
+        addBlockedDocument(
+          blockedById,
+          document,
+          ["document_relationship_invalid"],
+          isDateInPeriod,
         );
+        continue;
       }
+
+      candidatesById.set(document.id, { stored: document, canonical });
+    } catch {
+      addBlockedDocument(
+        blockedById,
+        document,
+        ["document_snapshot_invalid"],
+        isDateInPeriod,
+      );
     }
   }
 
-  return { documents: selected, blockedDocuments };
+  for (const candidate of candidatesById.values()) {
+    const issues = relationshipIssues(candidate, candidatesById);
+    if (issues.length > 0) {
+      addBlockedDocument(
+        blockedById,
+        candidate.stored,
+        issues,
+        isDateInPeriod,
+      );
+      continue;
+    }
+
+    if (
+      candidate.canonical.type === "recibo" &&
+      candidate.stored.sourceDocumentId
+    ) {
+      continue;
+    }
+
+    if (isDateInPeriod(candidate.canonical.date)) {
+      selected.push({
+        ...candidate.canonical,
+        // Proyección efímera ya verificada: obliga a los cálculos fiscales a
+        // consumir taxSummary, también para snapshots legacy sin sello fuerte.
+        snapshotIntegrityRequired: true,
+      });
+    }
+  }
+
+  return { documents: selected, blockedDocuments: [...blockedById.values()] };
 }

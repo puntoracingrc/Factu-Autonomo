@@ -5,14 +5,18 @@ import {
 } from "@/lib/document-integrity";
 import type { Document } from "@/lib/types";
 
-function hasSnapshotEvidence(document: Document): boolean {
+function hasHistoricalProtectionEvidence(document: Document): boolean {
   return Boolean(
     document.documentSnapshot ||
       document.pdfSnapshot ||
       document.snapshotSeal ||
       document.snapshotIntegrityRequired ||
       document.snapshotIntegrity ||
-      document.issuedAt,
+      document.issuedAt ||
+      document.documentLifecycle === "issued" ||
+      document.documentLifecycle === "canceled" ||
+      document.integrityLock === "locked" ||
+      document.issuer,
   );
 }
 
@@ -32,7 +36,7 @@ export function editableQuoteWithLocalStatus(
       ? "not_sent"
       : (next.deliveryStatus ?? "not_sent");
 
-  if (hasSnapshotEvidence(next)) {
+  if (hasHistoricalProtectionEvidence(next)) {
     assertDocumentSnapshotsIntegrity(next, {
       requireDocumentSnapshot: true,
       requirePdfSnapshot: true,

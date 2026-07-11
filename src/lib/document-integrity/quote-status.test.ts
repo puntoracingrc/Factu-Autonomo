@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument } from "@/lib/document-integrity";
+import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { EMPTY_DATA, type Document } from "@/lib/types";
 import { editableQuoteWithLocalStatus } from "./quote-status";
 
@@ -71,5 +72,43 @@ describe("editableQuoteWithLocalStatus", () => {
     expect(() => editableQuoteWithLocalStatus(corrupt, LATER)).toThrow(
       "no supera la comprobación de integridad",
     );
+  });
+
+  it("no degrada presupuestos históricos sin snapshots verificables", () => {
+    const evidenceCases: Array<Partial<Document>> = [
+      { documentLifecycle: "issued" },
+      { integrityLock: "locked" },
+      { issuer: captureIssuerSnapshot(EMPTY_DATA.profile, NOW) },
+    ];
+
+    for (const evidence of evidenceCases) {
+      const historical: Document = {
+        ...quote(),
+        ...evidence,
+        status: "enviado",
+      };
+
+      expect(() =>
+        editableQuoteWithLocalStatus(
+          { ...historical, status: "aceptado" },
+          LATER,
+        ),
+      ).toThrow("no supera la comprobación de integridad");
+      expect(historical).toMatchObject(evidence);
+    }
+  });
+
+  it("mantiene editables los presupuestos operativos sin evidencia histórica", () => {
+    const accepted = editableQuoteWithLocalStatus(
+      { ...quote(), status: "aceptado" },
+      LATER,
+    );
+
+    expect(accepted).toMatchObject({
+      status: "aceptado",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      acceptanceStatus: "accepted",
+    });
   });
 });

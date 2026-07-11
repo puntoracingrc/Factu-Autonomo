@@ -281,6 +281,65 @@ describe("materializeRectificationDocument", () => {
     });
   });
 
+  it("reconstruye una anulación desde el snapshot al emitir su borrador", () => {
+    const current = rectification("borrador");
+    const original = issueDocument(
+      {
+        ...current,
+        id: "invoice-1",
+        number: "F-2026-0042",
+        date: "2026-07-01",
+        rectification: undefined,
+        items: [
+          {
+            id: "original-line",
+            description: "Servicio original",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      EMPTY_DATA.profile,
+      NOW,
+    );
+    const manipulated: Document = {
+      ...current,
+      status: "enviado",
+      rectification: {
+        ...current.rectification!,
+        type: "correccion",
+      },
+      items: [
+        {
+          id: "manipulated-line",
+          description: "Importe alterado",
+          quantity: 1,
+          unitPrice: -1,
+          ivaPercent: 0,
+        },
+      ],
+    };
+
+    const preserved = preserveRectificationOriginalReference(
+      current,
+      manipulated,
+      [original, current],
+      EMPTY_DATA.profile,
+    );
+
+    expect(preserved.items).toEqual([
+      expect.objectContaining({
+        description: "Servicio original",
+        quantity: 1,
+        unitPrice: -100,
+        ivaPercent: 21,
+      }),
+    ]);
+    expect(preserved.items[0].id).not.toBe("manipulated-line");
+    expect(preserved.rectification?.type).toBe("anulacion");
+  });
+
   it("resuelve contenido y perfil histórico desde el snapshot canónico", () => {
     const historicalProfile = {
       ...EMPTY_DATA.profile,

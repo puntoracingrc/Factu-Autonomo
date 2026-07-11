@@ -172,13 +172,21 @@ export function preserveRectificationOriginalReference(
     original,
     currentProfile,
   ).original;
+  const rectification = canonicalRectificationReference(
+    canonical,
+    {
+      ...(next.rectification ?? current.rectification),
+      type: current.rectification.type,
+    },
+  );
 
   return {
     ...next,
-    rectification: canonicalRectificationReference(
-      canonical,
-      next.rectification ?? current.rectification,
-    ),
+    items:
+      rectification.type === "anulacion"
+        ? canonicalRectificationItems(canonical, next.items, "anulacion")
+        : next.items,
+    rectification,
   };
 }
 

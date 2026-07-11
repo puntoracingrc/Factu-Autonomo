@@ -167,6 +167,34 @@ describe("document form totals flow", () => {
     expect(saved[1]).toMatchObject({ description: "Ajuste", unitPrice: 0 });
   });
 
+  it("conserva importes firmados solo cuando el formulario edita una rectificativa", () => {
+    const cancellation = item({ unitPrice: -100 });
+    const signedOptions = { allowSignedAmounts: true };
+
+    expect(firstDocumentFormLineIssue([cancellation])).toBe(
+      "Indica un precio válido en la línea 1.",
+    );
+    expect(
+      firstDocumentFormLineIssue([cancellation], signedOptions),
+    ).toBeNull();
+    expect(
+      documentFormItemsForSave([cancellation], false, signedOptions)[0],
+    ).toMatchObject({ quantity: 1, unitPrice: -100, ivaPercent: 21 });
+    expect(documentFormAmounts([cancellation], false, signedOptions)).toEqual({
+      subtotal: -100,
+      iva: -21,
+      total: -121,
+    });
+    expect(lineItemFormTotal(cancellation, false, signedOptions)).toBe(-121);
+
+    expect(
+      firstDocumentFormLineIssue(
+        [item({ quantity: -2, unitPrice: -5 })],
+        signedOptions,
+      ),
+    ).toBeNull();
+  });
+
   it("guarda una línea de m2 con cantidad calculada y medidas en el concepto", () => {
     const saved = documentFormItemsForSave(
       [item({ description: "Persiana aluminio", unit: "m2", quantity: 0 })],
