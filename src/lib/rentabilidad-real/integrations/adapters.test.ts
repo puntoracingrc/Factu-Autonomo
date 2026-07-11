@@ -270,7 +270,7 @@ describe("rentabilidad real read-only adapters", () => {
       grossProfit: 700,
       irpfPercent: 20,
       irpfEstimate: 140,
-      estimatedNetProfit: 413,
+      profitAfterIrpfReserve: 560,
     };
     const before = deepClone(summary);
 
@@ -281,6 +281,7 @@ describe("rentabilidad real read-only adapters", () => {
       salesBase: 1000,
       expenseBase: 300,
       ivaToPay: 147,
+      profitAfterIrpfReserve: 560,
       sourceLink: {
         href: "/impuestos",
       },

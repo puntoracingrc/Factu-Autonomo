@@ -405,7 +405,9 @@ Resumen orientativo (no sustituye asesoría fiscal):
 | IVA repercutido | De líneas de venta |
 | IVA soportado / deducible | De gastos (0 si exento) |
 | Resultado IVA | Repercutido − deducible |
-| IRPF estimado | % configurable sobre beneficio bruto (modelo 130 orientativo) |
+| Beneficio antes del IRPF | Base de ventas − base de gastos; ambas sin IVA |
+| IRPF estimado | % configurable sobre el beneficio anterior (modelo 130 orientativo) |
+| Resultado tras reservar IRPF | Beneficio anterior − IRPF estimado; la posición de IVA permanece separada |
 
 **Filtros:** trimestre, año, todo.
 

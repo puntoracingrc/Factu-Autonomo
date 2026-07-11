@@ -80,6 +80,10 @@ export function buildQuarterlyExportCsv(
     csvRow(["IVA neto a ingresar", formatCsvAmount(taxes.netIva)]),
     csvRow(["Beneficio bruto estimado", formatCsvAmount(taxes.grossProfit)]),
     csvRow(["IRPF estimado (orientativo)", formatCsvAmount(taxes.irpfEstimate)]),
+    csvRow([
+      "Resultado tras reservar IRPF",
+      formatCsvAmount(taxes.profitAfterIrpfReserve),
+    ]),
     "",
     csvRow(["LIBRO DE VENTAS"]),
     "",

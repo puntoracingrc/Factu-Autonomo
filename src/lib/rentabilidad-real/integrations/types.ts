@@ -122,7 +122,7 @@ export interface ProfitabilityTaxContext {
   grossProfit: number;
   irpfPercent: number;
   irpfEstimate: number;
-  estimatedNetProfit: number;
+  profitAfterIrpfReserve: number;
   sourceLink: ProfitabilitySourceLink;
 }
 

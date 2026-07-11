@@ -68,7 +68,10 @@ export function buildAnnualSummaryPdf(
         ["Gastos", formatMoney(periodSpent)],
         ["Beneficio antes del IRPF", formatMoney(taxes.grossProfit)],
         [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
-        ["Beneficio neto aproximado", formatMoney(taxes.estimatedNetProfit)],
+        [
+          "Resultado tras reservar IRPF",
+          formatMoney(taxes.profitAfterIrpfReserve),
+        ],
       ]
     : [
         ["Cobrado en el año", formatMoney(periodIncome)],
@@ -83,7 +86,10 @@ export function buildAnnualSummaryPdf(
         ],
         ["Beneficio antes del IRPF", formatMoney(taxes.grossProfit)],
         [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
-        ["Beneficio neto aproximado", formatMoney(taxes.estimatedNetProfit)],
+        [
+          "Resultado tras reservar IRPF",
+          formatMoney(taxes.profitAfterIrpfReserve),
+        ],
       ];
 
   autoTable(pdf, {

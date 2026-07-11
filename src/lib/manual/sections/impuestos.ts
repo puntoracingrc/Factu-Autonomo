@@ -10,7 +10,8 @@ export const impuestosSection: ManualSection = {
       title: "1. Ver el resumen fiscal",
       paragraphs: [
         "En **Impuestos** eliges **Trimestre**, **Año** o **Todo** y luego seleccionas el periodo concreto.",
-        "Verás bases de ventas y gastos, IVA neto, beneficio bruto e IRPF estimado.",
+        "Verás las bases de ventas y gastos, la posición de IVA, el beneficio antes del IRPF, la reserva de IRPF estimada y el resultado tras reservarla.",
+        "La posición de IVA se muestra aparte: no se descuenta de ese resultado porque las bases ya están calculadas sin IVA.",
         "Son cifras **orientativas** para preparar el 303 o hablar con tu gestor; no sustituyen la declaración oficial.",
       ],
       screenshot: {
