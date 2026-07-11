@@ -1,6 +1,82 @@
 import { DocumentIntegrityError } from "@/lib/document-integrity";
+import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
-import type { BusinessProfile, Document } from "@/lib/types";
+import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
+import { itemsForAnulacion } from "@/lib/rectificativas";
+import type {
+  BusinessProfile,
+  Document,
+  LineItem,
+  RectificationInfo,
+  RectificationType,
+} from "@/lib/types";
+
+export interface CanonicalRectificationSource {
+  original: Document;
+  profile: BusinessProfile;
+}
+
+export function resolveCanonicalRectificationSource(
+  original: Document,
+  currentProfile: BusinessProfile,
+): CanonicalRectificationSource {
+  const canonical = buildCanonicalDocumentForProtectedEffect(
+    original,
+    currentProfile,
+  );
+  const snapshot = canonical.documentSnapshot;
+  if (
+    canonical.type !== "factura" ||
+    !snapshot ||
+    snapshot.documentType !== "factura"
+  ) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  return {
+    original: canonical,
+    profile: profileForHistoricalDerivedDocument(snapshot, currentProfile),
+  };
+}
+
+export function canonicalRectificationReference(
+  original: Document,
+  requested: RectificationInfo,
+): RectificationInfo {
+  return {
+    ...requested,
+    originalDocumentId: original.id,
+    originalNumber: original.number,
+    originalDate: original.date,
+  };
+}
+
+export function canonicalRectificationItems(
+  original: Document,
+  requestedItems: LineItem[],
+  type: RectificationType,
+): LineItem[] {
+  return type === "anulacion"
+    ? itemsForAnulacion(original.items)
+    : requestedItems.map((item) => ({ ...item }));
+}
+
+export function profileForRectificationSource(
+  document: Document,
+  documents: Document[],
+  currentProfile: BusinessProfile,
+): BusinessProfile {
+  const originalDocumentId = document.rectification?.originalDocumentId;
+  if (!originalDocumentId) return currentProfile;
+
+  const original = documents.find(
+    (candidate) => candidate.id === originalDocumentId,
+  );
+  if (!original) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
+  }
+  return resolveCanonicalRectificationSource(original, currentProfile).profile;
+}
 
 export function hasPendingRectificationDraft(
   documents: Document[],
@@ -51,6 +127,7 @@ export function preserveRectificationOriginalReference(
   current: Document,
   next: Document,
   documents: Document[],
+  currentProfile: BusinessProfile,
 ): Document {
   if (!current.rectification) return next;
 
@@ -61,15 +138,17 @@ export function preserveRectificationOriginalReference(
   if (!original) {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
   }
+  const canonical = resolveCanonicalRectificationSource(
+    original,
+    currentProfile,
+  ).original;
 
   return {
     ...next,
-    rectification: {
-      ...(next.rectification ?? current.rectification),
-      originalDocumentId: original.id,
-      originalNumber: original.number,
-      originalDate: original.date,
-    },
+    rectification: canonicalRectificationReference(
+      canonical,
+      next.rectification ?? current.rectification,
+    ),
   };
 }
 

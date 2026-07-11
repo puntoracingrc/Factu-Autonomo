@@ -103,6 +103,7 @@ import {
   attachRegisteredVerifactuToSnapshots,
   deriveDocumentLifecycle,
   DocumentIntegrityError,
+  isDocumentIntegrityLocked,
   issueDocument as issueDocumentWithIntegrity,
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
@@ -112,10 +113,15 @@ import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integri
 import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import {
   assertRectificationEmissionAllowed,
+  canonicalRectificationItems,
+  canonicalRectificationReference,
   hasPendingRectificationDraft,
   materializeRectificationDocument,
+  profileForRectificationSource,
   preserveRectificationOriginalReference,
+  resolveCanonicalRectificationSource,
 } from "@/lib/document-integrity/rectification-issuance";
+import { editableQuoteWithLocalStatus } from "@/lib/document-integrity/quote-status";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { todayISO } from "@/lib/calculations";
 import {
@@ -309,43 +315,6 @@ function applyEmittedRectificationToOriginal(
   });
 }
 
-function editableQuoteWithLocalStatus(
-  next: Document,
-  updatedAt: string,
-): Document {
-  const accepted = next.status === "aceptado" || next.status === "pagado";
-  const rejected = next.status === "rechazado";
-  const deliveryStatus =
-    next.status === "borrador" ? "not_sent" : (next.deliveryStatus ?? "not_sent");
-
-  return {
-    ...next,
-    issuer: undefined,
-    verifactu: undefined,
-    documentSnapshot: undefined,
-    pdfSnapshot: undefined,
-    snapshotSeal: undefined,
-    snapshotIntegrityRequired: undefined,
-    snapshotIntegrity: undefined,
-    documentLifecycle: "draft",
-    integrityLock: "unlocked",
-    deliveryStatus,
-    paymentStatus: "not_applicable",
-    acceptanceStatus: accepted
-      ? "accepted"
-      : rejected
-        ? "rejected"
-        : next.status === "borrador"
-          ? undefined
-          : "pending",
-    issuedAt: undefined,
-    sentAt: deliveryStatus === "sent" ? (next.sentAt ?? updatedAt) : undefined,
-    paidAt: undefined,
-    acceptedAt: accepted ? (next.acceptedAt ?? updatedAt) : undefined,
-    updatedAt,
-  };
-}
-
 function saveEditableDocument(
   current: Document,
   next: Document,
@@ -353,6 +322,12 @@ function saveEditableDocument(
   updatedAt: string,
 ): Document {
   if (current.type === "presupuesto" || next.type === "presupuesto") {
+    if (
+      deriveDocumentLifecycle(current) !== "draft" ||
+      isDocumentIntegrityLocked(current)
+    ) {
+      throw new DocumentIntegrityError("DOCUMENT_LOCKED");
+    }
     return editableQuoteWithLocalStatus(next, updatedAt);
   }
 
@@ -545,6 +520,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         current,
         doc,
         prev.documents,
+        prev.profile,
+      );
+      const emissionProfile = profileForRectificationSource(
+        canonicalDocument,
+        prev.documents,
+        prev.profile,
       );
       const shouldIssue =
         deriveDocumentLifecycle(current) === "draft" &&
@@ -562,7 +543,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saved = saveEditableDocument(
         current,
         prepared.doc,
-        prev.profile,
+        emissionProfile,
         now,
       );
       const nextDocuments = applyEmittedRectificationToOriginal(
@@ -643,6 +624,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           current,
           current,
           prev.documents,
+          prev.profile,
+        );
+        const emissionProfile = profileForRectificationSource(
+          canonicalDocument,
+          prev.documents,
+          prev.profile,
         );
         const prepared = assignFinalInvoiceIdentityIfNeeded(
           canonicalDocument,
@@ -650,10 +637,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           prev.profile.numbering,
         );
         assertRectificationEmissionAllowed(prepared.doc, prev.documents);
-        assertDocumentEmissionValid(prepared.doc, prev.profile);
+        assertDocumentEmissionValid(prepared.doc, emissionProfile);
         issued = issueDocumentWithIntegrity(
           prepared.doc,
-          prev.profile,
+          emissionProfile,
           now,
         );
         const nextDocuments = applyEmittedRectificationToOriginal(
@@ -1066,8 +1053,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       let created: Document | null = null;
       setAppData((prev) => {
-        const original = prev.documents.find((d) => d.id === originalId);
-        if (!original || !canRectifyInvoice(original)) return prev;
+        const storedOriginal = prev.documents.find((d) => d.id === originalId);
+        if (!storedOriginal) return prev;
+        const { original, profile: rectificationProfile } =
+          resolveCanonicalRectificationSource(storedOriginal, prev.profile);
+        if (!canRectifyInvoice(original)) return prev;
         const existingDraft = hasPendingRectificationDraft(
           prev.documents,
           original.id,
@@ -1093,27 +1083,30 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 numbering,
               ),
             };
-        const rectification: RectificationInfo = {
-          ...doc.rectification,
-          originalDocumentId: original.id,
-          originalNumber: original.number,
-          originalDate: original.date,
-        };
+        const rectification: RectificationInfo = canonicalRectificationReference(
+          original,
+          doc.rectification,
+        );
         const source: Document = {
           ...doc,
           type: "factura",
           id,
           number: assigned.number,
+          items: canonicalRectificationItems(
+            original,
+            doc.items,
+            rectification.type,
+          ),
           rectification,
           createdAt: now,
           updatedAt: now,
         };
         if (!isDraft) {
-          assertDocumentEmissionValid(source, prev.profile);
+          assertDocumentEmissionValid(source, rectificationProfile);
         }
         const rectificativa = materializeRectificationDocument(
           source,
-          prev.profile,
+          rectificationProfile,
           now,
         );
 
