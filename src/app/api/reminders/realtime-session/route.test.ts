@@ -142,6 +142,22 @@ describe("POST /api/reminders/realtime-session", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("falla cerrado en produccion antes de consultar plan o proveedor", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    const fetchMock = mockOpenAiSession(Response.json({}));
+
+    const response = await POST(request(null));
+
+    expect(response.status).toBe(401);
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("informa si falta la clave del servidor", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
@@ -179,6 +195,8 @@ describe("POST /api/reminders/realtime-session", () => {
   });
 
   it("permite desarrollo local sin billing ni sesion", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("CI", "");
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
     vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
     vi.mocked(getUserFromBearer).mockResolvedValue(null);

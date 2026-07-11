@@ -9,6 +9,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { isAiRouteAuthenticationRequired } from "@/lib/server/ai-route-auth-policy";
 
 async function canUseAddressAutofill(userId: string): Promise<{
   allowed: boolean;
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     requireEmailConfirmed: true,
   });
 
-  if (isBillingEnforced() && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !user) {
     return NextResponse.json(
       {
         error:

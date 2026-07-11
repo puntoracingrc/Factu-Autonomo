@@ -1,5 +1,7 @@
-export function isBillingEnforced(): boolean {
-  return process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
+export function isBillingEnforced(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return env.NEXT_PUBLIC_BILLING_ENABLED === "true";
 }
 
 export function isStripeConfigured(): boolean {

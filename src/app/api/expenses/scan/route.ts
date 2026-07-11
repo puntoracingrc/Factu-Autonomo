@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { isBillingEnforced } from "@/lib/billing/config";
 import {
   buildScanQuota,
   UNLIMITED_AI_CREDIT_UNITS,
@@ -24,6 +23,7 @@ import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { isAiRouteAuthenticationRequired } from "@/lib/server/ai-route-auth-policy";
 import { validateRequestBodySize } from "@/lib/server/request-body";
 
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ function hasAiLearningScanAccess(email?: string | null): boolean {
 }
 
 export async function GET(request: Request) {
-  if (!isBillingEnforced()) {
+  if (!isAiRouteAuthenticationRequired(request)) {
     const quota = await getExpenseScanQuota("dev");
     return NextResponse.json({ quota });
   }
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     requireEmailConfirmed: true,
   });
 
-  if (isBillingEnforced() && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !user) {
     return NextResponse.json(
       {
         error:
