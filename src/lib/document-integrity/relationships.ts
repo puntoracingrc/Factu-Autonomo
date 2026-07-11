@@ -6,6 +6,7 @@ import type {
   RectificationInfo,
 } from "@/lib/types";
 import { hasUsualSpanishTaxIdShape } from "../business-profile";
+import { roundMoney } from "../calculations";
 import { deriveDocumentLifecycle } from "./index";
 import { inspectDocumentSnapshotsIntegrity } from "./snapshots";
 
@@ -72,6 +73,13 @@ function verifiedSnapshot(
   return snapshot;
 }
 
+function isReceiptClaimDocument(document: Document): boolean {
+  return (
+    document.type === "recibo" ||
+    document.documentSnapshot?.documentType === "recibo"
+  );
+}
+
 function verifiedRectification(document: Document): RectificationInfo | null {
   const snapshot = verifiedSnapshot(document, "factura");
   if (
@@ -102,6 +110,74 @@ function hasVerifiedOriginalEvidence(document: Document): boolean {
   return Boolean(
     snapshot?.documentKind === "factura" && !snapshot.rectification,
   );
+}
+
+function monetaryAmountsCancel(left: number, right: number): boolean {
+  const difference = left + right;
+  return (
+    Number.isFinite(difference) && roundMoney(Math.abs(difference)) === 0
+  );
+}
+
+function isZeroTaxRateRow(
+  row: DocumentSnapshot["taxSummary"]["byRate"][number],
+): boolean {
+  return (
+    roundMoney(Math.abs(row.taxableBase)) === 0 &&
+    roundMoney(Math.abs(row.ivaAmount)) === 0 &&
+    roundMoney(Math.abs(row.total)) === 0
+  );
+}
+
+function cancellationTaxSummaryMatches(
+  originalSnapshot: DocumentSnapshot,
+  cancellationSnapshot: DocumentSnapshot,
+): boolean {
+  const originalSummary = originalSnapshot.taxSummary;
+  const cancellationSummary = cancellationSnapshot.taxSummary;
+  if (
+    originalSummary.vatExempt !== cancellationSummary.vatExempt ||
+    !monetaryAmountsCancel(
+      originalSummary.subtotal,
+      cancellationSummary.subtotal,
+    ) ||
+    !monetaryAmountsCancel(originalSummary.iva, cancellationSummary.iva) ||
+    !monetaryAmountsCancel(originalSummary.total, cancellationSummary.total)
+  ) {
+    return false;
+  }
+
+  const originalByRate = new Map(
+    originalSummary.byRate
+      .filter((row) => !isZeroTaxRateRow(row))
+      .map((row) => [row.ivaPercent, row]),
+  );
+  const cancellationByRate = new Map(
+    cancellationSummary.byRate
+      .filter((row) => !isZeroTaxRateRow(row))
+      .map((row) => [row.ivaPercent, row]),
+  );
+  if (originalByRate.size !== cancellationByRate.size) return false;
+
+  for (const [ivaPercent, originalRow] of originalByRate) {
+    const cancellationRow = cancellationByRate.get(ivaPercent);
+    if (
+      !cancellationRow ||
+      !monetaryAmountsCancel(
+        originalRow.taxableBase,
+        cancellationRow.taxableBase,
+      ) ||
+      !monetaryAmountsCancel(
+        originalRow.ivaAmount,
+        cancellationRow.ivaAmount,
+      ) ||
+      !monetaryAmountsCancel(originalRow.total, cancellationRow.total)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function relationshipMatches(
@@ -139,7 +215,12 @@ function relationshipMatches(
       customerIdentityMatches(
         rectificationSnapshot.customer,
         originalSnapshot.customer,
-      )
+      ) &&
+      (relation.type !== "anulacion" ||
+        cancellationTaxSummaryMatches(
+          originalSnapshot,
+          rectificationSnapshot,
+        ))
   );
 }
 
@@ -256,8 +337,6 @@ function verifiedDocumentIdentity(document: Document): string | null {
       snapshot.documentType !== "recibo") ||
     !inspectDocumentSnapshotsIntegrity(document, {
       requireDocumentSnapshot: true,
-      requirePdfSnapshot: true,
-      requireSnapshotSeal: true,
     }).ok
   ) {
     return null;
@@ -297,8 +376,6 @@ export function withDocumentRelationshipIntegritySignals(
         snapshot.documentType === "recibo") &&
       inspectDocumentSnapshotsIntegrity(document, {
         requireDocumentSnapshot: true,
-        requirePdfSnapshot: true,
-        requireSnapshotSeal: true,
       }).ok &&
       !hasValidIssuerTaxId(snapshot.issuer.nif)
     ) {
@@ -374,7 +451,7 @@ export function withDocumentRelationshipIntegritySignals(
 
   const receiptsByInvoice = new Map<string, Document[]>();
   for (const receipt of documents) {
-    if (receipt.type !== "recibo") continue;
+    if (!isReceiptClaimDocument(receipt)) continue;
     const frozenSource = receipt.documentSnapshot?.sourceDocumentId;
     const sourceId = receipt.sourceDocumentId ?? frozenSource;
     if (!sourceId) continue;

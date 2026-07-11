@@ -2,7 +2,7 @@ import { DocumentIntegrityError } from "@/lib/document-integrity";
 import type { BusinessProfile, DocumentSnapshot } from "@/lib/types";
 
 function comparableIssuerNif(value: string): string {
-  return value.trim().replace(/[\s-]/g, "").toUpperCase();
+  return value.trim().replace(/[\s.-]/g, "").toUpperCase();
 }
 
 /**

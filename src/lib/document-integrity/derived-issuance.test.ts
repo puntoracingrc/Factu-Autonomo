@@ -53,4 +53,19 @@ describe("profileForHistoricalDerivedDocument", () => {
       }),
     ).toThrow("no coincide con el emisor histórico");
   });
+
+  it("acepta el mismo NIF con espacios, puntos o guiones", () => {
+    const snapshot = sourceSnapshot();
+    const punctuated = {
+      ...snapshot,
+      issuer: { ...snapshot.issuer, nif: "12.345.678-Z" },
+    };
+
+    expect(
+      profileForHistoricalDerivedDocument(punctuated, {
+        ...DEFAULT_PROFILE,
+        nif: "12345678Z",
+      }).nif,
+    ).toBe("12.345.678-Z");
+  });
 });

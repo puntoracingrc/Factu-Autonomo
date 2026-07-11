@@ -2,12 +2,20 @@ import {
   deriveDocumentLifecycle,
   inspectDocumentSnapshotsIntegrity,
 } from "../document-integrity";
+import {
+  businessProfileMissingDocumentLabels,
+  hasUsualSpanishTaxIdShape,
+} from "../business-profile";
+import { roundMoney } from "../calculations";
+import { clientAddressToFormFields } from "../customer-address";
 import { buildPdfViewModelFromDocumentSnapshot } from "../document-integrity/pdf-source";
 import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
+import { invoiceClientMissingDocumentLabels } from "../invoice-compliance";
 import { originalStatusAfterRectification } from "../rectificativas";
 import type {
   BusinessProfile,
   Document,
+  DocumentSnapshot,
   DocumentSnapshotIntegrityIssue,
   DocumentType,
 } from "../types";
@@ -33,6 +41,100 @@ function isFiscalType(
   type: DocumentType | undefined,
 ): type is "factura" | "recibo" {
   return type === "factura" || type === "recibo";
+}
+
+function normalizedFiscalIdentityText(value: string | undefined): string {
+  return value?.replace(/[\s.-]/g, "").toUpperCase() ?? "";
+}
+
+function hasValidSnapshotVatRates(snapshot: DocumentSnapshot): boolean {
+  return (
+    snapshot.items.every(
+      (item) =>
+        Number.isFinite(item.ivaPercent) &&
+        item.ivaPercent >= 0 &&
+        item.ivaPercent <= 100,
+    ) &&
+    snapshot.taxSummary.byRate.every(
+      (row) =>
+        Number.isFinite(row.ivaPercent) &&
+        row.ivaPercent >= 0 &&
+        row.ivaPercent <= 100,
+    )
+  );
+}
+
+function hasAllowedFiscalSummarySign(snapshot: DocumentSnapshot): boolean {
+  if (snapshot.rectification?.type === "anulacion") return true;
+  return (
+    roundMoney(snapshot.taxSummary.subtotal) >= 0 &&
+    roundMoney(snapshot.taxSummary.iva) >= 0 &&
+    roundMoney(snapshot.taxSummary.total) >= 0
+  );
+}
+
+function hasMinimumFiscalSnapshotCompliance(
+  snapshot: DocumentSnapshot,
+): boolean {
+  const issuerNif = normalizedFiscalIdentityText(snapshot.issuer.nif);
+  if (
+    businessProfileMissingDocumentLabels(snapshot.issuer).length > 0 ||
+    !issuerNif ||
+    !hasUsualSpanishTaxIdShape(issuerNif) ||
+    !snapshot.items.some((item) => item.description.trim()) ||
+    !hasValidSnapshotVatRates(snapshot) ||
+    !hasAllowedFiscalSummarySign(snapshot)
+  ) {
+    return false;
+  }
+
+  if (snapshot.documentType !== "factura") return true;
+
+  const address = clientAddressToFormFields(snapshot.customer);
+  return (
+    invoiceClientMissingDocumentLabels({
+      name: snapshot.customer.name,
+      nif: snapshot.customer.nif,
+      address: address.streetLine,
+      postalCode: address.postalCode,
+      city: address.city,
+    }).length === 0
+  );
+}
+
+function canonicalFiscalIdentity(
+  candidate: CanonicalFiscalCandidate,
+): string {
+  const snapshot = candidate.stored.documentSnapshot!;
+  const identityKind =
+    snapshot.documentKind === "factura_rectificativa"
+      ? "factura"
+      : snapshot.documentKind;
+  return [
+    identityKind,
+    normalizedFiscalIdentityText(snapshot.issuer.nif),
+    snapshot.date.slice(0, 4),
+    snapshot.number.trim().toUpperCase(),
+  ].join("|");
+}
+
+function duplicateCanonicalFiscalIds(
+  candidates: Iterable<CanonicalFiscalCandidate>,
+): Set<string> {
+  const byIdentity = new Map<string, CanonicalFiscalCandidate[]>();
+  for (const candidate of candidates) {
+    const identity = canonicalFiscalIdentity(candidate);
+    const matching = byIdentity.get(identity);
+    if (matching) matching.push(candidate);
+    else byIdentity.set(identity, [candidate]);
+  }
+
+  const duplicateIds = new Set<string>();
+  for (const matching of byIdentity.values()) {
+    if (matching.length < 2) continue;
+    matching.forEach((candidate) => duplicateIds.add(candidate.stored.id));
+  }
+  return duplicateIds;
 }
 
 function hasHistoricalEvidence(doc: Document): boolean {
@@ -123,6 +225,7 @@ function relationshipIssues(
       stored.status === "rectificada" ||
       stored.status === "anulada" ||
       stored.receiptDocumentId ||
+      deriveDocumentLifecycle(stored) !== "issued" ||
       !hasOperationalFiscalStatus(stored)
     ) {
       issues.push("document_relationship_invalid");
@@ -229,6 +332,15 @@ export function selectCanonicalFiscalDocumentsForExport(
       continue;
     }
 
+    if (!hasMinimumFiscalSnapshotCompliance(document.documentSnapshot)) {
+      addBlockedDocument(
+        blockedById,
+        document,
+        ["document_snapshot_semantic_invalid"],
+      );
+      continue;
+    }
+
     try {
       const canonical = buildPdfViewModelFromDocumentSnapshot(
         document,
@@ -254,8 +366,17 @@ export function selectCanonicalFiscalDocumentsForExport(
     }
   }
 
+  const duplicateFiscalIds = duplicateCanonicalFiscalIds(
+    candidatesById.values(),
+  );
+
   for (const candidate of candidatesById.values()) {
-    const issues = relationshipIssues(candidate, candidatesById);
+    const issues = [
+      ...relationshipIssues(candidate, candidatesById),
+      ...(duplicateFiscalIds.has(candidate.stored.id)
+        ? (["document_relationship_invalid"] satisfies DocumentSnapshotIntegrityIssue[])
+        : []),
+    ];
     if (issues.length > 0) {
       addBlockedDocument(
         blockedById,

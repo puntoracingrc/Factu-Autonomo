@@ -11,6 +11,7 @@ import {
   originalStatusAfterRectification,
   rectificationLineDisplayTotal,
   rectificationTextDefaults,
+  rectificationUnavailableMessage,
 } from "./rectificativas";
 import { issueDocument } from "./document-integrity";
 import { lineMoneyAmounts } from "./calculations";
@@ -58,6 +59,33 @@ describe("facturas rectificativas", () => {
     expect(
       canRectifyInvoice(
         invoice("1", "F-2026-0001", "pagado", { rectifiedById: "fr1" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("no permite rectificar una factura con recibo vinculado", () => {
+    const withReceipt = invoice("1", "F-2026-0001", "pagado", {
+      receiptDocumentId: "receipt-1",
+    });
+
+    expect(canRectifyInvoice(withReceipt)).toBe(false);
+    expect(rectificationUnavailableMessage(withReceipt)).toContain(
+      "tiene un recibo emitido vinculado",
+    );
+    expect(rectificationUnavailableMessage(withReceipt)).toContain(
+      "anulación/rectificación explícita del recibo",
+    );
+  });
+
+  it("no permite rectificar una factura con integridad bloqueada", () => {
+    expect(
+      canRectifyInvoice(
+        invoice("1", "F-2026-0001", "pagado", {
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["document_relationship_invalid"],
+          },
+        }),
       ),
     ).toBe(false);
   });

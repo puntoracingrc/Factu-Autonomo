@@ -82,7 +82,8 @@ import {
 import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
   buildReceiptFromInvoice,
-  findReceiptForInvoice,
+  findUniqueReceiptSourceInvoice,
+  receiptClaimsForInvoice,
   unmarkInvoiceCollection,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
@@ -118,6 +119,7 @@ import {
   hasPendingRectificationDraft,
   materializeRectificationDocument,
   profileForRectificationSource,
+  requireUniqueRectificationOriginal,
   preserveRectificationOriginalReference,
   resolveCanonicalRectificationSource,
 } from "@/lib/document-integrity/rectification-issuance";
@@ -244,6 +246,14 @@ const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+function findUniqueDocumentById(
+  documents: Document[],
+  id: string,
+): Document | undefined {
+  const matching = documents.filter((document) => document.id === id);
+  return matching.length === 1 ? matching[0] : undefined;
 }
 
 function documentKindForType(type: DocumentType): DocumentKind {
@@ -467,38 +477,39 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (
       doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
     ): Document => {
-      const year = new Date(doc.date).getFullYear();
-      const kind = documentKindForType(doc.type);
-      const numbering = data.profile.numbering;
-      const usesDraftNumber = shouldUseDraftInvoiceNumber(doc);
-      const assigned = usesDraftNumber
-        ? { number: DRAFT_INVOICE_NUMBER, sequence: null }
-        : assignNextDocumentNumberByType(
-            data.documents,
-            doc.type,
-            year,
-            configuredLastForKind(numbering, kind, year),
-            numbering,
-          );
-      const now = new Date().toISOString();
-      const createdDraft: Document = {
-        ...doc,
-        status: doc.status === "borrador" ? doc.status : "borrador",
-        id: newId(),
-        number: assigned.number,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const created =
-        doc.status === "borrador"
-          ? createdDraft
-          : saveEditableDocument(
-              createdDraft,
-              { ...createdDraft, status: doc.status },
-              data.profile,
-              now,
-            );
+      let created: Document | null = null;
       setAppData((prev) => {
+        const year = new Date(doc.date).getFullYear();
+        const kind = documentKindForType(doc.type);
+        const numbering = prev.profile.numbering;
+        const usesDraftNumber = shouldUseDraftInvoiceNumber(doc);
+        const assigned = usesDraftNumber
+          ? { number: DRAFT_INVOICE_NUMBER, sequence: null }
+          : assignNextDocumentNumberByType(
+              prev.documents,
+              doc.type,
+              year,
+              configuredLastForKind(numbering, kind, year),
+              numbering,
+            );
+        const now = new Date().toISOString();
+        const createdDraft: Document = {
+          ...doc,
+          status: doc.status === "borrador" ? doc.status : "borrador",
+          id: newId(),
+          number: assigned.number,
+          createdAt: now,
+          updatedAt: now,
+        };
+        created =
+          doc.status === "borrador"
+            ? createdDraft
+            : saveEditableDocument(
+                createdDraft,
+                { ...createdDraft, status: doc.status },
+                prev.profile,
+                now,
+              );
         const nextDocuments = [...prev.documents, created];
         return {
           ...prev,
@@ -518,17 +529,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           counters: countersFromDocuments(nextDocuments, year, numbering),
         };
       });
+      if (!created) throw new Error("No se pudo crear el documento");
       return created;
     },
-    [data.documents, data.profile, setAppData],
+    [setAppData],
   );
 
   const updateDocument = useCallback(async (doc: Document): Promise<Document> => {
     let saved: Document | null = null;
     const now = new Date().toISOString();
     setAppData((prev) => {
-      const current = prev.documents.find((item) => item.id === doc.id);
-      if (!current) throw new Error("Documento no encontrado");
+      const current = findUniqueDocumentById(prev.documents, doc.id);
+      if (!current) throw new Error("Documento no encontrado o ID duplicado");
 
       const canonicalDocument = preserveRectificationOriginalReference(
         current,
@@ -592,7 +604,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       let repaired: Document | null = null;
       const now = new Date().toISOString();
       setAppData((prev) => {
-        const document = prev.documents.find((item) => item.id === documentId);
+        const document = findUniqueDocumentById(prev.documents, documentId);
         const customer = prev.customers.find((item) => item.id === customerId);
         if (!document || !customer) return prev;
 
@@ -631,8 +643,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       let issued: Document | null = null;
       const now = new Date().toISOString();
       setAppData((prev) => {
-        const current = prev.documents.find((doc) => doc.id === id);
-        if (!current) throw new Error("Documento no encontrado");
+        const current = findUniqueDocumentById(prev.documents, id);
+        if (!current) throw new Error("Documento no encontrado o ID duplicado");
 
         const canonicalDocument = preserveRectificationOriginalReference(
           current,
@@ -688,7 +700,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string): Document | null => {
       let sent: Document | null = null;
       setAppData((prev) => {
-        const current = prev.documents.find((doc) => doc.id === id);
+        const current = findUniqueDocumentById(prev.documents, id);
         if (!current) return prev;
 
         const now = new Date().toISOString();
@@ -719,7 +731,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const markAsCollected = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !canMarkAsCollected(doc) || doc.status === "pagado") {
           return prev;
         }
@@ -741,10 +753,30 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       let result: Document | null = null;
 
       setAppData((prev) => {
-        const invoice = prev.documents.find((doc) => doc.id === invoiceId);
-        if (!invoice || invoice.type !== "factura" || !isCollectedDocument(invoice)) {
+        const invoice = findUniqueReceiptSourceInvoice(
+          prev.documents,
+          invoiceId,
+        );
+        if (
+          !invoice ||
+          !isCollectedDocument(invoice)
+        ) {
           return prev;
         }
+
+        const existingReceiptClaims = receiptClaimsForInvoice(
+          prev.documents,
+          invoice.id,
+          invoice.receiptDocumentId,
+        );
+        if (existingReceiptClaims.length > 0) {
+          if (existingReceiptClaims.length === 1) {
+            result = existingReceiptClaims[0];
+          }
+          return prev;
+        }
+        if (invoice.receiptDocumentId) return prev;
+
         let canonicalInvoice: Document;
         let receiptProfile: BusinessProfile;
         try {
@@ -753,7 +785,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             prev.profile,
           );
           if (
-            canonicalInvoice.documentSnapshot?.documentType !== "factura"
+            canonicalInvoice.documentSnapshot?.documentType !== "factura" ||
+            canonicalInvoice.rectification ||
+            canonicalInvoice.documentSnapshot?.rectification
           ) {
             return prev;
           }
@@ -765,70 +799,68 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           return prev;
         }
 
-        const existingReceipt = findReceiptForInvoice(
-          prev.documents,
-          invoice.id,
-          invoice.receiptDocumentId,
-        );
-        if (existingReceipt) {
-          result = existingReceipt;
+        try {
+          const now = new Date().toISOString();
+          const numbering = prev.profile.numbering;
+          const receiptDraft = buildReceiptFromInvoice(
+            canonicalInvoice,
+            receiptProfile,
+          );
+          const year = new Date(receiptDraft.date).getFullYear();
+          const { number, sequence } = assignNextDocumentNumberByType(
+            prev.documents,
+            "recibo",
+            year,
+            configuredLastForKind(numbering, "recibo", year),
+            numbering,
+          );
+
+          const receipt: Document = {
+            ...receiptDraft,
+            status: "borrador",
+            id: newId(),
+            number,
+            issuer: captureIssuerSnapshot(receiptProfile),
+            createdAt: now,
+            updatedAt: now,
+          };
+          const paidReceipt = markDocumentPaidWithIntegrity(
+            issueDocumentWithIntegrity(receipt, receiptProfile, now),
+            now,
+          );
+          result = paidReceipt;
+
+          const documents = [
+            ...prev.documents.map((doc) =>
+              doc.id === invoice.id
+                ? {
+                    ...doc,
+                    receiptDocumentId: paidReceipt.id,
+                    updatedAt: now,
+                  }
+                : doc,
+            ),
+            paidReceipt,
+          ];
+
+          return {
+            ...prev,
+            profile: {
+              ...prev.profile,
+              numbering: bumpNumberingAfterAssign(
+                prev.profile.numbering,
+                "recibo",
+                year,
+                sequence,
+              ),
+            },
+            documents,
+            counters: countersFromDocuments(documents, year, numbering),
+          };
+        } catch {
+          result = null;
           return prev;
         }
-
-        const now = new Date().toISOString();
-        const numbering = prev.profile.numbering;
-        const receiptDraft = buildReceiptFromInvoice(canonicalInvoice);
-        const year = new Date(receiptDraft.date).getFullYear();
-        const { number, sequence } = assignNextDocumentNumberByType(
-          prev.documents,
-          "recibo",
-          year,
-          configuredLastForKind(numbering, "recibo", year),
-          numbering,
-        );
-
-        const receipt: Document = {
-          ...receiptDraft,
-          status: "borrador",
-          id: newId(),
-          number,
-          issuer: captureIssuerSnapshot(receiptProfile),
-          createdAt: now,
-          updatedAt: now,
-        };
-        const paidReceipt = markDocumentPaidWithIntegrity(
-          issueDocumentWithIntegrity(receipt, receiptProfile, now),
-          now,
-        );
-        result = paidReceipt;
-
-        const documents = [
-          ...prev.documents.map((doc) =>
-            doc.id === invoice.id
-              ? {
-                  ...doc,
-                  receiptDocumentId: paidReceipt.id,
-                  updatedAt: now,
-                }
-              : doc,
-          ),
-          paidReceipt,
-        ];
-
-        return {
-          ...prev,
-          profile: {
-            ...prev.profile,
-            numbering: bumpNumberingAfterAssign(
-              prev.profile.numbering,
-              "recibo",
-              year,
-              sequence,
-            ),
-          },
-          documents,
-          counters: countersFromDocuments(documents, year, numbering),
-        };
       });
 
       return result;
@@ -839,7 +871,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const unmarkAsCollected = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || doc.status !== "pagado") return prev;
 
         const now = new Date().toISOString();
@@ -899,7 +931,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const markQuoteAsAccepted = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !canMarkQuoteAsAccepted(doc) || isAcceptedQuote(doc)) {
           return prev;
         }
@@ -928,7 +960,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const unmarkQuoteAsAccepted = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !isAcceptedQuote(doc)) return prev;
 
         const now = new Date().toISOString();
@@ -955,7 +987,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const markQuoteAsRejected = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !canMarkQuoteAsRejected(doc) || isRejectedQuote(doc)) {
           return prev;
         }
@@ -984,7 +1016,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const unmarkQuoteAsRejected = useCallback(
     (id: string) => {
       setAppData((prev) => {
-        const doc = prev.documents.find((d) => d.id === id);
+        const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !isRejectedQuote(doc)) return prev;
 
         const now = new Date().toISOString();
@@ -1017,7 +1049,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return prev;
       }
 
-      const quote = prev.documents.find((doc) => doc.id === id);
+      const quote = findUniqueDocumentById(prev.documents, id);
       if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
 
       let canonicalQuote: Document;
@@ -1067,10 +1099,22 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       let created: Document | null = null;
       setAppData((prev) => {
-        const storedOriginal = prev.documents.find((d) => d.id === originalId);
-        if (!storedOriginal) return prev;
-        const { original, profile: rectificationProfile } =
-          resolveCanonicalRectificationSource(storedOriginal, prev.profile);
+        let resolvedSource: ReturnType<
+          typeof resolveCanonicalRectificationSource
+        >;
+        try {
+          const storedOriginal = requireUniqueRectificationOriginal(
+            prev.documents,
+            originalId,
+          );
+          resolvedSource = resolveCanonicalRectificationSource(
+            storedOriginal,
+            prev.profile,
+          );
+        } catch {
+          return prev;
+        }
+        const { original, profile: rectificationProfile } = resolvedSource;
         if (!canRectifyInvoice(original)) return prev;
         const existingDraft = hasPendingRectificationDraft(
           prev.documents,
@@ -1158,7 +1202,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const deleteDocument = useCallback((id: string): boolean => {
     let deleted = false;
     setAppData((prev) => {
-      const target = prev.documents.find((d) => d.id === id);
+      const target = findUniqueDocumentById(prev.documents, id);
       if (!target || !getDeletePolicy(target).allowed) return prev;
 
       deleted = true;

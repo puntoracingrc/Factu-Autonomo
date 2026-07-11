@@ -349,6 +349,10 @@ export function TaxSummaryCard({
 }: TaxSummaryCardProps) {
   const hasData = taxes.salesBase !== 0 || taxes.expenseBase !== 0;
   const hasIntegrityBlocks = taxes.integrityBlockedDocuments > 0;
+  const hasUnsupportedRectifications =
+    taxes.unsupportedRectificationDocuments > 0;
+  const hasIncompleteSummary =
+    hasIntegrityBlocks || hasUnsupportedRectifications;
   const defaultSubtitle = taxes.vatExempt
     ? "Perfil exento de IVA: no repercutes ni deduces IVA. Solo se estima el beneficio y el IRPF."
     : "Según facturas y recibos emitidos y gastos registrados. Cálculo orientativo — consulta con tu gestor.";
@@ -389,9 +393,26 @@ export function TaxSummaryCard({
         </div>
       )}
 
+      {hasUnsupportedRectifications && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950"
+        >
+          <p className="text-sm font-bold">Rectificación interperiodo pendiente</p>
+          <p className="mt-1 text-sm leading-relaxed">
+            Se han excluido {taxes.unsupportedRectificationDocuments}{" "}
+            {taxes.unsupportedRectificationDocuments === 1
+              ? "corrección interperiodo"
+              : "correcciones interperiodo"}{" "}
+            porque todavía no existe una diferencia fiscal auditable para ese
+            periodo. La exportación permanece bloqueada.
+          </p>
+        </div>
+      )}
+
       {!hasData ? (
         <p className="text-sm text-slate-500">
-          {hasIntegrityBlocks
+          {hasIncompleteSummary
             ? "No hay movimientos fiscales verificables incluidos en este periodo."
             : "No hay movimientos en este periodo todavía."}
         </p>

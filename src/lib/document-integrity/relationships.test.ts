@@ -9,25 +9,43 @@ import {
 import { withDocumentRelationshipIntegritySignals } from "./relationships";
 
 const NOW = "2026-07-11T10:00:00.000Z";
-const PROFILE: BusinessProfile = { ...DEFAULT_PROFILE, nif: "12345678Z" };
+const PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autónomo Test",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
 
-function issuedInvoice(profile = PROFILE): Document {
+function issuedInvoice(
+  profile = PROFILE,
+  date = "2026-07-10",
+  items: Document["items"] = [
+    {
+      id: "line-original",
+      description: "Servicio",
+      quantity: 1,
+      unitPrice: 100,
+      ivaPercent: 21,
+    },
+  ],
+  client: Document["client"] = {
+    name: "Cliente",
+    nif: "B12345678",
+    address: "Calle Cliente 2",
+    postalCode: "28002",
+    city: "Madrid",
+  },
+): Document {
   return issueDocument(
     {
       id: "original",
       type: "factura",
       number: "F-2026-0001",
-      date: "2026-07-10",
-      client: { name: "Cliente" },
-      items: [
-        {
-          id: "line-original",
-          description: "Servicio",
-          quantity: 1,
-          unitPrice: 100,
-          ivaPercent: 21,
-        },
-      ],
+      date,
+      client,
+      items,
       status: "borrador",
       createdAt: NOW,
       updatedAt: NOW,
@@ -47,6 +65,7 @@ function issuedRectification(
     id?: string;
     number?: string;
     customer?: Partial<Document["client"]>;
+    items?: Document["items"];
   } = {},
 ): Document {
   return issueDocument(
@@ -63,14 +82,16 @@ function issuedRectification(
           : undefined,
         ...options.customer,
       },
-      items: original.documentSnapshot!.items.map((item) => ({
-        id: `rect-${item.id}`,
-        description: item.description,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: type === "anulacion" ? -item.unitPrice : item.unitPrice,
-        ivaPercent: item.ivaPercent,
-      })),
+      items:
+        options.items ??
+        original.documentSnapshot!.items.map((item) => ({
+          id: `rect-${item.id}`,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: type === "anulacion" ? -item.unitPrice : item.unitPrice,
+          ivaPercent: item.ivaPercent,
+        })),
       status: "borrador",
       documentLifecycle: "draft",
       integrityLock: "unlocked",
@@ -90,9 +111,205 @@ function issuedRectification(
 }
 
 describe("document relationship integrity", () => {
-  it("acepta una relación bidireccional sellada", () => {
+  it("acepta una anulación bidireccional que invierte exactamente -100", () => {
     const original = issuedInvoice();
     const rectification = issuedRectification(original);
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      documentLifecycle: "canceled",
+      rectifiedById: rectification.id,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedOriginal,
+      rectification,
+    ]);
+
+    expect(result.every((document) => !document.snapshotIntegrity)).toBe(true);
+  });
+
+  it("bloquea ambos extremos si la anulación solo resta -10 de un original de 100", () => {
+    const original = issuedInvoice();
+    const rectification = issuedRectification(
+      original,
+      "anulacion",
+      "2026-07-11",
+      PROFILE,
+      original.documentSnapshot!.customer.name,
+      {
+        items: [
+          {
+            id: "partial-cancellation",
+            description: "Anulación parcial",
+            quantity: 1,
+            unitPrice: -10,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      documentLifecycle: "canceled",
+      rectifiedById: rectification.id,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedOriginal,
+      rectification,
+    ]);
+
+    expect(
+      result.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("bloquea ambos extremos si la supuesta anulación conserva importes positivos", () => {
+    const original = issuedInvoice();
+    const rectification = issuedRectification(
+      original,
+      "anulacion",
+      "2026-07-11",
+      PROFILE,
+      original.documentSnapshot!.customer.name,
+      {
+        items: [
+          {
+            id: "positive-cancellation",
+            description: "Importe positivo",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      documentLifecycle: "canceled",
+      rectifiedById: rectification.id,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedOriginal,
+      rectification,
+    ]);
+
+    expect(result.every((document) => document.snapshotIntegrity)).toBe(true);
+  });
+
+  it("bloquea la compensación cruzada entre tipos de IVA aunque cuadren los totales", () => {
+    const original = issuedInvoice(PROFILE, "2026-07-10", [
+      {
+        id: "standard-rate",
+        description: "Tipo general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "reduced-rate",
+        description: "Tipo reducido",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 10,
+      },
+    ]);
+    const rectification = issuedRectification(
+      original,
+      "anulacion",
+      "2026-07-11",
+      PROFILE,
+      original.documentSnapshot!.customer.name,
+      {
+        items: [
+          {
+            id: "manipulated-standard-rate",
+            description: "Base desplazada al tipo general",
+            quantity: 1,
+            unitPrice: -135.29,
+            ivaPercent: 21,
+          },
+          {
+            id: "manipulated-super-reduced-rate",
+            description: "Base desplazada al tipo superreducido",
+            quantity: 1,
+            unitPrice: -64.71,
+            ivaPercent: 4,
+          },
+        ],
+      },
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      documentLifecycle: "canceled",
+      rectifiedById: rectification.id,
+    };
+
+    expect(rectification.documentSnapshot?.taxSummary).toMatchObject({
+      subtotal: -original.documentSnapshot!.taxSummary.subtotal,
+      iva: -original.documentSnapshot!.taxSummary.iva,
+      total: -original.documentSnapshot!.taxSummary.total,
+    });
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedOriginal,
+      rectification,
+    ]);
+
+    expect(result.every((document) => document.snapshotIntegrity)).toBe(true);
+  });
+
+  it("acepta una anulación exacta emitida en un periodo posterior", () => {
+    const original = issuedInvoice(PROFILE, "2026-06-30", [
+      {
+        id: "june-standard-rate",
+        description: "Servicio general",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+      {
+        id: "june-reduced-rate",
+        description: "Servicio reducido",
+        quantity: 1,
+        unitPrice: 50,
+        ivaPercent: 10,
+      },
+    ]);
+    const rectification = issuedRectification(
+      original,
+      "anulacion",
+      "2026-07-01",
+      PROFILE,
+      original.documentSnapshot!.customer.name,
+      {
+        items: [
+          {
+            id: "july-unrelated-reduced-id",
+            description: "Anulación servicio reducido",
+            quantity: 1,
+            unitPrice: -50,
+            ivaPercent: 10,
+          },
+          {
+            id: "july-unrelated-standard-id",
+            description: "Anulación servicio general",
+            quantity: 1,
+            unitPrice: -100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+    );
     const linkedOriginal: Document = {
       ...original,
       status: "anulada",
@@ -242,7 +459,17 @@ describe("document relationship integrity", () => {
   });
 
   it("no confunde destinatarios sin NIF de puertas distintas", () => {
-    const original = issuedInvoice();
+    const original = issuedInvoice(
+      PROFILE,
+      "2026-07-10",
+      undefined,
+      {
+        name: "Cliente",
+        address: "Calle Cliente 2",
+        postalCode: "28002",
+        city: "Madrid",
+      },
+    );
     const rectification = issuedRectification(
       original,
       "correccion",
@@ -319,7 +546,7 @@ describe("document relationship integrity", () => {
   it("acepta un recibo nuevo con origen congelado y contenido equivalente", () => {
     const invoice = markDocumentPaid(issuedInvoice(), NOW);
     const receiptDraft = {
-      ...buildReceiptFromInvoice(invoice),
+      ...buildReceiptFromInvoice(invoice, PROFILE),
       id: "receipt",
       number: "R-2026-0001",
       status: "borrador" as const,
@@ -341,6 +568,68 @@ describe("document relationship integrity", () => {
     expect(receipt.documentSnapshot?.sourceDocumentId).toBe(invoice.id);
   });
 
+  it("fecha un recibo de factura futura sin romper la relación canónica", () => {
+    const futureInvoice = markDocumentPaid(
+      issueDocument(
+        {
+          id: "future-invoice",
+          type: "factura",
+          number: "F-2999-0001",
+          date: "2999-12-31",
+          client: {
+            name: "Cliente futuro",
+            nif: "B87654321",
+            address: "Calle Futuro 3",
+            postalCode: "28003",
+            city: "Madrid",
+          },
+          items: [
+            {
+              id: "future-line",
+              description: "Servicio futuro",
+              quantity: 1,
+              unitPrice: 100,
+              ivaPercent: 21,
+            },
+          ],
+          status: "borrador",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        PROFILE,
+        NOW,
+      ),
+      NOW,
+    );
+    const receipt = markDocumentPaid(
+      issueDocument(
+        {
+          ...buildReceiptFromInvoice(futureInvoice, PROFILE),
+          id: "future-receipt",
+          number: "R-2999-0001",
+          status: "borrador",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        PROFILE,
+        NOW,
+      ),
+      NOW,
+    );
+    const linkedInvoice = {
+      ...futureInvoice,
+      receiptDocumentId: receipt.id,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedInvoice,
+      receipt,
+    ]);
+
+    expect(receipt.date).toBe(futureInvoice.date);
+    expect(result.every((document) => !document.snapshotIntegrity)).toBe(true);
+  });
+
   it("acepta un recibo nuevo de una factura histórica pagada sin paidAt", () => {
     const invoice: Document = {
       ...issuedInvoice(),
@@ -351,7 +640,7 @@ describe("document relationship integrity", () => {
     const receipt = markDocumentPaid(
       issueDocument(
         {
-          ...buildReceiptFromInvoice(invoice),
+          ...buildReceiptFromInvoice(invoice, PROFILE),
           id: "receipt-legacy-paid",
           number: "R-2026-0002",
           status: "borrador",
@@ -376,7 +665,7 @@ describe("document relationship integrity", () => {
   it("bloquea un recibo recíproco cuyo contenido no coincide con la factura", () => {
     const invoice = markDocumentPaid(issuedInvoice(), NOW);
     const receiptDraft = {
-      ...buildReceiptFromInvoice(invoice),
+      ...buildReceiptFromInvoice(invoice, PROFILE),
       id: "receipt",
       number: "R-2026-0001",
       status: "borrador" as const,
@@ -454,6 +743,28 @@ describe("document relationship integrity", () => {
     const result = withDocumentRelationshipIntegritySignals([first, second]);
 
     expect(result.every((document) => document.snapshotIntegrity)).toBe(true);
+  });
+
+  it("bloquea una identidad fiscal duplicada entre sello completo y legacy", () => {
+    const sealed = issuedInvoice();
+    const legacy: Document = {
+      ...sealed,
+      id: "legacy-duplicate",
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([sealed, legacy]);
+
+    expect(result).toHaveLength(2);
+    expect(
+      result.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("no trata dos presupuestos iguales como una identidad fiscal duplicada", () => {

@@ -19,8 +19,6 @@ import { isCollectedDocument } from "@/lib/income";
 import {
   ALL_QUARTERS,
   availableSummaryYears,
-  filterDocumentsByQuarter,
-  filterDocumentsByYear,
   filterExpensesByQuarter,
   filterExpensesByYear,
   getCurrentQuarter,
@@ -29,7 +27,10 @@ import {
   quarterLabel,
   type Quarter,
 } from "@/lib/periods";
-import { calculateTaxSummary } from "@/lib/taxes";
+import {
+  calculateTaxSummary,
+  selectTaxableFiscalDocumentsForPeriod,
+} from "@/lib/taxes";
 import type { AppData } from "@/lib/types";
 import {
   collectedSalesTotal,
@@ -57,32 +58,42 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     [data.documents, data.expenses],
   );
 
-  const periodDocuments = useMemo(() => {
-    if (mode === "all") return data.documents;
-    if (mode === "year") return filterDocumentsByYear(data.documents, year);
-    return filterDocumentsByQuarter(data.documents, year, quarter);
-  }, [data.documents, mode, year, quarter]);
-
   const periodExpenses = useMemo(() => {
     if (mode === "all") return data.expenses;
     if (mode === "year") return filterExpensesByYear(data.expenses, year);
     return filterExpensesByQuarter(data.expenses, year, quarter);
   }, [data.expenses, mode, year, quarter]);
 
+  const isDocumentDateInPeriod =
+    mode === "all"
+      ? () => true
+      : mode === "year"
+        ? (date: string) => isDateInYear(date, year)
+        : (date: string) => isDateInQuarter(date, year, quarter);
+
+  const fiscalDocuments = selectTaxableFiscalDocumentsForPeriod(
+    data.documents,
+    {
+      profile: data.profile,
+      isDocumentDateInPeriod,
+    },
+  ).documents;
+
   const taxes = calculateTaxSummary(data.documents, periodExpenses, {
     irpfPercent: data.profile.irpfPercent,
     vatExempt,
     profile: data.profile,
-    isDocumentDateInPeriod:
-      mode === "all"
-        ? () => true
-        : mode === "year"
-          ? (date) => isDateInYear(date, year)
-          : (date) => isDateInQuarter(date, year, quarter),
+    isDocumentDateInPeriod,
   });
+  const exportBlocked =
+    taxes.integrityBlockedDocuments > 0 ||
+    taxes.unsupportedRectificationDocuments > 0;
+  const exportBlockedTitle = exportBlocked
+    ? "Revisa los documentos indicados en el resumen antes de exportar"
+    : undefined;
 
   const periodIncome = collectedSalesTotal(
-    periodDocuments,
+    fiscalDocuments,
     vatExempt,
     isCollectedDocument,
   );
@@ -210,13 +221,23 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
                 </select>
               )}
               {mode === "quarter" && limits.quarterlyExport && (
-                <Button variant="secondary" onClick={handleExportCsv}>
+                <Button
+                  variant="secondary"
+                  onClick={handleExportCsv}
+                  disabled={exportBlocked}
+                  title={exportBlockedTitle}
+                >
                   <Download className="h-4 w-4" />
                   CSV
                 </Button>
               )}
               {mode === "year" && limits.quarterlyExport && (
-                <Button variant="secondary" onClick={handleExportAnnualPdf}>
+                <Button
+                  variant="secondary"
+                  onClick={handleExportAnnualPdf}
+                  disabled={exportBlocked}
+                  title={exportBlockedTitle}
+                >
                   <Download className="h-4 w-4" />
                   PDF
                 </Button>
@@ -227,7 +248,10 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       }
       highlights={
         mode === "all" ? (
-          <HomeGlobalSummary data={data} embedded />
+          <HomeGlobalSummary
+            data={{ ...data, documents: fiscalDocuments }}
+            embedded
+          />
         ) : mode === "quarter" ? (
           <PeriodOverviewCards
             income={periodIncome}

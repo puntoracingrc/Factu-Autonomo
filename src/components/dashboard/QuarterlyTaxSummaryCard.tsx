@@ -16,14 +16,16 @@ import { isCollectedDocument } from "@/lib/income";
 import {
   ALL_QUARTERS,
   availableSummaryYears,
-  filterDocumentsByQuarter,
   filterExpensesByQuarter,
   getCurrentQuarter,
   isDateInQuarter,
   quarterLabel,
   type Quarter,
 } from "@/lib/periods";
-import { calculateTaxSummary } from "@/lib/taxes";
+import {
+  calculateTaxSummary,
+  selectTaxableFiscalDocumentsForPeriod,
+} from "@/lib/taxes";
 import type { AppData } from "@/lib/types";
 import {
   collectedSalesTotal,
@@ -48,22 +50,29 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
     [data.documents, data.expenses],
   );
 
-  const quarterDocuments = useMemo(
-    () => filterDocumentsByQuarter(data.documents, year, quarter),
-    [data.documents, year, quarter],
-  );
   const quarterExpenses = useMemo(
     () => filterExpensesByQuarter(data.expenses, year, quarter),
     [data.expenses, year, quarter],
   );
+  const isDocumentDateInPeriod = (date: string) =>
+    isDateInQuarter(date, year, quarter);
+  const quarterDocuments = selectTaxableFiscalDocumentsForPeriod(
+    data.documents,
+    {
+      profile: data.profile,
+      isDocumentDateInPeriod,
+    },
+  ).documents;
 
   const taxes = calculateTaxSummary(data.documents, quarterExpenses, {
     irpfPercent: data.profile.irpfPercent,
     vatExempt,
     profile: data.profile,
-    isDocumentDateInPeriod: (date) =>
-      isDateInQuarter(date, year, quarter),
+    isDocumentDateInPeriod,
   });
+  const exportBlocked =
+    taxes.integrityBlockedDocuments > 0 ||
+    taxes.unsupportedRectificationDocuments > 0;
 
   const quarterIncome = collectedSalesTotal(
     quarterDocuments,
@@ -142,7 +151,16 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
             ))}
           </select>
           {limits.quarterlyExport && (
-            <Button variant="secondary" onClick={handleExport}>
+            <Button
+              variant="secondary"
+              onClick={handleExport}
+              disabled={exportBlocked}
+              title={
+                exportBlocked
+                  ? "Revisa los documentos indicados en el resumen antes de exportar"
+                  : undefined
+              }
+            >
               <Download className="h-4 w-4" />
               CSV
             </Button>

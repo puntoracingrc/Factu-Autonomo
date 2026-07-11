@@ -5,9 +5,10 @@ import { isCollectedDocument } from "../income";
 import { filterExpensesByYear, isDateInYear } from "../periods";
 import { triggerPdfBlobDownload } from "../pdf";
 import {
+  assertTaxSummaryExportable,
   calculateTaxSummary,
   expenseIvaAmount,
-  isTaxableSaleDocument,
+  taxableSaleDocumentsForPeriod,
 } from "../taxes";
 import type { BusinessProfile, Document, Expense } from "../types";
 import {
@@ -38,6 +39,7 @@ export function buildAnnualSummaryPdf(
     profile,
     isDocumentDateInPeriod: (date) => isDateInYear(date, year),
   });
+  assertTaxSummaryExportable(taxes);
   const periodIncome = collectedSalesTotal(
     yearDocs,
     vatExempt,
@@ -58,35 +60,7 @@ export function buildAnnualSummaryPdf(
   pdf.text("Cálculo orientativo — consulta con tu gestor.", 14, 38);
   pdf.setTextColor(0, 0, 0);
 
-  let summaryStartY = 44;
-  if (fiscalDocuments.blockedDocuments.length > 0) {
-    pdf.setFontSize(11);
-    pdf.setTextColor(185, 28, 28);
-    pdf.text("ALERTA DE INTEGRIDAD FISCAL", 14, summaryStartY);
-    pdf.setFontSize(9);
-    const warning = pdf.splitTextToSize(
-      `Se han excluido ${fiscalDocuments.blockedDocuments.length} documento(s) bloqueado(s). Sus importes NO se incluyen en este resumen. Revise las incidencias antes de presentar impuestos.`,
-      182,
-    );
-    pdf.text(warning, 14, summaryStartY + 6);
-    pdf.setTextColor(0, 0, 0);
-
-    autoTable(pdf, {
-      startY: summaryStartY + 8 + warning.length * 4,
-      head: [["ID interno", "Fecha ref.", "Número ref.", "Incidencias"]],
-      body: fiscalDocuments.blockedDocuments.map((document) => [
-        document.id,
-        document.referenceDate,
-        document.referenceNumber,
-        document.issues.join(", "),
-      ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [185, 28, 28] },
-    });
-    summaryStartY =
-      ((pdf as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-        ?.finalY ?? summaryStartY + 16) + 8;
-  }
+  const summaryStartY = 44;
 
   const summaryRows = vatExempt && taxes.salesIva === 0
     ? [
@@ -124,7 +98,7 @@ export function buildAnnualSummaryPdf(
   let cursorY = (pdf as jsPDF & { lastAutoTable?: { finalY: number } })
     .lastAutoTable?.finalY ?? summaryStartY;
 
-  const sales = yearDocs.filter(isTaxableSaleDocument);
+  const sales = taxableSaleDocumentsForPeriod(yearDocs).documents;
   if (sales.length > 0) {
     pdf.setFontSize(12);
     pdf.text("Ventas (facturas y recibos)", 14, cursorY + 10);

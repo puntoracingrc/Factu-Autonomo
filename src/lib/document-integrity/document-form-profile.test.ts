@@ -13,7 +13,13 @@ function originalInvoice(profile: BusinessProfile): Document {
       type: "factura",
       number: "F-2026-0001",
       date: "2026-06-01",
-      client: { name: "Cliente" },
+      client: {
+        name: "Cliente",
+        nif: "B12345678",
+        address: "Calle Cliente 2",
+        postalCode: "28002",
+        city: "Madrid",
+      },
       items: [
         {
           id: "line-1",
@@ -59,6 +65,9 @@ describe("resolveDocumentFormBusinessProfile", () => {
       ...DEFAULT_PROFILE,
       name: "Emisor histórico",
       nif: "11111111H",
+      address: "Calle Histórica 1",
+      postalCode: "28001",
+      city: "Madrid",
       vatExempt: false,
       iva: { rates: [4, 10, 21], defaultRate: 10 },
     };
@@ -66,6 +75,9 @@ describe("resolveDocumentFormBusinessProfile", () => {
       ...DEFAULT_PROFILE,
       name: "Emisor actual",
       nif: "11111111H",
+      address: "Calle Actual 2",
+      postalCode: "28002",
+      city: "Madrid",
       vatExempt: true,
       iva: { rates: [0], defaultRate: 0 },
     };

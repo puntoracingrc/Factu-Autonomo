@@ -259,6 +259,7 @@ describe("rentabilidad real read-only adapters", () => {
     const summary: TaxSummary = {
       vatExempt: false,
       integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
       salesBase: 1000,
       salesIva: 210,
       expenseBase: 300,

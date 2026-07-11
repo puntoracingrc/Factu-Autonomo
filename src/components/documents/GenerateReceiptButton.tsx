@@ -3,9 +3,9 @@
 import { FileText } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
-import { isCollectedDocument } from "@/lib/income";
 import { findReceiptForInvoice } from "@/lib/receipts";
 import type { Document } from "@/lib/types";
+import { isReceiptGenerationEligible } from "./generate-receipt-eligibility";
 
 interface GenerateReceiptButtonProps {
   doc: Document;
@@ -14,7 +14,7 @@ interface GenerateReceiptButtonProps {
 export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
   const { data, generateReceiptForInvoice } = useAppStore();
 
-  if (doc.type !== "factura" || !isCollectedDocument(doc)) return null;
+  if (!isReceiptGenerationEligible(doc)) return null;
 
   const linkedReceipt = findReceiptForInvoice(
     data.documents,

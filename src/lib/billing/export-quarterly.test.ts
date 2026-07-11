@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildQuarterlyExportCsv } from "./export-quarterly";
 import { DEFAULT_PROFILE, type Document, type Expense, type Supplier } from "../types";
 import { issueDocument } from "../document-integrity";
+import { TaxExportBlockedError } from "../taxes";
 
 const profile = {
   ...DEFAULT_PROFILE,
   name: "Autónomo Test",
   nif: "11111111H",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
 };
 
 const draftDoc: Document = {
@@ -14,7 +18,13 @@ const draftDoc: Document = {
   type: "factura",
   number: "F-2026-0001",
   date: "2026-05-10",
-  client: { name: "Cliente Test", nif: "87654321A" },
+  client: {
+    name: "Cliente Test",
+    nif: "87654321A",
+    address: "Calle Cliente 2",
+    postalCode: "28002",
+    city: "Madrid",
+  },
   items: [
     {
       id: "l1",
@@ -54,6 +64,16 @@ const supplier: Supplier = {
   nif: "B99887766",
   createdAt: "2026-01-01",
 };
+
+function captureBlockedExport(action: () => unknown): TaxExportBlockedError {
+  try {
+    action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(TaxExportBlockedError);
+    return error as TaxExportBlockedError;
+  }
+  throw new Error("La exportación debía quedar bloqueada");
+}
 
 describe("export quarterly csv", () => {
   it("incluye resumen, ventas y gastos con formato para gestoría", () => {
@@ -129,7 +149,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("100,00;21,00;121,00");
   });
 
-  it("excluye documentos bloqueados y deja una traza auditable del riesgo", () => {
+  it("bloquea la exportación si existe evidencia fiscal corrupta", () => {
     const blocked: Document = {
       ...doc,
       snapshotIntegrity: {
@@ -138,19 +158,17 @@ describe("export quarterly csv", () => {
       },
     };
 
-    const csv = buildQuarterlyExportCsv([blocked], [], profile, 2026, 2);
-
-    expect(csv).toContain("ALERTA DE INTEGRIDAD FISCAL");
-    expect(csv).toContain("Documentos excluidos;1");
-    expect(csv).toContain("DOCUMENTOS EXCLUIDOS POR INTEGRIDAD");
-    expect(csv).toContain("d1;2026-05-10;F-2026-0001;document_hash_mismatch");
-    expect(csv).toContain("Base imponible ventas;0,00");
-    expect(csv).toContain(
-      "TOTAL VENTAS;;;0 documentos;;0,00;0,00;0,00;",
+    const error = captureBlockedExport(() =>
+      buildQuarterlyExportCsv([blocked], [], profile, 2026, 2),
     );
+
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 1,
+      unsupportedRectificationDocuments: 0,
+    });
   });
 
-  it("conserva una relación rectificativa válida cuyo original queda fuera del trimestre", () => {
+  it("bloquea una corrección Q1→Q2 aunque su relación sellada sea válida", () => {
     const original = issueDocument(
       { ...draftDoc, id: "original-q1", date: "2026-03-31" },
       profile,
@@ -182,17 +200,19 @@ describe("export quarterly csv", () => {
       rectifiedById: rectification.id,
     };
 
-    const csv = buildQuarterlyExportCsv(
-      [linkedOriginal, rectification],
-      [],
-      profile,
-      2026,
-      2,
+    const error = captureBlockedExport(() =>
+      buildQuarterlyExportCsv(
+        [linkedOriginal, rectification],
+        [],
+        profile,
+        2026,
+        2,
+      ),
     );
 
-    expect(csv).not.toContain("ALERTA DE INTEGRIDAD FISCAL");
-    expect(csv).toContain("Base imponible ventas;70,00");
-    expect(csv).toContain("FR-2026-0001");
-    expect(csv).toContain("TOTAL VENTAS;;;1 documento;;70,00;14,70;84,70;");
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 1,
+    });
   });
 });

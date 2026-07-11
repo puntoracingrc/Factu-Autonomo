@@ -19,5 +19,8 @@ describe("TaxSummaryCard integrity warning", () => {
     expect(source).toContain(
       "No hay movimientos fiscales verificables incluidos en este periodo.",
     );
+    expect(source).toContain("taxes.unsupportedRectificationDocuments > 0");
+    expect(source).toContain("Rectificación interperiodo pendiente");
+    expect(source).toContain("La exportación permanece bloqueada");
   });
 });

@@ -10,6 +10,9 @@ const profile = {
   ...DEFAULT_PROFILE,
   name: "Autónomo Test",
   nif: "11111111H",
+  address: "Calle Fiscal 1",
+  postalCode: "28001",
+  city: "Madrid",
 };
 
 function invoiceDraft(overrides: Partial<Document> = {}): Document {
@@ -18,7 +21,13 @@ function invoiceDraft(overrides: Partial<Document> = {}): Document {
     type: "factura",
     number: "F-2026-0001",
     date: "2026-07-11",
-    client: { name: "Cliente Test" },
+    client: {
+      name: "Cliente Test",
+      nif: "US-42",
+      address: "1 Main Street",
+      postalCode: "10001",
+      city: "New York",
+    },
     items: [
       {
         id: "line-1",
@@ -32,6 +41,19 @@ function invoiceDraft(overrides: Partial<Document> = {}): Document {
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
+  };
+}
+
+function legacyFiscalDocument(
+  overrides: Partial<Document> = {},
+  issuerProfile = profile,
+): Document {
+  const issued = issueDocument(invoiceDraft(overrides), issuerProfile, NOW);
+  return {
+    ...issued,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
   };
 }
 
@@ -53,6 +75,333 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
       documents: [],
       blockedDocuments: [],
     });
+  });
+
+  it.each([0, 21])(
+    "conserva un snapshot legacy completo con IVA %s aunque no tenga PDF ni sello",
+    (ivaPercent) => {
+      const legacy = legacyFiscalDocument({
+        items: [
+          {
+            id: `valid-rate-${ivaPercent}`,
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent,
+          },
+        ],
+      });
+
+      const result = select([legacy]);
+
+      expect(result.blockedDocuments).toHaveLength(0);
+      expect(result.documents.map((document) => document.id)).toEqual([
+        legacy.id,
+      ]);
+    },
+  );
+
+  it.each(["", "N/A"])(
+    "bloquea un snapshot legacy cuyo NIF de emisor es %j",
+    (nif) => {
+      const legacy = legacyFiscalDocument({}, { ...profile, nif });
+
+      const result = select([legacy]);
+
+      expect(result.documents).toHaveLength(0);
+      expect(result.blockedDocuments).toEqual([
+        expect.objectContaining({
+          id: legacy.id,
+          issues: ["document_relationship_invalid"],
+        }),
+      ]);
+    },
+  );
+
+  it("bloquea un snapshot legacy con emisor incompleto aunque el perfil vivo esté completo", () => {
+    const legacy = legacyFiscalDocument(
+      {},
+      { ...profile, address: "" },
+    );
+
+    const result = select([legacy]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: legacy.id,
+        issues: ["document_snapshot_semantic_invalid"],
+      }),
+    ]);
+  });
+
+  it("bloquea una factura legacy con identidad de cliente incompleta", () => {
+    const legacy = legacyFiscalDocument({
+      client: {
+        name: "Cliente incompleto",
+        nif: "EXT-7",
+        address: "",
+        postalCode: "",
+        city: "",
+      },
+    });
+
+    const result = select([legacy]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: legacy.id,
+        issues: ["document_snapshot_semantic_invalid"],
+      }),
+    ]);
+  });
+
+  it("bloquea un snapshot legacy sin ningún concepto descrito", () => {
+    const legacy = legacyFiscalDocument({
+      items: [
+        {
+          id: "blank-concept",
+          description: "   ",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const result = select([legacy]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments[0]).toEqual(
+      expect.objectContaining({
+        id: legacy.id,
+        issues: ["document_snapshot_semantic_invalid"],
+      }),
+    );
+  });
+
+  it("mantiene un recibo independiente legacy con cliente simplificado", () => {
+    const receipt = legacyFiscalDocument({
+      id: "standalone-receipt",
+      type: "recibo",
+      number: "R-2026-0001",
+      client: { name: "Consumidor final" },
+    });
+
+    const result = select([receipt]);
+
+    expect(result.blockedDocuments).toHaveLength(0);
+    expect(result.documents.map((document) => document.id)).toEqual([
+      receipt.id,
+    ]);
+  });
+
+  it("bloquea un recibo independiente pagado cuyo ciclo de vida está cancelado", () => {
+    const receipt = issueDraftDocumentWithStatus(
+      invoiceDraft({
+        id: "canceled-standalone-receipt",
+        type: "recibo",
+        number: "R-2026-CANCELED",
+        client: { name: "Consumidor final" },
+      }),
+      "pagado",
+      profile,
+      NOW,
+    );
+    const canceledReceipt: Document = {
+      ...receipt,
+      documentLifecycle: "canceled",
+    };
+
+    const result = select([canceledReceipt]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: receipt.id,
+        issues: ["document_relationship_invalid"],
+      }),
+    ]);
+  });
+
+  it.each([-1, -200, 101])(
+    "bloquea un snapshot fiscal legacy con IVA imposible %s",
+    (ivaPercent) => {
+      const legacy = legacyFiscalDocument({
+        items: [
+          {
+            id: `invalid-rate-${ivaPercent}`,
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent,
+          },
+        ],
+      });
+
+      const result = select([legacy]);
+
+      expect(result.documents).toHaveLength(0);
+      expect(result.blockedDocuments[0]).toEqual(
+        expect.objectContaining({
+          id: legacy.id,
+          issues: ["document_snapshot_semantic_invalid"],
+        }),
+      );
+    },
+  );
+
+  it("bloquea una factura ordinaria legacy con totales negativos", () => {
+    const legacy = legacyFiscalDocument({
+      items: [
+        {
+          id: "negative-invoice-line",
+          description: "Importe negativo improcedente",
+          quantity: 1,
+          unitPrice: -100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const result = select([legacy]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments[0]).toEqual(
+      expect.objectContaining({
+        id: legacy.id,
+        issues: ["document_snapshot_semantic_invalid"],
+      }),
+    );
+  });
+
+  it("bloquea un recibo independiente legacy con totales negativos", () => {
+    const receipt = legacyFiscalDocument({
+      id: "negative-standalone-receipt",
+      type: "recibo",
+      number: "R-2026-0002",
+      client: { name: "Consumidor final" },
+      items: [
+        {
+          id: "negative-receipt-line",
+          description: "Importe negativo improcedente",
+          quantity: 1,
+          unitPrice: -100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const result = select([receipt]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments[0]).toEqual(
+      expect.objectContaining({
+        id: receipt.id,
+        issues: ["document_snapshot_semantic_invalid"],
+      }),
+    );
+  });
+
+  it("permite una línea de descuento negativa si el agregado sigue siendo positivo", () => {
+    const legacy = legacyFiscalDocument({
+      items: [
+        {
+          id: "service-line",
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+        {
+          id: "discount-line",
+          description: "Descuento",
+          quantity: 1,
+          unitPrice: -10,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const result = select([legacy]);
+
+    expect(result.blockedDocuments).toHaveLength(0);
+    expect(result.documents.map((document) => document.id)).toEqual([
+      legacy.id,
+    ]);
+  });
+
+  it("bloquea todos los snapshots legacy con la misma identidad fiscal antes del periodo", () => {
+    const first = legacyFiscalDocument({
+      id: "duplicate-january",
+      date: "2026-01-10",
+      number: "F-DUP-0001",
+    });
+    const second = legacyFiscalDocument({
+      id: "duplicate-july",
+      date: "2026-07-10",
+      number: " f-dup-0001 ",
+    });
+
+    const result = selectCanonicalFiscalDocumentsForExport(
+      [first, second],
+      profile,
+      (date) => date.startsWith("2026-07"),
+    );
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments.map((document) => document.id).sort()).toEqual([
+      first.id,
+      second.id,
+    ]);
+    expect(
+      result.blockedDocuments.every((document) =>
+        document.issues.includes("document_relationship_invalid"),
+      ),
+    ).toBe(true);
+  });
+
+  it("permite el mismo número fiscal en años distintos", () => {
+    const first = legacyFiscalDocument({
+      id: "same-number-2025",
+      date: "2025-12-31",
+      number: "F-SAME-0001",
+    });
+    const second = legacyFiscalDocument({
+      id: "same-number-2026",
+      date: "2026-01-01",
+      number: "F-SAME-0001",
+    });
+
+    const result = select([first, second]);
+
+    expect(result.blockedDocuments).toHaveLength(0);
+    expect(result.documents.map((document) => document.id).sort()).toEqual([
+      first.id,
+      second.id,
+    ]);
+  });
+
+  it("mantiene separados los namespaces de factura y recibo", () => {
+    const invoice = legacyFiscalDocument({
+      id: "same-number-invoice",
+      number: "SHARED-2026-0001",
+    });
+    const receipt = legacyFiscalDocument({
+      id: "same-number-receipt",
+      type: "recibo",
+      number: "SHARED-2026-0001",
+      client: { name: "Consumidor final" },
+    });
+
+    const result = select([invoice, receipt]);
+
+    expect(result.blockedDocuments).toHaveLength(0);
+    expect(result.documents.map((document) => document.id).sort()).toEqual([
+      invoice.id,
+      receipt.id,
+    ]);
   });
 
   it("bloquea una factura sellada disfrazada como recibo automático", () => {
@@ -227,6 +576,116 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
         issues: expect.arrayContaining(["document_hash_mismatch"]),
       }),
     ]);
+  });
+
+  it("bloquea una rectificativa de corrección con agregado negativo y su extremo original", () => {
+    const original = issueDocument(invoiceDraft(), profile, NOW);
+    const correction = issueDocument(
+      invoiceDraft({
+        id: "negative-correction",
+        number: "FR-2026-NEG",
+        date: "2026-07-12",
+        items: [
+          {
+            id: "negative-correction-line",
+            description: "Corrección negativa improcedente",
+            quantity: 1,
+            unitPrice: -100,
+            ivaPercent: 21,
+          },
+        ],
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          reason: "Corrección",
+          type: "correccion",
+        },
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      }),
+      profile,
+      NOW,
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "rectificada",
+      rectifiedById: correction.id,
+    };
+
+    const result = select([linkedOriginal, correction]);
+
+    expect(result.documents).toHaveLength(0);
+    expect(result.blockedDocuments.map((document) => document.id)).toEqual(
+      expect.arrayContaining([correction.id, original.id]),
+    );
+  });
+
+  it("usa el mismo namespace para una rectificativa y una factura ordinaria", () => {
+    const original = issueDocument(
+      invoiceDraft({ id: "namespace-original", number: "F-2026-ORIGINAL" }),
+      profile,
+      NOW,
+    );
+    const cancellation = issueDocument(
+      invoiceDraft({
+        id: "namespace-cancellation",
+        number: "FR-2026-SHARED",
+        date: "2026-07-12",
+        items: [
+          {
+            id: "namespace-cancellation-line",
+            description: "Anulación",
+            quantity: 1,
+            unitPrice: -100,
+            ivaPercent: 21,
+          },
+        ],
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          reason: "Anulación",
+          type: "anulacion",
+        },
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      }),
+      profile,
+      NOW,
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      rectifiedById: cancellation.id,
+    };
+    const collidingLegacyInvoice = legacyFiscalDocument({
+      id: "namespace-legacy-invoice",
+      number: cancellation.number,
+      date: cancellation.date,
+    });
+
+    const result = select([
+      linkedOriginal,
+      cancellation,
+      collidingLegacyInvoice,
+    ]);
+
+    expect(
+      result.blockedDocuments.map((document) => document.id),
+    ).toEqual(expect.arrayContaining([
+      cancellation.id,
+      collidingLegacyInvoice.id,
+    ]));
+    expect(
+      result.blockedDocuments
+        .filter((document) =>
+          [cancellation.id, collidingLegacyInvoice.id].includes(document.id),
+        )
+        .every((document) =>
+          document.issues.includes("document_relationship_invalid"),
+        ),
+    ).toBe(true);
   });
 
   it("acepta una relación rectificativa completa y verificable", () => {

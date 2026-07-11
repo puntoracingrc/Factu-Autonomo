@@ -1,10 +1,13 @@
 import {
   assertDocumentSnapshotsIntegrity,
+  deriveDocumentLifecycle,
   DocumentIntegrityError,
 } from "@/lib/document-integrity";
 import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
 import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
+import { withDocumentRelationshipIntegritySignals } from "@/lib/document-integrity/relationships";
+import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
@@ -55,12 +58,25 @@ export function resolveCanonicalRectificationSource(
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
   }
 
+  const historicalProfile = profileForHistoricalDerivedDocument(
+    verifiedSnapshot,
+    currentProfile,
+  );
+  const validation = validateDocumentEmission(
+    canonical,
+    historicalProfile,
+    "factura",
+  );
+  if (!validation.ok) {
+    throw new DocumentIntegrityError(
+      "RECTIFICATION_ORIGINAL_INVALID",
+      `La factura original no cumple los requisitos fiscales para rectificarla. ${validation.message ?? "Revisa sus datos obligatorios."}`,
+    );
+  }
+
   return {
     original: canonical,
-    profile: profileForHistoricalDerivedDocument(
-      verifiedSnapshot,
-      currentProfile,
-    ),
+    profile: historicalProfile,
   };
 }
 
@@ -86,6 +102,28 @@ export function canonicalRectificationItems(
     : cloneItemsForCorreccion(requestedItems);
 }
 
+export function requireUniqueRectificationOriginal(
+  documents: Document[],
+  originalDocumentId: string,
+): Document {
+  const matchingOriginals = documents.filter(
+    (candidate) => candidate.id === originalDocumentId,
+  );
+  if (matchingOriginals.length === 0) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
+  }
+  if (matchingOriginals.length !== 1) {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  const original = matchingOriginals[0];
+  if (original.snapshotIntegrity?.status === "blocked") {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  return original;
+}
+
 export function profileForRectificationSource(
   document: Document,
   documents: Document[],
@@ -94,12 +132,10 @@ export function profileForRectificationSource(
   const originalDocumentId = document.rectification?.originalDocumentId;
   if (!originalDocumentId) return currentProfile;
 
-  const original = documents.find(
-    (candidate) => candidate.id === originalDocumentId,
+  const original = requireUniqueRectificationOriginal(
+    documents,
+    originalDocumentId,
   );
-  if (!original) {
-    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
-  }
   return resolveCanonicalRectificationSource(original, currentProfile).profile;
 }
 
@@ -121,15 +157,39 @@ export function assertRectificationEmissionAllowed(
   const rectification = document.rectification;
   if (!rectification) return;
 
-  const original = documents.find(
-    (candidate) => candidate.id === rectification.originalDocumentId,
+  const original = requireUniqueRectificationOriginal(
+    documents,
+    rectification.originalDocumentId,
   );
-  if (!original) {
-    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
-  }
 
   if (original.id === document.id || original.type !== "factura") {
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
+  const hasReceiptEvidence = Boolean(
+    original.receiptDocumentId ||
+      documents.some(
+        (candidate) =>
+          (candidate.type === "recibo" ||
+            candidate.documentSnapshot?.documentType === "recibo") &&
+          (candidate.sourceDocumentId === original.id ||
+            candidate.documentSnapshot?.sourceDocumentId === original.id),
+      ),
+  );
+  if (hasReceiptEvidence) {
+    throw new DocumentIntegrityError("RECTIFICATION_RECEIPT_CONFLICT");
+  }
+
+  const hasOtherIssuedRectificationClaim = documents.some((candidate) => {
+    if (candidate.id === document.id) return false;
+    const claimsOriginal =
+      candidate.rectification?.originalDocumentId === original.id ||
+      candidate.documentSnapshot?.rectification?.originalDocumentId ===
+        original.id;
+    return claimsOriginal && deriveDocumentLifecycle(candidate) !== "draft";
+  });
+  if (hasOtherIssuedRectificationClaim) {
+    throw new DocumentIntegrityError("RECTIFICATION_CONFLICT");
   }
 
   if (original.rectifiedById && original.rectifiedById !== document.id) {
@@ -147,6 +207,14 @@ export function assertRectificationEmissionAllowed(
     throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
   }
 
+  const relationshipChecked = withDocumentRelationshipIntegritySignals(documents);
+  const checkedOriginal = relationshipChecked.find(
+    (candidate) => candidate.id === original.id,
+  );
+  if (checkedOriginal?.snapshotIntegrity?.status === "blocked") {
+    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_INVALID");
+  }
+
   const originalSnapshot = verifiedRectificationOriginalSnapshot(original);
   if (document.date < originalSnapshot.date) {
     throw new DocumentIntegrityError("RECTIFICATION_DATE_INVALID");
@@ -161,13 +229,10 @@ export function preserveRectificationOriginalReference(
 ): Document {
   if (!current.rectification) return next;
 
-  const original = documents.find(
-    (candidate) =>
-      candidate.id === current.rectification!.originalDocumentId,
+  const original = requireUniqueRectificationOriginal(
+    documents,
+    current.rectification.originalDocumentId,
   );
-  if (!original) {
-    throw new DocumentIntegrityError("RECTIFICATION_ORIGINAL_MISSING");
-  }
   const canonical = resolveCanonicalRectificationSource(
     original,
     currentProfile,

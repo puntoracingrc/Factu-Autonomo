@@ -69,14 +69,23 @@ describe("document links", () => {
     );
   });
 
-  it("vincula factura y recibo por los dos lados", () => {
-    const invoice = document({ id: "invoice-1", type: "factura" });
+  it("no permite crear manualmente una relación fiscal factura-recibo", () => {
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      status: "borrador",
+    });
     const oldReceipt = document({
       id: "receipt-1",
       type: "recibo",
+      status: "borrador",
       sourceDocumentId: invoice.id,
     });
-    const newReceipt = document({ id: "receipt-2", type: "recibo" });
+    const newReceipt = document({
+      id: "receipt-2",
+      type: "recibo",
+      status: "borrador",
+    });
 
     const result = applyDocumentLinkUpdate(
       [invoice, oldReceipt, newReceipt],
@@ -88,29 +97,23 @@ describe("document links", () => {
       },
     );
 
-    expect(result.find((doc) => doc.id === "invoice-1")).toMatchObject({
-      receiptDocumentId: "receipt-2",
-    });
-    expect(result.find((doc) => doc.id === "receipt-2")).toMatchObject({
-      sourceDocumentId: "invoice-1",
-    });
-    expect(result.find((doc) => doc.id === "receipt-1")).toMatchObject({
-      sourceDocumentId: undefined,
-    });
-    expect(getDocumentLinkBadges(invoice, result).map((badge) => badge.label)).toEqual([
-      "Recibo R-receipt-2",
-    ]);
+    expect(result).toEqual([invoice, oldReceipt, newReceipt]);
+    expect(result[0]).toBe(invoice);
+    expect(result[1]).toBe(oldReceipt);
+    expect(result[2]).toBe(newReceipt);
   });
 
-  it("desvincula factura y recibo", () => {
+  it("no permite romper manualmente una relación fiscal factura-recibo", () => {
     const invoice = document({
       id: "invoice-1",
       type: "factura",
+      status: "borrador",
       receiptDocumentId: "receipt-1",
     });
     const receipt = document({
       id: "receipt-1",
       type: "recibo",
+      status: "borrador",
       sourceDocumentId: "invoice-1",
     });
 
@@ -121,12 +124,51 @@ describe("document links", () => {
       updatedAt: "2026-06-30T09:00:00.000Z",
     });
 
-    expect(result.find((doc) => doc.id === "invoice-1")?.receiptDocumentId).toBe(
-      undefined,
-    );
-    expect(result.find((doc) => doc.id === "receipt-1")?.sourceDocumentId).toBe(
-      undefined,
-    );
+    expect(result).toEqual([invoice, receipt]);
+    expect(result[0]).toBe(invoice);
+    expect(result[1]).toBe(receipt);
+  });
+
+  it("no desvincula una pareja emitida", () => {
+    const invoice = document({
+      id: "invoice-issued",
+      type: "factura",
+      receiptDocumentId: "receipt-issued",
+    });
+    const receipt = document({
+      id: "receipt-issued",
+      type: "recibo",
+      sourceDocumentId: invoice.id,
+    });
+    const documents = [invoice, receipt];
+
+    const result = applyDocumentLinkUpdate(documents, {
+      relation: "invoice_receipt",
+      invoiceId: invoice.id,
+      receiptId: null,
+      updatedAt: "2026-06-30T09:00:00.000Z",
+    });
+
+    expect(result).toBe(documents);
+    expect(result[0]).toBe(invoice);
+    expect(result[1]).toBe(receipt);
+  });
+
+  it("no enlaza un recibo independiente emitido", () => {
+    const invoice = document({ id: "invoice-issued", type: "factura" });
+    const receipt = document({ id: "receipt-issued", type: "recibo" });
+    const documents = [invoice, receipt];
+
+    const result = applyDocumentLinkUpdate(documents, {
+      relation: "invoice_receipt",
+      invoiceId: invoice.id,
+      receiptId: receipt.id,
+      updatedAt: "2026-06-30T09:00:00.000Z",
+    });
+
+    expect(result).toBe(documents);
+    expect(result[0]).toBe(invoice);
+    expect(result[1]).toBe(receipt);
   });
 
   it("codifica ids con barras para que los enlaces abran el detalle", () => {
