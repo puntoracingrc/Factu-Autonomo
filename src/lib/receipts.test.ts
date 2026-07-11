@@ -46,7 +46,14 @@ describe("buildReceiptFromInvoice", () => {
   });
 
   it("el recibo generado bajo petición puede emitirse como pagado", () => {
-    const paidInvoice = markDocumentPaid(invoice, "2026-06-24T10:00:00.000Z");
+    const paidInvoice = markDocumentPaid(
+      issueDocument(
+        { ...invoice, status: "borrador" },
+        EMPTY_DATA.profile,
+        "2026-06-24T10:00:00.000Z",
+      ),
+      "2026-06-24T10:00:00.000Z",
+    );
     const receiptDraft = {
       ...buildReceiptFromInvoice(invoice),
       id: "receipt-1",
