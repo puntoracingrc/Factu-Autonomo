@@ -99,4 +99,50 @@ describe("export annual pdf", () => {
     expect(commands).toContain("d1");
     expect(commands).not.toContain("Ventas \\(facturas y recibos\\)");
   });
+
+  it("no convierte en incidencia una rectificativa válida con original de otro año", () => {
+    const original = issueDocument(
+      { ...draftDoc, id: "original-2025", date: "2025-12-31" },
+      profile,
+      "2025-12-31T10:00:00.000Z",
+    );
+    const rectification = issueDocument(
+      {
+        ...draftDoc,
+        id: "rectification-2026",
+        number: "FR-2026-0001",
+        date: "2026-01-01",
+        items: [{ ...draftDoc.items[0], id: "rect-line", unitPrice: 70 }],
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          reason: "Corrección de datos",
+          type: "correccion",
+        },
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      },
+      profile,
+      "2026-01-01T10:00:00.000Z",
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "rectificada",
+      rectifiedById: rectification.id,
+    };
+
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf(
+        [linkedOriginal, rectification],
+        [],
+        profile,
+        2026,
+      ),
+    );
+
+    expect(commands).not.toContain("ALERTA DE INTEGRIDAD FISCAL");
+    expect(commands).toContain("FR-2026-0001");
+    expect(commands).toContain("70,00");
+  });
 });

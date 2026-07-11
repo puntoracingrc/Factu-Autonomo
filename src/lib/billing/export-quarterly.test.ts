@@ -149,4 +149,50 @@ describe("export quarterly csv", () => {
       "TOTAL VENTAS;;;0 documentos;;0,00;0,00;0,00;",
     );
   });
+
+  it("conserva una relación rectificativa válida cuyo original queda fuera del trimestre", () => {
+    const original = issueDocument(
+      { ...draftDoc, id: "original-q1", date: "2026-03-31" },
+      profile,
+      "2026-03-31T10:00:00.000Z",
+    );
+    const rectification = issueDocument(
+      {
+        ...draftDoc,
+        id: "rectification-q2",
+        number: "FR-2026-0001",
+        date: "2026-04-01",
+        items: [{ ...draftDoc.items[0], id: "rect-line", unitPrice: 70 }],
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          reason: "Corrección de datos",
+          type: "correccion",
+        },
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      },
+      profile,
+      "2026-04-01T10:00:00.000Z",
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "rectificada",
+      rectifiedById: rectification.id,
+    };
+
+    const csv = buildQuarterlyExportCsv(
+      [linkedOriginal, rectification],
+      [],
+      profile,
+      2026,
+      2,
+    );
+
+    expect(csv).not.toContain("ALERTA DE INTEGRIDAD FISCAL");
+    expect(csv).toContain("Base imponible ventas;70,00");
+    expect(csv).toContain("FR-2026-0001");
+    expect(csv).toContain("TOTAL VENTAS;;;1 documento;;70,00;14,70;84,70;");
+  });
 });
