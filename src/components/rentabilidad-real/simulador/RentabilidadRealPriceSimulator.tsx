@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
-import { roundMoney } from "@/lib/calculations";
+import { roundMoney, todayISO } from "@/lib/calculations";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
 import { isSupersededRentabilidadRealDocument } from "@/lib/rentabilidad-real/document-chain";
 import {
-  mapExistingExpenseToProfitabilityFixedCost,
-  mapExistingRecurringExpenseToProfitabilityFixedCost,
-  type ProfitabilityFixedCostSource,
+  mapExistingDataToProfitabilityFixedCosts,
 } from "@/lib/rentabilidad-real/integrations";
 import {
   buildRentabilidadRealWorkProfitabilityInputFromExistingData,
@@ -35,14 +33,7 @@ import { PriceSimulatorResultCards } from "./PriceSimulatorResultCards";
 import { PriceSimulatorWarnings } from "./PriceSimulatorWarnings";
 
 function sumFixedCostsFromData(data: AppData): number {
-  const fixedCosts = [
-    ...data.expenses
-      .map(mapExistingExpenseToProfitabilityFixedCost)
-      .filter((item): item is ProfitabilityFixedCostSource => Boolean(item)),
-    ...data.recurringExpenses.map(
-      mapExistingRecurringExpenseToProfitabilityFixedCost,
-    ),
-  ];
+  const fixedCosts = mapExistingDataToProfitabilityFixedCosts(data, todayISO());
   return roundMoney(fixedCosts.reduce((total, cost) => total + cost.amount, 0));
 }
 

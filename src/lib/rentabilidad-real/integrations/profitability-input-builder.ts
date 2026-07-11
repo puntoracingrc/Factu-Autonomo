@@ -1,4 +1,5 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import { todayISO } from "@/lib/calculations";
 import { calculateTaxSummary } from "@/lib/taxes";
 import type { AppData, Document } from "@/lib/types";
 import {
@@ -9,10 +10,9 @@ import {
 import { mapExistingArticleToProfitabilityItem } from "./article-adapter";
 import {
   mapExistingExpenseToProfitabilityCost,
-  mapExistingExpenseToProfitabilityFixedCost,
   mapExistingProviderScanToProfitabilitySource,
-  mapExistingRecurringExpenseToProfitabilityFixedCost,
 } from "./expense-adapter";
+import { mapExistingDataToProfitabilityFixedCosts } from "./fixed-cost-sources";
 import { mapExistingInvoiceToProfitabilityIncome } from "./invoice-adapter";
 import { mapExistingQuoteToProfitabilityQuote } from "./quote-adapter";
 import { mapExistingTaxSummaryToProfitabilityTaxContext } from "./tax-adapter";
@@ -49,6 +49,7 @@ function documentById(documents: Document[]): Map<string, Document> {
 
 export function buildProfitabilityInputDraftFromExistingData(
   data: AppData,
+  referenceDate = todayISO(),
 ): ProfitabilityInputDraft {
   const invoices = data.documents
     .filter((doc) => doc.type === "factura")
@@ -59,12 +60,10 @@ export function buildProfitabilityInputDraftFromExistingData(
   const directCostCandidates = data.expenses
     .filter((expense) => !isFixedExpense(expense))
     .map(mapExistingExpenseToProfitabilityCost);
-  const fixedCostCandidates = [
-    ...compact(data.expenses.map(mapExistingExpenseToProfitabilityFixedCost)),
-    ...data.recurringExpenses.map(
-      mapExistingRecurringExpenseToProfitabilityFixedCost,
-    ),
-  ];
+  const fixedCostCandidates = mapExistingDataToProfitabilityFixedCosts(
+    data,
+    referenceDate,
+  );
   const taxContext = mapExistingTaxSummaryToProfitabilityTaxContext(
     calculateTaxSummary(data.documents, data.expenses, {
       irpfPercent: data.profile.irpfPercent,

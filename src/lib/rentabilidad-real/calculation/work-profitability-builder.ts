@@ -11,11 +11,10 @@ import {
   sourceQuoteDocumentIdForRentabilidadInvoice,
 } from "@/lib/rentabilidad-real/document-chain";
 import {
+  mapExistingDataToProfitabilityFixedCosts,
   mapExistingExpenseToProfitabilityCost,
-  mapExistingExpenseToProfitabilityFixedCost,
   mapExistingInvoiceToProfitabilityIncome,
   mapExistingQuoteToProfitabilityQuote,
-  mapExistingRecurringExpenseToProfitabilityFixedCost,
   type ProfitabilityFixedCostSource,
   type ProfitabilityIncomeSource,
   type ProfitabilityQuoteSource,
@@ -293,9 +292,6 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     data,
     relatedDocumentIdList,
   );
-  const recurringTemplateIds = new Set(
-    data.recurringExpenses.map((expense) => expense.id),
-  );
   const seenDirectCostIds = new Set<string>();
   const directCosts = data.expenses
     .filter((expense) => !isFixedExpense(expense))
@@ -393,19 +389,10 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     }
   }
 
-  const fixedCostCandidates = [
-    ...data.expenses
-      .filter(
-        (expense) =>
-          !expense.recurringExpenseId ||
-          !recurringTemplateIds.has(expense.recurringExpenseId),
-      )
-      .map(mapExistingExpenseToProfitabilityFixedCost)
-      .filter((cost): cost is ProfitabilityFixedCostSource => Boolean(cost)),
-    ...data.recurringExpenses.map(
-      mapExistingRecurringExpenseToProfitabilityFixedCost,
-    ),
-  ].map(workCostFromFixedCost);
+  const fixedCostCandidates = mapExistingDataToProfitabilityFixedCosts(
+    data,
+    selectedDocument.date,
+  ).map(workCostFromFixedCost);
   const totalFixedCostsForPeriod = selectedFixedCostTotal(
     fixedCostCandidates,
     params.selectedFixedCostIds,

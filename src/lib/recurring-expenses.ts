@@ -62,6 +62,94 @@ function addMonths(year: number, month: number, delta: number): {
   };
 }
 
+const RECURRING_FREQUENCY_MONTHS: Record<
+  RecurringExpenseFrequency,
+  number
+> = {
+  monthly: 1,
+  quarterly: 3,
+  annual: 12,
+};
+
+export function recurringExpenseMonthlyDivisor(
+  frequency: RecurringExpenseFrequency,
+): number {
+  return RECURRING_FREQUENCY_MONTHS[frequency];
+}
+
+export function normalizeRecurringOccurrenceCount(
+  value: number,
+): number | null {
+  if (!Number.isFinite(value)) return null;
+  const count = Math.trunc(value);
+  return count > 0 ? count : null;
+}
+
+function addMonthsIso(date: string, delta: number): string {
+  const parsed = parseIso(date);
+  const target = addMonths(parsed.year, parsed.month, delta);
+  return toIsoDate(
+    target.year,
+    target.month,
+    Math.min(parsed.day, lastDayOfMonth(target.year, target.month)),
+  );
+}
+
+/**
+ * Indica si una plantilla representa un coste vigente en la fecha de cálculo.
+ * La duración por ocurrencias cubre el número de periodos configurado desde la
+ * fecha de inicio, incluso si el cargo vence a mitad o al final del periodo.
+ */
+export function isRecurringExpenseWithinDurationOn(
+  template: RecurringExpense,
+  referenceDate: string,
+): boolean {
+  if (referenceDate < template.startDate) return false;
+
+  if (template.duration.kind === "indefinite") return true;
+  if (template.duration.kind === "until_date") {
+    return referenceDate <= template.duration.endDate;
+  }
+
+  const count = normalizeRecurringOccurrenceCount(template.duration.count);
+  if (count === null) return false;
+  const endExclusive = addMonthsIso(
+    template.startDate,
+    recurringExpenseMonthlyDivisor(template.frequency) * count,
+  );
+  return referenceDate < endExclusive;
+}
+
+export function isRecurringExpenseApplicableOn(
+  template: RecurringExpense,
+  referenceDate: string,
+): boolean {
+  return (
+    template.enabled &&
+    isRecurringExpenseWithinDurationOn(template, referenceDate)
+  );
+}
+
+export type RecurringExpenseStatus =
+  | "active"
+  | "paused"
+  | "upcoming"
+  | "closed";
+
+export function recurringExpenseStatusOn(
+  template: RecurringExpense,
+  referenceDate: string,
+): RecurringExpenseStatus {
+  if (isRecurringExpenseApplicableOn(template, referenceDate)) return "active";
+  if (referenceDate < template.startDate) {
+    return template.enabled ? "upcoming" : "paused";
+  }
+  if (!isRecurringExpenseWithinDurationOn(template, referenceDate)) {
+    return "closed";
+  }
+  return "paused";
+}
+
 function durationAllows(
   template: RecurringExpense,
   date: string,
@@ -74,7 +162,8 @@ function durationAllows(
   if (duration.kind === "until_date") {
     return compareIso(date, duration.endDate) <= 0;
   }
-  return occurrenceIndex < duration.count;
+  const count = normalizeRecurringOccurrenceCount(duration.count);
+  return count !== null && occurrenceIndex < count;
 }
 
 export function occurrenceKey(templateId: string, date: string): string {
@@ -245,7 +334,8 @@ export function recurringDurationLabel(template: RecurringExpense): string {
   if (duration.kind === "until_date") {
     return `Hasta ${duration.endDate.split("-").reverse().join("/")}`;
   }
-  return `${duration.count} ${template.frequency === "monthly" ? "meses" : "veces"}`;
+  const count = normalizeRecurringOccurrenceCount(duration.count) ?? 0;
+  return `${count} ${template.frequency === "monthly" ? "meses" : "veces"}`;
 }
 
 export const RECURRING_DUE_SOON_DAYS = 7;
