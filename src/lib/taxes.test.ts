@@ -252,6 +252,68 @@ describe("calculateTaxSummary", () => {
     expect(expenseIvaAmount(mixedVatExpense())).toBe(31);
   });
 
+  it("compensa una compra y su abono de proveedor con el mismo tipo", () => {
+    const summary = calculateTaxSummary(
+      [],
+      [expense, { ...expense, id: "expense-credit", amount: -50 }],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary).toMatchObject({
+      expenseBase: 0,
+      expenseIva: 0,
+      operatingExpenseCost: 0,
+      netIva: 0,
+      grossProfit: 0,
+      estimatedIrpfBase: 0,
+      irpfEstimate: 0,
+      profitAfterIrpfReserve: 0,
+      headerVatExpenseCount: 2,
+      unsupportedMixedVatExpenses: 0,
+    });
+  });
+
+  it("aplica firmado un abono mixto a IVA, IRPF y coste económico", () => {
+    const credit = mixedVatExpense({
+      id: "mixed-credit",
+      amount: -200,
+      purchaseLines: [
+        {
+          id: "credit-21",
+          description: "Material general devuelto",
+          quantity: -1,
+          unitPrice: 100,
+          total: -100,
+          ivaPercent: 21,
+        },
+        {
+          id: "credit-10",
+          description: "Material reducido devuelto",
+          quantity: -1,
+          unitPrice: 100,
+          total: -100,
+          ivaPercent: 10,
+        },
+      ],
+    });
+    const summary = calculateTaxSummary([], [credit], { irpfPercent: 20 });
+
+    expect(summary).toMatchObject({
+      expenseBase: -200,
+      expenseIva: -31,
+      operatingExpenseCost: -200,
+      netIva: 31,
+      ivaToPay: 31,
+      grossProfit: 200,
+      estimatedIrpfBase: 200,
+      irpfEstimate: 40,
+      profitAfterIrpfReserve: 160,
+      lineVatExpenseCount: 1,
+      unsupportedMixedVatExpenses: 0,
+    });
+    expect(expenseIvaAmount(credit)).toBe(-31);
+  });
+
   it("bloquea fiscalmente un IVA mixto explícito sin conciliar", () => {
     const blockedExpense = mixedVatExpense({
       amount: 300,

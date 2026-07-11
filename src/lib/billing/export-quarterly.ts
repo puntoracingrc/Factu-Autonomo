@@ -79,11 +79,18 @@ export function buildQuarterlyExportCsv(
       "Coste económico de gastos",
       formatCsvAmount(taxes.operatingExpenseCost),
     ]),
-    csvRow(["Base deducible gastos", formatCsvAmount(taxes.expenseBase)]),
+    csvRow([
+      "Base deducible gastos",
+      formatCsvAmount(taxes.expenseBase),
+    ]),
     csvRow(["IVA deducible", formatCsvAmount(taxes.expenseIva)]),
     csvRow([
       "Gastos no deducibles (coste registrado)",
       formatCsvAmount(taxes.nonDeductibleExpenseTotal),
+    ]),
+    csvRow([
+      "Criterio gastos",
+      "Importes firmados: los abonos y saldos a favor se muestran en negativo",
     ]),
     csvRow(["IVA neto a ingresar", formatCsvAmount(taxes.netIva)]),
     csvRow([

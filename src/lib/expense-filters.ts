@@ -27,6 +27,8 @@ export interface SupplierSpendSlice {
   amount: number;
   percent: number;
   color: string;
+  /** Claves exactas incluidas cuando una porción agrupa varios proveedores. */
+  memberKeys?: string[];
 }
 
 export function isDateInMonth(
@@ -95,6 +97,10 @@ export function matchesSupplierFilter(
 ): boolean {
   if (!filterKey) return true;
   if (filterKey === "__otros__") {
+    const grouped = slices.find((slice) => slice.key === "__otros__");
+    if (grouped?.memberKeys) {
+      return grouped.memberKeys.includes(supplierFilterKey(expense));
+    }
     const mainKeys = slices
       .filter((slice) => slice.key !== "__otros__")
       .map((slice) => slice.key);
@@ -136,7 +142,12 @@ export function aggregateExpensesBySupplier(
     }
   }
 
-  const sorted = [...totals.entries()].sort((a, b) => b[1].amount - a[1].amount);
+  // Un donut no puede representar arcos negativos. Los abonos siguen
+  // incluidos en el saldo neto de cada proveedor, pero el gráfico solo dibuja
+  // proveedores cuyo saldo final continúa siendo gasto positivo.
+  const sorted = [...totals.entries()]
+    .filter(([, value]) => Number.isFinite(value.amount) && value.amount > 0)
+    .sort((a, b) => b[1].amount - a[1].amount);
   const grandTotal = sorted.reduce((sum, [, value]) => sum + value.amount, 0);
   if (grandTotal <= 0) return [];
 
@@ -150,6 +161,7 @@ export function aggregateExpensesBySupplier(
     amount: value.amount,
     percent: (value.amount / grandTotal) * 100,
     color: EXPENSE_CHART_COLORS[index % EXPENSE_CHART_COLORS.length],
+    memberKeys: [key],
   }));
 
   if (rest.length > 0) {
@@ -160,6 +172,7 @@ export function aggregateExpensesBySupplier(
       amount: otrosAmount,
       percent: (otrosAmount / grandTotal) * 100,
       color: EXPENSE_CHART_COLORS[slices.length % EXPENSE_CHART_COLORS.length],
+      memberKeys: rest.map(([key]) => key),
     });
   }
 

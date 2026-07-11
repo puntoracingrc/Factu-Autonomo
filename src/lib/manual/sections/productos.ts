@@ -12,6 +12,7 @@ export const productosSection: ManualSection = {
         "La sección **Productos** se genera automáticamente con las líneas de compra que la app detecta al escanear facturas de proveedor.",
         "También puedes crear un producto manualmente desde **Nuevo producto** si quieres tener controlado un material o servicio antes de que aparezca en una compra.",
         "Cuando una compra trae líneas claras, la app agrupa conceptos parecidos y muestra precio, descuento, proveedor habitual y volumen comprado.",
+        "Un abono o devolución nunca crea productos ni actualiza costes, medias, descuentos o histórico de compra, aunque alguna de sus líneas tenga importe positivo.",
       ],
     },
     {

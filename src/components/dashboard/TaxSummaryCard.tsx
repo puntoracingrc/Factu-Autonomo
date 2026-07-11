@@ -65,7 +65,10 @@ function MetricBar({
   max: number;
   barClassName: string;
 }) {
-  const width = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  const safeMax = Number.isFinite(max) && max > 0 ? max : 0;
+  const drawableValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+  const width =
+    safeMax > 0 ? Math.min(100, (drawableValue / safeMax) * 100) : 0;
 
   return (
     <div>
@@ -156,7 +159,7 @@ function VatFlowChart({ taxes }: { taxes: TaxSummary }) {
         barClassName="bg-violet-500"
       />
       <MetricBar
-        label="IVA deducible (gastos)"
+        label="IVA deducible neto (gastos y abonos)"
         value={taxes.expenseIva}
         max={max}
         barClassName="bg-emerald-500"
@@ -208,8 +211,8 @@ function ProfitBridge({ taxes }: { taxes: TaxSummary }) {
         </p>
         <p className="text-xs text-slate-500">
           {taxes.vatExempt
-            ? "Ingresos − coste económico de los gastos"
-            : "Ingresos (base) − coste económico de los gastos"}
+            ? "Ingresos − coste económico neto de gastos y abonos"
+            : "Ingresos (base) − coste económico neto de gastos y abonos"}
         </p>
       </div>
       <p className="text-lg font-bold tabular-nums text-slate-900">
@@ -234,14 +237,14 @@ function NonDeductibleExpensesNotice({
       <p className="text-sm font-bold">
         {taxes.nonDeductibleExpenseCount}{" "}
         {taxes.nonDeductibleExpenseCount === 1
-          ? "gasto no deducible"
-          : "gastos no deducibles"}
+          ? "movimiento no deducible"
+          : "movimientos no deducibles"}
       </p>
       <p className="mt-1 text-sm leading-relaxed">
-        Su coste económico de {formatMoney(taxes.nonDeductibleExpenseTotal)}
-        {" "}sigue en Gastos, balance y rentabilidad y sí reduce el beneficio
-        económico, pero aporta 0 a la base e IVA deducibles y no reduce la
-        estimación de IRPF.
+        Su saldo económico neto de {formatMoney(taxes.nonDeductibleExpenseTotal)}
+        {" "}sigue en Gastos, balance y rentabilidad. Un gasto reduce el beneficio
+        económico y un abono revierte coste; ambos aportan 0 a la base e IVA
+        deducibles y no alteran la estimación fiscal de IRPF.
       </p>
     </div>
   );
@@ -286,7 +289,9 @@ function HeaderVatCalculationNotice({ taxes }: { taxes: TaxSummary }) {
       </p>
       <p className="mt-1 text-sm leading-relaxed">
         {taxes.headerVatExpenseCount} {" "}
-        {taxes.headerVatExpenseCount === 1 ? "gasto no usa" : "gastos no usan"}
+        {taxes.headerVatExpenseCount === 1
+          ? "movimiento no usa"
+          : "movimientos no usan"}
         {" "}un desglose conciliado para el cálculo: conservan la cabecera o el
         contrato de importe íntegro no desgravable. La cifra está incluida, pero
         revisa las líneas si alguna factura contiene varios tipos de IVA.
@@ -311,11 +316,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-violet-800"
         />
         <TaxRow
-          label={
-            taxes.nonDeductibleExpenseCount > 0
-              ? "Gastos fiscalmente deducibles"
-              : "Gastos (sin IVA deducible)"
-          }
+          label="Base neta deducible (gastos y abonos)"
           value={formatMoney(taxes.expenseBase)}
           valueClassName="text-emerald-700"
         />
@@ -333,7 +334,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="Base estimada para IRPF"
           value={formatMoney(taxes.estimatedIrpfBase)}
-          hint="Ingresos − base de gastos deducible"
+          hint="Ingresos − base neta deducible de gastos y abonos"
           valueClassName="text-slate-800"
         />
         <TaxRow
@@ -368,7 +369,7 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
     <div className="space-y-4">
       <TaxSection
         title="IVA"
-        subtitle="Lo que has repercutido en ventas frente a lo deducible en gastos."
+        subtitle="Lo repercutido en ventas frente al IVA deducible neto de gastos y abonos."
         icon={Receipt}
         tone="violet"
         chart={<VatFlowChart taxes={taxes} />}
@@ -380,13 +381,9 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-violet-800"
         />
         <TaxRow
-          label="IVA deducible (gastos)"
+          label="IVA deducible neto (gastos y abonos)"
           value={formatMoney(taxes.expenseIva)}
-          hint={`${
-            taxes.nonDeductibleExpenseCount > 0
-              ? "Base deducible"
-              : "Base"
-          }: ${formatMoney(taxes.expenseBase)}`}
+          hint={`Base neta deducible: ${formatMoney(taxes.expenseBase)}`}
           valueClassName="text-emerald-700"
         />
         <TaxRow
@@ -414,7 +411,7 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
         <TaxRow
           label="Base estimada para IRPF"
           value={formatMoney(taxes.estimatedIrpfBase)}
-          hint="Ventas − base de gastos deducible"
+          hint="Ventas − base neta deducible de gastos y abonos"
           valueClassName="text-slate-800"
         />
         <TaxRow
@@ -446,6 +443,8 @@ export function TaxSummaryCard({
   const hasSummaryData =
     taxes.salesBase !== 0 ||
     taxes.expenseBase !== 0 ||
+    taxes.lineVatExpenseCount > 0 ||
+    taxes.headerVatExpenseCount > 0 ||
     taxes.nonDeductibleExpenseCount > 0 ||
     taxes.unsupportedMixedVatExpenses > 0;
   const hasIntegrityBlocks = taxes.integrityBlockedDocuments > 0;
@@ -458,7 +457,7 @@ export function TaxSummaryCard({
     hasUnsupportedMixedVat;
   const defaultSubtitle = taxes.vatExempt
     ? "Perfil exento de IVA: no repercutes ni deduces IVA. Solo se estima el beneficio y el IRPF."
-    : "Según facturas y recibos emitidos y gastos registrados. Cálculo orientativo — consulta con tu gestor.";
+    : "Según facturas y recibos emitidos y gastos o abonos registrados. Cálculo orientativo — consulta con tu gestor.";
 
   return (
     <Card className="mb-6 border-slate-200 bg-white">

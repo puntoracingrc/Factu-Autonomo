@@ -40,6 +40,16 @@ const EXPENSE_HEADERS = [
   "Notas",
 ] as const;
 
+function expenseTreatmentLabel(
+  deductible: boolean,
+  registeredTotal: number,
+): string {
+  const fiscalLabel = deductible ? "Deducible" : "No deducible";
+  return registeredTotal < 0
+    ? `Abono / saldo a favor · ${fiscalLabel}`
+    : fiscalLabel;
+}
+
 function formatVatPercent(value: number): string {
   return `${new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 2,
@@ -248,7 +258,10 @@ export function buildExpensesTableSection(
         expense.supplierName,
         resolveSupplierNif(expense, nifs),
         expense.description,
-        fiscal.deductible ? "Deducible" : "No deducible",
+        expenseTreatmentLabel(
+          fiscal.deductible,
+          fiscal.registeredTotal,
+        ),
         formatCsvAmount(fiscal.registeredBase),
         vatTypesLabel(vat),
         vatBreakdownLabel(vat),
@@ -269,7 +282,7 @@ export function buildExpensesTableSection(
       "TOTAL GASTOS",
       "",
       "",
-      `${sorted.length} registro${sorted.length === 1 ? "" : "s"}`,
+      `${sorted.length} registro${sorted.length === 1 ? "" : "s"} · neto de abonos`,
       "",
       formatCsvAmount(totalRegisteredBase),
       "",

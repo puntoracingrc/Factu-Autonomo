@@ -6,6 +6,7 @@ import {
   findDuplicateSupplierGroups,
   migrateSupplier,
   normalizeSupplierName,
+  SUPPLIER_SORT_FIELD_LABELS,
   sortSuppliers,
   supplierCompareKey,
   supplierPurchasedTotal,
@@ -197,6 +198,26 @@ describe("supplierPurchasedTotal", () => {
     expect(supplierPurchasedTotal([mixed], supplier, true)).toBe(200);
   });
 
+  it("compensa una compra y su abono firmado en el volumen del proveedor", () => {
+    const supplier = suppliers[0];
+    const purchase = expense({
+      id: "supplier-purchase",
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: 100,
+      ivaPercent: 21,
+    });
+    const credit = expense({
+      id: "supplier-credit",
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: -100,
+      ivaPercent: 21,
+    });
+
+    expect(supplierPurchasedTotal([purchase, credit], supplier)).toBe(0);
+  });
+
   it("no añade IVA al importe íntegro de un fijo no deducible", () => {
     const supplier = suppliers[0];
     const fixed = expense({
@@ -229,7 +250,7 @@ describe("supplierPurchasedTotal", () => {
 });
 
 describe("sortSuppliers", () => {
-  it("ordena por volumen de compras", () => {
+  it("ordena por saldo neto de compras", () => {
     const list: Supplier[] = [
       { id: "a", name: "Alpha", createdAt: "" },
       { id: "b", name: "Beta", createdAt: "" },
@@ -245,6 +266,7 @@ describe("sortSuppliers", () => {
     ];
     const sorted = sortSuppliers(list, expenses, "compras", "desc");
     expect(sorted[0].id).toBe("b");
+    expect(SUPPLIER_SORT_FIELD_LABELS.compras).toBe("Saldo neto de compras");
   });
 });
 

@@ -185,7 +185,9 @@ describe("export quarterly csv", () => {
     expect(csv).toContain(
       "Gastos no deducibles (coste registrado);145,20",
     );
-    expect(csv).toContain("Coste económico de gastos;145,20");
+    expect(csv).toContain(
+      "Coste económico de gastos;145,20",
+    );
     expect(csv).toContain(
       "Beneficio económico antes de reservar IRPF;-45,20",
     );
@@ -288,6 +290,32 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Base imponible ventas;100,00");
     expect(csv).toContain("IVA repercutido;21,00");
     expect(csv).toContain("100,00;21,00;121,00");
+  });
+
+  it("compensa compra y abono y rotula el saldo a favor en el libro", () => {
+    const credit: Expense = {
+      ...expense,
+      id: "credit",
+      description: "Abono material",
+      amount: -50,
+    };
+    const csv = buildQuarterlyExportCsv(
+      [doc],
+      [expense, credit],
+      profile,
+      2026,
+      2,
+      [supplier],
+    );
+
+    expect(csv).toContain("Coste económico de gastos;0,00");
+    expect(csv).toContain("Base deducible gastos;0,00");
+    expect(csv).toContain("IVA deducible;0,00");
+    expect(csv).toContain(
+      "Criterio gastos;Importes firmados: los abonos y saldos a favor se muestran en negativo",
+    );
+    expect(csv).toContain("Abono / saldo a favor · Deducible");
+    expect(csv).toContain("TOTAL GASTOS");
   });
 
   it("bloquea la exportación si existe evidencia fiscal corrupta", () => {

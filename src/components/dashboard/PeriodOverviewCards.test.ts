@@ -23,4 +23,12 @@ describe("PeriodOverviewCards fiscal semantics", () => {
       "estimatedIrpfBase={taxes.estimatedIrpfBase}",
     );
   });
+
+  it("rotula un neto negativo como saldo a favor sin perder magnitud", () => {
+    expect(cardsSource).toContain("expenseBalanceIsCredit");
+    expect(cardsSource).toContain('"Saldo a favor" : "Gasto neto"');
+    expect(cardsSource).toContain("Math.abs(spent)");
+    expect(panelSource).toContain("periodExpenseBalanceIsCredit");
+    expect(panelSource).toContain("Math.abs(periodSpent)");
+  });
 });

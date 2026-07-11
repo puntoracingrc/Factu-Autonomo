@@ -390,6 +390,219 @@ describe("Holded importer", () => {
     });
   });
 
+  it("conserva un abono firmado con cantidad, base e IVA negativos", () => {
+    const signedSheets: HoldedInputSheet[] = [
+      baseSheets[0],
+      {
+        name: "Gastos compras",
+        kind: "purchases",
+        rows: [
+          {
+            purchase_id: "hol_purchase_positive",
+            numero: "G-100",
+            fecha: "2026-06-20",
+            proveedor_contact_id: "hol_con_2",
+            proveedor_nombre: "Mixto Holded SL",
+            tipo: "factura_compra",
+            base_imponible: 100,
+            iva_total: 21,
+            total: 121,
+            categoria: "Materiales",
+          },
+          {
+            purchase_id: "hol_purchase_credit",
+            numero: "A-100",
+            fecha: "2026-06-21",
+            proveedor_contact_id: "hol_con_2",
+            proveedor_nombre: "Mixto Holded SL",
+            tipo: "abono_compra",
+            base_imponible: -100,
+            iva_total: -21,
+            total: -121,
+            categoria: "Materiales",
+          },
+        ],
+      },
+      {
+        name: "Lineas gasto",
+        kind: "purchaseLines",
+        rows: [
+          {
+            purchase_id: "hol_purchase_positive",
+            linea: 1,
+            product_id: "hol_pro_1",
+            descripcion: "Compra original",
+            cantidad: 1,
+            precio_unitario: 100,
+            impuesto_pct: 21,
+            base_linea: 100,
+          },
+          {
+            purchase_id: "hol_purchase_credit",
+            linea: 1,
+            product_id: "hol_pro_1",
+            descripcion: "Devolución de compra",
+            cantidad: -1,
+            precio_unitario: 100,
+            impuesto_pct: 21,
+            base_linea: -100,
+          },
+        ],
+      },
+    ];
+
+    const result = buildHoldedImport(TEST_DATA, signedSheets);
+    const credit = result.data.expenses.find(
+      (expense) => expense.id === "holded:expense:hol_purchase_credit",
+    );
+
+    expect(credit).toMatchObject({
+      amount: -100,
+      ivaPercent: 21,
+      purchaseLines: [
+        {
+          id: "holded:purchase-line:hol_purchase_credit-1",
+          catalogProduct: false,
+          sourceQuantity: -1,
+          quantity: -1,
+          unitPrice: 100,
+          total: -100,
+          ivaPercent: 21,
+        },
+      ],
+    });
+    expect(expenseFiscalAmounts(credit!)).toMatchObject({
+      registeredBase: -100,
+      registeredIva: -21,
+      registeredTotal: -121,
+      deductibleBase: -100,
+      deductibleIva: -21,
+    });
+    expect(result.preview.totalMismatches).toEqual([]);
+  });
+
+  it("detecta también un total negativo descuadrado", () => {
+    const result = buildHoldedImport(TEST_DATA, [
+      {
+        name: "Gastos compras",
+        kind: "purchases",
+        rows: [
+          {
+            purchase_id: "hol_credit_mismatch",
+            numero: "A-101",
+            fecha: "2026-06-21",
+            proveedor_nombre: "Mixto Holded SL",
+            base_imponible: -100,
+            iva_total: -21,
+            total: -120,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.preview.totalMismatches).toEqual([
+      {
+        documentNumber: "A-101",
+        expected: -120,
+        calculated: -121,
+      },
+    ]);
+  });
+
+  it("preserva la cabecera negativa y bloquea líneas con signo neto opuesto", () => {
+    const result = buildHoldedImport(TEST_DATA, [
+      {
+        name: "Gastos compras",
+        kind: "purchases",
+        rows: [
+          {
+            purchase_id: "hol_credit_opposite_lines",
+            numero: "A-102",
+            fecha: "2026-06-22",
+            proveedor_nombre: "Mixto Holded SL",
+            base_imponible: -200,
+            iva_total: -42,
+            total: -242,
+          },
+        ],
+      },
+      {
+        name: "Lineas gasto",
+        kind: "purchaseLines",
+        rows: [
+          {
+            purchase_id: "hol_credit_opposite_lines",
+            linea: 1,
+            descripcion: "Línea general con signo erróneo",
+            cantidad: 1,
+            precio_unitario: 100,
+            impuesto_pct: 21,
+            base_linea: 100,
+          },
+          {
+            purchase_id: "hol_credit_opposite_lines",
+            linea: 2,
+            descripcion: "Línea reducida con signo erróneo",
+            cantidad: 1,
+            precio_unitario: 100,
+            impuesto_pct: 10,
+            base_linea: 100,
+          },
+        ],
+      },
+    ]);
+    const credit = result.data.expenses[0];
+
+    expect(credit.amount).toBe(-200);
+    expect(expenseFiscalAmounts(credit)).toMatchObject({
+      registeredBase: -200,
+      registeredIva: -42,
+      registeredTotal: -242,
+      vatSource: "blocked",
+      vatBlocked: true,
+      deductibleIva: 0,
+    });
+  });
+
+  it("bloquea una cabecera con base y cuota de signos incoherentes", () => {
+    const result = buildHoldedImport(TEST_DATA, [
+      {
+        name: "Gastos compras",
+        kind: "purchases",
+        rows: [
+          {
+            purchase_id: "hol_credit_incoherent_vat",
+            numero: "A-103",
+            fecha: "2026-06-23",
+            proveedor_nombre: "Mixto Holded SL",
+            base_imponible: -100,
+            iva_total: 21,
+            total: -79,
+          },
+        ],
+      },
+    ]);
+    const credit = result.data.expenses[0];
+
+    expect(credit).toMatchObject({
+      amount: -100,
+      ivaPercent: 0,
+      purchaseLines: [
+        {
+          catalogProduct: false,
+          total: -100,
+          ivaPercent: -21,
+        },
+      ],
+    });
+    expect(expenseFiscalAmounts(credit)).toMatchObject({
+      vatSource: "blocked",
+      vatBlocked: true,
+      deductibleIva: 0,
+    });
+    expect(result.warnings.join("\n")).toContain("Quedan bloqueados");
+  });
+
   it("no convierte en 0 un tipo de IVA de compra ilegible", () => {
     const invalidVatSheets = baseSheets.map((sheet) => {
       if (sheet.kind === "purchases") {

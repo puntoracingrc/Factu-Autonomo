@@ -136,12 +136,12 @@ describe("export annual pdf", () => {
       ),
     );
 
-    expect(commands).toContain("Gastado en el año");
-    expect(commands).toContain("Base deducible gastos");
-    expect(commands).toContain("Gastos no deducibles");
+    expect(commands).toContain("Gasto neto del año");
+    expect(commands).toContain("Base deducible neta de gastos y abonos");
+    expect(commands).toContain("Gastos y abonos no deducibles");
     expect(commands).toContain("No deducible");
     expect(commands).toContain("121,00");
-    expect(commands).toContain("Coste económico de gastos");
+    expect(commands).toContain("Coste económico neto de gastos y abonos");
     expect(commands).toContain("Beneficio económico antes de reservar IRPF");
     expect(commands).toContain("-21,00");
     expect(commands).toContain("Base estimada para IRPF");
@@ -161,6 +161,24 @@ describe("export annual pdf", () => {
     expect(commands).toContain("31,00");
     expect(commands).toContain("231,00");
     expect(commands).toContain("200,00");
+  });
+
+  it("identifica un abono y compensa sus importes firmados en el resumen", () => {
+    const credit: Expense = {
+      ...expense,
+      id: "credit",
+      description: "Devolución de material",
+      amount: -50,
+    };
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([doc], [expense, credit], profile, 2026),
+    );
+
+    expect(commands).toContain("Gasto neto del año");
+    expect(commands).toContain("Coste económico neto de gastos y abonos");
+    expect(commands).toContain("Abono");
+    expect(commands).toContain("saldo a favor");
+    expect(commands).toContain("-50,00");
   });
 
   it("bloquea el PDF anual ante evidencia mixta no conciliada", () => {

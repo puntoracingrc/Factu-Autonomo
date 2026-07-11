@@ -1,5 +1,5 @@
 import { documentAmounts } from "./vat-regime";
-import { roundMoney } from "./calculations";
+import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { sortDocumentsByNewest } from "./documents";
 import { isCollectedDocument, isPendingInvoicePayment } from "./income";
@@ -41,9 +41,13 @@ function safeMoney(value: number): number {
   return roundMoney(value);
 }
 
+function signedMoney(value: number): number {
+  return Number.isFinite(value) ? roundMoneySymmetric(value) : 0;
+}
+
 function safeDifference(left: number, right: number): number {
   const result = left - right;
-  return Number.isFinite(result) ? roundMoney(result) : 0;
+  return signedMoney(result);
 }
 
 export function isIssuedBusinessInvoice(document: Document): boolean {
@@ -62,11 +66,11 @@ function invoiceIva(document: Document, vatExempt: boolean): number {
 }
 
 function expenseTotal(expense: Expense, vatExempt: boolean): number {
-  return safeMoney(expenseTotals(expense, vatExempt).total);
+  return signedMoney(expenseTotals(expense, vatExempt).total);
 }
 
 function expenseIva(expense: Expense, vatExempt: boolean): number {
-  return safeMoney(
+  return signedMoney(
     expenseFiscalAmounts(expense, vatExempt).deductibleIva,
   );
 }
@@ -128,30 +132,30 @@ export function buildProductBusinessSummary(
       0,
     ),
   );
-  const totalExpenses = safeMoney(
+  const totalExpenses = signedMoney(
     data.expenses.reduce(
       (sum, expense) => sum + expenseTotal(expense, vatExempt),
       0,
     ),
   );
-  const totalFixedExpenses = safeMoney(
+  const totalFixedExpenses = signedMoney(
     data.expenses
       .filter(isFixedExpense)
       .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
   );
-  const totalPurchaseExpenses = safeMoney(
+  const totalPurchaseExpenses = signedMoney(
     data.expenses
       .filter(
         (expense) => !isFixedExpense(expense) && isPurchaseExpense(expense),
       )
       .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
   );
-  const totalTicketExpenses = safeMoney(
+  const totalTicketExpenses = signedMoney(
     data.expenses
       .filter((expense) => !isFixedExpense(expense) && isTicketExpense(expense))
       .reduce((sum, expense) => sum + expenseTotal(expense, vatExempt), 0),
   );
-  const totalUnbackedExpenses = safeMoney(
+  const totalUnbackedExpenses = signedMoney(
     totalExpenses -
       totalFixedExpenses -
       totalPurchaseExpenses -
@@ -163,7 +167,7 @@ export function buildProductBusinessSummary(
       0,
     ),
   );
-  const expenseIvaEstimated = safeMoney(
+  const expenseIvaEstimated = signedMoney(
     data.expenses.reduce(
       (sum, expense) => sum + expenseIva(expense, vatExempt),
       0,

@@ -11,7 +11,7 @@ export const proveedoresSection: ManualSection = {
       paragraphs: [
         "En **Proveedores** pulsa **Nuevo proveedor**. Se abrirá una pantalla propia para guardar nombre, NIF, teléfono, web y dirección; al guardar o cancelar volverás al listado.",
         "Para la dirección, elige el **tipo de vía** y escribe solo el **nombre de la calle y el número** — sin C/, Avda. ni similares.",
-        "Usa el **buscador** para localizar un proveedor y el **ordenador** por nombre, volumen de compras o dirección.",
+        "Usa el **buscador** para localizar un proveedor y el **ordenador** por nombre o saldo neto de compras. Las devoluciones se descuentan; si superan las compras, la ficha muestra **Saldo a favor**.",
         "Al registrar o escanear un gasto, si aparece un proveedor nuevo la app puede añadirlo a Proveedores y usar su NIF en las exportaciones CSV.",
       ],
       screenshot: {

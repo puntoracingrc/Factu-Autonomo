@@ -16,6 +16,8 @@ export const gastosSection: ManualSection = {
         "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
         "Si la IA detecta número de factura, NIF del proveedor, dirección, vencimiento o líneas de compra, esos datos quedan en el gasto y puedes corregirlos antes de guardar.",
         "En una factura con varios tipos de IVA, revisa el IVA de cada línea. Cuando las bases de las líneas cuadran con la base del gasto, la app calcula y guarda el total desde ese desglose; por ejemplo, 100 € al 21 % y 100 € al 10 % son 31 € de IVA y 231 € en total.",
+        "Si el documento es un **abono, devolución o saldo a favor**, conserva el importe base y las líneas con signo negativo. La app exige revisión manual, no lo autoguarda y lo identifica como **Abono · saldo a favor**. Al guardarlo reduce el gasto neto y, si es deducible, su base e IVA; solo revierte el coste de un trabajo cuando está vinculado a él. Nunca crea productos ni altera sus precios.",
+        "Las líneas firmadas también admiten varios tipos: -100 € al 21 % y -100 € al 10 % producen base -200 €, IVA -31 € y total -231 €. Un signo neto opuesto o una evidencia de tipos conflictivos incompleta, inválida o descuadrada bloquean el gasto; un detalle legacy incompleto que no contradice la cabecera conserva ese cálculo.",
         "Si un desglose mixto está incompleto o no cuadra, el documento queda como **Revisar** y no se guarda en lote ni se usa como cifra fiscal hasta corregirlo. Los gastos antiguos sin líneas conservan su cálculo de cabecera y quedan identificados como **IVA de cabecera**.",
         "En un **gasto fijo no desgravable**, el importe introducido ya es el coste íntegro: la app aplica IVA fiscal 0. Si conserva líneas escaneadas, sus tipos quedan como información documental y no cambian ese importe.",
         "Puedes vincular una compra a una factura o presupuesto en **Trabajo relacionado**. No cambia el PDF ni la numeración: solo sirve para saber qué gastos pertenecen a cada trabajo.",
@@ -33,7 +35,7 @@ export const gastosSection: ManualSection = {
         "En el listado usa los filtros de **periodo** y **gasto**. También puedes filtrar pulsando un segmento del gráfico o su leyenda.",
         "Cada gasto muestra iconos compactos: de dónde viene (manual, escaneo, importación o fijo) y qué tipo es (factura, compra, ticket o fijo).",
         "Cuando hay líneas fiscales conciliadas verás **IVA por líneas**. **IVA de cabecera** identifica un gasto sin desglose fiscal completo; los fijos no desgravables muestran **importe íntegro** aunque conserven líneas documentales. Abre el detalle para consultar base, tipo, cuota y total de cada línea.",
-        "El total gastado aparece junto a los filtros y se actualiza según lo que tengas seleccionado. Pulsa **Restablecer** en el bloque de gráficos para volver al listado completo.",
+        "El **Gasto neto** aparece junto a los filtros y descuenta los abonos del periodo. Si los abonos superan las compras, verás **Saldo a favor**. Los gráficos circulares solo representan saldos netos positivos para no convertir un abono en gasto; el listado y el total firmado siempre conservan todos los movimientos.",
         "Los gastos se ordenan de más nuevos a más antiguos, muestran separadores por mes y cargan 30 resultados cada vez para que la página no pese con historiales grandes.",
       ],
       screenshot: {
@@ -46,6 +48,7 @@ export const gastosSection: ManualSection = {
       paragraphs: [
         "Pulsa **Exportar CSV** en el bloque de filtros para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
         "Cada fila indica el **tratamiento fiscal**, el coste registrado y, por separado, la base y el IVA deducibles. Un gasto **No deducible** conserva su coste, pero muestra base e IVA deducibles a cero.",
+        "Los abonos aparecen como **Abono / saldo a favor**, con importes negativos, y se descuentan de los totales del libro.",
         "El CSV indica también los tipos aplicados, el desglose y si el IVA procede de líneas conciliadas, de la cabecera o del contrato de importe íntegro no deducible. Una factura con evidencia de IVA mixto que no cuadra bloquea la exportación hasta que la revises; no se sustituye silenciosamente por un único porcentaje.",
         "El archivo respeta los filtros que tengas activos.",
         "La exportación manual de copia de datos está en **Cuenta**; este CSV es el listado de gastos para revisión o gestor.",
@@ -60,7 +63,7 @@ export const gastosSection: ManualSection = {
       title: "4. Gastos fijos",
       paragraphs: [
         "En **Gastos fijos** defines pagos recurrentes (alquiler, software, cuota de autónomos, etc.). La app crea el gasto automáticamente cuando toca y lo verás en **Gastos y compras**.",
-        "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Sigue contando en Gastos, balance y Rentabilidad Real y sí reduce el beneficio económico, pero no genera base ni IVA deducibles y no reduce la base ni la reserva estimada de IRPF.",
+        "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Un cargo positivo sí reduce el beneficio económico; un abono negativo revierte ese coste. Ambos siguen en Gastos, balance y Rentabilidad Real, pero aportan base e IVA deducibles cero: este tratamiento no reduce la base ni la reserva estimada de IRPF.",
         "Las ocurrencias no desgravables aparecen identificadas en el listado y en los CSV/PDF fiscales.",
         "Desde esa pantalla puedes volver al listado principal con **Volver**.",
       ],

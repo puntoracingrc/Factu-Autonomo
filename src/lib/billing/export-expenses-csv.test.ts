@@ -246,6 +246,24 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Material;1;100,00;0,00;0,00");
   });
 
+  it("identifica el abono y conserva sus importes firmados en detalle y totales", () => {
+    const credit: Expense = {
+      ...expense,
+      id: "credit",
+      description: "Devolución de material",
+      amount: -50,
+    };
+    const csv = buildExpensesExportCsv([expense, credit], [supplier], {
+      profile: DEFAULT_PROFILE,
+      periodLabel: "2026",
+    });
+
+    expect(csv).toContain("Abono / saldo a favor · Deducible");
+    expect(csv).toContain("-50,00;21%;21%: base -50,00 / IVA -10,50");
+    expect(csv).toContain("TOTAL GASTOS");
+    expect(csv).toContain("Material;2;0,00;0,00;0,00");
+  });
+
   it("exporta el NIF histórico aunque la ficha de proveedor ya no exista", () => {
     const csv = buildExpensesExportCsv(
       [

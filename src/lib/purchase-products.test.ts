@@ -442,6 +442,50 @@ describe("purchase products", () => {
     ]);
   });
 
+  it("ignora también un abono importado con cantidad y base de línea negativas", () => {
+    const purchase = {
+      ...expense("signed-purchase", "2026-07-01", "Arandes", [
+        {
+          id: "signed-purchase-line",
+          description: "Motor G50 Radio SH",
+          catalogProduct: true,
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 80,
+          ivaPercent: 21,
+          total: 80,
+        },
+      ]),
+      amount: 80,
+    };
+    const credit = {
+      ...expense("signed-credit", "2026-07-10", "Arandes", [
+        {
+          id: "signed-credit-line",
+          description: "Motor G50 Radio SH",
+          catalogProduct: false,
+          sourceQuantity: -1,
+          quantity: -1,
+          unit: "ud",
+          unitPrice: 80,
+          ivaPercent: 21,
+          total: -80,
+        },
+      ]),
+      amount: -80,
+    };
+
+    expect(buildPurchaseProductSummaries([purchase, credit])).toEqual([
+      expect.objectContaining({
+        purchaseCount: 1,
+        totalQuantity: 1,
+        totalBase: 80,
+        averageUnitPrice: 80,
+        lastPurchaseDate: "2026-07-01",
+      }),
+    ]);
+  });
+
   it("marca líneas que ya existen en productos manuales o detectados", () => {
     const expenses = [
       expense("1", "2026-07-01", "Arandes", [

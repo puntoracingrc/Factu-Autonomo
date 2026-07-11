@@ -212,25 +212,25 @@ function BusinessFlowChart({ summary }: { summary: ProductBusinessSummary }) {
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
           <p className="text-xs font-semibold text-slate-500">
-            Lo que queda después de gastos
+            Lo que queda después del gasto neto
           </p>
           <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
             {formatMoney(summary.balanceEstimated)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Facturas emitidas menos compras y gastos registrados.
+            Facturas emitidas menos gastos y abonos registrados.
           </p>
         </div>
         <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
           <p className="text-xs font-semibold text-violet-700">
-            IVA para orientarte
+            IVA neto para orientarte
           </p>
           <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
             {formatMoney(summary.salesIvaEstimated)} /{" "}
             {formatMoney(summary.expenseIvaEstimated)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Primero el IVA de ventas. Después el IVA de gastos.
+            Primero el IVA de ventas. Después el IVA neto de gastos y abonos.
           </p>
         </div>
       </div>
@@ -251,6 +251,32 @@ function businessFlowMetrics(summary: ProductBusinessSummary): FlowMetric[] {
     summary.pendingInvoicesCount === 1
       ? "1 factura pendiente de registrar cobro."
       : `${summary.pendingInvoicesCount} facturas pendientes de registrar cobro.`;
+  const expenseSegments: FlowSegment[] = [
+    {
+      label: "Gastos fijos",
+      amount: summary.totalFixedExpenses,
+      color: "bg-violet-500",
+    },
+    {
+      label: "Compras",
+      amount: summary.totalPurchaseExpenses,
+      color: "bg-rose-500",
+    },
+    {
+      label: "Tickets",
+      amount: summary.totalTicketExpenses,
+      color: "bg-orange-500",
+    },
+    {
+      label: "Sin ticket ni factura",
+      amount: summary.totalUnbackedExpenses,
+      color: "bg-slate-400",
+    },
+  ];
+  const expenseBalanceIsCredit = summary.totalExpenses < 0;
+  const canRenderExpenseSegments =
+    summary.totalExpenses > 0 &&
+    expenseSegments.every((segment) => segment.amount >= 0);
 
   return [
     {
@@ -275,33 +301,14 @@ function businessFlowMetrics(summary: ProductBusinessSummary): FlowMetric[] {
       textColor: "text-amber-700",
     },
     {
-      label: "Gastos",
-      amount: summary.totalExpenses,
-      hint: "Compras y gastos registrados.",
+      label: expenseBalanceIsCredit ? "Saldo a favor" : "Gasto neto",
+      amount: Math.abs(summary.totalExpenses),
+      hint: expenseBalanceIsCredit
+        ? "Los abonos del periodo superan los gastos registrados."
+        : "Compras y gastos después de descontar abonos.",
       color: "bg-rose-500",
       textColor: "text-rose-700",
-      segments: [
-        {
-          label: "Gastos fijos",
-          amount: summary.totalFixedExpenses,
-          color: "bg-violet-500",
-        },
-        {
-          label: "Compras",
-          amount: summary.totalPurchaseExpenses,
-          color: "bg-rose-500",
-        },
-        {
-          label: "Tickets",
-          amount: summary.totalTicketExpenses,
-          color: "bg-orange-500",
-        },
-        {
-          label: "Sin ticket ni factura",
-          amount: summary.totalUnbackedExpenses,
-          color: "bg-slate-400",
-        },
-      ],
+      segments: canRenderExpenseSegments ? expenseSegments : undefined,
     },
   ];
 }
@@ -475,7 +482,7 @@ function RecentExpensesCard({
               key={expense.id}
               expense={expense}
               recurringExpenseIds={recurringExpenseIds}
-              amount={safeDisplayAmount(
+              amount={safeSignedDisplayAmount(
                 expenseTotals(expense, vatExempt).total,
               )}
             />
@@ -588,6 +595,11 @@ function ExpenseRow({
           {expense.supplierName || "Sin proveedor"} · {expense.category} ·{" "}
           {formatShortDate(expense.date)}
         </span>
+        {amount < 0 ? (
+          <span className="mt-1 inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800 ring-1 ring-sky-200">
+            Abono · saldo a favor
+          </span>
+        ) : null}
       </span>
       <span className="shrink-0 text-sm font-bold tabular-nums text-slate-800">
         {formatMoney(amount)}
@@ -613,4 +625,8 @@ function documentHref(document: Document): string {
 function safeDisplayAmount(value: number): number {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return value;
+}
+
+function safeSignedDisplayAmount(value: number): number {
+  return Number.isFinite(value) ? value : 0;
 }

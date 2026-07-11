@@ -99,6 +99,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     isCollectedDocument,
   );
   const periodSpent = totalExpensesAmount(periodExpenses, vatExempt);
+  const periodExpenseBalanceIsCredit = periodSpent < 0;
   const periodBalance = periodIncome - periodSpent;
 
   const title =
@@ -272,8 +273,14 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
               </p>
             </div>
             <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-              <p className="text-xs text-slate-500">Gastado en el periodo</p>
-              <p className="font-bold text-red-700">{formatMoney(periodSpent)}</p>
+              <p className="text-xs text-slate-500">
+                {periodExpenseBalanceIsCredit
+                  ? "Saldo a favor en el periodo"
+                  : "Gasto neto en el periodo"}
+              </p>
+              <p className="font-bold text-red-700">
+                {formatMoney(Math.abs(periodSpent))}
+              </p>
             </div>
             <div className="col-span-2 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
               <p className="text-xs text-slate-500">Balance del año</p>

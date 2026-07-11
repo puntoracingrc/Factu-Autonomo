@@ -174,9 +174,32 @@ describe("product expenses/providers polish wiring", () => {
     expect(listPage).toContain("expense.supplierName");
     expect(listPage).toContain("expense.category");
     expect(listPage).toContain("expense.paymentMethod");
-    expect(listPage).toContain("formatMoney(expenseAmount");
+    expect(listPage).toContain("formatMoney(signedExpenseTotal)");
     expect(listPage).toContain("isExpenseFiscalDeductible(expense)");
     expect(listPage).toContain("No desgravable");
+  });
+
+  it("identifica abonos y saldos a favor en gastos, proveedores y panel", () => {
+    const listPage = source("../app/gastos/page.tsx");
+    const suppliersPage = source("../app/proveedores/page.tsx");
+    const homeSummary = source(
+      "../components/dashboard/HomeBusinessSummary.tsx",
+    );
+
+    for (const surface of [listPage, suppliersPage, homeSummary]) {
+      expect(surface).toContain("Abono · saldo a favor");
+    }
+    expect(listPage).toContain('"Saldo a favor" : "Gasto neto"');
+    expect(listPage).toContain("El donut solo representa saldos netos positivos");
+    expect(listPage).toContain('slice.key === "__otros__"');
+    expect(listPage).toContain('`${slice.label} (compras)`');
+    expect(listPage).toContain("fixedOptionsByKey");
+    expect(listPage).toContain("periodExpenses");
+    expect(listPage).toContain(".filter(isFixedExpense)");
+    expect(suppliersPage).toContain("Compras netas:");
+    expect(suppliersPage).toContain("Math.abs(purchased)");
+    expect(homeSummary).toContain("safeSignedDisplayAmount");
+    expect(homeSummary).toContain("Math.abs(summary.totalExpenses)");
   });
 
   it("muestra las lineas de compra en el listado de gastos", () => {

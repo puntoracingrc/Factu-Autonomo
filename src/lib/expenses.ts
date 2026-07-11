@@ -1,4 +1,4 @@
-import { roundMoney } from "./calculations";
+import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
 import { isFixedExpense } from "./expense-classification";
 import { supplierCompareKey } from "./supplier-normalization";
@@ -105,7 +105,7 @@ export interface PurchaseExpenseDuplicateCandidate {
 }
 
 export function normalizeExpenseAmount(value: number): number {
-  return Number.isFinite(value) ? roundMoney(value) : 0;
+  return Number.isFinite(value) ? roundMoneySymmetric(value) : 0;
 }
 
 export function normalizeExpenseIvaPercent(value: number): number {
@@ -119,11 +119,11 @@ export function expenseTotalsFromBase(
 ): ExpenseTotals {
   const base = normalizeExpenseAmount(amount);
   const rate = vatExempt ? 0 : normalizeExpenseIvaPercent(ivaPercent);
-  const iva = roundMoney(base * (rate / 100));
+  const iva = roundMoneySymmetric(base * (rate / 100));
   return {
     base,
     iva,
-    total: roundMoney(base + iva),
+    total: roundMoneySymmetric(base + iva),
     ivaPercent: rate,
   };
 }
@@ -186,7 +186,7 @@ export function expensePurchaseLineBaseTotal(
   >,
 ): number {
   if (Number.isFinite(line.total) && (line.total ?? 0) !== 0) {
-    return roundMoney(line.total ?? 0);
+    return roundMoneySymmetric(line.total ?? 0);
   }
 
   const quantity = Number.isFinite(line.quantity) ? line.quantity : 0;
@@ -195,13 +195,15 @@ export function expensePurchaseLineBaseTotal(
     ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
     : 0;
 
-  return roundMoney(quantity * unitPrice * (1 - discountPercent / 100));
+  return roundMoneySymmetric(
+    quantity * unitPrice * (1 - discountPercent / 100),
+  );
 }
 
 export function expensePurchaseLinesBaseTotal(
   lines: ExpensePurchaseLine[] = [],
 ): number {
-  return roundMoney(
+  return roundMoneySymmetric(
     lines.reduce((sum, line) => sum + expensePurchaseLineBaseTotal(line), 0),
   );
 }
@@ -234,17 +236,15 @@ function explicitRuntimeIvaRate(value: unknown): number | null {
   return Number.isFinite(parsed) ? normalizedBreakdownRate(parsed) : null;
 }
 
-function expenseLineHasValidPositiveBase(
+function expenseLineHasValidSignedBase(
   line: unknown,
 ): line is ExpenseVatLineInput {
   if (!isExpenseVatLineInput(line)) return false;
-  if (
-    line.total !== undefined &&
-    (!Number.isFinite(line.total) || line.total <= 0)
-  ) {
+  if (line.total !== undefined && !Number.isFinite(line.total)) {
     return false;
   }
-  if (line.total === undefined || line.total === 0) {
+  if (line.total === 0) return false;
+  if (line.total === undefined) {
     if (!Number.isFinite(line.quantity) || !Number.isFinite(line.unitPrice)) {
       return false;
     }
@@ -258,7 +258,7 @@ function expenseLineHasValidPositiveBase(
     }
   }
   const base = expensePurchaseLineBaseTotal(line);
-  return Number.isFinite(base) && base > 0;
+  return Number.isFinite(base) && base !== 0;
 }
 
 function buildExpenseVatBreakdown(
@@ -270,7 +270,7 @@ function buildExpenseVatBreakdown(
     if (!isExpenseVatLineInput(line)) continue;
     if (
       !isValidExpenseLineIvaPercent(line.ivaPercent) ||
-      !expenseLineHasValidPositiveBase(line)
+      !expenseLineHasValidSignedBase(line)
     ) {
       continue;
     }
@@ -290,13 +290,13 @@ function buildExpenseVatBreakdown(
 
   return [...byRate.values()]
     .map((row) => {
-      const base = roundMoney(row.base);
-      const iva = roundMoney(base * (row.ivaPercent / 100));
+      const base = roundMoneySymmetric(row.base);
+      const iva = roundMoneySymmetric(base * (row.ivaPercent / 100));
       return {
         ...row,
         base,
         iva,
-        total: roundMoney(base + iva),
+        total: roundMoneySymmetric(base + iva),
       };
     })
     .sort((left, right) => right.ivaPercent - left.ivaPercent);
@@ -359,13 +359,13 @@ function blockedExpenseVatResolution(
 /**
  * Resuelve el IVA registrado de un gasto sin reescribir datos legacy.
  *
- * Un desglose positivo, completo y conciliado gobierna el IVA aunque use un
+ * Un desglose firmado, completo y conciliado gobierna el IVA aunque use un
  * único tipo. Si el desglose está incompleto, solo conserva la cabecera cuando
- * ninguna evidencia de línea contradice su tipo; cualquier conflicto queda
- * bloqueado para que una exportación fiscal no pueda ocultarlo. Los gastos
- * fijos no deducibles (incluidas ocurrencias legacy enlazadas a su plantilla)
- * conservan el contrato P1-06 de importe íntegro e IVA cero sin reescribir sus
- * líneas documentales. Los abonos conservan el contrato legacy hasta AUD-P1-13.
+ * ninguna evidencia de línea contradice su tipo o el signo neto del documento;
+ * cualquier conflicto queda bloqueado para que una exportación fiscal no pueda
+ * ocultarlo. Los gastos fijos no deducibles (incluidas ocurrencias legacy
+ * enlazadas a su plantilla) conservan el contrato P1-06 de importe íntegro e
+ * IVA cero sin reescribir sus líneas documentales.
  */
 export function resolveExpenseVat(
   expense: ExpenseVatInput,
@@ -378,7 +378,7 @@ export function resolveExpenseVat(
   ) {
     return headerExpenseVatResolution(expense, true);
   }
-  if (vatExempt || base <= 0) {
+  if (vatExempt || base === 0) {
     return headerExpenseVatResolution(expense, vatExempt);
   }
 
@@ -406,17 +406,17 @@ export function resolveExpenseVat(
     [...explicitRates].some((rate) => rate !== headerIvaPercent);
 
   const breakdown = buildExpenseVatBreakdown(lines);
-  const lineBase = roundMoney(
+  const lineBase = roundMoneySymmetric(
     lines.reduce<number>(
       (sum, line) =>
         sum +
-        (expenseLineHasValidPositiveBase(line)
+        (expenseLineHasValidSignedBase(line)
           ? expensePurchaseLineBaseTotal(line)
           : 0),
       0,
     ),
   );
-  const reconciliationDifference = roundMoney(lineBase - base);
+  const reconciliationDifference = roundMoneySymmetric(lineBase - base);
   const hasMissingRate = lines.some(
     (line) =>
       isExpenseVatLineInput(line) && line.ivaPercent === undefined,
@@ -425,11 +425,22 @@ export function resolveExpenseVat(
     (line) =>
       !isExpenseVatLineInput(line) ||
       !isValidExpenseLineIvaPercent(line.ivaPercent) ||
-      !expenseLineHasValidPositiveBase(line),
+      !expenseLineHasValidSignedBase(line),
   );
   const hasBaseMismatch =
     Math.abs(reconciliationDifference) >
     EXPENSE_VAT_RECONCILIATION_TOLERANCE;
+  const hasOppositeNetSign =
+    lineBase !== 0 && Math.sign(lineBase) !== Math.sign(base);
+
+  if (hasOppositeNetSign) {
+    return blockedExpenseVatResolution(
+      expense,
+      "mixed_vat_base_mismatch",
+      breakdown,
+      reconciliationDifference,
+    );
+  }
 
   if (hasMissingRate || hasInvalidLine || hasBaseMismatch) {
     if (!hasConflictingVatEvidence) {
@@ -448,7 +459,7 @@ export function resolveExpenseVat(
     );
   }
 
-  const iva = roundMoney(
+  const iva = roundMoneySymmetric(
     breakdown.reduce((sum, row) => sum + row.iva, 0),
   );
   return {
@@ -457,7 +468,7 @@ export function resolveExpenseVat(
     blocked: false,
     base,
     iva,
-    total: roundMoney(base + iva),
+    total: roundMoneySymmetric(base + iva),
     headerIvaPercent: normalizeExpenseIvaPercent(expense.ivaPercent),
     breakdown,
     reconciliationDifference,
@@ -493,7 +504,7 @@ function expensePurchaseLineCatalogNetUnitCost(
     ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
     : 0;
   if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
-    return roundMoney(line.unitPrice * (1 - discount / 100));
+    return roundMoneySymmetric(line.unitPrice * (1 - discount / 100));
   }
 
   const quantity = line.quantity || 1;
@@ -503,7 +514,7 @@ function expensePurchaseLineCatalogNetUnitCost(
     line.total > 0 &&
     quantity > 0
   ) {
-    return roundMoney(line.total / quantity);
+    return roundMoneySymmetric(line.total / quantity);
   }
 
   return 0;
@@ -570,11 +581,11 @@ export function summarizeWorkDocumentExpensesById(
     const fiscal = expenseFiscalAmounts(expense);
     summaries.set(expense.workDocumentId, {
       count: current.count + 1,
-      cost: roundMoney(current.cost + fiscal.operatingCost),
-      deductibleBase: roundMoney(
+      cost: roundMoneySymmetric(current.cost + fiscal.operatingCost),
+      deductibleBase: roundMoneySymmetric(
         current.deductibleBase + fiscal.deductibleBase,
       ),
-      deductibleIva: roundMoney(
+      deductibleIva: roundMoneySymmetric(
         current.deductibleIva + fiscal.deductibleIva,
       ),
     });
@@ -604,12 +615,14 @@ export function sanitizeExpensePurchaseLines(
       discountPercent: Number.isFinite(line.discountPercent)
         ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
         : undefined,
+      // Conserva evidencia importada fuera de rango para que `resolveExpenseVat`
+      // la bloquee; convertirla silenciosamente en 0 % sería fail-open.
       ivaPercent: Number.isFinite(line.ivaPercent)
-        ? normalizeExpenseIvaPercent(line.ivaPercent ?? 0)
+        ? line.ivaPercent
         : undefined,
       total:
         Number.isFinite(line.total) && (line.total ?? 0) !== 0
-          ? roundMoney(line.total ?? 0)
+          ? roundMoneySymmetric(line.total ?? 0)
           : undefined,
     }))
     .filter(

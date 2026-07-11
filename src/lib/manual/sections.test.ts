@@ -71,4 +71,23 @@ describe("manual sections", () => {
       "base estimada para IRPF separada del beneficio económico",
     );
   });
+
+  it("documenta el contrato firmado de abonos sin alimentar Productos", () => {
+    const manualText = JSON.stringify([
+      getManualSection("gastos"),
+      getManualSection("impuestos"),
+      getManualSection("productos"),
+      getManualSection("proveedores"),
+    ]);
+
+    expect(manualText).toContain("Abono · saldo a favor");
+    expect(manualText).toContain("Abono / saldo a favor");
+    expect(manualText).toContain("base -200 €");
+    expect(manualText).toContain("IVA -31 €");
+    expect(manualText).toContain("no lo autoguarda");
+    expect(manualText).toContain("solo revierte el coste de un trabajo");
+    expect(manualText).toContain("uno no deducible solo revierte el coste");
+    expect(manualText).toContain("nunca crea productos ni actualiza costes");
+    expect(manualText).toContain("saldo neto de compras");
+  });
 });

@@ -120,6 +120,26 @@ describe("calculateInvoiceListProfitability", () => {
     });
   });
 
+  it("un abono enlazado aumenta margen y revierte base e IVA soportado", () => {
+    expect(
+      calculateInvoiceListProfitability({
+        salesBase: 1000,
+        salesIva: 210,
+        linkedExpenseCost: -100,
+        linkedDeductibleExpenseBase: -100,
+        linkedDeductibleExpenseIva: -21,
+        irpfPercent: 20,
+      }),
+    ).toEqual({
+      realProfit: 1100,
+      estimatedIrpfBase: 1100,
+      profitAfterIrpfReserve: 880,
+      ivaReserve: 231,
+      irpfReserve: 220,
+      taxReserve: 451,
+    });
+  });
+
   it("reserva IRPF aunque el coste no deducible deje pérdida económica", () => {
     expect(
       calculateInvoiceListProfitability({
