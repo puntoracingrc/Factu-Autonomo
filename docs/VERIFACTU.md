@@ -7,7 +7,7 @@
 - XML `RegFactuSistemaFacturacion` con `RegistroAlta` / `RegistroAnulacion`
 - API `/api/verifactu/register` (con cuenta Supabase)
 - Transporte SOAP/mTLS preparado para pruebas AEAT con certificado del obligado
-- Declaración responsable en `/legal/declaracion-responsable`
+- Estado del borrador de declaración en `/legal/declaracion-responsable`; el borrador interno no es válido ni se publica
 - Pantalla de verificación in situ en **Configuración → Veri*Factu**
 
 ## Si eres el creador del software (productor SIF)
@@ -81,6 +81,18 @@ Estos campos son necesarios para enviar a AEAT el identificador del registro ant
 | `VERIFACTU_CERT_PASSWORD` | Solo remisión real | Contraseña del P12 |
 
 Sin certificado o con `VERIFACTU_AEAT_SUBMIT=false`, la app genera registros en **modo pruebas simulado** (QR apunta a `prewww2.aeat.es`) sin enviar a AEAT.
+
+### Estado de envío fail-closed
+
+`GET /api/verifactu/status` requiere un Bearer verificado y responde únicamente
+`submissionMode: "unknown"`. No infiere el entorno desde
+`VERIFACTU_ENVIRONMENT` ni publica configuración, certificado o identidad. La
+interfaz muestra el estado como no verificado o no disponible, sin convertir
+fallos de sesión, límite, red o JSON en un supuesto modo simulado.
+
+La confirmación de un modo real queda bloqueada hasta que el entorno consumido
+por `/api/verifactu/register` sea propiedad exclusiva del servidor
+(`AUD-P1-15`).
 
 ## Preflight de prueba AEAT
 

@@ -59,11 +59,14 @@ const firstSteps = [
 
 const trustItems = [
   "Gratis real, sin tarjeta",
-  "VeriFactu incluido desde Gratis",
+  "Preparación VeriFactu/SIF en modo simulado",
   "Email verificado antes de acciones reales",
   "Datos locales y nube opcional",
   "Fiscal orientativo, revisable con tu gestor",
 ];
+
+const VERIFACTU_PUBLIC_NOTICE =
+  "No afirmamos que la AEAT haya homologado, validado o revisado comercialmente la app.";
 
 const visitorPath = [
   {
@@ -255,12 +258,21 @@ export function PublicLanding() {
                 </Link>
               </div>
 
-              <p className="mt-5 flex max-w-xl items-start gap-2 text-sm font-medium text-slate-600">
+              <div className="mt-5 flex max-w-2xl items-start gap-2 text-sm font-medium text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                ¿VeriFactu gratis? Sí: incluido desde el plan Gratis con cuenta
-                verificada, sin tarjeta. Las funciones avanzadas de IA y nube
-                tienen límites para evitar abuso.
-              </p>
+                <p>
+                  ¿Preparación VeriFactu/SIF gratis? Sí: el modo simulado está
+                  disponible desde el plan Gratis con cuenta verificada, sin
+                  tarjeta. {VERIFACTU_PUBLIC_NOTICE}{" "}
+                  <Link
+                    href="/legal/verifactu"
+                    className="font-bold text-blue-700 underline underline-offset-2"
+                  >
+                    Qué incluye y qué no
+                  </Link>
+                  .
+                </p>
+              </div>
             </div>
           </div>
         </section>

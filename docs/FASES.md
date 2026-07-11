@@ -11,7 +11,7 @@ Usa este documento como hoja de ruta. Marca cada ítem al completarlo.
 
 - [x] App en Vercel + GitHub `main`
 - [x] Veri\*Factu MVP (huella v0.1.2, QR, rectificativas, sin borrar emitidas)
-- [x] Declaración responsable art. 15 (generada en la app)
+- [x] Borrador interno de declaración marcado como no válido y no publicado
 - [x] Encabezado emisor congelado al emitir
 - [x] Verificación de cadena de huellas en Configuración
 - [x] `.env.example` con todas las variables
@@ -65,7 +65,8 @@ Plantilla completa: **`.env.example`** en la raíz del repo.
 
 ### Comprobar
 
-- [ ] `/legal/declaracion-responsable` — sin `PENDIENTE-NIF`
+- [x] `/legal/declaracion-responsable` — contención noindex sin PII ni afirmación de cumplimiento
+- [ ] Sustituir la contención por una declaración definitiva solo tras revisión técnica y jurídica
 - [ ] Configuración → Veri\*Factu → “Configuración del productor: completa”
 - [ ] Configuración → crear cuenta cloud
 
@@ -95,6 +96,11 @@ Si algo falla, dímelo y lo corregimos en código.
 ---
 
 ## Fase 5 — Tú + código: remisión real AEAT
+
+> La interfaz no confirma ningún modo real de envío mientras el entorno de
+> `/api/verifactu/register` no sea propiedad exclusiva del servidor
+> (`AUD-P1-15`). Hasta cerrar ese bloqueo, `/api/verifactu/status` responde
+> únicamente `submissionMode: "unknown"`.
 
 **Tú:**
 

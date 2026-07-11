@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { APP_BRAND_NAME } from "@/lib/brand";
 
@@ -38,6 +39,22 @@ export default function LegalVerifactuPage() {
         subtitle="Qué incluye la app y qué debe revisarse con fuentes oficiales"
       />
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
+        <div className="not-prose rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
+          <p className="font-bold">
+            Estado actual: preparación VeriFactu/SIF en modo simulado.
+          </p>
+          <p className="mt-2">
+            No afirmamos que la AEAT haya homologado, validado o revisado
+            comercialmente la app. La declaración responsable permanece como
+            borrador técnico y no constituye una declaración válida.
+          </p>
+          <Link
+            href="/legal/declaracion-responsable"
+            className="mt-3 inline-flex font-bold underline underline-offset-2"
+          >
+            Consultar estado de la declaración
+          </Link>
+        </div>
         <p>
           Esta página resume cómo se plantea el cumplimiento VeriFactu/SIF en
           {APP_BRAND_NAME}. No sustituye asesoramiento fiscal ni la normativa
@@ -124,7 +141,7 @@ export default function LegalVerifactuPage() {
           ))}
         </ul>
         <h2>Última actualización</h2>
-        <p>4 de julio de 2026.</p>
+        <p>11 de julio de 2026.</p>
       </Card>
     </div>
   );

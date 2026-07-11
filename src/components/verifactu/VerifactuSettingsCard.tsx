@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, Send, ShieldCheck } from "lucide-react";
+import { Send, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -14,19 +14,16 @@ import {
 } from "@/lib/verifactu/eligibility";
 import { getProducerConfigStatus } from "@/lib/verifactu/producer-config";
 import { VERIFACTU_SOFTWARE } from "@/lib/verifactu/constants";
+import {
+  loadVerifactuRuntimeState,
+  resolveVerifactuConnectionStatus,
+  type VerifactuRuntimeState,
+} from "@/lib/verifactu/runtime-status";
 import type { BusinessProfile, VerifactuSettings } from "@/lib/types";
 
 interface Props {
   form: BusinessProfile;
   onChange: (settings: VerifactuSettings) => void;
-}
-
-interface VerifactuRuntimeStatus {
-  environment: "test" | "production";
-  aeatSubmitRequested: boolean;
-  aeatSubmitConfigured: boolean;
-  certificateConfigured: boolean;
-  certificateChannel: "personal" | "sello";
 }
 
 export function VerifactuSettingsCard({ form, onChange }: Props) {
@@ -36,20 +33,27 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
   const producer = getProducerConfigStatus();
   const [chainStatus, setChainStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const [runtimeStatus, setRuntimeStatus] =
-    useState<VerifactuRuntimeStatus | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<VerifactuRuntimeState>({
+    phase: "loading",
+  });
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadStatus() {
       try {
-        const response = await fetch("/api/verifactu/status");
-        if (!response.ok) return;
-        const payload = (await response.json()) as VerifactuRuntimeStatus;
-        if (!cancelled) setRuntimeStatus(payload);
+        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+        const supabase = await getSupabaseClientAsync();
+        const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
+          data: { session: null },
+        };
+        const token = sessionData.session?.access_token;
+        const status = await loadVerifactuRuntimeState(token);
+        if (!cancelled) {
+          setRuntimeStatus(status);
+        }
       } catch {
-        if (!cancelled) setRuntimeStatus(null);
+        if (!cancelled) setRuntimeStatus({ phase: "unavailable" });
       }
     }
 
@@ -59,7 +63,11 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
     };
   }, []);
 
-  const connection = resolveConnectionStatus(settings.enabled, runtimeStatus);
+  const connection = resolveVerifactuConnectionStatus(
+    settings.enabled,
+    runtimeStatus,
+  );
+  const connectionStyles = CONNECTION_STYLES[connection.tone];
 
   async function handleVerifyChain() {
     setChecking(true);
@@ -95,8 +103,16 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           <h2 className="text-lg font-bold text-slate-900">Veri*Factu</h2>
           <p className="mt-1 text-sm text-slate-600">
             Registro encadenado y QR tributario en PDF (entorno de pruebas por
-            defecto). Obligatorio para autónomos antes del{" "}
-            <strong>1 julio 2027</strong>.
+            defecto). Fecha general de adaptación al RRSIF para contribuyentes
+            no sujetos a Sociedades: <strong>1 julio 2027</strong>, según ámbito
+            y excepciones.{" "}
+            <Link
+              href="/legal/verifactu"
+              className="font-semibold text-blue-600 hover:underline"
+            >
+              Ver alcance y estado actual
+            </Link>
+            .
           </p>
         </div>
       </div>
@@ -170,63 +186,29 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
       )}
 
       <div
-        className={`rounded-xl border px-4 py-3 text-sm ${connection.panelClass}`}
+        className={`rounded-xl border px-4 py-3 text-sm ${connectionStyles.panelClass}`}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <Send className={`mt-0.5 h-5 w-5 shrink-0 ${connection.iconClass}`} />
+            <Send
+              className={`mt-0.5 h-5 w-5 shrink-0 ${connectionStyles.iconClass}`}
+            />
             <div>
               <p className="font-semibold">Conexión con AEAT</p>
               <p className="mt-1 opacity-90">{connection.description}</p>
             </div>
           </div>
           <span
-            className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-xs font-bold ${connection.badgeClass}`}
+            className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-xs font-bold ${connectionStyles.badgeClass}`}
           >
             {connection.badge}
           </span>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-lg bg-white/60 px-3 py-2">
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              Certificado
-            </p>
-            <p className="mt-1 font-semibold text-slate-900">
-              {runtimeStatus?.certificateConfigured
-                ? "Configurado"
-                : "No configurado"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-white/60 px-3 py-2">
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              Canal
-            </p>
-            <p className="mt-1 font-semibold text-slate-900">
-              {runtimeStatus?.certificateChannel === "sello"
-                ? "Sello/apoderamiento"
-                : "Certificado propio"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-white/60 px-3 py-2">
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              Envío
-            </p>
-            <p className="mt-1 font-semibold text-slate-900">
-              {runtimeStatus?.aeatSubmitConfigured ? "Real" : "Simulado"}
-            </p>
-          </div>
-        </div>
-
-        {!runtimeStatus?.certificateConfigured && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-white/60 px-3 py-2 text-slate-700">
-            <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-            <p>
-              El certificado se configurará en un entorno seguro antes de enviar
-              a AEAT. Esta pantalla no guarda ni muestra claves privadas.
-            </p>
-          </div>
-        )}
+        <p className="mt-3 rounded-lg bg-white/60 px-3 py-2 text-sm text-slate-700">
+          La configuración sensible se gestiona en servidor.{" "}
+          {"Esta pantalla no guarda ni muestra claves privadas."}
+        </p>
       </div>
 
       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -254,7 +236,7 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
           href="/legal/declaracion-responsable"
           className="text-sm font-semibold text-blue-600 hover:underline"
         >
-          Declaración responsable del SIF →
+          Estado de la declaración responsable →
         </Link>
       </div>
 
@@ -267,54 +249,25 @@ export function VerifactuSettingsCard({ form, onChange }: Props) {
   );
 }
 
-function resolveConnectionStatus(
-  enabled: boolean,
-  status: VerifactuRuntimeStatus | null,
-) {
-  if (!enabled) {
-    return {
-      badge: "Desactivado",
-      description:
-        "No se registran facturas en Veri*Factu mientras esta opción esté apagada.",
-      panelClass: "border-slate-200 bg-slate-50 text-slate-700",
-      badgeClass: "bg-slate-200 text-slate-700",
-      iconClass: "text-slate-500",
-    };
-  }
-
-  if (status?.aeatSubmitConfigured) {
-    return {
-      badge:
-        status.environment === "production"
-          ? "Envío real producción"
-          : "Envío real pruebas",
-      description:
-        status.environment === "production"
-          ? "El servidor está preparado para enviar registros a AEAT en producción."
-          : "El servidor está preparado para enviar registros al entorno de pruebas de AEAT.",
-      panelClass: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      badgeClass: "bg-emerald-600 text-white",
-      iconClass: "text-emerald-600",
-    };
-  }
-
-  if (status?.aeatSubmitRequested && !status.certificateConfigured) {
-    return {
-      badge: "Falta certificado",
-      description:
-        "El envío real está activado en el servidor, pero todavía falta el certificado digital.",
-      panelClass: "border-amber-200 bg-amber-50 text-amber-900",
-      badgeClass: "bg-amber-500 text-white",
-      iconClass: "text-amber-600",
-    };
-  }
-
-  return {
-    badge: "Modo simulado",
-    description:
-      "Genera huella, XML y QR, pero no envía registros a AEAT hasta configurar certificado y envío real.",
-    panelClass: "border-blue-200 bg-blue-50 text-blue-900",
-    badgeClass: "bg-blue-600 text-white",
-    iconClass: "text-blue-600",
-  };
-}
+const CONNECTION_STYLES = {
+  disabled: {
+    panelClass: "border-slate-200 bg-slate-50 text-slate-700",
+    badgeClass: "bg-slate-200 text-slate-700",
+    iconClass: "text-slate-500",
+  },
+  loading: {
+    panelClass: "border-slate-200 bg-slate-50 text-slate-700",
+    badgeClass: "bg-slate-200 text-slate-700",
+    iconClass: "text-slate-500",
+  },
+  unknown: {
+    panelClass: "border-amber-200 bg-amber-50 text-amber-900",
+    badgeClass: "bg-amber-600 text-white",
+    iconClass: "text-amber-600",
+  },
+  unavailable: {
+    panelClass: "border-amber-200 bg-amber-50 text-amber-900",
+    badgeClass: "bg-amber-600 text-white",
+    iconClass: "text-amber-600",
+  },
+} as const;
