@@ -62,7 +62,7 @@ export function CloudSyncHeaderIndicator() {
       onClick={() => void syncNow()}
       disabled={isSyncing || isOffline}
       title={syncMessage ?? "Sincronizar con la nube"}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+      className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:min-w-0 ${
         isError
           ? "bg-red-100 text-red-800 hover:bg-red-200"
           : isOffline
