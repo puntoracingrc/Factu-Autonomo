@@ -2,6 +2,8 @@ import { roundMoney } from "@/lib/calculations";
 
 const COST_ALLOCATIONS_STORAGE_KEY =
   "fa_rentabilidad_real_work_expense_cost_allocations";
+const LINE_EXCLUSIONS_STORAGE_KEY =
+  "fa_rentabilidad_real_work_expense_line_exclusions";
 
 interface RentabilidadRealLocalStorageLike {
   getItem(key: string): string | null;
@@ -10,9 +12,14 @@ interface RentabilidadRealLocalStorageLike {
 }
 
 export type ExpenseCostAllocationsByExpenseId = Record<string, number>;
+export type ExpenseLineExclusionsByExpenseId = Record<string, string[]>;
 type ExpenseCostAllocationsByWork = Record<
   string,
   ExpenseCostAllocationsByExpenseId
+>;
+type ExpenseLineExclusionsByWork = Record<
+  string,
+  ExpenseLineExclusionsByExpenseId
 >;
 
 function getLocalStorage(
@@ -84,6 +91,65 @@ function writeAllocations(
   targetStorage.setItem(COST_ALLOCATIONS_STORAGE_KEY, JSON.stringify(value));
 }
 
+function readLineExclusions(
+  storage?: RentabilidadRealLocalStorageLike,
+): ExpenseLineExclusionsByWork {
+  const targetStorage = getLocalStorage(storage);
+  if (!targetStorage) return {};
+
+  try {
+    const raw = targetStorage.getItem(LINE_EXCLUSIONS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    const normalized: ExpenseLineExclusionsByWork = {};
+    for (const [workDocumentId, expenseValues] of Object.entries(parsed)) {
+      if (
+        !workDocumentId ||
+        !expenseValues ||
+        typeof expenseValues !== "object" ||
+        Array.isArray(expenseValues)
+      ) {
+        continue;
+      }
+      const normalizedExpenses: ExpenseLineExclusionsByExpenseId = {};
+      for (const [expenseId, lineIds] of Object.entries(expenseValues)) {
+        if (!expenseId || !Array.isArray(lineIds)) continue;
+        const normalizedLineIds = [...new Set(
+          lineIds.filter(
+            (lineId): lineId is string =>
+              typeof lineId === "string" && lineId.length > 0,
+          ),
+        )];
+        if (normalizedLineIds.length > 0) {
+          normalizedExpenses[expenseId] = normalizedLineIds;
+        }
+      }
+      if (Object.keys(normalizedExpenses).length > 0) {
+        normalized[workDocumentId] = normalizedExpenses;
+      }
+    }
+    return normalized;
+  } catch {
+    return {};
+  }
+}
+
+function writeLineExclusions(
+  value: ExpenseLineExclusionsByWork,
+  storage?: RentabilidadRealLocalStorageLike,
+): void {
+  const targetStorage = getLocalStorage(storage);
+  if (!targetStorage) return;
+
+  if (Object.keys(value).length === 0) {
+    targetStorage.removeItem(LINE_EXCLUSIONS_STORAGE_KEY);
+    return;
+  }
+
+  targetStorage.setItem(LINE_EXCLUSIONS_STORAGE_KEY, JSON.stringify(value));
+}
+
 export function getExpenseCostAllocationsForWork(
   workDocumentId: string | undefined,
   storage?: RentabilidadRealLocalStorageLike,
@@ -146,9 +212,48 @@ export function clearExpenseCostAllocationForWork(
   return allocations[workDocumentId] ?? {};
 }
 
+export function getExpenseLineExclusionsForWork(
+  workDocumentId: string | undefined,
+  storage?: RentabilidadRealLocalStorageLike,
+): ExpenseLineExclusionsByExpenseId {
+  if (!workDocumentId) return {};
+  return readLineExclusions(storage)[workDocumentId] ?? {};
+}
+
+export function setExpenseLineExclusionsForWork(
+  workDocumentId: string | undefined,
+  expenseId: string,
+  excludedLineIds: string[],
+  storage?: RentabilidadRealLocalStorageLike,
+): ExpenseLineExclusionsByExpenseId {
+  if (!workDocumentId || !expenseId) return {};
+
+  const exclusions = readLineExclusions(storage);
+  const workExclusions = { ...(exclusions[workDocumentId] ?? {}) };
+  const normalizedLineIds = [...new Set(
+    excludedLineIds.filter((lineId) => Boolean(lineId)),
+  )];
+
+  if (normalizedLineIds.length > 0) {
+    workExclusions[expenseId] = normalizedLineIds;
+  } else {
+    delete workExclusions[expenseId];
+  }
+
+  if (Object.keys(workExclusions).length > 0) {
+    exclusions[workDocumentId] = workExclusions;
+  } else {
+    delete exclusions[workDocumentId];
+  }
+
+  writeLineExclusions(exclusions, storage);
+  return exclusions[workDocumentId] ?? {};
+}
+
 export function clearExpenseCostAllocationsForTests(
   storage?: RentabilidadRealLocalStorageLike,
 ): void {
   const targetStorage = getLocalStorage(storage);
   targetStorage?.removeItem(COST_ALLOCATIONS_STORAGE_KEY);
+  targetStorage?.removeItem(LINE_EXCLUSIONS_STORAGE_KEY);
 }

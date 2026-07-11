@@ -39,7 +39,7 @@ export const presupuestosSection: ManualSection = {
         "Pulsa **Convertir** para crear una factura en **borrador** desde el presupuesto.",
         "La factura creada conserva cliente, conceptos y vínculo con el presupuesto, pero sigue siendo editable antes de emitirla. Esto permite ajustar extras o cambios acordados con el cliente.",
         "Después de convertir, el presupuesto mostrará el vínculo con la factura. En los listados verás una pastilla con icono de cadena para abrir el documento relacionado.",
-        "Si necesitas relacionar documentos manualmente, usa **Vincular** en el listado o en la vista del documento. Al elegir un documento, el buscador se pliega y queda la selección preparada para confirmar. Cuando ya existe vínculo, el botón pasa a **Desvincular** y lo quita directamente sin cambiar el PDF ya emitido.",
+        "También puedes vincular un presupuesto existente desde la tarjeta de su factura. La cadena visual permite abrir ambos documentos y la **X** quita solo la relación, sin cambiar los PDF emitidos.",
       ],
     },
     {
@@ -56,14 +56,15 @@ export const presupuestosSection: ManualSection = {
 export const recibosSection: ManualSection = {
   slug: "recibos",
   title: "Recibos",
-  summary: "Justificantes de cobro, a veces creados automáticamente.",
+  summary: "Justificantes de cobro creados cuando el cliente los necesita.",
   order: 7,
   steps: [
     {
-      title: "1. Recibo al cobrar una factura",
+      title: "1. Crear un recibo desde una factura",
       paragraphs: [
-        "Al marcar una factura como **Cobrada**, la app puede generar un **recibo** vinculado con el mismo importe.",
-        "Verás el recibo vinculado en el listado de facturas con una pastilla de cadena. También puedes usar **Vincular** para enlazar manualmente una factura y un recibo; si ya están enlazados, el botón cambia a **Desvincular**.",
+        "Marcar una factura como **Cobrada** no genera un recibo automáticamente.",
+        "Si el cliente lo solicita, usa el botón **Recibo** de la factura cobrada. La app lo crea con el mismo importe y conserva el vínculo con su factura de origen.",
+        "El recibo aparece automáticamente en la cadena visual de la factura. Ese vínculo no se crea, reasigna ni rompe manualmente desde el panel de vínculos.",
       ],
       screenshot: {
         src: "/ayuda/capturas/recibos-automatico.png",

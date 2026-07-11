@@ -1,4 +1,6 @@
+import { roundMoney } from "./calculations";
 import { isDraftInvoiceNumber, sortDocumentsByNewest } from "./documents";
+import { expenseFiscalAmounts } from "./expenses";
 import { findInvoiceCreatedFromQuote } from "./quote-to-invoice";
 import { isRectificativa } from "./rectificativas";
 import { findReceiptForInvoice } from "./receipts";
@@ -42,6 +44,7 @@ export interface DocumentChainItem {
   href?: string;
   document?: Document;
   expenseCount?: number;
+  expenseAmount?: number;
   current: boolean;
 }
 
@@ -127,6 +130,7 @@ export function getDocumentChainItems(
   document: Document,
   documents: Document[],
   expenses: Expense[] = [],
+  expenseAllocations: Record<string, number> = {},
 ): DocumentChainItem[] {
   let invoice: Document | undefined;
   let rectification: Document | undefined;
@@ -199,6 +203,15 @@ export function getDocumentChainItems(
       expense.workDocumentId && workDocumentIds.has(expense.workDocumentId),
   );
   if (linkedExpenses.length > 0) {
+    const expenseAmount = linkedExpenses.reduce((total, expense) => {
+      const operatingCost = expenseFiscalAmounts(expense).operatingCost;
+      const allocation = expenseAllocations[expense.id];
+      const appliedCost =
+        allocation === undefined
+          ? operatingCost
+          : Math.min(Math.max(allocation, 0), operatingCost);
+      return roundMoney(total + appliedCost);
+    }, 0);
     items.push({
       id: `gastos-${[...workDocumentIds].join("-")}`,
       role: "gastos",
@@ -208,6 +221,7 @@ export function getDocumentChainItems(
       }`,
       href: "/gastos",
       expenseCount: linkedExpenses.length,
+      expenseAmount,
       current: false,
     });
   }

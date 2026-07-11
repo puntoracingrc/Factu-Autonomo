@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createDemoWorkspaceData } from "./demo-workspace";
 import { applyDocumentLinkUpdate } from "./document-links";
 import { inspectDocumentSnapshotsIntegrity } from "./document-integrity";
+import {
+  expensePurchaseLinesBaseTotal,
+  summarizeWorkDocumentExpenses,
+} from "./expenses";
 import { normalizeLoadedData } from "./storage";
 import { documentAmounts } from "./vat-regime";
 
@@ -85,5 +89,28 @@ describe("demo workspace", () => {
         snapshotSeal: unlinked.snapshotSeal,
       }),
     ).toBe(protectedEvidence);
+  });
+
+  it("incluye dos gastos vinculados y uno con tres líneas para probar reparto parcial", () => {
+    const data = createDemoWorkspaceData(REFERENCE_DATE);
+    const materialExpense = data.expenses.find(
+      (expense) => expense.id === "demo-expense-materiales",
+    )!;
+    const summary = summarizeWorkDocumentExpenses(
+      data.expenses,
+      "demo-invoice-1",
+    );
+
+    expect(
+      data.expenses.filter((expense) => expense.workDocumentId),
+    ).toHaveLength(2);
+    expect(materialExpense.purchaseLines).toHaveLength(3);
+    expect(expensePurchaseLinesBaseTotal(materialExpense.purchaseLines)).toBe(
+      84.7,
+    );
+    expect(
+      expensePurchaseLinesBaseTotal(materialExpense.purchaseLines?.slice(0, 2)),
+    ).toBe(72.6);
+    expect(summary).toMatchObject({ count: 2, cost: 117.1 });
   });
 });

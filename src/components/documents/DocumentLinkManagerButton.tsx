@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Link2, Search, Unlink, X } from "lucide-react";
+import { Check, Link2, Search, X } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/context/AppStore";
@@ -15,6 +15,7 @@ import {
   linkableDocuments,
 } from "@/lib/document-links";
 import { filterDocumentsByQuery } from "@/lib/documents";
+import { isDocumentEditable } from "@/lib/documents";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { findReceiptForInvoice } from "@/lib/receipts";
@@ -23,18 +24,20 @@ import type { Document } from "@/lib/types";
 
 interface DocumentLinkManagerButtonProps {
   doc: Document;
+  expanded?: boolean;
+  onToggle?: () => void;
 }
 
 export function DocumentLinkManagerButton({
   doc,
+  expanded = false,
+  onToggle,
 }: DocumentLinkManagerButtonProps) {
   const { data, updateDocumentLink } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const [open, setOpen] = useState(false);
   const [quoteId, setQuoteId] = useState("");
-  const [receiptId, setReceiptId] = useState("");
   const [invoiceForQuoteId, setInvoiceForQuoteId] = useState("");
-  const [invoiceForReceiptId, setInvoiceForReceiptId] = useState("");
   const modalTitleId = useId();
   const modalDescriptionId = useId();
 
@@ -65,9 +68,7 @@ export function DocumentLinkManagerButton({
 
   function openModal() {
     setQuoteId(linkedQuote?.id ?? "");
-    setReceiptId(linkedReceipt?.id ?? "");
     setInvoiceForQuoteId(linkedInvoiceFromQuote?.id ?? "");
-    setInvoiceForReceiptId(linkedInvoiceFromReceipt?.id ?? "");
     setOpen(true);
   }
 
@@ -75,104 +76,26 @@ export function DocumentLinkManagerButton({
     setOpen(false);
   }
 
-  function unlinkCurrentDocument() {
-    let removedCount = 0;
-
-    if (doc.type === "factura") {
-      if (linkedQuote || doc.sourceQuoteDocumentId || doc.sourceQuoteNumber) {
-        updateDocumentLink({
-          relation: "quote_invoice",
-          invoiceId: doc.id,
-          quoteId: null,
-        });
-        setQuoteId("");
-        removedCount += 1;
-      }
-
-      if (linkedReceipt || doc.receiptDocumentId) {
-        updateDocumentLink({
-          relation: "invoice_receipt",
-          invoiceId: doc.id,
-          receiptId: null,
-        });
-        setReceiptId("");
-        removedCount += 1;
-      }
-    }
-
-    if (doc.type === "presupuesto" && linkedInvoiceFromQuote) {
-      updateDocumentLink({
-        relation: "quote_invoice",
-        invoiceId: linkedInvoiceFromQuote.id,
-        quoteId: null,
-      });
-      setInvoiceForQuoteId("");
-      removedCount += 1;
-    }
-
-    if (doc.type === "recibo" && linkedInvoiceFromReceipt) {
-      updateDocumentLink({
-        relation: "invoice_receipt",
-        invoiceId: linkedInvoiceFromReceipt.id,
-        receiptId: null,
-      });
-      setInvoiceForReceiptId("");
-      removedCount += 1;
-    }
-
-    if (removedCount > 0) {
-      showFactuToast(removedCount > 1 ? "Vínculos quitados." : "Vínculo quitado.");
-    } else {
-      openModal();
-    }
-  }
-
-  function confirmQuoteForInvoice(nextQuoteId: string | null) {
+  function confirmQuoteForInvoice(nextQuoteId: string) {
     if (doc.type !== "factura") return;
     updateDocumentLink({
       relation: "quote_invoice",
       invoiceId: doc.id,
       quoteId: nextQuoteId,
     });
-    setQuoteId(nextQuoteId ?? "");
-    showFactuToast(nextQuoteId ? "Presupuesto vinculado." : "Presupuesto desvinculado.");
+    setQuoteId(nextQuoteId);
+    showFactuToast("Presupuesto vinculado.");
   }
 
-  function confirmInvoiceForQuote(nextInvoiceId: string | null) {
+  function confirmInvoiceForQuote(nextInvoiceId: string) {
     if (doc.type !== "presupuesto") return;
-    const invoiceId = nextInvoiceId ?? linkedInvoiceFromQuote?.id;
-    if (!invoiceId) return;
     updateDocumentLink({
       relation: "quote_invoice",
-      invoiceId,
-      quoteId: nextInvoiceId ? doc.id : null,
+      invoiceId: nextInvoiceId,
+      quoteId: doc.id,
     });
-    setInvoiceForQuoteId(nextInvoiceId ?? "");
-    showFactuToast(nextInvoiceId ? "Factura vinculada." : "Factura desvinculada.");
-  }
-
-  function confirmReceiptForInvoice(nextReceiptId: string | null) {
-    if (doc.type !== "factura") return;
-    updateDocumentLink({
-      relation: "invoice_receipt",
-      invoiceId: doc.id,
-      receiptId: nextReceiptId,
-    });
-    setReceiptId(nextReceiptId ?? "");
-    showFactuToast(nextReceiptId ? "Recibo vinculado." : "Recibo desvinculado.");
-  }
-
-  function confirmInvoiceForReceipt(nextInvoiceId: string | null) {
-    if (doc.type !== "recibo") return;
-    const invoiceId = nextInvoiceId ?? linkedInvoiceFromReceipt?.id;
-    if (!invoiceId) return;
-    updateDocumentLink({
-      relation: "invoice_receipt",
-      invoiceId,
-      receiptId: nextInvoiceId ? doc.id : null,
-    });
-    setInvoiceForReceiptId(nextInvoiceId ?? "");
-    showFactuToast(nextInvoiceId ? "Factura vinculada." : "Factura desvinculada.");
+    setInvoiceForQuoteId(nextInvoiceId);
+    showFactuToast("Factura vinculada.");
   }
 
   const title = `Vínculos de ${documentShortNumber(doc)}`;
@@ -180,27 +103,20 @@ export function DocumentLinkManagerButton({
   return (
     <>
       <IconActionButton
-        label={hasCurrentLink ? "Desvincular" : "Vincular"}
-        tooltip={
-          hasCurrentLink
-            ? "Quitar vínculo relacionado"
-            : "Ver o enlazar documentos relacionados"
-        }
-        onClick={hasCurrentLink ? unlinkCurrentDocument : openModal}
+        label={expanded ? "Cerrar vínculos" : "Vínculos"}
+        tooltip="Ver o gestionar documentos y gastos vinculados"
+        aria-expanded={onToggle ? expanded : undefined}
+        onClick={onToggle ?? openModal}
         className={
           hasCurrentLink
-            ? "bg-red-50 text-red-700 hover:bg-red-100"
+            ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
             : "bg-sky-50 text-sky-700 hover:bg-sky-100"
         }
       >
-        {hasCurrentLink ? (
-          <Unlink className="h-5 w-5" />
-        ) : (
-          <Link2 className="h-5 w-5" />
-        )}
+        <Link2 className="h-5 w-5" />
       </IconActionButton>
 
-      <Modal
+      {!onToggle ? <Modal
         open={open}
         onClose={closeModal}
         titleId={modalTitleId}
@@ -236,57 +152,97 @@ export function DocumentLinkManagerButton({
         <div className="mt-4 space-y-4">
           {doc.type === "factura" ? (
             <>
-              <DocumentLinkSection
-                title="Presupuesto relacionado"
-                hint="Útil cuando la factura viene de un presupuesto, aunque la hayas terminado editando."
-                documents={linkableDocuments(data.documents, "presupuesto")}
-                selectedId={quoteId}
-                onSelectedIdChange={setQuoteId}
-                vatExempt={vatExempt}
-                onSave={() => confirmQuoteForInvoice(quoteId || null)}
-                onClear={() => confirmQuoteForInvoice(null)}
-              />
-              <DocumentLinkSection
+              {linkedQuote || !isDocumentEditable(doc) ? (
+                <CanonicalDocumentLink
+                  title="Presupuesto de origen"
+                  linkedDocument={linkedQuote}
+                  emptyText="Esta factura no conserva un presupuesto de origen."
+                  explanation="Si la factura nació de un presupuesto, este vínculo es histórico y no se modifica manualmente."
+                />
+              ) : (
+                <DocumentLinkSection
+                  title="Presupuesto relacionado"
+                  hint="Solo para una factura todavía en borrador que no nació ya de otro presupuesto."
+                  documents={linkableDocuments(data.documents, "presupuesto")}
+                  selectedId={quoteId}
+                  onSelectedIdChange={setQuoteId}
+                  vatExempt={vatExempt}
+                  onSave={() => confirmQuoteForInvoice(quoteId)}
+                />
+              )}
+              <CanonicalDocumentLink
                 title="Recibo relacionado"
-                hint="Útil para localizar el justificante de cobro asociado a esta factura."
-                documents={linkableDocuments(data.documents, "recibo")}
-                selectedId={receiptId}
-                onSelectedIdChange={setReceiptId}
-                vatExempt={vatExempt}
-                onSave={() => confirmReceiptForInvoice(receiptId || null)}
-                onClear={() => confirmReceiptForInvoice(null)}
+                linkedDocument={linkedReceipt}
+                emptyText="El recibo aparecerá automáticamente cuando lo crees desde esta factura."
+                explanation="Este vínculo procede del flujo de creación del recibo y no se modifica manualmente aquí."
               />
             </>
           ) : null}
 
           {doc.type === "presupuesto" ? (
-            <DocumentLinkSection
-              title="Factura relacionada"
-              hint="Selecciona la factura que salió de este presupuesto."
-              documents={linkableDocuments(data.documents, "factura")}
-              selectedId={invoiceForQuoteId}
-              onSelectedIdChange={setInvoiceForQuoteId}
-              vatExempt={vatExempt}
-              onSave={() => confirmInvoiceForQuote(invoiceForQuoteId || null)}
-              onClear={() => confirmInvoiceForQuote(null)}
-            />
+            linkedInvoiceFromQuote ? (
+              <CanonicalDocumentLink
+                title="Factura generada"
+                linkedDocument={linkedInvoiceFromQuote}
+                emptyText=""
+                explanation="Esta factura nació del presupuesto. La relación es histórica y no se puede cambiar ni desvincular."
+              />
+            ) : (
+              <DocumentLinkSection
+                title="Factura relacionada"
+                hint="Selecciona una factura solo si todavía no existe una relación de origen."
+                documents={linkableDocuments(data.documents, "factura")}
+                selectedId={invoiceForQuoteId}
+                onSelectedIdChange={setInvoiceForQuoteId}
+                vatExempt={vatExempt}
+                onSave={() => confirmInvoiceForQuote(invoiceForQuoteId)}
+              />
+            )
           ) : null}
 
           {doc.type === "recibo" ? (
-            <DocumentLinkSection
-              title="Factura relacionada"
-              hint="Selecciona la factura cuyo pago justifica este recibo."
-              documents={linkableDocuments(data.documents, "factura")}
-              selectedId={invoiceForReceiptId}
-              onSelectedIdChange={setInvoiceForReceiptId}
-              vatExempt={vatExempt}
-              onSave={() => confirmInvoiceForReceipt(invoiceForReceiptId || null)}
-              onClear={() => confirmInvoiceForReceipt(null)}
+            <CanonicalDocumentLink
+              title="Factura de origen"
+              linkedDocument={linkedInvoiceFromReceipt}
+              emptyText="Este recibo no conserva una factura de origen. No se crea ni se reasigna desde este panel."
+              explanation="Este vínculo procede del flujo de creación del recibo y no se modifica manualmente aquí."
             />
           ) : null}
         </div>
-      </Modal>
+      </Modal> : null}
     </>
+  );
+}
+
+function CanonicalDocumentLink({
+  title,
+  linkedDocument,
+  emptyText,
+  explanation,
+}: {
+  title: string;
+  linkedDocument?: Document;
+  emptyText: string;
+  explanation: string;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-base font-bold text-slate-900">{title}</p>
+      {linkedDocument ? (
+        <Link
+          href={documentDetailPath(linkedDocument)}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          <Link2 className="h-4 w-4" />
+          {documentShortNumber(linkedDocument)} · {linkedDocument.client.name}
+        </Link>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-slate-500">{emptyText}</p>
+      )}
+      <p className="mt-2 text-xs text-slate-500">
+        {explanation}
+      </p>
+    </section>
   );
 }
 
@@ -298,7 +254,6 @@ function DocumentLinkSection({
   onSelectedIdChange,
   vatExempt,
   onSave,
-  onClear,
 }: {
   title: string;
   hint: string;
@@ -307,7 +262,6 @@ function DocumentLinkSection({
   onSelectedIdChange: (id: string) => void;
   vatExempt: boolean;
   onSave: () => void;
-  onClear: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(!selectedId);
@@ -322,12 +276,6 @@ function DocumentLinkSection({
   function selectDocument(id: string) {
     onSelectedIdChange(id);
     setPickerOpen(false);
-    setQuery("");
-  }
-
-  function clearDocumentLink() {
-    onClear();
-    setPickerOpen(true);
     setQuery("");
   }
 
@@ -426,14 +374,6 @@ function DocumentLinkSection({
         >
           <Link2 className="h-4 w-4" />
           Vincular
-        </button>
-        <button
-          type="button"
-          onClick={clearDocumentLink}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          <Unlink className="h-4 w-4" />
-          Quitar vínculo
         </button>
       </div>
     </section>

@@ -220,11 +220,21 @@ describe("document links", () => {
       workDocumentId: invoice.id,
       createdAt: "2026-06-30T08:00:00.000Z",
     };
+    const quoteExpense: Expense = {
+      ...expense,
+      id: "expense-2",
+      workDocumentId: quote.id,
+    };
+    const rectificationExpense: Expense = {
+      ...expense,
+      id: "expense-3",
+      workDocumentId: rectification.id,
+    };
 
     const chain = getDocumentChainItems(
       invoice,
       [quote, invoice, rectification, receipt],
-      [expense],
+      [expense, quoteExpense, rectificationExpense],
     );
 
     expect(chain.map((item) => item.role)).toEqual([
@@ -239,9 +249,43 @@ describe("document links", () => {
       rectification.number,
       quote.number,
       receipt.number,
-      "1 gasto",
+      "3 gastos",
     ]);
     expect(chain[0]).toMatchObject({ current: true });
     expect(chain[1]?.href).toBe(documentDetailPath(rectification));
+    expect(chain.at(-1)).toMatchObject({
+      role: "gastos",
+      expenseCount: 3,
+      expenseAmount: 150,
+    });
+  });
+
+  it("muestra en la cadena el importe parcial aplicado al trabajo", () => {
+    const invoice = document({ id: "invoice-1", type: "factura" });
+    const expense: Expense = {
+      id: "expense-1",
+      date: "2026-06-30",
+      supplierName: "Proveedor",
+      description: "Material compartido",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: invoice.id,
+      createdAt: "2026-06-30T08:00:00.000Z",
+    };
+
+    const chain = getDocumentChainItems(
+      invoice,
+      [invoice],
+      [expense],
+      { "expense-1": 40 },
+    );
+
+    expect(chain.at(-1)).toMatchObject({
+      role: "gastos",
+      value: "1 gasto",
+      expenseAmount: 40,
+    });
   });
 });

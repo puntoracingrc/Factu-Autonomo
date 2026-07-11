@@ -48,7 +48,18 @@ export const facturasSection: ManualSection = {
       ],
     },
     {
-      title: "4. Enviar al cliente (email o WhatsApp)",
+      title: "4. Vincular documentos y gastos desde la factura",
+      paragraphs: [
+        "En el listado de **Facturas**, pulsa el icono de **Vínculos** de una factura. La gestión se abre dentro de su propia tarjeta, sin llevarte a la calculadora de rentabilidad.",
+        "La cadena muestra, por este orden, la factura, su rectificativa si existe, el presupuesto de origen, el recibo generado desde la factura y los gastos vinculados.",
+        "Puedes buscar y enlazar un presupuesto. Si te has equivocado, pulsa la **X** de su bloque: solo elimina la relación y no borra ninguno de los documentos.",
+        "La pestaña **Gastos** permite buscar por factura, producto o proveedor y vincular varios gastos al mismo trabajo. La **X** de un gasto enlazado lo desvincula, pero el gasto sigue intacto en Gastos.",
+        "Si una factura de proveedor contiene líneas que no corresponden al trabajo, abre **Elegir líneas**. Las líneas naranjas cuentan en la rentabilidad y las grises quedan fuera de ese cálculo; la factura de proveedor y su tratamiento fiscal no se modifican.",
+        "El recibo no se crea ni se reasigna desde este panel. Cuando lo generas con el botón **Recibo** de la factura, aparece automáticamente en la cadena.",
+      ],
+    },
+    {
+      title: "5. Enviar al cliente (email o WhatsApp)",
       paragraphs: [
         "Si el cliente tiene **email** o **teléfono** guardado, verás iconos de **Email** y **WhatsApp**.",
         "La app prepara un mensaje con el importe y, si aplica, el IBAN. En muchos móviles puedes compartir el PDF directamente; si no, se descarga para que lo adjuntes tú.",
@@ -60,10 +71,10 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "5. Marcar como cobrada",
+      title: "6. Marcar como cobrada",
       paragraphs: [
         "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado**. Esto no genera un recibo por sí solo.",
-        "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. Los documentos relacionados aparecen como pastillas con icono de cadena. Usa **Vincular** para enlazar manualmente un presupuesto de origen o un recibo asociado; si ya hay vínculo, el botón cambia a **Desvincular** y lo quita directamente sin cambiar el PDF ya emitido.",
+        "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. El recibo aparecerá automáticamente en la cadena de documentos de la factura.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
       ],
       screenshot: {
@@ -72,7 +83,7 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "6. Recordar el pago (facturas impagadas)",
+      title: "7. Recordar el pago (facturas impagadas)",
       paragraphs: [
         "En facturas **pendientes** con contacto del cliente aparece **Recordar** (icono de campana).",
         "Se abre un cuadro con un **mensaje amable sugerido** que puedes editar antes de enviar.",
@@ -86,7 +97,7 @@ export const facturasSection: ManualSection = {
       },
     },
     {
-      title: "7. Rectificar una factura",
+      title: "8. Rectificar una factura",
       paragraphs: [
         "Si necesitas corregir una factura ya emitida, usa **Rectificar** en el listado. Se creará una factura rectificativa vinculada a la original.",
         "Las facturas emitidas no se editan libremente. Si aún es borrador, sí puedes editarla o borrarla antes de emitir.",

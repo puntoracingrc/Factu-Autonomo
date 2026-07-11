@@ -1,7 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { calculateInvoiceListProfitability } from "./document-list-profitability";
+import {
+  calculateInvoiceListProfitability,
+  summarizeAllocatedWorkExpenses,
+} from "./document-list-profitability";
+import type { Expense } from "./types";
 
 describe("calculateInvoiceListProfitability", () => {
+  it("resume varios gastos del trabajo y prorratea la parte aplicada", () => {
+    const expense: Expense = {
+      id: "expense-1",
+      date: "2026-07-11",
+      supplierName: "Proveedor",
+      description: "Material",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "invoice-1",
+      createdAt: "2026-07-11T08:00:00.000Z",
+    };
+    const unrelated = {
+      ...expense,
+      id: "expense-2",
+      workDocumentId: "invoice-2",
+    };
+
+    expect(
+      summarizeAllocatedWorkExpenses({
+        expenses: [expense, unrelated],
+        workDocumentIds: ["invoice-1"],
+        allocations: { "expense-1": 40 },
+      }),
+    ).toEqual({
+      count: 1,
+      cost: 40,
+      deductibleBase: 40,
+      deductibleIva: 8.4,
+    });
+  });
+
   it("calcula beneficio real y reserva de impuestos con costes vinculados", () => {
     expect(
       calculateInvoiceListProfitability({
