@@ -1,5 +1,8 @@
 import { Card, PageHeader } from "@/components/ui/Card";
 import { APP_BRAND_NAME } from "@/lib/brand";
+import { privacyPageMetadata } from "@/lib/legal-metadata";
+
+export const metadata = privacyPageMetadata;
 
 export default function PrivacidadPage() {
   return (

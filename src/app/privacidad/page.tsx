@@ -1,1 +1,5 @@
-export { default } from "../legal/privacidad/page";
+import { permanentRedirect } from "next/navigation";
+
+export default function PrivacidadAliasPage() {
+  permanentRedirect("/legal/privacidad");
+}
