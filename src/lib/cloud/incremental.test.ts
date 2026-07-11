@@ -84,6 +84,26 @@ describe("incremental sync state", () => {
     expect(restored.meta?.pendingChanges).toBeUndefined();
   });
 
+  it("trata el tombstone del marcador como evidencia monotónica de v1", () => {
+    const legacy = legacyRemoteInvoice();
+    const markerTombstone: SyncChange = {
+      ...snapshotIntegrityMetadataChange("2026-07-01T11:00:00.000Z"),
+      deleted: true,
+      payload: undefined,
+    };
+    const restored = rebuildCloudSnapshot([
+      remoteDocumentChange(legacy),
+      markerTombstone,
+    ]).data;
+
+    expect(restored.snapshotIntegrityVersion).toBe(1);
+    expect(restored.documents[0].snapshotSeal).toBeUndefined();
+    expect(restored.documents[0].snapshotIntegrity?.issues).toContain(
+      "snapshot_seal_missing",
+    );
+    expect(restored.meta?.pendingChanges).toBeUndefined();
+  });
+
   it("conecta bootstrap inicial y descarga completa con la base cloud sin marcador", () => {
     const source = readFileSync(
       new URL("../../context/CloudSyncContext.tsx", import.meta.url),

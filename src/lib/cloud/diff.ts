@@ -372,7 +372,12 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
       if (change.entityId !== SNAPSHOT_INTEGRITY_METADATA_ENTITY_ID) {
         return data;
       }
-      if (change.deleted) return data;
+      if (change.deleted) {
+        return {
+          ...data,
+          snapshotIntegrityVersion: 1,
+        };
+      }
       if (
         !change.payload ||
         typeof change.payload !== "object" ||
