@@ -1,12 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { calculateTaxSummary, isTaxableSaleDocument } from "./taxes";
+import {
+  assertTaxSummaryExportable,
+  calculateTaxSummary,
+  isTaxableSaleDocument,
+  selectTaxableFiscalDocumentsForPeriod,
+  TaxExportBlockedError,
+} from "./taxes";
 import { issueDocument } from "./document-integrity";
-import type { BusinessProfile, Document, Expense } from "./types";
+import { isCollectedDocument } from "./income";
+import { isDateInQuarter } from "./periods";
+import type {
+  BusinessProfile,
+  Document,
+  Expense,
+  RectificationType,
+} from "./types";
 import { DEFAULT_PROFILE } from "./types";
+import { collectedSalesTotal } from "./vat-regime";
 
 const TEST_PROFILE: BusinessProfile = {
   ...DEFAULT_PROFILE,
+  name: "Autónomo Test",
   nif: "12345678Z",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
 };
 
 function invoice(
@@ -19,7 +37,15 @@ function invoice(
     type: "factura",
     number: "F-2026-0001",
     date: "2026-06-09",
-    client: { name: "Ana", firstName: "Ana", lastName: "" },
+    client: {
+      name: "Ana",
+      firstName: "Ana",
+      lastName: "",
+      nif: "X1234567L",
+      address: "Calle Cliente 2",
+      postalCode: "28002",
+      city: "Madrid",
+    },
     items: [
       {
         id: "l1",
@@ -48,6 +74,59 @@ function issuedInvoice(
     "2026-06-09T10:00:00.000Z",
   );
   return { ...issued, status };
+}
+
+function issuedRectificationPair({
+  type,
+  originalDate,
+  rectificationDate,
+  originalSubtotal = 100,
+  rectificationSubtotal = type === "anulacion" ? -originalSubtotal : 70,
+}: {
+  type: RectificationType;
+  originalDate: string;
+  rectificationDate: string;
+  originalSubtotal?: number;
+  rectificationSubtotal?: number;
+}): { original: Document; rectification: Document } {
+  const original = issueDocument(
+    invoice("borrador", originalSubtotal, {
+      id: `original-${type}-${originalDate}`,
+      number: `F-${originalDate.slice(0, 4)}-0001`,
+      date: originalDate,
+    }),
+    TEST_PROFILE,
+    `${originalDate}T10:00:00.000Z`,
+  );
+  const rectification = issueDocument(
+    invoice("borrador", rectificationSubtotal, {
+      id: `rectification-${type}-${rectificationDate}`,
+      number: `FR-${rectificationDate.slice(0, 4)}-0001`,
+      date: rectificationDate,
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason:
+          type === "anulacion" ? "Anulación total" : "Corrección de datos",
+        type,
+      },
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+    }),
+    TEST_PROFILE,
+    `${rectificationDate}T10:00:00.000Z`,
+  );
+
+  return {
+    original: {
+      ...original,
+      status: type === "anulacion" ? "anulada" : "rectificada",
+      documentLifecycle: type === "anulacion" ? "canceled" : "issued",
+      rectifiedById: rectification.id,
+    },
+    rectification,
+  };
 }
 
 const expense: Expense = {
@@ -122,8 +201,7 @@ describe("calculateTaxSummary", () => {
 
   it("no calcula IVA si el perfil está exento", () => {
     const exemptProfile: BusinessProfile = {
-      ...DEFAULT_PROFILE,
-      nif: "12345678Z",
+      ...TEST_PROFILE,
       vatExempt: true,
     };
     const summary = calculateTaxSummary(
@@ -153,32 +231,131 @@ describe("calculateTaxSummary", () => {
   });
 
   it("usa la rectificativa vigente y deja fuera la factura original rectificada", () => {
-    const original: Document = {
-      ...issuedInvoice("enviado", 1000),
-      status: "rectificada",
-      rectifiedById: "rect-1",
-    };
-    const rectification = issuedInvoice("enviado", 700, {
-      id: "rect-1",
-      number: "FR-2026-0001",
-      rectification: {
-        originalDocumentId: original.id,
-        originalNumber: original.number,
-        originalDate: original.date,
-        reason: "Corrección de datos",
-        type: "correccion",
-      },
-      documentLifecycle: "draft",
-      integrityLock: "unlocked",
+    const { original, rectification } = issuedRectificationPair({
+      type: "correccion",
+      originalDate: "2026-06-09",
+      rectificationDate: "2026-06-10",
+      originalSubtotal: 1000,
+      rectificationSubtotal: 700,
     });
 
     const summary = calculateTaxSummary([original, rectification], [], {
       irpfPercent: 20,
+      profile: TEST_PROFILE,
     });
 
     expect(summary.salesBase).toBe(700);
     expect(summary.salesIva).toBe(147);
     expect(summary.grossProfit).toBe(700);
+    expect(summary.integrityBlockedDocuments).toBe(0);
+    expect(summary.unsupportedRectificationDocuments).toBe(0);
+  });
+
+  it("compensa una anulación cuando original y abono caen en el mismo periodo", () => {
+    const { original, rectification } = issuedRectificationPair({
+      type: "anulacion",
+      originalDate: "2026-05-10",
+      rectificationDate: "2026-05-11",
+    });
+
+    const summary = calculateTaxSummary([original, rectification], [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 2),
+    });
+
+    expect(summary).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+  });
+
+  it("conserva el original en Q1 e imputa el abono en Q2", () => {
+    const { original, rectification } = issuedRectificationPair({
+      type: "anulacion",
+      originalDate: "2026-03-31",
+      rectificationDate: "2026-04-01",
+    });
+    const documents = [original, rectification];
+
+    const q1 = calculateTaxSummary(documents, [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 1),
+    });
+    const q2 = calculateTaxSummary(documents, [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 2),
+    });
+
+    expect(q1).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+    expect(q2).toMatchObject({
+      salesBase: -100,
+      salesIva: -21,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+  });
+
+  it("retiene el original en Q1 y bloquea una corrección sustitutiva en Q2", () => {
+    const { original, rectification } = issuedRectificationPair({
+      type: "correccion",
+      originalDate: "2026-03-31",
+      rectificationDate: "2026-04-01",
+      rectificationSubtotal: 70,
+    });
+    const documents = [original, rectification];
+
+    const q1 = calculateTaxSummary(documents, [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 1),
+    });
+    const q2 = calculateTaxSummary(documents, [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 2),
+    });
+
+    expect(q1).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+    expect(q2).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 1,
+    });
+    expect(() => assertTaxSummaryExportable(q2)).toThrow(
+      TaxExportBlockedError,
+    );
+  });
+
+  it("mantiene el régimen y los importes congelados frente al perfil vivo", () => {
+    const issued = issuedInvoice("enviado", 100);
+    const drifted: Document = {
+      ...issued,
+      items: [{ ...issued.items[0], unitPrice: 999, ivaPercent: 0 }],
+    };
+    const liveExemptProfile: BusinessProfile = {
+      ...TEST_PROFILE,
+      vatExempt: true,
+    };
+
+    const summary = calculateTaxSummary([drifted], [], {
+      vatExempt: true,
+      profile: liveExemptProfile,
+    });
+
+    expect(summary.salesBase).toBe(100);
+    expect(summary.salesIva).toBe(21);
+    expect(summary.vatExempt).toBe(false);
   });
 
   it("usa importes congelados y excluye evidencia bloqueada", () => {
@@ -301,7 +478,7 @@ describe("calculateTaxSummary", () => {
   });
 
   it("detecta una mutación de taxSummary aunque no exista señal persistida", () => {
-    const issued = issuedInvoice("enviado", 100);
+    const issued = issuedInvoice("pagado", 100);
     const tampered: Document = {
       ...issued,
       snapshotIntegrity: undefined,
@@ -319,5 +496,16 @@ describe("calculateTaxSummary", () => {
       salesIva: 0,
       integrityBlockedDocuments: 1,
     });
+    const selection = selectTaxableFiscalDocumentsForPeriod([tampered], {
+      profile: TEST_PROFILE,
+    });
+    expect(selection.documents).toEqual([]);
+    expect(
+      collectedSalesTotal(
+        selection.documents,
+        false,
+        isCollectedDocument,
+      ),
+    ).toBe(0);
   });
 });

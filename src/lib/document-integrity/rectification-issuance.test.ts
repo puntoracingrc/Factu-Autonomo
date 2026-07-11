@@ -14,11 +14,20 @@ import {
   materializeRectificationDocument,
   profileForRectificationSource,
   preserveRectificationOriginalReference,
+  requireUniqueRectificationOriginal,
   resolveCanonicalRectificationSource,
   verifiedRectificationOriginalSnapshot,
 } from "./rectification-issuance";
 
 const NOW = "2026-07-10T10:00:00.000Z";
+const PROFILE = {
+  ...EMPTY_DATA.profile,
+  name: "Autónomo Test",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
 
 function rectification(status: Document["status"]): Document {
   return {
@@ -67,7 +76,7 @@ function issuedOriginal(overrides: Partial<Document> = {}): Document {
         number: "F-2026-0001",
         rectification: undefined,
       },
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     ),
     ...overrides,
@@ -91,7 +100,7 @@ describe("materializeRectificationDocument", () => {
   it("mantiene editable una rectificativa guardada como borrador", () => {
     const saved = materializeRectificationDocument(
       rectification("borrador"),
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
 
@@ -104,7 +113,7 @@ describe("materializeRectificationDocument", () => {
   it("sella una emisión directa antes de devolverla al store", () => {
     const saved = materializeRectificationDocument(
       rectification("enviado"),
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
 
@@ -146,6 +155,34 @@ describe("materializeRectificationDocument", () => {
     ).toThrow("ya tiene otra rectificativa emitida");
   });
 
+  it("rechaza otra rectificativa ante un hijo emitido unilateral live o congelado", () => {
+    const original = issuedOriginal();
+    const candidate = rectification("borrador");
+    const issuedUnilateral = materializeRectificationDocument(
+      {
+        ...rectification("enviado"),
+        id: "issued-unilateral",
+      },
+      PROFILE,
+      NOW,
+    );
+    const frozenOnly: Document = {
+      ...issuedUnilateral,
+      rectification: undefined,
+    };
+
+    for (const existing of [issuedUnilateral, frozenOnly]) {
+      expect(() =>
+        assertRectificationEmissionAllowed(candidate, [
+          original,
+          existing,
+          candidate,
+        ]),
+      ).toThrow("ya tiene otra rectificativa emitida");
+    }
+    expect(original.rectifiedById).toBeUndefined();
+  });
+
   it("rechaza una rectificativa que se referencia a sí misma", () => {
     const candidate = rectification("borrador");
     const selfReferenced = {
@@ -177,6 +214,43 @@ describe("materializeRectificationDocument", () => {
     ).toThrow("no es una factura emitida válida");
   });
 
+  it("rechaza un ID de factura original duplicado sin elegir ni mutar uno", () => {
+    const candidate = rectification("borrador");
+    const original = issuedOriginal();
+    const duplicate = { ...original };
+    const documents = [original, duplicate, candidate];
+
+    expect(() =>
+      requireUniqueRectificationOriginal(documents, original.id),
+    ).toThrow("no es una factura emitida válida");
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, documents),
+    ).toThrow("no es una factura emitida válida");
+    expect(documents).toEqual([original, duplicate, candidate]);
+  });
+
+  it("rechaza una original bloqueada al recalcular el grafo relacional", () => {
+    const candidate = rectification("borrador");
+    const original = issuedOriginal();
+    const collidingIdentity = issueDocument(
+      {
+        ...rectification("borrador"),
+        id: "colliding-original",
+        number: original.number,
+        date: original.date,
+        rectification: undefined,
+      },
+      PROFILE,
+      NOW,
+    );
+    const documents = [original, collidingIdentity, candidate];
+
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, documents),
+    ).toThrow("no es una factura emitida válida");
+    expect(original.snapshotIntegrity).toBeUndefined();
+  });
+
   it("rechaza originales no emitidas o ya cerradas sin el mismo vínculo", () => {
     const candidate = rectification("borrador");
 
@@ -203,7 +277,7 @@ describe("materializeRectificationDocument", () => {
     }
   });
 
-  it("permite completar la misma relación y bloquea una original ausente", () => {
+  it("bloquea una relación ya señalada y una original ausente", () => {
     const candidate = rectification("borrador");
     const original = issuedOriginal({
       rectifiedById: candidate.id,
@@ -212,7 +286,7 @@ describe("materializeRectificationDocument", () => {
 
     expect(() =>
       assertRectificationEmissionAllowed(candidate, [original, candidate]),
-    ).not.toThrow();
+    ).toThrow("no es una factura emitida válida");
     expect(() =>
       assertRectificationEmissionAllowed(candidate, [candidate]),
     ).toThrow("No se encuentra la factura original");
@@ -227,10 +301,63 @@ describe("materializeRectificationDocument", () => {
     ).toThrow("no puede ser anterior a la factura original");
   });
 
+  it("rechaza emitir la rectificativa si la original conserva evidencia de recibo", () => {
+    const candidate = rectification("borrador");
+    const original = issuedOriginal({ receiptDocumentId: "receipt-backlink" });
+
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, [original, candidate]),
+    ).toThrow("tiene un recibo vinculado");
+  });
+
+  it("rechaza recibos que reclaman el origen por vínculo vivo o congelado", () => {
+    const candidate = rectification("borrador");
+    const original = issuedOriginal();
+    const liveReceipt: Document = {
+      ...candidate,
+      id: "live-receipt",
+      type: "recibo",
+      number: "R-2026-0001",
+      rectification: undefined,
+      sourceDocumentId: original.id,
+    };
+    const sealedReceipt = issueDocument(
+      {
+        ...liveReceipt,
+        id: "sealed-receipt",
+        number: "R-2026-0002",
+        status: "borrador",
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      },
+      PROFILE,
+      NOW,
+    );
+    const frozenOnlyReceipt: Document = {
+      ...sealedReceipt,
+      sourceDocumentId: undefined,
+    };
+
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, [
+        original,
+        candidate,
+        liveReceipt,
+      ]),
+    ).toThrow("tiene un recibo vinculado");
+    expect(() =>
+      assertRectificationEmissionAllowed(candidate, [
+        original,
+        candidate,
+        frozenOnlyReceipt,
+      ]),
+    ).toThrow("tiene un recibo vinculado");
+  });
+
   it("rechaza una rectificativa como origen hasta soportar la cadena", () => {
     const issuedRectification = materializeRectificationDocument(
       rectification("enviado"),
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
 
@@ -240,7 +367,7 @@ describe("materializeRectificationDocument", () => {
     expect(() =>
       resolveCanonicalRectificationSource(
         issuedRectification,
-        EMPTY_DATA.profile,
+        PROFILE,
       ),
     ).toThrow("no es una factura emitida válida");
   });
@@ -255,8 +382,12 @@ describe("materializeRectificationDocument", () => {
         date: "2026-07-01",
         rectification: undefined,
         status: "borrador",
+        items: current.items.map((item) => ({
+          ...item,
+          unitPrice: Math.abs(item.unitPrice),
+        })),
       },
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
     const manipulated: Document = {
@@ -273,7 +404,7 @@ describe("materializeRectificationDocument", () => {
       preserveRectificationOriginalReference(current, manipulated, [
         original,
         current,
-      ], EMPTY_DATA.profile).rectification,
+      ], PROFILE).rectification,
     ).toMatchObject({
       originalDocumentId: original.id,
       originalNumber: original.number,
@@ -300,7 +431,7 @@ describe("materializeRectificationDocument", () => {
           },
         ],
       },
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
     const manipulated: Document = {
@@ -325,7 +456,7 @@ describe("materializeRectificationDocument", () => {
       current,
       manipulated,
       [original, current],
-      EMPTY_DATA.profile,
+      PROFILE,
     );
 
     expect(preserved.items).toEqual([
@@ -345,6 +476,9 @@ describe("materializeRectificationDocument", () => {
       ...EMPTY_DATA.profile,
       name: "Emisor histórico",
       nif: "12345678Z",
+      address: "Calle Histórica 1",
+      postalCode: "28001",
+      city: "Madrid",
       vatExempt: true,
       iva: { rates: [0], defaultRate: 0 },
     };
@@ -387,6 +521,9 @@ describe("materializeRectificationDocument", () => {
       ...EMPTY_DATA.profile,
       name: "Nombre actual distinto",
       nif: "12345678Z",
+      address: "Calle Actual 2",
+      postalCode: "28002",
+      city: "Madrid",
       vatExempt: false,
       iva: { rates: [21], defaultRate: 21 },
     };
@@ -448,6 +585,75 @@ describe("materializeRectificationDocument", () => {
     ).toMatchObject({ name: "Emisor histórico", vatExempt: true });
   });
 
+  it("rechaza una original sellada que no cumple los requisitos fiscales", () => {
+    const source = (
+      id: string,
+      overrides: Partial<Document>,
+      profile = PROFILE,
+    ) =>
+      issueDocument(
+        {
+          ...rectification("borrador"),
+          id,
+          number: `F-2026-${id}`,
+          rectification: undefined,
+          status: "borrador",
+          items: rectification("borrador").items.map((item) => ({
+            ...item,
+            id: `${id}-line`,
+            unitPrice: Math.abs(item.unitPrice),
+          })),
+          ...overrides,
+        },
+        profile,
+        NOW,
+      );
+
+    const invalidVat = source("invalid-vat", {
+      items: [
+        {
+          ...rectification("borrador").items[0],
+          id: "invalid-vat-line",
+          unitPrice: 100,
+          ivaPercent: 101,
+        },
+      ],
+    });
+    const incompleteClient = source("invalid-client", {
+      client: { name: "Cliente incompleto" },
+    });
+    const blankConcept = source("blank-concept", {
+      items: [
+        {
+          ...rectification("borrador").items[0],
+          id: "blank-concept-line",
+          description: " ",
+          unitPrice: 100,
+        },
+      ],
+    });
+    const incompleteIssuerProfile = {
+      ...PROFILE,
+      address: "",
+    };
+    const incompleteIssuer = source(
+      "invalid-issuer",
+      {},
+      incompleteIssuerProfile,
+    );
+
+    for (const [candidate, profile] of [
+      [invalidVat, PROFILE],
+      [incompleteClient, PROFILE],
+      [blankConcept, PROFILE],
+      [incompleteIssuer, incompleteIssuerProfile],
+    ] as const) {
+      expect(() =>
+        resolveCanonicalRectificationSource(candidate, profile),
+      ).toThrow("no cumple los requisitos fiscales");
+    }
+  });
+
   it("bloquea una fuente cuya integridad de snapshot está corrupta", () => {
     const issued = issueDocument(
       {
@@ -457,7 +663,7 @@ describe("materializeRectificationDocument", () => {
         status: "borrador",
         number: "F-2026-0001",
       },
-      EMPTY_DATA.profile,
+      PROFILE,
       NOW,
     );
     const corrupt = withDocumentSnapshotIntegritySignal({
@@ -470,7 +676,7 @@ describe("materializeRectificationDocument", () => {
 
     expect(corrupt.snapshotIntegrity?.status).toBe("blocked");
     expect(() =>
-      resolveCanonicalRectificationSource(corrupt, EMPTY_DATA.profile),
+      resolveCanonicalRectificationSource(corrupt, PROFILE),
     ).toThrow("no supera la comprobación de integridad");
   });
 });

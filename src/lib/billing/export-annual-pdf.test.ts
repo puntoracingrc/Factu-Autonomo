@@ -3,11 +3,15 @@ import type { jsPDF } from "jspdf";
 import { buildAnnualSummaryPdf } from "./export-annual-pdf";
 import { DEFAULT_PROFILE, type Document, type Expense } from "../types";
 import { issueDocument, markDocumentPaid } from "../document-integrity";
+import { TaxExportBlockedError } from "../taxes";
 
 const profile = {
   ...DEFAULT_PROFILE,
   name: "Autónomo Test",
   nif: "11111111H",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
 };
 
 const draftDoc: Document = {
@@ -15,7 +19,13 @@ const draftDoc: Document = {
   type: "factura",
   number: "F-2026-0001",
   date: "2026-05-10",
-  client: { name: "Cliente Test" },
+  client: {
+    name: "Cliente Test",
+    nif: "87654321A",
+    address: "Calle Cliente 2",
+    postalCode: "28002",
+    city: "Madrid",
+  },
   items: [
     {
       id: "l1",
@@ -54,6 +64,16 @@ function pdfCommands(pdf: jsPDF): string {
   return pages.flatMap((page) => page ?? []).join("\n");
 }
 
+function captureBlockedExport(action: () => unknown): TaxExportBlockedError {
+  try {
+    action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(TaxExportBlockedError);
+    return error as TaxExportBlockedError;
+  }
+  throw new Error("La exportación debía quedar bloqueada");
+}
+
 describe("export annual pdf", () => {
   it("genera un PDF con al menos una página", () => {
     const pdf = buildAnnualSummaryPdf([doc], [expense], profile, 2026);
@@ -81,7 +101,7 @@ describe("export annual pdf", () => {
     expect(commands).not.toContain("999,00");
   });
 
-  it("excluye evidencia bloqueada y muestra la exclusión en el propio PDF", () => {
+  it("bloquea el PDF si existe evidencia fiscal corrupta", () => {
     const blocked: Document = {
       ...doc,
       snapshotIntegrity: {
@@ -90,17 +110,17 @@ describe("export annual pdf", () => {
       },
     };
 
-    const commands = pdfCommands(
+    const error = captureBlockedExport(() =>
       buildAnnualSummaryPdf([blocked], [], profile, 2026),
     );
 
-    expect(commands).toContain("ALERTA DE INTEGRIDAD FISCAL");
-    expect(commands).toContain("document_hash_mismatch");
-    expect(commands).toContain("d1");
-    expect(commands).not.toContain("Ventas \\(facturas y recibos\\)");
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 1,
+      unsupportedRectificationDocuments: 0,
+    });
   });
 
-  it("no convierte en incidencia una rectificativa válida con original de otro año", () => {
+  it("bloquea una corrección interanual aunque su relación sellada sea válida", () => {
     const original = issueDocument(
       { ...draftDoc, id: "original-2025", date: "2025-12-31" },
       profile,
@@ -132,7 +152,7 @@ describe("export annual pdf", () => {
       rectifiedById: rectification.id,
     };
 
-    const commands = pdfCommands(
+    const error = captureBlockedExport(() =>
       buildAnnualSummaryPdf(
         [linkedOriginal, rectification],
         [],
@@ -141,8 +161,9 @@ describe("export annual pdf", () => {
       ),
     );
 
-    expect(commands).not.toContain("ALERTA DE INTEGRIDAD FISCAL");
-    expect(commands).toContain("FR-2026-0001");
-    expect(commands).toContain("70,00");
+    expect(error).toMatchObject({
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 1,
+    });
   });
 });

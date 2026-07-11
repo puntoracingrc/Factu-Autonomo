@@ -4,6 +4,7 @@ import {
   businessProfileMissingDocumentLabels,
   hasUsualSpanishTaxIdShape,
 } from "./business-profile";
+import { documentTotals, roundMoney } from "./calculations";
 import { clientAddressToFormFields } from "./customer-address";
 
 export interface EmissionValidationResult {
@@ -54,7 +55,10 @@ export function ivaBreakdownByRate(
 }
 
 export function validateDocumentEmission(
-  doc: Pick<Document, "type" | "status" | "client" | "items">,
+  doc: Pick<
+    Document,
+    "type" | "status" | "client" | "items" | "rectification"
+  >,
   profile: BusinessProfile,
   type: DocumentType = doc.type,
 ): EmissionValidationResult {
@@ -62,11 +66,42 @@ export function validateDocumentEmission(
     return { ok: true };
   }
 
-  if (type !== "factura") {
+  if (
+    doc.items.some(
+      (item) =>
+        !Number.isFinite(item.ivaPercent) ||
+        item.ivaPercent < 0 ||
+        item.ivaPercent > 100,
+    )
+  ) {
+    return {
+      ok: false,
+      message: "Revisa el IVA de los conceptos: debe estar entre el 0 % y el 100 %.",
+    };
+  }
+
+  const isCancellation =
+    type === "factura" && doc.rectification?.type === "anulacion";
+  if ((type === "factura" || type === "recibo") && !isCancellation) {
+    const totals = documentTotals(doc, profile.vatExempt);
+    if (
+      roundMoney(totals.subtotal) < 0 ||
+      roundMoney(totals.iva) < 0 ||
+      roundMoney(totals.total) < 0
+    ) {
+      return {
+        ok: false,
+        message:
+          "Revisa los importes: solo una factura rectificativa de anulación puede tener totales negativos.",
+      };
+    }
+  }
+
+  if (type !== "factura" && type !== "recibo") {
     return { ok: true };
   }
 
-  if (!doc.client.name?.trim()) {
+  if (type === "factura" && !doc.client.name?.trim()) {
     return { ok: false, message: "Indica el nombre del cliente." };
   }
 
@@ -74,19 +109,21 @@ export function validateDocumentEmission(
     return { ok: false, message: "Añade al menos un concepto." };
   }
 
-  const address = clientAddressToFormFields(doc.client);
-  const missingClientLabels = invoiceClientMissingDocumentLabels({
-    name: doc.client.name,
-    nif: doc.client.nif,
-    address: address.streetLine,
-    postalCode: address.postalCode,
-    city: address.city,
-  });
-  if (missingClientLabels.length > 0) {
-    return {
-      ok: false,
-      message: `Completa estos datos del cliente antes de emitir la factura: ${missingClientLabels.join(", ")}.`,
-    };
+  if (type === "factura") {
+    const address = clientAddressToFormFields(doc.client);
+    const missingClientLabels = invoiceClientMissingDocumentLabels({
+      name: doc.client.name,
+      nif: doc.client.nif,
+      address: address.streetLine,
+      postalCode: address.postalCode,
+      city: address.city,
+    });
+    if (missingClientLabels.length > 0) {
+      return {
+        ok: false,
+        message: `Completa estos datos del cliente antes de emitir la factura: ${missingClientLabels.join(", ")}.`,
+      };
+    }
   }
 
   const missing = businessProfileMissingDocumentLabels(profile);
@@ -94,7 +131,7 @@ export function validateDocumentEmission(
   if (missing.length > 0) {
     return {
       ok: false,
-      message: `Revisa estos datos antes de emitir una factura: ${missing.join(", ")}. El NIF no se valida con AEAT desde la app.`,
+      message: `Revisa estos datos antes de emitir ${type === "factura" ? "una factura" : "un recibo"}: ${missing.join(", ")}. El NIF no se valida con AEAT desde la app.`,
     };
   }
 
@@ -102,7 +139,7 @@ export function validateDocumentEmission(
     return {
       ok: false,
       message:
-        "Revisa el NIF/CIF del emisor antes de emitir la factura: no tiene el formato habitual de 9 caracteres.",
+        `Revisa el NIF/CIF del emisor antes de emitir ${type === "factura" ? "la factura" : "el recibo"}: no tiene el formato habitual de 9 caracteres.`,
     };
   }
 

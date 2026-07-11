@@ -15,6 +15,38 @@ const item = {
   ivaPercent: 21,
 };
 
+const completeProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autónomo Test",
+  nif: "12345678Z",
+  address: "Calle Fiscal 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
+
+function emittedFiscalDocument(
+  overrides: Partial<Document> = {},
+): Document {
+  return {
+    id: "fiscal-document",
+    type: "factura",
+    number: "F-2026-0001",
+    date: "2026-07-11",
+    client: {
+      name: "Cliente exterior",
+      nif: "EXT-42",
+      address: "1 Main Street",
+      postalCode: "10001",
+      city: "New York",
+    },
+    items: [item],
+    status: "enviado",
+    createdAt: "",
+    updatedAt: "",
+    ...overrides,
+  };
+}
+
 describe("invoice compliance", () => {
   it("permite emitir presupuestos sin cliente ni conceptos", () => {
     const doc: Document = {
@@ -174,6 +206,159 @@ describe("invoice compliance", () => {
         "factura",
       ),
     ).toEqual({ ok: true });
+  });
+
+  it.each([-1, -200, 101, Number.NaN])(
+    "rechaza una emisión con un tipo de IVA imposible %s",
+    (ivaPercent) => {
+      const result = validateDocumentEmission(
+        emittedFiscalDocument({ items: [{ ...item, ivaPercent }] }),
+        completeProfile,
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        message:
+          "Revisa el IVA de los conceptos: debe estar entre el 0 % y el 100 %.",
+      });
+    },
+  );
+
+  it.each([0, 21])("acepta el tipo de IVA permitido %s", (ivaPercent) => {
+    expect(
+      validateDocumentEmission(
+        emittedFiscalDocument({ items: [{ ...item, ivaPercent }] }),
+        completeProfile,
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  it("rechaza una factura ordinaria con agregado negativo", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        items: [{ ...item, unitPrice: -100, quantity: 1 }],
+      }),
+      completeProfile,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("solo una factura rectificativa");
+  });
+
+  it("rechaza un recibo independiente con agregado negativo", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        type: "recibo",
+        number: "R-2026-0001",
+        client: { name: "Consumidor final" },
+        items: [{ ...item, unitPrice: -100, quantity: 1 }],
+      }),
+      completeProfile,
+      "recibo",
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("solo una factura rectificativa");
+  });
+
+  it("rechaza un recibo emitido sin identidad completa del emisor", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        type: "recibo",
+        number: "R-2026-INCOMPLETE",
+        client: { name: "Consumidor final" },
+      }),
+      DEFAULT_PROFILE,
+      "recibo",
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("antes de emitir un recibo");
+  });
+
+  it("rechaza un recibo emitido sin ningún concepto descrito", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        type: "recibo",
+        number: "R-2026-NO-CONCEPT",
+        client: { name: "Consumidor final" },
+        items: [{ ...item, description: "   " }],
+      }),
+      completeProfile,
+      "recibo",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Añade al menos un concepto.",
+    });
+  });
+
+  it("acepta un recibo con emisor completo y al menos un concepto", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        type: "recibo",
+        number: "R-2026-VALID",
+        client: { name: "Consumidor final" },
+      }),
+      completeProfile,
+      "recibo",
+    );
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("rechaza una rectificativa de corrección con agregado negativo", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        number: "FR-2026-0001",
+        items: [{ ...item, unitPrice: -100, quantity: 1 }],
+        rectification: {
+          originalDocumentId: "original",
+          originalNumber: "F-2026-0001",
+          originalDate: "2026-07-10",
+          reason: "Corrección",
+          type: "correccion",
+        },
+      }),
+      completeProfile,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("solo una factura rectificativa");
+  });
+
+  it("permite agregado negativo a una rectificativa de anulación", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        number: "FR-2026-0002",
+        items: [{ ...item, unitPrice: -100, quantity: 1 }],
+        rectification: {
+          originalDocumentId: "original",
+          originalNumber: "F-2026-0001",
+          originalDate: "2026-07-10",
+          reason: "Anulación",
+          type: "anulacion",
+        },
+      }),
+      completeProfile,
+    );
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("permite una línea de descuento si el agregado fiscal sigue positivo", () => {
+    const result = validateDocumentEmission(
+      emittedFiscalDocument({
+        items: [
+          { ...item, id: "positive-line", quantity: 1, unitPrice: 100 },
+          { ...item, id: "discount-line", quantity: 1, unitPrice: -10 },
+        ],
+      }),
+      completeProfile,
+    );
+
+    expect(result).toEqual({ ok: true });
   });
 
   it("detecta los datos legales del cliente necesarios para emitir factura", () => {

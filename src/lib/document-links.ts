@@ -225,24 +225,6 @@ function clearQuoteLink(document: Document, updatedAt: string): Document {
   };
 }
 
-function clearInvoiceReceiptLink(document: Document, updatedAt: string): Document {
-  if (!document.receiptDocumentId) return document;
-  return {
-    ...document,
-    receiptDocumentId: undefined,
-    updatedAt,
-  };
-}
-
-function clearReceiptInvoiceLink(document: Document, updatedAt: string): Document {
-  if (!document.sourceDocumentId) return document;
-  return {
-    ...document,
-    sourceDocumentId: undefined,
-    updatedAt,
-  };
-}
-
 function applyQuoteInvoiceLink(
   documents: Document[],
   invoiceId: string,
@@ -281,55 +263,6 @@ function applyQuoteInvoiceLink(
   });
 }
 
-function applyInvoiceReceiptLink(
-  documents: Document[],
-  invoiceId: string,
-  receiptId: string | null,
-  updatedAt: string,
-): Document[] {
-  const invoice = documents.find((document) => document.id === invoiceId);
-  if (!invoice || invoice.type !== "factura") return documents;
-
-  const receipt = receiptId
-    ? documents.find((document) => document.id === receiptId && document.type === "recibo")
-    : null;
-  if (receiptId && !receipt) return documents;
-
-  return documents.map((document) => {
-    if (document.id === invoiceId) {
-      return {
-        ...document,
-        receiptDocumentId: receipt?.id,
-        updatedAt,
-      };
-    }
-
-    if (
-      receipt &&
-      document.type === "factura" &&
-      document.receiptDocumentId === receipt.id
-    ) {
-      return clearInvoiceReceiptLink(document, updatedAt);
-    }
-
-    if (document.type !== "recibo") return document;
-
-    if (receipt && document.id === receipt.id) {
-      return {
-        ...document,
-        sourceDocumentId: invoice.id,
-        updatedAt,
-      };
-    }
-
-    if (document.sourceDocumentId === invoice.id) {
-      return clearReceiptInvoiceLink(document, updatedAt);
-    }
-
-    return document;
-  });
-}
-
 export function applyDocumentLinkUpdate(
   documents: Document[],
   update: DocumentLinkUpdate,
@@ -344,12 +277,10 @@ export function applyDocumentLinkUpdate(
     );
   }
 
-  return applyInvoiceReceiptLink(
-    documents,
-    update.invoiceId,
-    update.receiptId,
-    updatedAt,
-  );
+  // La relación factura-recibo tiene efectos fiscales y solo puede nacer del
+  // flujo canónico de cobro, que sella ambos extremos de forma atómica.
+  // El editor genérico de vínculos queda deliberadamente en modo lectura.
+  return documents;
 }
 
 export function findQuoteLinkedToInvoice(

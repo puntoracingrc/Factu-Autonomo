@@ -7,7 +7,10 @@ import { RectificativaForm } from "@/components/forms/RectificativaForm";
 import { useAppStore } from "@/context/AppStore";
 import { decodeDocumentIdFromPath } from "@/lib/document-links";
 import { resolveCanonicalRectificationSource } from "@/lib/document-integrity/rectification-issuance";
-import { canRectifyInvoice } from "@/lib/rectificativas";
+import {
+  canRectifyInvoice,
+  rectificationUnavailableMessage,
+} from "@/lib/rectificativas";
 
 export default function RectificarFacturaPage({
   params,
@@ -41,13 +44,7 @@ export default function RectificarFacturaPage({
     return (
       <CardMessage
         title="No se puede rectificar"
-        message={
-          original.rectifiedById
-            ? "Esta factura ya tiene una rectificativa asociada."
-            : original.rectification
-              ? "Este documento ya es una factura rectificativa."
-              : "Solo puedes rectificar facturas enviadas, pagadas o vencidas. Los borradores se pueden editar o borrar."
-        }
+        message={rectificationUnavailableMessage(original)}
         href="/facturas"
       />
     );

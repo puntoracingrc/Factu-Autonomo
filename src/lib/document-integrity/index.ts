@@ -62,6 +62,7 @@ export type DocumentIntegrityErrorCode =
   | "RECTIFICATION_ORIGINAL_INVALID"
   | "RECTIFICATION_DATE_INVALID"
   | "RECTIFICATION_CONFLICT"
+  | "RECTIFICATION_RECEIPT_CONFLICT"
   | "DERIVED_DOCUMENT_ISSUER_MISMATCH";
 
 const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
@@ -82,6 +83,8 @@ const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
     "La fecha de la rectificativa no puede ser anterior a la factura original.",
   RECTIFICATION_CONFLICT:
     "La factura original ya tiene otra rectificativa emitida. Revisa la cadena antes de continuar.",
+  RECTIFICATION_RECEIPT_CONFLICT:
+    "La factura tiene un recibo vinculado y no puede rectificarse sin un flujo explícito de anulación del recibo.",
   DERIVED_DOCUMENT_ISSUER_MISMATCH:
     "El NIF del negocio actual no coincide con el emisor histórico del documento de origen.",
 };

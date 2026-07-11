@@ -23,10 +23,25 @@ export function canRectifyInvoice(doc: Document): boolean {
     doc.type === "factura" &&
     !doc.rectification &&
     !doc.rectifiedById &&
+    !doc.receiptDocumentId &&
+    doc.snapshotIntegrity?.status !== "blocked" &&
     doc.status !== "borrador" &&
     doc.status !== "rectificada" &&
     doc.status !== "anulada"
   );
+}
+
+export function rectificationUnavailableMessage(doc: Document): string {
+  if (doc.receiptDocumentId) {
+    return "Esta factura tiene un recibo emitido vinculado; no se puede rectificar hasta disponer de anulación/rectificación explícita del recibo.";
+  }
+  if (doc.rectifiedById) {
+    return "Esta factura ya tiene una rectificativa asociada.";
+  }
+  if (doc.rectification) {
+    return "Este documento ya es una factura rectificativa.";
+  }
+  return "Solo puedes rectificar facturas enviadas, pagadas o vencidas. Los borradores se pueden editar o borrar.";
 }
 
 const RECTIFICAR_EN_LUGAR_DE_BORRAR = `Las facturas emitidas deben conservarse (mínimo 4 años) y no se pueden eliminar.
