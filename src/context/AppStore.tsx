@@ -152,6 +152,8 @@ interface AppStoreValue {
   data: AppData;
   ready: boolean;
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
+  getCurrentData: () => AppData;
+  replaceDataIfCurrent: (data: AppData, expected: AppData) => boolean;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
   issueDocument: (id: string) => Promise<Document>;
@@ -428,6 +430,17 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setAppData(next, { skipDirty: false });
+    },
+    [setAppData],
+  );
+
+  const getCurrentData = useCallback(() => dataRef.current, []);
+
+  const replaceDataIfCurrent = useCallback(
+    (next: AppData, expected: AppData): boolean => {
+      if (dataRef.current !== expected) return false;
+      setAppData(next, { skipDirty: false });
+      return true;
     },
     [setAppData],
   );
@@ -1768,6 +1781,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       replaceData,
+      getCurrentData,
+      replaceDataIfCurrent,
       updateProfile,
       addDocument,
       issueDocument,
@@ -1819,6 +1834,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       replaceData,
+      getCurrentData,
+      replaceDataIfCurrent,
       updateProfile,
       addDocument,
       issueDocument,

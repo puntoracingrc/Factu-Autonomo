@@ -6,7 +6,43 @@ import {
   parsePcFacturacionDwi,
 } from "./pcfacturacion";
 import { applyBusinessProfileAutofillSuggestion } from "../business-profile-autofill";
-import { EMPTY_DATA } from "../types";
+import { EMPTY_DATA, type Document } from "../types";
+
+const TEST_DATA = {
+  ...EMPTY_DATA,
+  profile: {
+    ...EMPTY_DATA.profile,
+    name: "Negocio de pruebas",
+    nif: "B12345678",
+    address: "Calle Mayor 1",
+    postalCode: "08001",
+    city: "Barcelona",
+  },
+};
+
+function asDraft(document: Document): Document {
+  return {
+    ...document,
+    status: "borrador",
+    issuer: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    deliveryStatus: "not_sent",
+    paymentStatus:
+      document.type === "factura" ? "pending" : "not_applicable",
+    acceptanceStatus:
+      document.type === "presupuesto" ? "pending" : "not_applicable",
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+    acceptedAt: undefined,
+  };
+}
 
 const baseTables = {
   Client: [
@@ -129,6 +165,98 @@ describe("PC Facturacion importer", () => {
     expect(extractSpanishTaxId("CIF- B-65305450")).toBe("B65305450");
   });
 
+  it("aborta si el NIF válido del origen difiere del configurado", () => {
+    const current = {
+      ...EMPTY_DATA,
+      profile: { ...EMPTY_DATA.profile, nif: "B87654321" },
+    };
+
+    expect(() =>
+      buildPcFacturacionImport(current, baseTables, {
+        includeUnusedCustomers: false,
+      }),
+    ).toThrow(
+      "El NIF detectado en PC Facturación no coincide con el NIF configurado en esta cuenta. No se aplicó ningún cambio",
+    );
+  });
+
+  it("acepta el mismo NIF con puntuación equivalente", () => {
+    const current = {
+      ...EMPTY_DATA,
+      profile: { ...EMPTY_DATA.profile, nif: "B-12.345.678" },
+    };
+
+    const result = buildPcFacturacionImport(current, baseTables, {
+      includeUnusedCustomers: false,
+    });
+
+    expect(
+      result.data.documents.find((document) => document.type === "factura")
+        ?.documentSnapshot?.issuer.nif,
+    ).toBe("B-12.345.678");
+  });
+
+  it.each(["", "fecha-imposible", "2026-02-30"])(
+    "aborta una factura cuya fecha de origen no es válida: %s",
+    (invalidDate) => {
+      const tables = {
+        ...baseTables,
+        Invoice: [{ ...baseTables.Invoice[0], Date: invalidDate }],
+      };
+
+      expect(() =>
+        buildPcFacturacionImport(EMPTY_DATA, tables, {
+          includeUnusedCustomers: false,
+        }),
+      ).toThrow("no tiene una fecha válida. No se aplicó ningún cambio");
+    },
+  );
+
+  it("aborta una factura cuyo vencimiento de origen no es válido", () => {
+    const tables = {
+      ...baseTables,
+      Invoice: [
+        {
+          ...baseTables.Invoice[0],
+          DuePayment: "vencimiento-imposible",
+        },
+      ],
+    };
+
+    expect(() =>
+      buildPcFacturacionImport(EMPTY_DATA, tables, {
+        includeUnusedCustomers: false,
+      }),
+    ).toThrow("no tiene un vencimiento válido. No se aplicó ningún cambio");
+  });
+
+  it("sella con el NIF detectado cuando la cuenta aún no lo tiene", () => {
+    const result = buildPcFacturacionImport(EMPTY_DATA, baseTables, {
+      includeUnusedCustomers: false,
+    });
+
+    expect(
+      result.data.documents.find((document) => document.type === "factura")
+        ?.documentSnapshot?.issuer.nif,
+    ).toBe("B12345678");
+  });
+
+  it("no deja que un NIF configurado inválido tape el NIF detectado", () => {
+    const current = {
+      ...EMPTY_DATA,
+      profile: { ...EMPTY_DATA.profile, nif: "SIN NIF" },
+    };
+
+    const result = buildPcFacturacionImport(current, baseTables, {
+      includeUnusedCustomers: false,
+    });
+
+    expect(
+      result.data.documents.find((document) => document.type === "factura")
+        ?.documentSnapshot?.issuer.nif,
+    ).toBe("B12345678");
+  });
+
   it("lee la numeracion configurada en un DWI", () => {
     const dwi = parsePcFacturacionDwi(`
       [NumberRange]
@@ -213,7 +341,16 @@ describe("PC Facturacion importer", () => {
     const manualDocument = {
       ...firstImport.data.documents[0],
       id: "manual-factura",
-      number: "F-2026-0001",
+      number: "FM-2026-0001",
+      status: "borrador" as const,
+      documentLifecycle: "draft" as const,
+      integrityLock: "unlocked" as const,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+      issuedAt: undefined,
       createdAt: "2026-06-01T00:00:00.000Z",
       updatedAt: "2026-06-01T00:00:00.000Z",
     };
@@ -264,6 +401,84 @@ describe("PC Facturacion importer", () => {
     expect(
       secondImport.data.documents.some((doc) => doc.id === "manual-factura"),
     ).toBe(true);
+  });
+
+  it("conserva presupuestos y clientes al reimportar solo facturas", () => {
+    const first = buildPcFacturacionImport(TEST_DATA, baseTables, {
+      includeUnusedCustomers: false,
+    });
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousOfferIds = current.documents
+      .filter((document) => document.type === "presupuesto")
+      .map((document) => document.id);
+    const previousCustomerIds = current.customers.map((customer) => customer.id);
+
+    const invoicesOnly = buildPcFacturacionImport(
+      current,
+      {
+        Contacts: [],
+        Invoice: baseTables.Invoice,
+        Offer: [],
+        Positions: baseTables.Positions,
+      },
+      { includeUnusedCustomers: false },
+    );
+
+    expect(
+      invoicesOnly.data.documents
+        .filter((document) => document.type === "presupuesto")
+        .map((document) => document.id),
+    ).toEqual(previousOfferIds);
+    expect(invoicesOnly.data.customers.map((customer) => customer.id)).toEqual(
+      previousCustomerIds,
+    );
+    expect(
+      invoicesOnly.data.documents.filter(
+        (document) => document.type === "factura",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("conserva facturas y clientes si sus tablas vienen vacías junto a presupuestos", () => {
+    const first = buildPcFacturacionImport(TEST_DATA, baseTables, {
+      includeUnusedCustomers: false,
+    });
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousInvoiceIds = current.documents
+      .filter((document) => document.type === "factura")
+      .map((document) => document.id);
+    const previousCustomerIds = current.customers.map((customer) => customer.id);
+
+    const offersOnly = buildPcFacturacionImport(
+      current,
+      {
+        Contacts: [],
+        Invoice: [],
+        Offer: baseTables.Offer,
+        Positions: baseTables.Positions,
+      },
+      { includeUnusedCustomers: false },
+    );
+
+    expect(
+      offersOnly.data.documents
+        .filter((document) => document.type === "factura")
+        .map((document) => document.id),
+    ).toEqual(previousInvoiceIds);
+    expect(offersOnly.data.customers.map((customer) => customer.id)).toEqual(
+      previousCustomerIds,
+    );
+    expect(
+      offersOnly.data.documents.filter(
+        (document) => document.type === "presupuesto",
+      ),
+    ).toHaveLength(1);
   });
 
   it("propone autorrellenar ajustes de empresa desde campos alternativos del importador", () => {

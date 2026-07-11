@@ -44,4 +44,19 @@ describe("hasWorkspaceContent", () => {
       }),
     ).toBe(true);
   });
+
+  it("protege una cuarentena recuperable aunque no queden entidades activas", () => {
+    expect(
+      hasWorkspaceContent({
+        ...EMPTY_DATA,
+        workspaceIntegrityQuarantine: [
+          {
+            collection: "customers",
+            reason: "malformed_collection",
+            rawValue: { bad: true },
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
 });

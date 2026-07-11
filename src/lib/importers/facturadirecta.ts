@@ -7,6 +7,11 @@ import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
 import {
+  assertAcceptedImportedDocumentsNormalized,
+  assertNoProtectedImportReplacements,
+  mergeImportedDocumentsPreservingProtected,
+} from "./protected-documents";
+import {
   buildBusinessProfileAutofillSuggestion,
   completeBusinessProfileIvaFromDocuments,
   type BusinessProfileAutofillSuggestion,
@@ -216,27 +221,102 @@ function parseDiscountPercent(value: unknown): number | undefined {
   return parsed <= 1 ? roundMoney(parsed * 100) : roundMoney(parsed);
 }
 
-function isoDate(value: unknown): string {
+function validCalendarDate(year: number, month: number, day: number): boolean {
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
+}
+
+function calendarDate(year: number, month: number, day: number): string | undefined {
+  if (!validCalendarDate(year, month, day)) return undefined;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function validClockTime(
+  hour: string | undefined,
+  minute: string | undefined,
+  second: string | undefined,
+): boolean {
+  if (hour === undefined) return true;
+  const hours = Number(hour);
+  const minutes = Number(minute);
+  const seconds = Number(second ?? 0);
+  return hours <= 23 && minutes <= 59 && seconds <= 59;
+}
+
+function isoDate(value: unknown): string | undefined {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
   const raw = text(value);
-  const spanish = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})(?:\s+.*)?$/);
+  if (!raw) return undefined;
+  if (/^[+-]?\d+(?:[.,]\d+)?$/.test(raw)) return undefined;
+  const spanish = raw.match(
+    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
   if (spanish) {
-    return `${spanish[3]}-${spanish[2].padStart(2, "0")}-${spanish[1].padStart(2, "0")}`;
+    if (!validClockTime(spanish[4], spanish[5], spanish[6])) return undefined;
+    return calendarDate(
+      Number(spanish[3]),
+      Number(spanish[2]),
+      Number(spanish[1]),
+    );
+  }
+  const yearFirst = raw.match(
+    /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](?:0\d|1[0-4]):?[0-5]\d)?)?$/,
+  );
+  if (yearFirst) {
+    if (!validClockTime(yearFirst[4], yearFirst[5], yearFirst[6])) {
+      return undefined;
+    }
+    return calendarDate(
+      Number(yearFirst[1]),
+      Number(yearFirst[2]),
+      Number(yearFirst[3]),
+    );
   }
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
+  return undefined;
 }
 
-function isoDateTime(value: unknown): string {
+function requiredSourceDate(
+  value: unknown,
+  subject: string,
+  field: string,
+): string {
+  const parsed = isoDate(value);
+  if (parsed) return parsed;
+  throw new Error(
+    `${subject} no tiene una fecha válida en «${field}». No se aplicó ningún cambio; corrige esa fecha en el archivo de origen de FacturaDirecta.`,
+  );
+}
+
+function optionalDueDate(
+  value: unknown,
+  subject: string,
+  field: string,
+  required = false,
+): string | undefined {
+  const raw = text(value);
+  if (!raw && !required) return undefined;
+  const parsed = isoDate(raw);
+  if (parsed) return parsed;
+  throw new Error(
+    `${subject} tiene un vencimiento no válido en «${field}». No se aplicó ningún cambio; corrige esa fecha en el archivo de origen de FacturaDirecta.`,
+  );
+}
+
+function isoDateTime(value: unknown, fallbackDate?: string): string {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString();
   }
   const raw = text(value);
   const spanish = raw.match(
-    /^(\d{1,2})-(\d{1,2})-(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
   );
   if (spanish) {
     const date = new Date(
@@ -251,6 +331,7 @@ function isoDateTime(value: unknown): string {
   }
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  if (fallbackDate) return `${fallbackDate}T00:00:00.000Z`;
   return new Date().toISOString();
 }
 
@@ -668,8 +749,23 @@ function buildDocument(input: {
 }): { document: Document; fallbackLine: boolean; usedProductCodes: string[] } {
   const { sale, type, lines, dueDates, productsByCode, customersByKey, profile } = input;
   const number = get(sale, "Serie / Núm.") || get(sale, "Num. Factura");
-  const date = isoDate(get(sale, "Fecha"));
-  const createdAt = isoDateTime(get(sale, "Fecha"));
+  const subject = type === "factura" ? `La factura ${number}` : `El presupuesto ${number}`;
+  const sourceDate = get(sale, "Fecha");
+  const date = requiredSourceDate(sourceDate, subject, "Fecha");
+  const createdAt = isoDateTime(sourceDate, date);
+  const directDueDate = optionalDueDate(
+    get(sale, "Vencimiento"),
+    subject,
+    "Vencimiento",
+  );
+  const reportedDueDates = dueDates.map((dueDate) =>
+    optionalDueDate(
+      get(dueDate, "Fecha de vencimiento"),
+      subject,
+      "Fecha de vencimiento",
+      true,
+    ),
+  );
   const clientInfo = clientFromSale(sale, customersByKey);
   const usedProductCodes: string[] = [];
   const items = lines
@@ -692,11 +788,7 @@ function buildDocument(input: {
       type,
       number,
       date,
-      dueDate: get(sale, "Vencimiento")
-        ? isoDate(get(sale, "Vencimiento"))
-        : dueDates[0]
-          ? isoDate(get(dueDates[0], "Fecha de vencimiento"))
-          : undefined,
+      dueDate: directDueDate ?? reportedDueDates[0],
       customerId: clientInfo.customerId,
       client: clientInfo.client,
       items: fallbackLine
@@ -756,6 +848,9 @@ function buildExpense(
   purchaseDueDates: Map<string, Row[]>,
 ): Expense {
   const number = get(row, "Núm.") || `compra-${index + 1}`;
+  const subject = `El gasto ${number}`;
+  const sourceDate = get(row, "Fecha registro");
+  const date = requiredSourceDate(sourceDate, subject, "Fecha registro");
   const supplier = supplierFromPurchase(row, suppliersByKey);
   const subtotal = parseAmount(get(row, "Subtotal"));
   const total = parseAmount(get(row, "Total"));
@@ -763,16 +858,21 @@ function buildExpense(
   const dueDateNotes =
     dueDates.length > 0
       ? dueDates
-          .map(
-            (due) =>
-              `Vencimiento FacturaDirecta: ${isoDate(get(due, "Fecha de vencimiento"))} por ${parseAmount(get(due, "Importe del vencimiento")).toFixed(2)} EUR`,
-          )
+          .map((due) => {
+            const dueDate = optionalDueDate(
+              get(due, "Fecha de vencimiento"),
+              subject,
+              "Fecha de vencimiento",
+              true,
+            );
+            return `Vencimiento FacturaDirecta: ${dueDate} por ${parseAmount(get(due, "Importe del vencimiento")).toFixed(2)} EUR`;
+          })
           .join("\n")
       : "";
 
   return {
     id: fdId("expense", number),
-    date: isoDate(get(row, "Fecha registro")),
+    date,
     origin: "import",
     businessKind: "purchase_invoice",
     supplierId: supplier?.id,
@@ -783,7 +883,7 @@ function buildExpense(
     category: "Compra importada",
     paymentMethod: "",
     notes: [number, dueDateNotes].filter(Boolean).join("\n") || undefined,
-    createdAt: isoDateTime(get(row, "Fecha registro")),
+    createdAt: isoDateTime(sourceDate, date),
   };
 }
 
@@ -1050,6 +1150,16 @@ export function buildFacturaDirectaImport(
   );
   const customersByKey = new Map<string, Customer>();
   const suppliersByKey = new Map<string, Supplier>();
+  current.customers
+    .filter((customer) =>
+      customer.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:customer:`),
+    )
+    .forEach((customer) => addToMatchMap(customersByKey, customer));
+  current.suppliers
+    .filter((supplier) =>
+      supplier.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:supplier:`),
+    )
+    .forEach((supplier) => addToMatchMap(suppliersByKey, supplier));
   parsedContacts.forEach((entry) => {
     if (entry.customer) addToMatchMap(customersByKey, entry.customer, entry.matchKeys);
     if (entry.supplier) addToMatchMap(suppliersByKey, entry.supplier, entry.matchKeys);
@@ -1088,7 +1198,7 @@ export function buildFacturaDirectaImport(
 
   const usedProductCodes = new Set<string>();
   let estimateFallbackLines = 0;
-  const importedDocuments = uniqueById(sales
+  const importedDocuments = sales
     .filter((row) => get(row, "Serie / Núm.") && get(row, "Moneda") !== "TOTAL")
     .map((sale) => {
       const normalizedType = normalizeKey(get(sale, "Tipo"));
@@ -1105,29 +1215,56 @@ export function buildFacturaDirectaImport(
       result.usedProductCodes.forEach((code) => usedProductCodes.add(code));
       if (result.fallbackLine && type === "presupuesto") estimateFallbackLines += 1;
       return result.document;
-    }));
+    });
   const importedExpenses = uniqueById(purchases
     .filter((row) => get(row, "Núm.") && get(row, "Moneda") !== "TOTAL")
     .map((row, index) => buildExpense(row, index, suppliersByKey, purchaseDueDates)));
+  const replacesInvoices = importedDocuments.some(
+    (document) => document.type === "factura",
+  );
+  const replacesEstimates = importedDocuments.some(
+    (document) => document.type === "presupuesto",
+  );
+  const replacesCustomers = importedCustomers.length > 0;
+  const replacesSuppliers = importedSuppliers.length > 0;
+  const replacesExpenses = importedExpenses.length > 0;
+  const replacesProducts = importedProducts.length > 0;
 
-  const keptDocuments = current.documents.filter(
-    (document) =>
-      !document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:factura:`) &&
-      !document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:presupuesto:`),
-  );
-  const keptCustomers = current.customers.filter(
-    (customer) => !customer.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:customer:`),
-  );
-  const keptSuppliers = current.suppliers.filter(
-    (supplier) => !supplier.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:supplier:`),
-  );
-  const keptExpenses = current.expenses.filter(
-    (expense) => !expense.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:expense:`),
-  );
-  const keptProducts = current.products.filter(
-    (product) => !product.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:product:`),
-  );
-  const nextDocuments = [...keptDocuments, ...importedDocuments];
+  const mergedDocuments = mergeImportedDocumentsPreservingProtected({
+    current: current.documents,
+    imported: importedDocuments,
+    belongsToSource: (document) =>
+      (replacesInvoices &&
+        document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:factura:`)) ||
+      (replacesEstimates &&
+        document.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:presupuesto:`)),
+  });
+  assertNoProtectedImportReplacements(mergedDocuments);
+  const keptCustomers = replacesCustomers
+    ? current.customers.filter(
+        (customer) =>
+          !customer.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:customer:`),
+      )
+    : current.customers;
+  const keptSuppliers = replacesSuppliers
+    ? current.suppliers.filter(
+        (supplier) =>
+          !supplier.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:supplier:`),
+      )
+    : current.suppliers;
+  const keptExpenses = replacesExpenses
+    ? current.expenses.filter(
+        (expense) =>
+          !expense.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:expense:`),
+      )
+    : current.expenses;
+  const keptProducts = replacesProducts
+    ? current.products.filter(
+        (product) =>
+          !product.id.startsWith(`${FACTURADIRECTA_ID_PREFIX}:product:`),
+      )
+    : current.products;
+  const nextDocuments = mergedDocuments.documents;
   const data = normalizeLoadedData(
     {
       ...current,
@@ -1144,10 +1281,15 @@ export function buildFacturaDirectaImport(
     },
     {
       legacyBackfillDocumentIds: new Set(
-        importedDocuments.map((document) => document.id),
+        mergedDocuments.acceptedImported.map((document) => document.id),
       ),
     },
   );
+  const unpairedLegacyCancellationIds =
+    assertAcceptedImportedDocumentsNormalized({
+      normalized: data.documents,
+      acceptedImported: mergedDocuments.acceptedImported,
+    });
   const partialDueDateDocuments = [...salesDueDates.values(), ...purchaseDueDates.values()]
     .filter((rows) => rows.length > 1).length;
   const internalNotes = sales.filter((row) => getMemo(row, "Notas internas")).length;
@@ -1187,6 +1329,11 @@ export function buildFacturaDirectaImport(
   };
 
   const warnings: string[] = [];
+  if (unpairedLegacyCancellationIds.length > 0) {
+    warnings.push(
+      `${unpairedLegacyCancellationIds.length} factura(s) anulada(s) no traen su rectificativa enlazada. Se conservarán bloqueadas para consulta y no se usarán en cálculos fiscales hasta completar esa relación.`,
+    );
+  }
   if ((tables.sales ?? []).length > 0 && (tables.invoiceLines ?? []).length === 0) {
     warnings.push(
       "Has incluido ventas, pero no el informe de líneas facturadas. Las facturas se importarán con una línea resumen.",

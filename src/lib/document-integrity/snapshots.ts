@@ -534,6 +534,14 @@ function isDocumentSnapshotSemanticallyValid(
       return false;
     }
     if (
+      snapshot.sourceDocumentId !== undefined &&
+      (snapshot.documentType !== "recibo" ||
+        typeof snapshot.sourceDocumentId !== "string" ||
+        !snapshot.sourceDocumentId.trim())
+    ) {
+      return false;
+    }
+    if (
       snapshot.fiscalContext.verifactu &&
       (typeof snapshot.fiscalContext.verifactu.enabled !== "boolean" ||
         (snapshot.fiscalContext.verifactu.optInVersion !== undefined &&
@@ -935,6 +943,12 @@ export function projectCanonicalSnapshotOntoDocument(doc: Document): Document {
     paymentTerms: snapshot.paymentTerms,
     issuer: cloneIssuer(snapshot.issuer),
     rectification: cloneRectification(snapshot.rectification),
+    sourceDocumentId: Object.prototype.hasOwnProperty.call(
+      snapshot,
+      "sourceDocumentId",
+    )
+      ? snapshot.sourceDocumentId
+      : doc.sourceDocumentId,
     verifactu: cloneVerifactu(snapshot.verifactu),
     status: doc.status === "borrador" ? "enviado" : doc.status,
     documentLifecycle:
@@ -957,6 +971,7 @@ export function buildDocumentSnapshot(
   options: BuildDocumentSnapshotOptions = {},
 ): DocumentSnapshot {
   const capturedAt = nowIso(options.capturedAt);
+  const source = options.source ?? "issue";
   const issuer =
     options.issuer ?? doc.issuer ?? captureIssuerSnapshot(profile, capturedAt);
   const vatExempt = Boolean(profile.vatExempt);
@@ -976,7 +991,7 @@ export function buildDocumentSnapshot(
   const snapshotWithoutHash: Omit<DocumentSnapshot, "snapshotHash"> = {
     schemaVersion: DOCUMENT_SNAPSHOT_SCHEMA_VERSION,
     capturedAt,
-    source: options.source ?? "issue",
+    source,
     documentType: doc.type,
     documentKind: documentKindForSnapshot(doc),
     number: doc.number,
@@ -990,6 +1005,11 @@ export function buildDocumentSnapshot(
     ...(doc.paymentTerms ? { paymentTerms: doc.paymentTerms } : {}),
     ...(doc.notes ? { notes: doc.notes } : {}),
     ...(rectification ? { rectification } : {}),
+    ...(source === "issue" &&
+    doc.type === "recibo" &&
+    doc.sourceDocumentId?.trim()
+      ? { sourceDocumentId: doc.sourceDocumentId.trim() }
+      : {}),
     numbering: snapshotNumbering(doc, profile),
     fiscalContext: snapshotFiscalContext(profile),
     ...(verifactu ? { verifactu } : {}),

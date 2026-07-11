@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { issueDocument } from "../document-integrity";
+import { issueDocument, markDocumentPaid } from "../document-integrity";
 import { issueDraftDocumentWithStatus } from "../document-integrity/issuance";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { DEFAULT_PROFILE, type Document } from "../types";
@@ -141,9 +141,12 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
   });
 
   it("excluye un recibo automático solo después de verificar su factura", () => {
-    const invoice = issueDocument(
-      invoiceDraft({ receiptDocumentId: "receipt-1" }),
-      profile,
+    const invoice = markDocumentPaid(
+      issueDocument(
+        invoiceDraft({ receiptDocumentId: "receipt-1" }),
+        profile,
+        NOW,
+      ),
       NOW,
     );
     const receipt = issueDraftDocumentWithStatus(

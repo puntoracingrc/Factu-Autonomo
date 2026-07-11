@@ -124,7 +124,10 @@ describe("resolveDocumentFormBusinessProfile", () => {
     );
     expect(source).toContain("effectiveDocumentProfile.iva?.defaultRate");
     expect(source).toContain(
-      "businessProfileMissingDocumentLabels(\n    effectiveDocumentProfile",
+      "businessProfileMissingDocumentLabels(effectiveDocumentProfile)",
+    );
+    expect(source).toContain(
+      "hasUsualSpanishTaxIdShape(effectiveDocumentProfile.nif)",
     );
     expect(source).toContain(
       "attachIssuerSnapshot(previewDoc, effectiveDocumentProfile)",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Crown,
@@ -49,6 +49,8 @@ import {
   applyBusinessProfileAutofillSuggestion,
   hasBusinessProfileAutofillSuggestion,
 } from "@/lib/business-profile-autofill";
+import { reanalyzeImportAgainstCurrent } from "@/lib/importers/protected-documents";
+import type { AppData } from "@/lib/types";
 import type {
   ImportAiReviewInput,
   ImportAiReviewResult,
@@ -231,7 +233,10 @@ function buildImportAiPayload(result: ImportResult): ImportAiReviewInput {
 }
 
 export default function ImportarPage() {
-  const { data, replaceData } = useAppStore();
+  const { data, getCurrentData, replaceDataIfCurrent } = useAppStore();
+  const analysisGenerationRef = useRef(0);
+  const resultGenerationRef = useRef<number | null>(null);
+  const resultBaseDataRef = useRef<AppData | null>(null);
   const { user } = useCloudSync();
   const { billingEnabled, isPro, limits } = useBilling();
   const [source, setSource] = useState<ImportSource>("auto");
@@ -274,10 +279,40 @@ export default function ImportarPage() {
     setAiBusy(false);
   }
 
+  function invalidateAnalysis() {
+    analysisGenerationRef.current += 1;
+    resultGenerationRef.current = null;
+    resultBaseDataRef.current = null;
+    setBusy(false);
+  }
+
   async function readDwiText(nextDwiFile: File | null) {
     if (!nextDwiFile) return undefined;
     const buffer = await nextDwiFile.arrayBuffer();
     return new TextDecoder("windows-1252").decode(buffer);
+  }
+
+  async function parseSelectedImport(
+    currentData: AppData,
+    nextFile = file,
+    nextDwiFile = dwiFile,
+    nextInvoicePaymentMode = invoicePaymentMode,
+    nextFiles = files,
+  ): Promise<ImportResult> {
+    return showFacturaDirectaOptions
+      ? readFacturaDirectaFiles(nextFiles, currentData)
+      : showGenericDocumentOptions
+        ? readGenericDocumentFiles(nextFiles, currentData)
+        : showHoldedOptions
+          ? readHoldedWorkbook(nextFile as File, currentData)
+          : readPcFacturacionMdb(nextFile as File, currentData, {
+              includeUnusedCustomers,
+              dwiText: showPcFacturacionOptions
+                ? await readDwiText(nextDwiFile)
+                : undefined,
+              markUnpaidInvoicesAsPaid:
+                nextInvoicePaymentMode === "markPaid",
+            });
   }
 
   async function analyze(
@@ -287,6 +322,8 @@ export default function ImportarPage() {
     nextFiles = files,
   ) {
     if (showMultiFileOptions ? nextFiles.length === 0 : !nextFile) return;
+    const generation = ++analysisGenerationRef.current;
+    const analysisBaseData = getCurrentData();
     setBusy(true);
     setError(null);
     setDone(false);
@@ -308,37 +345,36 @@ export default function ImportarPage() {
         throw new Error("Ese origen todavía no tiene importador disponible.");
       }
 
-      const parsed = showFacturaDirectaOptions
-        ? await readFacturaDirectaFiles(nextFiles, data)
-        : showGenericDocumentOptions
-          ? await readGenericDocumentFiles(nextFiles, data)
-        : showHoldedOptions
-          ? await readHoldedWorkbook(nextFile as File, data)
-          : await readPcFacturacionMdb(nextFile as File, data, {
-              includeUnusedCustomers,
-              dwiText: showPcFacturacionOptions
-                ? await readDwiText(nextDwiFile)
-                : undefined,
-              markUnpaidInvoicesAsPaid: nextInvoicePaymentMode === "markPaid",
-            });
+      const parsed = await parseSelectedImport(
+        analysisBaseData,
+        nextFile,
+        nextDwiFile,
+        nextInvoicePaymentMode,
+        nextFiles,
+      );
+      if (analysisGenerationRef.current !== generation) return;
+      resultGenerationRef.current = generation;
+      resultBaseDataRef.current = analysisBaseData;
       setResult(parsed);
     } catch (err) {
+      if (analysisGenerationRef.current !== generation) return;
+      resultGenerationRef.current = null;
+      resultBaseDataRef.current = null;
       setResult(null);
       const message =
         source === "auto"
           ? "No se pudo detectar el origen de este archivo. Prueba a seleccionar el programa de origen cuando esté disponible."
           : "No se pudo leer el archivo con el importador seleccionado.";
       setError(
-        err instanceof Error && source !== "auto"
-          ? err.message
-          : message,
+        err instanceof Error ? err.message : message,
       );
     } finally {
-      setBusy(false);
+      if (analysisGenerationRef.current === generation) setBusy(false);
     }
   }
 
   function handleSource(nextSource: ImportSource) {
+    invalidateAnalysis();
     setSource(nextSource);
     if (nextSource !== "pcfacturacion3") setDwiFile(null);
     setFile(null);
@@ -351,6 +387,7 @@ export default function ImportarPage() {
   }
 
   function handleFile(nextFile: File | undefined) {
+    invalidateAnalysis();
     setFile(nextFile ?? null);
     setResult(null);
     resetAiReview();
@@ -361,6 +398,7 @@ export default function ImportarPage() {
   }
 
   function handleMultiFiles(nextFiles: FileList | null) {
+    invalidateAnalysis();
     const selected = Array.from(nextFiles ?? []);
     setFiles(selected);
     setFile(null);
@@ -375,6 +413,7 @@ export default function ImportarPage() {
   }
 
   function handleDwiFile(nextFile: File | undefined) {
+    invalidateAnalysis();
     const nextDwiFile = nextFile ?? null;
     setDwiFile(nextDwiFile);
     setResult(null);
@@ -386,10 +425,11 @@ export default function ImportarPage() {
   }
 
   function handleInvoicePaymentMode(nextMode: InvoicePaymentImportMode) {
+    invalidateAnalysis();
     setInvoicePaymentMode(nextMode);
     setDone(false);
     resetAiReview();
-    if ((showFacturaDirectaOptions ? files.length > 0 : file) && !busy) {
+    if (showFacturaDirectaOptions ? files.length > 0 : file) {
       void analyze(file, dwiFile, nextMode, files);
     }
   }
@@ -465,25 +505,94 @@ export default function ImportarPage() {
     }
   }
 
-  function importData() {
+  async function importData() {
     if (!result) return;
     if (importLocked) {
       setError("La importación de datos desde otros programas requiere plan Pro.");
       return;
     }
-    const dataToImport =
-      applyDetectedProfile &&
-      hasBusinessProfileAutofillSuggestion(result.profileSuggestion)
-        ? {
-            ...result.data,
-            profile: applyBusinessProfileAutofillSuggestion(
-              result.data.profile,
-              result.profileSuggestion,
-            ),
-          }
-        : result.data;
-    replaceData(dataToImport);
-    setDone(true);
+    if (
+      resultGenerationRef.current === null ||
+      resultGenerationRef.current !== analysisGenerationRef.current
+    ) {
+      setError(
+        "La selección cambió desde la última vista previa. Analiza de nuevo los archivos antes de importar.",
+      );
+      return;
+    }
+    const previewBaseData = resultBaseDataRef.current;
+    const requiresRenewedApproval = previewBaseData !== getCurrentData();
+    const generation = ++analysisGenerationRef.current;
+    const selectedFile = file;
+    const selectedDwiFile = dwiFile;
+    const selectedPaymentMode = invoicePaymentMode;
+    const selectedFiles = files;
+    setBusy(true);
+    setError(null);
+    try {
+      let analyzedBaseData: AppData | null = null;
+      const freshResult = await reanalyzeImportAgainstCurrent({
+        getCurrentData,
+        analyze: (currentData) => {
+          analyzedBaseData = currentData;
+          return parseSelectedImport(
+            currentData,
+            selectedFile,
+            selectedDwiFile,
+            selectedPaymentMode,
+            selectedFiles,
+          );
+        },
+      });
+      if (
+        analysisGenerationRef.current !== generation ||
+        !analyzedBaseData
+      ) {
+        return;
+      }
+      setResult(freshResult);
+      resultGenerationRef.current = generation;
+      resultBaseDataRef.current = analyzedBaseData;
+      if (requiresRenewedApproval) {
+        setDone(false);
+        setError(
+          "La cuenta cambió desde la vista previa. La hemos actualizado con el estado actual: revísala y pulsa «Importar a esta cuenta» de nuevo.",
+        );
+        return;
+      }
+      const dataToImport =
+        applyDetectedProfile &&
+        hasBusinessProfileAutofillSuggestion(freshResult.profileSuggestion)
+          ? {
+              ...freshResult.data,
+              profile: applyBusinessProfileAutofillSuggestion(
+                freshResult.data.profile,
+                freshResult.profileSuggestion,
+              ),
+            }
+          : freshResult.data;
+      if (analysisGenerationRef.current !== generation) return;
+      if (!replaceDataIfCurrent(dataToImport, analyzedBaseData)) {
+        resultGenerationRef.current = null;
+        resultBaseDataRef.current = null;
+        setDone(false);
+        setError(
+          "La cuenta volvió a cambiar antes de aplicar la importación. No se aplicó ningún cambio; analiza de nuevo los archivos.",
+        );
+        return;
+      }
+      setDone(true);
+    } catch (err) {
+      if (analysisGenerationRef.current !== generation) return;
+      setDone(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo revalidar la importación. No se aplicó ningún cambio.",
+      );
+    } finally {
+      if (analysisGenerationRef.current === generation) setBusy(false);
+    }
   }
 
   return (
@@ -537,7 +646,7 @@ export default function ImportarPage() {
           <Select
             value={source}
             onChange={(event) => handleSource(event.target.value as ImportSource)}
-            disabled={importLocked}
+            disabled={importLocked || busy}
           >
             {IMPORT_SOURCES.map((item) => (
               <option key={item.value} value={item.value} disabled={item.disabled}>
@@ -557,7 +666,7 @@ export default function ImportarPage() {
                 type="file"
                 multiple
                 accept=".csv,.xlsx,.xls,.pdf,.xsig,.xml,.dat,.zip,text/csv,application/pdf"
-                disabled={importLocked}
+                disabled={importLocked || busy}
                 onChange={(event) => handleMultiFiles(event.target.files)}
               />
             </Field>
@@ -584,7 +693,7 @@ export default function ImportarPage() {
                 type="file"
                 multiple
                 accept=".xlsx,.xls,.docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                disabled={importLocked}
+                disabled={importLocked || busy}
                 onChange={(event) => handleMultiFiles(event.target.files)}
               />
             </Field>
@@ -610,7 +719,7 @@ export default function ImportarPage() {
               <Input
                 type="file"
                 accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                disabled={importLocked}
+                disabled={importLocked || busy}
                 onChange={(event) => handleFile(event.target.files?.[0])}
               />
             </Field>
@@ -634,7 +743,7 @@ export default function ImportarPage() {
             <Input
               type="file"
               accept=".mdb,application/msaccess,application/x-msaccess"
-              disabled={importLocked}
+              disabled={importLocked || busy}
               onChange={(event) => handleFile(event.target.files?.[0])}
             />
           </Field>
@@ -649,7 +758,7 @@ export default function ImportarPage() {
               <Input
                 type="file"
                 accept=".dwi,text/plain"
-                disabled={importLocked}
+                disabled={importLocked || busy}
                 onChange={(event) => handleDwiFile(event.target.files?.[0])}
               />
             </Field>
@@ -673,8 +782,9 @@ export default function ImportarPage() {
             <input
               type="checkbox"
               checked={includeUnusedCustomers}
-              disabled={importLocked}
+              disabled={importLocked || busy}
               onChange={(event) => {
+                invalidateAnalysis();
                 setIncludeUnusedCustomers(event.target.checked);
                 setResult(null);
                 setDone(false);
@@ -898,13 +1008,15 @@ export default function ImportarPage() {
 
           {hasCurrentData ? (
             <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-              Si ya habías importado este origen antes, se reemplazará esa
-              importación. Los datos creados manualmente en la app se conservan.
+              Se reemplazarán solo los borradores anteriores de este origen.
+              Los documentos emitidos, sus relaciones y los datos manuales se
+              conservan. Justo antes de aplicar, la app volverá a comprobar el
+              estado actual de la cuenta.
             </p>
           ) : null}
 
-          <Button onClick={importData} disabled={importLocked}>
-            Importar a esta cuenta
+          <Button onClick={() => void importData()} disabled={importLocked || busy}>
+            {busy ? "Revalidando…" : "Importar a esta cuenta"}
           </Button>
 
           {done ? (

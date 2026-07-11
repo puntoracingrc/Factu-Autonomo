@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE } from "@/lib/types";
-import { buildDocumentSnapshot } from "@/lib/document-integrity";
+import {
+  attachRegisteredVerifactuToSnapshots,
+  buildDocumentPdfSnapshot,
+  buildDocumentSnapshot,
+  buildDocumentSnapshotSeal,
+} from "@/lib/document-integrity";
 import { repairDocumentCustomerSnapshot } from "@/lib/document-customer-repair";
 import type { Customer, Document } from "@/lib/types";
 
@@ -48,43 +53,106 @@ function issuedInvoice(): Document {
     updatedAt: "2026-06-12T09:00:00.000Z",
   };
 
+  const documentSnapshot = buildDocumentSnapshot(doc, DEFAULT_PROFILE, {
+    capturedAt: doc.updatedAt,
+    source: "legacy_backfill",
+  });
+  const pdfSnapshot = buildDocumentPdfSnapshot(
+    documentSnapshot,
+    DEFAULT_PROFILE,
+    doc.updatedAt,
+  );
+
   return {
     ...doc,
-    documentSnapshot: buildDocumentSnapshot(doc, DEFAULT_PROFILE, {
-      capturedAt: doc.updatedAt,
-      source: "legacy_backfill",
-    }),
+    documentSnapshot,
+    pdfSnapshot,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      doc.id,
+      documentSnapshot,
+      pdfSnapshot,
+    ),
+    snapshotIntegrityRequired: true,
   };
 }
 
 describe("repairDocumentCustomerSnapshot", () => {
-  it("reconstruye el titular y el snapshot sin cambiar datos economicos", () => {
+  it("bloquea reescribir el titular de un documento emitido sin auditoría", () => {
     const original = issuedInvoice();
-    const repaired = repairDocumentCustomerSnapshot(
-      original,
-      llefisa,
-      DEFAULT_PROFILE,
-      repairedAt,
-    );
+    expect(() =>
+      repairDocumentCustomerSnapshot(
+        original,
+        llefisa,
+        DEFAULT_PROFILE,
+        repairedAt,
+      ),
+    ).toThrow("historial de reparación auditable");
+    expect(original.documentSnapshot?.customer.name).toBe("Carmen Camí");
+  });
 
-    expect(repaired.customerId).toBe("customer-llefisa");
-    expect(repaired.client.name).toBe("LLEFISA SL");
-    expect(repaired.client.nif).toBe("B60422417");
-    expect(repaired.number).toBe(original.number);
-    expect(repaired.date).toBe(original.date);
-    expect(repaired.status).toBe("pagado");
-    expect(repaired.items).toEqual(original.items);
-    expect(repaired.documentLifecycle).toBe("issued");
-    expect(repaired.integrityLock).toBe("locked");
-    expect(repaired.documentSnapshot?.source).toBe("customer_repair");
-    expect(repaired.documentSnapshot?.customer.name).toBe("LLEFISA SL");
-    expect(repaired.documentSnapshot?.taxSummary.total).toBe(
-      original.documentSnapshot?.taxSummary.total,
-    );
-    expect(repaired.pdfSnapshot?.contentHash).toBeTruthy();
-    expect(repaired.pdfSnapshot?.contentHash).not.toBe(
-      original.pdfSnapshot?.contentHash,
-    );
+  it("tampoco bendice deriva viva al intentar una reparación", () => {
+    const original = issuedInvoice();
+    const drifted: Document = {
+      ...original,
+      number: "FALSA-VIVA",
+      notes: "Nota viva ajena",
+      items: [{ ...original.items[0], unitPrice: 999 }],
+    };
+    expect(() =>
+      repairDocumentCustomerSnapshot(
+        drifted,
+        llefisa,
+        DEFAULT_PROFILE,
+        repairedAt,
+      ),
+    ).toThrow("historial de reparación auditable");
+    expect(original.documentSnapshot?.items[0].unitPrice).toBe(90);
+  });
+
+  it("rechaza reparar y resellar un snapshot ya manipulado", () => {
+    const original = issuedInvoice();
+    const tampered: Document = {
+      ...original,
+      documentSnapshot: {
+        ...original.documentSnapshot!,
+        number: "F-ALTERADA",
+      },
+    };
+
+    expect(() =>
+      repairDocumentCustomerSnapshot(
+        tampered,
+        llefisa,
+        DEFAULT_PROFILE,
+        repairedAt,
+      ),
+    ).toThrow("no supera la comprobación de integridad");
+    expect(original.documentSnapshot?.number).toBe("Factura/2937/");
+  });
+
+  it("bloquea reescribir el destinatario después del registro VeriFactu", () => {
+    const registered = attachRegisteredVerifactuToSnapshots({
+      ...issuedInvoice(),
+      verifactuPersistence: "server_confirmed",
+      verifactu: {
+        recordHash: "A".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-07-07T19:00:00+02:00",
+        qrUrl: "https://example.invalid/qr",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+      },
+    });
+
+    expect(() =>
+      repairDocumentCustomerSnapshot(
+        registered,
+        llefisa,
+        DEFAULT_PROFILE,
+        repairedAt,
+      ),
+    ).toThrow("historial de reparación auditable");
   });
 
   it("en borradores sin snapshot solo cambia el cliente visible", () => {
@@ -95,6 +163,8 @@ describe("repairDocumentCustomerSnapshot", () => {
       integrityLock: "unlocked",
       documentSnapshot: undefined,
       pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
     };
 
     const repaired = repairDocumentCustomerSnapshot(

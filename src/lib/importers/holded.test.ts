@@ -6,7 +6,43 @@ import {
   parseHoldedWorkbookBuffer,
   type HoldedInputSheet,
 } from "./holded";
-import { EMPTY_DATA } from "../types";
+import { EMPTY_DATA, type Document } from "../types";
+
+const TEST_DATA = {
+  ...EMPTY_DATA,
+  profile: {
+    ...EMPTY_DATA.profile,
+    name: "Negocio de pruebas",
+    nif: "12345678Z",
+    address: "Calle Pruebas 1",
+    postalCode: "28001",
+    city: "Madrid",
+  },
+};
+
+function asDraft(document: Document): Document {
+  return {
+    ...document,
+    status: "borrador",
+    issuer: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    deliveryStatus: "not_sent",
+    paymentStatus:
+      document.type === "factura" ? "pending" : "not_applicable",
+    acceptanceStatus:
+      document.type === "presupuesto" ? "pending" : "not_applicable",
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+    acceptedAt: undefined,
+  };
+}
 
 const baseSheets: HoldedInputSheet[] = [
   {
@@ -205,7 +241,7 @@ const baseSheets: HoldedInputSheet[] = [
 
 describe("Holded importer", () => {
   it("importa el fixture inferido con IDs externos y avisa de no soportados", () => {
-    const result = buildHoldedImport(EMPTY_DATA, baseSheets);
+    const result = buildHoldedImport(TEST_DATA, baseSheets);
 
     expect(result.preview).toMatchObject({
       sourceName: "Holded",
@@ -245,6 +281,7 @@ describe("Holded importer", () => {
     });
     const partial = result.data.documents.find((doc) => doc.id === "holded:factura:hol_inv_2");
     expect(partial?.paymentStatus).toBe("pending");
+    expect(partial?.dueDate).toBeUndefined();
     expect(result.data.expenses[0]).toMatchObject({
       id: "holded:expense:hol_pur_1",
       supplierId: "holded:supplier:hol_con_2",
@@ -256,7 +293,7 @@ describe("Holded importer", () => {
   });
 
   it("reimporta Holded sin duplicar el lote anterior", () => {
-    const first = buildHoldedImport(EMPTY_DATA, baseSheets);
+    const first = buildHoldedImport(TEST_DATA, baseSheets);
     const manualCustomer = {
       ...first.data.customers[0],
       id: "manual-customer",
@@ -274,6 +311,230 @@ describe("Holded importer", () => {
     expect(second.data.documents.filter((doc) => doc.id.startsWith("holded:factura:"))).toHaveLength(2);
     expect(second.data.customers.some((customer) => customer.id === "manual-customer")).toBe(true);
   });
+
+  it("conserva ventas y contactos previos al importar solo compras", () => {
+    const first = buildHoldedImport(TEST_DATA, baseSheets);
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousDocumentIds = current.documents.map((document) => document.id);
+    const previousCustomerIds = current.customers.map((customer) => customer.id);
+    const previousSupplierIds = current.suppliers.map((supplier) => supplier.id);
+
+    const purchaseOnly = buildHoldedImport(current, [
+      baseSheets[4],
+      baseSheets[5],
+    ]);
+
+    expect(purchaseOnly.data.documents.map((document) => document.id)).toEqual(
+      previousDocumentIds,
+    );
+    expect(purchaseOnly.data.customers.map((customer) => customer.id)).toEqual(
+      previousCustomerIds,
+    );
+    expect(purchaseOnly.data.suppliers.map((supplier) => supplier.id)).toEqual(
+      previousSupplierIds,
+    );
+    expect(purchaseOnly.data.expenses).toHaveLength(1);
+    expect(purchaseOnly.data.expenses[0]?.supplierId).toBe(
+      "holded:supplier:hol_con_2",
+    );
+  });
+
+  it("conserva gastos y presupuestos al importar solo facturas", () => {
+    const first = buildHoldedImport(TEST_DATA, baseSheets);
+    const current = {
+      ...first.data,
+      documents: first.data.documents.map(asDraft),
+    };
+    const previousExpenseIds = current.expenses.map((expense) => expense.id);
+    const previousEstimateIds = current.documents
+      .filter((document) => document.type === "presupuesto")
+      .map((document) => document.id);
+
+    const invoicesOnly = buildHoldedImport(current, [
+      baseSheets[2],
+      baseSheets[3],
+    ]);
+
+    expect(invoicesOnly.data.expenses.map((expense) => expense.id)).toEqual(
+      previousExpenseIds,
+    );
+    expect(
+      invoicesOnly.data.documents
+        .filter((document) => document.type === "presupuesto")
+        .map((document) => document.id),
+    ).toEqual(previousEstimateIds);
+    expect(
+      invoicesOnly.data.documents.filter(
+        (document) => document.type === "factura",
+      ),
+    ).toHaveLength(2);
+    expect(
+      invoicesOnly.data.documents.find(
+        (document) => document.id === "holded:factura:hol_inv_1",
+      ),
+    ).toMatchObject({
+      customerId: "holded:customer:hol_con_1",
+      client: {
+        phone: "911111111",
+      },
+    });
+  });
+
+  it("prioriza un contacto nuevo sobre el cliente Holded reutilizable", () => {
+    const first = buildHoldedImport(TEST_DATA, baseSheets);
+    const current = {
+      ...first.data,
+      customers: first.data.customers.map((customer) =>
+        customer.id === "holded:customer:hol_con_1"
+          ? { ...customer, phone: "900000000" }
+          : customer,
+      ),
+      documents: first.data.documents.map(asDraft),
+    };
+
+    const result = buildHoldedImport(current, [
+      baseSheets[0],
+      baseSheets[2],
+      baseSheets[3],
+    ]);
+
+    expect(
+      result.data.documents.find(
+        (document) => document.id === "holded:factura:hol_inv_1",
+      )?.client.phone,
+    ).toBe("911111111");
+  });
+
+  it.each([
+    {
+      label: "vacía",
+      value: "",
+      expected: /campo fecha está vacío.*No se aplicó ningún cambio/i,
+    },
+    {
+      label: "imposible",
+      value: "31/02/2026",
+      expected:
+        /campo fecha contiene una fecha inválida.*No se aplicó ningún cambio/i,
+    },
+    {
+      label: "imposible con hora",
+      value: "2026-02-30T10:00:00+01:00",
+      expected:
+        /campo fecha contiene una fecha inválida.*No se aplicó ningún cambio/i,
+    },
+  ])(
+    "rechaza una factura con fecha $label sin modificar el lote actual",
+    ({ value, expected }) => {
+      const current = buildHoldedImport(TEST_DATA, baseSheets).data;
+      const before = structuredClone(current);
+      const invalidSheets = baseSheets.map((sheet) =>
+        sheet.kind === "invoices"
+          ? {
+              ...sheet,
+              rows: sheet.rows.map((row) =>
+                row.invoice_id === "hol_inv_1"
+                  ? { ...row, fecha: value }
+                  : row,
+              ),
+            }
+          : sheet,
+      );
+
+      expect(() => buildHoldedImport(current, invalidSheets)).toThrow(expected);
+      expect(current).toEqual(before);
+    },
+  );
+
+  it("rechaza un vencimiento informado pero inválido sin inventar una fecha", () => {
+    const current = buildHoldedImport(TEST_DATA, baseSheets).data;
+    const before = structuredClone(current);
+    const invalidSheets = baseSheets.map((sheet) =>
+      sheet.kind === "invoices"
+        ? {
+            ...sheet,
+            rows: sheet.rows.map((row) =>
+              row.invoice_id === "hol_inv_1"
+                ? { ...row, vencimiento: "fecha desconocida" }
+                : row,
+            ),
+          }
+        : sheet,
+    );
+
+    expect(() => buildHoldedImport(current, invalidSheets)).toThrow(
+      /la factura "F2026-0001".*campo vencimiento contiene una fecha inválida.*No se aplicó ningún cambio/i,
+    );
+    expect(current).toEqual(before);
+  });
+
+  it.each([
+    {
+      label: "vacía",
+      value: "",
+      expected: /campo fecha está vacío.*No se aplicó ningún cambio/i,
+    },
+    {
+      label: "imposible",
+      value: "2026-02-30",
+      expected:
+        /campo fecha contiene una fecha inválida.*No se aplicó ningún cambio/i,
+    },
+    {
+      label: "numérica no válida",
+      value: "0",
+      expected:
+        /campo fecha contiene una fecha inválida.*No se aplicó ningún cambio/i,
+    },
+  ])(
+    "rechaza un gasto real con fecha $label sin modificar el lote actual",
+    ({ value, expected }) => {
+      const current = buildHoldedImport(TEST_DATA, baseSheets).data;
+      const before = structuredClone(current);
+      const invalidSheets = baseSheets.map((sheet) =>
+        sheet.kind === "purchases"
+          ? {
+              ...sheet,
+              rows: sheet.rows.map((row) =>
+                row.purchase_id === "hol_pur_1"
+                  ? { ...row, fecha: value }
+                  : row,
+              ),
+            }
+          : sheet,
+      );
+
+      expect(() => buildHoldedImport(current, invalidSheets)).toThrow(expected);
+      expect(current).toEqual(before);
+    },
+  );
+
+  it("una fila de total sin identidad no borra gastos previos", () => {
+    const first = buildHoldedImport(TEST_DATA, baseSheets);
+    const previousExpenseIds = first.data.expenses.map((expense) => expense.id);
+
+    const result = buildHoldedImport(first.data, [
+      {
+        name: "Gastos",
+        kind: "purchases",
+        rows: [
+          {
+            purchase_id: "",
+            numero: "TOTAL",
+            proveedor: "Resumen",
+            total: 999,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.data.expenses.map((expense) => expense.id)).toEqual(
+      previousExpenseIds,
+    );
+  });
 });
 
 const realFixture =
@@ -290,7 +551,7 @@ describe.runIf(realFixture)("Holded synthetic XLSX fixture", () => {
     const sheets = parseHoldedWorkbookBuffer(
       file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength),
     );
-    const result = buildHoldedImport(EMPTY_DATA, sheets);
+    const result = buildHoldedImport(TEST_DATA, sheets);
 
     expect(result.preview.confidence).toBe("fixture_inferido");
     expect(result.preview.customers).toBeGreaterThan(0);

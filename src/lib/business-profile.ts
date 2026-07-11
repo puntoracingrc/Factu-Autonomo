@@ -153,11 +153,14 @@ export function businessProfileMissingDocumentLabels(
 export function isBusinessProfileReadyForIssuedInvoices(
   profile: BusinessProfileFields,
 ): boolean {
-  return businessProfileMissingDocumentLabels(profile).length === 0;
+  return (
+    businessProfileMissingDocumentLabels(profile).length === 0 &&
+    hasUsualSpanishTaxIdShape(profile.nif)
+  );
 }
 
 export function businessProfileQrNotice(profile: BusinessProfile): string {
-  if (text(profile.nif)) {
+  if (isBusinessProfileReadyForIssuedInvoices(profile)) {
     return "Datos listos para emitir documentos reales.";
   }
 
@@ -168,6 +171,11 @@ export function livePdfIssuerWarning(
   profile: BusinessProfileFields,
 ): string | null {
   const missing = businessProfileMissingDocumentLabels(profile);
-  if (missing.length === 0) return null;
+  if (
+    missing.length === 0 &&
+    hasUsualSpanishTaxIdShape(profile.nif)
+  ) {
+    return null;
+  }
   return "Completa los datos del emisor para generar correctamente el documento.";
 }

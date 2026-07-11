@@ -8,7 +8,8 @@ export function hasWorkspaceContent(data: AppData): boolean {
     data.userReminders.length > 0 ||
     data.suppliers.length > 0 ||
     data.products.length > 0 ||
-    data.customers.length > 0;
+    data.customers.length > 0 ||
+    (data.workspaceIntegrityQuarantine?.length ?? 0) > 0;
 
   if (hasEntities) return true;
 

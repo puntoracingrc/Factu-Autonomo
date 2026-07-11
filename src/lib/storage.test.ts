@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  attachRegisteredVerifactuToSnapshots,
   buildDocumentPdfSnapshot,
   deriveLegacySnapshotForReadOnly,
   hasDocumentSnapshot,
@@ -13,6 +14,7 @@ import {
 import { loadData, normalizeLoadedData, saveData } from "./storage";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
+import { hasWorkspaceContent } from "./workspace-state";
 
 const STORAGE_KEY = "factura-autonomo-data";
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -108,6 +110,80 @@ describe("storage", () => {
       clear: () => store.clear(),
     });
     vi.stubGlobal("window", {});
+  });
+
+  it("desactiva el antiguo default VeriFactu hasta un opt-in explícito", () => {
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        verifactu: { enabled: true, environment: "test" },
+      },
+    });
+
+    expect(normalized.profile.verifactu).toEqual({
+      enabled: false,
+      environment: "test",
+    });
+  });
+
+  it("marca como no verificado un registro local legacy sin procedencia", () => {
+    const profile = {
+      ...sampleData().profile,
+      verifactu: {
+        enabled: true,
+        environment: "test" as const,
+        optInVersion: 1 as const,
+      },
+    };
+    const issued = issueDocument(
+      {
+        id: "legacy-verifactu",
+        type: "factura",
+        number: "F-2026-0099",
+        date: "2026-06-24",
+        client: { name: "Ana" },
+        items: [
+          {
+            id: "line-legacy",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "borrador",
+        createdAt: "2026-06-24T09:00:00.000Z",
+        updatedAt: "2026-06-24T09:00:00.000Z",
+      },
+      profile,
+      NOW,
+    );
+    const registered = attachRegisteredVerifactuToSnapshots({
+      ...issued,
+      verifactuPersistence: "server_confirmed",
+      verifactu: {
+        recordHash: "A".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-06-24T12:00:00+02:00",
+        qrUrl: "https://example.invalid/qr",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+      },
+    });
+    const legacy = { ...registered, verifactuPersistence: undefined };
+
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile,
+      snapshotIntegrityVersion: 1,
+      documents: [legacy],
+    });
+
+    expect(normalized.documents[0].verifactuPersistence).toBe(
+      "legacy_unverified",
+    );
   });
 
   afterEach(() => {
@@ -368,6 +444,44 @@ describe("storage", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toContain("Ana");
   });
 
+  it("no borra una cuarentena recuperable al intentar guardar vacío", () => {
+    const quarantined: AppData = {
+      ...EMPTY_DATA,
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "customers",
+          reason: "malformed_collection",
+          rawValue: { bad: true },
+        },
+      ],
+    };
+
+    saveData(quarantined);
+    saveData(EMPTY_DATA);
+
+    expect(loadData().workspaceIntegrityQuarantine?.[0].rawValue).toEqual({
+      bad: true,
+    });
+  });
+
+  it("conserva el texto raíz si el JSON persistido está truncado", () => {
+    const truncated = '{"documents":[';
+    localStorage.setItem(STORAGE_KEY, truncated);
+
+    const loaded = loadData();
+    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as AppData;
+
+    expect(loaded.workspaceIntegrityQuarantine?.[0]).toMatchObject({
+      collection: "workspace",
+      reason: "malformed_collection",
+      rawValue: truncated,
+    });
+    expect(hasWorkspaceContent(loaded)).toBe(true);
+    expect(persisted.workspaceIntegrityQuarantine?.[0].rawValue).toBe(
+      truncated,
+    );
+  });
+
   it("usa almacenamiento separado cuando esta activo el modo demo", () => {
     saveData(sampleData());
 
@@ -376,6 +490,10 @@ describe("storage", () => {
 
     expect(demoData.profile.name).toBe("Reformas Martin Demo SL");
     expect(demoData.customers.length).toBeGreaterThan(0);
+    expect(
+      demoData.documents.find((document) => document.id === "demo-invoice-1")
+        ?.snapshotSeal,
+    ).toBeDefined();
 
     saveData({
       ...demoData,
@@ -467,6 +585,31 @@ describe("storage", () => {
       deliveryStatus: "not_sent",
     });
     expect(isDocumentIntegrityLocked(normalized.documents[0])).toBe(true);
+  });
+
+  it("conserva editable un presupuesto comercial sin evidencia fiscal", () => {
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          id: "editable-quote",
+          type: "presupuesto",
+          number: "P-2026-0001",
+          date: "2026-07-11",
+          client: { name: "Cliente" },
+          items: [],
+          status: "aceptado",
+          documentLifecycle: "draft",
+          integrityLock: "unlocked",
+          acceptanceStatus: "accepted",
+          createdAt: "2026-07-11T00:00:00.000Z",
+          updatedAt: "2026-07-11T01:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].documentLifecycle).toBe("draft");
+    expect(normalized.documents[0].integrityLock).toBe("unlocked");
   });
 
   it("congela facturas emitidas antiguas sin snapshot al cargar datos", () => {
@@ -574,6 +717,69 @@ describe("storage", () => {
     });
     expect(normalized.documents[0].documentSnapshot).toBeUndefined();
     expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
+  });
+
+  it("no degrada una rectificativa BORRADOR legacy con evidencia de cobro", () => {
+    const profile = sampleData().profile;
+    const paidLegacyRectification: Document = {
+      id: "paid-legacy-rectification",
+      type: "factura",
+      number: "BORRADOR",
+      date: "2026-06-24",
+      client: { name: "Ana López" },
+      items: [],
+      status: "borrador",
+      rectification: {
+        originalDocumentId: "invoice-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      paymentStatus: "paid",
+      paidAt: "2026-06-24T10:10:00.000Z",
+      createdAt: "2026-06-24T09:00:00.000Z",
+      updatedAt: "2026-06-24T10:10:00.000Z",
+    };
+    const documentSnapshot = deriveLegacySnapshotForReadOnly(
+      paidLegacyRectification,
+      profile,
+      NOW,
+    );
+    const pdfSnapshot = buildDocumentPdfSnapshot(
+      documentSnapshot,
+      profile,
+      NOW,
+    );
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: undefined,
+      documents: [
+        {
+          ...paidLegacyRectification,
+          documentSnapshot,
+          pdfSnapshot,
+        },
+      ],
+    });
+
+    expect(normalized.documents[0]).toMatchObject({
+      id: paidLegacyRectification.id,
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      paymentStatus: "paid",
+      paidAt: paidLegacyRectification.paidAt,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: expect.arrayContaining(["document_relationship_invalid"]),
+      },
+    });
+    expect(normalized.documents[0].documentSnapshot).toBe(documentSnapshot);
+    expect(normalized.documents[0].pdfSnapshot).toBe(pdfSnapshot);
+    expect(normalized.documents[0].snapshotSeal).toBeUndefined();
   });
 
   it("no degrada a borrador una rectificativa protegida en versión 1", () => {
@@ -796,6 +1002,430 @@ describe("storage", () => {
     expect(loaded.documents[0].pdfSnapshot?.contentHash).toBe(
       document.pdfSnapshot?.contentHash,
     );
+    expect(loaded.documents[0].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("detecta manipulación al cargar sin reparar ni descartar el snapshot", () => {
+    const document = snapshotDocument();
+    const tampered: Document = {
+      ...document,
+      documentSnapshot: {
+        ...document.documentSnapshot!,
+        customer: {
+          ...document.documentSnapshot!.customer,
+          name: "Cliente manipulado",
+        },
+      },
+    };
+
+    saveData({ ...sampleData(), documents: [tampered] });
+    const loaded = loadData();
+
+    expect(loaded.documents).toHaveLength(1);
+    expect(loaded.documents[0].documentSnapshot?.customer.name).toBe(
+      "Cliente manipulado",
+    );
+    expect(loaded.documents[0].documentSnapshot?.snapshotHash).toBe(
+      document.documentSnapshot?.snapshotHash,
+    );
+    expect(loaded.documents[0].snapshotIntegrity?.status).toBe("blocked");
+    expect(loaded.documents[0].snapshotIntegrity?.issues).toContain(
+      "document_hash_mismatch",
+    );
+  });
+
+  it("no reconstruye una pareja obligatoria ausente desde datos vivos", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: 1,
+      documents: [
+        {
+          ...document,
+          items: [{ ...document.items[0], unitPrice: 999 }],
+          documentSnapshot: undefined,
+          pdfSnapshot: undefined,
+          snapshotSeal: undefined,
+          snapshotIntegrityRequired: undefined,
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].documentSnapshot).toBeUndefined();
+    expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
+    expect(normalized.documents[0].snapshotIntegrity).toEqual({
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    });
+  });
+
+  it("no confunde una emisión moderna sin pareja con legacy en la primera migración", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: undefined,
+      documents: [
+        {
+          ...document,
+          documentSnapshot: undefined,
+          pdfSnapshot: undefined,
+          snapshotSeal: undefined,
+          snapshotIntegrityRequired: undefined,
+        },
+      ],
+    });
+
+    expect(document.issuedAt).toBeTruthy();
+    expect(normalized.documents[0].documentSnapshot).toBeUndefined();
+    expect(normalized.documents[0].snapshotIntegrity?.status).toBe("blocked");
+  });
+
+  it("issuedAt mantiene bloqueada una emisión aunque el estado vivo derive a borrador", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: 1,
+      documents: [
+        {
+          ...document,
+          status: "borrador",
+          documentLifecycle: undefined,
+          integrityLock: undefined,
+          documentSnapshot: undefined,
+          pdfSnapshot: undefined,
+          snapshotSeal: undefined,
+          snapshotIntegrityRequired: undefined,
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].documentLifecycle).toBe("issued");
+    expect(normalized.documents[0].integrityLock).toBe("locked");
+    expect(normalized.documents[0].snapshotIntegrity?.issues).toEqual(
+      expect.arrayContaining([
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ]),
+    );
+  });
+
+  it("no degrada una emisión moderna si desaparece solo el snapshot PDF", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: 1,
+      documents: [{ ...document, pdfSnapshot: undefined }],
+    });
+
+    expect(normalized.documents[0].documentSnapshot).toBe(
+      document.documentSnapshot,
+    );
+    expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
+    expect(normalized.documents[0].snapshotIntegrity?.issues).toContain(
+      "pdf_snapshot_missing",
+    );
+  });
+
+  it("migra legacy una vez y bloquea una pérdida posterior de la pareja", () => {
+    const legacy = {
+      id: "legacy-once",
+      type: "factura" as const,
+      number: "F-2026-0009",
+      date: "2026-06-01",
+      client: { name: "Cliente legacy" },
+      items: [
+        {
+          id: "legacy-line",
+          description: "Servicio legacy",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "enviado" as const,
+      createdAt: "2026-06-01T09:00:00.000Z",
+      updatedAt: "2026-06-01T09:00:00.000Z",
+    };
+    const first = normalizeLoadedData({
+      ...sampleData(),
+      snapshotIntegrityVersion: undefined,
+      documents: [legacy],
+    });
+
+    expect(first.snapshotIntegrityVersion).toBe(1);
+    expect(first.documents[0].snapshotSeal).toBeDefined();
+    expect(first.documents[0].snapshotIntegrityRequired).toBe(true);
+
+    const second = normalizeLoadedData({
+      ...first,
+      documents: [
+        {
+          ...first.documents[0],
+          items: [{ ...first.documents[0].items[0], unitPrice: 999 }],
+          documentSnapshot: undefined,
+          pdfSnapshot: undefined,
+          snapshotSeal: undefined,
+          snapshotIntegrityRequired: undefined,
+        },
+      ],
+    });
+
+    expect(second.documents[0].documentSnapshot).toBeUndefined();
+    expect(second.documents[0].snapshotIntegrity?.status).toBe("blocked");
+  });
+
+  it("limita el backfill de una importación a los IDs recién importados", () => {
+    const modern = snapshotDocument();
+    const missingModern: Document = {
+      ...modern,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+    };
+    const imported: Document = {
+      ...missingModern,
+      id: "new-imported-document",
+      number: "F-2026-0099",
+    };
+
+    const normalized = normalizeLoadedData(
+      {
+        ...sampleData(),
+        snapshotIntegrityVersion: 1,
+        documents: [missingModern, imported],
+      },
+      { legacyBackfillDocumentIds: new Set([imported.id]) },
+    );
+
+    expect(normalized.documents[0].snapshotIntegrity?.status).toBe("blocked");
+    expect(normalized.documents[0].documentSnapshot).toBeUndefined();
+    expect(normalized.documents[1].snapshotIntegrity).toBeUndefined();
+    expect(normalized.documents[1].snapshotSeal).toBeDefined();
+  });
+
+  it("sustituye señales persistidas por una comprobación real al cargar", () => {
+    const document: Document = {
+      ...snapshotDocument(),
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["pdf_hash_mismatch"],
+      },
+    };
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [document],
+    });
+
+    expect(normalized.documents[0].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("materializa lifecycle y lock derivados para un bundle sellado", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          ...document,
+          status: "borrador",
+          documentLifecycle: "draft",
+          integrityLock: "unlocked",
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].documentLifecycle).toBe("issued");
+    expect(normalized.documents[0].integrityLock).toBe("locked");
+    expect(normalized.documents[0].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("rehidrata campos fiscales vivos desde el snapshot válido", () => {
+    const document = snapshotDocument();
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          ...document,
+          type: "presupuesto",
+          status: "pagado",
+          paymentStatus: "paid",
+          number: "P-FALSO",
+          date: "2030-01-01",
+          client: { name: "Cliente vivo falso" },
+          items: [{ ...document.items[0], unitPrice: 999 }],
+        },
+      ],
+    });
+
+    expect(normalized.documents[0].type).toBe("factura");
+    expect(normalized.documents[0].status).toBe("pagado");
+    expect(normalized.documents[0].number).toBe(
+      document.documentSnapshot?.number,
+    );
+    expect(normalized.documents[0].date).toBe(document.documentSnapshot?.date);
+    expect(normalized.documents[0].client).toEqual(
+      document.documentSnapshot?.customer,
+    );
+    expect(normalized.documents[0].items[0].unitPrice).toBe(
+      document.documentSnapshot?.items[0].unitPrice,
+    );
+  });
+
+  it("aísla un documento nulo sin ocultar el resto del workspace", () => {
+    const valid = snapshotDocument();
+    const parsed = {
+      ...sampleData(),
+      documents: [null, valid],
+    } as unknown as Partial<AppData>;
+
+    const normalized = normalizeLoadedData(parsed);
+
+    expect(normalized.profile.name).toBe("Mi negocio");
+    expect(normalized.documents).toHaveLength(2);
+    expect(normalized.documents[0]).toMatchObject({
+      id: "blocked-invalid-document-1",
+      integrityLock: "locked",
+      snapshotIntegrity: { status: "blocked" },
+    });
+    expect(normalized.documents[1].id).toBe(valid.id);
+    expect(normalized.documents[1].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("cuarentena una factura sin número y loadData conserva los demás datos", () => {
+    const malformed = {
+      ...snapshotDocument(),
+      id: "missing-number",
+      number: undefined,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+    };
+    const valid = snapshotDocument();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...sampleData(),
+        documents: [malformed, valid],
+      }),
+    );
+
+    const loaded = loadData();
+
+    expect(loaded.profile.name).toBe("Mi negocio");
+    expect(loaded.documents).toHaveLength(2);
+    expect(loaded.documents[0]).toMatchObject({
+      id: "missing-number",
+      number: "BLOQUEADO-1",
+      snapshotIntegrity: { status: "blocked" },
+    });
+    expect(loaded.documents[1].id).toBe(valid.id);
+  });
+
+  it("conserva el payload crudo recuperable al sanear una línea malformada", () => {
+    const malformed = {
+      ...snapshotDocument(),
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      items: [
+        snapshotDocument().items[0],
+        {
+          id: "broken-line",
+          description: "Importe no legible",
+          quantity: "no-es-un-numero",
+          unitPrice: 50,
+          ivaPercent: 21,
+        },
+      ],
+    };
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...sampleData(), documents: [malformed] }),
+    );
+
+    const loaded = loadData();
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
+
+    expect(loaded.documents[0].items).toHaveLength(1);
+    expect(
+      loaded.documents[0].integrityQuarantine?.rawDocument,
+    ).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          id: "broken-line",
+          quantity: "no-es-un-numero",
+        }),
+      ]),
+    });
+    expect(
+      persisted.documents[0].integrityQuarantine?.rawDocument,
+    ).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({ id: "broken-line" }),
+      ]),
+    });
+  });
+
+  it("aísla una colección malformada sin vaciar ni sobrescribir el workspace", () => {
+    const valid = snapshotDocument();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...sampleData(),
+        documents: [valid],
+        customers: { bad: true },
+      }),
+    );
+
+    const loaded = loadData();
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
+
+    expect(loaded.profile.name).toBe("Mi negocio");
+    expect(loaded.documents.map((document) => document.id)).toEqual([
+      valid.id,
+    ]);
+    expect(loaded.customers).toEqual([]);
+    expect(loaded.workspaceIntegrityQuarantine).toEqual([
+      expect.objectContaining({
+        collection: "customers",
+        reason: "malformed_collection",
+        rawValue: { bad: true },
+      }),
+    ]);
+    expect(persisted.workspaceIntegrityQuarantine?.[0].rawValue).toEqual({
+      bad: true,
+    });
+  });
+
+  it("bloquea todos los documentos si el almacenamiento contiene IDs duplicados", () => {
+    const first = snapshotDocument();
+    const second = {
+      ...snapshotDocument(),
+      number: "F-2026-0002",
+    };
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [first, second],
+    });
+
+    expect(
+      normalized.documents.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("normalizeLoadedData conserva snapshots y campos desconocidos", () => {

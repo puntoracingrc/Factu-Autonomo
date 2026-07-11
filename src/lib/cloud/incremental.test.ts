@@ -31,7 +31,7 @@ function legacyRemoteInvoice(): Document {
       createdAt: "2026-06-30T10:00:00.000Z",
       updatedAt: "2026-06-30T10:00:00.000Z",
     },
-    EMPTY_DATA.profile,
+    { ...EMPTY_DATA.profile, nif: "12345678Z" },
     "2026-06-30T10:00:00.000Z",
   );
   return {

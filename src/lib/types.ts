@@ -184,6 +184,11 @@ export interface Document {
   snapshotIntegrityRequired?: true;
   /** Señal local segura: impide usar snapshots cuyo hash no se puede verificar. */
   snapshotIntegrity?: DocumentSnapshotIntegritySignal;
+  /** Copia opaca recuperable cuando la proyección activa tuvo que sanear datos. */
+  integrityQuarantine?: {
+    reason: "malformed_document";
+    rawDocument: unknown;
+  };
   /** Ciclo documental nuevo; `status` se mantiene como compatibilidad UI. */
   documentLifecycle?: DocumentLifecycle;
   /** Bloqueo de integridad: documentos emitidos/cancelados no admiten edición genérica. */
@@ -711,6 +716,8 @@ export interface DocumentSnapshot {
   paymentTerms?: string;
   notes?: string;
   rectification?: RectificationInfo;
+  /** Factura de origen congelada al emitir un recibo automático nuevo. */
+  sourceDocumentId?: string;
   numbering: NumberingSnapshot;
   fiscalContext: FiscalContextSnapshot;
   verifactu?: VerifactuInfo;
@@ -829,6 +836,13 @@ export interface AppMeta {
   pendingChanges?: SyncChange[];
 }
 
+export interface WorkspaceIntegrityQuarantineEntry {
+  collection: string;
+  index?: number;
+  reason: "malformed_collection" | "malformed_record";
+  rawValue: unknown;
+}
+
 export interface AppData {
   profile: BusinessProfile;
   documents: Document[];
@@ -848,6 +862,8 @@ export interface AppData {
   verifactuChain?: VerifactuChainState | null;
   /** Marca que la migración local de presencia obligatoria ya se completó. */
   snapshotIntegrityVersion?: 1;
+  /** Datos persistidos no interpretables, conservados para recuperación manual. */
+  workspaceIntegrityQuarantine?: WorkspaceIntegrityQuarantineEntry[];
   meta?: AppMeta;
 }
 
