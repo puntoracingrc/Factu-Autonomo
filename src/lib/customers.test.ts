@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCustomerInvoicedTotals,
+  clientInputToSnapshot,
   clientMatchesCustomer,
   customerFullName,
   customerInvoicedTotal,
@@ -456,6 +457,8 @@ describe("ensureCustomerForDocument", () => {
       expect(result.customer.notes).toBe("Alta desde factura");
       expect(result.client.address).toBe("C/ Doctor Carulla 19, Bajos 1ª, 08017 Barcelona");
       expect(result.client.addressExtra).toBe("Bajos 1ª");
+      expect(result.client.postalCode).toBe("08017");
+      expect(result.client.city).toBe("Barcelona");
     }
   });
 
@@ -670,6 +673,8 @@ describe("customerToClient", () => {
     expect(client.streetType).toBe("calle");
     expect(client.firstName).toBe("Beatriz");
     expect(client.lastName).toBe("López");
+    expect(client.postalCode).toBe("28001");
+    expect(client.city).toBe("Madrid");
   });
 
   it("incluye piso y puerta en el snapshot", () => {
@@ -685,6 +690,8 @@ describe("customerToClient", () => {
 
     expect(client.address).toBe("C/ Nena Casas 52, 2º 2ª, 08017 Barcelona");
     expect(client.addressExtra).toBe("2º 2ª");
+    expect(client.postalCode).toBe("08017");
+    expect(client.city).toBe("Barcelona");
   });
 
   it("mantiene tipo empresa y contacto en el snapshot", () => {
@@ -702,6 +709,31 @@ describe("customerToClient", () => {
     expect(client.customerType).toBe("company");
     expect(client.name).toBe("Persianas Almar S.L.");
     expect(client.contactName).toBe("Laura Gómez");
+  });
+});
+
+describe("clientInputToSnapshot", () => {
+  it("conserva CP y ciudad estructurados además del bloque visible", () => {
+    const client = clientInputToSnapshot({
+      firstName: " Ana ",
+      lastName: " García ",
+      nif: " 12345678a ",
+      streetType: "calle",
+      address: " Mayor 1 ",
+      residenceType: "flat",
+      addressExtra: " 2º 2ª ",
+      postalCode: " 28001 ",
+      city: " Madrid ",
+    });
+
+    expect(client).toMatchObject({
+      name: "Ana García",
+      nif: "12345678A",
+      address: "C/ Mayor 1, 2º 2ª, 28001 Madrid",
+      addressExtra: "2º 2ª",
+      postalCode: "28001",
+      city: "Madrid",
+    });
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   acceptQuote,
+  attachRegisteredVerifactuToSnapshots,
   applyGenericDocumentUpdate,
   buildDocumentPdfSnapshot,
   buildDocumentSnapshot,
@@ -17,6 +18,7 @@ import {
   rejectQuote,
   stableStringifySnapshot,
 } from ".";
+import { buildPdfViewModelForDocument } from "./pdf-source";
 import { buildDocumentPdf } from "../pdf";
 import type {
   BusinessProfile,
@@ -356,6 +358,57 @@ describe("document snapshots", () => {
     expect(withVerifactu.documentSnapshot?.snapshotHash).not.toBe(
       withoutVerifactu.documentSnapshot?.snapshotHash,
     );
+  });
+
+  it("sella VeriFactu registrado después de emitir y conserva el QR en el PDF", () => {
+    const issued = issueDocument(
+      invoice({
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        rectification: {
+          originalDocumentId: "invoice-original",
+          originalNumber: "F-2026-0001",
+          originalDate: "2026-06-01",
+          reason: "Error en datos",
+          type: "correccion",
+        },
+      }),
+      profile,
+      NOW,
+    );
+    const previousSnapshotHash = issued.documentSnapshot?.snapshotHash;
+    const previousPdfHash = issued.pdfSnapshot?.contentHash;
+    const verifactu: VerifactuInfo = {
+      recordHash: "hash-rectificativa",
+      previousHash: "hash-previo",
+      recordTimestamp: "2026-06-24T10:01:00.000Z",
+      qrUrl: "https://example.test/qr-rectificativa",
+      csv: "CSV-RECTIFICATIVA",
+      status: "test_registered",
+      recordType: "alta",
+      environment: "test",
+      tipoFactura: "R4",
+      cuotaTotal: "21.00",
+      importeTotal: "121.00",
+    };
+
+    const sealed = attachRegisteredVerifactuToSnapshots({
+      ...issued,
+      verifactu,
+    });
+    const view = buildPdfViewModelForDocument(sealed, profile);
+
+    expect(sealed.documentSnapshot?.verifactu).toEqual(verifactu);
+    expect(sealed.documentSnapshot?.snapshotHash).not.toBe(previousSnapshotHash);
+    expect(sealed.pdfSnapshot?.contentHash).not.toBe(previousPdfHash);
+    expect(
+      hashDocumentPdfSnapshot({
+        ...sealed.pdfSnapshot!,
+        documentSnapshotHash: sealed.documentSnapshot!.snapshotHash,
+      }),
+    ).toBe(sealed.pdfSnapshot?.contentHash);
+    expect(view.doc.verifactu?.qrUrl).toBe(verifactu.qrUrl);
+    expect(view.doc.verifactu?.csv).toBe(verifactu.csv);
   });
 
   it("cambiar profile despues de emitir no cambia snapshot", () => {

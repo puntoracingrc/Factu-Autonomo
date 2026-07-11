@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentSent } from ".";
 import { buildPdfViewModelForDocument } from "./pdf-source";
-import { shareDocumentWithIntegrity } from "./share-flow";
+import {
+  canShareDocumentFromList,
+  shareDocumentWithIntegrity,
+} from "./share-flow";
 import type { BusinessProfile, Document } from "../types";
 
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -61,6 +64,37 @@ function draftInvoice(): Document {
 }
 
 describe("shareDocumentWithIntegrity", () => {
+  it("oculta compartir para rectificativas en borrador hasta revisarlas", () => {
+    const draftRectification: Document = {
+      ...draftInvoice(),
+      number: "BORRADOR",
+      rectification: {
+        originalDocumentId: "invoice-original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+    };
+
+    expect(canShareDocumentFromList(draftRectification)).toBe(false);
+    expect(
+      canShareDocumentFromList({
+        ...draftRectification,
+        number: "FR-2026-0001",
+      }),
+    ).toBe(false);
+    expect(
+      canShareDocumentFromList({
+        ...draftRectification,
+        number: "FR-2026-0001",
+        status: "enviado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      }),
+    ).toBe(true);
+  });
+
   it("si persistir la emisión falla no realiza el envío", async () => {
     let shareCalls = 0;
 

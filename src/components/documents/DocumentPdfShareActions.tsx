@@ -10,6 +10,7 @@ import {
   openDocumentPdfPreview,
   printDocumentPdf,
 } from "@/lib/pdf";
+import { canShareDocumentFromList } from "@/lib/document-integrity/share-flow";
 import type { BusinessProfile, Document } from "@/lib/types";
 
 interface DocumentPdfShareActionsProps {
@@ -29,6 +30,7 @@ export function DocumentPdfShareActions({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
+  const canShare = canShareDocumentFromList(doc);
 
   async function handlePdfPreview() {
     setPreviewLoading(true);
@@ -86,12 +88,14 @@ export function DocumentPdfShareActions({
       >
         <Printer className="h-5 w-5" />
       </IconActionButton>
-      <DocumentShareActions
-        doc={doc}
-        profile={profile}
-        markSentOnShare={markSentOnShare}
-        pdfOptions={pdfOptions}
-      />
+      {canShare && (
+        <DocumentShareActions
+          doc={doc}
+          profile={profile}
+          markSentOnShare={markSentOnShare}
+          pdfOptions={pdfOptions}
+        />
+      )}
     </>
   );
 }

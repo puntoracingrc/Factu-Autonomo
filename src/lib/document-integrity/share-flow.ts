@@ -6,7 +6,7 @@ import type { Document } from "@/lib/types";
 
 export interface ShareDocumentFlowInput {
   doc: Document;
-  issueDocument: (id: string) => Document;
+  issueDocument: (id: string) => Document | Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
   share: (doc: Document) => Promise<void>;
   markSentOnShare?: boolean;
@@ -26,6 +26,10 @@ function needsIssueBeforeShare(doc: Document): boolean {
   );
 }
 
+export function canShareDocumentFromList(doc: Document): boolean {
+  return !(doc.rectification && doc.status === "borrador");
+}
+
 export async function shareDocumentWithIntegrity({
   doc,
   issueDocument,
@@ -34,7 +38,7 @@ export async function shareDocumentWithIntegrity({
   markSentOnShare = true,
 }: ShareDocumentFlowInput): Promise<ShareDocumentFlowResult> {
   const sharedDocument = needsIssueBeforeShare(doc)
-    ? issueDocument(doc.id)
+    ? await issueDocument(doc.id)
     : doc;
 
   await share(sharedDocument);

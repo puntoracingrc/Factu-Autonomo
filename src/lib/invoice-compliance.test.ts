@@ -67,7 +67,13 @@ describe("invoice compliance", () => {
       type: "factura",
       number: "F-1",
       date: "2026-06-09",
-      client: { name: "Ana" },
+      client: {
+        name: "Ana",
+        nif: "12345678A",
+        address: "C/ Mayor 1, 28001 Madrid",
+        postalCode: "28001",
+        city: "Madrid",
+      },
       items: [item],
       status: "enviado",
       createdAt: "",
@@ -92,6 +98,71 @@ describe("invoice compliance", () => {
       postalCode: "28001",
     });
     expect(complete.ok).toBe(true);
+  });
+
+  it("bloquea la emisión central si falta identidad fiscal del cliente", () => {
+    const doc: Document = {
+      id: "invoice-incomplete-client",
+      type: "factura",
+      number: "F-1",
+      date: "2026-07-03",
+      client: { name: "Teresa" },
+      items: [item],
+      status: "enviado",
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    const result = validateDocumentEmission(
+      doc,
+      {
+        ...DEFAULT_PROFILE,
+        name: "Juan",
+        nif: "12345678Z",
+        address: "Calle 1",
+        city: "Madrid",
+        postalCode: "28001",
+      },
+      "factura",
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("NIF/CIF del cliente");
+    expect(result.message).toContain("código postal del cliente");
+    expect(result.message).toContain("ciudad del cliente");
+  });
+
+  it("recupera CP y ciudad de snapshots legacy antes de emitir", () => {
+    const doc: Document = {
+      id: "invoice-legacy-client",
+      type: "factura",
+      number: "F-1",
+      date: "2026-07-03",
+      client: {
+        name: "Teresa",
+        nif: "12345678A",
+        address: "C/ Mayor 1, 28001 Madrid",
+      },
+      items: [item],
+      status: "enviado",
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    expect(
+      validateDocumentEmission(
+        doc,
+        {
+          ...DEFAULT_PROFILE,
+          name: "Juan",
+          nif: "12345678Z",
+          address: "Calle 1",
+          city: "Madrid",
+          postalCode: "28001",
+        },
+        "factura",
+      ),
+    ).toEqual({ ok: true });
   });
 
   it("detecta los datos legales del cliente necesarios para emitir factura", () => {

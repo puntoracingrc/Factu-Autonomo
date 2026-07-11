@@ -475,7 +475,7 @@ export function getFacturasIncludingRectificativas(
 
 export function isDocumentEditable(doc: Document): boolean {
   if (isRectificativa(doc)) {
-    return doc.status === "borrador" && doc.integrityLock !== "locked";
+    return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
   }
   if (doc.rectifiedById) return false;
   if (doc.type === "presupuesto") return doc.status !== "anulada";

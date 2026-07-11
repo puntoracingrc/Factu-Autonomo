@@ -1431,7 +1431,7 @@ export function DocumentForm({
         updatedAt: new Date().toISOString(),
       };
       try {
-        saved = updateDocument(saved);
+        saved = await updateDocument(saved);
       } catch (error) {
         setSaveAction("idle");
         setFormError(

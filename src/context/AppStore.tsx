@@ -98,11 +98,21 @@ import {
 import { withVerifactuOnDocument } from "@/lib/verifactu/store";
 import {
   applyGenericDocumentUpdate,
+  attachRegisteredVerifactuToSnapshots,
   deriveDocumentLifecycle,
+  DocumentIntegrityError,
   issueDocument as issueDocumentWithIntegrity,
   markDocumentPaid as markDocumentPaidWithIntegrity,
   markDocumentSent as markDocumentSentWithIntegrity,
 } from "@/lib/document-integrity";
+import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import {
+  assertRectificationEmissionAllowed,
+  hasPendingRectificationDraft,
+  materializeRectificationDocument,
+  preserveRectificationOriginalReference,
+} from "@/lib/document-integrity/rectification-issuance";
+import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import { todayISO } from "@/lib/calculations";
 import {
   applyCustomerMergeToDocument,
@@ -126,7 +136,7 @@ interface AppStoreValue {
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
-  issueDocument: (id: string) => Document;
+  issueDocument: (id: string) => Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
   addRectificativa: (
     originalId: string,
@@ -134,8 +144,8 @@ interface AppStoreValue {
       Document,
       "id" | "number" | "type" | "createdAt" | "updatedAt" | "rectification"
     > & { rectification: RectificationInfo },
-  ) => Document | null;
-  updateDocument: (doc: Document) => Document;
+  ) => Promise<Document | null>;
+  updateDocument: (doc: Document) => Promise<Document>;
   repairDocumentCustomer: (
     documentId: string,
     customerId: string,
@@ -332,6 +342,7 @@ function saveEditableDocument(
   }
 
   const requestedStatus = next.status;
+  assertDocumentEmissionValid(next, profile);
   const draft = applyGenericDocumentUpdate(
     current,
     {
@@ -342,29 +353,38 @@ function saveEditableDocument(
     },
     updatedAt,
   );
-  const issued = issueDocumentWithIntegrity(draft, profile, updatedAt);
+  return issueDraftDocumentWithStatus(
+    draft,
+    requestedStatus,
+    profile,
+    updatedAt,
+  );
+}
 
-  if (
-    requestedStatus === "pagado" &&
-    (issued.type === "factura" || issued.type === "recibo")
-  ) {
-    return markDocumentPaidWithIntegrity(issued, updatedAt);
+function assertDocumentEmissionValid(
+  document: Document,
+  profile: BusinessProfile,
+): void {
+  const candidate =
+    document.status === "borrador"
+      ? { ...document, status: "enviado" as const }
+      : document;
+  const validation = validateDocumentEmission(
+    candidate,
+    profile,
+    candidate.type,
+  );
+  if (!validation.ok) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_EMISSION_INVALID",
+      validation.message,
+    );
   }
-
-  if (requestedStatus === "vencido" && issued.type === "factura") {
-    return {
-      ...issued,
-      status: "vencido",
-      paymentStatus: "overdue",
-      updatedAt,
-    };
-  }
-
-  return issued;
 }
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
+  const dataRef = useRef<AppData>(EMPTY_DATA);
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
 
@@ -373,18 +393,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updater: AppData | ((prev: AppData) => AppData),
       options?: { skipDirty?: boolean },
     ) => {
-      setData((prev) => {
-        const next =
-          typeof updater === "function" ? updater(prev) : updater;
-        const touched = touchAppData(next);
-        return options?.skipDirty ? touched : trackDataDiff(prev, touched);
-      });
+      const prev = dataRef.current;
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (next === prev) return prev;
+      const touched = touchAppData(next);
+      const resolved = options?.skipDirty
+        ? touched
+        : trackDataDiff(prev, touched);
+      dataRef.current = resolved;
+      setData(resolved);
+      return resolved;
     },
     [],
   );
 
   useEffect(() => {
-    setData(syncRecurringExpenses(loadData()));
+    const loaded = syncRecurringExpenses(loadData());
+    dataRef.current = loaded;
+    setData(loaded);
     setReady(true);
   }, []);
 
@@ -401,6 +427,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (next: AppData, options?: ReplaceDataOptions) => {
       if (options?.fromRemote) {
         skipNextSave.current = false;
+        dataRef.current = next;
         setData(next);
         saveData(next);
         return;
@@ -488,25 +515,41 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [data.documents, data.profile, setAppData],
   );
 
-  const updateDocument = useCallback((doc: Document): Document => {
-    const current = data.documents.find((item) => item.id === doc.id);
-    if (!current) {
-      throw new Error("Documento no encontrado");
-    }
+  const updateDocument = useCallback(async (doc: Document): Promise<Document> => {
+    let saved: Document | null = null;
     const now = new Date().toISOString();
-    const shouldIssue =
-      deriveDocumentLifecycle(current) === "draft" && doc.status !== "borrador";
-    const prepared = shouldIssue
-      ? assignFinalInvoiceIdentityIfNeeded(
-          doc,
-          data.documents,
-          data.profile.numbering,
-        )
-      : { doc };
-    const saved = saveEditableDocument(current, prepared.doc, data.profile, now);
     setAppData((prev) => {
+      const current = prev.documents.find((item) => item.id === doc.id);
+      if (!current) throw new Error("Documento no encontrado");
+
+      const canonicalDocument = preserveRectificationOriginalReference(
+        current,
+        doc,
+        prev.documents,
+      );
+      const shouldIssue =
+        deriveDocumentLifecycle(current) === "draft" &&
+        canonicalDocument.status !== "borrador";
+      const prepared = shouldIssue
+        ? assignFinalInvoiceIdentityIfNeeded(
+            canonicalDocument,
+            prev.documents,
+            prev.profile.numbering,
+          )
+        : { doc: canonicalDocument };
+      if (shouldIssue) {
+        assertRectificationEmissionAllowed(prepared.doc, prev.documents);
+      }
+      saved = saveEditableDocument(
+        current,
+        prepared.doc,
+        prev.profile,
+        now,
+      );
       const nextDocuments = applyEmittedRectificationToOriginal(
-        prev.documents.map((d) => (d.id === doc.id ? saved : d)),
+        prev.documents.map((item) =>
+          item.id === doc.id ? saved! : item,
+        ),
         saved,
         now,
       );
@@ -526,8 +569,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         documents: nextDocuments,
       };
     });
+    if (!saved) throw new Error("Documento no encontrado");
     return saved;
-  }, [data.documents, data.profile, setAppData]);
+  }, [setAppData]);
 
   const repairDocumentCustomer = useCallback(
     (documentId: string, customerId: string): Document | null => {
@@ -569,25 +613,35 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const issueDocument = useCallback(
-    (id: string): Document => {
+    async (id: string): Promise<Document> => {
       let issued: Document | null = null;
       const now = new Date().toISOString();
       setAppData((prev) => {
         const current = prev.documents.find((doc) => doc.id === id);
-        if (!current) return prev;
+        if (!current) throw new Error("Documento no encontrado");
 
-        const prepared = assignFinalInvoiceIdentityIfNeeded(
+        const canonicalDocument = preserveRectificationOriginalReference(
           current,
+          current,
+          prev.documents,
+        );
+        const prepared = assignFinalInvoiceIdentityIfNeeded(
+          canonicalDocument,
           prev.documents,
           prev.profile.numbering,
         );
-        issued = issueDocumentWithIntegrity(prepared.doc, prev.profile, now);
+        assertRectificationEmissionAllowed(prepared.doc, prev.documents);
+        assertDocumentEmissionValid(prepared.doc, prev.profile);
+        issued = issueDocumentWithIntegrity(
+          prepared.doc,
+          prev.profile,
+          now,
+        );
         const nextDocuments = applyEmittedRectificationToOriginal(
           prev.documents.map((doc) => (doc.id === id ? issued! : doc)),
           issued,
           now,
         );
-
         return {
           ...prev,
           profile: prepared.assignment
@@ -599,15 +653,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                   prepared.assignment.year,
                   prepared.assignment.sequence,
                 ),
-            }
-          : prev.profile,
+              }
+            : prev.profile,
           documents: nextDocuments,
         };
       });
-
-      if (!issued) {
-        throw new Error("Documento no encontrado");
-      }
+      if (!issued) throw new Error("Documento no encontrado");
       return issued;
     },
     [setAppData],
@@ -955,21 +1006,29 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }, [setAppData]);
 
   const addRectificativa = useCallback(
-    (
+    async (
       originalId: string,
       doc: Omit<
         Document,
         "id" | "number" | "type" | "createdAt" | "updatedAt" | "rectification"
       > & { rectification: RectificationInfo },
-    ): Document | null => {
+    ): Promise<Document | null> => {
+      const id = newId();
+      const now = new Date().toISOString();
       let created: Document | null = null;
       setAppData((prev) => {
         const original = prev.documents.find((d) => d.id === originalId);
         if (!original || !canRectifyInvoice(original)) return prev;
+        const existingDraft = hasPendingRectificationDraft(
+          prev.documents,
+          original.id,
+        );
+        if (existingDraft) return prev;
 
         const year = new Date(doc.date).getFullYear();
         const numbering = prev.profile.numbering;
-        const isDraft = doc.status === "borrador";
+        const requestedStatus = doc.status;
+        const isDraft = requestedStatus === "borrador";
         const assigned = isDraft
           ? { number: DRAFT_INVOICE_NUMBER, sequence: null }
           : {
@@ -985,15 +1044,29 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 numbering,
               ),
             };
-        const now = new Date().toISOString();
-        const rectificativa: Document = {
+        const rectification: RectificationInfo = {
+          ...doc.rectification,
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+        };
+        const source: Document = {
           ...doc,
           type: "factura",
-          id: newId(),
+          id,
           number: assigned.number,
+          rectification,
           createdAt: now,
           updatedAt: now,
         };
+        if (!isDraft) {
+          assertDocumentEmissionValid(source, prev.profile);
+        }
+        const rectificativa = materializeRectificationDocument(
+          source,
+          prev.profile,
+          now,
+        );
 
         const nextDocuments = applyEmittedRectificationToOriginal(
           [...prev.documents, rectificativa],
@@ -1619,12 +1692,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       chainOverride?: AppData["verifactuChain"],
     ): Promise<Document> => {
       if (doc.verifactu) {
+        const sealed = attachRegisteredVerifactuToSnapshots(doc);
         setAppData((prev) => ({
           ...prev,
           verifactuChain: chainOverride ?? prev.verifactuChain,
-          documents: prev.documents.map((d) => (d.id === doc.id ? doc : d)),
+          documents: prev.documents.map((d) =>
+            d.id === sealed.id ? sealed : d,
+          ),
         }));
-        return doc;
+        return sealed;
       }
 
       const applied = await withVerifactuOnDocument({
@@ -1633,15 +1709,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         chain: data.verifactuChain,
       });
 
+      const sealed = attachRegisteredVerifactuToSnapshots(applied.doc);
       setAppData((prev) => ({
         ...prev,
         verifactuChain: chainOverride ?? applied.chain,
         documents: prev.documents.map((d) =>
-          d.id === applied.doc.id ? applied.doc : d,
+          d.id === sealed.id ? sealed : d,
         ),
       }));
 
-      return applied.doc;
+      return sealed;
     },
     [data.profile, data.verifactuChain, setAppData],
   );

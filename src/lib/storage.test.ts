@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildDocumentPdfSnapshot,
+  deriveLegacySnapshotForReadOnly,
   hasDocumentSnapshot,
   isDocumentIntegrityLocked,
   issueDocument,
@@ -359,6 +361,55 @@ describe("storage", () => {
     );
     expect(legacy.documentSnapshot?.customer.name).not.toBe("Carmen Camí");
     expect(isDocumentIntegrityLocked(legacy)).toBe(true);
+  });
+
+  it("recupera una rectificativa BORRADOR bloqueada por el backfill legacy", () => {
+    const profile = sampleData().profile;
+    const poisonedDraft: Document = {
+      id: "legacy-rectification-draft",
+      type: "factura",
+      number: "BORRADOR",
+      date: "2026-06-24",
+      client: { name: "Ana López" },
+      items: [],
+      status: "borrador",
+      rectification: {
+        originalDocumentId: "invoice-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-01",
+        reason: "Error en datos",
+        type: "correccion",
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      createdAt: "2026-06-24T09:00:00.000Z",
+      updatedAt: "2026-06-24T09:00:00.000Z",
+    };
+    const documentSnapshot = deriveLegacySnapshotForReadOnly(
+      poisonedDraft,
+      profile,
+      NOW,
+    );
+
+    const normalized = normalizeLoadedData({
+      ...sampleData(),
+      documents: [
+        {
+          ...poisonedDraft,
+          documentSnapshot,
+          pdfSnapshot: buildDocumentPdfSnapshot(documentSnapshot, profile, NOW),
+        },
+      ],
+    });
+
+    expect(normalized.documents[0]).toMatchObject({
+      number: "BORRADOR",
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+    });
+    expect(normalized.documents[0].documentSnapshot).toBeUndefined();
+    expect(normalized.documents[0].pdfSnapshot).toBeUndefined();
   });
 
   it("conserva snapshots documentales en saveData -> loadData", () => {

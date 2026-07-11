@@ -611,6 +611,12 @@ describe("isDocumentEditable", () => {
 
     expect(isDocumentEditable(draftRectificativa)).toBe(true);
     expect(isDocumentEditable(issuedRectificativa)).toBe(false);
+    expect(
+      isDocumentEditable({
+        ...draftRectificativa,
+        number: "FR-2026-0001",
+      }),
+    ).toBe(false);
   });
 
   it("permite editar presupuestos enviados y bloquea recibos emitidos", () => {
