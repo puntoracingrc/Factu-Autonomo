@@ -3,6 +3,7 @@ import {
   expensePurchaseLinesVatView,
   expenseVatSourceLabel,
 } from "./expense-vat-ui";
+import { expenseFiscalAmounts } from "@/lib/expenses";
 import { purchaseLineHasCatalogProduct } from "@/lib/purchase-products";
 import type { Expense } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export function ExpensePurchaseLinesPreview({
 }) {
   const vatView = expensePurchaseLinesVatView(expense, vatExempt);
   const vat = vatView.resolution;
+  const fiscal = expenseFiscalAmounts(expense, vatExempt);
   const lines = vatView.lines
     .map((line) => ({
       ...line,
@@ -58,12 +60,17 @@ export function ExpensePurchaseLinesPreview({
       </div>
       {!vat.blocked ? (
         <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-          Base {formatMoney(vat.base)} · IVA {formatMoney(vat.iva)} · Total{" "}
-          {formatMoney(vat.total)}
+          Base {formatMoney(vat.base)} · IVA {formatMoney(fiscal.registeredIva)}
+          {fiscal.registeredEquivalenceSurcharge
+            ? ` · R.E. ${formatMoney(fiscal.registeredEquivalenceSurcharge)}`
+            : ""}{" "}
+          · Total {formatMoney(fiscal.registeredTotal)}
         </p>
       ) : (
         <p className="mb-2 text-xs font-semibold text-amber-800">
-          El desglose por líneas no cuadra con la base. Revisa las líneas.
+          {vat.issue === "provider_summary_tax_mismatch"
+            ? "El IVA, el recargo o el total del resumen no cuadran. Revisa el documento."
+            : "El desglose por líneas no cuadra con la base. Revisa las líneas."}
         </p>
       )}
       <div className="grid gap-1.5">

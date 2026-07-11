@@ -26,7 +26,13 @@ function formatVatPercent(value: number): string {
 }
 
 function expenseVatTraceLabel(expense: Expense, vatExempt: boolean): string {
-  if (vatExempt) return "IVA: perfil exento";
+  const fiscal = expenseFiscalAmounts(expense, vatExempt);
+  const recargoLabel = fiscal.registeredEquivalenceSurcharge
+    ? fiscal.registeredEquivalenceSurchargePercent === undefined
+      ? ` · R.E.: ${formatMoney(fiscal.registeredEquivalenceSurcharge)}`
+      : ` · R.E. ${formatVatPercent(fiscal.registeredEquivalenceSurchargePercent)}: ${formatMoney(fiscal.registeredEquivalenceSurcharge)}`
+    : "";
+  if (vatExempt) return `IVA: perfil exento${recargoLabel}`;
   const resolution = resolveExpenseVat(expense, vatExempt);
   const rates = resolution.breakdown
     .map((row) => row.ivaPercent)
@@ -37,10 +43,12 @@ function expenseVatTraceLabel(expense: Expense, vatExempt: boolean): string {
   const sourceLabel =
     resolution.source === "lines"
       ? "líneas conciliadas"
-      : resolution.source === "blocked"
-        ? "desglose mixto bloqueado"
+      : resolution.issue === "provider_summary_tax_mismatch"
+        ? "resumen fiscal bloqueado"
+        : resolution.source === "blocked"
+          ? "evidencia fiscal bloqueada"
         : "cabecera o importe íntegro";
-  return `IVA ${ratesLabel} · ${sourceLabel}`;
+  return `IVA ${ratesLabel} · ${sourceLabel}${recargoLabel}`;
 }
 
 function expenseTreatmentLabel(
@@ -113,7 +121,7 @@ export function buildAnnualSummaryPdf(
           "Coste económico neto de gastos y abonos",
           formatMoney(taxes.operatingExpenseCost),
         ],
-        ["Base deducible neta", formatMoney(taxes.expenseBase)],
+        ["Gasto neto deducible en IRPF", formatMoney(taxes.expenseBase)],
         ...nonDeductibleRows,
         [
           "Beneficio económico antes de reservar IRPF",
@@ -135,7 +143,7 @@ export function buildAnnualSummaryPdf(
           "Coste económico neto de gastos y abonos",
           formatMoney(taxes.operatingExpenseCost),
         ],
-        ["Base deducible neta de gastos y abonos", formatMoney(taxes.expenseBase)],
+        ["Gasto neto deducible en IRPF", formatMoney(taxes.expenseBase)],
         ["IVA deducible neto", formatMoney(taxes.expenseIva)],
         ...nonDeductibleRows,
         [
@@ -203,7 +211,7 @@ export function buildAnnualSummaryPdf(
           "Proveedor",
           "Descripción",
           "Tratamiento",
-          "Base deducible",
+          "Gasto deducible IRPF",
           "IVA deducible",
           "Coste registrado",
         ],
@@ -215,7 +223,7 @@ export function buildAnnualSummaryPdf(
           expense.supplierName,
           expense.description,
           `${expenseTreatmentLabel(fiscal.deductible, fiscal.registeredTotal)}\n${expenseVatTraceLabel(expense, vatExempt)}`,
-          formatMoney(fiscal.deductibleBase),
+          formatMoney(fiscal.deductibleIrpfExpense),
           formatMoney(fiscal.deductibleIva),
           formatMoney(fiscal.registeredTotal),
         ];
@@ -226,7 +234,7 @@ export function buildAnnualSummaryPdf(
         0: { cellWidth: 20 },
         1: { cellWidth: 26 },
         2: { cellWidth: 33 },
-        3: { cellWidth: 34 },
+        3: { cellWidth: 30 },
         4: { cellWidth: 21, halign: "right" },
         5: { cellWidth: 21, halign: "right" },
         6: { cellWidth: 23, halign: "right" },

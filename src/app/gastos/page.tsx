@@ -47,6 +47,7 @@ import {
 import {
   findDuplicatePurchaseExpense,
   isExpenseFiscalDeductible,
+  resolveExpenseEquivalenceSurcharge,
   resolveExpenseVat,
 } from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
@@ -791,7 +792,7 @@ export default function GastosPage() {
             </div>
           ) : (
             <div className="max-h-[28rem] overflow-auto rounded-2xl border border-slate-200 bg-white">
-              <div className="min-w-[42rem] divide-y divide-slate-100">
+              <div className="min-w-[48rem] divide-y divide-slate-100">
                 {summaryPreview.rows.map((row) => {
                   const removed = summaryRemovedInvoiceNumbers.includes(
                     row.invoiceNumber,
@@ -799,7 +800,7 @@ export default function GastosPage() {
                   return (
                     <div
                       key={row.invoiceNumber}
-                      className={`grid grid-cols-[1.1fr_0.8fr_1fr_1fr_1fr_auto] items-center gap-3 px-4 py-3 text-sm ${
+                      className={`grid grid-cols-[1.1fr_0.8fr_1fr_1fr_0.9fr_1fr_auto] items-center gap-3 px-4 py-3 text-sm ${
                         removed ? "bg-slate-50 text-slate-400" : ""
                       }`}
                     >
@@ -809,6 +810,9 @@ export default function GastosPage() {
                       <span>{formatShortDate(row.date)}</span>
                       <span>Base {formatMoney(row.base)}</span>
                       <span>IVA {formatMoney(row.ivaAmount)}</span>
+                      <span>
+                        R.E. {formatMoney(row.recargoAmount ?? 0)}
+                      </span>
                       <span className="font-bold">Total {formatMoney(row.total)}</span>
                       {removed ? (
                         <button
@@ -911,7 +915,7 @@ export default function GastosPage() {
                 disabled={blockedVatExpenseCount > 0}
                 title={
                   blockedVatExpenseCount > 0
-                    ? "Revisa los gastos con desglose de IVA pendiente antes de exportar"
+                    ? "Revisa los gastos con evidencia fiscal pendiente antes de exportar"
                     : "Exportar los gastos filtrados en CSV"
                 }
                 className="mt-2 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-amber-200 disabled:bg-amber-50 disabled:text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -923,8 +927,8 @@ export default function GastosPage() {
             {blockedVatExpenseCount > 0 && (
               <p className="mt-1 text-xs font-semibold text-amber-800">
                 Revisa {blockedVatExpenseCount} gasto
-                {blockedVatExpenseCount === 1 ? "" : "s"} con desglose de IVA
-                pendiente para exportar.
+                {blockedVatExpenseCount === 1 ? "" : "s"} con evidencia fiscal
+                pendiente antes de exportar.
               </p>
             )}
             {supplierFilter && (
@@ -1023,6 +1027,8 @@ export default function GastosPage() {
             const previousExpense =
               index > 0 ? visibleExpenses[index - 1] : null;
             const expenseVat = resolveExpenseVat(expense, vatExempt);
+            const expenseSurcharge =
+              resolveExpenseEquivalenceSurcharge(expense);
             const signedExpenseTotal = expenseAmount(expense, vatExempt);
             const workAllocations = explicitExpenseWorkAllocations(expense);
             const showTimelineDivider =
@@ -1096,6 +1102,11 @@ export default function GastosPage() {
                         {isProviderSummaryPendingOriginal(expense) && (
                           <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
                             Falta original
+                          </span>
+                        )}
+                        {expenseSurcharge.amount !== 0 && (
+                          <span className="rounded-full bg-violet-50 px-2 py-1 text-violet-800 ring-1 ring-violet-200">
+                            R.E. {formatMoney(expenseSurcharge.amount)}
                           </span>
                         )}
                         {expense.purchaseLines?.length ? (

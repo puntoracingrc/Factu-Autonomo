@@ -14,6 +14,8 @@ export const impuestosSection: ManualSection = {
         "La posición de IVA se muestra aparte: no se descuenta del beneficio ni del resultado económico porque sus bases ya están calculadas sin IVA.",
         "Los gastos marcados como **No deducibles** siguen en el gasto registrado, el balance y la rentabilidad y sí reducen el beneficio económico. Aportan cero a la base e IVA deducibles, por lo que no reducen la base ni la reserva estimada de IRPF. El resumen muestra un aviso con ese coste.",
         "El resumen distingue los gastos cuyo IVA se calcula desde líneas conciliadas de los que usan la cabecera o el contrato de importe íntegro para un fijo no desgravable. Si detecta evidencia de tipos de IVA en conflicto y líneas incompletas o descuadradas, muestra un bloqueo de revisión y no presenta la exportación como completa.",
+        "En una compra sometida a recargo de equivalencia, el IVA soportado y el recargo no se recuperan: ambos forman parte del coste y del gasto orientativo de IRPF, mientras la base y el IVA deducibles en IVA son cero. La app conserva la cuota de recargo separada para que el total documental sea trazable.",
+        "El campo mostrado como **Gasto neto deducible en IRPF** no es una base de IVA. El régimen general de la actividad y sus ventas no se infieren a partir de una sola factura de proveedor; el resumen sigue siendo orientativo.",
         "Los importes de gastos son **netos de abonos**. Un abono deducible reduce base, IVA y coste económico en su propio periodo; uno no deducible solo revierte el coste económico y mantiene base e IVA deducibles en cero. Compra y abono iguales dentro del mismo periodo se compensan. En periodos distintos, cada movimiento permanece en su fecha.",
         "Son cifras **orientativas** para preparar el 303 o hablar con tu gestor; no sustituyen la declaración oficial.",
       ],
@@ -29,6 +31,7 @@ export const impuestosSection: ManualSection = {
         "cabecera de tu negocio, resumen del periodo, libro de ventas y libro de gastos.",
         "El resumen separa coste económico, beneficio económico y base estimada para IRPF. El libro conserva los gastos no deducibles con su coste y los identifica expresamente; sus columnas de base e IVA deducibles quedan a cero.",
         "Cada gasto publica sus tipos, cuota, desglose y origen del cálculo. Los gastos legacy sin líneas siguen como **IVA de cabecera** y los fijos no desgravables como **importe íntegro**; un desglose mixto inconsistente bloquea el CSV hasta su corrección.",
+        "El recargo de equivalencia aparece en una columna separada y nunca se suma de nuevo a un reparto de trabajo: ya está incluido proporcionalmente en el coste operativo.",
         "El libro identifica cada **Abono / saldo a favor** y conserva su signo. El resumen y los totales se presentan como coste, base e IVA netos de gastos y abonos.",
       ],
       screenshot: {

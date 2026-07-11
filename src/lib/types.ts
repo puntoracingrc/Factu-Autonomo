@@ -410,7 +410,13 @@ export interface ExpenseProviderSummaryInfo {
   providerName?: string;
   completedAt?: string;
   summaryInvoiceTotal?: number;
+  /** Tipo de IVA que figuraba en el resumen, aunque no sea recuperable. */
+  summaryIvaPercent?: number;
   summaryIvaAmount?: number;
+  /** Tipo de recargo de equivalencia indicado por el proveedor. */
+  summaryRecargoPercent?: number;
+  /** Cuota de recargo separada del IVA y aplicada sobre la misma base. */
+  summaryRecargoAmount?: number;
 }
 
 /** Reparto operativo de un gasto entre trabajos. No modifica el documento fiscal. */

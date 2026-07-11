@@ -59,6 +59,43 @@ describe("calculateInvoiceListProfitability", () => {
     });
   });
 
+  it("usa 126,20 de coste y gasto IRPF sin IVA recuperable para un vínculo completo", () => {
+    const expense: Expense = {
+      id: "expense-re",
+      date: "2026-07-11",
+      supplierName: "Proveedor",
+      description: "Compra con recargo",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "invoice-1",
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+
+    expect(
+      summarizeAllocatedWorkExpenses({
+        expenses: [expense],
+        workDocumentIds: ["invoice-1"],
+      }),
+    ).toEqual({
+      count: 1,
+      cost: 126.2,
+      deductibleBase: 126.2,
+      deductibleIva: 0,
+    });
+  });
+
   it("usa el reparto persistente del gasto aunque conserve un vínculo principal", () => {
     const expense: Expense = {
       id: "expense-shared",

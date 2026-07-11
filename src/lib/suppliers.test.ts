@@ -218,6 +218,41 @@ describe("supplierPurchasedTotal", () => {
     expect(supplierPurchasedTotal([purchase, credit], supplier)).toBe(0);
   });
 
+  it("suma y compensa el total documental con recargo", () => {
+    const supplier = suppliers[0];
+    const purchase = expense({
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: 100,
+      ivaPercent: 21,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re-purchase",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    });
+    const credit = expense({
+      ...purchase,
+      id: "summary-re-credit",
+      amount: -100,
+      providerSummary: {
+        ...purchase.providerSummary!,
+        summaryId: "summary-re-credit",
+        summaryInvoiceTotal: -126.2,
+        summaryIvaAmount: -21,
+        summaryRecargoAmount: -5.2,
+      },
+    });
+
+    expect(supplierPurchasedTotal([purchase], supplier)).toBe(126.2);
+    expect(supplierPurchasedTotal([purchase, credit], supplier)).toBe(0);
+  });
+
   it("no añade IVA al importe íntegro de un fijo no deducible", () => {
     const supplier = suppliers[0];
     const fixed = expense({

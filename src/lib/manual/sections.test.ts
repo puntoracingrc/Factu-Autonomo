@@ -100,4 +100,17 @@ describe("manual sections", () => {
     expect(manualText).toContain("nunca crea productos ni actualiza costes");
     expect(manualText).toContain("saldo neto de compras");
   });
+
+  it("documenta el recargo separado y no recuperable", () => {
+    const manualText = JSON.stringify([
+      getManualSection("gastos"),
+      getManualSection("impuestos"),
+    ]);
+
+    expect(manualText).toContain("recargo de equivalencia");
+    expect(manualText).toContain("100 € + 21 € de IVA + 5,20 €");
+    expect(manualText).toContain("coste de 126,20 €");
+    expect(manualText).toContain("base e IVA deducibles en IVA son cero");
+    expect(manualText).toContain("columnas separadas");
+  });
 });

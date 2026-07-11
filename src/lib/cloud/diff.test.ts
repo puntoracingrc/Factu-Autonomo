@@ -95,6 +95,39 @@ describe("sync por cambios", () => {
     expect(reloaded.recurringExpenses[0]?.id).toBe("fixed-template");
   });
 
+  it("conserva la evidencia anidada de recargo en el diff cloud", () => {
+    const expense = {
+      id: "expense-re",
+      date: "2026-04-01",
+      supplierName: "Proveedor Recargo SL",
+      description: "Compra con recargo",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      providerSummary: {
+        status: "pending_original" as const,
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+    const changes = diffAppData(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      expenses: [expense],
+    });
+    const reloaded = applySyncChanges(EMPTY_DATA, changes);
+
+    expect(reloaded.expenses[0]?.providerSummary).toEqual(
+      expense.providerSummary,
+    );
+  });
+
   it("aplica un cambio remoto sin tocar el resto", () => {
     const local = {
       ...EMPTY_DATA,
