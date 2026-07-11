@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
-import { withVerifactuOnDocument } from "./store";
+import {
+  resolveVerifactuRegistrationContext,
+  withVerifactuOnDocument,
+} from "./store";
 
 const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
@@ -30,6 +33,29 @@ const factura: Document = {
 };
 
 describe("withVerifactuOnDocument", () => {
+  it("respeta un perfil histórico y una cadena nula explícitos", () => {
+    const currentChain = {
+      issuerNif: profile.nif,
+      lastHash: "A".repeat(64),
+      recordCount: 1,
+    };
+    const historicalProfile = { ...profile, name: "Emisor histórico" };
+
+    expect(
+      resolveVerifactuRegistrationContext({
+        doc: factura,
+        profile,
+        chain: currentChain,
+        profileOverride: historicalProfile,
+        chainOverride: null,
+      }),
+    ).toEqual({
+      doc: factura,
+      profile: historicalProfile,
+      chain: null,
+    });
+  });
+
   it("attaches verifactu metadata and advances chain", async () => {
     const result = await withVerifactuOnDocument({
       doc: factura,

@@ -2,6 +2,25 @@ import type { AppData, Document, BusinessProfile } from "../types";
 import { needsVerifactuRegistration } from "./eligibility";
 import { registerDocumentVerifactu, resolveChainState } from "./register";
 
+export function resolveVerifactuRegistrationContext(input: {
+  doc: Document;
+  profile: BusinessProfile;
+  chain: AppData["verifactuChain"];
+  profileOverride?: BusinessProfile;
+  chainOverride?: AppData["verifactuChain"];
+}): {
+  doc: Document;
+  profile: BusinessProfile;
+  chain: AppData["verifactuChain"];
+} {
+  return {
+    doc: input.doc,
+    profile: input.profileOverride ?? input.profile,
+    chain:
+      input.chainOverride === undefined ? input.chain : input.chainOverride,
+  };
+}
+
 export async function withVerifactuOnDocument(input: {
   doc: Document;
   profile: BusinessProfile;

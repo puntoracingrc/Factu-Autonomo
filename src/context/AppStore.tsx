@@ -97,7 +97,10 @@ import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
 } from "@/lib/suppliers";
-import { withVerifactuOnDocument } from "@/lib/verifactu/store";
+import {
+  resolveVerifactuRegistrationContext,
+  withVerifactuOnDocument,
+} from "@/lib/verifactu/store";
 import {
   applyGenericDocumentUpdate,
   attachRegisteredVerifactuToSnapshots,
@@ -234,6 +237,7 @@ interface AppStoreValue {
   registerVerifactuForDocument: (
     doc: Document,
     chainOverride?: AppData["verifactuChain"],
+    profileOverride?: BusinessProfile,
   ) => Promise<Document>;
 }
 
@@ -1735,12 +1739,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     async (
       doc: Document,
       chainOverride?: AppData["verifactuChain"],
+      profileOverride?: BusinessProfile,
     ): Promise<Document> => {
       if (doc.verifactu) {
         const sealed = attachRegisteredVerifactuToSnapshots(doc);
         setAppData((prev) => ({
           ...prev,
-          verifactuChain: chainOverride ?? prev.verifactuChain,
+          verifactuChain:
+            chainOverride === undefined
+              ? prev.verifactuChain
+              : chainOverride,
           documents: prev.documents.map((d) =>
             d.id === sealed.id ? sealed : d,
           ),
@@ -1748,16 +1756,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return sealed;
       }
 
-      const applied = await withVerifactuOnDocument({
+      const registration = resolveVerifactuRegistrationContext({
         doc,
         profile: data.profile,
         chain: data.verifactuChain,
+        profileOverride,
+        chainOverride,
       });
+      const applied = await withVerifactuOnDocument(registration);
 
       const sealed = attachRegisteredVerifactuToSnapshots(applied.doc);
       setAppData((prev) => ({
         ...prev,
-        verifactuChain: chainOverride ?? applied.chain,
+        verifactuChain: applied.chain,
         documents: prev.documents.map((d) =>
           d.id === sealed.id ? sealed : d,
         ),
