@@ -75,6 +75,7 @@ export const rentabilidadRealSection: ManualSection = {
         "Decide si incluyes presupuestos todavía sin factura y ajustes internos. Configura el umbral de margen bajo y la provisión IRPF orientativa; los resultados se recalculan al momento y las preferencias quedan en este navegador.",
         "El **Informe por documento** representa una factura, un presupuesto o el par vinculado presupuesto/factura una sola vez. Puedes corregir el modo de análisis de una fila o aplicarlo en bloque.",
         "El **Informe por cliente** agrupa los documentos analizados. **Calidad de datos** señala documentos sin modo, gastos candidatos sin enlazar y otros huecos que pueden cambiar el resultado al corregirse.",
+        "En móvil y tablet, los informes por documento y cliente se presentan como tarjetas con las mismas cifras, alertas y acciones. En pantallas grandes se mantiene la tabla completa; si alguna columna queda fuera, desplázala horizontalmente.",
         "Si el filtro no encuentra filas, revisa fechas, tipo de documento y si existen facturas o presupuestos analizables. El informe no duplica ni reescribe la contabilidad.",
       ],
     },
@@ -83,7 +84,7 @@ export const rentabilidadRealSection: ManualSection = {
       paragraphs: [
         "En `/rentabilidad-real/evolucion` agrupa la lectura por mes, trimestre, cliente o modo de análisis. Acota fechas y, si lo necesitas, filtra por cliente o modo.",
         "Elige el reparto de gastos fijos y si incluyes presupuestos sin factura, ajustes internos o solo periodos con margen bajo. **Ver todo** elimina únicamente las fechas Desde/Hasta; conserva la agrupación, el cliente, el modo, los fijos y los demás interruptores.",
-        "Las tarjetas resumen ingresos sin IVA, costes directos, fijos, beneficio documentado e interno, margen, caja prudente y reservas estimadas. La tabla muestra cada periodo o grupo con sus modos y alertas.",
+        "Las tarjetas resumen ingresos sin IVA, costes directos, fijos, beneficio documentado e interno, margen, caja prudente y reservas estimadas. En móvil y tablet, cada periodo o grupo se presenta también como una tarjeta con sus modos y alertas; en pantallas grandes se muestra la tabla completa.",
         "Evolución recalcula sobre los datos actuales y no guarda snapshots contables. IVA e IRPF son referencias orientativas; la ausencia de filas significa que el rango o filtro no contiene documentos analizables.",
       ],
     },

@@ -23,7 +23,6 @@ import {
 import {
   buildRentabilidadRealEvolutionReport,
   type RentabilidadRealEvolutionGrouping,
-  type RentabilidadRealEvolutionPeriodRow,
   type RentabilidadRealEvolutionSummary,
 } from "@/lib/rentabilidad-real/evolution";
 import {
@@ -33,6 +32,7 @@ import {
   type RentabilidadRealReportSettings,
 } from "@/lib/rentabilidad-real/reports";
 import { useRentabilidadRealActivation } from "../useRentabilidadRealActivation";
+import { EvolutionTable } from "./EvolutionTable";
 
 function formatPercent(value: number): string {
   return `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%`;
@@ -117,21 +117,6 @@ function toneClass(tone?: string) {
     return "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/35";
   }
   return "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60";
-}
-
-function warningLabels(row: RentabilidadRealEvolutionPeriodRow): string[] {
-  const labels: string[] = [];
-  if (row.lowMarginDocumentsCount > 0) labels.push(`${row.lowMarginDocumentsCount} margen bajo`);
-  if (row.negativeProfitDocumentsCount > 0) {
-    labels.push(`${row.negativeProfitDocumentsCount} negativo`);
-  }
-  if (row.unlinkedCandidatesCount > 0) {
-    labels.push(`${row.unlinkedCandidatesCount} gastos pendientes`);
-  }
-  if (row.documentsWithoutAnalysisMode > 0) {
-    labels.push(`${row.documentsWithoutAnalysisMode} sin modo`);
-  }
-  return labels;
 }
 
 const FIXED_COST_MODES: Array<{
@@ -396,115 +381,6 @@ function EvolutionSummaryCards({
           </p>
         </div>
       ))}
-    </div>
-  );
-}
-
-function EvolutionTable({
-  rows,
-  grouping,
-}: {
-  rows: RentabilidadRealEvolutionPeriodRow[];
-  grouping: RentabilidadRealEvolutionGrouping;
-}) {
-  const firstColumnLabel =
-    grouping === "client"
-      ? "Cliente"
-      : grouping === "analysis_mode"
-        ? "Modo"
-        : "Periodo";
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="min-w-[1100px] w-full border-separate border-spacing-0 text-left text-sm">
-        <thead>
-          <tr className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">
-            {[
-              firstColumnLabel,
-              "Docs",
-              "Ingresos",
-              "Costes",
-              "Fijos",
-              "Beneficio",
-              "Margen",
-              "Caja",
-              "Modos",
-              "Alertas",
-            ].map((heading) => (
-              <th
-                key={heading}
-                className="border-b border-slate-200 px-3 py-3 dark:border-slate-700"
-              >
-                {heading}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const labels = warningLabels(row);
-            return (
-              <tr key={row.periodId} className="align-top">
-                <td className="border-b border-slate-100 px-3 py-4 font-black text-slate-950 dark:border-slate-800 dark:text-slate-50">
-                  {row.periodLabel}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {row.documentCount}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 font-bold text-slate-900 dark:border-slate-800 dark:text-slate-100">
-                  {formatMoney(row.incomeWithoutIndirectTax)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatMoney(row.totalDirectCosts)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatMoney(row.allocatedFixedCosts)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 font-bold text-slate-900 dark:border-slate-800 dark:text-slate-100">
-                  {formatMoney(row.operatingProfit)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatPercent(row.averageMarginPercentage)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatMoney(row.prudentAvailableCash)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <div className="flex max-w-64 flex-wrap gap-1">
-                    {row.modeBreakdown.map((mode) => (
-                      <span
-                        key={mode.analysisMode}
-                        className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                      >
-                        {getDocumentAnalysisModeLabel(mode.analysisMode)} ·{" "}
-                        {mode.documentCount}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <div className="flex max-w-56 flex-wrap gap-1">
-                    {labels.length === 0 ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
-                        OK
-                      </span>
-                    ) : (
-                      labels.map((label) => (
-                        <span
-                          key={label}
-                          className="rounded-full bg-amber-50 px-2 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/45 dark:text-amber-100"
-                        >
-                          {label}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }
