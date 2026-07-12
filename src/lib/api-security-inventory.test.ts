@@ -29,6 +29,7 @@ const expectedMethods: Record<string, string[]> = {
   "customers/parse/route.ts": ["POST"],
   "document-sync/route.ts": ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"],
   "expense-deductibility/evaluate/route.ts": ["POST"],
+  "fiscal-calendar/events/route.ts": ["GET"],
   "email/payment-reminder/route.ts": ["POST"],
   "email/welcome/route.ts": ["POST"],
   "expense-inbox/inbound/route.ts": ["POST"],
@@ -89,6 +90,7 @@ const bearerRoutes = [
 
 const publicConstrainedRoutes = [
   "expense-deductibility/evaluate/route.ts",
+  "fiscal-calendar/events/route.ts",
   "google-auth/token/route.ts",
   "security/csp-report/route.ts",
   "verifactu/declaration/route.ts",

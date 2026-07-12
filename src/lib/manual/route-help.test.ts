@@ -50,4 +50,11 @@ describe("manual route help", () => {
       "/ayuda?from=%2Fconsultor-fiscal%2Fmodelos%2F037",
     );
   });
+
+  it("envía el calendario al índice público sin abrir la ayuda fiscal protegida", () => {
+    expect(resolveManualSlug("/consultor-fiscal/calendario")).toBeNull();
+    expect(manualHelpHref("/consultor-fiscal/calendario")).toBe(
+      "/ayuda?from=%2Fconsultor-fiscal%2Fcalendario",
+    );
+  });
 });

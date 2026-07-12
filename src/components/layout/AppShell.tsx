@@ -229,8 +229,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Navegación principal"
         >
           <div className="space-y-1">
-            {APP_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-              const active = isAppNavItemActive(pathname, href);
+            {APP_NAV_ITEMS.map(({ href, activeBase, label, icon: Icon }) => {
+              const active = isAppNavItemActive(pathname, href, activeBase);
               return (
                 <Link
                   key={href}
@@ -500,8 +500,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <ul className="grid grid-cols-1 gap-2 min-[260px]:grid-cols-2 sm:grid-cols-3">
               {MOBILE_MORE_NAV_ITEMS.map(
-                ({ href, label, icon: Icon }, index) => {
-                  const active = isAppNavItemActive(pathname, href);
+                ({ href, activeBase, label, icon: Icon }, index) => {
+                  const active = isAppNavItemActive(
+                    pathname,
+                    href,
+                    activeBase,
+                  );
                   return (
                     <li key={href}>
                       <Link
@@ -540,8 +544,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="grid grid-cols-5 items-stretch gap-1 px-2 py-2">
             {MOBILE_PRIMARY_NAV_ITEMS.map(
-              ({ href, shortLabel, icon: Icon }) => {
-                const active = isAppNavItemActive(pathname, href);
+              ({ href, activeBase, shortLabel, icon: Icon }) => {
+                const active = isAppNavItemActive(
+                  pathname,
+                  href,
+                  activeBase,
+                );
                 return (
                   <Link
                     key={href}

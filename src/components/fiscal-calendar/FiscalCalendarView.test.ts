@@ -1,0 +1,124 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const componentSource = readFileSync(
+  new URL("./FiscalCalendarView.tsx", import.meta.url),
+  "utf8",
+);
+const pageSource = readFileSync(
+  new URL("../../app/consultor-fiscal/calendario/page.tsx", import.meta.url),
+  "utf8",
+);
+const navigationSource = readFileSync(
+  new URL("../layout/app-navigation.ts", import.meta.url),
+  "utf8",
+);
+const advisorNavigationSource = readFileSync(
+  new URL("../consultor-fiscal/AdvisorAreaNavigation.tsx", import.meta.url),
+  "utf8",
+);
+
+describe("contrato de interfaz del calendario fiscal", () => {
+  it("incluye carga, vacío, error recuperable, filtros, rango y fuente", () => {
+    for (const text of [
+      "Calendario fiscal",
+      "Cargando próximos vencimientos",
+      "No hay vencimientos en este rango",
+      "No hemos podido cargar el calendario",
+      "Reintentar",
+      "Categorías",
+      "Desde",
+      "Hasta",
+      "Agencia Tributaria",
+      "Última consulta",
+    ]) {
+      expect(componentSource).toContain(text);
+    }
+    expect(componentSource).toContain('aria-live="polite"');
+    expect(componentSource).toContain('type="checkbox"');
+    expect(componentSource).toContain('type="date"');
+  });
+
+  it("presenta la advertencia general y distingue fixtures simulados", () => {
+    expect(componentSource).toContain(
+      "Esta sección organiza información general del calendario",
+    );
+    expect(componentSource).toContain("Datos simulados para revisión local");
+    expect(componentSource).toContain("No son fechas oficiales");
+    expect(componentSource).toContain("Tipo de plazo no clasificado");
+    expect(componentSource).toContain("Revisar con gestor");
+    expect(componentSource).toContain("Estado de fuente sin confirmar");
+    expect(componentSource).toContain("domiciliaciones ni excepciones");
+    expect(componentSource).toContain("Calendario público en revisión");
+    expect(componentSource).toContain("Sin consulta externa");
+  });
+
+  it("retira resultados anteriores antes de cargar otra consulta", () => {
+    expect(componentSource).toContain("setData(null)");
+    expect(componentSource.indexOf("setData(null)")).toBeLessThan(
+      componentSource.indexOf("setLoading(true)"),
+    );
+    const applyFiltersSource = componentSource.slice(
+      componentSource.indexOf("function applyFilters"),
+      componentSource.indexOf("const events ="),
+    );
+    expect(applyFiltersSource).toContain(
+      "setRefreshSequence((value) => value + 1)",
+    );
+  });
+
+  it("renderiza contenido externo como texto y nunca como HTML o iframe", () => {
+    expect(componentSource).not.toContain("dangerouslySetInnerHTML");
+    expect(componentSource).not.toContain("innerHTML");
+    expect(componentSource).not.toMatch(/<iframe/i);
+    expect(componentSource).toContain("<EventDescription");
+    expect(componentSource).toContain("description={event.description}");
+    expect(componentSource).toContain('role="list"');
+    expect(componentSource).toContain('role="listitem"');
+    expect(componentSource).toContain("break-words");
+    expect(componentSource).toContain("MAX_RENDERED_DESCRIPTION_LINES = 100");
+    expect(componentSource).toContain(
+      ".slice(0, MAX_RENDERED_DESCRIPTION_LINES)",
+    );
+  });
+
+  it("enlaza modelos solo mediante href canónicos recibidos de la API", () => {
+    expect(componentSource).toContain("segmentFiscalCalendarModelReferences");
+    expect(componentSource).toContain("href={segment.modelPage.href}");
+    expect(componentSource).toContain(
+      "localizar en el catálogo de Modelos AEAT",
+    );
+    expect(componentSource).toContain("histórico · no vigente");
+    expect(componentSource).not.toContain("public-review-route-manifest");
+    expect(componentSource).not.toMatch(/modelos\/\$\{/);
+  });
+
+  it("valida toda la respuesta no confiable antes de entregarla al render", () => {
+    expect(componentSource).toContain("parseFiscalCalendarResponseData");
+    expect(componentSource).toContain(
+      "const nextData = parseFiscalCalendarResponseData(body)",
+    );
+    expect(componentSource).not.toContain(
+      "return record as FiscalCalendarResponseData",
+    );
+  });
+
+  it("publica la ruta con flag propio y navegación secundaria accesible", () => {
+    expect(pageSource).toContain("isFiscalCalendarEnabled()");
+    expect(pageSource).not.toContain("isConsultorFiscalEnabled()");
+    expect(pageSource).toContain("notFound()");
+    expect(navigationSource).not.toContain("/consultor-fiscal/calendario");
+    expect(advisorNavigationSource).toContain(
+      'href: "/consultor-fiscal/calendario"',
+    );
+    expect(advisorNavigationSource).toContain(
+      'href: "/consultor-fiscal/modelos"',
+    );
+  });
+
+  it("usa layout responsive y estilos para claro/oscuro sin ancho fijo", () => {
+    expect(componentSource).toContain("sm:grid-cols-2");
+    expect(componentSource).toContain("dark:bg-slate-900");
+    expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
+  });
+});

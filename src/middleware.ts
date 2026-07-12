@@ -51,6 +51,13 @@ function isAllowedFiscalModelReviewPath(pathname: string): boolean {
   );
 }
 
+function isAllowedConsultorPublicReviewPath(pathname: string): boolean {
+  return (
+    pathname === "/consultor-fiscal/calendario" ||
+    isAllowedFiscalModelReviewPath(pathname)
+  );
+}
+
 function privateNotFoundResponse(): NextResponse {
   const response = applyPrivateHeaders(
     new NextResponse("Not Found", { status: 404 }),
@@ -89,7 +96,7 @@ export function middleware(request?: NextRequest) {
   if (
     request &&
     isConsultorFiscalReleasePath(request.nextUrl.pathname) &&
-    !isAllowedFiscalModelReviewPath(request.nextUrl.pathname) &&
+    !isAllowedConsultorPublicReviewPath(request.nextUrl.pathname) &&
     !isConsultorFiscalEnabled()
   ) {
     return privateNotFoundResponse();
