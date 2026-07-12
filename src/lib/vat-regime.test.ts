@@ -124,6 +124,33 @@ describe("vat-regime", () => {
     expect(expenseAmount(expense, true)).toBe(200);
   });
 
+  it("conserva el total con recargo incluso en el control de un perfil exento", () => {
+    const expense: Expense = {
+      id: "summary-re",
+      date: "2026-07-11",
+      supplierName: "Proveedor",
+      description: "Compra con recargo",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-07-11",
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    };
+
+    expect(expenseAmount(expense, false)).toBe(126.2);
+    expect(expenseAmount(expense, true)).toBe(126.2);
+  });
+
   it("conserva la cabecera en control si el mixto está bloqueado", () => {
     const expense: Expense = {
       id: "mixed-blocked",

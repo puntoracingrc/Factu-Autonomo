@@ -395,6 +395,13 @@ Flujo:
 3. `POST /api/expenses/scan` → OpenAI extrae campos
 4. Formulario se rellena con sugerencias
 5. Detección de proveedor duplicado (`suppliers.ts`) con opción de fusionar
+6. Al guardar una tanda, `ensureExpenseSupplier` ejecuta
+   `upsertSupplierForExpense` contra el `prev.suppliers` más reciente del
+   `AppStore`: el segundo gasto puede reutilizar inmediatamente el proveedor
+   creado por el primero. El NIF normalizado prevalece y dos NIF conocidos e
+   incompatibles nunca se unen solo por nombre. Un NIF conocido tampoco se
+   autoenlaza a un maestro legacy sin NIF: se mantiene una alta separada y
+   revisable.
 
 **Cuotas IA** (si billing activo):
 
@@ -440,7 +447,11 @@ Plantillas `RecurringExpense`:
 
 **Módulos:** `src/lib/suppliers.ts`, `src/components/suppliers/`, reutiliza `StreetTypeSelect` y `customer-address.ts` (`normalizeStreetFields`).
 
-**Integración escaneo:** al guardar gasto, `ensureSupplierForExpense` propone vincular o crear proveedor.
+**Integración escaneo:** `ensureSupplierForExpense` propone vincular o crear;
+`upsertSupplierForExpense` materializa la decisión contra el estado vigente y
+devuelve el `supplierId` que se asigna al gasto. La comprobación de IVA y de
+factura duplicada ocurre antes del upsert para no dejar altas huérfanas en un
+elemento bloqueado.
 
 ---
 
@@ -794,6 +805,48 @@ fallo; ninguno de esos estados se convierte por defecto en modo simulado.
 | Billing | `src/lib/billing/*` (planes, escaneos, referidos, Stripe) |
 | Cloud | `src/lib/cloud/*` |
 | UX | `src/lib/factu/*` (asistente Factu, hitos, toasts) |
+
+### Recargo de equivalencia en gastos importados
+
+`provider-summary-expenses.ts` persiste por separado la base, la cuota y el
+tipo de IVA, la cuota y el tipo de recargo de equivalencia y el total que
+consta en el resumen. `expenses.ts` es la frontera canónica que recompone esas
+magnitudes para todos los consumidores.
+
+Cuando existe recargo, el IVA soportado y el propio recargo se consideran no
+recuperables: `registeredTotal`, `operatingCost` y
+`deductibleIrpfExpense` incluyen base + IVA + recargo, mientras
+`deductibleVatBase` y `deductibleIva` son cero. El alias histórico
+`deductibleBase` conserva el significado de gasto IRPF para no romper
+consumidores. CSV y PDF muestran el recargo separado y rotulan expresamente la
+diferencia entre IRPF e IVA.
+
+Los registros pendientes anteriores a AUD-P2-26 solo recuperan la cuota desde
+`total - base - IVA` si la combinación de tipo de IVA y recargo coincide de
+forma inequívoca con los tipos oficiales. Signos, cuota/tipo, IVA/base y total
+se reconcilian con tolerancia monetaria; cualquier contradicción reutiliza el
+bloqueo fiscal fail-closed y no puede exportarse. Un original completado que
+contradiga el resumen también queda bloqueado, sin construir un total híbrido.
+
+Los vínculos legacy sin reparto explícito adoptan el coste canónico nuevo. Las
+asignaciones explícitas anteriores no se reinterpretan durante la carga. El
+follow-up de AUD-P2-26 expone en **Cuenta > Copias** una reparación voluntaria
+solo para repartos completos demostrables: resumen pendiente con recargo legacy
+inequívoco, coste antiguo reconciliado, líneas válidas y cobertura completa sin
+duplicados. Los repartos parciales, manuales o ambiguos quedan intactos.
+
+`expense-work-allocation-cost-repair.ts` construye una vista previa pura y
+aplica el plan únicamente tras confirmación. Guarda dentro del gasto las
+allocations exactas de antes/después, los costes antiguo/canónico, fingerprints
+y eventos append-only. Los fingerprints son SHA-256 compactos de una
+serialización canónica, por lo que un roundtrip `jsonb` no depende del orden de
+claves ni duplica las líneas completas dentro de la huella. El rollback solo
+restaura el antes si el estado actual continúa coincidiendo con el después;
+cualquier edición posterior lo bloquea.
+No hay migración en `normalizeLoadedData`, consultas remotas ni cambios en
+documentos, snapshots, sellos o Veri*Factu. Las allocations nuevas guardan
+`fullAmountAtAllocation`, que es exactamente el `operatingCost` firmado usado
+en ese upsert y todavía no altera a los lectores.
 
 ---
 

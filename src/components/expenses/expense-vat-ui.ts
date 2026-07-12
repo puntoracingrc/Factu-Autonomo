@@ -73,6 +73,8 @@ export function expenseVatIssueMessage(
       return "Revisa la base y el IVA de todas las líneas del desglose.";
     case "mixed_vat_base_mismatch":
       return "La base de las líneas no coincide con el importe del gasto. Concíliala antes de guardar.";
+    case "provider_summary_tax_mismatch":
+      return "El IVA, el recargo o el total del resumen no cuadran. Revisa el documento antes de usarlo fiscalmente.";
     default:
       return "Revisa el desglose de IVA antes de guardar.";
   }
@@ -152,6 +154,9 @@ export function expenseVatSourceLabel(
     return "No desgravable · importe íntegro";
   }
   if (vatExempt) return "Perfil exento · IVA 0%";
+  if (resolution.issue === "provider_summary_tax_mismatch") {
+    return "Resumen fiscal por revisar";
+  }
   if (resolution.blocked) return "IVA por revisar";
   if (resolution.source === "lines") {
     return `IVA por líneas · ${expenseVatRatesLabel(resolution)}`;

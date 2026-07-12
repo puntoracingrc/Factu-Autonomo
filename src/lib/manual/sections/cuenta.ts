@@ -58,6 +58,7 @@ export const cuentaSection: ManualSection = {
         "**Exportar copia** descarga un archivo JSON con tus datos para guardarlo donde quieras.",
         "**Importar copia** sirve para recuperar una copia JSON de Facturación Autónomos. Revísalo con calma: una copia sustituye los datos locales del navegador donde la importas.",
         "Aunque uses la nube, conviene exportar una copia manual de vez en cuando.",
+        "Si **Cuenta → Copias** detecta repartos antiguos afectados por un cambio de coste, muestra primero cuántos gastos son seguros y sus importes antes/después. Nada se corrige al cargar: revisa la vista previa, descarga una copia si quieres una seguridad adicional y confirma expresamente. Los casos parciales o ambiguos quedan fuera; una reparación aplicada puede deshacerse mientras no edites después esos repartos.",
       ],
     },
     {

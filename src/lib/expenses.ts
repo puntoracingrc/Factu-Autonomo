@@ -12,18 +12,27 @@ import type {
 export interface ExpenseTotals {
   base: number;
   iva: number;
+  /** Cuota que consta en el documento cuando no coincide con el IVA recuperable. */
+  documentIva?: number;
+  /** Tipo de IVA que consta en el documento. */
+  documentIvaPercent?: number;
   total: number;
   ivaPercent: number;
+  /** Cuota de recargo separada; nunca se mezcla con base ni IVA. */
+  recargoEquivalencia?: number;
+  recargoEquivalenciaPercent?: number;
 }
 
 export const EXPENSE_VAT_RECONCILIATION_TOLERANCE = 0.02;
+export const EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE = 0.05;
 
 export type ExpenseVatSource = "header" | "lines" | "blocked";
 
 export type ExpenseVatIssue =
   | "mixed_vat_missing_rate"
   | "mixed_vat_invalid_line"
-  | "mixed_vat_base_mismatch";
+  | "mixed_vat_base_mismatch"
+  | "provider_summary_tax_mismatch";
 
 export interface ExpenseVatBreakdownRow {
   ivaPercent: number;
@@ -60,6 +69,7 @@ export interface ExpenseVatInput {
   deductibility?: Expense["deductibility"];
   origin?: Expense["origin"];
   recurringExpenseId?: Expense["recurringExpenseId"];
+  providerSummary?: Expense["providerSummary"];
 }
 
 export interface ExpensePurchaseLinePriceAlert {
@@ -89,6 +99,14 @@ export interface ExpenseFiscalAmounts {
   registeredIvaPercent: number;
   registeredIva: number;
   registeredTotal: number;
+  /** Cuota de recargo registrada, presente solo cuando existe evidencia. */
+  registeredEquivalenceSurcharge?: number;
+  registeredEquivalenceSurchargePercent?: number;
+  /** Importe que reduce la estimación de IRPF. */
+  deductibleIrpfExpense: number;
+  /** Base que admite deducción de IVA soportado. */
+  deductibleVatBase: number;
+  /** @deprecated Alias de `deductibleIrpfExpense` para consumidores existentes. */
   deductibleBase: number;
   deductibleIva: number;
   operatingCost: number;
@@ -134,11 +152,251 @@ export function expenseTotals(
   vatExempt = false,
 ): ExpenseTotals {
   const resolved = resolveExpenseVat(expense, vatExempt);
+  const recargo = resolveExpenseEquivalenceSurcharge(expense);
+  if (recargo.amount === 0) {
+    return {
+      base: resolved.base,
+      iva: resolved.iva,
+      total: resolved.total,
+      ivaPercent: resolved.headerIvaPercent,
+    };
+  }
+
+  const pendingOriginal =
+    expense.providerSummary?.status === "pending_original";
+  const documentVat = vatExempt
+    ? resolveExpenseVat(expense, false)
+    : resolved;
+  const summaryIva = expense.providerSummary?.summaryIvaAmount;
+  const hasExactSummaryIva =
+    pendingOriginal && Number.isFinite(summaryIva);
+  const documentIva = hasExactSummaryIva
+    ? roundMoneySymmetric(summaryIva ?? 0)
+    : documentVat.iva;
+  const summaryIvaPercent = expense.providerSummary?.summaryIvaPercent;
+  const documentIvaPercent =
+    pendingOriginal && Number.isFinite(summaryIvaPercent)
+      ? summaryIvaPercent ?? documentVat.headerIvaPercent
+      : documentVat.headerIvaPercent;
+  const iva = vatExempt ? 0 : documentIva;
+  const summaryTotal = expense.providerSummary?.summaryInvoiceTotal;
+  const total =
+    (pendingOriginal || recargo.blocked) && Number.isFinite(summaryTotal)
+      ? roundMoneySymmetric(summaryTotal ?? 0)
+      : roundMoneySymmetric(resolved.base + documentIva + recargo.amount);
+
   return {
     base: resolved.base,
-    iva: resolved.iva,
-    total: resolved.total,
+    iva,
+    ...(vatExempt ? { documentIva, documentIvaPercent } : {}),
+    total,
     ivaPercent: resolved.headerIvaPercent,
+    recargoEquivalencia: recargo.amount,
+    ...(recargo.percent === undefined
+      ? {}
+      : { recargoEquivalenciaPercent: recargo.percent }),
+  };
+}
+
+export type ExpenseEquivalenceSurchargeSource =
+  | "none"
+  | "provider_summary"
+  | "legacy_summary_total"
+  | "blocked";
+
+export interface ExpenseEquivalenceSurchargeResolution {
+  source: ExpenseEquivalenceSurchargeSource;
+  amount: number;
+  percent?: number;
+  blocked: boolean;
+  issue: "provider_summary_tax_mismatch" | null;
+}
+
+const OFFICIAL_LEGACY_SURCHARGE_PAIRS = [
+  { ivaPercent: 21, surchargePercent: 5.2 },
+  { ivaPercent: 10, surchargePercent: 1.4 },
+  { ivaPercent: 4, surchargePercent: 0.5 },
+] as const;
+const OFFICIAL_TOBACCO_SURCHARGE_PERCENT = 1.75;
+
+function withinProviderSummaryTolerance(left: number, right: number): boolean {
+  return (
+    Math.abs(roundMoneySymmetric(left) - roundMoneySymmetric(right)) <=
+    EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE
+  );
+}
+
+function hasSameMoneySign(value: number, base: number): boolean {
+  return value === 0 || base === 0 || Math.sign(value) === Math.sign(base);
+}
+
+function isOfficialLegacySurchargeRate(
+  ivaPercent: number,
+  surchargePercent: number,
+): boolean {
+  return (
+    OFFICIAL_LEGACY_SURCHARGE_PAIRS.some(
+      (pair) =>
+        withinProviderSummaryTolerance(ivaPercent, pair.ivaPercent) &&
+        withinProviderSummaryTolerance(
+          surchargePercent,
+          pair.surchargePercent,
+        ),
+    ) ||
+    withinProviderSummaryTolerance(
+      surchargePercent,
+      OFFICIAL_TOBACCO_SURCHARGE_PERCENT,
+    )
+  );
+}
+
+function blockedProviderSummarySurcharge(
+  amount: number,
+  percent?: number,
+): ExpenseEquivalenceSurchargeResolution {
+  return {
+    source: "blocked",
+    amount: roundMoneySymmetric(amount),
+    ...(percent === undefined ? {} : { percent }),
+    blocked: true,
+    issue: "provider_summary_tax_mismatch",
+  };
+}
+
+/**
+ * Conserva el recargo del resumen como cuota separada. Los registros creados
+ * antes de AUD-P2-26 no guardaban sus campos, pero sí total e IVA: en ellos la
+ * diferencia firmada permite recuperar la cuota sin reescribir el gasto.
+ */
+export function resolveExpenseEquivalenceSurcharge(
+  expense: ExpenseVatInput,
+): ExpenseEquivalenceSurchargeResolution {
+  const documentVat = resolveExpenseVatCore(expense, false);
+  return resolveExpenseEquivalenceSurchargeWithVat(expense, documentVat);
+}
+
+function resolveExpenseEquivalenceSurchargeWithVat(
+  expense: ExpenseVatInput,
+  documentVat: ExpenseVatResolution,
+): ExpenseEquivalenceSurchargeResolution {
+  const providerSummary = expense.providerSummary;
+  if (!providerSummary) {
+    return { source: "none", amount: 0, blocked: false, issue: null };
+  }
+
+  const rawAmount = providerSummary.summaryRecargoAmount;
+  const rawPercent = providerSummary.summaryRecargoPercent;
+  const summaryTotal = providerSummary.summaryInvoiceTotal;
+  const summaryIva = providerSummary.summaryIvaAmount;
+  const base = documentVat.base;
+  const hasExplicitSurcharge =
+    rawAmount !== undefined || rawPercent !== undefined;
+  const hasSummaryTaxEvidence =
+    summaryTotal !== undefined || summaryIva !== undefined;
+  const canReconcileSummary =
+    Number.isFinite(summaryTotal) && Number.isFinite(summaryIva);
+  const summaryDifference = canReconcileSummary
+    ? roundMoneySymmetric(
+        (summaryTotal ?? 0) - base - (summaryIva ?? 0),
+      )
+    : 0;
+  const amount = Number.isFinite(rawAmount)
+    ? roundMoneySymmetric(rawAmount ?? 0)
+    : summaryDifference;
+  const inferredPercent =
+    base === 0
+      ? undefined
+      : Math.round(Math.abs((amount / base) * 100) * 10_000) / 10_000;
+  const percent = Number.isFinite(rawPercent)
+    ? rawPercent
+    : inferredPercent;
+
+  if (!canReconcileSummary) {
+    return hasExplicitSurcharge || hasSummaryTaxEvidence
+      ? blockedProviderSummarySurcharge(amount, percent)
+      : { source: "none", amount: 0, blocked: false, issue: null };
+  }
+
+  const summaryIvaPercent = Number.isFinite(
+    providerSummary.summaryIvaPercent,
+  )
+    ? providerSummary.summaryIvaPercent ?? documentVat.headerIvaPercent
+    : documentVat.headerIvaPercent;
+  const summaryIvaMatchesDocument = withinProviderSummaryTolerance(
+    summaryIva ?? 0,
+    documentVat.iva,
+  );
+  const summaryIvaMatchesRate = withinProviderSummaryTolerance(
+    summaryIva ?? 0,
+    base * (summaryIvaPercent / 100),
+  );
+  const signsMatch =
+    hasSameMoneySign(summaryTotal ?? 0, base) &&
+    hasSameMoneySign(summaryIva ?? 0, base) &&
+    hasSameMoneySign(amount, base);
+
+  if (hasExplicitSurcharge) {
+    const validPercent =
+      percent !== undefined &&
+      Number.isFinite(percent) &&
+      percent > 0 &&
+      percent <= 100;
+    const surchargeMatchesRate =
+      validPercent &&
+      withinProviderSummaryTolerance(amount, base * (percent / 100));
+    const totalReconciles = withinProviderSummaryTolerance(
+      summaryTotal ?? 0,
+      base + (summaryIva ?? 0) + amount,
+    );
+    if (
+      !Number.isFinite(rawAmount) ||
+      amount === 0 ||
+      !validPercent ||
+      !surchargeMatchesRate ||
+      !summaryIvaMatchesDocument ||
+      !summaryIvaMatchesRate ||
+      !totalReconciles ||
+      !signsMatch
+    ) {
+      return blockedProviderSummarySurcharge(amount, percent);
+    }
+    return {
+      source: "provider_summary",
+      amount,
+      percent,
+      blocked: false,
+      issue: null,
+    };
+  }
+
+  if (
+    Math.abs(summaryDifference) <=
+      EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE &&
+    summaryIvaMatchesDocument &&
+    summaryIvaMatchesRate &&
+    signsMatch
+  ) {
+    return { source: "none", amount: 0, blocked: false, issue: null };
+  }
+
+  if (
+    providerSummary.status !== "pending_original" ||
+    base === 0 ||
+    percent === undefined ||
+    !Number.isFinite(percent) ||
+    !isOfficialLegacySurchargeRate(summaryIvaPercent, percent) ||
+    !summaryIvaMatchesDocument ||
+    !summaryIvaMatchesRate ||
+    !signsMatch
+  ) {
+    return blockedProviderSummarySurcharge(summaryDifference, percent);
+  }
+  return {
+    source: "legacy_summary_total",
+    amount: summaryDifference,
+    percent,
+    blocked: false,
+    issue: null,
   };
 }
 
@@ -162,17 +420,46 @@ export function expenseFiscalAmounts(
   vatExempt = false,
 ): ExpenseFiscalAmounts {
   const vat = resolveExpenseVat(expense, vatExempt);
+  const totals = expenseTotals(expense, vatExempt);
   const deductible = isExpenseFiscalDeductible(expense);
+  const recargo = totals.recargoEquivalencia ?? 0;
+  const hasEquivalenceSurcharge = recargo !== 0;
+  const registeredIva = totals.documentIva ?? totals.iva;
+  const deductibleIrpfExpense = deductible
+    ? hasEquivalenceSurcharge && !vat.blocked
+      ? totals.total
+      : vat.base
+    : 0;
+  const deductibleVatBase =
+    deductible && !vat.blocked && !hasEquivalenceSurcharge ? vat.base : 0;
 
   return {
     deductible,
-    registeredBase: vat.base,
-    registeredIvaPercent: vat.headerIvaPercent,
-    registeredIva: vat.iva,
-    registeredTotal: vat.total,
-    deductibleBase: deductible ? vat.base : 0,
-    deductibleIva: deductible && !vat.blocked ? vat.iva : 0,
-    operatingCost: deductible && !vat.blocked ? vat.base : vat.total,
+    registeredBase: totals.base,
+    registeredIvaPercent:
+      totals.documentIvaPercent ?? totals.ivaPercent,
+    registeredIva,
+    registeredTotal: totals.total,
+    ...(hasEquivalenceSurcharge
+      ? {
+          registeredEquivalenceSurcharge: recargo,
+          ...(totals.recargoEquivalenciaPercent === undefined
+            ? {}
+            : {
+                registeredEquivalenceSurchargePercent:
+                  totals.recargoEquivalenciaPercent,
+              }),
+        }
+      : {}),
+    deductibleIrpfExpense,
+    deductibleVatBase,
+    deductibleBase: deductibleIrpfExpense,
+    deductibleIva:
+      deductible && !vat.blocked && !hasEquivalenceSurcharge ? vat.iva : 0,
+    operatingCost:
+      deductible && !vat.blocked && !hasEquivalenceSurcharge
+        ? vat.base
+        : totals.total,
     vatSource: vat.source,
     vatIssue: vat.issue,
     vatBlocked: vat.blocked,
@@ -368,7 +655,7 @@ function blockedExpenseVatResolution(
  * enlazadas a su plantilla) conservan el contrato P1-06 de importe íntegro e
  * IVA cero sin reescribir sus líneas documentales.
  */
-export function resolveExpenseVat(
+function resolveExpenseVatCore(
   expense: ExpenseVatInput,
   vatExempt = false,
 ): ExpenseVatResolution {
@@ -474,6 +761,59 @@ export function resolveExpenseVat(
     breakdown,
     reconciliationDifference,
   };
+}
+
+export function resolveExpenseVat(
+  expense: ExpenseVatInput,
+  vatExempt = false,
+): ExpenseVatResolution {
+  const resolved = resolveExpenseVatCore(expense, vatExempt);
+  const documentVat = vatExempt
+    ? resolveExpenseVatCore(expense, false)
+    : resolved;
+  const providerTax = resolveExpenseEquivalenceSurchargeWithVat(
+    expense,
+    documentVat,
+  );
+  if (providerTax.blocked) {
+    return {
+      ...resolved,
+      source: "blocked",
+      issue: "provider_summary_tax_mismatch",
+      blocked: true,
+    };
+  }
+
+  const summaryIva = expense.providerSummary?.summaryIvaAmount;
+  if (
+    !vatExempt &&
+    expense.providerSummary?.status === "pending_original" &&
+    resolved.source === "header" &&
+    Number.isFinite(summaryIva)
+  ) {
+    const iva = roundMoneySymmetric(summaryIva ?? 0);
+    const summaryIvaPercent = expense.providerSummary.summaryIvaPercent;
+    const ivaPercent = Number.isFinite(summaryIvaPercent)
+      ? summaryIvaPercent ?? resolved.headerIvaPercent
+      : resolved.headerIvaPercent;
+    return {
+      ...resolved,
+      iva,
+      total: roundMoneySymmetric(resolved.base + iva),
+      headerIvaPercent: ivaPercent,
+      breakdown: [
+        {
+          ivaPercent,
+          base: resolved.base,
+          iva,
+          total: roundMoneySymmetric(resolved.base + iva),
+          lineCount: 0,
+        },
+      ],
+    };
+  }
+
+  return resolved;
 }
 
 export function isExpenseMixedVatBlocked(

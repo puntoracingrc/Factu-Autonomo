@@ -128,6 +128,106 @@ describe("backup", () => {
     ]);
   });
 
+  it("conserva la evidencia anidada de recargo al exportar y restaurar", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        expenses: [
+          {
+            id: "expense-re",
+            date: "2026-04-01",
+            supplierName: "Proveedor Recargo SL",
+            description: "Compra con recargo",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            providerSummary: {
+              status: "pending_original",
+              summaryId: "summary-re",
+              importedAt: NOW,
+              summaryInvoiceTotal: 126.2,
+              summaryIvaPercent: 21,
+              summaryIvaAmount: 21,
+              summaryRecargoPercent: 5.2,
+              summaryRecargoAmount: 5.2,
+            },
+            createdAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+    const restored = parseBackupJson(payload);
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.expenses[0]?.providerSummary).toMatchObject({
+      summaryIvaPercent: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+      summaryInvoiceTotal: 126.2,
+    });
+  });
+
+  it("conserva el antes/después reversible de una reparación de repartos", () => {
+    const beforeAllocation = {
+      workDocumentId: "doc-work",
+      amount: 100,
+      includedLineIds: ["line-1"],
+      allocatedAt: NOW,
+    };
+    const afterAllocation = {
+      ...beforeAllocation,
+      amount: 126.2,
+      fullAmountAtAllocation: 126.2,
+    };
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        expenses: [
+          {
+            id: "expense-repair",
+            date: "2026-04-01",
+            supplierName: "Proveedor Recargo SL",
+            description: "Compra repartida",
+            amount: 100,
+            ivaPercent: 21,
+            category: "Material",
+            paymentMethod: "Tarjeta",
+            workDocumentId: "doc-work",
+            workAllocations: [afterAllocation],
+            workAllocationCostRepair: {
+              schemaVersion: 1,
+              kind: "provider_summary_equivalence_surcharge_v1",
+              repairId: "aud-p2-26-work-allocation:expense-repair:v1",
+              status: "applied",
+              legacyOperatingCost: 100,
+              canonicalOperatingCost: 126.2,
+              beforeFingerprint: "before",
+              afterFingerprint: "after",
+              beforeAllocations: [beforeAllocation],
+              afterAllocations: [afterAllocation],
+              events: [{ action: "applied", at: NOW }],
+            },
+            createdAt: NOW,
+          },
+        ],
+      },
+      NOW,
+    );
+    const restored = parseBackupJson(payload);
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.expenses[0]?.workAllocations).toEqual([afterAllocation]);
+    expect(restored.expenses[0]?.workAllocationCostRepair).toMatchObject({
+      beforeAllocations: [beforeAllocation],
+      afterAllocations: [afterAllocation],
+      events: [{ action: "applied", at: NOW }],
+    });
+  });
+
   it("rechaza archivos inválidos", () => {
     const result = parseBackupJson({ foo: "bar" });
     expect(result).toHaveProperty("error");

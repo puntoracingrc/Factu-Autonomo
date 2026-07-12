@@ -168,6 +168,7 @@ export default function NuevoGastoPage() {
     addExpense,
     updateExpense,
     addSupplier,
+    ensureExpenseSupplier,
     saveFixedExpenseWithRecurringTemplate,
   } = useAppStore();
 
@@ -328,20 +329,22 @@ export default function NuevoGastoPage() {
   const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
     const { payload, fileName } = review;
     setVatSubmitError(null);
+    const scannedSupplierNif =
+      payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif;
     const match = findBestSupplierMatch(data.suppliers, {
       name: payload.supplier.name,
-      nif: payload.supplier.nif,
+      nif: scannedSupplierNif,
     });
 
     if (match) {
       setSupplierName(match.supplier.name);
       setSelectedSupplierId(match.supplier.id);
-      setSupplierNif(match.supplier.nif ?? payload.supplier.nif ?? undefined);
+      setSupplierNif(match.supplier.nif ?? scannedSupplierNif ?? undefined);
       setSupplierHint(buildSupplierMatchHint(match));
     } else {
       setSupplierName(payload.supplier.name);
       setSelectedSupplierId(null);
-      setSupplierNif(payload.supplier.nif ?? undefined);
+      setSupplierNif(scannedSupplierNif ?? undefined);
       setSupplierHint(null);
     }
     setDescription(payload.expense.description);
@@ -1161,24 +1164,16 @@ export default function NuevoGastoPage() {
       return false;
     }
 
-    const match = findBestSupplierMatch(data.suppliers, {
+    const resolved = ensureExpenseSupplier({
       name: payload.supplier.name,
-      nif: payload.supplier.nif,
-    });
-    const resolved = ensureSupplierForExpense(data.suppliers, {
-      name: match?.supplier.name ?? payload.supplier.name,
       nif:
-        match?.supplier.nif ??
         payload.expense.purchaseDocument?.supplierNif ??
         payload.supplier.nif ??
         undefined,
       category: payload.expense.category,
       saveSupplier: true,
-      selectedSupplierId: match?.supplier.id ?? null,
     });
-    const supplierId = resolved.create
-      ? addSupplier(resolved.create).id
-      : resolved.supplierId;
+    const supplierId = resolved.supplierId;
     const purchaseDocument = sanitizeExpensePurchaseDocument({
       ...(payload.expense.purchaseDocument ?? {}),
       issueDate: payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
@@ -1393,7 +1388,7 @@ export default function NuevoGastoPage() {
     const resolved = hasSupplierName
       ? ensureSupplierForExpense(data.suppliers, {
           name: supplierName,
-          nif: supplierNif,
+          nif: purchaseDocument.supplierNif ?? supplierNif,
           category,
           saveSupplier,
           selectedSupplierId,

@@ -412,7 +412,13 @@ export interface ExpenseProviderSummaryInfo {
   providerName?: string;
   completedAt?: string;
   summaryInvoiceTotal?: number;
+  /** Tipo de IVA que figuraba en el resumen, aunque no sea recuperable. */
+  summaryIvaPercent?: number;
   summaryIvaAmount?: number;
+  /** Tipo de recargo de equivalencia indicado por el proveedor. */
+  summaryRecargoPercent?: number;
+  /** Cuota de recargo separada del IVA y aplicada sobre la misma base. */
+  summaryRecargoAmount?: number;
 }
 
 /** Reparto operativo de un gasto entre trabajos. No modifica el documento fiscal. */
@@ -422,8 +428,33 @@ export interface ExpenseWorkAllocation {
   amount: number;
   /** Líneas de compra incluidas cuando el gasto tiene detalle estructurado. */
   includedLineIds?: string[];
+  /** `operatingCost` canónico firmado usado al crear o actualizar este reparto. */
+  fullAmountAtAllocation?: number;
   allocatedAt: string;
   updatedAt?: string;
+}
+
+export interface ExpenseWorkAllocationCostRepairEvent {
+  action: "applied" | "rolled_back";
+  at: string;
+}
+
+/**
+ * Evidencia reversible de una reconciliación explícita de repartos antiguos.
+ * Vive en el gasto operativo y nunca modifica el documento fiscal vinculado.
+ */
+export interface ExpenseWorkAllocationCostRepair {
+  schemaVersion: 1;
+  kind: "provider_summary_equivalence_surcharge_v1";
+  repairId: string;
+  status: "applied" | "rolled_back";
+  legacyOperatingCost: number;
+  canonicalOperatingCost: number;
+  beforeFingerprint: string;
+  afterFingerprint: string;
+  beforeAllocations: ExpenseWorkAllocation[];
+  afterAllocations: ExpenseWorkAllocation[];
+  events: ExpenseWorkAllocationCostRepairEvent[];
 }
 
 export interface Expense {
@@ -454,6 +485,8 @@ export interface Expense {
   workAllocations?: ExpenseWorkAllocation[];
   /** El usuario ha indicado que el importe restante no corresponde a ningún trabajo. */
   workAllocationClosed?: boolean;
+  /** Auditoría reversible de un ajuste explícito del coste de los repartos. */
+  workAllocationCostRepair?: ExpenseWorkAllocationCostRepair;
   /** Gasto generado desde un gasto fijo */
   recurringExpenseId?: string;
   recurringOccurrenceKey?: string;

@@ -117,6 +117,32 @@ describe("rentabilidad real read-only adapters", () => {
     });
   });
 
+  it("propaga el coste no recuperable con recargo a Rentabilidad Real", () => {
+    const mapped = mapExistingExpenseToProfitabilityCost(
+      baseExpense({
+        amount: 100,
+        purchaseLines: undefined,
+        providerSummary: {
+          status: "pending_original",
+          summaryId: "summary-re",
+          importedAt: "2026-07-11T10:00:00.000Z",
+          summaryInvoiceTotal: 126.2,
+          summaryIvaPercent: 21,
+          summaryIvaAmount: 21,
+          summaryRecargoPercent: 5.2,
+          summaryRecargoAmount: 5.2,
+        },
+      }),
+    );
+
+    expect(mapped).toMatchObject({
+      amount: 126.2,
+      fiscalDeductible: true,
+      ivaAmount: 0,
+      total: 126.2,
+    });
+  });
+
   it("propaga un abono firmado como coste e IVA negativos", () => {
     const credit = baseExpense({
       id: "expense_credit",

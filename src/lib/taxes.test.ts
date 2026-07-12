@@ -231,6 +231,42 @@ describe("calculateTaxSummary", () => {
     expect(summary.unsupportedMixedVatExpenses).toBe(0);
   });
 
+  it("lleva IVA y recargo no recuperables al coste y al gasto de IRPF", () => {
+    const surchargeExpense: Expense = {
+      ...expense,
+      id: "expense-re",
+      amount: 100,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    };
+
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000)],
+      [surchargeExpense],
+      { irpfPercent: 20 },
+    );
+
+    expect(summary).toMatchObject({
+      expenseBase: 126.2,
+      expenseIva: 0,
+      operatingExpenseCost: 126.2,
+      netIva: 210,
+      grossProfit: 873.8,
+      estimatedIrpfBase: 873.8,
+      irpfEstimate: 174.76,
+      profitAfterIrpfReserve: 699.04,
+    });
+    expect(expenseIvaAmount(surchargeExpense)).toBe(0);
+  });
+
   it("usa el desglose mixto conciliado en IVA, IRPF y coste económico", () => {
     const summary = calculateTaxSummary(
       [issuedInvoice("pagado", 1000)],

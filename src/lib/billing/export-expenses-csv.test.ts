@@ -51,6 +51,25 @@ function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
   };
 }
 
+function equivalenceSurchargeExpense(): Expense {
+  return {
+    ...expense,
+    id: "equivalence-surcharge-expense",
+    description: "Compra con recargo",
+    amount: 100,
+    providerSummary: {
+      status: "pending_original",
+      summaryId: "summary-re",
+      importedAt: "2026-07-11T10:00:00.000Z",
+      summaryInvoiceTotal: 126.2,
+      summaryIvaPercent: 21,
+      summaryIvaAmount: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+    },
+  };
+}
+
 describe("export expenses csv", () => {
   it("genera cabecera y columnas útiles para gestoría", () => {
     const csv = buildExpensesExportCsv([expense], [supplier], {
@@ -76,7 +95,7 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Material");
   });
 
-  it("mantiene 16 columnas en cabecera, detalle y total", () => {
+  it("mantiene 19 columnas en cabecera, detalle y total", () => {
     const csv = buildExpensesExportCsv([expense], [supplier], {
       profile: DEFAULT_PROFILE,
       periodLabel: "2026",
@@ -86,9 +105,22 @@ describe("export expenses csv", () => {
     const detail = lines.find((line) => line.includes("Material oficina"));
     const total = lines.find((line) => line.startsWith("TOTAL GASTOS;"));
 
-    expect(header?.split(";")).toHaveLength(16);
-    expect(detail?.split(";")).toHaveLength(16);
-    expect(total?.split(";")).toHaveLength(16);
+    expect(header?.split(";")).toHaveLength(19);
+    expect(detail?.split(";")).toHaveLength(19);
+    expect(total?.split(";")).toHaveLength(19);
+  });
+
+  it("exporta el recargo separado y conserva el total no recuperable", () => {
+    const csv = buildExpensesExportCsv(
+      [equivalenceSurchargeExpense()],
+      [supplier],
+      { profile: DEFAULT_PROFILE, periodLabel: "2026" },
+    );
+
+    expect(csv).toContain("Recargo equivalencia (%)");
+    expect(csv).toContain("Recargo equivalencia (EUR)");
+    expect(csv).toContain("21,00;5,2%;5,20;126,20;126,20;0,00;0,00");
+    expect(csv).toContain("Material;1;126,20;126,20;0,00;0,00");
   });
 
   it("exporta tipos, desglose y origen conciliado para IVA mixto", () => {
@@ -108,8 +140,8 @@ describe("export expenses csv", () => {
     expect(csv).toContain("10%: base 100,00 / IVA 10,00");
     expect(csv).toContain("21%: base 100,00 / IVA 21,00");
     expect(csv).toContain("Líneas conciliadas");
-    expect(csv).toContain("31,00;231,00;200,00;31,00");
-    expect(csv).toContain("Material;1;231,00;200,00;31,00");
+    expect(csv).toContain("31,00;;0,00;231,00;200,00;200,00;31,00");
+    expect(csv).toContain("Material;1;231,00;200,00;200,00;31,00");
   });
 
   it("identifica de forma explícita la cabecera o el importe íntegro", () => {
@@ -149,6 +181,23 @@ describe("export expenses csv", () => {
     }
   });
 
+  it("bloquea el CSV si total, IVA y recargo no concilian", () => {
+    const malformed: Expense = {
+      ...equivalenceSurchargeExpense(),
+      providerSummary: {
+        ...equivalenceSurchargeExpense().providerSummary!,
+        summaryInvoiceTotal: 999,
+      },
+    };
+
+    expect(() =>
+      buildExpensesExportCsv([malformed], [supplier], {
+        profile: DEFAULT_PROFILE,
+        periodLabel: "2026",
+      }),
+    ).toThrowError(TaxExportBlockedError);
+  });
+
   it("prefiere el NIF histórico del documento frente al maestro actual", () => {
     const csv = buildExpensesExportCsv(
       [
@@ -180,12 +229,13 @@ describe("export expenses csv", () => {
 
     expect(csv).toContain("Tratamiento fiscal");
     expect(csv).toContain("Coste registrado (EUR)");
-    expect(csv).toContain("Base deducible (EUR)");
+    expect(csv).toContain("Gasto deducible IRPF (EUR)");
+    expect(csv).toContain("Base deducible IVA (EUR)");
     expect(csv).toContain("IVA deducible (EUR)");
     expect(csv).toContain(
-      "No deducible;50,00;21%;21%: base 50,00 / IVA 10,50;Cabecera o importe íntegro;10,50;60,50;0,00;0,00",
+      "No deducible;50,00;21%;21%: base 50,00 / IVA 10,50;Cabecera o importe íntegro;10,50;;0,00;60,50;0,00;0,00;0,00",
     );
-    expect(csv).toContain("Material;1;60,50;0,00;0,00");
+    expect(csv).toContain("Material;1;60,50;0,00;0,00;0,00");
   });
 
   it("rotula el contrato de importe íntegro de un fijo no deducible", () => {
@@ -218,7 +268,7 @@ describe("export expenses csv", () => {
     );
 
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Cabecera o importe íntegro;0,00;100,00;0,00;0,00",
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Cabecera o importe íntegro;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
   });
 
@@ -240,10 +290,10 @@ describe("export expenses csv", () => {
     );
 
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;100,00;0,00;0,00",
+      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
     expect(csv).not.toContain("Cabecera o importe íntegro");
-    expect(csv).toContain("Material;1;100,00;0,00;0,00");
+    expect(csv).toContain("Material;1;100,00;0,00;0,00;0,00");
   });
 
   it("identifica el abono y conserva sus importes firmados en detalle y totales", () => {

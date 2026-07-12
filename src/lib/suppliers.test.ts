@@ -11,6 +11,7 @@ import {
   supplierCompareKey,
   supplierPurchasedTotal,
   supplierSimilarityScore,
+  upsertSupplierForExpense,
   validateSupplierContact,
 } from "./suppliers";
 import type { Expense, Supplier } from "./types";
@@ -85,6 +86,17 @@ describe("supplierSimilarityScore", () => {
       supplierSimilarityScore("Leroy", "Leroy Merlin", "B12345678", "B12345678"),
     ).toBe(1);
   });
+
+  it("no considera iguales dos nombres si sus NIF conocidos discrepan", () => {
+    expect(
+      supplierSimilarityScore(
+        "Comercial Alfa SL",
+        "Comercial Alfa SL",
+        "B11111111",
+        "B22222222",
+      ),
+    ).toBe(0);
+  });
 });
 
 describe("findBestSupplierMatch", () => {
@@ -98,6 +110,22 @@ describe("findBestSupplierMatch", () => {
     const match = findBestSupplierMatch(suppliers, { name: "LEROY MERLIN S.L." });
     expect(match?.supplier.id).toBe("2");
     expect(match?.score).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it("rechaza el nombre exacto cuando el NIF fiscal es incompatible", () => {
+    const match = findBestSupplierMatch(
+      [
+        {
+          id: "supplier-alfa",
+          name: "Comercial Alfa SL",
+          nif: "B11111111",
+          createdAt: "2026-01-01",
+        },
+      ],
+      { name: "Comercial Alfa SL", nif: "B22222222" },
+    );
+
+    expect(match).toBeNull();
   });
 });
 
@@ -130,6 +158,234 @@ describe("ensureSupplierForExpense", () => {
     expect(result.supplierId).toBeUndefined();
     expect(result.create).toBeUndefined();
     expect(result.supplierName).toBe("Tienda de paso");
+  });
+
+  it("ignora una selección explícita cuyo NIF contradice el gasto", () => {
+    const result = ensureSupplierForExpense(
+      [
+        ...suppliers,
+        {
+          id: "3",
+          name: "Proveedor fiscal correcto",
+          nif: "B99999999",
+          createdAt: "2026-01-03",
+        },
+      ],
+      {
+        name: "Leroy Merlin",
+        nif: "B99999999",
+        selectedSupplierId: "2",
+        saveSupplier: true,
+      },
+    );
+
+    expect(result.supplierId).toBe("3");
+    expect(result.create).toBeUndefined();
+  });
+
+  it("conserva una selección explícita que acredita el mismo NIF", () => {
+    const result = ensureSupplierForExpense(suppliers, {
+      name: "Nombre OCR",
+      nif: "B-12345678",
+      selectedSupplierId: "2",
+      saveSupplier: true,
+    });
+
+    expect(result.supplierId).toBe("2");
+    expect(result.matchedExisting?.id).toBe("2");
+    expect(result.create).toBeUndefined();
+  });
+
+  it("crea una alta si la selección no acredita el NIF conocido", () => {
+    const result = ensureSupplierForExpense(
+      [
+        {
+          id: "supplier-without-nif",
+          name: "Comercial Alfa",
+          createdAt: "2026-01-01",
+        },
+      ],
+      {
+        name: "Comercial Alfa",
+        nif: "B11111111",
+        selectedSupplierId: "supplier-without-nif",
+        saveSupplier: true,
+      },
+    );
+
+    expect(result.supplierId).toBeUndefined();
+    expect(result.create).toMatchObject({
+      name: "Comercial Alfa",
+      nif: "B11111111",
+    });
+  });
+});
+
+describe("upsertSupplierForExpense", () => {
+  const options = {
+    createId: (() => {
+      let sequence = 0;
+      return () => `supplier-created-${++sequence}`;
+    })(),
+    now: () => "2026-07-12T03:00:00.000Z",
+  };
+
+  it("reutiliza dentro del lote el proveedor recién creado por NIF normalizado", () => {
+    const first = upsertSupplierForExpense(
+      [],
+      {
+        name: "Distribuciones Norte SL",
+        nif: "B-12345678",
+        category: "Material",
+        saveSupplier: true,
+      },
+      options,
+    );
+    const second = upsertSupplierForExpense(
+      first.suppliers,
+      {
+        name: "Lectura OCR distinta",
+        nif: "B 12345678",
+        category: "Material",
+        saveSupplier: true,
+      },
+      options,
+    );
+
+    expect(first.suppliers).toHaveLength(1);
+    expect(second.suppliers).toBe(first.suppliers);
+    expect(second.supplierId).toBe(first.supplierId);
+    expect(second.createdSupplier).toBeUndefined();
+  });
+
+  it("reutiliza por nombre normalizado cuando el lote no trae NIF", () => {
+    const first = upsertSupplierForExpense(
+      [],
+      { name: "Suministros Únicos, S.L.", saveSupplier: true },
+      options,
+    );
+    const second = upsertSupplierForExpense(
+      first.suppliers,
+      { name: "suministros unicos sl", saveSupplier: true },
+      options,
+    );
+
+    expect(second.suppliers).toBe(first.suppliers);
+    expect(second.suppliers).toHaveLength(1);
+    expect(second.supplierId).toBe(first.supplierId);
+  });
+
+  it("no modifica el maestro cuando el proveedor ya existía", () => {
+    const result = upsertSupplierForExpense(
+      suppliers,
+      {
+        name: "Otra lectura",
+        nif: "B 12345678",
+        saveSupplier: true,
+      },
+      options,
+    );
+
+    expect(result.suppliers).toBe(suppliers);
+    expect(result.supplierId).toBe("2");
+    expect(result.createdSupplier).toBeUndefined();
+  });
+
+  it("mantiene separados los homónimos con NIF incompatibles", () => {
+    const first = upsertSupplierForExpense(
+      [],
+      {
+        name: "Comercial Alfa SL",
+        nif: "B11111111",
+        saveSupplier: true,
+      },
+      options,
+    );
+    const second = upsertSupplierForExpense(
+      first.suppliers,
+      {
+        name: "Comercial Alfa SL",
+        nif: "B22222222",
+        saveSupplier: true,
+      },
+      options,
+    );
+
+    expect(second.suppliers).toHaveLength(2);
+    expect(second.supplierId).not.toBe(first.supplierId);
+    expect(second.suppliers.map((supplier) => supplier.nif)).toEqual([
+      "B11111111",
+      "B22222222",
+    ]);
+  });
+
+  it("no usa un maestro legacy sin NIF como puente entre dos NIF distintos", () => {
+    const legacy: Supplier = {
+      id: "supplier-legacy",
+      name: "Comercial Alfa",
+      createdAt: "2025-01-01",
+    };
+    const first = upsertSupplierForExpense(
+      [legacy],
+      {
+        name: "Comercial Alfa",
+        nif: "B11111111",
+        saveSupplier: true,
+      },
+      options,
+    );
+    const second = upsertSupplierForExpense(
+      first.suppliers,
+      {
+        name: "Comercial Alfa",
+        nif: "B22222222",
+        saveSupplier: true,
+      },
+      options,
+    );
+
+    expect(first.supplierId).not.toBe(legacy.id);
+    expect(second.supplierId).not.toBe(legacy.id);
+    expect(second.supplierId).not.toBe(first.supplierId);
+    expect(second.suppliers).toHaveLength(3);
+  });
+
+  it("no convierte una sugerencia difusa en una fusión automática", () => {
+    const first = upsertSupplierForExpense(
+      [],
+      { name: "Suministros Norte", saveSupplier: true },
+      options,
+    );
+    const second = upsertSupplierForExpense(
+      first.suppliers,
+      { name: "Suministros Sur", saveSupplier: true },
+      options,
+    );
+
+    expect(second.suppliers).toHaveLength(2);
+    expect(second.supplierId).not.toBe(first.supplierId);
+  });
+
+  it("resuelve una tanda A, A, B con dos altas e IDs A, A, B", () => {
+    let current: Supplier[] = [];
+    const ids: Array<string | undefined> = [];
+    for (const input of [
+      { name: "Proveedor A", nif: "B11111111" },
+      { name: "OCR Proveedor A", nif: "B-11111111" },
+      { name: "Proveedor B", nif: "B22222222" },
+    ]) {
+      const result = upsertSupplierForExpense(
+        current,
+        { ...input, saveSupplier: true },
+        options,
+      );
+      current = result.suppliers;
+      ids.push(result.supplierId);
+    }
+
+    expect(current).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[2]).not.toBe(ids[0]);
   });
 });
 
@@ -215,6 +471,41 @@ describe("supplierPurchasedTotal", () => {
       ivaPercent: 21,
     });
 
+    expect(supplierPurchasedTotal([purchase, credit], supplier)).toBe(0);
+  });
+
+  it("suma y compensa el total documental con recargo", () => {
+    const supplier = suppliers[0];
+    const purchase = expense({
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      amount: 100,
+      ivaPercent: 21,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re-purchase",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    });
+    const credit = expense({
+      ...purchase,
+      id: "summary-re-credit",
+      amount: -100,
+      providerSummary: {
+        ...purchase.providerSummary!,
+        summaryId: "summary-re-credit",
+        summaryInvoiceTotal: -126.2,
+        summaryIvaAmount: -21,
+        summaryRecargoAmount: -5.2,
+      },
+    });
+
+    expect(supplierPurchasedTotal([purchase], supplier)).toBe(126.2);
     expect(supplierPurchasedTotal([purchase, credit], supplier)).toBe(0);
   });
 

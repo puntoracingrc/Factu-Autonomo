@@ -1,4 +1,4 @@
-import { roundMoney } from "./calculations";
+import { roundMoneySymmetric } from "./calculations";
 import { findDuplicatePurchaseExpense } from "./expenses";
 import {
   EXPENSE_CATEGORIES,
@@ -131,11 +131,11 @@ function parseNumericTail(numbers: number[]): Omit<
 > | null {
   if (numbers.length < 4) return null;
 
-  const base = roundMoney(numbers[0]);
+  const base = roundMoneySymmetric(numbers[0]);
   const ivaPercent = numbers[1];
-  const ivaAmount = roundMoney(numbers[2]);
-  const noRecargoTotal = roundMoney(numbers[3]);
-  const noRecargoExpectedTotal = roundMoney(base + ivaAmount);
+  const ivaAmount = roundMoneySymmetric(numbers[2]);
+  const noRecargoTotal = roundMoneySymmetric(numbers[3]);
+  const noRecargoExpectedTotal = roundMoneySymmetric(base + ivaAmount);
   if (Math.abs(noRecargoExpectedTotal - noRecargoTotal) <= 0.05) {
     return {
       base,
@@ -146,18 +146,43 @@ function parseNumericTail(numbers: number[]): Omit<
   }
 
   if (numbers.length >= 6) {
-    const total = roundMoney(numbers[5]);
-    return {
-      base,
-      ivaPercent,
-      ivaAmount,
-      recargoPercent: numbers[3],
-      recargoAmount: roundMoney(numbers[4]),
-      total,
-    };
+    const candidates = [
+      {
+        recargoPercent: numbers[3],
+        recargoAmount: roundMoneySymmetric(numbers[4]),
+        total: roundMoneySymmetric(numbers[5]),
+      },
+      {
+        recargoPercent: numbers[5],
+        recargoAmount: roundMoneySymmetric(numbers[3]),
+        total: roundMoneySymmetric(numbers[4]),
+      },
+    ];
+    const candidate = candidates.find((item) => {
+      if (
+        !Number.isFinite(item.recargoPercent) ||
+        item.recargoPercent <= 0 ||
+        item.recargoPercent > 100
+      ) {
+        return false;
+      }
+      const expectedRecargo = roundMoneySymmetric(
+        base * (item.recargoPercent / 100),
+      );
+      const expectedTotal = roundMoneySymmetric(
+        base + ivaAmount + item.recargoAmount,
+      );
+      return (
+        Math.abs(expectedRecargo - item.recargoAmount) <= 0.05 &&
+        Math.abs(expectedTotal - item.total) <= 0.05
+      );
+    });
+    if (candidate) {
+      return { base, ivaPercent, ivaAmount, ...candidate };
+    }
   }
 
-  return { base, ivaPercent, ivaAmount, total: noRecargoTotal };
+  return null;
 }
 
 export function parseProviderInvoiceSummaryText(
@@ -212,7 +237,7 @@ export function parseProviderInvoiceSummaryText(
       continue;
     }
 
-    const expectedTotal = roundMoney(
+    const expectedTotal = roundMoneySymmetric(
       numericTail.base +
         numericTail.ivaAmount +
         (numericTail.recargoAmount ?? 0),
@@ -280,7 +305,10 @@ export function createProviderSummaryExpense(
       importedAt,
       providerName,
       summaryInvoiceTotal: row.total,
+      summaryIvaPercent: row.ivaPercent,
       summaryIvaAmount: row.ivaAmount,
+      summaryRecargoPercent: row.recargoPercent,
+      summaryRecargoAmount: row.recargoAmount,
     },
   };
 }

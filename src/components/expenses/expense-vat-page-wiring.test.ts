@@ -31,17 +31,28 @@ describe("expense VAT page fail-closed wiring", () => {
       "\n  return (",
     );
 
-    for (const block of [scanSave, manualSave]) {
-      const preparation = block.indexOf("prepareExpenseVatForSave(");
-      const blockedReturn = block.indexOf("if (!vatPreparation.ok)");
-      const supplierResolution = block.indexOf("ensureSupplierForExpense(");
-      const supplierCreation = block.indexOf("addSupplier(");
+    const scanPreparation = scanSave.indexOf("prepareExpenseVatForSave(");
+    const scanBlockedReturn = scanSave.indexOf("if (!vatPreparation.ok)");
+    const duplicateReturn = scanSave.indexOf(
+      "if (duplicate && !upgradeTarget) return false",
+    );
+    const atomicSupplierUpsert = scanSave.indexOf("ensureExpenseSupplier(");
+    expect(scanPreparation).toBeGreaterThanOrEqual(0);
+    expect(scanBlockedReturn).toBeGreaterThan(scanPreparation);
+    expect(duplicateReturn).toBeGreaterThan(scanBlockedReturn);
+    expect(atomicSupplierUpsert).toBeGreaterThan(scanBlockedReturn);
+    expect(atomicSupplierUpsert).toBeGreaterThan(duplicateReturn);
 
-      expect(preparation).toBeGreaterThanOrEqual(0);
-      expect(blockedReturn).toBeGreaterThan(preparation);
-      expect(supplierResolution).toBeGreaterThan(blockedReturn);
-      expect(supplierCreation).toBeGreaterThan(supplierResolution);
-    }
+    const manualPreparation = manualSave.indexOf("prepareExpenseVatForSave(");
+    const manualBlockedReturn = manualSave.indexOf("if (!vatPreparation.ok)");
+    const manualSupplierResolution = manualSave.indexOf(
+      "ensureSupplierForExpense(",
+    );
+    const manualSupplierCreation = manualSave.indexOf("addSupplier(");
+    expect(manualPreparation).toBeGreaterThanOrEqual(0);
+    expect(manualBlockedReturn).toBeGreaterThan(manualPreparation);
+    expect(manualSupplierResolution).toBeGreaterThan(manualBlockedReturn);
+    expect(manualSupplierCreation).toBeGreaterThan(manualSupplierResolution);
   });
 
   it("deshabilita el CSV si el filtro contiene IVA pendiente", () => {
@@ -50,7 +61,7 @@ describe("expense VAT page fail-closed wiring", () => {
     expect(page).toContain("const blockedVatExpenseCount = countBlockedExpenseVat(");
     expect(page).toContain("if (blockedVatExpenseCount > 0) return;");
     expect(page).toContain("disabled={blockedVatExpenseCount > 0}");
-    expect(page).toContain("con desglose de IVA");
+    expect(page).toContain("con evidencia fiscal");
   });
 
   it("no reconcilia un fijo no deducible contra la suma de bases", () => {

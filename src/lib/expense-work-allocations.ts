@@ -119,6 +119,7 @@ export function upsertExpenseWorkAllocation(
             {
               workDocumentId: expense.workDocumentId,
               amount: fullAmount,
+              fullAmountAtAllocation: fullAmount,
               allocatedAt: now,
             },
           ]
@@ -145,6 +146,7 @@ export function upsertExpenseWorkAllocation(
     workDocumentId: input.workDocumentId,
     amount,
     includedLineIds: normalizeLineIds(input.includedLineIds),
+    fullAmountAtAllocation: fullAmount,
     allocatedAt: previous?.allocatedAt || now,
     updatedAt: now,
   };

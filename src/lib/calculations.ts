@@ -77,6 +77,11 @@ export function documentTotals(
   };
 }
 
+/**
+ * @deprecated Solo conserva compatibilidad de cálculos básicos históricos.
+ * Los consumidores de producto deben usar `expenseTotals` desde `expenses.ts`
+ * para respetar IVA mixto, deducibilidad y recargo de equivalencia.
+ */
 export function expenseTotal(expense: Expense): number {
   const amount = Number.isFinite(expense.amount) ? expense.amount : 0;
   const ivaPercent = Number.isFinite(expense.ivaPercent)

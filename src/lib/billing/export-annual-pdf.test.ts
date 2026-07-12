@@ -137,7 +137,7 @@ describe("export annual pdf", () => {
     );
 
     expect(commands).toContain("Gasto neto del año");
-    expect(commands).toContain("Base deducible neta de gastos y abonos");
+    expect(commands).toContain("Gasto neto deducible en IRPF");
     expect(commands).toContain("Gastos y abonos no deducibles");
     expect(commands).toContain("No deducible");
     expect(commands).toContain("121,00");
@@ -161,6 +161,32 @@ describe("export annual pdf", () => {
     expect(commands).toContain("31,00");
     expect(commands).toContain("231,00");
     expect(commands).toContain("200,00");
+  });
+
+  it("traza el recargo separado y el coste documental completo", () => {
+    const surchargeExpense: Expense = {
+      ...expense,
+      description: "Compra con recargo",
+      amount: 100,
+      providerSummary: {
+        status: "pending_original",
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+    };
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([doc], [surchargeExpense], profile, 2026),
+    );
+
+    expect(commands).toContain("R.E.");
+    expect(commands).toContain("5,2%");
+    expect(commands).toContain("5,20");
+    expect(commands).toContain("126,20");
   });
 
   it("identifica un abono y compensa sus importes firmados en el resumen", () => {

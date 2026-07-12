@@ -18,7 +18,7 @@ import {
   saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
 } from "../recurring-expenses";
-import { mergeRemoteOntoLocal } from "./incremental";
+import { mergeRemoteOntoLocal, trackDataDiff } from "./incremental";
 import { buildCloudUploadChanges } from "./sync-queue";
 
 function customer(id: string, name: string): Customer {
@@ -45,6 +45,45 @@ describe("sync por cambios", () => {
     expect(changes).toHaveLength(1);
     expect(changes[0].entityType).toBe("customer");
     expect(changes[0].entityId).toBe("c1");
+  });
+
+  it("conserva en cola el proveedor y el gasto añadidos en dos transiciones", () => {
+    const supplier = {
+      id: "supplier-batch",
+      name: "Proveedor del lote",
+      nif: "B12345678",
+      createdAt: "2026-07-12T03:00:00.000Z",
+    };
+    const afterSupplier = trackDataDiff(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      suppliers: [supplier],
+    });
+    const afterExpense = trackDataDiff(afterSupplier, {
+      ...afterSupplier,
+      expenses: [
+        {
+          id: "expense-batch",
+          date: "2026-07-12",
+          supplierId: supplier.id,
+          supplierName: supplier.name,
+          description: "Factura del lote",
+          amount: 100,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Transferencia",
+          createdAt: "2026-07-12T03:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(
+      afterExpense.meta?.pendingChanges
+        ?.map((change) => `${change.entityType}:${change.entityId}`)
+        .sort(),
+    ).toEqual([
+      "expense:expense-batch",
+      "supplier:supplier-batch",
+    ]);
   });
 
   it("encola juntos el gasto fijo escaneado y su regla recurrente", () => {
@@ -93,6 +132,119 @@ describe("sync por cambios", () => {
     const reloaded = applySyncChanges(EMPTY_DATA, changes);
     expect(reloaded.expenses[0]?.recurringExpenseId).toBe("fixed-template");
     expect(reloaded.recurringExpenses[0]?.id).toBe("fixed-template");
+  });
+
+  it("conserva la evidencia anidada de recargo en el diff cloud", () => {
+    const expense = {
+      id: "expense-re",
+      date: "2026-04-01",
+      supplierName: "Proveedor Recargo SL",
+      description: "Compra con recargo",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      providerSummary: {
+        status: "pending_original" as const,
+        summaryId: "summary-re",
+        importedAt: "2026-07-11T10:00:00.000Z",
+        summaryInvoiceTotal: 126.2,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 21,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 5.2,
+      },
+      createdAt: "2026-07-11T10:00:00.000Z",
+    };
+    const changes = diffAppData(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      expenses: [expense],
+    });
+    const reloaded = applySyncChanges(EMPTY_DATA, changes);
+
+    expect(reloaded.expenses[0]?.providerSummary).toEqual(
+      expense.providerSummary,
+    );
+  });
+
+  it("sincroniza una reparación reversible cambiando solo la entidad expense", () => {
+    const beforeAllocation = {
+      workDocumentId: "doc-work",
+      amount: 100,
+      includedLineIds: ["line-1"],
+      allocatedAt: "2026-07-11T10:00:00.000Z",
+    };
+    const afterAllocation = {
+      ...beforeAllocation,
+      amount: 126.2,
+      fullAmountAtAllocation: 126.2,
+    };
+    const baselineExpense = {
+      id: "expense-repair",
+      date: "2026-04-01",
+      supplierName: "Proveedor Recargo SL",
+      description: "Compra repartida",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "doc-work",
+      workAllocations: [beforeAllocation],
+      createdAt: "2026-07-11T09:00:00.000Z",
+    };
+    const baseline: AppData = {
+      ...EMPTY_DATA,
+      documents: [
+        {
+          id: "doc-work",
+          type: "factura",
+          number: "F-2026-0001",
+          date: "2026-07-10",
+          client: { name: "Cliente" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-07-10T10:00:00.000Z",
+          updatedAt: "2026-07-10T10:00:00.000Z",
+        },
+      ],
+      expenses: [baselineExpense],
+    };
+    const repaired: AppData = {
+      ...baseline,
+      expenses: [
+        {
+          ...baselineExpense,
+          workAllocations: [afterAllocation],
+          workAllocationCostRepair: {
+            schemaVersion: 1,
+            kind: "provider_summary_equivalence_surcharge_v1",
+            repairId: "aud-p2-26-work-allocation:expense-repair:v1",
+            status: "applied",
+            legacyOperatingCost: 100,
+            canonicalOperatingCost: 126.2,
+            beforeFingerprint: "before",
+            afterFingerprint: "after",
+            beforeAllocations: [beforeAllocation],
+            afterAllocations: [afterAllocation],
+            events: [
+              { action: "applied", at: "2026-07-12T02:00:00.000Z" },
+            ],
+          },
+        },
+      ],
+    };
+
+    const changes = diffAppData(baseline, repaired);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      entityType: "expense",
+      entityId: "expense-repair",
+      deleted: false,
+    });
+
+    const reloaded = applySyncChanges(baseline, changes);
+    expect(reloaded.documents).toEqual(baseline.documents);
+    expect(reloaded.expenses[0]).toEqual(repaired.expenses[0]);
   });
 
   it("aplica un cambio remoto sin tocar el resto", () => {

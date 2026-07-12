@@ -240,6 +240,106 @@ describe("storage", () => {
     expect(loaded.profile.name).toBe("Mi negocio");
   });
 
+  it("persiste la evidencia separada del recargo de equivalencia", () => {
+    saveData({
+      ...sampleData(),
+      expenses: [
+        {
+          id: "expense-re",
+          date: "2026-04-01",
+          origin: "import",
+          businessKind: "purchase_invoice",
+          supplierName: "Proveedor Recargo SL",
+          description: "Factura RE/1001 pendiente de original",
+          amount: 100,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Tarjeta",
+          providerSummary: {
+            status: "pending_original",
+            summaryId: "summary-re",
+            importedAt: NOW,
+            summaryInvoiceTotal: 126.2,
+            summaryIvaPercent: 21,
+            summaryIvaAmount: 21,
+            summaryRecargoPercent: 5.2,
+            summaryRecargoAmount: 5.2,
+          },
+          createdAt: NOW,
+        },
+      ],
+    });
+
+    expect(loadData().expenses[0]?.providerSummary).toMatchObject({
+      summaryInvoiceTotal: 126.2,
+      summaryIvaPercent: 21,
+      summaryIvaAmount: 21,
+      summaryRecargoPercent: 5.2,
+      summaryRecargoAmount: 5.2,
+    });
+  });
+
+  it("persiste provenance y auditoría reversible del reparto operativo", () => {
+    const beforeAllocation = {
+      workDocumentId: "doc-work",
+      amount: 100,
+      includedLineIds: ["line-1"],
+      allocatedAt: NOW,
+    };
+    const afterAllocation = {
+      ...beforeAllocation,
+      amount: 126.2,
+      fullAmountAtAllocation: 126.2,
+    };
+    saveData({
+      ...sampleData(),
+      expenses: [
+        {
+          id: "expense-repair",
+          date: "2026-04-01",
+          supplierName: "Proveedor Recargo SL",
+          description: "Compra repartida",
+          amount: 100,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Tarjeta",
+          workDocumentId: "doc-work",
+          workAllocations: [afterAllocation],
+          workAllocationCostRepair: {
+            schemaVersion: 1,
+            kind: "provider_summary_equivalence_surcharge_v1",
+            repairId: "aud-p2-26-work-allocation:expense-repair:v1",
+            status: "applied",
+            legacyOperatingCost: 100,
+            canonicalOperatingCost: 126.2,
+            beforeFingerprint: "before",
+            afterFingerprint: "after",
+            beforeAllocations: [beforeAllocation],
+            afterAllocations: [afterAllocation],
+            events: [{ action: "applied", at: NOW }],
+          },
+          createdAt: NOW,
+        },
+      ],
+    });
+
+    const loaded = loadData().expenses[0];
+    expect(loaded?.workAllocations).toEqual([afterAllocation]);
+    expect(loaded?.workAllocationCostRepair).toEqual({
+      schemaVersion: 1,
+      kind: "provider_summary_equivalence_surcharge_v1",
+      repairId: "aud-p2-26-work-allocation:expense-repair:v1",
+      status: "applied",
+      legacyOperatingCost: 100,
+      canonicalOperatingCost: 126.2,
+      beforeFingerprint: "before",
+      afterFingerprint: "after",
+      beforeAllocations: [beforeAllocation],
+      afterAllocations: [afterAllocation],
+      events: [{ action: "applied", at: NOW }],
+    });
+  });
+
   it("marca como bloqueado un snapshot manipulado al rehidratar", () => {
     const issued = snapshotDocument();
     const loaded = normalizeLoadedData({
