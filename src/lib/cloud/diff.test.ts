@@ -14,7 +14,9 @@ import type {
   SyncChange,
 } from "../types";
 import {
+  applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
+  previewRecurringExpenseChangeToData,
   saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
 } from "../recurring-expenses";
@@ -132,6 +134,102 @@ describe("sync por cambios", () => {
     const reloaded = applySyncChanges(EMPTY_DATA, changes);
     expect(reloaded.expenses[0]?.recurringExpenseId).toBe("fixed-template");
     expect(reloaded.recurringExpenses[0]?.id).toBe("fixed-template");
+  });
+
+  it("segmenta una regla sin publicar cambios sobre el gasto histórico", () => {
+    const recurring: RecurringExpense = {
+      id: "recurring-segment",
+      supplierName: "Proveedor",
+      description: "Servicio mensual",
+      amount: 40,
+      ivaPercent: 21,
+      category: "Servicios",
+      paymentMethod: "Domiciliación",
+      frequency: "monthly",
+      dueTiming: { kind: "end_of_month" },
+      duration: { kind: "indefinite" },
+      startDate: "2026-01-01",
+      enabled: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const before = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-01-31",
+    );
+    const { id, createdAt, updatedAt, occurrenceExclusions, ...baseDraft } =
+      recurring;
+    void id;
+    void createdAt;
+    void updatedAt;
+    void occurrenceExclusions;
+    const change = { ...baseDraft, amount: 50 };
+    const preview = previewRecurringExpenseChangeToData(
+      before,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-01" },
+    );
+    const applied = applyRecurringExpenseChangeToData(
+      before,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        now: "2026-02-01T10:00:00.000Z",
+        newId: () => "recurring-segment-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+
+    const changes = diffAppData(before, applied.data);
+    expect(
+      changes.map((change) => `${change.entityType}:${change.entityId}`).sort(),
+    ).toEqual([
+      "recurring_expense:recurring-segment",
+      "recurring_expense:recurring-segment-v2",
+    ]);
+    expect(applied.data.expenses).toEqual(before.expenses);
+    expect(
+      changes.find(
+        (change) => change.entityId === "recurring-segment-v2",
+      )?.payload,
+    ).toMatchObject({ scheduleAnchorDate: "2026-01-01" });
+
+    const reloaded = applySyncChanges(before, changes);
+    expect(reloaded.expenses).toEqual(before.expenses);
+    expect(
+      reloaded.recurringExpenses.find(
+        (entry) => entry.id === "recurring-segment-v2",
+      ),
+    ).toMatchObject({ scheduleAnchorDate: "2026-01-01" });
+
+    const blockedPreview = previewRecurringExpenseChangeToData(
+      before,
+      recurring.id,
+      change,
+      "2026-01-01",
+      { referenceDate: "2026-01-31" },
+    );
+    const blocked = applyRecurringExpenseChangeToData(
+      before,
+      recurring.id,
+      change,
+      "2026-01-01",
+      {
+        referenceDate: blockedPreview.referenceDate,
+        expectedPrecondition: blockedPreview.precondition,
+      },
+    );
+    expect(blocked).toMatchObject({
+      status: "blocked",
+      reason: "manual_review",
+    });
+    expect(diffAppData(before, blocked.data)).toEqual([]);
   });
 
   it("conserva la evidencia anidada de recargo en el diff cloud", () => {

@@ -508,6 +508,30 @@ describe("storage", () => {
     );
   });
 
+  it("conserva el ancla opcional de una cadencia recurrente al recargar", () => {
+    const recurring: AppData["recurringExpenses"][number] = {
+      id: "quarterly-segment",
+      supplierName: "Proveedor",
+      description: "Seguro trimestral",
+      amount: 300,
+      ivaPercent: 21,
+      category: "Seguros",
+      paymentMethod: "Domiciliación",
+      frequency: "quarterly",
+      dueTiming: { kind: "end_of_month" },
+      duration: { kind: "indefinite" },
+      startDate: "2026-05-01",
+      scheduleAnchorDate: "2026-01-01",
+      enabled: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    saveData({ ...EMPTY_DATA, recurringExpenses: [recurring] });
+
+    expect(loadData().recurringExpenses[0]).toEqual(recurring);
+  });
+
   it("normaliza preferencias de app en datos antiguos y nuevos", () => {
     expect(
       normalizeLoadedData({ profile: {} } as Partial<AppData>).profile

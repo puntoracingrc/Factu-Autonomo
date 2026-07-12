@@ -309,6 +309,11 @@ export interface RecurringExpense {
   dueMonth?: number;
   duration: RecurringDuration;
   startDate: string;
+  /**
+   * Fecha que conserva la cadencia original al abrir un tramo posterior.
+   * Si falta o no es válida, el calendario usa `startDate`.
+   */
+  scheduleAnchorDate?: string;
   enabled: boolean;
   notes?: string;
   /**
