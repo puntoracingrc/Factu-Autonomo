@@ -1,6 +1,7 @@
 import type { AppData, Document } from "@/lib/types";
 import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
 import { expenseFiscalAmounts } from "@/lib/expenses";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import {
   rentabilidadRealDocumentClientId,
   rentabilidadRealDocumentClientName,
@@ -151,7 +152,11 @@ export function dedupeQuoteInvoicePairs(appData: AppData): {
 } {
   const quotesById = new Map(
     appData.documents
-      .filter((document) => document.type === "presupuesto")
+      .filter(
+        (document) =>
+          document.type === "presupuesto" &&
+          isDocumentUsableForFinancialCalculations(document),
+      )
       .map((quote) => [quote.id, quote]),
   );
   const pairedQuoteIds = new Set<string>();
@@ -161,6 +166,7 @@ export function dedupeQuoteInvoicePairs(appData: AppData): {
   for (const invoice of appData.documents.filter(
     (document) =>
       document.type === "factura" &&
+      isDocumentUsableForFinancialCalculations(document) &&
       !isSupersededRentabilidadRealDocument(document),
   )) {
     const sourceQuoteDocumentId = sourceQuoteDocumentIdForRentabilidadInvoice(
@@ -194,6 +200,7 @@ export function buildRentabilidadRealAnalysisUnits(
   for (const invoice of appData.documents.filter(
     (document) =>
       document.type === "factura" &&
+      isDocumentUsableForFinancialCalculations(document) &&
       !isSupersededRentabilidadRealDocument(document) &&
       !pairedInvoiceIds.has(document.id),
   )) {
@@ -202,7 +209,9 @@ export function buildRentabilidadRealAnalysisUnits(
 
   for (const quote of appData.documents.filter(
     (document) =>
-      document.type === "presupuesto" && !pairedQuoteIds.has(document.id),
+      document.type === "presupuesto" &&
+      !pairedQuoteIds.has(document.id) &&
+      isDocumentUsableForFinancialCalculations(document),
   )) {
     result.push(quoteUnit(appData, quote));
   }

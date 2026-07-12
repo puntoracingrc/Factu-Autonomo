@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import { issueDocument } from "@/lib/document-integrity";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type AppData,
+  type Document,
+  type Expense,
+} from "@/lib/types";
 import type { RentabilidadRealDocumentAnalysisModesById } from "@/lib/rentabilidad-real/document-analysis-modes";
 import { DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS } from "@/lib/rentabilidad-real/reports";
 import { buildRentabilidadRealEvolutionReport } from "./evolution-report";
@@ -8,7 +15,8 @@ import type { RentabilidadRealEvolutionGrouping } from "./types";
 function document(
   overrides: Partial<Document> & Pick<Document, "id" | "type" | "number">,
 ): Document {
-  return {
+  const requestedStatus = overrides.status ?? "enviado";
+  const draft: Document = {
     id: overrides.id,
     type: overrides.type,
     number: overrides.number,
@@ -24,12 +32,28 @@ function document(
         ivaPercent: 21,
       },
     ],
-    status: overrides.status ?? "enviado",
+    status: "borrador",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
     rectification: overrides.rectification,
     rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  delete draftForIssue.rectifiedById;
+  return {
+    ...issueDocument(
+      draftForIssue,
+      { ...DEFAULT_PROFILE, name: "Negocio Demo", nif: "12345678Z" },
+      draft.createdAt,
+    ),
+    status: requestedStatus,
+    rectifiedById: overrides.rectifiedById,
   };
 }
 
@@ -50,10 +74,7 @@ function expense(overrides: Partial<Expense> & Pick<Expense, "id">): Expense {
   };
 }
 
-function data(input: {
-  documents: Document[];
-  expenses?: Expense[];
-}): AppData {
+function data(input: { documents: Document[]; expenses?: Expense[] }): AppData {
   return {
     ...EMPTY_DATA,
     documents: input.documents,
@@ -141,9 +162,24 @@ describe("buildRentabilidadRealEvolutionReport", () => {
       grouping: "quarterly",
       appData: data({
         documents: [
-          document({ id: "jan", type: "factura", number: "F-1", date: "2026-01-10" }),
-          document({ id: "mar", type: "factura", number: "F-2", date: "2026-03-20" }),
-          document({ id: "apr", type: "factura", number: "F-3", date: "2026-04-05" }),
+          document({
+            id: "jan",
+            type: "factura",
+            number: "F-1",
+            date: "2026-01-10",
+          }),
+          document({
+            id: "mar",
+            type: "factura",
+            number: "F-2",
+            date: "2026-03-20",
+          }),
+          document({
+            id: "apr",
+            type: "factura",
+            number: "F-3",
+            date: "2026-04-05",
+          }),
         ],
       }),
     });
@@ -152,10 +188,12 @@ describe("buildRentabilidadRealEvolutionReport", () => {
       "2026-Q2",
       "2026-Q1",
     ]);
-    expect(result.rows.find((row) => row.periodId === "2026-Q1")).toMatchObject({
-      documentCount: 2,
-      incomeWithoutIndirectTax: 200,
-    });
+    expect(result.rows.find((row) => row.periodId === "2026-Q1")).toMatchObject(
+      {
+        documentCount: 2,
+        incomeWithoutIndirectTax: 200,
+      },
+    );
   });
 
   it("agrupa por cliente", () => {

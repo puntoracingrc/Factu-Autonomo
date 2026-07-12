@@ -6,6 +6,7 @@ import {
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 import {
   assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
@@ -1256,6 +1257,7 @@ export function buildFacturaDirectaImport(
 
   const usedProductCodes = new Set<string>();
   let estimateFallbackLines = 0;
+  const importAttestedAt = new Date().toISOString();
   const importedDocuments = sales
     .filter((row) => get(row, "Serie / Núm.") && get(row, "Moneda") !== "TOTAL")
     .map((sale) => {
@@ -1272,7 +1274,12 @@ export function buildFacturaDirectaImport(
       });
       result.usedProductCodes.forEach((code) => usedProductCodes.add(code));
       if (result.fallbackLine && type === "presupuesto") estimateFallbackLines += 1;
-      return result.document;
+      return attestNewImportedDocument(
+        result.document,
+        profileForImportedDocuments,
+        "facturadirecta",
+        importAttestedAt,
+      );
     });
   const importedExpenses = uniqueById(purchases
     .filter((row) => get(row, "Núm.") && get(row, "Moneda") !== "TOTAL")
@@ -1323,8 +1330,7 @@ export function buildFacturaDirectaImport(
       )
     : current.products;
   const nextDocuments = mergedDocuments.documents;
-  const data = normalizeLoadedData(
-    {
+  const data = normalizeLoadedData({
       ...current,
       customers: [...keptCustomers, ...importedCustomers],
       suppliers: [...keptSuppliers, ...importedSuppliers],
@@ -1336,13 +1342,7 @@ export function buildFacturaDirectaImport(
         current.profile.numbering.year,
         current.profile.numbering,
       ),
-    },
-    {
-      legacyBackfillDocumentIds: new Set(
-        mergedDocuments.acceptedImported.map((document) => document.id),
-      ),
-    },
-  );
+    });
   const unpairedLegacyCancellationIds =
     assertAcceptedImportedDocumentsNormalized({
       normalized: data.documents,

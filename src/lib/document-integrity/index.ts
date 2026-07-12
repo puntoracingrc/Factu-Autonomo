@@ -48,6 +48,14 @@ export type {
   SnapshotHashAlgorithm,
   SnapshotHashVerification,
 } from "@/lib/document-integrity/snapshots";
+export {
+  hasLegacyImportProtectionClaim,
+  inspectLegacyImportAttestation,
+  inspectUsableHistoricalDocumentEvidence,
+  isDocumentUsableForFinancialCalculations,
+  isUsableLegacyImportedDocument,
+  projectLegacyImportSnapshotOntoDocument,
+} from "@/lib/document-integrity/legacy-import-attestation";
 
 export type DocumentIntegrityErrorCode =
   | "DOCUMENT_ID_MISMATCH"

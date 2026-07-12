@@ -31,7 +31,7 @@ const TEST_CLIENT = {
 };
 
 function invoice(overrides: Partial<Document> = {}): Document {
-  return {
+  const requested: Document = {
     id: overrides.id ?? "invoice",
     type: "factura",
     number: overrides.number ?? "F-2026-0001",
@@ -52,6 +52,47 @@ function invoice(overrides: Partial<Document> = {}): Document {
     createdAt: overrides.createdAt ?? NOW,
     updatedAt: overrides.updatedAt ?? NOW,
     ...overrides,
+  };
+
+  if (
+    requested.status === "borrador" ||
+    requested.documentLifecycle === "draft"
+  ) {
+    return requested;
+  }
+
+  const draft: Document = {
+    ...requested,
+    status: "borrador",
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    paymentStatus: "pending",
+    rectifiedById: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+    integrityQuarantine: undefined,
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+  };
+  const issued = issueDocument(draft, TEST_PROFILE, NOW);
+  const canonical =
+    requested.status === "pagado" || requested.paymentStatus === "paid"
+      ? markDocumentPaid(issued, NOW)
+      : issued;
+
+  return {
+    ...canonical,
+    status: requested.status,
+    documentLifecycle: requested.documentLifecycle,
+    paymentStatus: requested.paymentStatus,
+    rectifiedById: requested.rectifiedById,
+    snapshotIntegrity:
+      requested.snapshotIntegrity ?? canonical.snapshotIntegrity,
+    integrityQuarantine: requested.integrityQuarantine,
   };
 }
 
@@ -505,6 +546,8 @@ describe("buildProductBusinessSummary", () => {
       documents: [
         invoice({
           id: "bad-invoice",
+          status: "borrador",
+          documentLifecycle: "draft",
           items: [
             {
               id: "bad-line",

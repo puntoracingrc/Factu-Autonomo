@@ -12,6 +12,10 @@ import {
   setDemoWorkspaceMode,
 } from "./demo-workspace";
 import { loadData, normalizeLoadedData, saveData } from "./storage";
+import {
+  applyLegacyImportRepair,
+  buildLegacyImportRepairPreview,
+} from "./document-integrity/legacy-import-attestation";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
 import { hasWorkspaceContent } from "./workspace-state";
@@ -1668,6 +1672,233 @@ describe("storage", () => {
     );
     expect(imported.documents[0].snapshotSeal).toBeDefined();
     expect(imported.documents[0].snapshotIntegrity).toBeUndefined();
+  });
+
+  it("mantiene tras reload la reparación explícita de un PCF histórico v1 sin fabricar sello", () => {
+    const capturedAt = "2024-04-01T10:00:00.000Z";
+    const profile = {
+      ...sampleData().profile,
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const historical: Document = {
+      id: "pcfacturacion:factura:F-2024-0001",
+      type: "factura",
+      number: "F-2024-0001",
+      date: "2024-04-01",
+      client: {
+        name: "Cliente histórico",
+        nif: "B12345678",
+        address: "Calle Cliente 2",
+        city: "Madrid",
+        postalCode: "28002",
+      },
+      items: [
+        {
+          id: "line-historical",
+          description: "Trabajo importado",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "enviado",
+      issuer: {
+        name: profile.name,
+        nif: profile.nif,
+        address: profile.address,
+        city: profile.city,
+        postalCode: profile.postalCode,
+        capturedAt,
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    };
+    const blocked = normalizeLoadedData({
+      ...sampleData(),
+      profile,
+      snapshotIntegrityVersion: 1,
+      documents: [historical],
+    });
+    expect(blocked.documents[0].snapshotIntegrity?.status).toBe("blocked");
+
+    const preview = buildLegacyImportRepairPreview(blocked);
+    expect(preview.affectedCount).toBe(1);
+    const repaired = applyLegacyImportRepair(
+      blocked,
+      preview,
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(repaired.status).toBe("applied");
+    if (repaired.status !== "applied") return;
+
+    expect(saveData(repaired.data)).toEqual({ status: "applied" });
+    const reloaded = loadData();
+    expect(reloaded.documents[0]).toMatchObject({
+      documentSnapshot: { source: "legacy_import_attested" },
+      legacyImportAttestation: {
+        kind: "historical_import_user_accepted",
+        importer: "pcfacturacion",
+      },
+      integrityLock: "locked",
+    });
+    expect(reloaded.documents[0].pdfSnapshot).toBeUndefined();
+    expect(reloaded.documents[0].snapshotSeal).toBeUndefined();
+    expect(reloaded.documents[0].snapshotIntegrityRequired).toBeUndefined();
+    expect(reloaded.documents[0].snapshotIntegrity).toBeUndefined();
+
+    const tampered = {
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          status: "pagado" as const,
+        },
+      ],
+    };
+    expect(saveData(tampered)).toEqual({ status: "applied" });
+    const blockedReload = loadData();
+    expect(blockedReload.documents[0].status).toBe("pagado");
+    expect(blockedReload.documents[0].snapshotIntegrity).toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),
+    });
+  });
+
+  it("no limpia una señal de hash inválido aunque la atestación legacy sea válida", () => {
+    const capturedAt = "2024-04-01T10:00:00.000Z";
+    const profile = {
+      ...sampleData().profile,
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const historical: Document = {
+      id: "pcfacturacion:factura:F-2024-0002",
+      type: "factura",
+      number: "F-2024-0002",
+      date: "2024-04-01",
+      client: {
+        name: "Cliente histórico",
+        nif: "B12345678",
+        address: "Calle Cliente 2",
+        city: "Madrid",
+        postalCode: "28002",
+      },
+      items: [
+        {
+          id: "line-historical",
+          description: "Trabajo importado",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "enviado",
+      issuer: {
+        name: profile.name,
+        nif: profile.nif,
+        address: profile.address,
+        city: profile.city,
+        postalCode: profile.postalCode,
+        capturedAt,
+      },
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    };
+    const blocked = normalizeLoadedData({
+      ...sampleData(),
+      profile,
+      snapshotIntegrityVersion: 1,
+      documents: [historical],
+    });
+    const repaired = applyLegacyImportRepair(
+      blocked,
+      buildLegacyImportRepairPreview(blocked),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(repaired.status).toBe("applied");
+    if (repaired.status !== "applied") return;
+
+    const loaded = normalizeLoadedData({
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["document_hash_mismatch"],
+          },
+        },
+      ],
+    });
+
+    expect(loaded.documents[0].snapshotIntegrity).toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining(["document_hash_mismatch"]),
+    });
+  });
+
+  it("no fabrica pareja ni sello al cargar una copia antigua de un importador conocido", () => {
+    const capturedAt = "2024-04-01T10:00:00.000Z";
+    const profile = {
+      ...sampleData().profile,
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const historical: Document = {
+      id: "pcfacturacion:factura:F-2024-0003",
+      type: "factura",
+      number: "F-2024-0003",
+      date: "2024-04-01",
+      client: {
+        name: "Cliente histórico",
+        nif: "B12345678",
+        address: "Calle Cliente 2",
+        city: "Madrid",
+        postalCode: "28002",
+      },
+      items: [
+        {
+          id: "line-historical",
+          description: "Trabajo importado",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "enviado",
+      issuer: {
+        name: profile.name,
+        nif: profile.nif,
+        address: profile.address,
+        city: profile.city,
+        postalCode: profile.postalCode,
+        capturedAt,
+      },
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    };
+
+    const loaded = normalizeLoadedData({
+      ...sampleData(),
+      profile,
+      snapshotIntegrityVersion: undefined,
+      documents: [historical],
+    });
+
+    expect(loaded.documents[0].documentSnapshot).toBeUndefined();
+    expect(loaded.documents[0].pdfSnapshot).toBeUndefined();
+    expect(loaded.documents[0].snapshotSeal).toBeUndefined();
+    expect(loaded.documents[0].snapshotIntegrity?.status).toBe("blocked");
+    expect(buildLegacyImportRepairPreview(loaded).affectedCount).toBe(1);
   });
 
   it("persiste y encola una sola vez el sello generado en la primera carga local", () => {

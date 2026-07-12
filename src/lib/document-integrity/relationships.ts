@@ -8,6 +8,7 @@ import type {
 import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { roundMoney } from "../calculations";
 import { deriveDocumentLifecycle } from "./index";
+import { inspectUsableHistoricalDocumentEvidence } from "./legacy-import-attestation";
 import { inspectDocumentSnapshotsIntegrity } from "./snapshots";
 
 function normalizedIdentityText(value: string | undefined): string {
@@ -63,14 +64,11 @@ function verifiedSnapshot(
   document: Document,
   documentType: "factura" | "recibo",
 ): DocumentSnapshot | null {
-  const integrity = inspectDocumentSnapshotsIntegrity(document, {
-    requireDocumentSnapshot: true,
-    requirePdfSnapshot: true,
-    requireSnapshotSeal: true,
-  });
-  const snapshot = document.documentSnapshot;
-  if (!integrity.ok || snapshot?.documentType !== documentType) return null;
-  return snapshot;
+  const evidence = inspectUsableHistoricalDocumentEvidence(document);
+  if (!evidence.ok || evidence.snapshot.documentType !== documentType) {
+    return null;
+  }
+  return evidence.snapshot;
 }
 
 function isReceiptClaimDocument(document: Document): boolean {

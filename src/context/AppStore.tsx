@@ -68,6 +68,8 @@ import {
 import {
   canMarkQuoteAsAccepted,
   canMarkQuoteAsRejected,
+  canUnmarkQuoteAsAccepted,
+  canUnmarkQuoteAsRejected,
   isAcceptedQuote,
   isRejectedQuote,
   statusAfterUnmarkingQuoteAcceptance,
@@ -156,6 +158,11 @@ import {
   deleteCustomerMasterFromData,
   deleteSupplierMasterFromData,
 } from "@/lib/master-record-deletion";
+import {
+  runLegacyImportRepairCommand,
+  type DurableLegacyImportRepairResult,
+} from "@/lib/document-integrity/legacy-import-repair-command";
+import type { LegacyImportRepairPreview } from "@/lib/document-integrity/legacy-import-attestation";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -180,6 +187,10 @@ interface AppStoreValue {
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
   getCurrentData: () => AppData;
   replaceDataIfCurrent: (data: AppData, expected: AppData) => boolean;
+  applyImportedLegacyDocumentRepair: (
+    preview: LegacyImportRepairPreview,
+    expected: AppData,
+  ) => DurableLegacyImportRepairResult;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
   issueDocument: (id: string) => Promise<Document>;
@@ -550,6 +561,20 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       return true;
     },
     [setAppData],
+  );
+
+  const applyImportedLegacyDocumentRepair = useCallback(
+    (
+      preview: LegacyImportRepairPreview,
+      expected: AppData,
+    ): DurableLegacyImportRepairResult =>
+      runLegacyImportRepairCommand({
+        expected,
+        preview,
+        now: new Date().toISOString(),
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
   );
 
   const updateProfile = useCallback((profile: BusinessProfile) => {
@@ -954,7 +979,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !isAcceptedQuote(doc)) return prev;
+        if (!doc || !canUnmarkQuoteAsAccepted(doc)) return prev;
 
         const now = new Date().toISOString();
         const next = editableQuoteWithLocalStatus(
@@ -1010,7 +1035,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !isRejectedQuote(doc)) return prev;
+        if (!doc || !canUnmarkQuoteAsRejected(doc)) return prev;
 
         const now = new Date().toISOString();
         const next = editableQuoteWithLocalStatus(
@@ -1905,6 +1930,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       getCurrentData,
       replaceDataIfCurrent,
+      applyImportedLegacyDocumentRepair,
       updateProfile,
       addDocument,
       issueDocument,
@@ -1959,6 +1985,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       getCurrentData,
       replaceDataIfCurrent,
+      applyImportedLegacyDocumentRepair,
       updateProfile,
       addDocument,
       issueDocument,

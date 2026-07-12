@@ -7,14 +7,33 @@ import {
   statusAfterUnmarkingCollection,
 } from "./income";
 import { issueDocument } from "./document-integrity";
-import { DEFAULT_PROFILE, type Document } from "./types";
+import { materializeRectificationDocument } from "./document-integrity/rectification-issuance";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "./issuer-snapshot";
+import { DEFAULT_PROFILE, type BusinessProfile, type Document } from "./types";
+
+const IMPORT_PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Negocio histórico",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  city: "Madrid",
+  postalCode: "28001",
+};
 
 function invoice(
   status: Document["status"],
   total = 100,
   extra: Partial<Document> = {},
 ): Document {
-  return {
+  const {
+    rectifiedById,
+    receiptDocumentId,
+    documentLifecycle,
+    integrityLock,
+    ...fiscalExtra
+  } = extra;
+  const draft: Document = {
     id: "1",
     type: "factura",
     number: "F-2026-0001",
@@ -29,10 +48,26 @@ function invoice(
         ivaPercent: 21,
       },
     ],
-    status,
+    status: "borrador",
     createdAt: "2026-06-09",
     updatedAt: "2026-06-09",
-    ...extra,
+    ...fiscalExtra,
+  };
+  if (status === "borrador") return draft;
+  const issued = draft.rectification
+    ? materializeRectificationDocument(
+        { ...draft, status },
+        IMPORT_PROFILE,
+        "2026-06-09T10:00:00.000Z",
+      )
+    : issueDocument(draft, IMPORT_PROFILE, "2026-06-09T10:00:00.000Z");
+  return {
+    ...issued,
+    status,
+    rectifiedById,
+    receiptDocumentId,
+    documentLifecycle: documentLifecycle ?? "issued",
+    integrityLock: integrityLock ?? "locked",
   };
 }
 
@@ -40,7 +75,7 @@ describe("income helpers", () => {
   it("cuenta facturas y recibos manuales cobrados", () => {
     const docs: Document[] = [
       invoice("pagado", 121),
-      { ...invoice("pagado", 60), id: "2", type: "recibo", number: "R-1" },
+      invoice("pagado", 60, { id: "2", type: "recibo", number: "R-1" }),
       invoice("enviado", 200),
     ];
     expect(collectedIncome(docs)).toBeCloseTo(181, 0);
@@ -48,30 +83,28 @@ describe("income helpers", () => {
   });
 
   it("no duplica ingresos con recibo vinculado a factura", () => {
-    const paidInvoice = { ...invoice("pagado", 121), id: "inv-1" };
-    const autoReceipt = {
-      ...invoice("pagado", 121),
+    const paidInvoice = invoice("pagado", 121, { id: "inv-1" });
+    const autoReceipt = invoice("pagado", 121, {
       id: "r-1",
       type: "recibo" as const,
       number: "R-2026-0001",
       sourceDocumentId: "inv-1",
       receiptDocumentId: undefined,
-    };
+    });
     expect(collectedIncome([paidInvoice, autoReceipt])).toBeCloseTo(121, 0);
   });
 
   it("no duplica un recibo legacy referido solo desde la factura", () => {
-    const paidInvoice = {
-      ...invoice("pagado", 121),
+    const paidInvoice = invoice("pagado", 121, {
       id: "inv-legacy",
       receiptDocumentId: "receipt-legacy",
-    };
+    });
     const legacyReceipt: Document = {
-      ...invoice("pagado", 121),
-      id: "receipt-legacy",
-      type: "recibo",
-      number: "R-2026-0001",
-      sourceDocumentId: undefined,
+      ...invoice("pagado", 121, {
+        id: "receipt-legacy",
+        type: "recibo",
+        number: "R-2026-0001",
+      }),
       snapshotIntegrity: {
         status: "blocked",
         issues: ["document_relationship_invalid"],
@@ -80,6 +113,60 @@ describe("income helpers", () => {
 
     expect(collectedIncome([paidInvoice, legacyReceipt])).toBeCloseTo(121, 0);
     expect(isCollectedDocument(legacyReceipt)).toBe(false);
+  });
+
+  it("cuenta el cobro de un histórico importado atestado desde su snapshot", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice("borrador", 121, {
+        id: "pcfacturacion:factura:F-2024-0001",
+        number: "F-2024-0001",
+        issuer: captureIssuerSnapshot(
+          IMPORT_PROFILE,
+          "2024-04-01T10:00:00.000Z",
+        ),
+        client: {
+          name: "Cliente histórico",
+          nif: "B12345678",
+          address: "Calle Cliente 2",
+          city: "Madrid",
+          postalCode: "28002",
+        },
+        }),
+        status: "pagado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      IMPORT_PROFILE,
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+
+    expect(collectedIncome([historical])).toBeCloseTo(121, 2);
+    expect(isCollectedDocument(historical)).toBe(true);
+
+    const appIssuedWithoutEvidence = {
+      ...historical,
+      id: "app-issued-without-evidence",
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      legacyImportAttestation: undefined,
+      legacyImportProvenance: undefined,
+      snapshotIntegrity: undefined,
+    };
+    expect(collectedIncome([appIssuedWithoutEvidence])).toBe(0);
+    expect(pendingCollection([{ ...appIssuedWithoutEvidence, status: "enviado" }])).toBe(0);
+    expect(canMarkAsCollected(historical)).toBe(false);
+
+    const rawIssuedWithoutAnySignal: Document = {
+      ...appIssuedWithoutEvidence,
+      documentLifecycle: undefined,
+      integrityLock: undefined,
+      issuedAt: undefined,
+    };
+    expect(collectedIncome([rawIssuedWithoutAnySignal])).toBe(0);
+    expect(pendingCollection([rawIssuedWithoutAnySignal])).toBe(0);
   });
 
   it("excluye anuladas y rectificadas del cobro", () => {

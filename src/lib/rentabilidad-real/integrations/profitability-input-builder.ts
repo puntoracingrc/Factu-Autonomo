@@ -1,4 +1,5 @@
 import { isFixedExpense } from "@/lib/expense-classification";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import { todayISO } from "@/lib/calculations";
 import { calculateTaxSummary } from "@/lib/taxes";
 import type { AppData, Document } from "@/lib/types";
@@ -51,12 +52,17 @@ export function buildProfitabilityInputDraftFromExistingData(
   data: AppData,
   referenceDate = todayISO(),
 ): ProfitabilityInputDraft {
-  const invoices = data.documents
+  const usableDocuments = data.documents.filter(
+    isDocumentUsableForFinancialCalculations,
+  );
+  const invoices = usableDocuments
     .filter((doc) => doc.type === "factura")
     .map(mapExistingInvoiceToProfitabilityIncome);
-  const quotes = data.documents
+  const quotes = usableDocuments
     .filter((doc) => doc.type === "presupuesto")
-    .map((quote) => mapExistingQuoteToProfitabilityQuote(quote, data.documents));
+    .map((quote) =>
+      mapExistingQuoteToProfitabilityQuote(quote, usableDocuments),
+    );
   const directCostCandidates = data.expenses
     .filter((expense) => !isFixedExpense(expense))
     .map(mapExistingExpenseToProfitabilityCost);
@@ -83,7 +89,7 @@ export function buildProfitabilityInputDraftFromExistingData(
     ...data.suppliers.map(mapExistingSupplierAddressToProfitabilityLocation),
   ]);
 
-  const documentsById = documentById(data.documents);
+  const documentsById = documentById(usableDocuments);
   const warnings: ProfitabilityDataSourceWarning[] = [];
 
   for (const income of invoices) {

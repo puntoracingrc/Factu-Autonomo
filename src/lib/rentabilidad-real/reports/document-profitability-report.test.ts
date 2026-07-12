@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import { issueDocument } from "@/lib/document-integrity";
+import { attestNewImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type AppData,
+  type Document,
+  type Expense,
+} from "@/lib/types";
 import {
   addStoredInternalAdjustment,
   clearInternalAdjustmentsForTests,
@@ -7,6 +16,16 @@ import {
 import { DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS } from "./local-report-settings";
 import { buildDocumentProfitabilityReport } from "./document-profitability-report";
 import type { RentabilidadRealReportSettings } from "./types";
+
+const TEST_PROFILE = {
+  ...DEFAULT_PROFILE,
+  name: "Negocio Demo",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  city: "Madrid",
+  postalCode: "28001",
+  email: "negocio@example.test",
+};
 
 function mockLocalStorage() {
   const store = new Map<string, string>();
@@ -25,7 +44,8 @@ function mockLocalStorage() {
 function document(
   overrides: Partial<Document> & Pick<Document, "id" | "type" | "number">,
 ): Document {
-  return {
+  const requestedStatus = overrides.status ?? "enviado";
+  const draft: Document = {
     id: overrides.id,
     type: overrides.type,
     number: overrides.number,
@@ -41,12 +61,24 @@ function document(
         ivaPercent: 21,
       },
     ],
-    status: overrides.status ?? "enviado",
+    status: "borrador",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
     rectification: overrides.rectification,
     rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  delete draftForIssue.rectifiedById;
+  return {
+    ...issueDocument(draftForIssue, TEST_PROFILE, draft.createdAt),
+    status: requestedStatus,
+    rectifiedById: overrides.rectifiedById,
   };
 }
 
@@ -77,10 +109,7 @@ function expense(overrides: Partial<Expense> & Pick<Expense, "id">): Expense {
   };
 }
 
-function data(input: {
-  documents: Document[];
-  expenses?: Expense[];
-}): AppData {
+function data(input: { documents: Document[]; expenses?: Expense[] }): AppData {
   return {
     ...EMPTY_DATA,
     documents: input.documents,
@@ -111,7 +140,10 @@ describe("buildDocumentProfitabilityReport", () => {
   it("genera informe por documento para facturas", () => {
     const invoice = document({ id: "i1", type: "factura", number: "F-1" });
 
-    const report = buildDocumentProfitabilityReport(data({ documents: [invoice] }), settings());
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoice] }),
+      settings(),
+    );
 
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0]).toMatchObject({
@@ -122,15 +154,100 @@ describe("buildDocumentProfitabilityReport", () => {
     });
   });
 
+  it("incluye el histórico atestado con importes congelados y excluye el app-issued sin sello", () => {
+    const importedDraft = document({
+      id: "pcfacturacion:factura:F-2024-0001",
+      type: "factura",
+      number: "F-2024-0001",
+      status: "borrador",
+      client: {
+        name: "Cliente histórico",
+        nif: "B12345678",
+        address: "Calle Cliente 2",
+        city: "Madrid",
+        postalCode: "28002",
+      },
+      items: [
+        {
+          id: "legacy-line",
+          description: "Trabajo histórico",
+          quantity: 1,
+          unitPrice: 250,
+          ivaPercent: 21,
+        },
+      ],
+    });
+    const imported = attestNewImportedDocument(
+      {
+        ...importedDraft,
+        status: "enviado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        issuer: captureIssuerSnapshot(TEST_PROFILE, "2024-07-01T10:00:00.000Z"),
+      },
+      TEST_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T00:00:00.000Z",
+    );
+    const importedWithChangedLiveItems: Document = {
+      ...imported,
+      items: [
+        {
+          id: "changed-live-line",
+          description: "Contenido vivo no canónico",
+          quantity: 1,
+          unitPrice: 999,
+          ivaPercent: 21,
+        },
+      ],
+    };
+
+    const sealedModern = document({
+      id: "app-issued-equivalent",
+      type: "factura",
+      number: "F-2026-0999",
+      items: importedDraft.items,
+    });
+    const appIssuedWithoutSeal: Document = {
+      ...sealedModern,
+      snapshotSeal: undefined,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["snapshot_seal_missing"],
+      },
+    };
+
+    const report = buildDocumentProfitabilityReport(
+      data({
+        documents: [importedWithChangedLiveItems, appIssuedWithoutSeal],
+      }),
+      settings(),
+    );
+
+    expect(imported.legacyImportAttestation).toBeDefined();
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      primaryDocumentId: imported.id,
+      incomeWithoutIndirectTax: 250,
+      operatingProfit: 250,
+    });
+    expect(
+      report.rows.some((row) => row.primaryDocumentId === sealedModern.id),
+    ).toBe(false);
+  });
+
   it("usa el modo guardado del documento", () => {
     const invoice = document({ id: "i1", type: "factura", number: "F-1" });
 
-    const report = buildDocumentProfitabilityReport(data({ documents: [invoice] }), {
-      ...settings(),
-      documentAnalysisModes: {
-        i1: "fixed_price_work",
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoice] }),
+      {
+        ...settings(),
+        documentAnalysisModes: {
+          i1: "fixed_price_work",
+        },
       },
-    });
+    );
 
     expect(report.rows[0].analysisMode).toBe("fixed_price_work");
   });
@@ -235,7 +352,10 @@ describe("buildDocumentProfitabilityReport", () => {
   it("incluye presupuesto previsto si no hay factura", () => {
     const quote = document({ id: "q1", type: "presupuesto", number: "P-1" });
 
-    const report = buildDocumentProfitabilityReport(data({ documents: [quote] }), settings());
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [quote] }),
+      settings(),
+    );
 
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0].qualityFlags).toContain("quote_without_invoice");
@@ -252,7 +372,10 @@ describe("buildDocumentProfitabilityReport", () => {
       category: "other_internal_adjustment",
     });
 
-    const report = buildDocumentProfitabilityReport(data({ documents: [invoice] }), settings());
+    const report = buildDocumentProfitabilityReport(
+      data({ documents: [invoice] }),
+      settings(),
+    );
 
     expect(report.rows[0].internalAdjustmentsTotal).toBe(25);
     expect(report.rows[0].internalRealProfit).toBe(75);

@@ -1,8 +1,13 @@
 import {
   deriveDocumentLifecycle,
+  DocumentIntegrityError,
   isDocumentIntegrityLocked,
 } from "@/lib/document-integrity";
 import type { Document } from "@/lib/types";
+import {
+  hasLegacyImportProtectionClaim,
+  inspectUsableHistoricalDocumentEvidence,
+} from "./legacy-import-attestation";
 
 export interface ShareDocumentFlowInput {
   doc: Document;
@@ -27,6 +32,14 @@ function needsIssueBeforeShare(doc: Document): boolean {
 }
 
 export function canShareDocumentFromList(doc: Document): boolean {
+  if (hasLegacyImportProtectionClaim(doc)) {
+    const inspected = inspectUsableHistoricalDocumentEvidence(doc);
+    return (
+      inspected.ok &&
+      (inspected.kind === "legacy_import_user_attested" ||
+        inspected.kind === "legacy_backfill_compatible")
+    );
+  }
   return !(doc.rectification && doc.status === "borrador");
 }
 
@@ -37,6 +50,22 @@ export async function shareDocumentWithIntegrity({
   share,
   markSentOnShare = true,
 }: ShareDocumentFlowInput): Promise<ShareDocumentFlowResult> {
+  if (hasLegacyImportProtectionClaim(doc)) {
+    const inspected = inspectUsableHistoricalDocumentEvidence(doc);
+    if (
+      !inspected.ok ||
+      (inspected.kind !== "legacy_import_user_attested" &&
+        inspected.kind !== "legacy_backfill_compatible")
+    ) {
+      throw new DocumentIntegrityError(
+        "DOCUMENT_LOCKED",
+        "La integridad del histórico importado no permite compartirlo.",
+      );
+    }
+    await share(doc);
+    return { sharedDocument: doc, finalDocument: doc };
+  }
+
   const sharedDocument = needsIssueBeforeShare(doc)
     ? await issueDocument(doc.id)
     : doc;

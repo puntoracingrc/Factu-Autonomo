@@ -1,0 +1,13 @@
+# Critical historical-import and fiscal-integrity policy.
+# These paths require an explicit review of ADR-0001 before their contract changes.
+/AGENTS.md                                             @puntoracingrc
+/.github/CODEOWNERS                                   @puntoracingrc
+/docs/architecture/ADR-0001-historical-imported-documents.md @puntoracingrc
+/src/lib/storage.ts                                    @puntoracingrc
+/src/lib/document-integrity/**                         @puntoracingrc
+/src/lib/importers/**                                  @puntoracingrc
+/src/lib/taxes.ts                                      @puntoracingrc
+/src/lib/income.ts                                     @puntoracingrc
+/src/lib/billing/fiscal-export-documents.ts            @puntoracingrc
+/src/lib/billing/export-quarterly.ts                   @puntoracingrc
+/src/lib/billing/export-annual-pdf.ts                  @puntoracingrc

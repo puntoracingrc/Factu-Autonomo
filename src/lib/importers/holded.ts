@@ -7,6 +7,7 @@ import {
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 import {
   assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
@@ -959,7 +960,16 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
     if (built.mismatch) totalMismatches.push(built.mismatch);
     return built.expense;
     });
-  const importedDocuments = [...importedInvoices, ...importedEstimates];
+  const importAttestedAt = new Date().toISOString();
+  const importedDocuments = [...importedInvoices, ...importedEstimates].map(
+    (document) =>
+      attestNewImportedDocument(
+        document,
+        current.profile,
+        "holded",
+        importAttestedAt,
+      ),
+  );
   const replacesInvoices = importedInvoices.length > 0;
   const replacesEstimates = importedEstimates.length > 0;
   const replacesCustomers = importedCustomers.length > 0;
@@ -992,8 +1002,7 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
       )
     : current.expenses;
   const nextDocuments = mergedDocuments.documents;
-  const data = normalizeLoadedData(
-    {
+  const data = normalizeLoadedData({
       ...current,
       customers: [...keptCustomers, ...importedCustomers],
       suppliers: [...keptSuppliers, ...importedSuppliers],
@@ -1004,13 +1013,7 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
         current.profile.numbering.year,
         current.profile.numbering,
       ),
-    },
-    {
-      legacyBackfillDocumentIds: new Set(
-        mergedDocuments.acceptedImported.map((document) => document.id),
-      ),
-    },
-  );
+    });
   const unpairedLegacyCancellationIds =
     assertAcceptedImportedDocumentsNormalized({
       normalized: data.documents,

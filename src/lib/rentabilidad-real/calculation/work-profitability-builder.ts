@@ -4,6 +4,7 @@ import {
   explicitExpenseWorkAllocations,
 } from "@/lib/expense-work-allocations";
 import { roundMoney } from "@/lib/calculations";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import {
   getAlreadyLinkedExpensesForWork,
   getExpenseLinkCandidatesForWork,
@@ -183,6 +184,7 @@ function findLinkedInvoice(
     .filter(
       (doc) =>
         doc.type === "factura" &&
+        isDocumentUsableForFinancialCalculations(doc) &&
         !isSupersededRentabilidadRealDocument(doc) &&
         sourceQuoteDocumentIdForRentabilidadInvoice(doc, documents) ===
           quote.id,
@@ -228,6 +230,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
       (doc.type === "factura" || doc.type === "presupuesto"),
   );
   if (!selectedDocument) return null;
+  if (!isDocumentUsableForFinancialCalculations(selectedDocument)) return null;
   if (isSupersededRentabilidadRealDocument(selectedDocument)) return null;
 
   const warnings: RentabilidadRealCalculationWarning[] = [];
@@ -245,6 +248,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
         ? data.documents.find(
             (doc) =>
               doc.type === "presupuesto" &&
+              isDocumentUsableForFinancialCalculations(doc) &&
               doc.id === selectedSourceQuoteDocumentId,
           )
         : undefined;

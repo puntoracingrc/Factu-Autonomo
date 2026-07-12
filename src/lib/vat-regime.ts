@@ -1,4 +1,6 @@
 import { documentTotals } from "./calculations";
+import { inspectUsableHistoricalDocumentEvidence } from "./document-integrity/legacy-import-attestation";
+import { detectLegacyImportSource } from "./document-integrity/legacy-import-attestation";
 import { expenseTotals } from "./expenses";
 import type { BusinessProfile, Document, Expense, LineItem } from "./types";
 
@@ -17,18 +19,25 @@ export function zeroIvaItems(items: LineItem[]): LineItem[] {
 }
 
 export function documentAmounts(
-  doc: Pick<Document, "items"> &
-    Partial<
-      Pick<
-        Document,
-        | "documentSnapshot"
-        | "snapshotIntegrityRequired"
-        | "snapshotIntegrity"
-      >
-    >,
+  doc: Pick<Document, "items"> & Partial<Document>,
   vatExempt: boolean,
 ): { subtotal: number; iva: number; total: number } {
   if (doc.snapshotIntegrity?.status === "blocked") {
+    return { subtotal: 0, iva: 0, total: 0 };
+  }
+  if (doc.legacyImportAttestation) {
+    const evidence = inspectUsableHistoricalDocumentEvidence(doc as Document);
+    if (!evidence.ok) return { subtotal: 0, iva: 0, total: 0 };
+    return {
+      subtotal: evidence.snapshot.taxSummary.subtotal,
+      iva: evidence.snapshot.taxSummary.iva,
+      total: evidence.snapshot.taxSummary.total,
+    };
+  }
+  if (
+    doc.documentSnapshot?.source === "legacy_backfill" &&
+    detectLegacyImportSource(doc as Document)
+  ) {
     return { subtotal: 0, iva: 0, total: 0 };
   }
   const frozen = doc.documentSnapshot?.taxSummary;

@@ -11,6 +11,7 @@ import {
   printDocumentPdf,
 } from "@/lib/pdf";
 import { canShareDocumentFromList } from "@/lib/document-integrity/share-flow";
+import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
 import type { BusinessProfile, Document } from "@/lib/types";
 
 interface DocumentPdfShareActionsProps {
@@ -32,6 +33,7 @@ export function DocumentPdfShareActions({
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const canShare = canShareDocumentFromList(doc);
   const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+  const legacyImportedAccepted = isUsableLegacyImportedDocument(doc);
 
   if (integrityBlocked) {
     return (
@@ -76,7 +78,11 @@ export function DocumentPdfShareActions({
       {showPreview && (
         <IconActionButton
           label="Abrir PDF"
-          tooltip="Abre el PDF en una pestaña nueva; desde el visor puedes imprimirlo exacto"
+          tooltip={
+            legacyImportedAccepted
+              ? "Abre una reconstrucción PDF desde los datos importados; no sustituye al original"
+              : "Abre el PDF en una pestaña nueva; desde el visor puedes imprimirlo exacto"
+          }
           onClick={() => void handlePdfPreview()}
           disabled={previewLoading}
           className="bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -86,7 +92,11 @@ export function DocumentPdfShareActions({
       )}
       <IconActionButton
         label="PDF"
-        tooltip="Descargar PDF"
+        tooltip={
+          legacyImportedAccepted
+            ? "Descargar una reconstrucción PDF; conserva el original"
+            : "Descargar PDF"
+        }
         onClick={() => void downloadDocumentPdf(doc, profile, pdfOptions)}
         className="bg-blue-50 text-blue-700 hover:bg-blue-100"
       >
@@ -94,7 +104,11 @@ export function DocumentPdfShareActions({
       </IconActionButton>
       <IconActionButton
         label="Imprimir PDF"
-        tooltip="Genera e imprime solo el PDF de este documento"
+        tooltip={
+          legacyImportedAccepted
+            ? "Genera una reconstrucción para imprimir; no sustituye al original"
+            : "Genera e imprime solo el PDF de este documento"
+        }
         onClick={() => void handlePrint()}
         disabled={printLoading}
         className="bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -105,7 +119,9 @@ export function DocumentPdfShareActions({
         <DocumentShareActions
           doc={doc}
           profile={profile}
-          markSentOnShare={markSentOnShare}
+          markSentOnShare={
+            legacyImportedAccepted ? false : markSentOnShare
+          }
           pdfOptions={pdfOptions}
         />
       )}

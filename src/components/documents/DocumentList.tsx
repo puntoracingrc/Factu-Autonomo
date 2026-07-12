@@ -27,6 +27,7 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
+import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import {
   documentHasLinkedCustomerNameMismatch,
@@ -431,6 +432,8 @@ export function DocumentList({
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
+            const legacyImportedAccepted =
+              isUsableLegacyImportedDocument(doc);
             const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
             const integrityFeedback = getDocumentIntegrityBlockedFeedback(
               doc.snapshotIntegrity?.issues,
@@ -502,6 +505,11 @@ export function DocumentList({
                           hasPublicVerifactuAccreditation(doc) && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                             Veri*Factu
+                          </span>
+                        )}
+                        {legacyImportedAccepted && (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                            Histórico importado · aceptado por ti
                           </span>
                         )}
                         {integrityBlocked && (
@@ -676,19 +684,22 @@ export function DocumentList({
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
-                    {type === "presupuesto" && (
+                    {!legacyImportedAccepted && type === "presupuesto" && (
                       <MarkAsAcceptedButton doc={doc} />
                     )}
-                    {type === "presupuesto" && (
+                    {!legacyImportedAccepted && type === "presupuesto" && (
                       <ConvertQuoteToInvoiceButton doc={doc} />
                     )}
                     {type === "presupuesto" && (
                       <DuplicateDocumentButton doc={doc} basePath={basePath} />
                     )}
-                    {(type === "factura" || type === "recibo") && (
+                    {!legacyImportedAccepted &&
+                      (type === "factura" || type === "recibo") && (
                       <MarkAsPaidButton doc={doc} />
                     )}
-                    {type === "factura" && <GenerateReceiptButton doc={doc} />}
+                    {!legacyImportedAccepted && type === "factura" && (
+                      <GenerateReceiptButton doc={doc} />
+                    )}
                     {type === "factura" && (
                       <PaymentReminderButton
                         doc={contactDoc}
@@ -733,8 +744,12 @@ export function DocumentList({
                       </IconActionLink>
                     ) : (
                       <IconActionButton
-                        label="Ver PDF"
-                        tooltip="Ver PDF"
+                        label={legacyImportedAccepted ? "Ver copia PDF" : "Ver PDF"}
+                        tooltip={
+                          legacyImportedAccepted
+                            ? "Abrir una reconstrucción desde los datos importados; conserva el original"
+                            : "Ver PDF"
+                        }
                         onClick={() => void handlePdfPreview(doc)}
                         disabled={previewingDocumentId === doc.id}
                         className="bg-slate-100 text-slate-700 hover:bg-slate-200"

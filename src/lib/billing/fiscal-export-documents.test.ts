@@ -4,6 +4,7 @@ import { issueDraftDocumentWithStatus } from "../document-integrity/issuance";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { DEFAULT_PROFILE, type Document } from "../types";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 
 const NOW = "2026-07-11T10:00:00.000Z";
 const profile = {
@@ -51,9 +52,14 @@ function legacyFiscalDocument(
   const issued = issueDocument(invoiceDraft(overrides), issuerProfile, NOW);
   return {
     ...issued,
+    documentSnapshot: {
+      ...issued.documentSnapshot!,
+      source: "legacy_backfill",
+    },
     pdfSnapshot: undefined,
     snapshotSeal: undefined,
     snapshotIntegrityRequired: undefined,
+    issuedAt: undefined,
   };
 }
 
@@ -66,6 +72,32 @@ function select(documents: Document[]) {
 }
 
 describe("selectCanonicalFiscalDocumentsForExport", () => {
+  it("selecciona un histórico importado atestado sin exigir PDF ni sello moderno", () => {
+    const imported = attestNewImportedDocument(
+      {
+        ...invoiceDraft({
+          id: "pcfacturacion:factura:F-2024-0001",
+          number: "F-2024-0001",
+          date: "2024-04-01",
+          status: "enviado",
+        }),
+        issuer: captureIssuerSnapshot(profile, NOW),
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+
+    const result = select([imported]);
+    expect(result.blockedDocuments).toEqual([]);
+    expect(result.documents).toHaveLength(1);
+    expect(result.documents[0].documentSnapshot?.taxSummary.total).toBe(121);
+    expect(imported.pdfSnapshot).toBeUndefined();
+    expect(imported.snapshotSeal).toBeUndefined();
+  });
+
   it("ignora un borrador legítimo aunque una vista previa adjuntase emisor", () => {
     const previewDraft = invoiceDraft({
       issuer: captureIssuerSnapshot(profile, NOW),

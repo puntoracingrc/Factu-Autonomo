@@ -2,6 +2,7 @@ import { countersFromDocuments, formatDocumentNumber } from "../documents";
 import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 import {
   assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
@@ -757,7 +758,16 @@ export function buildPcFacturacionImport(
       }),
     );
 
-  const importedDocuments = [...importedInvoices, ...importedOffers];
+  const importAttestedAt = new Date().toISOString();
+  const importedDocuments = [...importedInvoices, ...importedOffers].map(
+    (document) =>
+      attestNewImportedDocument(
+        document,
+        profileForImportedDocuments,
+        "pcfacturacion",
+        importAttestedAt,
+      ),
+  );
   const replacesCustomers = customersToImport.length > 0;
   const replacesInvoices = importedInvoices.length > 0;
   const replacesOffers = importedOffers.length > 0;
@@ -789,8 +799,7 @@ export function buildPcFacturacionImport(
     ...current.profile,
     numbering,
   };
-  const data = normalizeLoadedData(
-    {
+  const data = normalizeLoadedData({
       ...current,
       profile: nextProfile,
       customers: [
@@ -803,13 +812,7 @@ export function buildPcFacturacionImport(
         nextProfile.numbering.year,
         nextProfile.numbering,
       ),
-    },
-    {
-      legacyBackfillDocumentIds: new Set(
-        mergedDocuments.acceptedImported.map((document) => document.id),
-      ),
-    },
-  );
+    });
   const unpairedLegacyCancellationIds =
     assertAcceptedImportedDocumentsNormalized({
       normalized: data.documents,

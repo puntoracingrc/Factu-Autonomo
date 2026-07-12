@@ -10,9 +10,15 @@ import { EMPTY_DATA } from "../types";
 import type {
   AppData,
   Customer,
+  Document,
   RecurringExpense,
   SyncChange,
 } from "../types";
+import {
+  applyLegacyImportRepair,
+  buildLegacyImportRepairPreview,
+  inspectLegacyImportAttestation,
+} from "../document-integrity/legacy-import-attestation";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -20,7 +26,11 @@ import {
   saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
 } from "../recurring-expenses";
-import { mergeRemoteOntoLocal, trackDataDiff } from "./incremental";
+import {
+  mergeRemoteOntoLocal,
+  rebuildCloudSnapshot,
+  trackDataDiff,
+} from "./incremental";
 import { buildCloudUploadChanges } from "./sync-queue";
 
 function customer(id: string, name: string): Customer {
@@ -33,6 +43,79 @@ function customer(id: string, name: string): Customer {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
+}
+
+function attestedHistoricalData(): AppData {
+  const capturedAt = "2024-04-01T10:00:00.000Z";
+  const profile = {
+    ...EMPTY_DATA.profile,
+    name: "Negocio histórico",
+    nif: "12345678Z",
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+    email: "negocio@example.test",
+  };
+  const imported: Document = {
+    id: "pcfacturacion:factura:F-2024-0001",
+    type: "factura",
+    number: "F-2024-0001",
+    date: "2024-04-01",
+    client: {
+      name: "Cliente histórico",
+      nif: "B12345678",
+      address: "Calle Cliente 2",
+      city: "Madrid",
+      postalCode: "28002",
+    },
+    items: [
+      {
+        id: "line-1",
+        description: "Trabajo importado",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "enviado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      email: profile.email,
+      capturedAt,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: capturedAt,
+    updatedAt: capturedAt,
+  };
+  const data: AppData = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [imported],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-12T22:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error("No se pudo construir el fixture histórico atestado.");
+  }
+  return result.data;
 }
 
 describe("sync por cambios", () => {
@@ -263,6 +346,31 @@ describe("sync por cambios", () => {
     expect(reloaded.expenses[0]?.providerSummary).toEqual(
       expense.providerSummary,
     );
+  });
+
+  it("conserva exactamente la atestación al generar el diff y reconstruir cloud", () => {
+    const source = attestedHistoricalData();
+    const changes = diffAppData(emptyCloudBootstrapData(), source);
+    const documentChange = changes.find(
+      (change) => change.entityType === "document",
+    );
+
+    expect(
+      (documentChange?.payload as Document | undefined)
+        ?.legacyImportAttestation,
+    ).toEqual(source.documents[0]?.legacyImportAttestation);
+
+    const rebuilt = rebuildCloudSnapshot(changes).data;
+
+    expect(rebuilt.documents[0]?.legacyImportAttestation).toEqual(
+      source.documents[0]?.legacyImportAttestation,
+    );
+    expect(rebuilt.documents[0]?.documentSnapshot).toEqual(
+      source.documents[0]?.documentSnapshot,
+    );
+    expect(rebuilt.documents[0]?.pdfSnapshot).toBeUndefined();
+    expect(rebuilt.documents[0]?.snapshotSeal).toBeUndefined();
+    expect(inspectLegacyImportAttestation(rebuilt.documents[0]!).ok).toBe(true);
   });
 
   it("sincroniza una reparación reversible cambiando solo la entidad expense", () => {

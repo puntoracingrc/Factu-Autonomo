@@ -8,6 +8,7 @@ import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { countersFromDocuments } from "../documents";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { normalizeLoadedData } from "../storage";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 import {
   assertAcceptedImportedDocumentsNormalized,
   assertNoProtectedImportReplacements,
@@ -971,7 +972,25 @@ export async function readGenericDocumentFiles(
     .map(parseDocument)
     .filter((item): item is ParsedDocument => Boolean(item));
   assertSingleCompatibleIssuer(parsedDocuments, current);
-  const importedDocuments = parsedDocuments.map((item) => item.document);
+  const importAttestedAt = new Date().toISOString();
+  const importedDocuments = parsedDocuments.map((item) => {
+    const document =
+      item.document.status !== "borrador" && !item.document.issuer
+        ? {
+            ...item.document,
+            issuer: captureIssuerSnapshot(
+              current.profile,
+              item.document.updatedAt,
+            ),
+          }
+        : item.document;
+    return attestNewImportedDocument(
+      document,
+      current.profile,
+      "generic_documents",
+      importAttestedAt,
+    );
+  });
   const listedCustomers = extracted
     .filter((file) => file.kind === "customers")
     .flatMap((file) => parseContactList(file, "customer") as Customer[]);
@@ -1018,8 +1037,7 @@ export async function readGenericDocumentFiles(
     : current.suppliers;
   const nextDocuments = mergedDocuments.documents;
   const nextProfile = current.profile;
-  const data = normalizeLoadedData(
-    {
+  const data = normalizeLoadedData({
       ...current,
       customers: uniqueById([...keptCustomers, ...importedCustomers]),
       suppliers: uniqueById([...keptSuppliers, ...importedSuppliers]),
@@ -1029,13 +1047,7 @@ export async function readGenericDocumentFiles(
         nextProfile.numbering.year,
         nextProfile.numbering,
       ),
-    },
-    {
-      legacyBackfillDocumentIds: new Set(
-        mergedDocuments.acceptedImported.map((document) => document.id),
-      ),
-    },
-  );
+    });
   const unpairedLegacyCancellationIds =
     assertAcceptedImportedDocumentsNormalized({
       normalized: data.documents,

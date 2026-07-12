@@ -413,12 +413,14 @@ export function assertAcceptedImportedDocumentsNormalized(input: {
       normalized.type === "factura" &&
       normalized.status === "anulada" &&
       !normalized.rectifiedById &&
-      normalized.documentSnapshot?.source === "legacy_backfill" &&
+      (normalized.documentSnapshot?.source === "legacy_backfill" ||
+        normalized.documentSnapshot?.source === "legacy_import_attested") &&
       issues.length === 1 &&
       issues[0] === "document_relationship_invalid";
     const hasInvalidIssuer =
       (normalized.type === "factura" || normalized.type === "recibo") &&
-      normalized.documentSnapshot?.source === "legacy_backfill" &&
+      (normalized.documentSnapshot?.source === "legacy_backfill" ||
+        normalized.documentSnapshot?.source === "legacy_import_attested") &&
       (businessProfileMissingDocumentLabels(
         normalized.documentSnapshot.issuer,
       ).length > 0 ||
@@ -433,7 +435,8 @@ export function assertAcceptedImportedDocumentsNormalized(input: {
     }
     if (
       normalized.type === "factura" &&
-      normalized.documentSnapshot?.source === "legacy_backfill" &&
+      (normalized.documentSnapshot?.source === "legacy_backfill" ||
+        normalized.documentSnapshot?.source === "legacy_import_attested") &&
       !isExpectedUnpairedLegacyCancellation
     ) {
       const compliance = validateDocumentEmission(

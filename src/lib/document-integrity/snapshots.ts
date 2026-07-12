@@ -440,7 +440,16 @@ function isDocumentSnapshotSemanticallyValid(
     if (snapshot.schemaVersion !== DOCUMENT_SNAPSHOT_SCHEMA_VERSION) return false;
     if (!isIsoDateTime(snapshot.capturedAt)) return false;
     if (!isIsoDateTime(snapshot.issuer?.capturedAt)) return false;
-    if (!(["issue", "legacy_backfill", "customer_repair"] as const).includes(snapshot.source)) {
+    if (
+      !(
+        [
+          "issue",
+          "legacy_backfill",
+          "legacy_import_attested",
+          "customer_repair",
+        ] as const
+      ).includes(snapshot.source)
+    ) {
       return false;
     }
     if (!(["factura", "presupuesto", "recibo"] as const).includes(snapshot.documentType)) {
@@ -1005,7 +1014,7 @@ export function buildDocumentSnapshot(
     ...(doc.paymentTerms ? { paymentTerms: doc.paymentTerms } : {}),
     ...(doc.notes ? { notes: doc.notes } : {}),
     ...(rectification ? { rectification } : {}),
-    ...(source === "issue" &&
+    ...((source === "issue" || source === "legacy_import_attested") &&
     doc.type === "recibo" &&
     doc.sourceDocumentId?.trim()
       ? { sourceDocumentId: doc.sourceDocumentId.trim() }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_DATA, type AppData, type Document } from "@/lib/types";
+import { issueDocument } from "@/lib/document-integrity";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type AppData,
+  type Document,
+} from "@/lib/types";
 import {
   buildRentabilidadRealAnalysisUnits,
   getRelatedDocumentIdsForAnalysisUnit,
@@ -8,7 +14,8 @@ import {
 function document(
   overrides: Partial<Document> & Pick<Document, "id" | "type" | "number">,
 ): Document {
-  return {
+  const requestedStatus = overrides.status ?? "enviado";
+  const draft: Document = {
     id: overrides.id,
     type: overrides.type,
     number: overrides.number,
@@ -24,12 +31,28 @@ function document(
         ivaPercent: 21,
       },
     ],
-    status: overrides.status ?? "enviado",
+    status: "borrador",
     sourceQuoteDocumentId: overrides.sourceQuoteDocumentId,
     rectification: overrides.rectification,
     rectifiedById: overrides.rectifiedById,
     createdAt: overrides.createdAt ?? "2026-07-01T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-07-01T10:00:00.000Z",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  delete draftForIssue.rectifiedById;
+  return {
+    ...issueDocument(
+      draftForIssue,
+      { ...DEFAULT_PROFILE, name: "Negocio Demo", nif: "12345678Z" },
+      draft.createdAt,
+    ),
+    status: requestedStatus,
+    rectifiedById: overrides.rectifiedById,
   };
 }
 
@@ -54,7 +77,9 @@ function appData(documents: Document[]): AppData {
 
 describe("buildRentabilidadRealAnalysisUnits", () => {
   it("presupuesto sin factura crea unidad quote", () => {
-    const data = appData([document({ id: "q1", type: "presupuesto", number: "P-1" })]);
+    const data = appData([
+      document({ id: "q1", type: "presupuesto", number: "P-1" }),
+    ]);
 
     const units = buildRentabilidadRealAnalysisUnits(data);
 
@@ -68,7 +93,9 @@ describe("buildRentabilidadRealAnalysisUnits", () => {
   });
 
   it("factura sin presupuesto crea unidad invoice", () => {
-    const data = appData([document({ id: "i1", type: "factura", number: "F-1" })]);
+    const data = appData([
+      document({ id: "i1", type: "factura", number: "F-1" }),
+    ]);
 
     const units = buildRentabilidadRealAnalysisUnits(data);
 
@@ -124,7 +151,9 @@ describe("buildRentabilidadRealAnalysisUnits", () => {
       sourceQuoteDocumentId: "q1",
     });
 
-    const [unit] = buildRentabilidadRealAnalysisUnits(appData([quote, invoice]));
+    const [unit] = buildRentabilidadRealAnalysisUnits(
+      appData([quote, invoice]),
+    );
 
     expect(getRelatedDocumentIdsForAnalysisUnit(unit)).toEqual(["q1", "i1"]);
   });

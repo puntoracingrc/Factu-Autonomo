@@ -175,6 +175,13 @@ export interface Document {
     | "simulation";
   /** Snapshot fiscal/documental congelado al emitir. */
   documentSnapshot?: DocumentSnapshot;
+  /**
+   * Atestación explícita de un documento histórico importado. No es un sello
+   * de emisión de esta app ni acredita Veri*Factu.
+   */
+  legacyImportAttestation?: LegacyImportAttestationV1;
+  /** Procedencia persistente también para borradores externos todavía editables. */
+  legacyImportProvenance?: LegacyImportProvenanceV1;
   /** Snapshot mínimo de configuración PDF congelado al emitir. */
   pdfSnapshot?: DocumentPdfSnapshot;
   /**
@@ -234,7 +241,8 @@ export type DocumentSnapshotIntegrityIssue =
   | "document_strong_hash_mismatch"
   | "pdf_strong_hash_mismatch"
   | "document_seal_mismatch"
-  | "pdf_seal_mismatch";
+  | "pdf_seal_mismatch"
+  | "legacy_import_attestation_invalid";
 
 export interface DocumentSnapshotSeal {
   version: 1;
@@ -746,7 +754,60 @@ export interface AppPreferences {
 export type DocumentSnapshotSource =
   | "issue"
   | "legacy_backfill"
+  | "legacy_import_attested"
   | "customer_repair";
+
+export type LegacyImportSource =
+  | "pcfacturacion"
+  | "holded"
+  | "facturadirecta"
+  | "generic_documents";
+
+export interface LegacyImportAttestationV1 {
+  schemaVersion: 1;
+  kind: "historical_import_user_accepted";
+  importer: LegacyImportSource;
+  documentId: string;
+  attestedAt: string;
+  snapshotContentHash: string;
+  /**
+   * Los importadores actuales no conservan el binario original. El usuario
+   * debe guardarlo fuera de la app hasta que exista almacenamiento de adjuntos.
+   */
+  originalEvidence: {
+    kind: "source_files_not_stored";
+    preservation: "user_managed";
+  };
+  /** Estado operativo y relaciones congelados al aceptar el histórico. */
+  acceptedState: {
+    status: DocumentStatus;
+    documentLifecycle: "issued";
+    integrityLock: "locked";
+    deliveryStatus: DocumentDeliveryStatus | null;
+    paymentStatus: DocumentPaymentStatus | null;
+    acceptanceStatus: DocumentAcceptanceStatus | null;
+    issuedAt: string | null;
+    sentAt: string | null;
+    paidAt: string | null;
+    acceptedAt: string | null;
+    updatedAt: string;
+    relationships: {
+      sourceQuoteDocumentId: string | null;
+      sourceQuoteNumber: string | null;
+      rectifiedById: null;
+      receiptDocumentId: null;
+      sourceDocumentId: null;
+    };
+  };
+  attestationHash: string;
+}
+
+export interface LegacyImportProvenanceV1 {
+  schemaVersion: 1;
+  kind: "external_import";
+  importer: LegacyImportSource;
+  importedAt: string;
+}
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;

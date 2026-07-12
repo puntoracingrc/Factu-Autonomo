@@ -8,6 +8,11 @@ import {
   TaxExportBlockedError,
 } from "./taxes";
 import { issueDocument } from "./document-integrity";
+import {
+  applyLegacyImportRepair,
+  buildLegacyImportRepairPreview,
+} from "./document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "./issuer-snapshot";
 import { isCollectedDocument } from "./income";
 import { isDateInQuarter } from "./periods";
 import type {
@@ -16,7 +21,7 @@ import type {
   Expense,
   RectificationType,
 } from "./types";
-import { DEFAULT_PROFILE } from "./types";
+import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 import { collectedSalesTotal } from "./vat-regime";
 
 const TEST_PROFILE: BusinessProfile = {
@@ -880,6 +885,70 @@ describe("calculateTaxSummary", () => {
         integrityBlockedDocuments: 1,
       });
     }
+  });
+
+  it("incluye tras confirmación un PCF histórico v1 y mantiene bloqueada la emisión app equivalente", () => {
+    const historical: Document = {
+      ...invoice("enviado", 100, {
+        id: "pcfacturacion:factura:F-2024-0001",
+        number: "F-2024-0001",
+        date: "2024-04-01",
+      }),
+      issuer: captureIssuerSnapshot(
+        TEST_PROFILE,
+        "2024-04-01T10:00:00.000Z",
+      ),
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+    };
+    const workspace = {
+      ...EMPTY_DATA,
+      profile: TEST_PROFILE,
+      snapshotIntegrityVersion: 1 as const,
+      documents: [historical],
+    };
+    const repaired = applyLegacyImportRepair(
+      workspace,
+      buildLegacyImportRepairPreview(workspace),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(repaired.status).toBe("applied");
+    if (repaired.status !== "applied") return;
+
+    expect(
+      calculateTaxSummary(repaired.data.documents, [], {
+        profile: TEST_PROFILE,
+      }),
+    ).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
+    });
+
+    const appIssuedWithoutEvidence: Document = {
+      ...historical,
+      id: "app-issued-without-evidence",
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+    expect(
+      calculateTaxSummary([appIssuedWithoutEvidence], [], {
+        profile: TEST_PROFILE,
+      }),
+    ).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
   });
 
   it("bloquea una factura anulada sin relación rectificativa verificable", () => {

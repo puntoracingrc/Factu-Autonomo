@@ -3,7 +3,14 @@ import {
   collectAppRecommendations,
   INVOICE_DUE_SOON_DAYS,
 } from "./recommendations";
+import { issueDocument } from "./document-integrity";
 import { DEFAULT_PROFILE, EMPTY_DATA, type Document } from "./types";
+
+const recommendationProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Test",
+  nif: "12345678Z",
+};
 
 const baseBilling = {
   billingEnabled: true,
@@ -16,7 +23,7 @@ const baseBilling = {
 };
 
 function pendingInvoice(overrides: Partial<Document> = {}): Document {
-  return {
+  const draft: Document = {
     id: "f1",
     type: "factura",
     number: "F-2026-0001",
@@ -32,11 +39,19 @@ function pendingInvoice(overrides: Partial<Document> = {}): Document {
         ivaPercent: 21,
       },
     ],
-    status: "enviado",
+    status: "borrador",
     createdAt: "2026-06-01",
     updatedAt: "2026-06-01",
     ...overrides,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
   };
+
+  return issueDocument(
+    draft,
+    recommendationProfile,
+    "2026-06-01T09:00:00.000Z",
+  );
 }
 
 describe("collectAppRecommendations", () => {
@@ -54,7 +69,7 @@ describe("collectAppRecommendations", () => {
     const items = collectAppRecommendations({
       data: {
         ...EMPTY_DATA,
-        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        profile: recommendationProfile,
         documents: [
           pendingInvoice({ id: "overdue", dueDate: "2026-06-01" }),
           pendingInvoice({
@@ -85,7 +100,7 @@ describe("collectAppRecommendations", () => {
     const items = collectAppRecommendations({
       data: {
         ...EMPTY_DATA,
-        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        profile: recommendationProfile,
       },
       billing: {
         ...baseBilling,
@@ -100,7 +115,7 @@ describe("collectAppRecommendations", () => {
     const items = collectAppRecommendations({
       data: {
         ...EMPTY_DATA,
-        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        profile: recommendationProfile,
         recurringExpenses: [
           {
             id: "r1",
@@ -131,7 +146,7 @@ describe("collectAppRecommendations", () => {
     const items = collectAppRecommendations({
       data: {
         ...EMPTY_DATA,
-        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        profile: recommendationProfile,
         documents: [
           pendingInvoice({
             id: "open",
@@ -165,7 +180,7 @@ describe("collectAppRecommendations", () => {
     const items = collectAppRecommendations({
       data: {
         ...EMPTY_DATA,
-        profile: { ...DEFAULT_PROFILE, name: "Test", nif: "12345678Z" },
+        profile: recommendationProfile,
         documents: [quote],
       },
       referenceDate: "2026-06-09",

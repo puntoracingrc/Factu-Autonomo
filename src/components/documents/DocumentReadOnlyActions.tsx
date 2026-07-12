@@ -12,6 +12,7 @@ import { PaymentReminderButton } from "@/components/documents/PaymentReminderBut
 import { useAppStore } from "@/context/AppStore";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
+import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
@@ -47,6 +48,7 @@ export function DocumentReadOnlyActions({
   const integrityFeedback = getDocumentIntegrityBlockedFeedback(
     doc.snapshotIntegrity?.issues,
   );
+  const legacyImportedAccepted = isUsableLegacyImportedDocument(doc);
 
   return (
     <div className="mt-6 space-y-4">
@@ -54,6 +56,18 @@ export function DocumentReadOnlyActions({
         Acciones de {typeLabel}
       </p>
       <DocumentLinkBadges document={doc} documents={data.documents} />
+      {legacyImportedAccepted && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          <span className="block font-bold">
+            Histórico importado · aceptado por ti
+          </span>
+          <span className="mt-1 block">
+            Está congelado y puede usarse en impuestos y rentabilidad. No tiene
+            un sello moderno ni un registro Veri*Factu de Factu. Cualquier PDF
+            generado aquí es una reconstrucción: conserva el archivo original.
+          </span>
+        </div>
+      )}
       {integrityBlocked && (
         <div
           role="alert"
@@ -61,8 +75,7 @@ export function DocumentReadOnlyActions({
         >
           <span className="block">{integrityFeedback.title}</span>
           <span className="mt-1 block font-medium">
-            {integrityFeedback.reason}{" "}
-            {integrityFeedback.consequence}
+            {integrityFeedback.reason} {integrityFeedback.consequence}
           </span>
           <span className="mt-1 block font-medium">
             {integrityFeedback.recovery}
@@ -87,30 +100,36 @@ export function DocumentReadOnlyActions({
         </p>
       )}
       {!integrityBlocked && (
-      <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
-        {doc.type === "presupuesto" && <MarkAsAcceptedButton doc={doc} />}
-        {doc.type === "presupuesto" && (
-          <ConvertQuoteToInvoiceButton doc={doc} />
-        )}
-        {(doc.type === "factura" || doc.type === "recibo") && (
-          <MarkAsPaidButton doc={doc} />
-        )}
-        {doc.type === "factura" && canShowPaymentReminder(contactDoc) && (
-          <PaymentReminderButton
-            doc={contactDoc}
-            profile={profile}
-            variant="button"
-          />
-        )}
-        <DocumentLinkManagerButton doc={doc} />
-        <DocumentPdfShareActions doc={doc} profile={profile} />
-      </div>
+        <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
+          {!legacyImportedAccepted && doc.type === "presupuesto" && (
+            <MarkAsAcceptedButton doc={doc} />
+          )}
+          {!legacyImportedAccepted && doc.type === "presupuesto" && (
+            <ConvertQuoteToInvoiceButton doc={doc} />
+          )}
+          {!legacyImportedAccepted &&
+            (doc.type === "factura" || doc.type === "recibo") && (
+              <MarkAsPaidButton doc={doc} />
+            )}
+          {doc.type === "factura" && canShowPaymentReminder(contactDoc) && (
+            <PaymentReminderButton
+              doc={contactDoc}
+              profile={profile}
+              variant="button"
+            />
+          )}
+          <DocumentLinkManagerButton doc={doc} />
+          <DocumentPdfShareActions doc={doc} profile={profile} />
+        </div>
       )}
 
       {!integrityBlocked && missingContact && (
         <p className="text-sm text-slate-500">
           Para enviar por email o WhatsApp, añade el contacto del cliente en{" "}
-          <Link href="/clientes" className="font-semibold text-blue-600 underline">
+          <Link
+            href="/clientes"
+            className="font-semibold text-blue-600 underline"
+          >
             Clientes
           </Link>{" "}
           o edítalo en el documento antes de emitirlo.

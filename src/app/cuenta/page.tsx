@@ -22,12 +22,15 @@ import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard"
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
+import { ImportedLegacyDocumentRepairCard } from "@/components/settings/ImportedLegacyDocumentRepairCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
 const ReferralCard = dynamic(
   () =>
-    import("@/components/referrals/ReferralCard").then((mod) => mod.ReferralCard),
+    import("@/components/referrals/ReferralCard").then(
+      (mod) => mod.ReferralCard,
+    ),
   {
     ssr: false,
     loading: () => null,
@@ -50,10 +53,7 @@ const ACCOUNT_NAV_ITEMS: Array<{
 
 function AccountQuickLinks() {
   return (
-    <nav
-      aria-label="Opciones de cuenta"
-      className="mb-6 flex flex-wrap gap-2"
-    >
+    <nav aria-label="Opciones de cuenta" className="mb-6 flex flex-wrap gap-2">
       {ACCOUNT_NAV_ITEMS.map(({ href, label, Icon }) => (
         <a
           key={href}
@@ -91,9 +91,7 @@ function AccountSection({
         </div>
         <div className="min-w-0">
           <h2 className="text-xl font-black text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            {description}
-          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
         </div>
       </div>
       <div className="mb-8">{children}</div>
@@ -199,12 +197,13 @@ export default function CuentaPage() {
         description="Trae datos desde otros programas con una previsualización antes de aplicar cambios."
         Icon={Upload}
       >
+        <ImportedLegacyDocumentRepairCard />
         <Card className="mb-6 space-y-3">
           <h3 className="text-lg font-bold text-slate-900">Importar datos</h3>
           <p className="text-sm text-slate-600">
             Trae clientes, presupuestos, facturas y datos de empresa desde
-            archivos compatibles. Revisa una previsualización antes de aplicar la
-            importación.
+            archivos compatibles. Revisa una previsualización antes de aplicar
+            la importación.
           </p>
           <ButtonLink href="/importar" variant="secondary">
             Abrir importador
