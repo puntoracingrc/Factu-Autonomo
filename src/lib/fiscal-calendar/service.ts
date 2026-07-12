@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 import { FixtureFiscalCalendarProvider } from "./fixture-provider";
 import { GooglePublicCalendarProvider } from "./google-public-calendar-provider";
 import { ReviewOnlyFiscalCalendarProvider } from "./review-only-provider";
@@ -14,7 +14,7 @@ assertServerOnlyModule();
 
 const DEFAULT_CACHE_TTL_MS = 5 * 60_000;
 const MAX_CACHE_ENTRIES = 100;
-const PROVIDER_FINGERPRINT_KEY = randomBytes(32);
+const PROVIDER_FINGERPRINT_SALT = randomBytes(32);
 
 interface FiscalCalendarServiceOptions {
   cacheTtlMs?: number;
@@ -124,9 +124,9 @@ function providerConfigurationFingerprint(
   config: FiscalCalendarRuntimeConfig,
 ): string {
   if (config.providerMode !== "google-calendar") return config.providerMode;
-  return createHmac("sha256", PROVIDER_FINGERPRINT_KEY)
-    .update(config.apiKey ?? "")
-    .digest("hex");
+  return scryptSync(config.apiKey ?? "", PROVIDER_FINGERPRINT_SALT, 32).toString(
+    "hex",
+  );
 }
 
 let defaultService:
