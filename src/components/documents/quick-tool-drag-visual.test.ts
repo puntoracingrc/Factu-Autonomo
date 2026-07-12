@@ -19,4 +19,13 @@ describe("quickToolDragVisualStyle", () => {
     expect(lifted.transition).toContain("160ms");
     expect(lifted.willChange).toBe("transform");
   });
+
+  it("mantiene delante la ultima herramienta activada", () => {
+    const inactive = quickToolDragVisualStyle("calculator", false, false);
+    const active = quickToolDragVisualStyle("post-it", false, true);
+    const dragging = quickToolDragVisualStyle("calculator", true, true);
+
+    expect(active.zIndex).toBeGreaterThan(inactive.zIndex);
+    expect(dragging.zIndex).toBeGreaterThan(active.zIndex);
+  });
 });

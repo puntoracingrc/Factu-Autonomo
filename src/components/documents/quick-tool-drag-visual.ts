@@ -14,6 +14,7 @@ const LIFTED_SHADOW = "0 24px 42px rgba(15, 23, 42, 0.26)";
 export function quickToolDragVisualStyle(
   kind: QuickToolDragKind,
   isDragging: boolean,
+  isActive = true,
 ): QuickToolDragVisualStyle {
   const scale = kind === "post-it" ? 1.018 : 1.012;
   const lift = kind === "post-it" ? 4 : 3;
@@ -26,6 +27,6 @@ export function quickToolDragVisualStyle(
     transition:
       "transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms ease-out",
     willChange: isDragging ? "transform" : "auto",
-    zIndex: isDragging ? 60 : 50,
+    zIndex: isDragging ? 70 : isActive ? 60 : 50,
   };
 }
