@@ -25,6 +25,7 @@ export const gastosSection: ManualSection = {
         "Puedes vincular una compra a una factura o presupuesto en **Trabajo relacionado**. No cambia el PDF ni la numeración: solo sirve para saber qué gastos pertenecen a cada trabajo.",
         "Cuando una línea de compra se parece a algo comprado antes al mismo proveedor, la app puede avisarte si el precio o el descuento han cambiado bastante.",
         "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. Al guardar varias facturas de una tanda, todas comprueban el maestro actualizado: el mismo NIF o nombre normalizado reutiliza una sola alta. Dos NIF distintos nunca se fusionan solo porque el nombre coincida; si la factura trae NIF y un maestro antiguo no lo tiene, la app mantiene una alta separada para que puedas revisarla con seguridad.",
+        "Cuando conviertes un documento escaneado en **gasto fijo**, proveedor, gasto y regla recurrente se confirman juntos en el almacenamiento del navegador. Solo después se marca el documento del buzón como procesado. Si ese cierre posterior falla, el gasto fijo ya guardado se reconoce por su operación y el siguiente intento repite únicamente el cierre del buzón, sin crear otro gasto. Si el guardado local se bloquea, el formulario permanece abierto y el documento no se marca como procesado; si la app no puede confirmar en qué estado quedó el almacenamiento, recarga y exporta una copia desde **Cuenta** antes de continuar.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-nuevo.png",
@@ -70,6 +71,7 @@ export const gastosSection: ManualSection = {
         "Al editar una regla eliges desde qué fecha se aplican los cambios y la cadencia mensual o trimestral conserva su ancla. Si ya existen cargos, exclusiones o vínculos ambiguos desde el corte, la vista previa bloquea la operación: ningún gasto ya creado se borra, desplaza ni reescribe. Elige una fecha posterior o revisa esas ocurrencias por separado.",
         "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Un cargo positivo sí reduce el beneficio económico; un abono negativo revierte ese coste. Ambos siguen en Gastos, balance y Rentabilidad Real, pero aportan base e IVA deducibles cero: este tratamiento no reduce la base ni la reserva estimada de IRPF.",
         "Las ocurrencias no desgravables aparecen identificadas en el listado y en los CSV/PDF fiscales.",
+        "Una creación, edición, pausa, activación o borrado solo se refleja en la lista cuando el navegador confirma el guardado. Ante falta de espacio o permisos de almacenamiento, la regla anterior permanece en la sesión y verás un aviso para corregirlo y reintentar. Si el estado no se puede determinar con seguridad, recarga antes de seguir.",
         "Desde esa pantalla puedes volver al listado principal con **Volver**.",
       ],
       screenshot: {
