@@ -12,8 +12,10 @@ import {
   type PublicAeatModelReviewRouteV1,
 } from "./public-review-route-manifest.v1";
 import { getFiscalModelReviewPageViewV1 } from "./review-view-model.v1";
+import { resolvePublicAeatModelContentV1 } from "./model-01-content.v1";
 import {
   createPublicAeatModelSearchEntryV2,
+  createPublicAeatModelSearchEntryWithTermsV2,
   filterPublicAeatModelSearchEntriesV2,
   type PublicAeatModelReviewSearchResultV2,
 } from "./public-review-search.v2";
@@ -556,8 +558,22 @@ export function searchPublicAeatModelReviewPagesV2(
   }
   const catalog = listPublicAeatModelReviewPagesV1();
   if (catalog.status === "BLOCKED") return catalog;
+  const model01Content = resolvePublicAeatModelContentV1({ code: "01" });
+  if (model01Content.status === "BLOCKED") {
+    return Object.freeze({
+      status: "BLOCKED",
+      reason: "INCONSISTENT_CATALOG",
+    });
+  }
 
-  const entries = catalog.data.map(createPublicAeatModelSearchEntryV2);
+  const entries = catalog.data.map((page) =>
+    page.code === "01"
+      ? createPublicAeatModelSearchEntryWithTermsV2(
+          page,
+          model01Content.data.searchTerms,
+        )
+      : createPublicAeatModelSearchEntryV2(page),
+  );
   const result = filterPublicAeatModelSearchEntriesV2(entries, query);
   if (result.status === "BLOCKED") return result;
   const matchingIds = new Set(result.data.map((entry) => entry.catalogCardId));

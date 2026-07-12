@@ -4,6 +4,7 @@ import { FiscalModelStructuralDetailView } from "@/components/fiscal-models/Fisc
 import {
   listPublicAeatModelReviewPagesV1,
   resolvePublicAeatModelCalendarDetailContextV1,
+  resolvePublicAeatModelContentV1,
   resolvePublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages";
 
@@ -47,10 +48,16 @@ export default async function FiscalModelDetailPage({
     code: codigo,
     searchParams: await searchParams,
   });
+  const enrichedContent = resolvePublicAeatModelContentV1({ code: codigo });
 
   return (
     <FiscalModelStructuralDetailView
       page={result.data}
+      enrichedContent={
+        enrichedContent.status === "REVIEW_ONLY"
+          ? enrichedContent.data
+          : null
+      }
       calendarReturnHref={
         calendarContext.status === "FROM_CALENDAR"
           ? calendarContext.data.returnHref

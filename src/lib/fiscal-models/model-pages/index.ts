@@ -22,6 +22,7 @@ export type {
 } from "./public-review-catalog.v1";
 export {
   createPublicAeatModelSearchEntryV2,
+  createPublicAeatModelSearchEntryWithTermsV2,
   filterPublicAeatModelSearchEntriesV2,
   filterPublicAeatModelSearchEntriesInteractiveV2,
   getFiscalModelCatalogFocusPresentationV1,
@@ -33,3 +34,14 @@ export type {
   PublicAeatModelSearchEntryResultV2,
   PublicAeatModelSearchEntryV2,
 } from "./public-review-search.v2";
+export {
+  PUBLIC_AEAT_MODEL_CONTENT_SCHEMA_VERSION_V1,
+  resolvePublicAeatModelContentV1,
+} from "./model-01-content.v1";
+export type {
+  PublicAeatModel01ContentV1,
+  PublicAeatModelContentFactV1,
+  PublicAeatModelContentResolveResultV1,
+  PublicAeatModelContentSourceV1,
+  PublicAeatModelPdfResourceV1,
+} from "./model-01-content.v1";

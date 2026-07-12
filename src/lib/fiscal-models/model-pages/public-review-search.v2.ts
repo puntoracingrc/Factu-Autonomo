@@ -102,15 +102,16 @@ function parseQuery(
   return Object.freeze({ query: value, normalizedQuery });
 }
 
-export function createPublicAeatModelSearchEntryV2(
+function buildPublicAeatModelSearchEntryV2(
   page: PublicAeatModelReviewPageV1,
+  additionalTerms: readonly string[],
 ): PublicAeatModelSearchEntryV2 {
   const specificDescription =
     page.kind === "HISTORICAL_FOUNDATION"
       ? [page.summary, page.historicalNotice ?? ""].join(" ")
       : "";
   const normalizedText = normalizePublicAeatModelSearchTextV2(
-    `Modelo ${page.code} ${page.canonicalName} ${specificDescription}`,
+    `Modelo ${page.code} ${page.canonicalName} ${specificDescription} ${additionalTerms.join(" ")}`,
   );
   return Object.freeze({
     code: page.code,
@@ -118,6 +119,19 @@ export function createPublicAeatModelSearchEntryV2(
     normalizedText,
     words: Object.freeze(normalizedText.split(" ")),
   });
+}
+
+export function createPublicAeatModelSearchEntryV2(
+  page: PublicAeatModelReviewPageV1,
+): PublicAeatModelSearchEntryV2 {
+  return buildPublicAeatModelSearchEntryV2(page, []);
+}
+
+export function createPublicAeatModelSearchEntryWithTermsV2(
+  page: PublicAeatModelReviewPageV1,
+  additionalTerms: readonly string[],
+): PublicAeatModelSearchEntryV2 {
+  return buildPublicAeatModelSearchEntryV2(page, additionalTerms);
 }
 
 function entryMatchesTokens(
