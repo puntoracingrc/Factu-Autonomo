@@ -1,24 +1,27 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  getFiscalModelReviewPageViewV1,
-  searchFiscalModelReviewPageViewsV1,
-} from "@/lib/fiscal-models/model-pages/review-view-model.v1";
+  listPublicAeatModelReviewPagesV1,
+  resolvePublicAeatModelReviewPageV1,
+  searchPublicAeatModelReviewPagesV1,
+} from "@/lib/fiscal-models/model-pages";
 
 function source(relativePath: string): string {
   return readFileSync(new URL(relativePath, import.meta.url), "utf8");
 }
 
-describe("fiscal model review pages UI contract", () => {
-  it("renders an accessible bounded local search and exactly three review links", () => {
-    const result = searchFiscalModelReviewPageViewsV1({});
+describe("fiscal model structural review pages UI contract", () => {
+  it("renders an accessible bounded local search and all deployed review links", () => {
+    const result = searchPublicAeatModelReviewPagesV1({});
     expect(result.status).toBe("REVIEW_ONLY");
     if (result.status === "REVIEW_ONLY") {
-      expect(result.data.map((page) => page.reviewPagePath)).toEqual([
-        "/consultor-fiscal/modelos/036",
-        "/consultor-fiscal/modelos/037",
-        "/consultor-fiscal/modelos/303",
-      ]);
+      expect(result.data).toHaveLength(229);
+      expect(result.data.map((page) => page.code)).toEqual(
+        expect.arrayContaining(["01", "01C", "036", "037", "130", "349", "A22"]),
+      );
+      expect(result.data.every((page) => page.href === page.reviewPagePath)).toBe(
+        true,
+      );
     }
     const catalog = source("./FiscalModelCatalogView.tsx");
 
@@ -26,19 +29,22 @@ describe("fiscal model review pages UI contract", () => {
     expect(catalog).toContain('aria-labelledby="buscar-modelo-title"');
     expect(catalog).toContain('name="modelo"');
     expect(catalog).toContain("maxLength={3}");
-    expect(catalog).toContain('pattern="[0-9]{3}"');
+    expect(catalog).toContain(
+      'pattern="([0-9]{2,3}|[0-9]{2}[A-Z]|[A-Z][0-9]{2})"',
+    );
+    expect(catalog).toContain('autoCapitalize="characters"');
+    expect(catalog).not.toContain('inputMode="numeric"');
     expect(catalog).toContain("La búsqueda es local");
     expect(catalog).toContain("Información en revisión");
-    expect(catalog).toContain("Enlace automático bloqueado");
-    expect(catalog).toContain("href={page.reviewPagePath}");
+    expect(catalog).toContain("Ficha desplegada · contenido en revisión");
+    expect(catalog).toContain("href={page.href}");
     expect(catalog).toContain("Abrir ficha en revisión");
-    expect(catalog).not.toContain("Modelo 130");
-    expect(catalog).not.toContain("Modelo 349");
-    expect(catalog).not.toMatch(/\b(?:AVAILABLE|CURRENT)\b/);
+    expect(catalog).toContain("del modelo {page.code}");
+    expect(catalog).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
 
   it("renders exact no-match and invalid-search states without fallback links", () => {
-    const missing = searchFiscalModelReviewPageViewsV1({ modelo: "130" });
+    const missing = searchPublicAeatModelReviewPagesV1({ modelo: "999" });
     expect(missing).toMatchObject({
       status: "REVIEW_ONLY",
       match: "NO_MATCH",
@@ -50,7 +56,7 @@ describe("fiscal model review pages UI contract", () => {
       "No se crea un resultado aproximado ni se enlaza a otro modelo.",
     );
 
-    const invalid = searchFiscalModelReviewPageViewsV1({ modelo: "036 " });
+    const invalid = searchPublicAeatModelReviewPagesV1({ modelo: "036 " });
     expect(invalid).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
     expect(catalog).toContain("La búsqueda no es válida.");
     expect(catalog).toContain("aria-invalid={blocked}");
@@ -60,45 +66,59 @@ describe("fiscal model review pages UI contract", () => {
     expect(catalog).toContain('id="buscar-modelo-error"');
   });
 
-  it("renders 037 as historical and non-current with visible provenance", () => {
-    const result = getFiscalModelReviewPageViewV1({ code: "037" });
-    expect(result.status).toBe("REVIEW_ONLY");
-    if (result.status !== "REVIEW_ONLY") return;
-    const detail = source("./FiscalModelDetailView.tsx");
+  it("renders 037 as historical and every other structural page as undetermined", () => {
+    const historical = resolvePublicAeatModelReviewPageV1({ code: "037" });
+    const structural = resolvePublicAeatModelReviewPageV1({ code: "130" });
+    expect(historical.status).toBe("REVIEW_ONLY");
+    expect(structural.status).toBe("REVIEW_ONLY");
+    if (
+      historical.status !== "REVIEW_ONLY" ||
+      structural.status !== "REVIEW_ONLY"
+    ) {
+      return;
+    }
+    const detail = source("./FiscalModelStructuralDetailView.tsx");
 
-    expect(result.data.historicalNotice).toContain("no vigente");
-    expect(result.data.effectiveTo).toBe("2025-02-02");
+    expect(historical.data.historicalNotice).toContain("no vigente");
+    expect(historical.data.effectiveTo).toBe("2025-02-02");
+    expect(historical.data.lifecycleStatus).toBe("HISTORICAL");
+    expect(historical.data.reviewMessage).not.toContain("vigencia");
+    expect(structural.data.lifecycleStatus).toBe("UNDETERMINED");
+    expect(structural.data.validityStatus).toBe("SOURCE_PENDING");
     expect(detail).toContain("Histórico · no vigente");
-    expect(detail).toContain('page.effectiveTo.split("-").reverse().join("/")');
-    expect(detail).toContain("page.reviewTitle");
-    expect(detail).toContain("Procedencia por campo");
+    expect(detail).toContain(
+      'page.effectiveTo.split("-").reverse().join("/")',
+    );
+    expect(detail).toContain("Pendiente de verificación");
+    expect(detail).toContain("Aplicabilidad detallada: pendiente de revisión");
     expect(detail).toContain("Fuentes oficiales registradas");
     expect(detail).toContain("Revisión fiscal pendiente");
-    expect(result.data.limitations).toContain(
-      "No calcula casillas ni importes",
+    expect(historical.data.limitations).toContain(
+      "No contiene casillas, importes, plazos ni recomendaciones",
     );
     expect(detail).not.toMatch(/sustituid[oa]|reemplazad[oa]/i);
   });
 
   it("renders only safe official references and no filing action", () => {
-    const result = getFiscalModelReviewPageViewV1({ code: "303" });
+    const result = resolvePublicAeatModelReviewPageV1({ code: "303" });
     expect(result.status).toBe("REVIEW_ONLY");
     if (result.status !== "REVIEW_ONLY") return;
-    const detail = source("./FiscalModelDetailView.tsx");
+    const detail = source("./FiscalModelStructuralDetailView.tsx");
 
     expect(result.data.sources.length).toBeGreaterThan(0);
-    expect(detail).toContain("href={source.externalHref}");
+    expect(detail).toContain("href={source.canonicalUrl}");
     expect(detail).toContain('rel="noopener noreferrer"');
-    expect(detail).toContain("Abrir referencia oficial");
+    expect(detail).toContain("Abrir fuente oficial informativa");
+    expect(detail).toContain(": {source.title}");
     expect(detail).toContain("se abre en una pestaña nueva");
-    expect(detail).toContain("Abrirlas no inicia ningún");
+    expect(detail).toContain("inicia ningún trámite");
     expect(detail).not.toMatch(/>\s*(?:Presentar|Firmar|Pagar|Enviar)\s*</i);
   });
 
   it("keeps mobile, dark-mode, keyboard, and screen-reader safeguards explicit", () => {
     const catalog = source("./FiscalModelCatalogView.tsx");
-    const detail = source("./FiscalModelDetailView.tsx");
-    const ui = `${catalog}\n${detail}`;
+    const detail = source("./FiscalModelStructuralDetailView.tsx");
+    const ui = catalog + "\n" + detail;
 
     expect(ui).toContain("min-w-0");
     expect(ui).toContain("break-words");
@@ -111,13 +131,17 @@ describe("fiscal model review pages UI contract", () => {
   });
 
   it("uses Next 15 static params and exact fail-closed routing", () => {
+    const catalog = listPublicAeatModelReviewPagesV1();
+    expect(catalog.status).toBe("REVIEW_ONLY");
+    if (catalog.status === "REVIEW_ONLY") expect(catalog.data).toHaveLength(229);
+
     const indexPage = source("../../app/consultor-fiscal/modelos/page.tsx");
     const detailPage = source(
       "../../app/consultor-fiscal/modelos/[codigo]/page.tsx",
     );
 
     expect(indexPage).toContain("await searchParams");
-    expect(indexPage).toContain("searchFiscalModelReviewPageViewsV1");
+    expect(indexPage).toContain("searchPublicAeatModelReviewPagesV1");
     expect(indexPage).toContain('result.reason !== "INVALID_INPUT"');
     expect(indexPage).toContain("notFound()");
     expect(indexPage).toContain("index: false");
@@ -125,17 +149,19 @@ describe("fiscal model review pages UI contract", () => {
     expect(detailPage).toContain("params: Promise<{ codigo: string }>");
     expect(detailPage).toContain("export const dynamicParams = false");
     expect(detailPage).toContain("generateStaticParams");
-    expect(detailPage).toContain("listFiscalModelReviewPageViewsV1");
-    expect(detailPage).toContain("getFiscalModelReviewPageViewV1");
+    expect(detailPage).toContain("listPublicAeatModelReviewPagesV1");
+    expect(detailPage).toContain("resolvePublicAeatModelReviewPageV1");
+    expect(detailPage).toContain("catalog.data.length !== 229");
     expect(detailPage).toContain('if (result.status === "BLOCKED") notFound()');
     expect(detailPage).not.toMatch(/\/modelos\/\$\{/);
   });
 
-  it("keeps the new production surface isolated from data, engines, and network", () => {
+  it("keeps the production surface isolated from data, engines, and runtime network", () => {
     const production = [
-      source("../../lib/fiscal-models/model-pages/review-view-model.v1.ts"),
+      source("../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts"),
+      source("../../lib/fiscal-models/model-pages/public-review-catalog.v1.ts"),
       source("./FiscalModelCatalogView.tsx"),
-      source("./FiscalModelDetailView.tsx"),
+      source("./FiscalModelStructuralDetailView.tsx"),
       source("../../app/consultor-fiscal/modelos/page.tsx"),
       source("../../app/consultor-fiscal/modelos/[codigo]/page.tsx"),
     ].join("\n");

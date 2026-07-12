@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { middleware } from "@/middleware";
 
 describe("private route middleware", () => {
@@ -27,7 +28,7 @@ describe("private route middleware", () => {
       "/ayuda/consultor-fiscal",
     ]) {
       const response = middleware(
-        new NextRequest(`https://facturacion-autonomos.app${pathname}`),
+        new NextRequest("https://facturacion-autonomos.app" + pathname),
       );
 
       expect(response.status).toBe(404);
@@ -44,36 +45,37 @@ describe("private route middleware", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 
     const response = middleware(
-      new NextRequest(
-        "https://facturacion-autonomos.app/consultor-fiscal",
-      ),
+      new NextRequest("https://facturacion-autonomos.app/consultor-fiscal"),
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("publica únicamente las cuatro rutas literales de fichas informativas", () => {
-    vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
+  it("publica únicamente el índice y las 229 rutas literales informativas", () => {
+    expect(PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1).toHaveLength(229);
 
-    for (const pathname of [
-      "/consultor-fiscal/modelos",
-      "/consultor-fiscal/modelos/036",
-      "/consultor-fiscal/modelos/037",
-      "/consultor-fiscal/modelos/303",
-    ]) {
-      const response = middleware(
-        new NextRequest(`https://facturacion-autonomos.app${pathname}`),
-      );
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", enabled);
 
-      expect(response.status, pathname).toBe(200);
-      expect(response.headers.get("x-middleware-next"), pathname).toBe("1");
-      expect(response.headers.get("Cache-Control"), pathname).toBe(
-        "no-store, max-age=0",
-      );
-      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
-        "noindex, nofollow, noarchive",
-      );
+      for (const pathname of [
+        "/consultor-fiscal/modelos",
+        ...PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1,
+      ]) {
+        const response = middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        );
+        const caseLabel = enabled + " " + pathname;
+
+        expect(response.status, caseLabel).toBe(200);
+        expect(response.headers.get("x-middleware-next"), caseLabel).toBe("1");
+        expect(response.headers.get("Cache-Control"), caseLabel).toBe(
+          "no-store, max-age=0",
+        );
+        expect(response.headers.get("X-Robots-Tag"), caseLabel).toBe(
+          "noindex, nofollow, noarchive",
+        );
+      }
     }
   });
 
@@ -81,17 +83,23 @@ describe("private route middleware", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 
     for (const pathname of [
-      "/consultor-fiscal/modelos/130",
-      "/consultor-fiscal/modelos/349",
+      "/consultor-fiscal/modelos/000",
+      "/consultor-fiscal/modelos/601",
       "/consultor-fiscal/modelos/999",
+      "/consultor-fiscal/modelos/A25",
       "/consultor-fiscal/modelos/036/extra",
       "/consultor-fiscal/modelos/%30%33%36",
+      "/consultor-fiscal/modelos/%41%32%32",
+      "/consultor-fiscal/modelos/A%32%32",
       "/consultor-fiscal/modelos/%2F036",
-      "/consultor-fiscal/modelos/Modelos",
+      "/consultor-fiscal/modelos%2F036",
+      "/consultor-fiscal/modelosx/036",
+      "/consultor-fiscal/modelos/01c",
+      "/consultor-fiscal/modelos/a22",
       "/consultor-fiscal/modelos/303.json",
     ]) {
       const response = middleware(
-        new NextRequest(`https://facturacion-autonomos.app${pathname}`),
+        new NextRequest("https://facturacion-autonomos.app" + pathname),
       );
 
       expect(response.status, pathname).toBe(404);
@@ -108,22 +116,27 @@ describe("private route middleware", () => {
   // dirige únicamente a la ruta literal canónica. Esa excepción se comprueba
   // en la matriz HTTP; aquí no se atribuye al middleware un 404 que no emite.
 
-  it("bloquea case variants y traversal normalizado cuando la Beta está cerrada", () => {
-    vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
+  it("bloquea case variants y traversal con ambos estados de la Beta", () => {
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", enabled);
 
-    for (const pathname of [
-      "/consultor-fiscal/Modelos/036",
-      "/consultor-fiscal/modelos/%2e%2e/303",
-      "/consultor-fiscal/modelos/%2E%2E%2F303",
-    ]) {
-      const response = middleware(
-        new NextRequest(`https://facturacion-autonomos.app${pathname}`),
-      );
+      for (const pathname of [
+        "/consultor-fiscal/Modelos/036",
+        "/consultor-fiscal/modelos/%2e%2e/036",
+        "/consultor-fiscal/modelos/%2E%2E%2F036",
+        "/consultor-fiscal/modelos/%2e%2e/303",
+        "/consultor-fiscal/modelos/%2E%2E%2F303",
+      ]) {
+        const response = middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        );
+        const caseLabel = enabled + " " + pathname;
 
-      expect(response.status, pathname).toBe(404);
-      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
-        "noindex, nofollow, noarchive",
-      );
+        expect(response.status, caseLabel).toBe(404);
+        expect(response.headers.get("X-Robots-Tag"), caseLabel).toBe(
+          "noindex, nofollow, noarchive",
+        );
+      }
     }
   });
 });
