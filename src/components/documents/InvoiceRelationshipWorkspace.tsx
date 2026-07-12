@@ -63,6 +63,7 @@ import {
 import { isVatExempt } from "@/lib/vat-regime";
 import type { Document, Expense } from "@/lib/types";
 import { DocumentRelationshipFlow } from "./DocumentRelationshipFlow";
+import { selectDocumentRelationshipPresentationItems } from "./document-relationship-presentation";
 
 type RelationshipTab = "presupuesto" | "recibo" | "gastos";
 
@@ -130,7 +131,7 @@ export function InvoiceRelationshipWorkspace({
   );
   const [showClosedExpenses, setShowClosedExpenses] = useState(false);
 
-  const chainItems = useMemo(
+  const canonicalChainItems = useMemo(
     () =>
       getDocumentChainItems(
         doc,
@@ -139,6 +140,11 @@ export function InvoiceRelationshipWorkspace({
         expenseAllocations,
       ),
     [data.documents, data.expenses, doc, expenseAllocations],
+  );
+  const relationshipItems = useMemo(
+    () =>
+      selectDocumentRelationshipPresentationItems(canonicalChainItems, doc),
+    [canonicalChainItems, doc],
   );
   const workDocumentIds = useMemo(
     () => relatedWorkDocumentIds(doc, data.documents, data.expenses),
@@ -173,7 +179,9 @@ export function InvoiceRelationshipWorkspace({
       ),
     [data.expenses],
   );
-  const receiptItem = chainItems.find((item) => item.role === "recibo");
+  const receiptItem = canonicalChainItems.find(
+    (item) => item.role === "recibo",
+  );
   const quoteOptions = linkableDocuments(data.documents, "presupuesto");
   const savedQuoteId = linkedQuote?.id ?? "";
   const quoteLinkChanged = quoteId !== savedQuoteId;
@@ -386,11 +394,18 @@ export function InvoiceRelationshipWorkspace({
       </div>
 
       <div className="mt-4">
-        <DocumentRelationshipFlow
-          items={chainItems}
-          vatExempt={vatExempt}
-          onExpensesClick={() => setActiveTab("gastos")}
-        />
+        {relationshipItems.length > 0 ? (
+          <DocumentRelationshipFlow
+            items={relationshipItems}
+            vatExempt={vatExempt}
+            onExpensesClick={() => setActiveTab("gastos")}
+          />
+        ) : (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+            La factura actual ya se presupone. Aún no hay otros documentos o
+            gastos vinculados.
+          </p>
+        )}
       </div>
 
       <div
