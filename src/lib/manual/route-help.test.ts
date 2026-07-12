@@ -31,4 +31,23 @@ describe("manual route help", () => {
     expect(resolveManualSlug("/sin-seccion")).toBeNull();
     expect(manualHelpHref("/sin-seccion")).toBe("/ayuda?from=%2Fsin-seccion");
   });
+
+  it("envía las fichas de modelos al índice público sin abrir la ayuda fiscal protegida", () => {
+    for (const pathname of [
+      "/consultor-fiscal/modelos",
+      "/consultor-fiscal/modelos/036",
+      "/consultor-fiscal/modelos/037",
+      "/consultor-fiscal/modelos/303",
+      "/consultor-fiscal/modelos/130",
+    ]) {
+      expect(resolveManualSlug(pathname), pathname).toBeNull();
+    }
+
+    expect(manualHelpHref("/consultor-fiscal/modelos")).toBe(
+      "/ayuda?from=%2Fconsultor-fiscal%2Fmodelos",
+    );
+    expect(manualHelpHref("/consultor-fiscal/modelos/037")).toBe(
+      "/ayuda?from=%2Fconsultor-fiscal%2Fmodelos%2F037",
+    );
+  });
 });

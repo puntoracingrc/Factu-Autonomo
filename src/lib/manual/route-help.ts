@@ -23,6 +23,12 @@ export function resolveManualSlug(pathname: string): string | null {
   if (path.startsWith("/gastos")) return "gastos";
   if (path.startsWith("/productos")) return "productos";
   if (path.startsWith("/impuestos")) return "impuestos";
+  if (
+    path === "/consultor-fiscal/modelos" ||
+    path.startsWith("/consultor-fiscal/modelos/")
+  ) {
+    return null;
+  }
   if (path.startsWith("/consultor-fiscal")) return "consultor-fiscal";
   if (path.startsWith("/proveedores")) return "proveedores";
   if (path.startsWith("/cuenta")) return "cuenta";
