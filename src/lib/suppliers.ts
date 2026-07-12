@@ -58,9 +58,54 @@ export interface SupplierMatch {
   reason: "nif" | "exact" | "similar";
 }
 
+export interface SupplierForExpenseInput {
+  name: string;
+  nif?: string | null;
+  category?: string;
+  saveSupplier: boolean;
+  selectedSupplierId?: string | null;
+}
+
+export interface SupplierForExpenseResolution {
+  supplierId?: string;
+  supplierName: string;
+  create?: Omit<Supplier, "id" | "createdAt">;
+  matchedExisting?: Supplier;
+  matchScore?: number;
+}
+
+export interface StoredSupplierForExpenseResolution {
+  supplierId?: string;
+  supplierName: string;
+  createdSupplier?: Supplier;
+  matchedExisting?: Supplier;
+  matchScore?: number;
+}
+
+export interface SupplierForExpenseUpsertResult
+  extends StoredSupplierForExpenseResolution {
+  suppliers: Supplier[];
+}
+
+export interface SupplierForExpenseUpsertOptions {
+  createId?: () => string;
+  now?: () => string;
+}
+
 export function normalizeSupplierNif(nif?: string | null): string {
   if (!nif?.trim()) return "";
   return nif.replace(/[\s.-]/g, "").toUpperCase();
+}
+
+function supplierNifAllowsAutomaticLink(
+  inputNif?: string | null,
+  storedNif?: string | null,
+): boolean {
+  const normalizedInput = normalizeSupplierNif(inputNif);
+  if (!normalizedInput) return true;
+
+  const normalizedStored = normalizeSupplierNif(storedNif);
+  return Boolean(normalizedStored && normalizedStored === normalizedInput);
 }
 
 function levenshtein(a: string, b: string): number {
@@ -123,8 +168,8 @@ export function supplierSimilarityScore(
 ): number {
   const normalizedNifA = normalizeSupplierNif(nifA);
   const normalizedNifB = normalizeSupplierNif(nifB);
-  if (normalizedNifA && normalizedNifB && normalizedNifA === normalizedNifB) {
-    return 1;
+  if (normalizedNifA && normalizedNifB) {
+    return normalizedNifA === normalizedNifB ? 1 : 0;
   }
 
   return nameSimilarityScore(nameA, nameB);
@@ -170,13 +215,14 @@ export function findBestSupplierMatch(
   }
 
   const byExact = findSupplierByExactName(suppliers, trimmedName, excludeId);
-  if (byExact) {
+  if (byExact && supplierNifAllowsAutomaticLink(input.nif, byExact.nif)) {
     return { supplier: byExact, score: 1, reason: "exact" };
   }
 
   let best: SupplierMatch | null = null;
   for (const supplier of suppliers) {
     if (supplier.id === excludeId) continue;
+    if (!supplierNifAllowsAutomaticLink(input.nif, supplier.nif)) continue;
     const score = supplierSimilarityScore(
       trimmedName,
       supplier.name,
@@ -358,20 +404,8 @@ export function findDuplicateSupplierGroups(
 
 export function ensureSupplierForExpense(
   suppliers: Supplier[],
-  input: {
-    name: string;
-    nif?: string | null;
-    category?: string;
-    saveSupplier: boolean;
-    selectedSupplierId?: string | null;
-  },
-): {
-  supplierId?: string;
-  supplierName: string;
-  create?: Omit<Supplier, "id" | "createdAt">;
-  matchedExisting?: Supplier;
-  matchScore?: number;
-} {
+  input: SupplierForExpenseInput,
+): SupplierForExpenseResolution {
   const supplierName = normalizeSupplierName(input.name);
   if (!supplierName) {
     return { supplierName: "" };
@@ -379,7 +413,7 @@ export function ensureSupplierForExpense(
 
   if (input.selectedSupplierId) {
     const selected = suppliers.find((s) => s.id === input.selectedSupplierId);
-    if (selected) {
+    if (selected && supplierNifAllowsAutomaticLink(input.nif, selected.nif)) {
       return {
         supplierId: selected.id,
         supplierName: selected.name,
@@ -414,6 +448,41 @@ export function ensureSupplierForExpense(
       nif: input.nif?.trim() || undefined,
       category: input.category,
     },
+  };
+}
+
+/**
+ * Resuelve y, si hace falta, crea un proveedor contra la colección recibida.
+ * Al encadenar el resultado de una llamada en la siguiente, un lote reutiliza
+ * inmediatamente el maestro recién creado sin depender de un cierre React.
+ */
+export function upsertSupplierForExpense(
+  suppliers: Supplier[],
+  input: SupplierForExpenseInput,
+  options: SupplierForExpenseUpsertOptions = {},
+): SupplierForExpenseUpsertResult {
+  const resolved = ensureSupplierForExpense(suppliers, input);
+  if (!resolved.create) {
+    return {
+      suppliers,
+      supplierId: resolved.supplierId,
+      supplierName: resolved.supplierName,
+      matchedExisting: resolved.matchedExisting,
+      matchScore: resolved.matchScore,
+    };
+  }
+
+  const created: Supplier = {
+    ...resolved.create,
+    id: (options.createId ?? (() => crypto.randomUUID()))(),
+    createdAt: (options.now ?? (() => new Date().toISOString()))(),
+  };
+
+  return {
+    suppliers: [...suppliers, created],
+    supplierId: created.id,
+    supplierName: created.name,
+    createdSupplier: created,
   };
 }
 

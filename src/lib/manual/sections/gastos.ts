@@ -24,7 +24,7 @@ export const gastosSection: ManualSection = {
         "Si la base, el IVA, el tipo o cuota de recargo y el total del resumen no cuadran, el gasto queda **por revisar** y la exportación fiscal se bloquea. La app no inventa un recargo a partir de una diferencia ambigua.",
         "Puedes vincular una compra a una factura o presupuesto en **Trabajo relacionado**. No cambia el PDF ni la numeración: solo sirve para saber qué gastos pertenecen a cada trabajo.",
         "Cuando una línea de compra se parece a algo comprado antes al mismo proveedor, la app puede avisarte si el precio o el descuento han cambiado bastante.",
-        "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. La app intenta reutilizar proveedores parecidos para evitar duplicados.",
+        "Si el gasto trae un proveedor nuevo y la app puede identificarlo, se guarda en **Proveedores** para reutilizarlo después. Al guardar varias facturas de una tanda, todas comprueban el maestro actualizado: el mismo NIF o nombre normalizado reutiliza una sola alta. Dos NIF distintos nunca se fusionan solo porque el nombre coincida; si la factura trae NIF y un maestro antiguo no lo tiene, la app mantiene una alta separada para que puedas revisarla con seguridad.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-nuevo.png",
