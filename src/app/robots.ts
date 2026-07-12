@@ -29,7 +29,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/consultor-fiscal/modelos"],
         disallow: appInternalRoutes,
       },
     ],

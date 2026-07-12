@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1,
+  isPublicAeatOfficialIndexablePathV1,
+} from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
 import { PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { middleware } from "@/middleware";
 
@@ -73,9 +77,38 @@ describe("private route middleware", () => {
           "no-store, max-age=0",
         );
         expect(response.headers.get("X-Robots-Tag"), caseLabel).toBe(
-          "noindex, nofollow, noarchive",
+          isPublicAeatOfficialIndexablePathV1(pathname)
+            ? null
+            : "noindex, nofollow, noarchive",
         );
       }
+    }
+  });
+
+  it("retira noindex únicamente del índice y las once fichas contrastadas", () => {
+    expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(12);
+    for (const pathname of PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1) {
+      const response = middleware(
+        new NextRequest("https://facturacion-autonomos.app" + pathname),
+      );
+      expect(response.status, pathname).toBe(200);
+      expect(response.headers.get("Cache-Control"), pathname).toBe(
+        "no-store, max-age=0",
+      );
+      expect(response.headers.get("X-Robots-Tag"), pathname).toBeNull();
+    }
+    for (const pathname of [
+      "/consultor-fiscal/modelos/037",
+      "/consultor-fiscal/modelos/043",
+      "/consultor-fiscal/modelos/130",
+      "/consultor-fiscal/modelos/303",
+    ]) {
+      expect(
+        middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        ).headers.get("X-Robots-Tag"),
+        pathname,
+      ).toBe("noindex, nofollow, noarchive");
     }
   });
 

@@ -12,9 +12,8 @@ import {
   type PublicAeatModelReviewRouteV1,
 } from "./public-review-route-manifest.v1";
 import { getFiscalModelReviewPageViewV1 } from "./review-view-model.v1";
-import { resolvePublicAeatModelContentV1 } from "./model-01-content.v1";
+import { listPublicAeatOfficialModelContentsV1 } from "./official-content";
 import {
-  createPublicAeatModelSearchEntryV2,
   createPublicAeatModelSearchEntryWithTermsV2,
   filterPublicAeatModelSearchEntriesV2,
   type PublicAeatModelReviewSearchResultV2,
@@ -558,22 +557,35 @@ export function searchPublicAeatModelReviewPagesV2(
   }
   const catalog = listPublicAeatModelReviewPagesV1();
   if (catalog.status === "BLOCKED") return catalog;
-  const model01Content = resolvePublicAeatModelContentV1({ code: "01" });
-  if (model01Content.status === "BLOCKED") {
+  const officialContents = listPublicAeatOfficialModelContentsV1();
+  if (officialContents.status === "BLOCKED") {
     return Object.freeze({
       status: "BLOCKED",
       reason: "INCONSISTENT_CATALOG",
     });
   }
-
-  const entries = catalog.data.map((page) =>
-    page.code === "01"
-      ? createPublicAeatModelSearchEntryWithTermsV2(
-          page,
-          model01Content.data.searchTerms,
-        )
-      : createPublicAeatModelSearchEntryV2(page),
+  const contentByCode = new Map(
+    officialContents.data.map((content) => [content.code, content] as const),
   );
+
+  const entries = catalog.data.map((page) => {
+    const content = contentByCode.get(page.code);
+    return createPublicAeatModelSearchEntryWithTermsV2(
+      page,
+      content
+        ? [
+            ...content.searchTerms,
+            content.canonicalName,
+            content.summary,
+            ...content.sections.flatMap((section) => [
+              section.title,
+              ...section.items.flatMap((item) => [item.heading, item.text]),
+            ]),
+            ...content.faq.flatMap((item) => [item.question, item.answer]),
+          ]
+        : [],
+    );
+  });
   const result = filterPublicAeatModelSearchEntriesV2(entries, query);
   if (result.status === "BLOCKED") return result;
   const matchingIds = new Set(result.data.map((entry) => entry.catalogCardId));

@@ -17,7 +17,7 @@ import type {
   PublicAeatModelCalendarDetailContextResultV1,
   PublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
-import type { PublicAeatModel01ContentV1 } from "@/lib/fiscal-models/model-pages/model-01-content.v1";
+import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -26,22 +26,39 @@ export function FiscalModelCatalogView({
   result,
   pages,
   calendarContext,
-  model01Content,
+  officialContents,
 }: {
   result: Extract<PublicAeatModelReviewSearchResultV2, { status: "REVIEW_ONLY" }>;
   pages: readonly PublicAeatModelReviewPageV1[];
   calendarContext: PublicAeatModelCalendarDetailContextResultV1;
-  model01Content: PublicAeatModel01ContentV1;
+  officialContents: readonly PublicAeatOfficialModelContentV1[];
 }) {
   const matchingIds = new Set(result.data.map((page) => page.catalogCardId));
   const calendarNavigation =
     calendarContext.status === "FROM_CALENDAR" ? calendarContext.data : null;
   const focusedCardId = calendarNavigation?.catalogCardId ?? null;
+  const officialContentByCode = new Map(
+    officialContents.map((content) => [content.code, content] as const),
+  );
   const searchEntries = pages.map((page) =>
-    createPublicAeatModelSearchEntryWithTermsV2(
-      page,
-      page.code === "01" ? model01Content.searchTerms : [],
-    ),
+    (() => {
+      const content = officialContentByCode.get(page.code);
+      return createPublicAeatModelSearchEntryWithTermsV2(
+        page,
+        content
+          ? [
+              ...content.searchTerms,
+              content.canonicalName,
+              content.summary,
+              ...content.sections.flatMap((section) => [
+                section.title,
+                ...section.items.flatMap((item) => [item.heading, item.text]),
+              ]),
+              ...content.faq.flatMap((item) => [item.question, item.answer]),
+            ]
+          : [],
+      );
+    })(),
   );
 
   return (
@@ -71,12 +88,12 @@ export function FiscalModelCatalogView({
               id="revision-modelos-title"
               className="font-bold text-amber-950 dark:text-amber-100"
             >
-              Contenido pendiente de revisión fiscal
+              Algunas fichas siguen en preparación
             </h2>
             <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              Estas fichas son referencias informativas. Sus fuentes AEAT y BOE
-              están registradas, pero la verificación de contenido y la revisión
-              fiscal siguen pendientes. No sustituyen la información oficial.
+              Las tarjetas con la etiqueta «Revisión pendiente» conservan solo
+              la estructura del índice oficial. Las fichas ya completadas
+              muestran información contrastada con las fuentes enlazadas.
             </p>
           </div>
         </div>
@@ -122,7 +139,8 @@ export function FiscalModelCatalogView({
             const detailHref = fromCalendar
               ? calendarNavigation!.detailHref
               : page.href;
-            const thumbnail = page.code === "01" ? model01Content.thumbnail : null;
+            const officialContent = officialContentByCode.get(page.code) ?? null;
+            const thumbnail = officialContent?.thumbnail ?? null;
             return (
               <Card
                 key={page.code}
@@ -140,20 +158,22 @@ export function FiscalModelCatalogView({
                   <span className="rounded-xl bg-blue-100 px-3 py-1.5 font-mono text-lg font-black text-blue-900 dark:bg-blue-950 dark:text-blue-100">
                     {page.code}
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-                      historical
-                        ? "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-100"
-                        : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
-                    }`}
-                  >
-                    {historical && (
-                      <History className="h-3.5 w-3.5" aria-hidden="true" />
-                    )}
-                    {historical
-                      ? "Histórico · no vigente"
-                      : "Revisión pendiente"}
-                  </span>
+                  {(historical || !officialContent) && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                        historical
+                          ? "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-100"
+                          : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                      }`}
+                    >
+                      {historical && (
+                        <History className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      {historical
+                        ? "Histórico · no vigente"
+                        : "Revisión pendiente"}
+                    </span>
+                  )}
                 </div>
                 <div
                   className={`mt-4 min-w-0 ${thumbnail ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
@@ -175,7 +195,7 @@ export function FiscalModelCatalogView({
                       Modelo {page.code}
                     </h3>
                     <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
-                      {page.canonicalName}
+                      {officialContent?.canonicalName ?? page.canonicalName}
                     </p>
                   </div>
                 </div>

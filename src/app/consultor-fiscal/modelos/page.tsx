@@ -2,20 +2,27 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FiscalModelCatalogView } from "@/components/fiscal-models/FiscalModelCatalogView";
 import {
+  listPublicAeatOfficialModelContentsV1,
   listPublicAeatModelReviewPagesV1,
   resolvePublicAeatModelCalendarCatalogContextV1,
-  resolvePublicAeatModelContentV1,
   searchPublicAeatModelReviewPagesV2,
 } from "@/lib/fiscal-models/model-pages";
 
 export const metadata: Metadata = {
   title: "Modelos AEAT",
   description:
-    "Catálogo informativo de modelos AEAT con fuentes, procedencia y estado de revisión visibles.",
+    "Consulta y busca modelos de la AEAT por código, nombre o concepto, con información y enlaces a fuentes oficiales.",
+  alternates: { canonical: "/consultor-fiscal/modelos" },
+  openGraph: {
+    title: "Modelos AEAT",
+    description:
+      "Catálogo buscable de modelos de la AEAT con información contrastada y enlaces a fuentes oficiales.",
+    url: "/consultor-fiscal/modelos",
+    type: "website",
+  },
   robots: {
-    index: false,
-    follow: false,
-    noarchive: true,
+    index: true,
+    follow: true,
   },
 };
 
@@ -34,15 +41,15 @@ export default async function FiscalModelCatalogPage({
   const calendarContext = resolvePublicAeatModelCalendarCatalogContextV1(
     requestSearchParams,
   );
-  const model01Content = resolvePublicAeatModelContentV1({ code: "01" });
-  if (model01Content.status === "BLOCKED") notFound();
+  const officialContents = listPublicAeatOfficialModelContentsV1();
+  if (officialContents.status === "BLOCKED") notFound();
 
   return (
     <FiscalModelCatalogView
       result={result}
       pages={catalog.data}
       calendarContext={calendarContext}
-      model01Content={model01Content.data}
+      officialContents={officialContents.data}
     />
   );
 }

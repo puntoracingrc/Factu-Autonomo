@@ -41,7 +41,7 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).not.toContain("pattern=");
     expect(browser).not.toContain("autoCapitalize=");
     expect(browser).not.toContain(">Buscar<");
-    expect(catalog).toContain("Contenido pendiente de revisión fiscal");
+    expect(catalog).toContain("Algunas fichas siguen en preparación");
     expect(catalog).toContain("Revisión pendiente");
     expect(catalog).not.toContain("Ficha estructural");
     expect(catalog).not.toContain("Ficha desplegada · contenido en revisión");
@@ -83,6 +83,24 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).toContain('id="buscar-modelo-error"');
   });
 
+  it("finds completed models by concepts, descriptions and FAQ content", () => {
+    const cases = [
+      ["contratistas", ["01C"]],
+      ["movilidad reducida", ["04"]],
+      ["operadores de plataforma", ["040"]],
+      ["grupo de entidades", ["039"]],
+      ["domicilio fiscal", ["030"]],
+    ] as const;
+    for (const [query, expectedCodes] of cases) {
+      const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
+      expect(result.status, query).toBe("REVIEW_ONLY");
+      if (result.status !== "REVIEW_ONLY") continue;
+      expect(result.data.map((page) => page.code)).toEqual(
+        expect.arrayContaining([...expectedCodes]),
+      );
+    }
+  });
+
   it("renders 037 as historical and every other structural page as undetermined", () => {
     const historical = resolvePublicAeatModelReviewPageV1({ code: "037" });
     const structural = resolvePublicAeatModelReviewPageV1({ code: "130" });
@@ -118,40 +136,40 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(detail).not.toMatch(/sustituid[oa]|reemplazad[oa]/i);
   });
 
-  it("adds the Model 01 official content pilot without duplicating review notices", () => {
+  it("renders the official-content batch with visible FAQ and no review alerts on completed details", () => {
     const catalog = source("./FiscalModelCatalogView.tsx");
     const detail = source("./FiscalModelStructuralDetailView.tsx");
-    const reviewed = source("./FiscalModelReviewedContentView.tsx");
+    const official = source("./FiscalModelOfficialContentView.tsx");
     const model01 = source(
-      "../../lib/fiscal-models/model-pages/model-01-content.v1.ts",
+      "../../lib/fiscal-models/model-pages/official-content/model-01.release.v1.ts",
     );
 
-    expect(catalog).toContain('page.code === "01"');
-    expect(catalog).toContain("model01Content.thumbnail");
-    expect(catalog).toContain("model01Content.searchTerms");
+    expect(catalog).toContain("officialContentByCode");
+    expect(catalog).toContain("officialContent?.thumbnail");
+    expect(catalog).toContain("content.searchTerms");
+    expect(catalog).toContain("content.summary");
+    expect(catalog).toContain("content.faq.flatMap");
     expect(catalog).toContain("createPublicAeatModelSearchEntryWithTermsV2");
     expect(catalog).toContain('alt=""');
     expect(detail).toContain("enrichedContent.thumbnail.publicHref");
     expect(detail).toContain("enrichedContent.thumbnail.alt");
-    expect(detail).toContain("FiscalModelReviewedContentView");
+    expect(detail).toContain("FiscalModelOfficialContentView");
     expect(detail).toContain("!enrichedContent");
-    expect(reviewed).toContain("Para qué sirve");
-    expect(reviewed).toContain("Qué certifica");
-    expect(reviewed).toContain("Cómo se obtiene");
-    expect(reviewed).toContain("Documentos oficiales");
-    expect(reviewed).toContain("Información y ayuda");
+    expect(official).toContain("Documentos oficiales");
+    expect(official).toContain("Información, ayuda y procedimiento");
+    expect(official).toContain("Preguntas frecuentes");
     expect(model01).toContain("Preguntas frecuentes");
-    expect(reviewed).toContain("Normativa");
-    expect(reviewed).toContain("Procedimiento oficial");
-    expect(reviewed).toContain("Abrir Mi área personal de la AEAT");
-    expect(reviewed).toContain('target="_blank"');
-    expect(reviewed).toContain('rel="noopener noreferrer"');
-    expect(reviewed).toContain("no inicia");
-    expect(reviewed).toContain("no se ejecuta ni se incrusta");
-    expect(reviewed).not.toMatch(/>\s*(?:Presentar|Firmar|Pagar|Enviar)\s*</i);
-    expect(reviewed).not.toMatch(/<(?:iframe|embed|object|form)\b/i);
-    expect(model01).toContain('contentStatus: "REVIEW_ONLY"');
-    expect(model01).toContain('fiscalReviewStatus: "PENDING_REVIEW"');
+    expect(official).toContain("Normativa");
+    expect(official).toContain("Abrir Mi área personal de la AEAT");
+    expect(official).toContain('target="_blank"');
+    expect(official).toContain('rel="noopener noreferrer"');
+    expect(official).toContain("inicia ningún trámite");
+    expect(official).toContain("No se");
+    expect(official).not.toMatch(/>\s*(?:Presentar|Firmar|Pagar|Enviar)\s*</i);
+    expect(official).not.toMatch(/<(?:iframe|embed|object|form)\b/i);
+    expect(official).not.toContain("Pendiente de revisión");
+    expect(model01).toContain('contentStatus: "OFFICIAL_INFORMATION"');
+    expect(model01).toContain('applicabilityStatus: "NOT_EVALUATED"');
     expect(model01).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
 
@@ -228,7 +246,7 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(indexPage).toContain("searchPublicAeatModelReviewPagesV2");
     expect(indexPage).toContain("resolvePublicAeatModelCalendarCatalogContextV1");
     expect(indexPage).toContain("notFound()");
-    expect(indexPage).toContain("index: false");
+    expect(indexPage).toContain("index: true");
 
     expect(detailPage).toContain("params: Promise<{ codigo: string }>");
     expect(detailPage).toContain("export const dynamicParams = false");
@@ -246,11 +264,11 @@ describe("fiscal model structural review pages UI contract", () => {
       source("../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts"),
       source("../../lib/fiscal-models/model-pages/public-review-catalog.v1.ts"),
       source("../../lib/fiscal-models/model-pages/public-review-search.v2.ts"),
-      source("../../lib/fiscal-models/model-pages/model-01-content.v1.ts"),
+      source("../../lib/fiscal-models/model-pages/official-content/resolver.v1.ts"),
       source("./FiscalModelCatalogView.tsx"),
       source("./FiscalModelCatalogBrowser.tsx"),
       source("./FiscalModelStructuralDetailView.tsx"),
-      source("./FiscalModelReviewedContentView.tsx"),
+      source("./FiscalModelOfficialContentView.tsx"),
       source("../../app/consultor-fiscal/modelos/page.tsx"),
       source("../../app/consultor-fiscal/modelos/[codigo]/page.tsx"),
     ].join("\n");

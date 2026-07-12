@@ -4,7 +4,7 @@ import { FiscalModelStructuralDetailView } from "@/components/fiscal-models/Fisc
 import {
   listPublicAeatModelReviewPagesV1,
   resolvePublicAeatModelCalendarDetailContextV1,
-  resolvePublicAeatModelContentV1,
+  resolvePublicAeatOfficialModelContentV1,
   resolvePublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages";
 
@@ -29,11 +29,34 @@ export async function generateMetadata({
   const { codigo } = await params;
   const result = resolvePublicAeatModelReviewPageV1({ code: codigo });
   if (result.status === "BLOCKED") notFound();
+  const officialContent = resolvePublicAeatOfficialModelContentV1({
+    code: codigo,
+  });
+  const isOfficialInformation =
+    officialContent.status === "OFFICIAL_INFORMATION";
 
   return {
     title: "Modelo " + result.data.code + " · Modelos AEAT",
-    description: result.data.summary,
-    robots: { index: false, follow: false, noarchive: true },
+    description: isOfficialInformation
+      ? officialContent.data.summary
+      : result.data.summary,
+    alternates: {
+      canonical: result.data.href,
+    },
+    keywords: isOfficialInformation
+      ? [...officialContent.data.searchTerms]
+      : undefined,
+    openGraph: isOfficialInformation
+      ? {
+          title: `Modelo ${result.data.code} · Modelos AEAT`,
+          description: officialContent.data.summary,
+          url: result.data.href,
+          type: "article",
+        }
+      : undefined,
+    robots: isOfficialInformation
+      ? { index: true, follow: true }
+      : { index: false, follow: false, noarchive: true },
   };
 }
 
@@ -48,13 +71,15 @@ export default async function FiscalModelDetailPage({
     code: codigo,
     searchParams: await searchParams,
   });
-  const enrichedContent = resolvePublicAeatModelContentV1({ code: codigo });
+  const enrichedContent = resolvePublicAeatOfficialModelContentV1({
+    code: codigo,
+  });
 
   return (
     <FiscalModelStructuralDetailView
       page={result.data}
       enrichedContent={
-        enrichedContent.status === "REVIEW_ONLY"
+        enrichedContent.status === "OFFICIAL_INFORMATION"
           ? enrichedContent.data
           : null
       }
