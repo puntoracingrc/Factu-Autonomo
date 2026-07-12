@@ -6,6 +6,16 @@ const MAX_UNFOLDED_LINES = 150_000;
 const MAX_LINE_CODE_UNITS = 64 * 1024;
 const MAX_EVENTS_PER_FEED = 5_000;
 const MAX_PROPERTIES_PER_EVENT = 128;
+const SINGLE_VALUE_EVENT_PROPERTIES = new Set([
+  "DESCRIPTION",
+  "DTEND",
+  "DTSTAMP",
+  "DTSTART",
+  "LAST-MODIFIED",
+  "STATUS",
+  "SUMMARY",
+  "UID",
+]);
 
 export interface ParsedIcalendarFeed {
   events: readonly GoogleCalendarEventPayload[];
@@ -218,8 +228,6 @@ export function parseAeatIcalendar(value: string): ParsedIcalendarFeed | null {
   const events: GoogleCalendarEventPayload[] = [];
   let properties: Map<string, IcalendarProperty> | null = null;
   let nestedDepth = 0;
-  let truncated = false;
-
   for (const line of lines) {
     if (line === "BEGIN:VEVENT" && !properties) {
       properties = new Map();
@@ -240,25 +248,20 @@ export function parseAeatIcalendar(value: string): ParsedIcalendarFeed | null {
     if (line === "END:VEVENT") {
       if (nestedDepth !== 0) return null;
       const payload = eventPayload(properties);
-      if (payload) {
-        if (events.length >= MAX_EVENTS_PER_FEED) {
-          truncated = true;
-        } else {
-          events.push(payload);
-        }
-      } else {
-        truncated = true;
-      }
+      if (!payload || events.length >= MAX_EVENTS_PER_FEED) return null;
+      events.push(payload);
       properties = null;
       continue;
     }
     if (nestedDepth > 0) continue;
 
     const property = parseProperty(line);
-    if (!property) continue;
-    if (properties.size >= MAX_PROPERTIES_PER_EVENT) {
-      truncated = true;
-      continue;
+    if (!property || properties.size >= MAX_PROPERTIES_PER_EVENT) return null;
+    if (
+      SINGLE_VALUE_EVENT_PROPERTIES.has(property.name) &&
+      properties.has(property.name)
+    ) {
+      return null;
     }
     if (!properties.has(property.name)) {
       properties.set(property.name, property);
@@ -266,5 +269,5 @@ export function parseAeatIcalendar(value: string): ParsedIcalendarFeed | null {
   }
 
   if (properties) return null;
-  return { events, truncated };
+  return { events, truncated: false };
 }

@@ -81,7 +81,7 @@ describe("parseAeatIcalendar", () => {
     });
   });
 
-  it("acepta timestamps UTC completos y rechaza fechas flotantes o TZID", () => {
+  it("acepta timestamps UTC completos", () => {
     const result = parseAeatIcalendar(
       calendar(
         event(
@@ -90,22 +90,10 @@ describe("parseAeatIcalendar", () => {
           "DTEND:20260720T090000Z",
           "SUMMARY:UTC",
         ),
-        event(
-          "UID:synthetic-floating@example.invalid",
-          "DTSTART:20260720T080000",
-          "DTEND:20260720T090000",
-          "SUMMARY:Flotante",
-        ),
-        event(
-          "UID:synthetic-tzid@example.invalid",
-          "DTSTART;TZID=Europe/Madrid:20260720T080000",
-          "DTEND;TZID=Europe/Madrid:20260720T090000",
-          "SUMMARY:TZID",
-        ),
       ),
     );
 
-    expect(result?.truncated).toBe(true);
+    expect(result?.truncated).toBe(false);
     expect(result?.events).toHaveLength(1);
     expect(result?.events[0]).toMatchObject({
       start: {
@@ -117,6 +105,23 @@ describe("parseAeatIcalendar", () => {
         timeZone: "Europe/Madrid",
       },
     });
+  });
+
+  it.each([
+    event(
+          "UID:synthetic-floating@example.invalid",
+          "DTSTART:20260720T080000",
+          "DTEND:20260720T090000",
+          "SUMMARY:Flotante",
+    ),
+    event(
+          "UID:synthetic-tzid@example.invalid",
+          "DTSTART;TZID=Europe/Madrid:20260720T080000",
+          "DTEND;TZID=Europe/Madrid:20260720T090000",
+          "SUMMARY:TZID",
+    ),
+  ])("falla cerrado ante fechas flotantes o TZID", (unsupportedEvent) => {
+    expect(parseAeatIcalendar(calendar(unsupportedEvent))).toBeNull();
   });
 
   it("omite de forma visible recurrencias no expandidas", () => {
@@ -132,7 +137,7 @@ describe("parseAeatIcalendar", () => {
       ),
     );
 
-    expect(result).toEqual({ events: [], truncated: true });
+    expect(result).toBeNull();
   });
 
   it.each([
@@ -145,14 +150,28 @@ describe("parseAeatIcalendar", () => {
         "SUMMARY:Inválido",
       ),
     ),
-  ])("falla cerrado o marca truncado ante contenido inválido", (value) => {
-    const result = parseAeatIcalendar(value);
-    if (value.includes("20260230")) {
-      expect(result).toEqual({ events: [], truncated: true });
-    } else {
-      expect(result).toBeNull();
-    }
+  ])("falla cerrado ante contenido inválido", (value) => {
+    expect(parseAeatIcalendar(value)).toBeNull();
   });
+
+  it.each(["UID", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION", "STATUS"])(
+    "rechaza la propiedad cardinal duplicada %s",
+    (name) => {
+      const properties = [
+        "UID:synthetic-duplicate@example.invalid",
+        "DTSTART;VALUE=DATE:20260720",
+        "DTEND;VALUE=DATE:20260721",
+        "SUMMARY:IVA",
+        "DESCRIPTION:Modelo 303",
+        "STATUS:CONFIRMED",
+      ];
+      const original = properties.find((line) => line.startsWith(`${name}:`) || line.startsWith(`${name};`));
+      expect(original).toBeTruthy();
+      expect(
+        parseAeatIcalendar(calendar(event(...properties, original!))),
+      ).toBeNull();
+    },
+  );
 
   it("rechaza entradas que exceden el límite de memoria del parser", () => {
     expect(parseAeatIcalendar(`BEGIN:VCALENDAR\n${"x".repeat(4_194_305)}`)).toBeNull();

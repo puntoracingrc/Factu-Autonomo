@@ -36,7 +36,6 @@ const DEADLINE_KINDS = new Set([
 ]);
 const REVIEW_STATUSES = new Set([
   "source-classified",
-  "source-published",
   "review-with-advisor",
 ]);
 const PROVIDER_MODES = new Set([

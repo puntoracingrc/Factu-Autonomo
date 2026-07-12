@@ -101,6 +101,7 @@ function invalidResponse(status?: number): FiscalCalendarProviderError {
 async function readBoundedIcalendar(
   response: Response,
   onLimitExceeded: () => void,
+  timedOut: () => boolean,
 ): Promise<string> {
   const advertisedLength = Number(response.headers.get("content-length"));
   if (
@@ -137,6 +138,7 @@ async function readBoundedIcalendar(
     return chunks.join("");
   } catch (error) {
     if (error instanceof FiscalCalendarProviderError) throw error;
+    if (timedOut()) throw error;
     throw invalidResponse(response.status);
   } finally {
     try {
@@ -257,7 +259,11 @@ export class AeatPublicIcalendarProvider implements FiscalCalendarProvider {
           await cancelResponseBody(response);
           throw invalidResponse(response.status);
         }
-        return await readBoundedIcalendar(response, controlled.abort);
+        return await readBoundedIcalendar(
+          response,
+          controlled.abort,
+          controlled.timedOut,
+        );
       } catch (error) {
         if (error instanceof FiscalCalendarProviderError) throw error;
         const failure = new FiscalCalendarProviderError({
@@ -300,7 +306,7 @@ export class AeatPublicIcalendarProvider implements FiscalCalendarProvider {
         truncated ||= Boolean(normalized === null);
         continue;
       }
-      events.push({ ...normalized, reviewStatus: "source-published" });
+      events.push(normalized);
     }
     return {
       events: sortFiscalCalendarEvents(events),

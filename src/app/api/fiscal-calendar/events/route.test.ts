@@ -50,7 +50,7 @@ function eventWithModels(title: string, description: string) {
     description,
     category: "iva" as const,
     deadlineKind: "unclassified" as const,
-    reviewStatus: "source-published" as const,
+    reviewStatus: "review-with-advisor" as const,
     startDate: "2026-07-20",
     endDateExclusive: "2026-07-21",
     allDay: true,

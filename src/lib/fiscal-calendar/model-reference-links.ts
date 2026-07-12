@@ -21,8 +21,9 @@ const MODEL_LIST_CONTEXT_PATTERN = new RegExp(
   String.raw`\bmodelos?\b\s*(?::|-)?\s*(${MODEL_LIST_SOURCE})`,
   "gi",
 );
+const FISCAL_LIST_LABEL_SOURCE = String.raw`(?:autoliquidaci[oó]n|declaraci[oó]n(?:-liquidaci[oó]n)?|solicitud|reintegro|operaciones?|impuesto|retenciones?|pagos?\s+fraccionados?|estimaci[oó]n|r[eé]gimen|registro|renuncia|grupo\s+de\s+entidades|grandes\s+empresas|ventanilla|entidades|(?:primer|segundo|tercer|cuarto)\s+trimestre|a[nñ]o|ejercicio|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)`;
 const FISCAL_LABEL_CONTEXT_PATTERN = new RegExp(
-  String.raw`\b(?:autoliquidaci[oó]n|declaraci[oó]n(?:-liquidaci[oó]n)?|solicitud|reintegro|operaciones?|impuesto)\b[^:\n]{0,160}:\s*(${MODEL_LIST_SOURCE})`,
+  String.raw`\b${FISCAL_LIST_LABEL_SOURCE}\b[^:.\n]{0,320}:\s*(${MODEL_LIST_SOURCE})`,
   "gi",
 );
 const MAX_RESOLVED_MODEL_LINKS = 512;

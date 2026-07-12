@@ -17,7 +17,7 @@ function validEnvelope(): { data: Record<string, unknown> } {
           description: "Información general\nModelo 303",
           category: "iva",
           deadlineKind: "unclassified",
-          reviewStatus: "source-published",
+          reviewStatus: "review-with-advisor",
           startDate: "2026-07-20",
           endDateExclusive: "2026-07-21",
           allDay: true,

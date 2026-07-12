@@ -154,7 +154,7 @@ describe("FiscalCalendarService", () => {
 
     expect(provider).toBeInstanceOf(AeatPublicIcalendarProvider);
     await expect(provider.listEvents(RANGE, ["iva"])).resolves.toMatchObject({
-      events: [{ title: "IVA", reviewStatus: "source-published" }],
+      events: [{ title: "IVA", reviewStatus: "review-with-advisor" }],
       providerMode: "aeat-icalendar",
       truncated: false,
     });

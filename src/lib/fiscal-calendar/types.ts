@@ -23,7 +23,6 @@ export type FiscalCalendarDeadlineKind =
 
 export type FiscalCalendarReviewStatus =
   | "source-classified"
-  | "source-published"
   | "review-with-advisor";
 
 export interface FiscalCalendarDateRange {

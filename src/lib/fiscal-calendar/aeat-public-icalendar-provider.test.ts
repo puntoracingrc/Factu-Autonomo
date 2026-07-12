@@ -38,6 +38,39 @@ function calendarResponse(value = feed(), init: ResponseInit = {}): Response {
   });
 }
 
+function syntheticFeedForDates(category: string, dates: readonly string[]): string {
+  const events = dates.flatMap((date, index) => {
+    const parsed = new Date(
+      Date.UTC(
+        Number(date.slice(0, 4)),
+        Number(date.slice(4, 6)) - 1,
+        Number(date.slice(6, 8)) + 1,
+      ),
+    );
+    const end = [
+      parsed.getUTCFullYear().toString().padStart(4, "0"),
+      (parsed.getUTCMonth() + 1).toString().padStart(2, "0"),
+      parsed.getUTCDate().toString().padStart(2, "0"),
+    ].join("");
+    return [
+      "BEGIN:VEVENT",
+      `UID:synthetic-${category}-${index}@example.invalid`,
+      `DTSTART;VALUE=DATE:${date}`,
+      `DTEND;VALUE=DATE:${end}`,
+      `SUMMARY:${category}`,
+      "DESCRIPTION:Modelo 303",
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+    ];
+  });
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    ...events,
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
 describe("AeatPublicIcalendarProvider", () => {
   it("consulta únicamente la URL canónica allowlisted y devuelve eventos seguros", async () => {
     const fetchImpl = vi.fn(async (...args: Parameters<typeof fetch>) => {
@@ -60,7 +93,7 @@ describe("AeatPublicIcalendarProvider", () => {
           sourceCalendarKey: "iva",
           title: "IVA",
           description: "Segundo trimestre: 303",
-          reviewStatus: "source-published",
+          reviewStatus: "review-with-advisor",
           deadlineKind: "unclassified",
           startDate: "2026-07-20",
           endDateExclusive: "2026-07-21",
@@ -102,6 +135,66 @@ describe("AeatPublicIcalendarProvider", () => {
     now = new Date("2026-07-13T08:00:01.001Z");
     await provider.listEvents(RANGE, ["iva"]);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("reproduce el contrato de 25 eventos y cinco filtros del rango oficial", async () => {
+    const datesByCategory = {
+      renta: ["20261105"],
+      renta_sociedades: [
+        "20260720",
+        "20260820",
+        "20260921",
+        "20261020",
+        "20261120",
+      ],
+      sociedades: ["20260727"],
+      iva: [
+        "20260720",
+        "20260730",
+        "20260731",
+        "20260820",
+        "20260831",
+        "20260921",
+        "20260930",
+        "20261020",
+        "20261030",
+        "20261031",
+        "20261120",
+        "20261130",
+      ],
+      declaraciones_informativas: [
+        "20260727",
+        "20260731",
+        "20260831",
+        "20260930",
+        "20261102",
+        "20261130",
+      ],
+    } as const;
+    const categories = Object.keys(
+      datesByCategory,
+    ) as Array<keyof typeof datesByCategory>;
+    const fetchImpl = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const category = categories.find(
+        (candidate) => getAeatCalendarSource(candidate).icalUrl === String(input),
+      );
+      if (!category) return new Response("not found", { status: 404 });
+      return calendarResponse(
+        syntheticFeedForDates(category, datesByCategory[category]),
+      );
+    });
+    const provider = new AeatPublicIcalendarProvider({ fetchImpl });
+
+    const all = await provider.listEvents(RANGE, categories);
+    expect(all.events).toHaveLength(25);
+    expect(new Set(all.events.map((event) => event.startDate))).toHaveLength(15);
+    for (const category of categories) {
+      const filtered = await provider.listEvents(RANGE, [category]);
+      expect(filtered.events, category).toHaveLength(
+        datesByCategory[category].length,
+      );
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
   });
 
   it("consulta varias categorías y falla completo si una fuente no responde", async () => {

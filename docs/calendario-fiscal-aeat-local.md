@@ -80,7 +80,9 @@ todos los impuestos especiales o sectoriales.
 
 `STATUS:CONFIRMED` acredita el estado técnico del evento en el feed, no su
 aplicabilidad personal. El tipo de plazo permanece `unclassified` si la fuente
-no aporta metadatos estructurados; la UI no inventa una clasificación.
+no aporta metadatos estructurados y `reviewStatus` permanece
+`review-with-advisor`; la UI muestra esa cautela por evento sin ocultar los
+vencimientos ni inventar una clasificación.
 
 ## Diferencias observadas entre fuentes oficiales
 
