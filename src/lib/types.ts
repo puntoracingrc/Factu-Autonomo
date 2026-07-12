@@ -778,6 +778,27 @@ export interface LegacyImportAttestationV1 {
     kind: "source_files_not_stored";
     preservation: "user_managed";
   };
+  /** Estado operativo y relaciones congelados al aceptar el histórico. */
+  acceptedState: {
+    status: DocumentStatus;
+    documentLifecycle: "issued";
+    integrityLock: "locked";
+    deliveryStatus: DocumentDeliveryStatus | null;
+    paymentStatus: DocumentPaymentStatus | null;
+    acceptanceStatus: DocumentAcceptanceStatus | null;
+    issuedAt: string | null;
+    sentAt: string | null;
+    paidAt: string | null;
+    acceptedAt: string | null;
+    updatedAt: string;
+    relationships: {
+      sourceQuoteDocumentId: string | null;
+      sourceQuoteNumber: string | null;
+      rectifiedById: null;
+      receiptDocumentId: null;
+      sourceDocumentId: null;
+    };
+  };
   attestationHash: string;
 }
 

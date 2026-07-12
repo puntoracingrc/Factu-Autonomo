@@ -158,6 +158,15 @@ describe("income helpers", () => {
     expect(collectedIncome([appIssuedWithoutEvidence])).toBe(0);
     expect(pendingCollection([{ ...appIssuedWithoutEvidence, status: "enviado" }])).toBe(0);
     expect(canMarkAsCollected(historical)).toBe(false);
+
+    const rawIssuedWithoutAnySignal: Document = {
+      ...appIssuedWithoutEvidence,
+      documentLifecycle: undefined,
+      integrityLock: undefined,
+      issuedAt: undefined,
+    };
+    expect(collectedIncome([rawIssuedWithoutAnySignal])).toBe(0);
+    expect(pendingCollection([rawIssuedWithoutAnySignal])).toBe(0);
   });
 
   it("excluye anuladas y rectificadas del cobro", () => {

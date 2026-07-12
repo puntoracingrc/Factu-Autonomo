@@ -1750,6 +1750,23 @@ describe("storage", () => {
     expect(reloaded.documents[0].snapshotSeal).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrityRequired).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrity).toBeUndefined();
+
+    const tampered = {
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          status: "pagado" as const,
+        },
+      ],
+    };
+    expect(saveData(tampered)).toEqual({ status: "applied" });
+    const blockedReload = loadData();
+    expect(blockedReload.documents[0].status).toBe("pagado");
+    expect(blockedReload.documents[0].snapshotIntegrity).toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),
+    });
   });
 
   it("no limpia una señal de hash inválido aunque la atestación legacy sea válida", () => {

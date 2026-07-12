@@ -7,7 +7,13 @@ import {
   getDocumentChainItems,
   getDocumentLinkBadges,
 } from "./document-links";
-import type { Document, DocumentType, Expense } from "./types";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import {
+  DEFAULT_PROFILE,
+  type Document,
+  type DocumentType,
+  type Expense,
+} from "./types";
 
 function document(overrides: Partial<Document> & { id: string; type: DocumentType }): Document {
   return {
@@ -67,6 +73,75 @@ describe("document links", () => {
     expect(getDocumentLinkBadges(quote, result)[0]?.label).toBe(
       "Factura F-invoice-2",
     );
+  });
+
+  it("mantiene inmutables los vínculos fiscales de históricos atestados", () => {
+    const profile = {
+      ...DEFAULT_PROFILE,
+      name: "Negocio histórico",
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const importedQuote = attestNewImportedDocument(
+      document({
+        id: "holded:presupuesto:P-2024-0001",
+        type: "presupuesto",
+        number: "P-2024-0001",
+        client: {
+          name: "Cliente histórico",
+          nif: "B12345678",
+          address: "Calle Cliente 2",
+          city: "Madrid",
+          postalCode: "28002",
+        },
+        issuer: {
+          name: profile.name,
+          nif: profile.nif,
+          address: profile.address,
+          city: profile.city,
+          postalCode: profile.postalCode,
+          capturedAt: "2024-06-30T08:00:00.000Z",
+        },
+      }),
+      profile,
+      "holded",
+      "2026-07-12T08:00:00.000Z",
+    );
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      status: "borrador",
+    });
+    const documents = [importedQuote, invoice];
+
+    const result = applyDocumentLinkUpdate(documents, {
+      relation: "quote_invoice",
+      invoiceId: invoice.id,
+      quoteId: importedQuote.id,
+      updatedAt: "2026-07-12T09:00:00.000Z",
+    });
+
+    expect(result).toBe(documents);
+    expect(result[1]).toBe(invoice);
+
+    const tamperedQuote: Document = {
+      ...importedQuote,
+      legacyImportAttestation: {
+        ...importedQuote.legacyImportAttestation!,
+        attestationHash: "sha256:tampered",
+      },
+    };
+    const tamperedDocuments = [tamperedQuote, invoice];
+    expect(
+      applyDocumentLinkUpdate(tamperedDocuments, {
+        relation: "quote_invoice",
+        invoiceId: invoice.id,
+        quoteId: tamperedQuote.id,
+        updatedAt: "2026-07-12T09:00:00.000Z",
+      }),
+    ).toBe(tamperedDocuments);
   });
 
   it("no permite crear manualmente una relación fiscal factura-recibo", () => {

@@ -23,6 +23,7 @@ const IMPORTER_LABELS: Record<LegacyImportSource, string> = {
 const REVIEW_LABELS: Record<LegacyImportRepairReviewReason, string> = {
   namespace_type_mismatch: "procedencia no inequívoca",
   duplicate_document_id: "identificador duplicado",
+  duplicate_fiscal_identity: "identidad fiscal duplicada",
   draft_document: "documento todavía en borrador",
   unsupported_historical_relation:
     "rectificativa o recibo que requiere revisión",

@@ -7,10 +7,22 @@ import {
   canSendPaymentReminder,
   canShowPaymentReminder,
 } from "./payment-reminder-client";
+import {
+  issueDocument,
+  markDocumentPaid,
+  markDocumentSent,
+} from "./document-integrity";
 import { isPendingInvoicePayment } from "./income";
 import { DEFAULT_PROFILE, type Document } from "./types";
 
-const pendingInvoice: Document = {
+const reminderProfile = {
+  ...DEFAULT_PROFILE,
+  commercialName: "Marca Cobros",
+  name: "Mi Estudio",
+  iban: "ES1234567890123456789012",
+};
+
+const reminderDraft: Document = {
   id: "f1",
   type: "factura",
   number: "F-2026-0003",
@@ -26,29 +38,43 @@ const pendingInvoice: Document = {
       ivaPercent: 21,
     },
   ],
-  status: "enviado",
-  createdAt: "2026-03-01",
-  updatedAt: "2026-03-01",
+  status: "borrador",
+  createdAt: "2026-03-01T09:00:00.000Z",
+  updatedAt: "2026-03-01T09:00:00.000Z",
 };
+
+function createPendingInvoice(client = reminderDraft.client): Document {
+  return markDocumentSent(
+    issueDocument(
+      {
+        ...reminderDraft,
+        client,
+      },
+      reminderProfile,
+      "2026-03-01T10:00:00.000Z",
+    ),
+    "2026-03-01T10:05:00.000Z",
+  );
+}
+
+const pendingInvoice = createPendingInvoice();
 
 describe("payment reminder", () => {
   it("detecta facturas pendientes de cobro", () => {
     expect(isPendingInvoicePayment(pendingInvoice)).toBe(true);
     expect(
-      isPendingInvoicePayment({ ...pendingInvoice, status: "pagado" }),
+      isPendingInvoicePayment(
+        markDocumentPaid(pendingInvoice, "2026-03-02T10:00:00.000Z"),
+      ),
     ).toBe(false);
-    expect(
-      isPendingInvoicePayment({ ...pendingInvoice, status: "borrador" }),
-    ).toBe(false);
+    expect(isPendingInvoicePayment(reminderDraft)).toBe(false);
   });
 
   it("genera un mensaje amable editable por defecto", () => {
-    const message = buildDefaultPaymentReminderMessage(pendingInvoice, {
-      ...DEFAULT_PROFILE,
-      commercialName: "Marca Cobros",
-      name: "Mi Estudio",
-      iban: "ES1234567890123456789012",
-    });
+    const message = buildDefaultPaymentReminderMessage(
+      pendingInvoice,
+      reminderProfile,
+    );
 
     expect(message).toContain("Hola Ana");
     expect(message).toContain("con toda tranquilidad");
@@ -68,10 +94,10 @@ describe("payment reminder", () => {
     expect(canSendPaymentReminder(pendingInvoice, "email")).toBe(true);
     expect(canSendPaymentReminder(pendingInvoice, "whatsapp")).toBe(false);
 
-    const withPhone: Document = {
-      ...pendingInvoice,
-      client: { ...pendingInvoice.client, phone: "612345678" },
-    };
+    const withPhone = createPendingInvoice({
+      ...reminderDraft.client,
+      phone: "612345678",
+    });
     expect(canSendPaymentReminder(withPhone, "whatsapp")).toBe(true);
   });
 });

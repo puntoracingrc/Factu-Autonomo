@@ -8,7 +8,10 @@ import {
   parseLegacyDocumentNumber,
 } from "./numbering";
 import { isDocumentIntegrityLocked } from "./document-integrity";
-import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
+import {
+  hasLegacyImportProtectionClaim,
+  isUsableLegacyImportedDocument,
+} from "./document-integrity/legacy-import-attestation";
 import { canRenumberDocument } from "./document-integrity/deletion";
 import { isRectificativa } from "./rectificativas";
 import type {
@@ -473,7 +476,7 @@ export function getFacturasIncludingRectificativas(
 }
 
 export function isDocumentEditable(doc: Document): boolean {
-  if (isUsableLegacyImportedDocument(doc)) return false;
+  if (hasLegacyImportProtectionClaim(doc)) return false;
   if (isRectificativa(doc)) {
     return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
   }

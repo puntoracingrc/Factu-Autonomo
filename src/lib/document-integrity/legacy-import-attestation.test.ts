@@ -6,16 +6,22 @@ import { documentAmounts } from "@/lib/vat-regime";
 import { sha256Hex } from "./snapshot-hash";
 import { stableStringifySnapshot } from "./snapshots";
 import { isDocumentEditable } from "@/lib/documents";
+import { issueDocument } from "./index";
 import { canConvertQuoteToInvoice } from "@/lib/quote-to-invoice";
 import {
   canMarkQuoteAsAccepted,
   canMarkQuoteAsRejected,
+  canUnmarkQuoteAsAccepted,
+  canUnmarkQuoteAsRejected,
 } from "@/lib/quotes";
+import { canRectifyInvoice } from "@/lib/rectificativas";
 import {
   applyLegacyImportRepair,
   attestNewImportedDocument,
   buildLegacyImportRepairPreview,
+  hasLegacyImportProtectionClaim,
   inspectLegacyImportAttestation,
+  isDocumentUsableForFinancialCalculations,
 } from "./legacy-import-attestation";
 
 const PROFILE: BusinessProfile = {
@@ -122,6 +128,16 @@ describe("legacy imported document attestation", () => {
         kind: "source_files_not_stored",
         preservation: "user_managed",
       },
+      acceptedState: {
+        status: "enviado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        relationships: {
+          rectifiedById: null,
+          receiptDocumentId: null,
+          sourceDocumentId: null,
+        },
+      },
     });
     expect(repaired.pdfSnapshot).toBeUndefined();
     expect(repaired.snapshotSeal).toBeUndefined();
@@ -200,6 +216,68 @@ describe("legacy imported document attestation", () => {
     ).toBe(true);
   });
 
+  it("manda a revisión candidatos con la misma identidad fiscal", () => {
+    const first = importedDocument("pcfacturacion:factura:F-2024-0001");
+    const second = importedDocument("holded:factura:F-2024-0001");
+
+    const preview = buildLegacyImportRepairPreview(appData([first, second]));
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview).toHaveLength(2);
+    expect(
+      preview.manualReview.every((item) =>
+        item.reasons.includes("duplicate_fiscal_identity"),
+      ),
+    ).toBe(true);
+  });
+
+  it("manda a revisión un candidato que colisiona con una factura sellada", () => {
+    const historical = importedDocument();
+    const sealed = issueDocument(
+      {
+        ...historical,
+        id: "app-issued-invoice",
+        status: "borrador",
+        issuer: undefined,
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        snapshotIntegrityRequired: undefined,
+        snapshotIntegrity: undefined,
+      },
+      PROFILE,
+      "2024-04-01T12:00:00.000Z",
+    );
+
+    const preview = buildLegacyImportRepairPreview(
+      appData([historical, sealed]),
+    );
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview).toEqual([
+      expect.objectContaining({
+        documentId: historical.id,
+        reasons: ["duplicate_fiscal_identity"],
+      }),
+    ]);
+  });
+
+  it.each([
+    ["anulado", { status: "anulada" as const }],
+    ["rectificado", { status: "rectificada" as const }],
+    ["ciclo cancelado", { documentLifecycle: "canceled" as const }],
+    ["rectificación enlazada", { rectifiedById: "rectification-id" }],
+    ["recibo enlazado", { receiptDocumentId: "receipt-id" }],
+  ])("no confirma automáticamente un histórico con %s", (_label, change) => {
+    const historical = { ...importedDocument(), ...change };
+
+    const preview = buildLegacyImportRepairPreview(appData([historical]));
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "unsupported_historical_relation",
+    );
+  });
+
   it("reutiliza el contenido congelado de un snapshot legacy válido sin fabricar su pareja", () => {
     const historical = importedDocument();
     const frozen = deriveLegacySnapshotForReadOnly(historical, PROFILE);
@@ -267,7 +345,14 @@ describe("legacy imported document attestation", () => {
   });
 
   it("persiste procedencia en un borrador externo sin presentarlo como atestado", () => {
-    const draft = { ...importedDocument(), status: "borrador" as const };
+    const draft: Document = {
+      ...importedDocument(),
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
     const imported = attestNewImportedDocument(
       draft,
       PROFILE,
@@ -283,6 +368,55 @@ describe("legacy imported document attestation", () => {
     });
     expect(imported.legacyImportAttestation).toBeUndefined();
     expect(imported.documentSnapshot).toBeUndefined();
+    expect(hasLegacyImportProtectionClaim(imported)).toBe(false);
+    expect(isDocumentEditable(imported)).toBe(true);
+  });
+
+  it("no confunde un borrador externo operativo con un histórico atestado", () => {
+    const quoteDraft: Document = {
+      ...importedDocument("holded:presupuesto:P-2026-0001"),
+      type: "presupuesto",
+      number: "P-2026-0001",
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+    const imported = attestNewImportedDocument(
+      quoteDraft,
+      PROFILE,
+      "holded",
+      "2026-07-12T22:00:00.000Z",
+    );
+    const locallySent = { ...imported, status: "enviado" as const };
+
+    expect(locallySent.legacyImportProvenance).toBeDefined();
+    expect(locallySent.legacyImportAttestation).toBeUndefined();
+    expect(hasLegacyImportProtectionClaim(locallySent)).toBe(false);
+    expect(isDocumentEditable(locallySent)).toBe(true);
+    expect(canConvertQuoteToInvoice(locallySent)).toBe(true);
+    expect(canMarkQuoteAsAccepted(locallySent)).toBe(true);
+    const preview = buildLegacyImportRepairPreview(appData([locallySent]));
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "unexpected_integrity_issue",
+    );
+  });
+
+  it("protege un presupuesto de namespace conocido antes de atestarlo", () => {
+    const residue: Document = {
+      ...importedDocument("pcfacturacion:presupuesto:P-2024-0001"),
+      type: "presupuesto",
+      number: "P-2024-0001",
+    };
+
+    expect(inspectLegacyImportAttestation(residue).ok).toBe(false);
+    expect(hasLegacyImportProtectionClaim(residue)).toBe(true);
+    expect(isDocumentEditable(residue)).toBe(false);
+    expect(canConvertQuoteToInvoice(residue)).toBe(false);
+    expect(canMarkQuoteAsAccepted(residue)).toBe(false);
+    expect(canMarkQuoteAsRejected(residue)).toBe(false);
   });
 
   it("mantiene congelados también los presupuestos históricos", () => {
@@ -303,6 +437,27 @@ describe("legacy imported document attestation", () => {
     expect(canConvertQuoteToInvoice(imported)).toBe(false);
     expect(canMarkQuoteAsAccepted(imported)).toBe(false);
     expect(canMarkQuoteAsRejected(imported)).toBe(false);
+
+    const tampered = {
+      ...imported,
+      legacyImportAttestation: {
+        ...imported.legacyImportAttestation!,
+        attestationHash: "sha256:tampered",
+      },
+    };
+    expect(inspectLegacyImportAttestation(tampered).ok).toBe(false);
+    expect(hasLegacyImportProtectionClaim(tampered)).toBe(true);
+    expect(isDocumentUsableForFinancialCalculations(tampered)).toBe(false);
+    expect(isDocumentEditable(tampered)).toBe(false);
+    expect(canConvertQuoteToInvoice(tampered)).toBe(false);
+    expect(canMarkQuoteAsAccepted(tampered)).toBe(false);
+    expect(canMarkQuoteAsRejected(tampered)).toBe(false);
+    expect(
+      canUnmarkQuoteAsAccepted({ ...tampered, status: "aceptado" }),
+    ).toBe(false);
+    expect(
+      canUnmarkQuoteAsRejected({ ...tampered, status: "rechazado" }),
+    ).toBe(false);
   });
 
   it.each([
@@ -384,6 +539,11 @@ describe("legacy imported document attestation", () => {
     };
     expect(inspectLegacyImportAttestation(tamperedSnapshot).ok).toBe(false);
     expect(inspectLegacyImportAttestation(tamperedAttestation).ok).toBe(false);
+    expect(isDocumentUsableForFinancialCalculations(tamperedAttestation)).toBe(
+      false,
+    );
+    expect(isDocumentEditable(tamperedAttestation)).toBe(false);
+    expect(canRectifyInvoice(tamperedAttestation)).toBe(false);
 
     const invalidEvidence = {
       ...repaired,
@@ -401,5 +561,39 @@ describe("legacy imported document attestation", () => {
     invalidEvidence.legacyImportAttestation!.attestationHash =
       `sha256:${sha256Hex(stableStringifySnapshot(payload))}`;
     expect(inspectLegacyImportAttestation(invalidEvidence).ok).toBe(false);
+  });
+
+  it.each([
+    ["estado pagado", { status: "pagado" as const }],
+    ["vuelta a borrador", { status: "borrador" as const }],
+    ["entrega", { deliveryStatus: "sent" as const }],
+    ["pago", { paymentStatus: "paid" as const }],
+    ["rectificativa asociada", { rectifiedById: "rectification-id" }],
+    ["recibo asociado", { receiptDocumentId: "receipt-id" }],
+    [
+      "presupuesto de origen",
+      {
+        sourceQuoteDocumentId: "quote-id",
+        sourceQuoteNumber: "P-2024-0001",
+      },
+    ],
+  ])("bloquea el histórico si cambia su %s", (_label, change) => {
+    const before = appData([importedDocument()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    const tampered: Document = {
+      ...result.data.documents[0],
+      ...change,
+    };
+    expect(inspectLegacyImportAttestation(tampered).ok).toBe(false);
+    expect(isDocumentUsableForFinancialCalculations(tampered)).toBe(false);
+    expect(hasLegacyImportProtectionClaim(tampered)).toBe(true);
+    expect(isDocumentEditable(tampered)).toBe(false);
   });
 });

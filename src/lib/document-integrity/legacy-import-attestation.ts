@@ -48,6 +48,7 @@ const SOURCE_PREFIXES: Record<LegacyImportSource, string> = {
 export type LegacyImportRepairReviewReason =
   | "namespace_type_mismatch"
   | "duplicate_document_id"
+  | "duplicate_fiscal_identity"
   | "draft_document"
   | "unsupported_historical_relation"
   | "existing_integrity_evidence"
@@ -151,6 +152,31 @@ function attestationHashPayload(
   return attestation;
 }
 
+function acceptedStateFromDocument(
+  document: Document,
+): LegacyImportAttestationV1["acceptedState"] {
+  return {
+    status: document.status,
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    deliveryStatus: document.deliveryStatus ?? null,
+    paymentStatus: document.paymentStatus ?? null,
+    acceptanceStatus: document.acceptanceStatus ?? null,
+    issuedAt: document.issuedAt ?? null,
+    sentAt: document.sentAt ?? null,
+    paidAt: document.paidAt ?? null,
+    acceptedAt: document.acceptedAt ?? null,
+    updatedAt: document.updatedAt,
+    relationships: {
+      sourceQuoteDocumentId: document.sourceQuoteDocumentId ?? null,
+      sourceQuoteNumber: document.sourceQuoteNumber ?? null,
+      rectifiedById: null,
+      receiptDocumentId: null,
+      sourceDocumentId: null,
+    },
+  };
+}
+
 function buildAttestation(
   document: Document,
   importer: LegacyImportSource,
@@ -168,6 +194,7 @@ function buildAttestation(
       kind: "source_files_not_stored",
       preservation: "user_managed",
     },
+    acceptedState: acceptedStateFromDocument(document),
   };
   return {
     ...withoutHash,
@@ -202,6 +229,18 @@ export function inspectLegacyImportAttestation(
     document.legacyImportProvenance.kind !== "external_import" ||
     document.legacyImportProvenance.importer !== attestation.importer ||
     document.legacyImportProvenance.importedAt !== attestation.attestedAt ||
+    !attestation.acceptedState ||
+    !attestation.acceptedState.relationships ||
+    attestation.acceptedState.documentLifecycle !== "issued" ||
+    attestation.acceptedState.integrityLock !== "locked" ||
+    attestation.acceptedState.relationships.rectifiedById !== null ||
+    attestation.acceptedState.relationships.receiptDocumentId !== null ||
+    attestation.acceptedState.relationships.sourceDocumentId !== null ||
+    document.documentLifecycle !== "issued" ||
+    document.integrityLock !== "locked" ||
+    Boolean(document.rectifiedById) ||
+    Boolean(document.receiptDocumentId) ||
+    Boolean(document.sourceDocumentId) ||
     snapshot.documentType !== document.type ||
     document.pdfSnapshot ||
     document.snapshotSeal ||
@@ -211,6 +250,12 @@ export function inspectLegacyImportAttestation(
     document.integrityQuarantine
   ) {
     return { ok: false, reason: "attestation_contract_invalid" };
+  }
+  if (
+    stableStringifySnapshot(attestation.acceptedState) !==
+    stableStringifySnapshot(acceptedStateFromDocument(document))
+  ) {
+    return { ok: false, reason: "attested_state_mismatch" };
   }
   const integrity = inspectDocumentSnapshotsIntegrity(
     { documentSnapshot: snapshot },
@@ -234,6 +279,29 @@ export function inspectLegacyImportAttestation(
 
 export function isUsableLegacyImportedDocument(document: Document): boolean {
   return inspectLegacyImportAttestation(document).ok;
+}
+
+/**
+ * Una reclamación legacy, incluso corrupta o incompleta, siempre conserva el
+ * modo protegido. La validez para cálculos se decide por separado y nunca
+ * puede ampliar permisos de edición al fallar una verificación.
+ */
+export function hasLegacyImportProtectionClaim(document: Document): boolean {
+  const snapshotSource = document.documentSnapshot?.source;
+  const provisionalHistoricalImport = Boolean(
+    (document.legacyImportProvenance || hasKnownImportPrefix(document)) &&
+      document.status !== "borrador" &&
+      document.documentLifecycle === "issued" &&
+      document.integrityLock === "locked" &&
+      snapshotSource !== "issue" &&
+      snapshotSource !== "customer_repair",
+  );
+  return Boolean(
+    document.legacyImportAttestation ||
+      snapshotSource === "legacy_import_attested" ||
+      snapshotSource === "legacy_backfill" ||
+      provisionalHistoricalImport,
+  );
 }
 
 /**
@@ -326,13 +394,7 @@ export function isDocumentUsableForFinancialCalculations(
   if (hasHistoricalEvidence) {
     return inspectUsableHistoricalDocumentEvidence(document).ok;
   }
-  if (document.status === "borrador") return true;
-  // Compatibilidad exclusiva para objetos pre-rollout aún no normalizados.
-  // load/normalize materializa lifecycle+lock y los bloquea antes de producción.
-  return (
-    document.documentLifecycle === undefined &&
-    document.integrityLock === undefined
-  );
+  return document.status === "borrador";
 }
 
 export function projectLegacyImportSnapshotOntoDocument(
@@ -477,7 +539,16 @@ function reviewReasons(
   if (!detectLegacyImportSource(document)) reasons.push("namespace_type_mismatch");
   if (duplicateIds.has(document.id)) reasons.push("duplicate_document_id");
   if (document.status === "borrador") reasons.push("draft_document");
-  if (fiscalSource.rectification || fiscalSource.type === "recibo") {
+  if (
+    fiscalSource.rectification ||
+    fiscalSource.type === "recibo" ||
+    document.status === "anulada" ||
+    document.status === "rectificada" ||
+    document.documentLifecycle === "canceled" ||
+    Boolean(document.rectifiedById) ||
+    Boolean(document.receiptDocumentId) ||
+    Boolean(document.sourceDocumentId)
+  ) {
     reasons.push("unsupported_historical_relation");
   }
   if (
@@ -513,6 +584,39 @@ function duplicateDocumentIds(documents: Document[]): Set<string> {
   );
 }
 
+function normalizedFiscalIdentityText(value: string | undefined): string {
+  return value?.replace(/[\s.-]/g, "").toUpperCase() ?? "";
+}
+
+function fiscalIdentityFromDocument(document: Document): string | null {
+  const projected = verifiedLegacyBackfillProjection(document) ?? document;
+  if (projected.type !== "factura" && projected.type !== "recibo") return null;
+  const issuerNif = normalizedFiscalIdentityText(projected.issuer?.nif);
+  const number = projected.number.trim().toUpperCase();
+  const year = projected.date.slice(0, 4);
+  if (!issuerNif || !number || !/^\d{4}$/.test(year)) return null;
+  return [projected.type, issuerNif, year, number].join("|");
+}
+
+function storedFiscalIdentityClaim(document: Document): string | null {
+  const snapshot = document.documentSnapshot;
+  if (
+    !snapshot ||
+    (snapshot.documentType !== "factura" &&
+      snapshot.documentType !== "recibo") ||
+    !inspectDocumentSnapshotsIntegrity(document, {
+      requireDocumentSnapshot: true,
+    }).ok
+  ) {
+    return null;
+  }
+  const issuerNif = normalizedFiscalIdentityText(snapshot.issuer.nif);
+  const number = snapshot.number.trim().toUpperCase();
+  const year = snapshot.date.slice(0, 4);
+  if (!issuerNif || !number || !/^\d{4}$/.test(year)) return null;
+  return [snapshot.documentType, issuerNif, year, number].join("|");
+}
+
 export function buildLegacyImportRepairPreview(
   data: AppData,
 ): LegacyImportRepairPreview {
@@ -536,6 +640,12 @@ export function buildLegacyImportRepairPreview(
     }
     if (!hasKnownImportPrefix(document)) continue;
     const reasons = reviewReasons(document, duplicateIds);
+    if (
+      document.documentLifecycle !== "issued" ||
+      document.integrityLock !== "locked"
+    ) {
+      reasons.push("unexpected_integrity_issue");
+    }
     if (data.snapshotIntegrityVersion !== 1) {
       reasons.push("unexpected_integrity_issue");
     }
@@ -556,11 +666,43 @@ export function buildLegacyImportRepairPreview(
     });
   }
 
+  const candidateIds = new Set(candidates.map((candidate) => candidate.documentId));
+  const claims = new Map<string, Set<string>>();
+  for (const document of data.documents) {
+    const identity =
+      storedFiscalIdentityClaim(document) ??
+      (candidateIds.has(document.id) || document.status !== "borrador"
+        ? fiscalIdentityFromDocument(document)
+        : null);
+    if (!identity) continue;
+    const ids = claims.get(identity) ?? new Set<string>();
+    ids.add(document.id);
+    claims.set(identity, ids);
+  }
+  const collidingCandidateIds = new Set<string>();
+  for (const candidate of candidates) {
+    const document = data.documents.find(
+      (entry) => entry.id === candidate.documentId,
+    );
+    const identity = document ? fiscalIdentityFromDocument(document) : null;
+    if (identity && (claims.get(identity)?.size ?? 0) > 1) {
+      collidingCandidateIds.add(candidate.documentId);
+      manualReview.push({
+        documentId: candidate.documentId,
+        documentNumber: candidate.documentNumber,
+        reasons: ["duplicate_fiscal_identity"],
+      });
+    }
+  }
+  const safeCandidates = candidates.filter(
+    (candidate) => !collidingCandidateIds.has(candidate.documentId),
+  );
+
   return {
     schemaVersion: 1,
     precondition: previewPrecondition(data),
-    affectedCount: candidates.length,
-    candidates,
+    affectedCount: safeCandidates.length,
+    candidates: safeCandidates,
     manualReview,
     alreadyAttestedDocumentIds,
   };
@@ -593,14 +735,19 @@ function buildAttestedDocument(
         capturedAt: fiscalSource.issuer.capturedAt,
         issuer: fiscalSource.issuer,
       });
+  const protectedDocument: Document = {
+    ...document,
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+  };
   const attestation = buildAttestation(
-    document,
+    protectedDocument,
     importer,
     snapshot,
     attestedAt,
   );
   const next: Document = {
-    ...document,
+    ...protectedDocument,
     documentSnapshot: snapshot,
     legacyImportAttestation: attestation,
     legacyImportProvenance: {
@@ -609,11 +756,6 @@ function buildAttestedDocument(
       importer,
       importedAt: attestedAt,
     },
-    documentLifecycle:
-      document.documentLifecycle === "canceled" || document.status === "anulada"
-        ? "canceled"
-        : "issued",
-    integrityLock: "locked",
   };
   delete next.pdfSnapshot;
   delete next.snapshotSeal;

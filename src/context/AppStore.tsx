@@ -68,6 +68,8 @@ import {
 import {
   canMarkQuoteAsAccepted,
   canMarkQuoteAsRejected,
+  canUnmarkQuoteAsAccepted,
+  canUnmarkQuoteAsRejected,
   isAcceptedQuote,
   isRejectedQuote,
   statusAfterUnmarkingQuoteAcceptance,
@@ -977,7 +979,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !isAcceptedQuote(doc)) return prev;
+        if (!doc || !canUnmarkQuoteAsAccepted(doc)) return prev;
 
         const now = new Date().toISOString();
         const next = editableQuoteWithLocalStatus(
@@ -1033,7 +1035,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !isRejectedQuote(doc)) return prev;
+        if (!doc || !canUnmarkQuoteAsRejected(doc)) return prev;
 
         const now = new Date().toISOString();
         const next = editableQuoteWithLocalStatus(

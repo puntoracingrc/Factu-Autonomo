@@ -36,6 +36,8 @@ describe("historical imported document governance", () => {
 
     expect(adr).toContain("Estado: Aceptado");
     expect(adr).toContain("LegacyImportAttestationV1");
+    expect(adr).toContain("`acceptedState`");
+    expect(adr).toContain("Cambiar después su estado o relaciones");
     expect(adr).toContain("attestNewImportedDocument");
     expect(adr).toContain("Una auditoría de seguridad");
     expect(adr).toContain("migración versionada");

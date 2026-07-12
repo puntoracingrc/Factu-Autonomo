@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentSent } from ".";
+import {
+  attestNewImportedDocument,
+  hasLegacyImportProtectionClaim,
+} from "./legacy-import-attestation";
+import { deriveLegacySnapshotForReadOnly } from "./snapshots";
 import { buildPdfViewModelForDocument } from "./pdf-source";
 import {
   canShareDocumentFromList,
@@ -63,7 +68,168 @@ function draftInvoice(): Document {
   };
 }
 
+function importedHistoricalQuote(): Document {
+  const capturedAt = "2024-06-24T09:00:00.000Z";
+  return attestNewImportedDocument(
+    {
+      ...draftInvoice(),
+      id: "holded:presupuesto:P-2024-0001",
+      type: "presupuesto",
+      number: "P-2024-0001",
+      date: "2024-06-24",
+      status: "enviado",
+      issuer: {
+        name: profile.name,
+        nif: profile.nif,
+        address: profile.address,
+        city: profile.city,
+        postalCode: profile.postalCode,
+        capturedAt,
+      },
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    },
+    profile,
+    "holded",
+    NOW,
+  );
+}
+
 describe("shareDocumentWithIntegrity", () => {
+  it("comparte un histórico válido sin mutar su estado atestado", async () => {
+    const historical = importedHistoricalQuote();
+    let issueCalls = 0;
+    let markSentCalls = 0;
+    let shareCalls = 0;
+
+    expect(canShareDocumentFromList(historical)).toBe(true);
+    const result = await shareDocumentWithIntegrity({
+      doc: historical,
+      issueDocument: () => {
+        issueCalls += 1;
+        return historical;
+      },
+      markDocumentSent: () => {
+        markSentCalls += 1;
+        return historical;
+      },
+      share: async (document) => {
+        shareCalls += 1;
+        expect(document).toBe(historical);
+      },
+    });
+
+    expect(issueCalls).toBe(0);
+    expect(markSentCalls).toBe(0);
+    expect(shareCalls).toBe(1);
+    expect(result).toEqual({
+      sharedDocument: historical,
+      finalDocument: historical,
+    });
+  });
+
+  it("bloquea un histórico manipulado antes de ejecutar el efecto externo", async () => {
+    const historical = importedHistoricalQuote();
+    const tampered: Document = {
+      ...historical,
+      legacyImportAttestation: {
+        ...historical.legacyImportAttestation!,
+        attestationHash: "sha256:tampered",
+      },
+    };
+    let shareCalls = 0;
+
+    expect(canShareDocumentFromList(tampered)).toBe(false);
+    await expect(
+      shareDocumentWithIntegrity({
+        doc: tampered,
+        issueDocument: () => tampered,
+        markDocumentSent: () => tampered,
+        share: async () => {
+          shareCalls += 1;
+        },
+      }),
+    ).rejects.toMatchObject({ code: "DOCUMENT_LOCKED" });
+    expect(shareCalls).toBe(0);
+  });
+
+  it("trata como app-issued un borrador externo emitido canónicamente", async () => {
+    const importedDraft = attestNewImportedDocument(
+      {
+        ...draftInvoice(),
+        id: "generic-documents:factura:F-2026-0001",
+        legacyImportAttestation: undefined,
+      },
+      profile,
+      "generic_documents",
+      NOW,
+    );
+    let stored = issueDocument(importedDraft, profile, NOW);
+    let markSentCalls = 0;
+
+    expect(stored.legacyImportProvenance).toBeDefined();
+    expect(stored.documentSnapshot?.source).toBe("issue");
+    expect(hasLegacyImportProtectionClaim(stored)).toBe(false);
+    expect(canShareDocumentFromList(stored)).toBe(true);
+
+    const result = await shareDocumentWithIntegrity({
+      doc: stored,
+      issueDocument: () => {
+        throw new Error("no debe reemitir");
+      },
+      markDocumentSent: () => {
+        markSentCalls += 1;
+        stored = markDocumentSent(stored, "2026-06-24T10:05:00.000Z");
+        return stored;
+      },
+      share: async () => {},
+    });
+
+    expect(markSentCalls).toBe(1);
+    expect(result.finalDocument.deliveryStatus).toBe("sent");
+  });
+
+  it("comparte un legacy_backfill compatible sin mutarlo", async () => {
+    const capturedAt = "2024-06-24T09:00:00.000Z";
+    const historical: Document = {
+      ...draftInvoice(),
+      id: "legacy-unknown-invoice",
+      status: "enviado",
+      issuer: {
+        name: profile.name,
+        nif: profile.nif,
+        address: profile.address,
+        city: profile.city,
+        postalCode: profile.postalCode,
+        capturedAt,
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    };
+    const compatible: Document = {
+      ...historical,
+      documentSnapshot: deriveLegacySnapshotForReadOnly(historical, profile),
+    };
+    let markSentCalls = 0;
+
+    expect(hasLegacyImportProtectionClaim(compatible)).toBe(true);
+    expect(canShareDocumentFromList(compatible)).toBe(true);
+    const result = await shareDocumentWithIntegrity({
+      doc: compatible,
+      issueDocument: () => compatible,
+      markDocumentSent: () => {
+        markSentCalls += 1;
+        return compatible;
+      },
+      share: async () => {},
+    });
+
+    expect(markSentCalls).toBe(0);
+    expect(result.finalDocument).toBe(compatible);
+  });
+
   it("oculta compartir para rectificativas en borrador hasta revisarlas", () => {
     const draftRectification: Document = {
       ...draftInvoice(),

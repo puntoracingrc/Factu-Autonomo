@@ -11,9 +11,9 @@ La decisión obligatoria y versionada está en
 [`docs/architecture/ADR-0001-historical-imported-documents.md`](docs/architecture/ADR-0001-historical-imported-documents.md).
 
 - `legacy_imported + user_attested` es válido para impuestos y rentabilidad,
-  permanece congelado/read-only y conserva su procedencia y evidencia original
-  preservable; no se le fabrica ni exige un sello moderno o VeriFactu de esta
-  app.
+  permanece congelado/read-only —incluidos estado operativo y relaciones— y
+  conserva su procedencia y evidencia original preservable; no se le fabrica ni
+  exige un sello moderno o VeriFactu de esta app.
 - `app_issued` mantiene el fail-closed estricto de snapshots, PDF, sello, hash y
   VeriFactu.
 - Si existe evidencia moderna y su hash, snapshot o sello es inválido, el

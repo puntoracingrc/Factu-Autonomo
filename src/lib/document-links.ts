@@ -5,6 +5,7 @@ import {
   explicitExpenseWorkAllocations,
 } from "./expense-work-allocations";
 import { expenseFiscalAmounts } from "./expenses";
+import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
 import { findInvoiceCreatedFromQuote } from "./quote-to-invoice";
 import { isRectificativa } from "./rectificativas";
 import { findReceiptForInvoice } from "./receipts";
@@ -304,6 +305,39 @@ export function applyDocumentLinkUpdate(
 ): Document[] {
   const updatedAt = update.updatedAt ?? new Date().toISOString();
   if (update.relation === "quote_invoice") {
+    const invoice = documents.find(
+      (document) =>
+        document.id === update.invoiceId && document.type === "factura",
+    );
+    const currentQuote = invoice?.sourceQuoteDocumentId
+      ? documents.find(
+          (document) =>
+            document.id === invoice.sourceQuoteDocumentId &&
+            document.type === "presupuesto",
+        )
+      : undefined;
+    const nextQuote = update.quoteId
+      ? documents.find(
+          (document) =>
+            document.id === update.quoteId && document.type === "presupuesto",
+        )
+      : undefined;
+    const conflictingInvoice = nextQuote
+      ? documents.find(
+          (document) =>
+            document.type === "factura" &&
+            document.id !== invoice?.id &&
+            document.sourceQuoteDocumentId === nextQuote.id,
+        )
+      : undefined;
+    if (
+      [invoice, currentQuote, nextQuote, conflictingInvoice].some(
+        (document) =>
+          document !== undefined && hasLegacyImportProtectionClaim(document),
+      )
+    ) {
+      return documents;
+    }
     return applyQuoteInvoiceLink(
       documents,
       update.invoiceId,

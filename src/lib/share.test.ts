@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_PROFILE, type Document } from "./types";
-import { issueDocument } from "./document-integrity";
+import {
+  DEFAULT_PROFILE,
+  type BusinessProfile,
+  type Document,
+} from "./types";
+import { issueDocument, markDocumentPaid } from "./document-integrity";
 import {
   buildGmailComposeUrl,
   buildMailtoUrl,
@@ -41,7 +45,7 @@ const sampleDoc: Document = {
   updatedAt: "2025-06-09",
 };
 
-const profile = {
+const profile: BusinessProfile = {
   ...DEFAULT_PROFILE,
   name: "Mi Negocio",
   nif: "12345678Z",
@@ -52,6 +56,17 @@ const profile = {
   email: "hola@example.com",
   iban: "ES00 0000 0000 0000 0000 0000",
 };
+
+function issuedSampleDoc(issuer: BusinessProfile = profile): Document {
+  return issueDocument(sampleDoc, issuer, "2025-06-09T09:00:00.000Z");
+}
+
+function paidSampleDoc(): Document {
+  return markDocumentPaid(
+    issuedSampleDoc(),
+    "2025-06-10T09:00:00.000Z",
+  );
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -206,7 +221,7 @@ describe("reserveExternalShareWindow", () => {
 describe("buildShareMessage", () => {
   it("incluye número e importe en facturas pendientes de cobro", () => {
     const message = buildShareMessage(
-      { ...sampleDoc, status: "enviado" },
+      issuedSampleDoc(),
       profile,
       new Date("2026-06-24T09:00:00"),
     );
@@ -220,9 +235,10 @@ describe("buildShareMessage", () => {
   });
 
   it("usa el nombre comercial como firma cuando existe", () => {
+    const brandedProfile = { ...profile, commercialName: "Marca Visible" };
     const message = buildShareMessage(
-      { ...sampleDoc, status: "enviado" },
-      { ...profile, commercialName: "Marca Visible" },
+      issuedSampleDoc(brandedProfile),
+      brandedProfile,
     );
 
     expect(message).toContain("Marca Visible");
@@ -230,10 +246,7 @@ describe("buildShareMessage", () => {
   });
 
   it("no incluye IBAN si la factura ya está cobrada", () => {
-    const message = buildShareMessage(
-      { ...sampleDoc, status: "pagado" },
-      profile,
-    );
+    const message = buildShareMessage(paidSampleDoc(), profile);
     expect(message).toContain("F-2025-001");
     expect(message).not.toContain("IBAN:");
   });

@@ -3,7 +3,7 @@ import {
   canPhysicallyDeleteDocument,
 } from "./document-integrity/deletion";
 import { lineMoneyAmounts } from "./calculations";
-import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
+import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
 import type { Document, LineItem, RectificationType } from "./types";
 
 export type DeleteWarningLevel = "simple" | "legal" | "legal_strict";
@@ -22,7 +22,7 @@ export function isRectificativa(doc: Document): boolean {
 export function canRectifyInvoice(doc: Document): boolean {
   return (
     doc.type === "factura" &&
-    !isUsableLegacyImportedDocument(doc) &&
+    !hasLegacyImportProtectionClaim(doc) &&
     !doc.rectification &&
     !doc.rectifiedById &&
     !doc.receiptDocumentId &&

@@ -49,8 +49,10 @@ exportadores.
 
 ## Invariantes de seguridad
 
-- La atestación es versionada, está ligada al ID, origen y contenido fiscal
-  congelado del documento, y se persiste como `legacyImportAttestation`.
+- La atestación es versionada, está ligada al ID, origen, contenido fiscal y
+  `acceptedState` del documento, y se persiste como
+  `legacyImportAttestation`. Ese estado congela `status`, lifecycle, lock,
+  entrega, pago, aceptación, timestamps operativos y relaciones de procedencia.
 - La procedencia aceptada se conserva en save/load, cloud y backups, y la
   reimportación debe ser idempotente.
 - Los borradores externos que siguen siendo editables conservan
@@ -61,6 +63,8 @@ exportadores.
   por el usuario y nunca afirma haberlo incorporado.
 - Un histórico atestado es read-only. Los cálculos consumen su contenido fiscal
   congelado y verificado por la política central, no campos vivos divergentes.
+  Cambiar después su estado o relaciones invalida la atestación y lo bloquea;
+  nunca se corrige ni reproyecta silenciosamente al cargar.
 - No se fabrica `pdfSnapshot`, `snapshotSeal`, hash moderno ni estado VeriFactu,
   ni se presenta al usuario que tales garantías existen.
 - Si el documento ya contiene evidencia moderna y algún snapshot, PDF, sello o

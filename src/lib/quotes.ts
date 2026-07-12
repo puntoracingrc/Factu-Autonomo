@@ -1,10 +1,10 @@
 import type { Document } from "./types";
-import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
+import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
 
 export function canMarkQuoteAsAccepted(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
-    !isUsableLegacyImportedDocument(doc) &&
+    !hasLegacyImportProtectionClaim(doc) &&
     doc.status !== "borrador" &&
     doc.status !== "anulada"
   );
@@ -13,7 +13,7 @@ export function canMarkQuoteAsAccepted(doc: Document): boolean {
 export function canMarkQuoteAsRejected(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
-    !isUsableLegacyImportedDocument(doc) &&
+    !hasLegacyImportProtectionClaim(doc) &&
     doc.status !== "borrador" &&
     doc.status !== "anulada"
   );
@@ -28,6 +28,14 @@ export function isAcceptedQuote(doc: Document): boolean {
 
 export function isRejectedQuote(doc: Document): boolean {
   return doc.type === "presupuesto" && doc.status === "rechazado";
+}
+
+export function canUnmarkQuoteAsAccepted(doc: Document): boolean {
+  return isAcceptedQuote(doc) && !hasLegacyImportProtectionClaim(doc);
+}
+
+export function canUnmarkQuoteAsRejected(doc: Document): boolean {
+  return isRejectedQuote(doc) && !hasLegacyImportProtectionClaim(doc);
 }
 
 export function statusAfterUnmarkingQuoteAcceptance(): Document["status"] {
