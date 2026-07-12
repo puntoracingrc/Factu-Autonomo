@@ -96,6 +96,9 @@ import { normalizeAppPreferences } from "@/lib/app-preferences";
 import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
+  upsertSupplierForExpense,
+  type StoredSupplierForExpenseResolution,
+  type SupplierForExpenseInput,
 } from "@/lib/suppliers";
 import { hasAuthenticatedVerifactuAttestation } from "@/lib/verifactu/attestation";
 import {
@@ -216,6 +219,9 @@ interface AppStoreValue {
   reopenUserReminder: (id: string) => void;
   deleteUserReminder: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
+  ensureExpenseSupplier: (
+    input: SupplierForExpenseInput,
+  ) => StoredSupplierForExpenseResolution;
   updateSupplier: (supplier: Supplier) => void;
   deleteSupplier: (id: string) => void;
   mergeSuppliers: (keepId: string, removeIds: string[]) => void;
@@ -1553,6 +1559,34 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const ensureExpenseSupplier = useCallback(
+    (input: SupplierForExpenseInput): StoredSupplierForExpenseResolution => {
+      let resolution: StoredSupplierForExpenseResolution | undefined;
+
+      setAppData((prev) => {
+        const result = upsertSupplierForExpense(prev.suppliers, input, {
+          createId: newId,
+          now: () => new Date().toISOString(),
+        });
+        const { suppliers, ...storedResolution } = result;
+        resolution = storedResolution;
+
+        return suppliers === prev.suppliers
+          ? prev
+          : {
+              ...prev,
+              suppliers,
+            };
+      });
+
+      if (!resolution) {
+        throw new Error("No se pudo resolver el proveedor del gasto");
+      }
+      return resolution;
+    },
+    [setAppData],
+  );
+
   const deleteSupplier = useCallback((id: string) => {
     setAppData((prev) => deleteSupplierMasterFromData(prev, id));
   }, [setAppData]);
@@ -1831,6 +1865,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reopenUserReminder,
       deleteUserReminder,
       addSupplier,
+      ensureExpenseSupplier,
       updateSupplier,
       deleteSupplier,
       mergeSuppliers,
@@ -1884,6 +1919,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reopenUserReminder,
       deleteUserReminder,
       addSupplier,
+      ensureExpenseSupplier,
       updateSupplier,
       deleteSupplier,
       mergeSuppliers,

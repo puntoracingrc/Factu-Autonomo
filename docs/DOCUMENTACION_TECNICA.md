@@ -395,6 +395,13 @@ Flujo:
 3. `POST /api/expenses/scan` → OpenAI extrae campos
 4. Formulario se rellena con sugerencias
 5. Detección de proveedor duplicado (`suppliers.ts`) con opción de fusionar
+6. Al guardar una tanda, `ensureExpenseSupplier` ejecuta
+   `upsertSupplierForExpense` contra el `prev.suppliers` más reciente del
+   `AppStore`: el segundo gasto puede reutilizar inmediatamente el proveedor
+   creado por el primero. El NIF normalizado prevalece y dos NIF conocidos e
+   incompatibles nunca se unen solo por nombre. Un NIF conocido tampoco se
+   autoenlaza a un maestro legacy sin NIF: se mantiene una alta separada y
+   revisable.
 
 **Cuotas IA** (si billing activo):
 
@@ -440,7 +447,11 @@ Plantillas `RecurringExpense`:
 
 **Módulos:** `src/lib/suppliers.ts`, `src/components/suppliers/`, reutiliza `StreetTypeSelect` y `customer-address.ts` (`normalizeStreetFields`).
 
-**Integración escaneo:** al guardar gasto, `ensureSupplierForExpense` propone vincular o crear proveedor.
+**Integración escaneo:** `ensureSupplierForExpense` propone vincular o crear;
+`upsertSupplierForExpense` materializa la decisión contra el estado vigente y
+devuelve el `supplierId` que se asigna al gasto. La comprobación de IVA y de
+factura duplicada ocurre antes del upsert para no dejar altas huérfanas en un
+elemento bloqueado.
 
 ---
 

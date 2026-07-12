@@ -87,13 +87,24 @@ describe("product expenses/providers polish wiring", () => {
 
   it("mantiene el escaneo conectado al alta/reutilizacion de proveedores", () => {
     const formPage = source("../app/gastos/nuevo/page.tsx");
+    const appStore = source("../context/AppStore.tsx");
 
     expect(formPage).toContain("function applyScanResult");
     expect(formPage).toContain("findBestSupplierMatch(data.suppliers");
     expect(formPage).toContain("setSelectedSupplierId(match.supplier.id)");
     expect(formPage).toContain("setSaveSupplier(true)");
-    expect(formPage).toContain("ensureSupplierForExpense(data.suppliers");
+    expect(formPage).toContain("const scannedSupplierNif =");
+    expect(formPage).toContain(
+      "payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif",
+    );
+    expect(formPage).toContain(
+      "nif: purchaseDocument.supplierNif ?? supplierNif",
+    );
+    expect(formPage).toContain("const resolved = ensureExpenseSupplier({");
+    expect(formPage).toContain("const supplierId = resolved.supplierId");
     expect(formPage).toContain("const created = addSupplier(resolved.create)");
+    expect(appStore).toContain("upsertSupplierForExpense(prev.suppliers, input");
+    expect(appStore).toContain("suppliers === prev.suppliers");
   });
 
   it("notifica sin bloquear si un escaneo trae articulos nuevos para Productos", () => {

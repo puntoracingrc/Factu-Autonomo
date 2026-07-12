@@ -18,7 +18,7 @@ import {
   saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
 } from "../recurring-expenses";
-import { mergeRemoteOntoLocal } from "./incremental";
+import { mergeRemoteOntoLocal, trackDataDiff } from "./incremental";
 import { buildCloudUploadChanges } from "./sync-queue";
 
 function customer(id: string, name: string): Customer {
@@ -45,6 +45,45 @@ describe("sync por cambios", () => {
     expect(changes).toHaveLength(1);
     expect(changes[0].entityType).toBe("customer");
     expect(changes[0].entityId).toBe("c1");
+  });
+
+  it("conserva en cola el proveedor y el gasto añadidos en dos transiciones", () => {
+    const supplier = {
+      id: "supplier-batch",
+      name: "Proveedor del lote",
+      nif: "B12345678",
+      createdAt: "2026-07-12T03:00:00.000Z",
+    };
+    const afterSupplier = trackDataDiff(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      suppliers: [supplier],
+    });
+    const afterExpense = trackDataDiff(afterSupplier, {
+      ...afterSupplier,
+      expenses: [
+        {
+          id: "expense-batch",
+          date: "2026-07-12",
+          supplierId: supplier.id,
+          supplierName: supplier.name,
+          description: "Factura del lote",
+          amount: 100,
+          ivaPercent: 21,
+          category: "Material",
+          paymentMethod: "Transferencia",
+          createdAt: "2026-07-12T03:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(
+      afterExpense.meta?.pendingChanges
+        ?.map((change) => `${change.entityType}:${change.entityId}`)
+        .sort(),
+    ).toEqual([
+      "expense:expense-batch",
+      "supplier:supplier-batch",
+    ]);
   });
 
   it("encola juntos el gasto fijo escaneado y su regla recurrente", () => {
