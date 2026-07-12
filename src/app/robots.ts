@@ -11,6 +11,7 @@ const appInternalRoutes = [
   "/avisos",
   "/clientes",
   "/configuracion",
+  "/consultor-fiscal",
   "/cuenta",
   "/facturas",
   "/gastos",

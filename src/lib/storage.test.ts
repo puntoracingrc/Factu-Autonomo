@@ -112,6 +112,47 @@ describe("storage", () => {
     vi.stubGlobal("window", {});
   });
 
+  it("migra y conserva el perfil fiscal aditivo sin persistir el documento", () => {
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        fiscalProfile: {
+          schemaVersion: 1,
+          setupStatus: "CONFIGURED",
+          taxpayerType: "SELF_EMPLOYED_IRPF",
+          jurisdiction: "ES_COMMON",
+          directTaxRegime: "DIRECT_ESTIMATION_SIMPLIFIED",
+          vatRegime: "GENERAL",
+          vatDeductionRight: "FULL",
+          activities: [{ code: " 763 ", description: " Programación " }],
+          source: {
+            kind: "AEAT_CENSUS_CERTIFICATE",
+            confirmedAt: "2026-07-12T12:00:00.000Z",
+            documentKind: "AEAT_CENSUS_CERTIFICATE",
+            extractionMethod: "LOCAL_TEXT",
+            identityMatch: "MATCHED",
+            matchedTaxId: "12345678Z",
+            csv: {
+              detected: true,
+              verificationStatus: "PENDING_VERIFICATION",
+            },
+          },
+        },
+      },
+    });
+
+    expect(normalized.profile.fiscalProfile).toMatchObject({
+      activities: [{ code: "763", description: "Programación" }],
+      source: {
+        identityMatch: "MATCHED",
+        matchedTaxId: "12345678Z",
+        csv: { detected: true, verificationStatus: "PENDING_VERIFICATION" },
+      },
+    });
+    expect(JSON.stringify(normalized.profile.fiscalProfile)).not.toContain("PDF");
+  });
+
   it("desactiva el antiguo default VeriFactu hasta un opt-in explícito", () => {
     const normalized = normalizeLoadedData({
       ...EMPTY_DATA,

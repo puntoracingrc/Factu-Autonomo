@@ -15,6 +15,7 @@ describe("robots metadata", () => {
         "/auth",
         "/google-auth",
         "/drive",
+        "/consultor-fiscal",
         "/cuenta",
         "/facturas",
         "/gastos",

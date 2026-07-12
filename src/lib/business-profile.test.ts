@@ -49,6 +49,31 @@ describe("business profile document data", () => {
     });
   });
 
+  it("normaliza el perfil fiscal opcional sin guardar campos ajenos", () => {
+    const normalized = normalizeBusinessProfileForSave({
+      ...DEFAULT_PROFILE,
+      fiscalProfile: {
+        schemaVersion: 1,
+        setupStatus: "CONFIGURED",
+        taxpayerType: "SELF_EMPLOYED_IRPF",
+        jurisdiction: "ES_COMMON",
+        directTaxRegime: "DIRECT_ESTIMATION_SIMPLIFIED",
+        vatRegime: "GENERAL",
+        vatDeductionRight: "FULL",
+        activities: [{ code: " 763 ", description: " Programación " }],
+        source: {
+          kind: "MANUAL",
+          confirmedAt: "2026-07-12T12:00:00.000Z",
+          identityMatch: "NOT_CHECKED",
+        },
+      },
+    });
+
+    expect(normalized.fiscalProfile?.activities).toEqual([
+      { code: "763", description: "Programación" },
+    ]);
+  });
+
   it("avisa de datos necesarios para documentos completos", () => {
     const labels = businessProfileMissingDocumentLabels(DEFAULT_PROFILE);
     const labelsWithCommercialName = businessProfileMissingDocumentLabels({

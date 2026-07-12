@@ -28,6 +28,7 @@ const expectedMethods: Record<string, string[]> = {
   "billing/trial/route.ts": ["POST"],
   "customers/parse/route.ts": ["POST"],
   "document-sync/route.ts": ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"],
+  "expense-deductibility/evaluate/route.ts": ["POST"],
   "email/payment-reminder/route.ts": ["POST"],
   "email/welcome/route.ts": ["POST"],
   "expense-inbox/inbound/route.ts": ["POST"],
@@ -87,6 +88,7 @@ const bearerRoutes = [
 ] as const;
 
 const publicConstrainedRoutes = [
+  "expense-deductibility/evaluate/route.ts",
   "google-auth/token/route.ts",
   "security/csp-report/route.ts",
   "verifactu/declaration/route.ts",
@@ -121,6 +123,7 @@ const boundedBodyRoutes = [
   "customers/parse/route.ts",
   "email/payment-reminder/route.ts",
   "email/welcome/route.ts",
+  "expense-deductibility/evaluate/route.ts",
   "expense-inbox/inbound/route.ts",
   "expense-inbox/route.ts",
   "expenses/scan/route.ts",

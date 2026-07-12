@@ -1,3 +1,5 @@
+import type { BusinessFiscalProfile } from "./fiscal-profile/types";
+
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
 export type DocumentKind =
@@ -779,6 +781,8 @@ export interface BusinessProfile {
   iva: IvaSettings;
   /** Sin repercutir IVA en ventas ni deducir IVA en gastos */
   vatExempt?: boolean;
+  /** Contexto fiscal opcional reutilizado por el Consultor fiscal. */
+  fiscalProfile?: BusinessFiscalProfile;
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
   /** Días de validez aplicados por defecto a presupuestos nuevos; 0 desactiva la fecha automática. */

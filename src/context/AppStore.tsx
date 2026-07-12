@@ -36,6 +36,7 @@ import {
 } from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
+import { normalizeBusinessFiscalProfile } from "@/lib/fiscal-profile";
 import {
   assignNextDocumentNumber,
   assignNextDocumentNumberByType,
@@ -468,6 +469,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
         documentUnits: normalizeDocumentUnits(profile.documentUnits),
         appPreferences: normalizeAppPreferences(profile.appPreferences),
+        fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
       },
     }));
   }, [setAppData]);

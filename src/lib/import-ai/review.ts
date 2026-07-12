@@ -1,3 +1,8 @@
+import {
+  isOpenAiConfigured,
+  requestOpenAiJson,
+} from "@/lib/server/openai-client";
+
 export type ImportAiRecommendedAction =
   | "importar"
   | "revisar"
@@ -182,58 +187,50 @@ export function buildImportAiReviewPrompt(): string {
 }
 
 export function isImportAiReviewConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  return isOpenAiConfigured();
 }
 
 export async function reviewImportWithAi(
   input: ImportAiReviewInput,
 ): Promise<{ data?: ImportAiReviewResult; error?: string }> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
+  if (!isOpenAiConfigured()) {
     return {
       error:
         "Revisión IA no configurada en el servidor (falta OPENAI_API_KEY).",
     };
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
-      max_tokens: 900,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: buildImportAiReviewPrompt(),
-        },
-        {
-          role: "user",
-          content: JSON.stringify(input),
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as {
-      error?: { message?: string };
-    };
-    return {
-      error:
-        body.error?.message ??
-        `No se pudo revisar la importacion (error ${response.status}).`,
-    };
-  }
-
-  const json = (await response.json()) as {
+  let json: {
     choices?: Array<{ message?: { content?: string } }>;
   };
+  try {
+    const response = await requestOpenAiJson<typeof json>({
+      endpoint: "chat/completions",
+      timeoutMs: 15_000,
+      maxAttempts: 1,
+      body: {
+        model: "gpt-4o-mini",
+        temperature: 0.1,
+        max_tokens: 900,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: buildImportAiReviewPrompt(),
+          },
+          {
+            role: "user",
+            content: JSON.stringify(input),
+          },
+        ],
+      },
+    });
+    json = response.data;
+  } catch {
+    return {
+      error: "No se pudo completar la revisión IA. Inténtalo de nuevo.",
+    };
+  }
   const content = json.choices?.[0]?.message?.content;
   if (!content) {
     return { error: "La IA no devolvio una revision. Intentalo de nuevo." };
