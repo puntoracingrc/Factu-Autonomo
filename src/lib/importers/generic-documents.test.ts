@@ -251,6 +251,28 @@ const pdfInvoiceLines = [
 ];
 
 describe("readGenericDocumentFiles", () => {
+  it("persiste procedencia en una factura genérica que sigue como borrador editable", async () => {
+    const draftRows = invoiceRows.map((row) =>
+      row[0] === "Estado" ? ["Estado", "Borrador"] : row,
+    );
+    const result = await readGenericDocumentFiles(
+      [xlsxFile("factura-F2026-0001.xlsx", draftRows)],
+      TEST_DATA,
+    );
+    const draft = result.data.documents.find(
+      (document) => document.id === "generic-documents:factura:F2026-0001",
+    );
+
+    expect(draft?.status).toBe("borrador");
+    expect(draft?.legacyImportProvenance).toMatchObject({
+      schemaVersion: 1,
+      kind: "external_import",
+      importer: "generic_documents",
+    });
+    expect(draft?.legacyImportAttestation).toBeUndefined();
+    expect(draft?.documentSnapshot).toBeUndefined();
+  });
+
   it("reconstruye líneas secuenciales de un PDF", () => {
     expect(parseLinesFromSequentialText(pdfInvoiceLines)).toHaveLength(1);
   });

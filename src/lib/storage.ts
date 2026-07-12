@@ -37,6 +37,12 @@ import {
 } from "./document-integrity";
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
 import {
+  detectLegacyImportSource,
+  hasOnlyLegacyImportRolloutResidue,
+  inspectUsableHistoricalDocumentEvidence,
+  projectLegacyImportSnapshotOntoDocument,
+} from "./document-integrity/legacy-import-attestation";
+import {
   DEMO_WORKSPACE_STORAGE_KEY,
   createDemoWorkspaceData,
   isDemoWorkspaceMode,
@@ -463,13 +469,21 @@ export function normalizeLoadedData(
       const persisted = preclassifyLegacyVerifactuDocument(document);
       const explicitLegacyImport =
         options.legacyBackfillDocumentIds?.has(persisted.id) === true;
+      const knownPersistentImportSource = Boolean(
+        detectLegacyImportSource(persisted),
+      );
+      const mayRunFirstIntegrityBackfill =
+        firstIntegrityMigration &&
+        !persisted.issuedAt &&
+        !knownPersistentImportSource;
+      const mayRunFirstSealMigration =
+        firstIntegrityMigration && !knownPersistentImportSource;
       const normalized = normalizeQuoteDocument(
         normalizeHistoricalDocument(
           persisted,
           profile,
-          explicitLegacyImport ||
-            (firstIntegrityMigration && !persisted.issuedAt),
-          explicitLegacyImport || firstIntegrityMigration,
+          explicitLegacyImport || mayRunFirstIntegrityBackfill,
+          explicitLegacyImport || mayRunFirstSealMigration,
         ),
       );
       if (!persisted.snapshotSeal && normalized.snapshotSeal) {
@@ -767,6 +781,38 @@ function normalizeHistoricalDocument(
       paidAt: undefined,
       acceptedAt: undefined,
     });
+  }
+
+  if (doc.legacyImportAttestation) {
+    const mayClearRolloutSignal =
+      !doc.snapshotIntegrity || hasOnlyLegacyImportRolloutResidue(doc);
+    const attestation = inspectUsableHistoricalDocumentEvidence({
+      ...doc,
+      snapshotIntegrity: mayClearRolloutSignal
+        ? undefined
+        : doc.snapshotIntegrity,
+    });
+    if (attestation.ok) {
+      return projectLegacyImportSnapshotOntoDocument(doc);
+    }
+    const signaled = normalizeDocumentIntegrityState({
+      ...doc,
+      documentLifecycle: deriveDocumentLifecycle(doc),
+      integrityLock: "locked",
+    });
+    return {
+      ...signaled,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          ...new Set([
+            ...(doc.snapshotIntegrity?.issues ?? []),
+            ...(signaled.snapshotIntegrity?.issues ?? []),
+            "legacy_import_attestation_invalid" as const,
+          ]),
+        ],
+      },
+    };
   }
 
   const loadedIntegrity = inspectDocumentSnapshotsIntegrity(doc);

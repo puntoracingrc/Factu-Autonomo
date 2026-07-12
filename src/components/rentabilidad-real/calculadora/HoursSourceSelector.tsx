@@ -1,6 +1,8 @@
 "use client";
 
-import { documentTotals, formatMoney } from "@/lib/calculations";
+import { formatMoney } from "@/lib/calculations";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
+import { documentAmounts } from "@/lib/vat-regime";
 import type { RentabilidadRealHoursSourceType } from "@/lib/rentabilidad-real/calculation";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { Document } from "@/lib/types";
@@ -18,6 +20,9 @@ export function HoursSourceSelector({
   onSourceTypeChange: (sourceType: RentabilidadRealHoursSourceType) => void;
   onSelectedDocumentChange: (documentId: string) => void;
 }) {
+  const usableDocuments = documents.filter(
+    isDocumentUsableForFinancialCalculations,
+  );
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
@@ -57,13 +62,13 @@ export function HoursSourceSelector({
             onChange={(event) => onSelectedDocumentChange(event.target.value)}
             className="mt-2 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition-colors focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
-            {documents.length === 0 ? (
+            {usableDocuments.length === 0 ? (
               <option value="">No hay documentos disponibles</option>
             ) : null}
-            {documents.map((doc) => (
+            {usableDocuments.map((doc) => (
               <option key={doc.id} value={doc.id}>
                 {doc.number} · {rentabilidadRealDocumentClientName(doc)} ·{" "}
-                {formatMoney(documentTotals(doc).subtotal)} base
+                {formatMoney(documentAmounts(doc, false).subtotal)} base
               </option>
             ))}
           </select>

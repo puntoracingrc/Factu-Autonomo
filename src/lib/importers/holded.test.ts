@@ -241,6 +241,32 @@ const baseSheets: HoldedInputSheet[] = [
 ];
 
 describe("Holded importer", () => {
+  it("persiste procedencia en una factura externa que sigue como borrador editable", () => {
+    const draftSheets = baseSheets.map((sheet) =>
+      sheet.kind === "invoices"
+        ? {
+            ...sheet,
+            rows: sheet.rows.map((row, index) =>
+              index === 0 ? { ...row, estado: "borrador" } : row,
+            ),
+          }
+        : sheet,
+    );
+    const result = buildHoldedImport(TEST_DATA, draftSheets);
+    const draft = result.data.documents.find(
+      (document) => document.id === "holded:factura:hol_inv_1",
+    );
+
+    expect(draft?.status).toBe("borrador");
+    expect(draft?.legacyImportProvenance).toMatchObject({
+      schemaVersion: 1,
+      kind: "external_import",
+      importer: "holded",
+    });
+    expect(draft?.legacyImportAttestation).toBeUndefined();
+    expect(draft?.documentSnapshot).toBeUndefined();
+  });
+
   it("importa el fixture inferido con IDs externos y avisa de no soportados", () => {
     const result = buildHoldedImport(TEST_DATA, baseSheets);
 

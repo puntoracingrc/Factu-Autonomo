@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney } from "@/lib/calculations";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import { resolveRentabilidadRealBillingAccess } from "@/lib/rentabilidad-real/access-policy";
 import {
   buildRentabilidadRealWorkProfitabilityInputFromExistingData,
@@ -86,11 +87,21 @@ export function RentabilidadRealWorkCalculator() {
     activation.activeProductIds.includes("RR_ASSETS_LIGHT");
 
   const quoteDocuments = useMemo(
-    () => data.documents.filter((doc) => doc.type === "presupuesto"),
+    () =>
+      data.documents.filter(
+        (doc) =>
+          doc.type === "presupuesto" &&
+          isDocumentUsableForFinancialCalculations(doc),
+      ),
     [data.documents],
   );
   const invoiceDocuments = useMemo(
-    () => data.documents.filter((doc) => doc.type === "factura"),
+    () =>
+      data.documents.filter(
+        (doc) =>
+          doc.type === "factura" &&
+          isDocumentUsableForFinancialCalculations(doc),
+      ),
     [data.documents],
   );
   const quoteDocumentOptions = useMemo(

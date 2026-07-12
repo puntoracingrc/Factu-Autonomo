@@ -1,4 +1,4 @@
-import { documentTotals } from "@/lib/calculations";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import { isFixedExpense } from "@/lib/expense-classification";
 import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
 import { expenseFiscalAmounts } from "@/lib/expenses";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/rentabilidad-real/document-chain";
 import type { RentabilidadRealFixedCostAllocationMethod } from "./calculation";
 import type { Document, Expense } from "@/lib/types";
+import { documentAmounts } from "@/lib/vat-regime";
 
 export interface RentabilidadRealWorkDocumentOption {
   id: string;
@@ -135,9 +136,13 @@ export function buildRentabilidadRealWorkDocumentOptions({
   expenses,
 }: BuildRentabilidadRealWorkDocumentOptionsInput): RentabilidadRealWorkDocumentOption[] {
   return documents
-    .filter((document) => !isSupersededRentabilidadRealDocument(document))
+    .filter(
+      (document) =>
+        !isSupersededRentabilidadRealDocument(document) &&
+        isDocumentUsableForFinancialCalculations(document),
+    )
     .map((document) => {
-      const totals = documentTotals(document);
+      const totals = documentAmounts(document, false);
       return {
         id: document.id,
         type: document.type,

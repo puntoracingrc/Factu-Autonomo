@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { issueDocument } from "@/lib/document-integrity";
 import {
+  DEFAULT_PROFILE,
   EMPTY_DATA,
   type AppData,
   type Document,
@@ -35,7 +37,8 @@ function appData(overrides: Partial<AppData> = {}): AppData {
 }
 
 function documentFixture(overrides: Partial<Document>): Document {
-  return {
+  const requestedStatus = overrides.status ?? "enviado";
+  const draft: Document = {
     id: "invoice_1",
     type: "factura",
     number: "F-1",
@@ -50,10 +53,24 @@ function documentFixture(overrides: Partial<Document>): Document {
         ivaPercent: 21,
       },
     ],
-    status: "enviado",
     createdAt: "2026-07-01T10:00:00.000Z",
     updatedAt: "2026-07-01T10:00:00.000Z",
     ...overrides,
+    status: "borrador",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  return {
+    ...issueDocument(
+      draftForIssue,
+      { ...DEFAULT_PROFILE, name: "Negocio Demo", nif: "12345678Z" },
+      draft.createdAt,
+    ),
+    status: requestedStatus,
   };
 }
 
@@ -201,7 +218,9 @@ describe("buildRentabilidadRealHoursProfitabilityInputFromExistingData", () => {
       },
     );
 
-    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual(["fixed_a"]);
+    expect(input?.fixedCostCandidates.map((cost) => cost.id)).toEqual([
+      "fixed_a",
+    ]);
     expect(input?.fixedCostAllocationInput.totalFixedCostsForPeriod).toBe(0);
   });
 

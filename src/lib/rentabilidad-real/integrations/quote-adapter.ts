@@ -1,7 +1,8 @@
-import { documentTotals, roundMoney } from "@/lib/calculations";
+import { roundMoney } from "@/lib/calculations";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type { Document } from "@/lib/types";
+import { documentAmounts } from "@/lib/vat-regime";
 import type { ProfitabilityQuoteSource } from "./types";
 
 export function mapExistingQuoteToProfitabilityQuote(
@@ -9,10 +10,12 @@ export function mapExistingQuoteToProfitabilityQuote(
   documents: Document[] = [],
 ): ProfitabilityQuoteSource {
   if (quote.type !== "presupuesto") {
-    throw new Error("Solo se pueden mapear presupuestos como trabajos previstos.");
+    throw new Error(
+      "Solo se pueden mapear presupuestos como trabajos previstos.",
+    );
   }
 
-  const totals = documentTotals(quote);
+  const totals = documentAmounts(quote, false);
   const linkedInvoice = findInvoiceCreatedFromQuote(documents, quote.id);
 
   return {

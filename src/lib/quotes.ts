@@ -1,8 +1,10 @@
 import type { Document } from "./types";
+import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
 
 export function canMarkQuoteAsAccepted(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
+    !isUsableLegacyImportedDocument(doc) &&
     doc.status !== "borrador" &&
     doc.status !== "anulada"
   );
@@ -11,6 +13,7 @@ export function canMarkQuoteAsAccepted(doc: Document): boolean {
 export function canMarkQuoteAsRejected(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
+    !isUsableLegacyImportedDocument(doc) &&
     doc.status !== "borrador" &&
     doc.status !== "anulada"
   );

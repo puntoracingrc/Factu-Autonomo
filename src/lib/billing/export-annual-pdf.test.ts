@@ -3,6 +3,8 @@ import type { jsPDF } from "jspdf";
 import { buildAnnualSummaryPdf } from "./export-annual-pdf";
 import { DEFAULT_PROFILE, type Document, type Expense } from "../types";
 import { issueDocument, markDocumentPaid } from "../document-integrity";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { TaxExportBlockedError } from "../taxes";
 
 const profile = {
@@ -257,6 +259,30 @@ describe("export annual pdf", () => {
     expect(commands).not.toContain("F-LIVE-ALTERADA");
     expect(commands).not.toContain("Cliente alterado");
     expect(commands).not.toContain("999,00");
+  });
+
+  it("incluye un histórico importado atestado en el resumen anual", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...draftDoc,
+        id: "pcfacturacion:factura:F-2026-0001",
+        status: "pagado",
+        issuer: captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        paymentStatus: "paid",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([historical], [], profile, 2026),
+    );
+
+    expect(commands).toContain("F-2026-0001");
+    expect(commands).toContain("100,00");
+    expect(historical.snapshotSeal).toBeUndefined();
   });
 
   it("bloquea el PDF si existe evidencia fiscal corrupta", () => {

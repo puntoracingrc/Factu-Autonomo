@@ -1,6 +1,4 @@
-import {
-  formatMoney,
-} from "./calculations";
+import { formatMoney } from "./calculations";
 import { formatClientAddressLine } from "./customer-address";
 import {
   formatDocumentNumberWithSettings,
@@ -10,9 +8,16 @@ import {
   parseLegacyDocumentNumber,
 } from "./numbering";
 import { isDocumentIntegrityLocked } from "./document-integrity";
+import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
 import { canRenumberDocument } from "./document-integrity/deletion";
 import { isRectificativa } from "./rectificativas";
-import type { AppData, Document, DocumentKind, DocumentType, NumberingSettings } from "./types";
+import type {
+  AppData,
+  Document,
+  DocumentKind,
+  DocumentType,
+  NumberingSettings,
+} from "./types";
 import { documentAmounts } from "./vat-regime";
 
 const KIND_TO_TYPE: Record<DocumentKind, DocumentType> = {
@@ -307,15 +312,13 @@ function fallbackNumberOrder(
     doc.number
       .slice(previousMatch!.index! + previousMatch![0].length, lastMatch!.index)
       .includes(".");
-  const sequenceMatch = lastLooksLikeDecimalRevision ? previousMatch : lastMatch;
+  const sequenceMatch = lastLooksLikeDecimalRevision
+    ? previousMatch
+    : lastMatch;
   const sequenceIndex = sequenceMatch ? matches.indexOf(sequenceMatch) : -1;
   const revision = lastLooksLikeDecimalRevision ? Number(lastMatch![0]) : 0;
   const explicitYear = groups.find((value, index) => {
-    return (
-      index !== sequenceIndex &&
-      value >= 2000 &&
-      value <= 2100
-    );
+    return index !== sequenceIndex && value >= 2000 && value <= 2100;
   });
 
   return {
@@ -340,10 +343,7 @@ function documentNumberOrder(doc: Document): DocumentNumberOrder {
   return fallbackNumberOrder(doc);
 }
 
-export function compareDocumentsByNumberDesc(
-  a: Document,
-  b: Document,
-): number {
+export function compareDocumentsByNumberDesc(a: Document, b: Document): number {
   const orderA = documentNumberOrder(a);
   const orderB = documentNumberOrder(b);
 
@@ -380,10 +380,7 @@ export function sortDocumentsByNumberDesc(documents: Document[]): Document[] {
 }
 
 function normalizeSearchAmount(value: string): string {
-  return value
-    .replace(/[€\s]/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+  return value.replace(/[€\s]/g, "").replace(/\./g, "").replace(",", ".");
 }
 
 export function documentSearchHaystack(
@@ -446,7 +443,9 @@ export function documentMatchesQuery(
     const totalDigits = normalizeSearchAmount(total.toFixed(2));
     if (
       normalizedQuery.length >= 2 &&
-      totalDigits.replace(/\D/g, "").includes(normalizedQuery.replace(/\D/g, ""))
+      totalDigits
+        .replace(/\D/g, "")
+        .includes(normalizedQuery.replace(/\D/g, ""))
     ) {
       return true;
     }
@@ -474,6 +473,7 @@ export function getFacturasIncludingRectificativas(
 }
 
 export function isDocumentEditable(doc: Document): boolean {
+  if (isUsableLegacyImportedDocument(doc)) return false;
   if (isRectificativa(doc)) {
     return doc.status === "borrador" && !isDocumentIntegrityLocked(doc);
   }
@@ -483,6 +483,9 @@ export function isDocumentEditable(doc: Document): boolean {
 }
 
 export function getDocumentReadOnlyMessage(doc: Document): string {
+  if (isUsableLegacyImportedDocument(doc)) {
+    return "Este documento es un histórico importado aceptado por ti. Su contenido está congelado: puede usarse en impuestos y rentabilidad, pero no tiene un sello moderno ni un registro Veri*Factu de Factu. Conserva el archivo original.";
+  }
   if (doc.rectification) {
     return "Las facturas rectificativas emitidas no se editan. Compártela por email o WhatsApp, descárgala en PDF o rectifícala si hay otro error.";
   }

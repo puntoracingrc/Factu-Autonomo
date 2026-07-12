@@ -6,12 +6,27 @@ import {
   getDefaultProductPeriod,
   type ProductPeriodSelection,
 } from "./product-period-summary";
-import { EMPTY_DATA, type Document, type Expense } from "./types";
+import { issueDocument, markDocumentPaid } from "./document-integrity";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type BusinessProfile,
+  type Document,
+  type Expense,
+} from "./types";
 
 const NOW = "2026-06-28T10:00:00.000Z";
+const TEST_PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autónomo Demo",
+  nif: "12345678Z",
+  address: "Calle Mayor 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
 
 function invoice(overrides: Partial<Document> = {}): Document {
-  return {
+  const requested: Document = {
     id: overrides.id ?? "invoice",
     type: "factura",
     number: overrides.number ?? "F-2026-0001",
@@ -32,6 +47,47 @@ function invoice(overrides: Partial<Document> = {}): Document {
     createdAt: overrides.createdAt ?? NOW,
     updatedAt: overrides.updatedAt ?? NOW,
     ...overrides,
+  };
+
+  if (
+    requested.status === "borrador" ||
+    requested.documentLifecycle === "draft"
+  ) {
+    return requested;
+  }
+
+  const draft: Document = {
+    ...requested,
+    status: "borrador",
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+    paymentStatus: "pending",
+    rectifiedById: undefined,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+    integrityQuarantine: undefined,
+    issuedAt: undefined,
+    sentAt: undefined,
+    paidAt: undefined,
+  };
+  const issued = issueDocument(draft, TEST_PROFILE, NOW);
+  const canonical =
+    requested.status === "pagado" || requested.paymentStatus === "paid"
+      ? markDocumentPaid(issued, NOW)
+      : issued;
+
+  return {
+    ...canonical,
+    status: requested.status,
+    documentLifecycle: requested.documentLifecycle,
+    paymentStatus: requested.paymentStatus,
+    rectifiedById: requested.rectifiedById,
+    snapshotIntegrity:
+      requested.snapshotIntegrity ?? canonical.snapshotIntegrity,
+    integrityQuarantine: requested.integrityQuarantine,
   };
 }
 
@@ -277,6 +333,8 @@ describe("product period summary", () => {
         ...EMPTY_DATA,
         documents: [
           invoice({
+            status: "borrador",
+            documentLifecycle: "draft",
             items: [
               {
                 id: "bad-line",

@@ -1,5 +1,6 @@
-import { documentTotals, roundMoney } from "@/lib/calculations";
+import { roundMoney } from "@/lib/calculations";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
+import { documentAmounts } from "@/lib/vat-regime";
 import type { Document } from "@/lib/types";
 import type { ProfitabilityIncomeSource } from "./types";
 
@@ -10,7 +11,7 @@ export function mapExistingInvoiceToProfitabilityIncome(
     throw new Error("Solo se pueden mapear facturas como ingresos.");
   }
 
-  const totals = documentTotals(invoice);
+  const totals = documentAmounts(invoice, false);
   const isTotalRectification = invoice.rectification?.type === "anulacion";
   const subtotal = isTotalRectification ? 0 : roundMoney(totals.subtotal);
   const iva = isTotalRectification ? 0 : roundMoney(totals.iva);

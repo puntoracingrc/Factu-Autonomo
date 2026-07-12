@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_DATA, type AppData, type Document, type Expense } from "@/lib/types";
+import { issueDocument } from "@/lib/document-integrity";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type AppData,
+  type Document,
+  type Expense,
+} from "@/lib/types";
 import { buildProfitabilityInputDraftFromExistingData } from "./profitability-input-builder";
 
 function deepClone<T>(value: T): T {
@@ -29,7 +36,8 @@ function baseAppData(overrides: Partial<AppData> = {}): AppData {
 }
 
 function baseDocument(overrides: Partial<Document>): Document {
-  return {
+  const requestedStatus = overrides.status ?? "enviado";
+  const draft: Document = {
     id: "invoice_1",
     type: "factura",
     number: "F-2026-0001",
@@ -46,10 +54,24 @@ function baseDocument(overrides: Partial<Document>): Document {
         ivaPercent: 21,
       },
     ],
-    status: "enviado",
     createdAt: "2026-07-01T10:00:00.000Z",
     updatedAt: "2026-07-01T10:00:00.000Z",
     ...overrides,
+    status: "borrador",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  return {
+    ...issueDocument(
+      draftForIssue,
+      { ...DEFAULT_PROFILE, name: "Negocio Demo", nif: "12345678Z" },
+      draft.createdAt,
+    ),
+    status: requestedStatus,
   };
 }
 
@@ -69,6 +91,25 @@ function baseExpense(overrides: Partial<Expense> = {}): Expense {
 }
 
 describe("buildProfitabilityInputDraftFromExistingData", () => {
+  it("excluye de los ingresos una emisión de la app cuyo sello ha desaparecido", () => {
+    const issued = baseDocument({ id: "app-issued-without-seal" });
+    const withoutSeal: Document = {
+      ...issued,
+      snapshotSeal: undefined,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["snapshot_seal_missing"],
+      },
+    };
+
+    const draft = buildProfitabilityInputDraftFromExistingData(
+      baseAppData({ documents: [withoutSeal] }),
+    );
+
+    expect(draft.incomes).toEqual([]);
+    expect(draft.missingData).toContain("facturas emitidas");
+  });
+
   it("warns when assignments are missing", () => {
     const quote = baseDocument({
       id: "quote_1",

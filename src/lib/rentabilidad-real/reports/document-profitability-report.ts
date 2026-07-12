@@ -1,4 +1,5 @@
-import { documentTotals, roundMoney } from "@/lib/calculations";
+import { roundMoney } from "@/lib/calculations";
+import { documentAmounts } from "@/lib/vat-regime";
 import { isFixedExpense } from "@/lib/expense-classification";
 import {
   type RentabilidadRealDocumentAnalysisMode,
@@ -79,7 +80,8 @@ function incomeForUnit(appData: AppData, unit: RentabilidadRealAnalysisUnit): nu
     ? documentById(appData, unit.quoteDocumentId)
     : undefined;
   const document = invoice ?? quote;
-  return document ? roundMoney(documentTotals(document).subtotal) : 0;
+  if (!document) return 0;
+  return roundMoney(documentAmounts(document, false).subtotal);
 }
 
 function hasFixedCosts(appData: AppData): boolean {

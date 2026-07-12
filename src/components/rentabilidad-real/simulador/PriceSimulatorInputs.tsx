@@ -1,6 +1,8 @@
 "use client";
 
-import { documentTotals, formatMoney } from "@/lib/calculations";
+import { formatMoney } from "@/lib/calculations";
+import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
+import { documentAmounts } from "@/lib/vat-regime";
 import type { RentabilidadRealFixedCostAllocationMethod } from "@/lib/rentabilidad-real/calculation";
 import { rentabilidadRealDocumentClientName } from "@/lib/rentabilidad-real/document-client";
 import type {
@@ -56,6 +58,9 @@ export function PriceSimulatorInputs({
     settings: RentabilidadRealPriceSimulatorSettings,
   ) => void;
 }) {
+  const usableDocuments = documents.filter(
+    isDocumentUsableForFinancialCalculations,
+  );
   function patch(patchSettings: Partial<RentabilidadRealPriceSimulatorSettings>) {
     onSettingsChange({ ...settings, ...patchSettings });
   }
@@ -105,13 +110,13 @@ export function PriceSimulatorInputs({
               }
               className="mt-2 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition-colors focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
-              {documents.length === 0 ? (
+              {usableDocuments.length === 0 ? (
                 <option value="">No hay documentos disponibles</option>
               ) : null}
-              {documents.map((doc) => (
+              {usableDocuments.map((doc) => (
                 <option key={doc.id} value={doc.id}>
                   {doc.number} · {rentabilidadRealDocumentClientName(doc)} ·{" "}
-                  {formatMoney(documentTotals(doc).subtotal)} base
+                  {formatMoney(documentAmounts(doc, false).subtotal)} base
                 </option>
               ))}
             </select>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Document, Expense } from "@/lib/types";
+import { issueDocument } from "@/lib/document-integrity";
+import { DEFAULT_PROFILE, type Document, type Expense } from "@/lib/types";
 import {
   buildRentabilidadRealFixedCostDisplay,
   buildRentabilidadRealWorkDocumentOptions,
@@ -7,7 +8,8 @@ import {
 } from "./work-calculator-view-model";
 
 function documentFixture(overrides: Partial<Document>): Document {
-  return {
+  const requestedStatus = overrides.status ?? "borrador";
+  const draft: Document = {
     id: "doc",
     type: "factura",
     number: "F-2026-0001",
@@ -22,10 +24,26 @@ function documentFixture(overrides: Partial<Document>): Document {
         ivaPercent: 21,
       },
     ],
-    status: "borrador",
     createdAt: "2026-07-01T10:00:00.000Z",
     updatedAt: "2026-07-01T10:00:00.000Z",
     ...overrides,
+    status: "borrador",
+  };
+  if (requestedStatus === "borrador") return draft;
+  const draftForIssue: Document = {
+    ...draft,
+    documentLifecycle: "draft",
+    integrityLock: "unlocked",
+  };
+  delete draftForIssue.rectifiedById;
+  return {
+    ...issueDocument(
+      draftForIssue,
+      { ...DEFAULT_PROFILE, name: "Negocio Demo", nif: "12345678Z" },
+      draft.createdAt,
+    ),
+    status: requestedStatus,
+    rectifiedById: overrides.rectifiedById,
   };
 }
 
@@ -127,7 +145,9 @@ describe("work calculator view model", () => {
     expect(options[1].linkedDocumentLabel).toBe(
       "Presupuesto origen P-2026-0001",
     );
-    expect(filterRentabilidadRealWorkDocumentOptions(options, "reciente")).toHaveLength(1);
+    expect(
+      filterRentabilidadRealWorkDocumentOptions(options, "reciente"),
+    ).toHaveLength(1);
   });
 
   it("documento sin client usa fallback", () => {

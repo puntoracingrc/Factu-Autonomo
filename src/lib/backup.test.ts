@@ -15,6 +15,11 @@ import {
   isDocumentIntegrityLocked,
   issueDocument,
 } from "./document-integrity";
+import {
+  applyLegacyImportRepair,
+  buildLegacyImportRepairPreview,
+  inspectLegacyImportAttestation,
+} from "./document-integrity/legacy-import-attestation";
 import { EMPTY_DATA, type Document } from "./types";
 
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -43,6 +48,79 @@ function snapshotDocument(): Document {
     EMPTY_DATA.profile,
     NOW,
   );
+}
+
+function attestedHistoricalDocument(): Document {
+  const capturedAt = "2024-04-01T10:00:00.000Z";
+  const profile = {
+    ...EMPTY_DATA.profile,
+    name: "Negocio histórico",
+    nif: "12345678Z",
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+    email: "negocio@example.test",
+  };
+  const imported: Document = {
+    id: "pcfacturacion:factura:F-2024-0001",
+    type: "factura",
+    number: "F-2024-0001",
+    date: "2024-04-01",
+    client: {
+      name: "Cliente histórico",
+      nif: "B12345678",
+      address: "Calle Cliente 2",
+      city: "Madrid",
+      postalCode: "28002",
+    },
+    items: [
+      {
+        id: "line-1",
+        description: "Trabajo importado",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "enviado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      email: profile.email,
+      capturedAt,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: capturedAt,
+    updatedAt: capturedAt,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [imported],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    NOW,
+  );
+  if (result.status !== "applied") {
+    throw new Error("No se pudo construir el fixture histórico atestado.");
+  }
+  return result.data.documents[0]!;
 }
 
 describe("backup", () => {
@@ -997,6 +1075,68 @@ describe("backup", () => {
         }
       )?.futurePdfField,
     ).toBe("se conserva");
+  });
+
+  it("exportar e importar conserva exactamente la atestación histórica", () => {
+    const document = attestedHistoricalDocument();
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        documents: [document],
+        snapshotIntegrityVersion: 1,
+      },
+      NOW,
+    );
+
+    const restored = parseBackupJson(JSON.parse(JSON.stringify(payload)));
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.documents[0]?.legacyImportAttestation).toEqual(
+      document.legacyImportAttestation,
+    );
+    expect(restored.documents[0]?.documentSnapshot).toEqual(
+      document.documentSnapshot,
+    );
+    expect(restored.documents[0]?.pdfSnapshot).toBeUndefined();
+    expect(restored.documents[0]?.snapshotSeal).toBeUndefined();
+    expect(inspectLegacyImportAttestation(restored.documents[0]!).ok).toBe(
+      true,
+    );
+  });
+
+  it("no convierte en válida una atestación corrupta al restaurar", () => {
+    const valid = attestedHistoricalDocument();
+    const corrupt: Document = {
+      ...valid,
+      legacyImportAttestation: {
+        ...valid.legacyImportAttestation!,
+        attestationHash: "sha256:corrupt",
+      },
+    };
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        documents: [corrupt],
+        snapshotIntegrityVersion: 1,
+      },
+      NOW,
+    );
+
+    const restored = parseBackupJson(JSON.parse(JSON.stringify(payload)));
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.documents[0]?.legacyImportAttestation).toEqual(
+      corrupt.legacyImportAttestation,
+    );
+    expect(inspectLegacyImportAttestation(restored.documents[0]!).ok).toBe(
+      false,
+    );
+    expect(restored.documents[0]?.snapshotIntegrity).toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),
+    });
   });
 
   it("exportar e importar copia conserva customerId y mergedCustomerIds", async () => {

@@ -9,6 +9,7 @@ import {
 import { roundMoney } from "../calculations";
 import { clientAddressToFormFields } from "../customer-address";
 import { buildPdfViewModelFromDocumentSnapshot } from "../document-integrity/pdf-source";
+import { inspectUsableHistoricalDocumentEvidence } from "../document-integrity/legacy-import-attestation";
 import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
 import { invoiceClientMissingDocumentLabels } from "../invoice-compliance";
 import { originalStatusAfterRectification } from "../rectificativas";
@@ -314,16 +315,10 @@ export function selectCanonicalFiscalDocumentsForExport(
   for (const document of withDocumentRelationshipIntegritySignals(documents)) {
     if (!isPotentialFiscalDocument(document)) continue;
 
-    const integrity = inspectDocumentSnapshotsIntegrity(document, {
-      requireDocumentSnapshot: true,
-    });
-    const signaledIssues =
-      document.snapshotIntegrity?.status === "blocked"
-        ? document.snapshotIntegrity.issues
-        : [];
-    const issues = [...signaledIssues, ...integrity.issues];
+    const evidence = inspectUsableHistoricalDocumentEvidence(document);
+    const issues = evidence.ok ? [] : evidence.issues;
 
-    if (issues.length > 0 || !document.documentSnapshot) {
+    if (!evidence.ok) {
       addBlockedDocument(
         blockedById,
         document,
@@ -332,7 +327,7 @@ export function selectCanonicalFiscalDocumentsForExport(
       continue;
     }
 
-    if (!hasMinimumFiscalSnapshotCompliance(document.documentSnapshot)) {
+    if (!hasMinimumFiscalSnapshotCompliance(evidence.snapshot)) {
       addBlockedDocument(
         blockedById,
         document,
@@ -345,7 +340,7 @@ export function selectCanonicalFiscalDocumentsForExport(
       const canonical = buildPdfViewModelFromDocumentSnapshot(
         document,
         profile,
-        document.documentSnapshot,
+        evidence.snapshot,
       ).doc;
       if (!isFiscalType(canonical.type) || document.type !== canonical.type) {
         addBlockedDocument(
@@ -398,7 +393,9 @@ export function selectCanonicalFiscalDocumentsForExport(
         ...candidate.canonical,
         // Proyección efímera ya verificada: obliga a los cálculos fiscales a
         // consumir taxSummary, también para snapshots legacy sin sello fuerte.
-        snapshotIntegrityRequired: true,
+        snapshotIntegrityRequired: candidate.stored.legacyImportAttestation
+          ? undefined
+          : true,
       });
     }
   }

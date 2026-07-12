@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildQuarterlyExportCsv } from "./export-quarterly";
 import { DEFAULT_PROFILE, type Document, type Expense, type Supplier } from "../types";
 import { issueDocument } from "../document-integrity";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { TaxExportBlockedError } from "../taxes";
 
 const profile = {
@@ -305,9 +307,14 @@ describe("export quarterly csv", () => {
   it("mantiene el resumen fiscal congelado de snapshots legacy verificados", () => {
     const legacy: Document = {
       ...doc,
+      documentSnapshot: {
+        ...doc.documentSnapshot!,
+        source: "legacy_backfill",
+      },
       pdfSnapshot: undefined,
       snapshotSeal: undefined,
       snapshotIntegrityRequired: undefined,
+      issuedAt: undefined,
     };
 
     const csv = buildQuarterlyExportCsv(
@@ -321,6 +328,34 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Base imponible ventas;100,00");
     expect(csv).toContain("IVA repercutido;21,00");
     expect(csv).toContain("100,00;21,00;121,00");
+  });
+
+  it("exporta el histórico importado atestado sin atribuirle sello moderno", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...draftDoc,
+        id: "pcfacturacion:factura:F-2026-0001",
+        status: "enviado",
+        issuer: captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+
+    const csv = buildQuarterlyExportCsv(
+      [historical],
+      [],
+      profile,
+      2026,
+      2,
+    );
+    expect(csv).toContain("Base imponible ventas;100,00");
+    expect(csv).toContain("IVA repercutido;21,00");
+    expect(historical.pdfSnapshot).toBeUndefined();
+    expect(historical.snapshotSeal).toBeUndefined();
   });
 
   it("compensa compra y abono y rotula el saldo a favor en el libro", () => {

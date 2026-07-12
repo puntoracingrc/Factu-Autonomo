@@ -795,9 +795,14 @@ describe("document relationship integrity", () => {
     const legacy: Document = {
       ...sealed,
       id: "legacy-duplicate",
+      documentSnapshot: {
+        ...sealed.documentSnapshot!,
+        source: "legacy_backfill",
+      },
       pdfSnapshot: undefined,
       snapshotSeal: undefined,
       snapshotIntegrityRequired: undefined,
+      issuedAt: undefined,
     };
 
     const result = withDocumentRelationshipIntegritySignals([sealed, legacy]);

@@ -1,5 +1,6 @@
 import { todayISO } from "./calculations";
 import { isQuoteExpired } from "./quote-validity";
+import { isUsableLegacyImportedDocument } from "./document-integrity/legacy-import-attestation";
 import type { Document, LineItem } from "./types";
 
 export type InvoiceDraftFromQuote = Omit<
@@ -25,6 +26,7 @@ function cloneLineItem(
 export function canConvertQuoteToInvoice(doc: Document): boolean {
   return (
     doc.type === "presupuesto" &&
+    !isUsableLegacyImportedDocument(doc) &&
     doc.status !== "anulada" &&
     doc.status !== "rechazado" &&
     doc.status !== "vencido" &&
