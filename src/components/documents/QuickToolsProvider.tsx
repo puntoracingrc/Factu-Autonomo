@@ -30,8 +30,11 @@ const EMPTY_POST_IT_SESSION: QuickPostItSession = {
   text: "",
 };
 
+type QuickToolId = "calculator" | "post-it";
+
 export function QuickToolsProvider({ children }: { children: ReactNode }) {
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<QuickToolId | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [postItSession, setPostItSession] = useState<QuickPostItSession>(
     EMPTY_POST_IT_SESSION,
@@ -71,26 +74,47 @@ export function QuickToolsProvider({ children }: { children: ReactNode }) {
     () => ({
       calculatorOpen,
       postItOpen: postItSession.open,
-      openCalculator: () => setCalculatorOpen(true),
-      openPostIt: () =>
-        setPostItSession((current) => ({ ...current, open: true })),
+      openCalculator: () => {
+        setCalculatorOpen(true);
+        setActiveTool("calculator");
+      },
+      openPostIt: () => {
+        setPostItSession((current) => ({ ...current, open: true }));
+        setActiveTool("post-it");
+      },
     }),
     [calculatorOpen, postItSession.open],
   );
 
   function closePostIt() {
     setPostItSession(EMPTY_POST_IT_SESSION);
+    setActiveTool((current) =>
+      current === "post-it" && calculatorOpen ? "calculator" : null,
+    );
+  }
+
+  function closeCalculator() {
+    setCalculatorOpen(false);
+    setActiveTool((current) =>
+      current === "calculator" && postItSession.open ? "post-it" : null,
+    );
   }
 
   return (
     <QuickToolsContext.Provider value={value}>
       {children}
       {calculatorOpen ? (
-        <QuickCalculator onClose={() => setCalculatorOpen(false)} />
+        <QuickCalculator
+          isActive={activeTool === "calculator"}
+          onActivate={() => setActiveTool("calculator")}
+          onClose={closeCalculator}
+        />
       ) : null}
       {hydrated && postItSession.open ? (
         <QuickPostIt
+          isActive={activeTool === "post-it"}
           value={postItSession.text}
+          onActivate={() => setActiveTool("post-it")}
           onChange={(text) =>
             setPostItSession((current) => ({ ...current, text }))
           }

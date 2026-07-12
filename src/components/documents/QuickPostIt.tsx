@@ -11,7 +11,9 @@ import { quickToolDragVisualStyle } from "./quick-tool-drag-visual";
 import { QUICK_POST_IT_MAX_LENGTH } from "./quick-post-it-session";
 
 interface QuickPostItProps {
+  isActive: boolean;
   value: string;
+  onActivate: () => void;
   onChange: (value: string) => void;
   onClose: () => void;
 }
@@ -28,7 +30,13 @@ interface DragState {
   originY: number;
 }
 
-export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
+export function QuickPostIt({
+  isActive,
+  value,
+  onActivate,
+  onChange,
+  onClose,
+}: QuickPostItProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -82,6 +90,7 @@ export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
+    onActivate();
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -119,6 +128,8 @@ export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
   return (
     <div
       ref={panelRef}
+      onFocusCapture={onActivate}
+      onPointerDownCapture={onActivate}
       style={{
         left: position.x,
         top: position.y,
@@ -127,7 +138,7 @@ export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
         backgroundSize: "310% 310%",
-        ...quickToolDragVisualStyle("post-it", isDragging),
+        ...quickToolDragVisualStyle("post-it", isDragging, isActive),
       }}
       className="fixed flex h-[min(15rem,calc(100vh-1rem))] w-[min(15rem,calc(100vw-1rem))] origin-center flex-col overflow-visible rounded-sm border border-amber-200/80 p-3 pt-2 text-slate-900 motion-reduce:!transform-none motion-reduce:!transition-none"
       aria-label="Post-it de notas rápidas"

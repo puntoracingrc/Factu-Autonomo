@@ -18,6 +18,8 @@ import { quickToolDragVisualStyle } from "./quick-tool-drag-visual";
 type Operator = "+" | "-" | "*" | "/";
 
 interface QuickCalculatorProps {
+  isActive: boolean;
+  onActivate: () => void;
   onClose: () => void;
 }
 
@@ -80,7 +82,11 @@ function calculate(first: number, second: number, operator: Operator): number {
   return second;
 }
 
-export function QuickCalculator({ onClose }: QuickCalculatorProps) {
+export function QuickCalculator({
+  isActive,
+  onActivate,
+  onClose,
+}: QuickCalculatorProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const clearHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,6 +154,7 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
+    onActivate();
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -347,10 +354,12 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
       ref={panelRef}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
+      onFocusCapture={onActivate}
+      onPointerDownCapture={onActivate}
       style={{
         left: position.x,
         top: position.y,
-        ...quickToolDragVisualStyle("calculator", isDragging),
+        ...quickToolDragVisualStyle("calculator", isDragging, isActive),
       }}
       className="fixed w-[min(13.25rem,calc(100vw-1rem))] origin-center rounded-xl border border-blue-100 bg-white p-2.5 text-slate-900 motion-reduce:!transform-none motion-reduce:!transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
       aria-label="Panel de calculadora rápida"
