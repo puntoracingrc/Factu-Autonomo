@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FiscalModelCatalogView } from "@/components/fiscal-models/FiscalModelCatalogView";
-import { searchPublicAeatModelReviewPagesV1 } from "@/lib/fiscal-models/model-pages";
+import {
+  listPublicAeatModelReviewPagesV1,
+  resolvePublicAeatModelCalendarCatalogContextV1,
+  searchPublicAeatModelReviewPagesV2,
+} from "@/lib/fiscal-models/model-pages";
 
 export const metadata: Metadata = {
-  title: "Modelos AEAT · Información en revisión",
+  title: "Modelos AEAT",
   description:
     "Catálogo informativo de modelos AEAT con fuentes, procedencia y estado de revisión visibles.",
   robots: {
@@ -21,10 +25,20 @@ interface FiscalModelCatalogPageProps {
 export default async function FiscalModelCatalogPage({
   searchParams,
 }: FiscalModelCatalogPageProps) {
-  const result = searchPublicAeatModelReviewPagesV1(await searchParams);
-  if (result.status === "BLOCKED" && result.reason !== "INVALID_INPUT") {
-    notFound();
-  }
+  const requestSearchParams = await searchParams;
+  const catalog = listPublicAeatModelReviewPagesV1();
+  if (catalog.status === "BLOCKED") notFound();
+  const result = searchPublicAeatModelReviewPagesV2(requestSearchParams);
+  if (result.status === "BLOCKED") notFound();
+  const calendarContext = resolvePublicAeatModelCalendarCatalogContextV1(
+    requestSearchParams,
+  );
 
-  return <FiscalModelCatalogView result={result} />;
+  return (
+    <FiscalModelCatalogView
+      result={result}
+      pages={catalog.data}
+      calendarContext={calendarContext}
+    />
+  );
 }

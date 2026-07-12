@@ -12,9 +12,18 @@ import {
   type PublicAeatModelReviewRouteV1,
 } from "./public-review-route-manifest.v1";
 import { getFiscalModelReviewPageViewV1 } from "./review-view-model.v1";
+import {
+  createPublicAeatModelSearchEntryV2,
+  filterPublicAeatModelSearchEntriesV2,
+  type PublicAeatModelReviewSearchResultV2,
+} from "./public-review-search.v2";
 
 const PUBLIC_REVIEW_DESCRIPTOR_RELEASE_ID =
   "public-aeat-model-review-pages.2026-07-12.v1" as const;
+const FISCAL_CALENDAR_ORIGIN = "FISCAL_CALENDAR" as const;
+const FISCAL_CALENDAR_ORIGIN_QUERY_VALUE = "calendario" as const;
+const FISCAL_CALENDAR_RETURN_HREF =
+  "/consultor-fiscal/calendario" as const;
 const REVIEW_BADGE = "Información en revisión" as const;
 const REVIEW_TITLE = "Contenido pendiente de revisión fiscal" as const;
 const REVIEW_MESSAGE =
@@ -26,6 +35,7 @@ const STRUCTURAL_SUMMARY =
 const OFFICIAL_MODEL_CODE_PATTERN =
   /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256_HASH = /^[a-f0-9]{64}$/;
+const INVALID_SEARCH_INPUT = Symbol("INVALID_SEARCH_INPUT");
 
 type ParsedObject = Record<string, unknown>;
 
@@ -49,6 +59,7 @@ export interface PublicAeatModelReviewSourceV1 {
 export interface PublicAeatModelReviewPageV1 {
   readonly code: PublicAeatModelReviewCodeV1;
   readonly href: PublicAeatModelReviewPathV1;
+  readonly catalogCardId: `modelo-${PublicAeatModelReviewCodeV1}`;
   readonly reviewPagePath: PublicAeatModelReviewPathV1;
   readonly routeDeploymentStatus: "DEPLOYED";
   readonly contentReviewStatus: "PENDING_REVIEW";
@@ -74,6 +85,38 @@ export interface PublicAeatModelReviewPageV1 {
   readonly limitations: typeof LIMITATIONS;
   readonly sources: readonly PublicAeatModelReviewSourceV1[];
 }
+
+export interface PublicAeatModelCalendarNavigationV1 {
+  readonly code: PublicAeatModelReviewCodeV1;
+  readonly origin: typeof FISCAL_CALENDAR_ORIGIN;
+  readonly originQueryValue: typeof FISCAL_CALENDAR_ORIGIN_QUERY_VALUE;
+  readonly routeDeploymentStatus: "DEPLOYED";
+  readonly catalogCardId: `modelo-${PublicAeatModelReviewCodeV1}`;
+  readonly catalogFocusHref: `/consultor-fiscal/modelos?origen=calendario&foco=${PublicAeatModelReviewCodeV1}#modelo-${PublicAeatModelReviewCodeV1}`;
+  readonly detailHref: `${PublicAeatModelReviewPathV1}?origen=calendario`;
+  readonly returnHref: typeof FISCAL_CALENDAR_RETURN_HREF;
+}
+
+export type PublicAeatModelCalendarNavigationResolveResultV1 =
+  | Readonly<{
+      status: "REVIEW_ONLY";
+      data: PublicAeatModelCalendarNavigationV1;
+      catalogFocusHref: PublicAeatModelCalendarNavigationV1["catalogFocusHref"];
+      detailHref: PublicAeatModelCalendarNavigationV1["detailHref"];
+    }>
+  | Readonly<{
+      status: "BLOCKED";
+      reason: PublicAeatModelReviewBlockReasonV1;
+      catalogFocusHref: null;
+      detailHref: null;
+    }>;
+
+export type PublicAeatModelCalendarDetailContextResultV1 =
+  | Readonly<{ status: "DIRECT"; data: null }>
+  | Readonly<{
+      status: "FROM_CALENDAR";
+      data: PublicAeatModelCalendarNavigationV1;
+    }>;
 
 export type PublicAeatModelReviewResolveResultV1 =
   | Readonly<{
@@ -139,6 +182,32 @@ function hasOwn(value: ParsedObject, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 
+function parseSearchModelQuery(
+  input: unknown,
+): unknown | typeof INVALID_SEARCH_INPUT {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return INVALID_SEARCH_INPUT;
+  }
+  try {
+    const prototype = Object.getPrototypeOf(input);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return INVALID_SEARCH_INPUT;
+    }
+    let query: unknown = null;
+    for (const key of Reflect.ownKeys(input)) {
+      if (typeof key !== "string") return INVALID_SEARCH_INPUT;
+      const descriptor = Object.getOwnPropertyDescriptor(input, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return INVALID_SEARCH_INPUT;
+      }
+      if (key === "modelo") query = descriptor.value;
+    }
+    return query;
+  } catch {
+    return INVALID_SEARCH_INPUT;
+  }
+}
+
 function isAllowlistedOfficialUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -169,6 +238,12 @@ function copyPage(
     sourceGroupCodes: Object.freeze([...page.sourceGroupCodes]),
     sources: Object.freeze(page.sources.map(copySource)),
   });
+}
+
+function copyCalendarNavigation(
+  navigation: PublicAeatModelCalendarNavigationV1,
+): PublicAeatModelCalendarNavigationV1 {
+  return Object.freeze({ ...navigation });
 }
 
 function blockedResolve(
@@ -212,6 +287,7 @@ function buildInventoryPage(
   return Object.freeze({
     code: route.code,
     href: route.path,
+    catalogCardId: `modelo-${route.code}`,
     reviewPagePath: route.path,
     routeDeploymentStatus: "DEPLOYED",
     contentReviewStatus: "PENDING_REVIEW",
@@ -295,6 +371,7 @@ function buildHistoricalPage(
   return Object.freeze({
     code: route.code,
     href: route.path,
+    catalogCardId: `modelo-${route.code}`,
     reviewPagePath: route.path,
     routeDeploymentStatus: "DEPLOYED",
     contentReviewStatus: "PENDING_REVIEW",
@@ -387,7 +464,8 @@ function buildCatalogSnapshot(): CatalogSnapshot {
   if (
     pages.length !== 229 ||
     new Set(pages.map((page) => page.code)).size !== pages.length ||
-    new Set(pages.map((page) => page.href)).size !== pages.length
+    new Set(pages.map((page) => page.href)).size !== pages.length ||
+    new Set(pages.map((page) => page.catalogCardId)).size !== pages.length
   ) {
     return Object.freeze({
       status: "BLOCKED",
@@ -406,6 +484,29 @@ const pagesByCode =
   CATALOG_SNAPSHOT.status === "REVIEW_ONLY"
     ? new Map(CATALOG_SNAPSHOT.data.map((page) => [page.code, page] as const))
     : new Map<PublicAeatModelReviewCodeV1, PublicAeatModelReviewPageV1>();
+const calendarNavigationByCode =
+  CATALOG_SNAPSHOT.status === "REVIEW_ONLY"
+    ? new Map(
+        CATALOG_SNAPSHOT.data.map((page) => {
+          const navigation: PublicAeatModelCalendarNavigationV1 = Object.freeze({
+            code: page.code,
+            origin: FISCAL_CALENDAR_ORIGIN,
+            originQueryValue: FISCAL_CALENDAR_ORIGIN_QUERY_VALUE,
+            routeDeploymentStatus: page.routeDeploymentStatus,
+            catalogCardId: page.catalogCardId,
+            catalogFocusHref:
+              `/consultor-fiscal/modelos?origen=calendario&foco=${page.code}#${page.catalogCardId}` as PublicAeatModelCalendarNavigationV1["catalogFocusHref"],
+            detailHref:
+              `${page.href}?origen=calendario` as PublicAeatModelCalendarNavigationV1["detailHref"],
+            returnHref: FISCAL_CALENDAR_RETURN_HREF,
+          });
+          return [page.code, navigation] as const;
+        }),
+      )
+    : new Map<
+        PublicAeatModelReviewCodeV1,
+        PublicAeatModelCalendarNavigationV1
+      >();
 
 export function resolvePublicAeatModelReviewPageV1(
   input: unknown,
@@ -443,6 +544,133 @@ export function listPublicAeatModelReviewPagesV1(): PublicAeatModelReviewListRes
   return Object.freeze({
     status: "REVIEW_ONLY",
     data: Object.freeze(CATALOG_SNAPSHOT.data.map(copyPage)),
+  });
+}
+
+export function searchPublicAeatModelReviewPagesV2(
+  input: unknown,
+): PublicAeatModelReviewSearchResultV2 {
+  const query = parseSearchModelQuery(input);
+  if (query === INVALID_SEARCH_INPUT) {
+    return Object.freeze({ status: "BLOCKED", reason: "INVALID_INPUT" });
+  }
+  const catalog = listPublicAeatModelReviewPagesV1();
+  if (catalog.status === "BLOCKED") return catalog;
+
+  const entries = catalog.data.map(createPublicAeatModelSearchEntryV2);
+  const result = filterPublicAeatModelSearchEntriesV2(entries, query);
+  if (result.status === "BLOCKED") return result;
+  const matchingIds = new Set(result.data.map((entry) => entry.catalogCardId));
+  const data = catalog.data.filter((page) =>
+    matchingIds.has(page.catalogCardId),
+  );
+  return Object.freeze({
+    status: "REVIEW_ONLY",
+    data: Object.freeze(data),
+    query: result.query,
+    normalizedQuery: result.normalizedQuery,
+    match: result.match,
+    total: result.total,
+  });
+}
+
+export function resolvePublicAeatModelCalendarNavigationV1(
+  input: unknown,
+): PublicAeatModelCalendarNavigationResolveResultV1 {
+  const parsed = parseExactObject(input, ["code"]);
+  if (
+    !parsed ||
+    typeof parsed.code !== "string" ||
+    !OFFICIAL_MODEL_CODE_PATTERN.test(parsed.code)
+  ) {
+    return Object.freeze({
+      status: "BLOCKED",
+      reason: "INVALID_INPUT",
+      catalogFocusHref: null,
+      detailHref: null,
+    });
+  }
+  if (CATALOG_SNAPSHOT.status === "BLOCKED") {
+    return Object.freeze({
+      status: "BLOCKED",
+      reason: "INCONSISTENT_CATALOG",
+      catalogFocusHref: null,
+      detailHref: null,
+    });
+  }
+
+  const navigation = calendarNavigationByCode.get(
+    parsed.code as PublicAeatModelReviewCodeV1,
+  );
+  if (!navigation) {
+    return Object.freeze({
+      status: "BLOCKED",
+      reason: "MODEL_NOT_FOUND",
+      catalogFocusHref: null,
+      detailHref: null,
+    });
+  }
+
+  const data = copyCalendarNavigation(navigation);
+  return Object.freeze({
+    status: "REVIEW_ONLY",
+    data,
+    catalogFocusHref: data.catalogFocusHref,
+    detailHref: data.detailHref,
+  });
+}
+
+export function resolvePublicAeatModelCalendarDetailContextV1(
+  input: unknown,
+): PublicAeatModelCalendarDetailContextResultV1 {
+  const parsed = parseExactObject(input, ["code", "searchParams"]);
+  if (!parsed || typeof parsed.code !== "string") {
+    return Object.freeze({ status: "DIRECT", data: null });
+  }
+
+  const searchParams = parseExactObject(parsed.searchParams, ["origen"]);
+  if (
+    !searchParams ||
+    !hasOwn(searchParams, "origen") ||
+    searchParams.origen !== FISCAL_CALENDAR_ORIGIN_QUERY_VALUE
+  ) {
+    return Object.freeze({ status: "DIRECT", data: null });
+  }
+
+  const navigation = resolvePublicAeatModelCalendarNavigationV1({
+    code: parsed.code,
+  });
+  if (navigation.status === "BLOCKED") {
+    return Object.freeze({ status: "DIRECT", data: null });
+  }
+  return Object.freeze({
+    status: "FROM_CALENDAR",
+    data: copyCalendarNavigation(navigation.data),
+  });
+}
+
+export function resolvePublicAeatModelCalendarCatalogContextV1(
+  input: unknown,
+): PublicAeatModelCalendarDetailContextResultV1 {
+  const parsed = parseExactObject(input, ["modelo", "origen", "foco"]);
+  if (
+    !parsed ||
+    (hasOwn(parsed, "modelo") && parsed.modelo !== "") ||
+    parsed.origen !== FISCAL_CALENDAR_ORIGIN_QUERY_VALUE ||
+    typeof parsed.foco !== "string"
+  ) {
+    return Object.freeze({ status: "DIRECT", data: null });
+  }
+
+  const navigation = resolvePublicAeatModelCalendarNavigationV1({
+    code: parsed.foco,
+  });
+  if (navigation.status === "BLOCKED") {
+    return Object.freeze({ status: "DIRECT", data: null });
+  }
+  return Object.freeze({
+    status: "FROM_CALENDAR",
+    data: copyCalendarNavigation(navigation.data),
   });
 }
 

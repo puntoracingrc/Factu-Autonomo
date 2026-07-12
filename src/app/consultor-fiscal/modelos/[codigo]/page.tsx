@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { FiscalModelStructuralDetailView } from "@/components/fiscal-models/FiscalModelStructuralDetailView";
 import {
   listPublicAeatModelReviewPagesV1,
+  resolvePublicAeatModelCalendarDetailContextV1,
   resolvePublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages";
 
@@ -10,6 +11,7 @@ export const dynamicParams = false;
 
 interface FiscalModelDetailPageProps {
   params: Promise<{ codigo: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export function generateStaticParams() {
@@ -28,7 +30,7 @@ export async function generateMetadata({
   if (result.status === "BLOCKED") notFound();
 
   return {
-    title: "Modelo " + result.data.code + " · Información en revisión",
+    title: "Modelo " + result.data.code + " · Modelos AEAT",
     description: result.data.summary,
     robots: { index: false, follow: false, noarchive: true },
   };
@@ -36,10 +38,24 @@ export async function generateMetadata({
 
 export default async function FiscalModelDetailPage({
   params,
+  searchParams,
 }: FiscalModelDetailPageProps) {
   const { codigo } = await params;
   const result = resolvePublicAeatModelReviewPageV1({ code: codigo });
   if (result.status === "BLOCKED") notFound();
+  const calendarContext = resolvePublicAeatModelCalendarDetailContextV1({
+    code: codigo,
+    searchParams: await searchParams,
+  });
 
-  return <FiscalModelStructuralDetailView page={result.data} />;
+  return (
+    <FiscalModelStructuralDetailView
+      page={result.data}
+      calendarReturnHref={
+        calendarContext.status === "FROM_CALENDAR"
+          ? calendarContext.data.returnHref
+          : null
+      }
+    />
+  );
 }
