@@ -46,7 +46,7 @@ describe("configuración local del calendario fiscal", () => {
     { VERCEL: "1" },
     { VERCEL_ENV: "preview" },
     { APP_ENV: "staging" },
-  ] as const)("publica solo la estructura review-only en remoto", (env) => {
+  ] as const)("consulta el iCalendar público sin clave en remoto", (env) => {
     expect(
       resolveFiscalCalendarConfig({
         ...env,
@@ -56,8 +56,8 @@ describe("configuración local del calendario fiscal", () => {
     ).toEqual({
       enabled: true,
       localOnly: false,
-      reason: "ENABLED_PUBLIC_REVIEW",
-      providerMode: "review-only",
+      reason: "ENABLED_PUBLIC_ICALENDAR",
+      providerMode: "aeat-icalendar",
       apiKey: null,
     });
   });

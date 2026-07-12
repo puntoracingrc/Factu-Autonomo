@@ -12,7 +12,7 @@ export type FiscalCalendarEnv = Readonly<
 export type FiscalCalendarConfigReason =
   | "MISSING_FLAG"
   | "EXPLICITLY_DISABLED"
-  | "ENABLED_PUBLIC_REVIEW"
+  | "ENABLED_PUBLIC_ICALENDAR"
   | "ENABLED_LOCAL";
 
 export interface FiscalCalendarRuntimeConfig {
@@ -50,8 +50,8 @@ export function resolveFiscalCalendarConfig(
     return {
       enabled: true,
       localOnly: false,
-      reason: "ENABLED_PUBLIC_REVIEW",
-      providerMode: "review-only",
+      reason: "ENABLED_PUBLIC_ICALENDAR",
+      providerMode: "aeat-icalendar",
       apiKey: null,
     };
   }

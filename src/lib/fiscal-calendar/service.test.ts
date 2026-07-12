@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AeatPublicIcalendarProvider } from "./aeat-public-icalendar-provider";
 import { createFiscalCalendarDateRange } from "./dates";
 import { FixtureFiscalCalendarProvider } from "./fixture-provider";
-import { ReviewOnlyFiscalCalendarProvider } from "./review-only-provider";
 import {
   createFiscalCalendarProvider,
   FiscalCalendarService,
@@ -124,28 +124,41 @@ describe("FiscalCalendarService", () => {
     expect(provider).toBeInstanceOf(FixtureFiscalCalendarProvider);
   });
 
-  it("ejecuta el proveedor público review-only con cero eventos y cero red", async () => {
-    const fetchImpl = vi.fn(() => {
-      throw new Error("la red no debe ejecutarse");
-    });
+  it("ejecuta el proveedor iCalendar público remoto sin API key", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        [
+          "BEGIN:VCALENDAR",
+          "BEGIN:VEVENT",
+          "UID:synthetic-service@example.invalid",
+          "DTSTART;VALUE=DATE:20260720",
+          "DTEND;VALUE=DATE:20260721",
+          "SUMMARY:IVA",
+          "STATUS:CONFIRMED",
+          "END:VEVENT",
+          "END:VCALENDAR",
+        ].join("\r\n"),
+        { headers: { "Content-Type": "text/calendar" } },
+      ),
+    );
     const provider = createFiscalCalendarProvider(
       {
         enabled: true,
         localOnly: false,
-        reason: "ENABLED_PUBLIC_REVIEW",
-        providerMode: "review-only",
+        reason: "ENABLED_PUBLIC_ICALENDAR",
+        providerMode: "aeat-icalendar",
         apiKey: null,
       },
       { fetchImpl },
     );
 
-    expect(provider).toBeInstanceOf(ReviewOnlyFiscalCalendarProvider);
+    expect(provider).toBeInstanceOf(AeatPublicIcalendarProvider);
     await expect(provider.listEvents(RANGE, ["iva"])).resolves.toMatchObject({
-      events: [],
-      providerMode: "review-only",
+      events: [{ title: "IVA", reviewStatus: "review-with-advisor" }],
+      providerMode: "aeat-icalendar",
       truncated: false,
     });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("reutiliza la misma key y regenera el proveedor al rotarla", () => {

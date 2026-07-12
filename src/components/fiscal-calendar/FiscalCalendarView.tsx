@@ -182,9 +182,11 @@ function EventCard({
               Estado de fuente sin confirmar
             </span>
           ) : null}
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            {DEADLINE_KIND_LABELS[event.deadlineKind]}
-          </span>
+          {event.deadlineKind !== "unclassified" ? (
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              {DEADLINE_KIND_LABELS[event.deadlineKind]}
+            </span>
+          ) : null}
           {event.reviewStatus === "review-with-advisor" ? (
             <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
               Revisar con gestor
@@ -357,7 +359,7 @@ export function FiscalCalendarView({
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
         title="Calendario fiscal"
-        subtitle="Estructura informativa de vencimientos fiscales generales"
+        subtitle="Vencimientos generales publicados por la Agencia Tributaria"
       />
 
       <Card className="mb-5 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/50">
@@ -369,14 +371,12 @@ export function FiscalCalendarView({
           <div className="text-sm leading-6 text-blue-950 dark:text-blue-100">
             <p className="font-bold">Información general, no personalizada</p>
             <p>
-              Esta sección organiza información general del calendario de la
-              Agencia Tributaria. La obligación concreta depende de la situación
-              fiscal de cada contribuyente.
+              Los resultados se cargan desde los cinco calendarios iCalendar
+              públicos enlazados por la Agencia Tributaria para estas categorías.
             </p>
             <p className="mt-2">
-              Esta revisión local no clasifica automáticamente plazos generales,
-              domiciliaciones ni excepciones. Si la fuente no aporta una
-              clasificación estructurada, se muestra «Revisar con gestor».
+              Se conserva la fecha y el texto publicados por la fuente. Los filtros
+              no determinan qué modelos debe presentar cada contribuyente.
             </p>
           </div>
         </div>
@@ -452,17 +452,6 @@ export function FiscalCalendarView({
           </Card>
         ) : null}
 
-        {data?.providerMode === "review-only" ? (
-          <Card className="mb-5 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
-            <p className="flex gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
-              <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
-              Calendario público en revisión. Esta versión muestra la estructura
-              y los filtros, pero todavía no incorpora vencimientos verificados.
-              Consulta la fuente oficial de la AEAT.
-            </p>
-          </Card>
-        ) : null}
-
         {loading && !data ? (
           <Card className="text-center dark:border-slate-700 dark:bg-slate-900">
             <Loader2
@@ -503,7 +492,6 @@ export function FiscalCalendarView({
         {!loading &&
         !error &&
         data &&
-        data.providerMode !== "review-only" &&
         events.length === 0 ? (
           <Card className="text-center dark:border-slate-700 dark:bg-slate-900">
             <CalendarDays
@@ -584,9 +572,7 @@ export function FiscalCalendarView({
             </p>
             <p className="mt-1">
               {data
-                ? data.providerMode === "review-only"
-                  ? "Sin consulta externa"
-                  : formatFiscalCalendarFetchedAt(data.fetchedAt)
+                ? formatFiscalCalendarFetchedAt(data.fetchedAt)
                 : "Pendiente de cargar"}
             </p>
           </div>

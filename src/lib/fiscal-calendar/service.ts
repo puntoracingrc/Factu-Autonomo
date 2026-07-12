@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync } from "node:crypto";
+import { AeatPublicIcalendarProvider } from "./aeat-public-icalendar-provider";
 import { FixtureFiscalCalendarProvider } from "./fixture-provider";
 import { GooglePublicCalendarProvider } from "./google-public-calendar-provider";
 import { ReviewOnlyFiscalCalendarProvider } from "./review-only-provider";
@@ -107,6 +108,12 @@ export function createFiscalCalendarProvider(
   config: FiscalCalendarRuntimeConfig,
   dependencies: ProviderFactoryDependencies = {},
 ): FiscalCalendarProvider {
+  if (config.providerMode === "aeat-icalendar") {
+    return new AeatPublicIcalendarProvider({
+      fetchImpl: dependencies.fetchImpl,
+      now: dependencies.now,
+    });
+  }
   if (config.providerMode === "review-only") {
     return new ReviewOnlyFiscalCalendarProvider(dependencies.now);
   }

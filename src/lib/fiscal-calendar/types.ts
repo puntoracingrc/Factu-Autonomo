@@ -62,6 +62,7 @@ export interface FiscalCalendarEvent {
 }
 
 export type FiscalCalendarProviderMode =
+  | "aeat-icalendar"
   | "fixture"
   | "google-calendar"
   | "review-only";

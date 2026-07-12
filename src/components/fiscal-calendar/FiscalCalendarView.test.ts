@@ -39,18 +39,20 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain('type="date"');
   });
 
-  it("presenta la advertencia general y distingue fixtures simulados", () => {
+  it("explica la fuente pública y distingue fixtures simulados", () => {
     expect(componentSource).toContain(
-      "Esta sección organiza información general del calendario",
+      "Los resultados se cargan desde los cinco calendarios iCalendar",
+    );
+    expect(componentSource).toContain(
+      "Se conserva la fecha y el texto publicados por la fuente",
     );
     expect(componentSource).toContain("Datos simulados para revisión local");
     expect(componentSource).toContain("No son fechas oficiales");
     expect(componentSource).toContain("Tipo de plazo no clasificado");
     expect(componentSource).toContain("Revisar con gestor");
     expect(componentSource).toContain("Estado de fuente sin confirmar");
-    expect(componentSource).toContain("domiciliaciones ni excepciones");
-    expect(componentSource).toContain("Calendario público en revisión");
-    expect(componentSource).toContain("Sin consulta externa");
+    expect(componentSource).not.toContain("Calendario público en revisión");
+    expect(componentSource).not.toContain("Sin consulta externa");
   });
 
   it("retira resultados anteriores antes de cargar otra consulta", () => {

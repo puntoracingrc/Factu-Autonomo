@@ -90,6 +90,92 @@ describe("referencias a modelos en texto de calendario", () => {
     ).toEqual(["130", "303"]);
   });
 
+  it("reconoce las listas estructuradas publicadas en los feeds AEAT", () => {
+    const text = [
+      "Junio 2026. Grandes empresas: 111, 115, 117, 123, 124, 126, 128, 216, 230",
+      "Segundo trimestre 2026: 136, 210",
+      "Estimación directa: 130",
+      "Estimación objetiva: 131",
+      "Régimen general: 202",
+      "Régimen de consolidación fiscal: 222",
+      "Junio 2026: 170, 196",
+      "Año 2025. Entidades cuyo período coincida con el natural: 221, 282 y 283",
+      "Segundo trimestre 2026: 232, 235, 281 y 379",
+      "Grupo de entidades, modelo individual: 322",
+      "Grupo de entidades, modelo agregado: 353",
+      "Ventanilla única: 369",
+      "Solicitud de reembolso: 364",
+      "Modelos 036, 102, 200, 206, 220, 242, 303, 308, 309, 341, 349, 360, 361, 362, 380 y 381",
+    ].join("\n");
+
+    expect(extractFiscalCalendarModelCodes(text)).toEqual([
+      "111",
+      "115",
+      "117",
+      "123",
+      "124",
+      "126",
+      "128",
+      "216",
+      "230",
+      "136",
+      "210",
+      "130",
+      "131",
+      "202",
+      "222",
+      "170",
+      "196",
+      "221",
+      "282",
+      "283",
+      "232",
+      "235",
+      "281",
+      "379",
+      "322",
+      "353",
+      "369",
+      "364",
+      "036",
+      "102",
+      "200",
+      "206",
+      "220",
+      "242",
+      "303",
+      "308",
+      "309",
+      "341",
+      "349",
+      "360",
+      "361",
+      "362",
+      "380",
+      "381",
+    ]);
+  });
+
+  it("no confunde fechas, ejercicios o artículos con modelos", () => {
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Fecha: 20/07/2026. Ejercicio 2026. Artículo 130. Hora: 20:30.",
+      ),
+    ).toEqual([]);
+  });
+
+  it("acepta etiquetas largas y operaciones censales acotadas", () => {
+    expect(
+      extractFiscalCalendarModelCodes(
+        [
+          "Solicitud de reembolso de las cuotas tributarias soportadas relativas a una organización internacional y a los Estados parte en el tratado correspondiente: 364",
+          "Registro de devolución mensual: 036",
+          "Renuncia a la llevanza electrónica de los libros registro: 036",
+        ].join("\n"),
+      ),
+    ).toEqual(["364", "036"]);
+  });
+
   it("enlaza solo códigos presentes en el mapa canónico", () => {
     const links = new Map([
       ["303", link("303")],

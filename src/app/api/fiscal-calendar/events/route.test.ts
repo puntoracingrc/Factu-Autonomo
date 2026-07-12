@@ -26,7 +26,9 @@ function request(query = "from=2026-07-01&to=2026-12-31&categories=iva") {
   );
 }
 
-function providerResult(providerMode: "fixture" | "review-only" = "fixture") {
+function providerResult(
+  providerMode: "aeat-icalendar" | "fixture" | "review-only" = "fixture",
+) {
   return {
     events: [],
     fetchedAt: "2026-07-12T08:00:00.000Z",
@@ -106,23 +108,23 @@ describe("GET /api/fiscal-calendar/events", () => {
     expect(listEvents).toHaveBeenCalledOnce();
   });
 
-  it("publica solo review-only en producción e ignora cualquier key", async () => {
+  it("consulta el iCalendar público en producción e ignora cualquier key", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("FISCAL_CALENDAR_ENABLED", "false");
     vi.stubEnv("GOOGLE_CALENDAR_API_KEY", "secret-that-must-not-be-used");
-    listEvents.mockResolvedValue(providerResult("review-only"));
+    listEvents.mockResolvedValue(providerResult("aeat-icalendar"));
     const response = await GET(request());
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(getFiscalCalendarService).toHaveBeenCalledWith(
       expect.objectContaining({
-        reason: "ENABLED_PUBLIC_REVIEW",
-        providerMode: "review-only",
+        reason: "ENABLED_PUBLIC_ICALENDAR",
+        providerMode: "aeat-icalendar",
         apiKey: null,
       }),
     );
-    expect(body.data.providerMode).toBe("review-only");
+    expect(body.data.providerMode).toBe("aeat-icalendar");
     expect(JSON.stringify(body)).not.toContain("secret-that-must-not-be-used");
   });
 

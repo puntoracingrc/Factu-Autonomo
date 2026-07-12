@@ -6,7 +6,7 @@ export const FISCAL_CALENDAR_MODULE_DESCRIPTOR = {
   name: "Calendario fiscal",
   route: "/consultor-fiscal/calendario",
   releaseFlag: FISCAL_CALENDAR_ENABLED_KEY,
-  lifecycleStatus: "public_review",
+  lifecycleStatus: "public_live",
   localOnly: false,
   readOnly: true,
   oauthEnabled: false,
