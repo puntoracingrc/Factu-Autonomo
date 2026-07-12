@@ -1,18 +1,66 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { ImageIcon } from "lucide-react";
+import type { ManualScreenshotReviewStatus } from "@/lib/manual/screenshot-contracts";
 import type { ManualScreenshot as ManualScreenshotType } from "@/lib/manual/types";
 
 interface ManualScreenshotProps {
   screenshot: ManualScreenshotType;
+  reviewStatus: ManualScreenshotReviewStatus;
+  approved: boolean;
+  validUntil?: string;
 }
 
-export function ManualScreenshot({ screenshot }: ManualScreenshotProps) {
-  const [missing, setMissing] = useState(false);
+const getServerApproval = () => false;
 
-  if (missing) {
+export function ManualScreenshot({
+  screenshot,
+  reviewStatus,
+  approved,
+  validUntil,
+}: ManualScreenshotProps) {
+  const [missing, setMissing] = useState(false);
+  const expiresAt = validUntil ? Date.parse(validUntil) : Number.NaN;
+  const subscribeToExpiry = useCallback(
+    (onStoreChange: () => void) => {
+      if (!approved || !Number.isFinite(expiresAt)) return () => undefined;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const schedule = () => {
+        const remaining = expiresAt - Date.now() + 1;
+        if (remaining <= 0) {
+          onStoreChange();
+          return;
+        }
+        timer = setTimeout(schedule, Math.min(remaining, 2_147_000_000));
+      };
+      schedule();
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
+    },
+    [approved, expiresAt],
+  );
+  const getRuntimeApproval = useCallback(
+    () => approved && Number.isFinite(expiresAt) && Date.now() <= expiresAt,
+    [approved, expiresAt],
+  );
+  const runtimeApproved = useSyncExternalStore(
+    subscribeToExpiry,
+    getRuntimeApproval,
+    getServerApproval,
+  );
+  const withheld = !runtimeApproved;
+
+  if (missing || withheld) {
+    const statusLabel = missing
+      ? "Captura no disponible"
+      : reviewStatus === "known-defect"
+        ? "Captura retirada por estar desactualizada"
+        : reviewStatus === "reviewed"
+          ? "Captura retirada: revisión caducada o inválida"
+          : "Captura pendiente de revisión";
     return (
       <figure className="my-4">
         <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50">
@@ -20,11 +68,10 @@ export function ManualScreenshot({ screenshot }: ManualScreenshotProps) {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm">
               <ImageIcon className="h-6 w-6" />
             </div>
-            <p className="text-sm font-semibold text-slate-600">Captura pendiente</p>
-            <p className="text-xs text-slate-500">{screenshot.alt}</p>
-            <p className="mt-1 font-mono text-[10px] text-slate-400">
-              public{screenshot.src}
+            <p className="text-sm font-semibold text-slate-600">
+              {statusLabel}
             </p>
+            <p className="text-xs text-slate-500">{screenshot.alt}</p>
           </div>
         </div>
         {screenshot.caption && (

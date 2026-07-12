@@ -26,6 +26,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # El verificador del manual contrasta capturas y fixtures con sus
+          # commits históricos; un checkout superficial daría una falsa alarma.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
