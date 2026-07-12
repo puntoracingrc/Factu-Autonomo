@@ -71,6 +71,9 @@ describe("AppShell accessibility contracts", () => {
     expect(appShellSource).toContain("Sección actual:");
     expect(appShellSource).toContain("<Check");
     expect(appShellSource).toContain("Actual");
+    expect(appShellSource).toContain(
+      "isAppNavItemActive(pathname, href, activeBase)",
+    );
   });
 
   it("keeps mobile targets and keyboard focus visible", () => {

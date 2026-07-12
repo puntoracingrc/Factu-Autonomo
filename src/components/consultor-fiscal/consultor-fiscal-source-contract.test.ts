@@ -165,19 +165,24 @@ describe("superficie visible de Consultor fiscal", () => {
 });
 
 describe("navegación, ayuda y perímetro privado", () => {
-  it("registra /consultor-fiscal en escritorio, Más móvil y rutas anidadas", () => {
+  it("registra Asesoría fiscal en escritorio, Más móvil y rutas anidadas", () => {
     expect(
-      APP_NAV_ITEMS.find((item) => item.href === "/consultor-fiscal"),
+      APP_NAV_ITEMS.find(
+        (item) => item.href === "/consultor-fiscal/modelos",
+      ),
     ).toMatchObject({
-      label: "Consultor fiscal",
-      shortLabel: "Consultor",
+      label: "Asesoría fiscal",
+      shortLabel: "Asesoría",
+      activeBase: "/consultor-fiscal",
     });
     expect(
-      MOBILE_MORE_NAV_ITEMS.some((item) => item.href === "/consultor-fiscal"),
+      MOBILE_MORE_NAV_ITEMS.some(
+        (item) => item.href === "/consultor-fiscal/modelos",
+      ),
     ).toBe(true);
     expect(
       MOBILE_PRIMARY_NAV_ITEMS.some(
-        (item) => item.href === "/consultor-fiscal",
+        (item) => item.href === "/consultor-fiscal/modelos",
       ),
     ).toBe(false);
     expect(
@@ -185,7 +190,7 @@ describe("navegación, ayuda y perímetro privado", () => {
         "/consultor-fiscal/analisis",
         APP_NAV_ITEMS,
       )?.href,
-    ).toBe("/consultor-fiscal");
+    ).toBe("/consultor-fiscal/modelos");
   });
 
   it("mantiene ayuda contextual específica y documenta límites operativos", () => {

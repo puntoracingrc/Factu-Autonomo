@@ -79,6 +79,37 @@ describe("private route middleware", () => {
     }
   });
 
+  it("publica el calendario literal sin abrir el resto del Consultor", () => {
+    vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
+
+    const calendar = middleware(
+      new NextRequest(
+        "https://facturacion-autonomos.app/consultor-fiscal/calendario",
+      ),
+    );
+    expect(calendar.status).toBe(200);
+    expect(calendar.headers.get("x-middleware-next")).toBe("1");
+    expect(calendar.headers.get("Cache-Control")).toBe(
+      "no-store, max-age=0",
+    );
+    expect(calendar.headers.get("X-Robots-Tag")).toBe(
+      "noindex, nofollow, noarchive",
+    );
+
+    for (const pathname of [
+      "/consultor-fiscal/Calendario",
+      "/consultor-fiscal/calendario/extra",
+      "/consultor-fiscal/calendario%2Fextra",
+    ]) {
+      expect(
+        middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        ).status,
+        pathname,
+      ).toBe(404);
+    }
+  });
+
   it("rechaza variantes y códigos no catalogados incluso con la Beta activa", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 

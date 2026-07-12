@@ -1,0 +1,182 @@
+import { describe, expect, it } from "vitest";
+import {
+  collectFiscalCalendarModelPageLinks,
+  extractFiscalCalendarModelCodes,
+  segmentFiscalCalendarModelReferences,
+  type FiscalCalendarModelPageLink,
+} from "./model-reference-links";
+
+function link(
+  code: string,
+  historical = false,
+): FiscalCalendarModelPageLink {
+  return {
+    code,
+    href: `/canonical-focus-${code}`,
+    historical,
+  };
+}
+
+describe("referencias a modelos en texto de calendario", () => {
+  it("extrae códigos solo con contexto fiscal explícito", () => {
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Segundo trimestre 2026. Autoliquidación: 303, 130 y 349",
+      ),
+    ).toEqual(["303", "130", "349"]);
+    expect(extractFiscalCalendarModelCodes("Modelos 01C, A22 y 037")).toEqual([
+      "01C",
+      "A22",
+      "037",
+    ]);
+    expect(
+      extractFiscalCalendarModelCodes("20 de julio de 2026, artículo 303"),
+    ).toEqual([]);
+  });
+
+  it("acota cada lista al contexto adyacente y evita falsos positivos posteriores", () => {
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Modelo 303. Vence el 20 de julio de 2026; artículo 130.",
+      ),
+    ).toEqual(["303"]);
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Recordatorio: artículo 130. Referencia interna: 349.",
+      ),
+    ).toEqual([]);
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Modelos 303, 130 y 349. Ejercicio 2026 y artículo 037.",
+      ),
+    ).toEqual(["303", "130", "349"]);
+  });
+
+  it("solo acepta etiquetas fiscales acotadas antes de dos puntos", () => {
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Declaración recapitulativa de operaciones: 349 y 303",
+      ),
+    ).toEqual(["349", "303"]);
+    expect(
+      extractFiscalCalendarModelCodes(
+        "Autoliquidación: 130 / 303. Nota informativa: 037",
+      ),
+    ).toEqual(["130", "303"]);
+  });
+
+  it("enlaza solo códigos presentes en el mapa canónico", () => {
+    const links = new Map([
+      ["303", link("303")],
+      ["037", link("037", true)],
+    ]);
+    const segments = segmentFiscalCalendarModelReferences(
+      "Modelos 303, 999 y 037",
+      links,
+    );
+
+    expect(segments.filter((segment) => segment.modelPage)).toEqual([
+      { text: "303", modelPage: link("303") },
+      { text: "037", modelPage: link("037", true) },
+    ]);
+    expect(segments.map((segment) => segment.text).join("")).toBe(
+      "Modelos 303, 999 y 037",
+    );
+  });
+
+  it("conserva texto plano cuando no hay destinos publicados", () => {
+    expect(
+      segmentFiscalCalendarModelReferences(
+        "Declaración recapitulativa: 349",
+        new Map(),
+      ),
+    ).toEqual([
+      { text: "Declaración recapitulativa: 349", modelPage: null },
+    ]);
+  });
+
+  it("deduplica candidatos repetidos sin alterar sus apariciones al segmentar", () => {
+    const text = "Modelo 303. Autoliquidación: 303";
+    expect(extractFiscalCalendarModelCodes(text)).toEqual(["303"]);
+    expect(
+      segmentFiscalCalendarModelReferences(
+        text,
+        new Map([["303", link("303")]]),
+      ).filter((segment) => segment.modelPage),
+    ).toHaveLength(2);
+  });
+
+  it("recoge una vez cada destino canónico y falla cerrado", () => {
+    const events = [
+      { title: "Modelo 303", description: "Declaración: 349 y 999" },
+      { title: "IVA", description: "Modelo 303" },
+    ];
+    const result = collectFiscalCalendarModelPageLinks(events, (code) => {
+      if (code === "303") {
+        return {
+          code,
+          href: "/consultor-fiscal/modelos?focus=303#modelo-303",
+          historical: false,
+        };
+      }
+      if (code === "349") {
+        return {
+          code,
+          href: "/consultor-fiscal/modelos/349",
+          historical: false,
+        };
+      }
+      return null;
+    });
+
+    expect(result).toEqual([
+      {
+        code: "303",
+        href: "/consultor-fiscal/modelos?focus=303#modelo-303",
+        historical: false,
+      },
+    ]);
+  });
+
+  it("ignora resolvers que lanzan o devuelven un código distinto", () => {
+    const event = { title: "Modelos 303 y 037", description: "" };
+    expect(
+      collectFiscalCalendarModelPageLinks([event], (code) => {
+        if (code === "303") throw new Error("resolver failure");
+        return {
+          code: "303",
+          href: "/consultor-fiscal/modelos?focus=037#modelo-037",
+          historical: true,
+        };
+      }),
+    ).toEqual([]);
+  });
+
+  it("acota el número de resoluciones ante texto externo adversarial", () => {
+    const codes = Array.from({ length: 600 }, (_, index) =>
+      String(index + 100).padStart(3, "0"),
+    );
+    let calls = 0;
+    collectFiscalCalendarModelPageLinks(
+      [{ title: "Modelos " + codes.join(", "), description: "" }],
+      () => {
+        calls += 1;
+        return null;
+      },
+    );
+
+    expect(calls).toBe(512);
+  });
+
+  it("acota el escaneo adversarial y conserva el resto como texto plano", () => {
+    const prefix = "x".repeat(20_000);
+    const text = `${prefix} Modelo 303`;
+    expect(extractFiscalCalendarModelCodes(text)).toEqual([]);
+    expect(
+      segmentFiscalCalendarModelReferences(
+        text,
+        new Map([["303", link("303")]]),
+      ),
+    ).toEqual([{ text, modelPage: null }]);
+  });
+});

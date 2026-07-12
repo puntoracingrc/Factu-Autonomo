@@ -35,6 +35,20 @@ describe("app navigation", () => {
     expect(isAppNavItemActive("/facturas/nuevo", "/facturas")).toBe(true);
     expect(isAppNavItemActive("/facturas-antiguas", "/facturas")).toBe(false);
     expect(isAppNavItemActive("/clientes", "/")).toBe(false);
+    expect(
+      isAppNavItemActive(
+        "/consultor-fiscal/calendario",
+        "/consultor-fiscal/modelos",
+        "/consultor-fiscal",
+      ),
+    ).toBe(true);
+    expect(
+      isAppNavItemActive(
+        "/consultor-fiscalidad",
+        "/consultor-fiscal/modelos",
+        "/consultor-fiscal",
+      ),
+    ).toBe(false);
   });
 
   it("reports an overflow route as the active item behind More", () => {
@@ -46,12 +60,21 @@ describe("app navigation", () => {
     ).toBeUndefined();
   });
 
-  it("expone el Consultor fiscal en navegación y rutas anidadas", () => {
+  it("expone Asesoría fiscal mediante una ruta pública segura", () => {
     expect(
-      APP_NAV_ITEMS.find((item) => item.href === "/consultor-fiscal")?.label,
-    ).toBe("Consultor fiscal");
+      APP_NAV_ITEMS.find(
+        (item) => item.href === "/consultor-fiscal/modelos",
+      ),
+    ).toMatchObject({
+      label: "Asesoría fiscal",
+      shortLabel: "Asesoría",
+      activeBase: "/consultor-fiscal",
+    });
     expect(
-      findActiveAppNavItem("/consultor-fiscal/analisis", APP_NAV_ITEMS)?.href,
-    ).toBe("/consultor-fiscal");
+      findActiveAppNavItem(
+        "/consultor-fiscal/calendario",
+        APP_NAV_ITEMS,
+      )?.href,
+    ).toBe("/consultor-fiscal/modelos");
   });
 });

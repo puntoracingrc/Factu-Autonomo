@@ -13,19 +13,19 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
-
 export type AppNavItem = {
   href: string;
+  activeBase?: string;
   label: string;
   shortLabel: string;
   icon: LucideIcon;
 };
 
 const CONSULTOR_FISCAL_NAV_ITEM: AppNavItem = {
-  href: "/consultor-fiscal",
-  label: "Consultor fiscal",
-  shortLabel: "Consultor",
+  href: "/consultor-fiscal/modelos",
+  activeBase: "/consultor-fiscal",
+  label: "Asesoría fiscal",
+  shortLabel: "Asesoría",
   icon: Scale,
 };
 
@@ -75,7 +75,7 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     shortLabel: "Impuestos",
     icon: Landmark,
   },
-  ...(isConsultorFiscalEnabled() ? [CONSULTOR_FISCAL_NAV_ITEM] : []),
+  CONSULTOR_FISCAL_NAV_ITEM,
   {
     href: "/configuracion",
     label: "Ajustes",
@@ -101,14 +101,22 @@ export const MOBILE_MORE_NAV_ITEMS = APP_NAV_ITEMS.filter(
   (item) => !mobilePrimaryHrefSet.has(item.href),
 );
 
-export function isAppNavItemActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+export function isAppNavItemActive(
+  pathname: string,
+  href: string,
+  activeBase = href,
+): boolean {
+  if (activeBase === "/") return pathname === activeBase;
+  return (
+    pathname === activeBase || pathname.startsWith(`${activeBase}/`)
+  );
 }
 
 export function findActiveAppNavItem(
   pathname: string,
   items: readonly AppNavItem[] = APP_NAV_ITEMS,
 ): AppNavItem | undefined {
-  return items.find((item) => isAppNavItemActive(pathname, item.href));
+  return items.find((item) =>
+    isAppNavItemActive(pathname, item.href, item.activeBase),
+  );
 }
