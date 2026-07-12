@@ -80,6 +80,9 @@ describe("manual de Rentabilidad Real", () => {
     expect(text).toContain("exclusiones de líneas");
     expect(text).toContain("se gestiona desde Facturas");
     expect(text).toContain("elimina únicamente las fechas Desde/Hasta");
+    expect(text).toContain("En móvil y tablet");
+    expect(text).toContain("las mismas cifras, alertas y acciones");
+    expect(text).toContain("se muestra la tabla completa");
   });
 
   it("separa análisis interno de fiscalidad e integridad documental", () => {

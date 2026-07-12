@@ -1,45 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { formatMoney } from "@/lib/calculations";
 import {
   RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES,
   getDocumentAnalysisModeLabel,
   type RentabilidadRealDocumentAnalysisMode,
 } from "@/lib/rentabilidad-real/document-analysis-modes";
-import type {
-  RentabilidadRealDocumentReportQualityFlag,
-  RentabilidadRealDocumentReportRow,
-} from "@/lib/rentabilidad-real/reports";
-
-const FLAG_LABELS: Record<RentabilidadRealDocumentReportQualityFlag, string> = {
-  no_linked_expenses: "Sin gastos",
-  has_unlinked_candidates: "Candidatos",
-  quote_without_invoice: "Previsto",
-  invoice_without_quote: "Sin presupuesto",
-  low_margin: "Margen bajo",
-  negative_profit: "Negativo",
-  has_internal_adjustments: "Ajustes internos",
-  no_fixed_cost_rule: "Sin fijos",
-  missing_tax_data: "IVA incompleto",
-  scanned_expense_review_needed: "Revisar escaneo",
-};
+import type { RentabilidadRealDocumentReportRow } from "@/lib/rentabilidad-real/reports";
+import {
+  buildDocumentProfitabilityRowViewModel,
+  type DocumentProfitabilityRowViewModel,
+} from "../report-table-view-models";
 
 const ANALYSIS_MODE_OPTIONS = RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES.filter(
   (mode) => mode !== "unknown",
 );
-
-function formatPercent(value: number): string {
-  return `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%`;
-}
-
-function documentHref(row: RentabilidadRealDocumentReportRow): string | undefined {
-  return row.sourceLinks.find(
-    (link) => link.sourceType === "invoice" || link.sourceType === "quote",
-  )?.href;
-}
 
 function analysisModeBadgeClass(mode: RentabilidadRealDocumentAnalysisMode): string {
   if (mode === "unknown") {
@@ -52,6 +29,142 @@ function analysisModeBadgeClass(mode: RentabilidadRealDocumentAnalysisMode): str
     return "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-100";
   }
   return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+}
+
+function DocumentModeControl({
+  row,
+  mobile = false,
+  onAnalysisModeChange,
+}: {
+  row: DocumentProfitabilityRowViewModel;
+  mobile?: boolean;
+  onAnalysisModeChange: (
+    documentId: string,
+    mode: RentabilidadRealDocumentAnalysisMode,
+  ) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <span
+        className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${analysisModeBadgeClass(
+          row.analysisMode,
+        )}`}
+        data-report-field="analysisMode"
+      >
+        {row.analysisModeLabel}
+      </span>
+      <select
+        aria-label={`Modo de análisis para ${row.documentLabel}`}
+        value={row.analysisMode}
+        onChange={(event) =>
+          onAnalysisModeChange(
+            row.primaryDocumentId,
+            event.target.value as RentabilidadRealDocumentAnalysisMode,
+          )
+        }
+        className={
+          mobile
+            ? "block min-h-11 w-full max-w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            : "block min-h-9 w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        }
+      >
+        <option value="unknown">No definido</option>
+        {ANALYSIS_MODE_OPTIONS.map((mode) => (
+          <option key={mode} value={mode}>
+            {getDocumentAnalysisModeLabel(mode)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function DocumentAlerts({ row }: { row: DocumentProfitabilityRowViewModel }) {
+  const isOk = row.qualityFlagLabels.length === 1 && row.qualityFlagLabels[0] === "OK";
+
+  return (
+    <div
+      aria-label={`Alertas de ${row.documentLabel}`}
+      className="flex max-w-56 flex-wrap gap-1"
+    >
+      {row.qualityFlagLabels.map((label) => (
+        <span
+          key={label}
+          data-report-alert={label}
+          className={`rounded-full px-2 py-1 text-xs font-black ${
+            isOk
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200"
+              : "bg-amber-50 text-amber-800 dark:bg-amber-950/45 dark:text-amber-100"
+          }`}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function DocumentActions({ row }: { row: DocumentProfitabilityRowViewModel }) {
+  return (
+    <div className="flex flex-col items-start gap-1 sm:gap-2">
+      <Link
+        href="/rentabilidad-real/calculadora/trabajo"
+        className="inline-flex min-h-11 items-center gap-1 text-sm font-black text-blue-700 hover:text-blue-800 dark:text-blue-200 xl:min-h-0"
+      >
+        Abrir cálculo
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+      {row.hasUnlinkedCandidates ? (
+        <Link
+          href="/rentabilidad-real/calculadora/trabajo"
+          className="inline-flex min-h-11 items-center gap-1 text-sm font-black text-amber-700 hover:text-amber-800 dark:text-amber-200 xl:min-h-0"
+        >
+          Asignar gastos
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      ) : null}
+      {row.sourceHref ? (
+        <Link
+          href={row.sourceHref}
+          aria-label={`Ver documento ${row.documentLabel}`}
+          className="inline-flex min-h-11 items-center gap-1 text-sm font-black text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100 xl:min-h-0"
+        >
+          Ver documento
+          <ExternalLink className="h-4 w-4" />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function MobileMetric({
+  label,
+  field,
+  value,
+  strong = false,
+}: {
+  label: string;
+  field: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {label}
+      </dt>
+      <dd
+        data-report-field={field}
+        className={`mt-1 break-words text-sm tabular-nums ${
+          strong
+            ? "font-black text-slate-950 dark:text-slate-50"
+            : "font-bold text-slate-700 dark:text-slate-200"
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
 }
 
 export function DocumentProfitabilityTable({
@@ -71,12 +184,22 @@ export function DocumentProfitabilityTable({
 }) {
   const [bulkMode, setBulkMode] =
     useState<RentabilidadRealDocumentAnalysisMode>("fixed_price_work");
-  const documentsWithoutMode = Array.from(
-    new Set(
-      rows
-        .filter((row) => row.analysisMode === "unknown")
-        .map((row) => row.primaryDocumentId),
-    ),
+  const scrollHelpId = useId();
+  const mobileHeadingPrefix = useId();
+  const viewRows = useMemo(
+    () => rows.map(buildDocumentProfitabilityRowViewModel),
+    [rows],
+  );
+  const documentsWithoutMode = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rows
+            .filter((row) => row.analysisMode === "unknown")
+            .map((row) => row.primaryDocumentId),
+        ),
+      ),
+    [rows],
   );
 
   return (
@@ -98,7 +221,7 @@ export function DocumentProfitabilityTable({
               onChange={(event) =>
                 setBulkMode(event.target.value as RentabilidadRealDocumentAnalysisMode)
               }
-              className="min-h-11 rounded-lg border border-amber-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-amber-900/60 dark:bg-slate-950 dark:text-slate-100"
+              className="min-h-11 w-full max-w-full rounded-lg border border-amber-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-amber-900/60 dark:bg-slate-950 dark:text-slate-100 sm:w-auto"
             >
               {ANALYSIS_MODE_OPTIONS.map((mode) => (
                 <option key={mode} value={mode}>
@@ -119,161 +242,217 @@ export function DocumentProfitabilityTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-[1120px] w-full border-separate border-spacing-0 text-left text-sm">
-        <thead>
-          <tr className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Documento
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Modo
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Cliente
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Fecha
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Ingreso
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Costes
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Fijos
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Beneficio doc.
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Beneficio interno
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Margen
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Alertas
-            </th>
-            <th className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
-              Acción
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const href = documentHref(row);
+      <section
+        aria-label="Rentabilidad por documento en formato móvil"
+        className="xl:hidden"
+      >
+        <ul className="space-y-3">
+          {viewRows.map((row, index) => {
+            const headingId = `${mobileHeadingPrefix}-${index}`;
+
             return (
-              <tr key={row.unitId} className="align-top">
-                <td className="border-b border-slate-100 px-3 py-4 font-black text-slate-950 dark:border-slate-800 dark:text-slate-50">
-                  {row.documentLabel}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <div className="space-y-2">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${analysisModeBadgeClass(
-                        row.analysisMode,
-                      )}`}
-                    >
-                      {getDocumentAnalysisModeLabel(row.analysisMode)}
-                    </span>
-                    <select
-                      aria-label={`Modo de análisis para ${row.documentLabel}`}
-                      value={row.analysisMode}
-                      onChange={(event) =>
-                        onAnalysisModeChange(
-                          row.primaryDocumentId,
-                          event.target.value as RentabilidadRealDocumentAnalysisMode,
-                        )
-                      }
-                      className="block min-h-9 w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                    >
-                      <option value="unknown">No definido</option>
-                      {ANALYSIS_MODE_OPTIONS.map((mode) => (
-                        <option key={mode} value={mode}>
-                          {getDocumentAnalysisModeLabel(mode)}
-                        </option>
-                      ))}
-                    </select>
+              <li key={row.unitId}>
+                <article
+                  aria-labelledby={headingId}
+                  className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60"
+                >
+                  <h3
+                    id={headingId}
+                    data-report-field="documentLabel"
+                    className="break-words text-base font-black text-slate-950 dark:text-slate-50"
+                  >
+                    {row.documentLabel}
+                  </h3>
+
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Modo
+                    </p>
+                    <DocumentModeControl
+                      row={row}
+                      mobile
+                      onAnalysisModeChange={onAnalysisModeChange}
+                    />
                   </div>
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {row.clientName}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                  {row.date}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 font-bold text-slate-900 dark:border-slate-800 dark:text-slate-100">
-                  {formatMoney(row.incomeWithoutIndirectTax)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatMoney(row.totalDirectCosts)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatMoney(row.allocatedFixedCosts)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 font-bold text-slate-900 dark:border-slate-800 dark:text-slate-100">
-                  {formatMoney(row.operatingProfit)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 font-bold text-slate-900 dark:border-slate-800 dark:text-slate-100">
-                  {formatMoney(row.internalRealProfit)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                  {formatPercent(row.marginPercentage)}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <div className="flex max-w-56 flex-wrap gap-1">
-                    {row.qualityFlags.length === 0 ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-200">
-                        OK
-                      </span>
-                    ) : (
-                      row.qualityFlags.slice(0, 4).map((flag) => (
-                        <span
-                          key={flag}
-                          className="rounded-full bg-amber-50 px-2 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/45 dark:text-amber-100"
-                        >
-                          {FLAG_LABELS[flag]}
-                        </span>
-                      ))
-                    )}
+
+                  <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
+                    <MobileMetric
+                      label="Cliente"
+                      field="clientName"
+                      value={row.clientName}
+                    />
+                    <MobileMetric label="Fecha" field="date" value={row.date} />
+                    <MobileMetric
+                      label="Ingreso"
+                      field="incomeWithoutIndirectTax"
+                      value={row.incomeWithoutIndirectTax}
+                      strong
+                    />
+                    <MobileMetric
+                      label="Costes"
+                      field="totalDirectCosts"
+                      value={row.totalDirectCosts}
+                    />
+                    <MobileMetric
+                      label="Fijos"
+                      field="allocatedFixedCosts"
+                      value={row.allocatedFixedCosts}
+                    />
+                    <MobileMetric
+                      label="Beneficio doc."
+                      field="operatingProfit"
+                      value={row.operatingProfit}
+                      strong
+                    />
+                    <MobileMetric
+                      label="Beneficio interno"
+                      field="internalRealProfit"
+                      value={row.internalRealProfit}
+                      strong
+                    />
+                    <MobileMetric
+                      label="Margen"
+                      field="marginPercentage"
+                      value={row.marginPercentage}
+                    />
+                  </dl>
+
+                  <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Alertas
+                    </p>
+                    <DocumentAlerts row={row} />
                   </div>
-                </td>
-                <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
-                  <div className="flex flex-col gap-2">
-                    <Link
-                      href="/rentabilidad-real/calculadora/trabajo"
-                      className="inline-flex items-center gap-1 text-sm font-black text-blue-700 hover:text-blue-800 dark:text-blue-200"
-                    >
-                      Abrir cálculo
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                    {row.unlinkedCandidatesCount > 0 ? (
-                      <Link
-                        href="/rentabilidad-real/calculadora/trabajo"
-                        className="inline-flex items-center gap-1 text-sm font-black text-amber-700 hover:text-amber-800 dark:text-amber-200"
-                      >
-                        Asignar gastos
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    ) : null}
-                    {href ? (
-                      <Link
-                        href={href}
-                        className="inline-flex items-center gap-1 text-sm font-black text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
-                      >
-                        Ver documento
-                        <ExternalLink className="h-4 w-4" />
-                      </Link>
-                    ) : null}
+
+                  <div className="mt-3">
+                    <DocumentActions row={row} />
                   </div>
-                </td>
-              </tr>
+                </article>
+              </li>
             );
           })}
-        </tbody>
-      </table>
+        </ul>
+      </section>
+
+      <div className="hidden xl:block">
+        <p
+          id={scrollHelpId}
+          className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400"
+        >
+          Si no ves todas las columnas, desplaza la tabla horizontalmente.
+        </p>
+        <div
+          role="region"
+          aria-label="Tabla completa de rentabilidad por documento"
+          aria-describedby={scrollHelpId}
+          tabIndex={0}
+          className="overflow-x-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <table className="min-w-[1120px] w-full border-separate border-spacing-0 text-left text-sm">
+            <caption className="sr-only">
+              Rentabilidad por documento con todas sus cifras, modos, alertas y
+              acciones
+            </caption>
+            <thead>
+              <tr className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">
+                {[
+                  "Documento",
+                  "Modo",
+                  "Cliente",
+                  "Fecha",
+                  "Ingreso",
+                  "Costes",
+                  "Fijos",
+                  "Beneficio doc.",
+                  "Beneficio interno",
+                  "Margen",
+                  "Alertas",
+                  "Acción",
+                ].map((heading) => (
+                  <th
+                    key={heading}
+                    className="border-b border-slate-200 px-3 py-3 dark:border-slate-700"
+                  >
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {viewRows.map((row) => (
+                <tr key={row.unitId} className="align-top">
+                  <th
+                    scope="row"
+                    className="border-b border-slate-100 px-3 py-4 font-black text-slate-950 dark:border-slate-800 dark:text-slate-50"
+                    data-report-field="documentLabel"
+                  >
+                    {row.documentLabel}
+                  </th>
+                  <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
+                    <DocumentModeControl
+                      row={row}
+                      onAnalysisModeChange={onAnalysisModeChange}
+                    />
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                    data-report-field="clientName"
+                  >
+                    {row.clientName}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 text-slate-600 dark:border-slate-800 dark:text-slate-300"
+                    data-report-field="date"
+                  >
+                    {row.date}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 font-bold tabular-nums text-slate-900 dark:border-slate-800 dark:text-slate-100"
+                    data-report-field="incomeWithoutIndirectTax"
+                  >
+                    {row.incomeWithoutIndirectTax}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 tabular-nums text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                    data-report-field="totalDirectCosts"
+                  >
+                    {row.totalDirectCosts}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 tabular-nums text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                    data-report-field="allocatedFixedCosts"
+                  >
+                    {row.allocatedFixedCosts}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 font-bold tabular-nums text-slate-900 dark:border-slate-800 dark:text-slate-100"
+                    data-report-field="operatingProfit"
+                  >
+                    {row.operatingProfit}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 font-bold tabular-nums text-slate-900 dark:border-slate-800 dark:text-slate-100"
+                    data-report-field="internalRealProfit"
+                  >
+                    {row.internalRealProfit}
+                  </td>
+                  <td
+                    className="border-b border-slate-100 px-3 py-4 tabular-nums text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                    data-report-field="marginPercentage"
+                  >
+                    {row.marginPercentage}
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
+                    <DocumentAlerts row={row} />
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-4 dark:border-slate-800">
+                    <DocumentActions row={row} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
