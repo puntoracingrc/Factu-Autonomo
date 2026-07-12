@@ -20,6 +20,7 @@ import {
   expenseAmountVatView,
   expenseVatSourceLabel,
 } from "./expense-vat-ui";
+import { FieldError } from "@/components/ui/FormErrorSummary";
 import type { Expense, ExpensePurchaseLine } from "@/lib/types";
 
 interface ExpenseAmountFieldsProps {
@@ -33,6 +34,8 @@ interface ExpenseAmountFieldsProps {
   origin?: Expense["origin"];
   recurringExpenseId?: Expense["recurringExpenseId"];
   purchaseLines?: ExpensePurchaseLine[];
+  amountInputId?: string;
+  amountError?: string;
 }
 
 export function ExpenseAmountFields({
@@ -46,6 +49,8 @@ export function ExpenseAmountFields({
   origin,
   recurringExpenseId,
   purchaseLines,
+  amountInputId,
+  amountError,
 }: ExpenseAmountFieldsProps) {
   const [grossDraft, setGrossDraft] = useState<string | null>(null);
   const amount = parseDecimalInput(amountText);
@@ -62,12 +67,14 @@ export function ExpenseAmountFields({
     profileVatExempt,
   );
   const vat = vatView.resolution;
+  const amountErrorId = amountInputId ? `${amountInputId}-error` : undefined;
 
   if (vatExempt) {
     return (
       <div className="space-y-2">
         <Field label="Importe *">
           <Input
+            id={amountInputId}
             type="text"
             inputMode="decimal"
             placeholder="0"
@@ -76,8 +83,18 @@ export function ExpenseAmountFields({
               onAmountTextChange(sanitizeDecimalTyping(e.target.value))
             }
             onFocus={selectInputOnFocus}
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={amountError ? amountErrorId : undefined}
+            className={
+              amountError
+                ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                : ""
+            }
           />
         </Field>
+        {amountError && amountErrorId ? (
+          <FieldError id={amountErrorId} error={amountError} />
+        ) : null}
         <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
           Base: <strong>{formatMoney(vat.base)}</strong> · IVA:{" "}
           <strong>{formatMoney(vat.iva)}</strong> · Total:{" "}
@@ -110,19 +127,32 @@ export function ExpenseAmountFields({
 
   return (
     <>
-      <Field label="Importe (sin IVA) *">
-        <Input
-          type="text"
-          inputMode="decimal"
-          placeholder="0"
-          value={amountText}
-          onChange={(e) => {
-            setGrossDraft(null);
-            onAmountTextChange(sanitizeDecimalTyping(e.target.value));
-          }}
-          onFocus={selectInputOnFocus}
-        />
-      </Field>
+      <div className="space-y-2">
+        <Field label="Importe (sin IVA) *">
+          <Input
+            id={amountInputId}
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={amountText}
+            onChange={(e) => {
+              setGrossDraft(null);
+              onAmountTextChange(sanitizeDecimalTyping(e.target.value));
+            }}
+            onFocus={selectInputOnFocus}
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={amountError ? amountErrorId : undefined}
+            className={
+              amountError
+                ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                : ""
+            }
+          />
+        </Field>
+        {amountError && amountErrorId ? (
+          <FieldError id={amountErrorId} error={amountError} />
+        ) : null}
+      </div>
       {vat.source === "header" ? (
         <Field label="Importe (con IVA)">
           <Input

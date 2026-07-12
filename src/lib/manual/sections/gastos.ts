@@ -71,6 +71,7 @@ export const gastosSection: ManualSection = {
         "Al editar una regla eliges desde qué fecha se aplican los cambios y la cadencia mensual o trimestral conserva su ancla. Si ya existen cargos, exclusiones o vínculos ambiguos desde el corte, la vista previa bloquea la operación: ningún gasto ya creado se borra, desplaza ni reescribe. Elige una fecha posterior o revisa esas ocurrencias por separado.",
         "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Un cargo positivo sí reduce el beneficio económico; un abono negativo revierte ese coste. Ambos siguen en Gastos, balance y Rentabilidad Real, pero aportan base e IVA deducibles cero: este tratamiento no reduce la base ni la reserva estimada de IRPF.",
         "Las ocurrencias no desgravables aparecen identificadas en el listado y en los CSV/PDF fiscales.",
+        "Si faltan proveedor, concepto, importe o una fecha válida, el formulario permanece abierto y muestra un resumen de errores. Cada mensaje lleva al campo correspondiente para que puedas corregirlo sin perder el contexto.",
         "Una creación, edición, pausa, activación o borrado solo se refleja en la lista cuando el navegador confirma el guardado. Ante falta de espacio o permisos de almacenamiento, la regla anterior permanece en la sesión y verás un aviso para corregirlo y reintentar. Si el estado no se puede determinar con seguridad, recarga antes de seguir.",
         "Desde esa pantalla puedes volver al listado principal con **Volver**.",
       ],
