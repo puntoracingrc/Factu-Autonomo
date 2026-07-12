@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import {
+  FieldError,
+  FormErrorSummary,
+  type FormErrorItem,
+} from "@/components/ui/FormErrorSummary";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
@@ -16,6 +21,7 @@ import {
   parseDecimalInput,
 } from "@/lib/decimal-input";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
+import { fixedExpenseValidationErrors } from "@/components/expenses/fixed-expense-validation";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
 import { isExpenseFiscalDeductible } from "@/lib/expenses";
@@ -121,6 +127,9 @@ export default function GastosFijosPage() {
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<FormErrorItem[]>([]);
+  const validationSummaryRef = useRef<HTMLDivElement>(null);
+  const persistenceErrorRef = useRef<HTMLParagraphElement>(null);
   const [form, setForm] = useState({
     ...EMPTY_FORM,
     ivaPercent: defaultIva,
@@ -157,7 +166,7 @@ export default function GastosFijosPage() {
   }, [data.recurringExpenses, today, vatExempt]);
   const requestedEditId = searchParams.get("editar");
   const selectedEffectiveDate =
-    editApplyMode === "today" ? today : effectiveDate || today;
+    editApplyMode === "today" ? today : effectiveDate;
 
   useEffect(() => {
     if (!requestedEditId || editingId === requestedEditId) return;
@@ -171,10 +180,12 @@ export default function GastosFijosPage() {
     setEffectiveDate(todayISO());
     setForm(recurringExpenseForm(requestedTemplate));
     setFormOpen(true);
+    setValidationErrors([]);
   }, [data.recurringExpenses, editingId, requestedEditId]);
 
   function openNew() {
     if (!storageStateUnknown) setPersistenceError(null);
+    setValidationErrors([]);
     setEditingId(null);
     setEditApplyMode("today");
     setEffectiveDate(todayISO());
@@ -189,6 +200,7 @@ export default function GastosFijosPage() {
 
   function closeForm() {
     setFormOpen(false);
+    setValidationErrors([]);
     setEditingId(null);
     setEditApplyMode("today");
     setEffectiveDate(todayISO());
@@ -199,11 +211,30 @@ export default function GastosFijosPage() {
 
   function startEdit(item: RecurringExpense) {
     if (!storageStateUnknown) setPersistenceError(null);
+    setValidationErrors([]);
     setEditingId(item.id);
     setEditApplyMode("today");
     setEffectiveDate(todayISO());
     setForm(recurringExpenseForm(item));
     setFormOpen(true);
+  }
+
+  function validationErrorFor(fieldId: string): string | undefined {
+    return validationErrors.find((error) => error.fieldId === fieldId)?.message;
+  }
+
+  function clearValidationError(fieldId: string) {
+    setValidationErrors((current) =>
+      current.filter((error) => error.fieldId !== fieldId),
+    );
+  }
+
+  function showPersistenceError(message: string) {
+    setPersistenceError(message);
+    requestAnimationFrame(() => {
+      persistenceErrorRef.current?.focus({ preventScroll: true });
+      persistenceErrorRef.current?.scrollIntoView({ block: "nearest" });
+    });
   }
 
   function buildDueTiming(): RecurringDueTiming {
@@ -236,22 +267,23 @@ export default function GastosFijosPage() {
     setPersistenceError(null);
     const amount = parseDecimalInput(form.amountText);
     const startDate = editingId ? selectedEffectiveDate : form.startDate;
-    if (!form.supplierName.trim() || !form.description.trim() || amount <= 0) {
-      alert("Completa proveedor, descripción e importe");
+    const errors = fixedExpenseValidationErrors({
+      supplierName: form.supplierName,
+      description: form.description,
+      amount,
+      startDate,
+      startDateFieldId: editingId
+        ? "recurring-effective-date"
+        : "recurring-start-date",
+      durationKind: form.durationKind,
+      endDate: form.endDate,
+    });
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      requestAnimationFrame(() => validationSummaryRef.current?.focus());
       return;
     }
-    if (!startDate) {
-      alert("Indica desde qué fecha se aplica el gasto");
-      return;
-    }
-    if (
-      form.durationKind === "until_date" &&
-      form.endDate &&
-      form.endDate < startDate
-    ) {
-      alert("La fecha final no puede ser anterior al inicio del tramo");
-      return;
-    }
+    setValidationErrors([]);
 
     const payload = {
       supplierName: form.supplierName.trim(),
@@ -290,13 +322,13 @@ export default function GastosFijosPage() {
             : dated.length === 1
               ? ` Fecha afectada: ${formatShortDate(dated[0])}.`
               : ` Fechas afectadas: ${formatShortDate(dated[0])}–${formatShortDate(dated[dated.length - 1])}.`;
-        alert(
+        showPersistenceError(
           `Vista previa bloqueada: hay ${preview.affectedExpenseCount} cargo(s) ya creado(s), ${preview.affectedExclusionCount} exclusión(es) o datos de procedencia que requieren revisión manual desde ${formatShortDate(startDate)}.${dateSummary} No se ha modificado nada. Elige una fecha posterior al último cargo afectado o revisa esas ocurrencias por separado. Todo lo anterior a la fecha efectiva permanece intacto.`,
         );
         return;
       }
       if (preview.status === "not_found") {
-        alert("La regla ya no existe. No se ha modificado nada.");
+        showPersistenceError("La regla ya no existe. No se ha modificado nada.");
         return;
       }
       const result = applyRecurringExpenseChange(editingId, payload, startDate, {
@@ -306,7 +338,7 @@ export default function GastosFijosPage() {
       });
       if (result.status === "indeterminate") {
         setStorageStateUnknown(true);
-        setPersistenceError(
+        showPersistenceError(
           "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar.",
         );
         return;
@@ -318,14 +350,14 @@ export default function GastosFijosPage() {
           result.reason !== "not_found" &&
           result.reason !== "identifier_collision"
         ) {
-          setPersistenceError(
+          showPersistenceError(
             result.reason === "stale_precondition"
               ? "Los datos cambiaron antes de guardar. El formulario sigue abierto; recarga y revisa la información antes de continuar."
               : "No se pudo guardar en este navegador. El formulario sigue abierto y no se ha aplicado el cambio en esta sesión. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
           );
           return;
         }
-        alert(
+        showPersistenceError(
           result.reason === "stale_preview"
             ? "Los datos cambiaron después de la vista previa. No se ha modificado nada; vuelve a revisar y guardar."
             : "El cambio requiere revisión manual. No se ha modificado nada.",
@@ -338,7 +370,7 @@ export default function GastosFijosPage() {
         if (result.status === "indeterminate") {
           setStorageStateUnknown(true);
         }
-        setPersistenceError(
+        showPersistenceError(
           result.status === "indeterminate"
             ? "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar."
             : result.reason === "stale_precondition"
@@ -378,7 +410,9 @@ export default function GastosFijosPage() {
 
       {persistenceError && !formOpen && (
         <p
+          ref={persistenceErrorRef}
           role="alert"
+          tabIndex={-1}
           className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
         >
           {persistenceError}
@@ -420,9 +454,15 @@ export default function GastosFijosPage() {
         onClose={closeForm}
       >
         <div className="space-y-5">
+          <FormErrorSummary
+            ref={validationSummaryRef}
+            errors={validationErrors}
+          />
           {persistenceError && (
             <p
+              ref={persistenceErrorRef}
               role="alert"
+              tabIndex={-1}
               className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
             >
               {persistenceError}
@@ -507,6 +547,7 @@ export default function GastosFijosPage() {
                         onClick={() => {
                           setEditApplyMode(option.value);
                           if (option.value === "today") {
+                            clearValidationError("recurring-effective-date");
                             setEffectiveDate(today);
                           }
                         }}
@@ -528,50 +569,130 @@ export default function GastosFijosPage() {
                   })}
                 </div>
                 {editApplyMode === "custom" && (
-                  <div className="mt-3">
+                  <div className="mt-3 space-y-2">
                     <Field label="Aplicar desde">
                       <Input
+                        id="recurring-effective-date"
                         type="date"
                         value={effectiveDate}
-                        onChange={(e) => setEffectiveDate(e.target.value)}
-                      />
+                        onChange={(e) => {
+                          clearValidationError("recurring-effective-date");
+                          setEffectiveDate(e.target.value);
+                        }}
+                        aria-invalid={
+                          validationErrorFor("recurring-effective-date")
+                            ? true
+                            : undefined
+                        }
+                        aria-describedby={
+                          validationErrorFor("recurring-effective-date")
+                            ? "recurring-effective-date-error"
+                            : undefined
+                        }
+                        className={
+                          validationErrorFor("recurring-effective-date")
+                            ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                            : ""
+                          }
+                        />
                     </Field>
+                    <FieldError
+                      id="recurring-effective-date-error"
+                      error={validationErrorFor("recurring-effective-date")}
+                    />
                   </div>
                 )}
                 <p className="mt-3 text-xs font-medium text-amber-900">
                   Los cambios de la regla se aplican desde{" "}
-                  {formatShortDate(selectedEffectiveDate)}. Si ya hay cargos o
-                  exclusiones desde esa fecha, la vista previa bloquea el cambio
-                  para que los revises: ningún gasto creado se borra, mueve de
-                  fecha ni reescribe.
+                  {selectedEffectiveDate
+                    ? formatShortDate(selectedEffectiveDate)
+                    : "la fecha que indiques"}
+                  . Si ya hay cargos o exclusiones desde esa fecha, la vista
+                  previa bloquea el cambio para que los revises: ningún gasto creado se borra,
+                  mueve de fecha ni reescribe.
                 </p>
               </div>
             )}
-            <Field label="Proveedor / entidad *">
-              <Input
-                value={form.supplierName}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, supplierName: e.target.value }))
-                }
-                placeholder="Ej: TGSS, Aseguradora, AEAT"
+            <div className="space-y-2">
+              <Field label="Proveedor / entidad *">
+                <Input
+                  id="recurring-supplier-name"
+                  value={form.supplierName}
+                  onChange={(e) => {
+                    clearValidationError("recurring-supplier-name");
+                    setForm((prev) => ({
+                      ...prev,
+                      supplierName: e.target.value,
+                    }));
+                  }}
+                  placeholder="Ej: TGSS, Aseguradora, AEAT"
+                  aria-invalid={
+                    validationErrorFor("recurring-supplier-name")
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    validationErrorFor("recurring-supplier-name")
+                      ? "recurring-supplier-name-error"
+                      : undefined
+                  }
+                  className={
+                    validationErrorFor("recurring-supplier-name")
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : ""
+                  }
+                />
+              </Field>
+              <FieldError
+                id="recurring-supplier-name-error"
+                error={validationErrorFor("recurring-supplier-name")}
               />
-            </Field>
-            <Field label="Concepto *">
-              <Input
-                value={form.description}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="Ej: Cuota autónomos"
+            </div>
+            <div className="space-y-2">
+              <Field label="Concepto *">
+                <Input
+                  id="recurring-description"
+                  value={form.description}
+                  onChange={(e) => {
+                    clearValidationError("recurring-description");
+                    setForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }));
+                  }}
+                  placeholder="Ej: Cuota autónomos"
+                  aria-invalid={
+                    validationErrorFor("recurring-description")
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    validationErrorFor("recurring-description")
+                      ? "recurring-description-error"
+                      : undefined
+                  }
+                  className={
+                    validationErrorFor("recurring-description")
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                      : ""
+                  }
+                />
+              </Field>
+              <FieldError
+                id="recurring-description-error"
+                error={validationErrorFor("recurring-description")}
               />
-            </Field>
+            </div>
             <ExpenseAmountFields
               amountText={form.amountText}
-              onAmountTextChange={(amountText) =>
-                setForm((prev) => ({ ...prev, amountText }))
-              }
+              onAmountTextChange={(amountText) => {
+                clearValidationError("recurring-amount");
+                setForm((prev) => ({ ...prev, amountText }));
+              }}
               ivaPercent={form.ivaPercent}
               vatExempt={vatExempt || form.deductibility === "non_deductible"}
+              amountInputId="recurring-amount"
+              amountError={validationErrorFor("recurring-amount")}
             />
             {form.deductibility === "non_deductible" ? (
               <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2">
@@ -701,25 +822,56 @@ export default function GastosFijosPage() {
               </Field>
             )}
             {!editingId && (
-              <Field label="Primera fecha / inicio">
-                <Input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, startDate: e.target.value }))
-                  }
+              <div className="space-y-2">
+                <Field label="Primera fecha / inicio">
+                  <Input
+                    id="recurring-start-date"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => {
+                      clearValidationError("recurring-start-date");
+                      setForm((prev) => ({
+                        ...prev,
+                        startDate: e.target.value,
+                      }));
+                    }}
+                    aria-invalid={
+                      validationErrorFor("recurring-start-date")
+                        ? true
+                        : undefined
+                    }
+                    aria-describedby={
+                      validationErrorFor("recurring-start-date")
+                        ? "recurring-start-date-error"
+                        : undefined
+                    }
+                    className={
+                      validationErrorFor("recurring-start-date")
+                        ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                        : ""
+                    }
+                  />
+                </Field>
+                <FieldError
+                  id="recurring-start-date-error"
+                  error={validationErrorFor("recurring-start-date")}
                 />
-              </Field>
+              </div>
             )}
             <Field label="Duración">
               <Select
                 value={form.durationKind}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const durationKind = e.target
+                    .value as RecurringDuration["kind"];
+                  if (durationKind !== "until_date") {
+                    clearValidationError("recurring-end-date");
+                  }
                   setForm((prev) => ({
                     ...prev,
-                    durationKind: e.target.value as RecurringDuration["kind"],
-                  }))
-                }
+                    durationKind,
+                  }));
+                }}
               >
                 <option value="indefinite">Siempre (indefinido)</option>
                 <option value="occurrences">Número de veces</option>
@@ -750,15 +902,36 @@ export default function GastosFijosPage() {
               </Field>
             )}
             {form.durationKind === "until_date" && (
-              <Field label="Fecha final">
-                <Input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, endDate: e.target.value }))
-                  }
+              <div className="space-y-2">
+                <Field label="Fecha final">
+                  <Input
+                    id="recurring-end-date"
+                    type="date"
+                    value={form.endDate}
+                    onChange={(e) => {
+                      clearValidationError("recurring-end-date");
+                      setForm((prev) => ({ ...prev, endDate: e.target.value }));
+                    }}
+                    aria-invalid={
+                      validationErrorFor("recurring-end-date") ? true : undefined
+                    }
+                    aria-describedby={
+                      validationErrorFor("recurring-end-date")
+                        ? "recurring-end-date-error"
+                        : undefined
+                    }
+                    className={
+                      validationErrorFor("recurring-end-date")
+                        ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                        : ""
+                    }
+                  />
+                </Field>
+                <FieldError
+                  id="recurring-end-date-error"
+                  error={validationErrorFor("recurring-end-date")}
                 />
-              </Field>
+              </div>
             )}
             <div className="sm:col-span-2">
               <Field label="Notas">
@@ -865,7 +1038,7 @@ export default function GastosFijosPage() {
                           if (result.status === "indeterminate") {
                             setStorageStateUnknown(true);
                           }
-                          setPersistenceError(
+                          showPersistenceError(
                             result.status === "indeterminate"
                               ? "No hemos podido confirmar el cambio. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
                               : result.reason === "stale_precondition" ||
@@ -904,7 +1077,7 @@ export default function GastosFijosPage() {
                           if (result.status === "indeterminate") {
                             setStorageStateUnknown(true);
                           }
-                          setPersistenceError(
+                          showPersistenceError(
                             result.status === "indeterminate"
                               ? "No hemos podido confirmar el borrado. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
                               : result.reason === "stale_precondition" ||
