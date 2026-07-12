@@ -435,7 +435,7 @@ describe("document relationship integrity", () => {
     expect(result.every((document) => document.snapshotIntegrity)).toBe(true);
   });
 
-  it("bloquea una rectificativa de otro destinatario", () => {
+  it("acepta una corrección positiva de datos aunque cambie el destinatario", () => {
     const original = issuedInvoice();
     const rectification = issuedRectification(
       original,
@@ -449,16 +449,60 @@ describe("document relationship integrity", () => {
       status: "rectificada",
       rectifiedById: rectification.id,
     };
+    const immutableEvidence = [linkedOriginal, rectification].map(
+      ({ documentSnapshot, pdfSnapshot, snapshotSeal }) => ({
+        documentSnapshot,
+        pdfSnapshot,
+        snapshotSeal,
+      }),
+    );
 
     const result = withDocumentRelationshipIntegritySignals([
       linkedOriginal,
       rectification,
     ]);
 
-    expect(result.every((document) => document.snapshotIntegrity)).toBe(true);
+    expect(result.every((document) => !document.snapshotIntegrity)).toBe(true);
+    expect(
+      result.map(({ documentSnapshot, pdfSnapshot, snapshotSeal }) => ({
+        documentSnapshot,
+        pdfSnapshot,
+        snapshotSeal,
+      })),
+    ).toEqual(immutableEvidence);
   });
 
-  it("no confunde destinatarios sin NIF de puertas distintas", () => {
+  it("bloquea una anulación de otro destinatario aunque cancele exactamente", () => {
+    const original = issuedInvoice();
+    const rectification = issuedRectification(
+      original,
+      "anulacion",
+      "2026-07-11",
+      PROFILE,
+      "Otro cliente",
+    );
+    const linkedOriginal: Document = {
+      ...original,
+      status: "anulada",
+      documentLifecycle: "canceled",
+      rectifiedById: rectification.id,
+    };
+
+    const result = withDocumentRelationshipIntegritySignals([
+      linkedOriginal,
+      rectification,
+    ]);
+
+    expect(
+      result.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("una anulación no confunde destinatarios sin NIF de puertas distintas", () => {
     const original = issuedInvoice(
       PROFILE,
       "2026-07-10",
@@ -472,7 +516,7 @@ describe("document relationship integrity", () => {
     );
     const rectification = issuedRectification(
       original,
-      "correccion",
+      "anulacion",
       "2026-07-11",
       PROFILE,
       original.documentSnapshot!.customer.name,
@@ -480,7 +524,8 @@ describe("document relationship integrity", () => {
     );
     const linkedOriginal: Document = {
       ...original,
-      status: "rectificada",
+      status: "anulada",
+      documentLifecycle: "canceled",
       rectifiedById: rectification.id,
     };
 

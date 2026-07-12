@@ -4,12 +4,14 @@ import Link from "next/link";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
+import { GenerateReceiptButton } from "@/components/documents/GenerateReceiptButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { useAppStore } from "@/context/AppStore";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
+import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
@@ -42,6 +44,9 @@ export function DocumentReadOnlyActions({
       ? findInvoiceCreatedFromQuote(data.documents, doc.id)
       : undefined;
   const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+  const integrityFeedback = getDocumentIntegrityBlockedFeedback(
+    doc.snapshotIntegrity?.issues,
+  );
 
   return (
     <div className="mt-6 space-y-4">
@@ -50,13 +55,24 @@ export function DocumentReadOnlyActions({
       </p>
       <DocumentLinkBadges document={doc} documents={data.documents} />
       {integrityBlocked && (
-        <p
+        <div
           role="alert"
           className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
         >
-          Acciones bloqueadas. Conserva los datos y revisa una copia de
-          seguridad antes de cobrar, compartir o modificar este documento.
-        </p>
+          <span className="block">{integrityFeedback.title}</span>
+          <span className="mt-1 block font-medium">
+            {integrityFeedback.reason}{" "}
+            {integrityFeedback.consequence}
+          </span>
+          <span className="mt-1 block font-medium">
+            {integrityFeedback.recovery}
+          </span>
+          {doc.type === "factura" && (
+            <div className="mt-2 flex justify-start">
+              <GenerateReceiptButton doc={doc} />
+            </div>
+          )}
+        </div>
       )}
       {linkedInvoice && (
         <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">

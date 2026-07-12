@@ -63,7 +63,6 @@ import {
 import type { DocumentKind } from "@/lib/types";
 import {
   canMarkAsCollected,
-  isCollectedDocument,
   statusAfterUnmarkingCollection,
 } from "@/lib/income";
 import {
@@ -81,11 +80,12 @@ import {
 } from "@/lib/quote-to-invoice";
 import { trackDataDiff } from "@/lib/cloud/incremental";
 import {
-  buildReceiptFromInvoice,
-  findUniqueReceiptSourceInvoice,
-  receiptClaimsForInvoice,
   unmarkInvoiceCollection,
 } from "@/lib/receipts";
+import {
+  runReceiptGenerationCommand,
+  type ReceiptGenerationCommandResult,
+} from "@/lib/receipt-generation-command";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
 import {
   commitAppDataDurably,
@@ -98,7 +98,6 @@ import {
   type FixedExpenseBundleValue,
 } from "@/lib/app-data-durability";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
-import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
@@ -124,7 +123,6 @@ import {
 } from "@/lib/document-integrity";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
 import { buildCanonicalDocumentForProtectedEffect } from "@/lib/document-integrity/pdf-source";
-import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import {
   assertRectificationEmissionAllowed,
   canonicalRectificationItems,
@@ -174,6 +172,8 @@ type DurableRecurringExpenseChangeResult =
     >
   | { status: "blocked"; reason: RecurringExpenseChangeBlockedReason };
 
+export type GenerateReceiptForInvoiceResult = ReceiptGenerationCommandResult;
+
 interface AppStoreValue {
   data: AppData;
   ready: boolean;
@@ -199,7 +199,9 @@ interface AppStoreValue {
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
   markAsCollected: (id: string) => void;
   unmarkAsCollected: (id: string) => void;
-  generateReceiptForInvoice: (invoiceId: string) => Document | null;
+  generateReceiptForInvoice: (
+    invoiceId: string,
+  ) => GenerateReceiptForInvoiceResult;
   markQuoteAsAccepted: (id: string) => void;
   unmarkQuoteAsAccepted: (id: string) => void;
   markQuoteAsRejected: (id: string) => void;
@@ -845,123 +847,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const generateReceiptForInvoice = useCallback(
-    (invoiceId: string): Document | null => {
-      let result: Document | null = null;
-
-      setAppData((prev) => {
-        const invoice = findUniqueReceiptSourceInvoice(
-          prev.documents,
-          invoiceId,
-        );
-        if (
-          !invoice ||
-          !isCollectedDocument(invoice)
-        ) {
-          return prev;
-        }
-
-        const existingReceiptClaims = receiptClaimsForInvoice(
-          prev.documents,
-          invoice.id,
-          invoice.receiptDocumentId,
-        );
-        if (existingReceiptClaims.length > 0) {
-          if (existingReceiptClaims.length === 1) {
-            result = existingReceiptClaims[0];
-          }
-          return prev;
-        }
-        if (invoice.receiptDocumentId) return prev;
-
-        let canonicalInvoice: Document;
-        let receiptProfile: BusinessProfile;
-        try {
-          canonicalInvoice = buildCanonicalDocumentForProtectedEffect(
-            invoice,
-            prev.profile,
-          );
-          if (
-            canonicalInvoice.documentSnapshot?.documentType !== "factura" ||
-            canonicalInvoice.rectification ||
-            canonicalInvoice.documentSnapshot?.rectification
-          ) {
-            return prev;
-          }
-          receiptProfile = profileForHistoricalDerivedDocument(
-            canonicalInvoice.documentSnapshot,
-            prev.profile,
-          );
-        } catch {
-          return prev;
-        }
-
-        try {
-          const now = new Date().toISOString();
-          const numbering = prev.profile.numbering;
-          const receiptDraft = buildReceiptFromInvoice(
-            canonicalInvoice,
-            receiptProfile,
-          );
-          const year = new Date(receiptDraft.date).getFullYear();
-          const { number, sequence } = assignNextDocumentNumberByType(
-            prev.documents,
-            "recibo",
-            year,
-            configuredLastForKind(numbering, "recibo", year),
-            numbering,
-          );
-
-          const receipt: Document = {
-            ...receiptDraft,
-            status: "borrador",
-            id: newId(),
-            number,
-            issuer: captureIssuerSnapshot(receiptProfile),
-            createdAt: now,
-            updatedAt: now,
-          };
-          const paidReceipt = markDocumentPaidWithIntegrity(
-            issueDocumentWithIntegrity(receipt, receiptProfile, now),
-            now,
-          );
-          result = paidReceipt;
-
-          const documents = [
-            ...prev.documents.map((doc) =>
-              doc.id === invoice.id
-                ? {
-                    ...doc,
-                    receiptDocumentId: paidReceipt.id,
-                    updatedAt: now,
-                  }
-                : doc,
-            ),
-            paidReceipt,
-          ];
-
-          return {
-            ...prev,
-            profile: {
-              ...prev.profile,
-              numbering: bumpNumberingAfterAssign(
-                prev.profile.numbering,
-                "recibo",
-                year,
-                sequence,
-              ),
-            },
-            documents,
-            counters: countersFromDocuments(documents, year, numbering),
-          };
-        } catch {
-          result = null;
-          return prev;
-        }
+    (invoiceId: string): GenerateReceiptForInvoiceResult => {
+      const expected = dataRef.current;
+      return runReceiptGenerationCommand({
+        expected,
+        invoiceId,
+        now: new Date().toISOString(),
+        createId: newId,
+        commit: (baseline, build) =>
+          commitDurableAppData(baseline, build),
       });
-
-      return result;
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
   const unmarkAsCollected = useCallback(
