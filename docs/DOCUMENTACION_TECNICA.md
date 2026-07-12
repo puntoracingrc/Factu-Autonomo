@@ -818,8 +818,24 @@ bloqueo fiscal fail-closed y no puede exportarse. Un original completado que
 contradiga el resumen también queda bloqueado, sin construir un total híbrido.
 
 Los vínculos legacy sin reparto explícito adoptan el coste canónico nuevo. Las
-asignaciones explícitas anteriores conservan su importe persistido: no se
-reinterpretan ni migran silenciosamente dentro de AUD-P2-26.
+asignaciones explícitas anteriores no se reinterpretan durante la carga. El
+follow-up de AUD-P2-26 expone en **Cuenta > Copias** una reparación voluntaria
+solo para repartos completos demostrables: resumen pendiente con recargo legacy
+inequívoco, coste antiguo reconciliado, líneas válidas y cobertura completa sin
+duplicados. Los repartos parciales, manuales o ambiguos quedan intactos.
+
+`expense-work-allocation-cost-repair.ts` construye una vista previa pura y
+aplica el plan únicamente tras confirmación. Guarda dentro del gasto las
+allocations exactas de antes/después, los costes antiguo/canónico, fingerprints
+y eventos append-only. Los fingerprints son SHA-256 compactos de una
+serialización canónica, por lo que un roundtrip `jsonb` no depende del orden de
+claves ni duplica las líneas completas dentro de la huella. El rollback solo
+restaura el antes si el estado actual continúa coincidiendo con el después;
+cualquier edición posterior lo bloquea.
+No hay migración en `normalizeLoadedData`, consultas remotas ni cambios en
+documentos, snapshots, sellos o Veri*Factu. Las allocations nuevas guardan
+`fullAmountAtAllocation`, que es exactamente el `operatingCost` firmado usado
+en ese upsert y todavía no altera a los lectores.
 
 ---
 

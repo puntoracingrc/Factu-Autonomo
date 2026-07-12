@@ -21,6 +21,7 @@ import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
+import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
@@ -186,6 +187,9 @@ export default function CuentaPage() {
 
         <div id="datos-privacidad" className="scroll-mt-24">
           <DataOwnershipCard />
+        </div>
+        <div id="reparacion-repartos-gastos" className="scroll-mt-24">
+          <ExpenseWorkAllocationRepairCard />
         </div>
       </AccountSection>
 

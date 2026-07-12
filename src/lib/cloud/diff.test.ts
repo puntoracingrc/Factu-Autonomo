@@ -128,6 +128,86 @@ describe("sync por cambios", () => {
     );
   });
 
+  it("sincroniza una reparación reversible cambiando solo la entidad expense", () => {
+    const beforeAllocation = {
+      workDocumentId: "doc-work",
+      amount: 100,
+      includedLineIds: ["line-1"],
+      allocatedAt: "2026-07-11T10:00:00.000Z",
+    };
+    const afterAllocation = {
+      ...beforeAllocation,
+      amount: 126.2,
+      fullAmountAtAllocation: 126.2,
+    };
+    const baselineExpense = {
+      id: "expense-repair",
+      date: "2026-04-01",
+      supplierName: "Proveedor Recargo SL",
+      description: "Compra repartida",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "doc-work",
+      workAllocations: [beforeAllocation],
+      createdAt: "2026-07-11T09:00:00.000Z",
+    };
+    const baseline: AppData = {
+      ...EMPTY_DATA,
+      documents: [
+        {
+          id: "doc-work",
+          type: "factura",
+          number: "F-2026-0001",
+          date: "2026-07-10",
+          client: { name: "Cliente" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-07-10T10:00:00.000Z",
+          updatedAt: "2026-07-10T10:00:00.000Z",
+        },
+      ],
+      expenses: [baselineExpense],
+    };
+    const repaired: AppData = {
+      ...baseline,
+      expenses: [
+        {
+          ...baselineExpense,
+          workAllocations: [afterAllocation],
+          workAllocationCostRepair: {
+            schemaVersion: 1,
+            kind: "provider_summary_equivalence_surcharge_v1",
+            repairId: "aud-p2-26-work-allocation:expense-repair:v1",
+            status: "applied",
+            legacyOperatingCost: 100,
+            canonicalOperatingCost: 126.2,
+            beforeFingerprint: "before",
+            afterFingerprint: "after",
+            beforeAllocations: [beforeAllocation],
+            afterAllocations: [afterAllocation],
+            events: [
+              { action: "applied", at: "2026-07-12T02:00:00.000Z" },
+            ],
+          },
+        },
+      ],
+    };
+
+    const changes = diffAppData(baseline, repaired);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      entityType: "expense",
+      entityId: "expense-repair",
+      deleted: false,
+    });
+
+    const reloaded = applySyncChanges(baseline, changes);
+    expect(reloaded.documents).toEqual(baseline.documents);
+    expect(reloaded.expenses[0]).toEqual(repaired.expenses[0]);
+  });
+
   it("aplica un cambio remoto sin tocar el resto", () => {
     const local = {
       ...EMPTY_DATA,
