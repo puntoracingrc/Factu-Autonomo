@@ -9,7 +9,7 @@ import {
 } from "./catalog";
 
 describe("catálogo allowlistado de calendarios AEAT", () => {
-  it("mantiene los cinco identificadores oficiales en una sola configuración", () => {
+  it("mantiene los cinco identificadores y feeds oficiales en una sola configuración", () => {
     expect(AEAT_CALENDAR_SOURCES).toEqual({
       renta: expect.objectContaining({
         calendarId: "invitado2aeat@gmail.com",
@@ -31,7 +31,21 @@ describe("catálogo allowlistado de calendarios AEAT", () => {
           "hqp9h5ft4snag42aea96791g28@group.calendar.google.com",
       }),
     });
-    expect(new Set(Object.values(AEAT_CALENDAR_SOURCES).map((source) => source.calendarId))).toHaveLength(5);
+    expect(
+      new Set(
+        Object.values(AEAT_CALENDAR_SOURCES).map(
+          (source) => source.calendarId,
+        ),
+      ),
+    ).toHaveLength(5);
+    for (const source of Object.values(AEAT_CALENDAR_SOURCES)) {
+      const url = new URL(source.icalUrl);
+      expect(url.protocol).toBe("https:");
+      expect(url.hostname).toBe("calendar.google.com");
+      expect(url.pathname).toMatch(/^\/calendar\/ical\/.+\/public\/basic\.ics$/);
+      expect(url.search).toBe("");
+      expect(url.hash).toBe("");
+    }
   });
 
   it("protege la revisión versionada con un hash reproducible", () => {

@@ -17,7 +17,7 @@ function validEnvelope(): { data: Record<string, unknown> } {
           description: "Información general\nModelo 303",
           category: "iva",
           deadlineKind: "unclassified",
-          reviewStatus: "review-with-advisor",
+          reviewStatus: "source-published",
           startDate: "2026-07-20",
           endDateExclusive: "2026-07-21",
           allDay: true,
@@ -47,7 +47,7 @@ function validEnvelope(): { data: Record<string, unknown> } {
         },
       ],
       fetchedAt: "2026-07-12T08:00:00.000Z",
-      providerMode: "fixture",
+      providerMode: "aeat-icalendar",
       truncated: false,
       categories: [
         { key: "renta", label: "Renta" },
@@ -59,12 +59,12 @@ function validEnvelope(): { data: Record<string, unknown> } {
         title: "Calendario del contribuyente — integración iCalendar",
         officialUrl:
           "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar/instrucciones-integrar-calendario.html",
-        retrievedAt: "2026-07-12",
+        retrievedAt: "2026-07-13",
         verificationStatus: "VERIFIED",
         scope: "GENERAL_INFORMATION",
-        catalogVersion: "aeat-public-calendars-2026-07-12.v1",
+        catalogVersion: "aeat-public-calendars-2026-07-13.v2",
         catalogContentSha256:
-          "162d9d10580f0cbaa1bb0af8b7226020de2bbfce72aa0b655912fcfc66dd7e43",
+          "06bc4f95059c421d790d18ddc6d38218484ddb7a1ef6e351abf12aefa7973ee4",
       },
       timeZone: "Europe/Madrid",
       generalInformationOnly: true,

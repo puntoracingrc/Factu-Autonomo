@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Calendario fiscal",
   description:
-    "Estructura informativa de próximos vencimientos generales de la Agencia Tributaria.",
+    "Próximos vencimientos generales publicados en los calendarios de la Agencia Tributaria.",
   robots: { index: false, follow: false },
 };
 

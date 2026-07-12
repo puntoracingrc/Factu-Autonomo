@@ -31,11 +31,11 @@ const modelAdapterSource = readFileSync(
 );
 
 describe("aislamiento del calendario fiscal", () => {
-  it("queda descrito como módulo público review-only y sin escrituras", () => {
+  it("queda descrito como módulo público live y sin escrituras", () => {
     expect(FISCAL_CALENDAR_MODULE_DESCRIPTOR).toMatchObject({
       route: "/consultor-fiscal/calendario",
       localOnly: false,
-      lifecycleStatus: "public_review",
+      lifecycleStatus: "public_live",
       readOnly: true,
       oauthEnabled: false,
       externalWritesEnabled: false,

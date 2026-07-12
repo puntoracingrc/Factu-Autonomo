@@ -34,8 +34,17 @@ const DEADLINE_KINDS = new Set([
   "exception",
   "unclassified",
 ]);
-const REVIEW_STATUSES = new Set(["source-classified", "review-with-advisor"]);
-const PROVIDER_MODES = new Set(["fixture", "google-calendar", "review-only"]);
+const REVIEW_STATUSES = new Set([
+  "source-classified",
+  "source-published",
+  "review-with-advisor",
+]);
+const PROVIDER_MODES = new Set([
+  "aeat-icalendar",
+  "fixture",
+  "google-calendar",
+  "review-only",
+]);
 const CATEGORY_SET = new Set<string>(FISCAL_CALENDAR_CATEGORIES);
 const SHA256 = /^[0-9a-f]{64}$/;
 const RFC3339 =
