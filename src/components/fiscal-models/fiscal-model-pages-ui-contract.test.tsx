@@ -118,6 +118,43 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(detail).not.toMatch(/sustituid[oa]|reemplazad[oa]/i);
   });
 
+  it("adds the Model 01 official content pilot without duplicating review notices", () => {
+    const catalog = source("./FiscalModelCatalogView.tsx");
+    const detail = source("./FiscalModelStructuralDetailView.tsx");
+    const reviewed = source("./FiscalModelReviewedContentView.tsx");
+    const model01 = source(
+      "../../lib/fiscal-models/model-pages/model-01-content.v1.ts",
+    );
+
+    expect(catalog).toContain('page.code === "01"');
+    expect(catalog).toContain("model01Content.thumbnail");
+    expect(catalog).toContain("model01Content.searchTerms");
+    expect(catalog).toContain("createPublicAeatModelSearchEntryWithTermsV2");
+    expect(catalog).toContain('alt=""');
+    expect(detail).toContain("enrichedContent.thumbnail.publicHref");
+    expect(detail).toContain("enrichedContent.thumbnail.alt");
+    expect(detail).toContain("FiscalModelReviewedContentView");
+    expect(detail).toContain("!enrichedContent");
+    expect(reviewed).toContain("Para qué sirve");
+    expect(reviewed).toContain("Qué certifica");
+    expect(reviewed).toContain("Cómo se obtiene");
+    expect(reviewed).toContain("Documentos oficiales");
+    expect(reviewed).toContain("Información y ayuda");
+    expect(model01).toContain("Preguntas frecuentes");
+    expect(reviewed).toContain("Normativa");
+    expect(reviewed).toContain("Procedimiento oficial");
+    expect(reviewed).toContain("Abrir Mi área personal de la AEAT");
+    expect(reviewed).toContain('target="_blank"');
+    expect(reviewed).toContain('rel="noopener noreferrer"');
+    expect(reviewed).toContain("no inicia");
+    expect(reviewed).toContain("no se ejecuta ni se incrusta");
+    expect(reviewed).not.toMatch(/>\s*(?:Presentar|Firmar|Pagar|Enviar)\s*</i);
+    expect(reviewed).not.toMatch(/<(?:iframe|embed|object|form)\b/i);
+    expect(model01).toContain('contentStatus: "REVIEW_ONLY"');
+    expect(model01).toContain('fiscalReviewStatus: "PENDING_REVIEW"');
+    expect(model01).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
+  });
+
   it("renders only safe official references and no filing action", () => {
     const result = resolvePublicAeatModelReviewPageV1({ code: "303" });
     expect(result.status).toBe("REVIEW_ONLY");
@@ -209,9 +246,11 @@ describe("fiscal model structural review pages UI contract", () => {
       source("../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts"),
       source("../../lib/fiscal-models/model-pages/public-review-catalog.v1.ts"),
       source("../../lib/fiscal-models/model-pages/public-review-search.v2.ts"),
+      source("../../lib/fiscal-models/model-pages/model-01-content.v1.ts"),
       source("./FiscalModelCatalogView.tsx"),
       source("./FiscalModelCatalogBrowser.tsx"),
       source("./FiscalModelStructuralDetailView.tsx"),
+      source("./FiscalModelReviewedContentView.tsx"),
       source("../../app/consultor-fiscal/modelos/page.tsx"),
       source("../../app/consultor-fiscal/modelos/[codigo]/page.tsx"),
     ].join("\n");
@@ -225,5 +264,9 @@ describe("fiscal model structural review pages UI contract", () => {
     );
     expect(production).not.toMatch(/from\s+["'][^"']*fiscal-calendar/i);
     expect(production).not.toMatch(/tenantId|userId|BusinessProfile/);
+    expect(production).not.toMatch(
+      /dangerouslySetInnerHTML|<iframe|<embed|<object|\bXMLHttpRequest\b|\baxios\b/,
+    );
+    expect(production).not.toMatch(/from\s+["']node:fs["']/);
   });
 });

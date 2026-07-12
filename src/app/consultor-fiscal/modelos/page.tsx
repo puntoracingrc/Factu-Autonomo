@@ -4,6 +4,7 @@ import { FiscalModelCatalogView } from "@/components/fiscal-models/FiscalModelCa
 import {
   listPublicAeatModelReviewPagesV1,
   resolvePublicAeatModelCalendarCatalogContextV1,
+  resolvePublicAeatModelContentV1,
   searchPublicAeatModelReviewPagesV2,
 } from "@/lib/fiscal-models/model-pages";
 
@@ -33,12 +34,15 @@ export default async function FiscalModelCatalogPage({
   const calendarContext = resolvePublicAeatModelCalendarCatalogContextV1(
     requestSearchParams,
   );
+  const model01Content = resolvePublicAeatModelContentV1({ code: "01" });
+  if (model01Content.status === "BLOCKED") notFound();
 
   return (
     <FiscalModelCatalogView
       result={result}
       pages={catalog.data}
       calendarContext={calendarContext}
+      model01Content={model01Content.data}
     />
   );
 }

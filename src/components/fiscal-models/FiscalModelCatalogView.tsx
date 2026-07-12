@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,13 +10,14 @@ import {
 import { Card } from "@/components/ui/Card";
 import { FiscalModelCatalogBrowser } from "./FiscalModelCatalogBrowser";
 import {
-  createPublicAeatModelSearchEntryV2,
+  createPublicAeatModelSearchEntryWithTermsV2,
   type PublicAeatModelReviewSearchResultV2,
 } from "@/lib/fiscal-models/model-pages/public-review-search.v2";
 import type {
   PublicAeatModelCalendarDetailContextResultV1,
   PublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
+import type { PublicAeatModel01ContentV1 } from "@/lib/fiscal-models/model-pages/model-01-content.v1";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -24,16 +26,23 @@ export function FiscalModelCatalogView({
   result,
   pages,
   calendarContext,
+  model01Content,
 }: {
   result: Extract<PublicAeatModelReviewSearchResultV2, { status: "REVIEW_ONLY" }>;
   pages: readonly PublicAeatModelReviewPageV1[];
   calendarContext: PublicAeatModelCalendarDetailContextResultV1;
+  model01Content: PublicAeatModel01ContentV1;
 }) {
   const matchingIds = new Set(result.data.map((page) => page.catalogCardId));
   const calendarNavigation =
     calendarContext.status === "FROM_CALENDAR" ? calendarContext.data : null;
   const focusedCardId = calendarNavigation?.catalogCardId ?? null;
-  const searchEntries = pages.map(createPublicAeatModelSearchEntryV2);
+  const searchEntries = pages.map((page) =>
+    createPublicAeatModelSearchEntryWithTermsV2(
+      page,
+      page.code === "01" ? model01Content.searchTerms : [],
+    ),
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 text-slate-900 dark:text-slate-100">
@@ -113,6 +122,7 @@ export function FiscalModelCatalogView({
             const detailHref = fromCalendar
               ? calendarNavigation!.detailHref
               : page.href;
+            const thumbnail = page.code === "01" ? model01Content.thumbnail : null;
             return (
               <Card
                 key={page.code}
@@ -145,12 +155,31 @@ export function FiscalModelCatalogView({
                       : "Revisión pendiente"}
                   </span>
                 </div>
-                <h3 className="mt-4 break-words text-lg font-bold text-slate-950 dark:text-slate-100">
-                  Modelo {page.code}
-                </h3>
-                <p className="mt-1 flex-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
-                  {page.canonicalName}
-                </p>
+                <div
+                  className={`mt-4 min-w-0 ${thumbnail ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
+                >
+                  {thumbnail && (
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700">
+                      <Image
+                        src={thumbnail.publicHref}
+                        alt=""
+                        width={thumbnail.width}
+                        height={thumbnail.height}
+                        className="aspect-square h-auto w-full object-cover object-top"
+                        sizes="88px"
+                      />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="break-words text-lg font-bold text-slate-950 dark:text-slate-100">
+                      Modelo {page.code}
+                    </h3>
+                    <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
+                      {page.canonicalName}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-1" />
                 {fromCalendar && (
                   <Link
                     href={calendarNavigation!.returnHref}
