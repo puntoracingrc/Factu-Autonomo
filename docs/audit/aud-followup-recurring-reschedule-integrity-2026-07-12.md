@@ -2,10 +2,9 @@
 
 Fecha: 2026-07-12.
 
-**Estado:** reparación validada de forma dirigida desde `origin/main`
+**Estado:** reparación validada localmente y rebasada sobre `origin/main`
 (`f0ca0380f779cae6caed127b527ed6e666f2510b`). El cierre definitivo requiere
-rebase sobre `origin/main` vigente, suite completa, commit, PR, checks remotos
-verdes, merge a `main` y verificación de producción.
+PR, checks remotos verdes, merge a `main` y verificación de producción.
 
 ## Defecto confirmado
 
@@ -90,7 +89,7 @@ feedback transversal. El follow-up deberá inyectar un fallo de almacenamiento,
 devolver un resultado durable o bloqueado y mantener/revertir el formulario sin
 mostrar falso éxito.
 
-## Evidencia local provisional
+## Evidencia local
 
 - pruebas dirigidas de dominio, formulario, persistencia, diff cloud y manual:
   5 archivos y 120 pruebas aprobadas;
@@ -99,10 +98,23 @@ mostrar falso éxito.
   claves duplicadas, ancla inválida, fechas imposibles, IDs duplicados o
   colisionados, regla ajena pendiente, precondición obsoleta y doble ejecución;
 - TypeScript, ESLint dirigido y `git diff --check`: correctos;
+- suite completa: 480 archivos aprobados y 11 omitidos previstos; 3.455
+  pruebas aprobadas y 17 omitidas;
+- ESLint completo y TypeScript: correctos;
+- build de producción: correcto, 106 páginas generadas;
+- convenciones Supabase: 25 migraciones y 16 rollbacks correctos, sin ejecutar
+  cambios remotos;
+- fixtures: 403 sintéticos válidos y 0 privados;
+- contrato del manual: 6 archivos y 34 pruebas aprobadas. La cobertura visual
+  sigue bloqueada de forma honesta con 0/30 PNG aprobados y permanece en
+  AUD-P2-03/AUD-P2-04;
 - el caso cloud confirma que una segmentación segura solo publica el cierre del
   tramo viejo y el alta del nuevo, conserva el ancla al rehidratar y produce diff
   vacío cuando la operación queda bloqueada; el array de gastos históricos
   queda idéntico.
+- dos revisiones independientes detectaron los endurecimientos de fechas, IDs,
+  exclusiones y sincronización dirigida; todos quedaron corregidos y repetidos
+  en la batería verde. No quedan hallazgos bloqueantes dentro del perímetro.
 
-Quedan pendientes la revisión adversarial final, el rebase, la suite completa,
-el build y el cierre remoto/producción.
+Quedan pendientes el PR, sus checks remotos, merge a `main` y el cierre de
+producción.
