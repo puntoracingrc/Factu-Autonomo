@@ -32,6 +32,35 @@ function isConsultorFiscalReleasePath(pathname: string): boolean {
   );
 }
 
+function isFiscalModelReviewNamespacePath(pathname: string): boolean {
+  return (
+    pathname === "/consultor-fiscal/modelos" ||
+    pathname.startsWith("/consultor-fiscal/modelos/")
+  );
+}
+
+function isAllowedFiscalModelReviewPath(pathname: string): boolean {
+  switch (pathname) {
+    case "/consultor-fiscal/modelos":
+    case "/consultor-fiscal/modelos/036":
+    case "/consultor-fiscal/modelos/037":
+    case "/consultor-fiscal/modelos/303":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function privateNotFoundResponse(): NextResponse {
+  const response = applyPrivateHeaders(
+    new NextResponse("Not Found", { status: 404 }),
+  );
+  for (const { key, value } of buildSecurityResponseHeaders()) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
 export function middleware(request?: NextRequest) {
   const legalDestination = request
     ? LEGAL_ALIAS_DESTINATIONS[request.nextUrl.pathname]
@@ -50,16 +79,19 @@ export function middleware(request?: NextRequest) {
 
   if (
     request &&
+    isFiscalModelReviewNamespacePath(request.nextUrl.pathname) &&
+    !isAllowedFiscalModelReviewPath(request.nextUrl.pathname)
+  ) {
+    return privateNotFoundResponse();
+  }
+
+  if (
+    request &&
     isConsultorFiscalReleasePath(request.nextUrl.pathname) &&
+    !isAllowedFiscalModelReviewPath(request.nextUrl.pathname) &&
     !isConsultorFiscalEnabled()
   ) {
-    const response = applyPrivateHeaders(
-      new NextResponse("Not Found", { status: 404 }),
-    );
-    for (const { key, value } of buildSecurityResponseHeaders()) {
-      response.headers.set(key, value);
-    }
-    return response;
+    return privateNotFoundResponse();
   }
 
   return applyPrivateHeaders(NextResponse.next());
