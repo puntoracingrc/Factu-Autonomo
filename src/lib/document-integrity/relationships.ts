@@ -212,15 +212,15 @@ function relationshipMatches(
       hasValidIssuerTaxId(originalSnapshot.issuer.nif) &&
       hasValidIssuerTaxId(rectificationSnapshot.issuer.nif) &&
       rectificationIssuerNif === originalIssuerNif &&
-      customerIdentityMatches(
-        rectificationSnapshot.customer,
-        originalSnapshot.customer,
-      ) &&
       (relation.type !== "anulacion" ||
-        cancellationTaxSummaryMatches(
-          originalSnapshot,
-          rectificationSnapshot,
-        ))
+        (customerIdentityMatches(
+          rectificationSnapshot.customer,
+          originalSnapshot.customer,
+        ) &&
+          cancellationTaxSummaryMatches(
+            originalSnapshot,
+            rectificationSnapshot,
+          )))
   );
 }
 

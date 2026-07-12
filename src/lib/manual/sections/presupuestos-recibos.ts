@@ -64,6 +64,7 @@ export const recibosSection: ManualSection = {
       paragraphs: [
         "Marcar una factura como **Cobrada** no genera un recibo automáticamente.",
         "Si el cliente lo solicita, usa el botón **Recibo** de la factura cobrada. La app lo crea con el mismo importe y conserva el vínculo con su factura de origen.",
+        "Si ya hay un recibo, el acceso pasa a **Ver recibo** y abre el existente: nunca crea un duplicado. Si la factura no es elegible o el vínculo no es inequívoco, verás el motivo y no se guardará ningún cambio parcial.",
         "El recibo aparece automáticamente en la cadena visual de la factura. Ese vínculo no se crea, reasigna ni rompe manualmente desde el panel de vínculos.",
       ],
       screenshot: {
@@ -86,6 +87,13 @@ export const recibosSection: ManualSection = {
         src: "/ayuda/capturas/recibos-nuevo.png",
         alt: "Crear recibo manualmente",
       },
+    },
+    {
+      title: "3. Recibos con integridad bloqueada",
+      paragraphs: [
+        "Un recibo con **Integridad bloqueada** no está simplemente en modo de solo lectura. La app ha detectado que falta o no coincide una evidencia protegida, por ejemplo el snapshot, el PDF, el sello o el origen fiscal congelado del recibo.",
+        "Por seguridad se muestra **0,00 €** y se impiden acciones que utilizarían un importe no verificable. Conserva el PDF y la copia de seguridad: cualquier recuperación debe revisarse y registrarse de forma explícita, sin resellar automáticamente un documento ya emitido.",
+      ],
     },
   ],
 };

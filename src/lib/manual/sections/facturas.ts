@@ -74,7 +74,8 @@ export const facturasSection: ManualSection = {
       title: "6. Marcar como cobrada",
       paragraphs: [
         "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado**. Esto no genera un recibo por sí solo.",
-        "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. El recibo aparecerá automáticamente en la cadena de documentos de la factura.",
+        "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. El recibo aparecerá automáticamente en la cadena de documentos de la factura. Si ya existe, el mismo acceso abre ese recibo en vez de crear otro.",
+        "Si no se puede generar, la app muestra el motivo: por ejemplo, que la factura todavía no está cobrada, que ya tiene un vínculo incoherente o que su integridad está bloqueada. No se crea ni se guarda un recibo a medias.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
       ],
       screenshot: {
@@ -106,6 +107,14 @@ export const facturasSection: ManualSection = {
         src: "/ayuda/capturas/facturas-rectificar.png",
         alt: "Opción de rectificar factura",
       },
+    },
+    {
+      title: "9. Qué significa Integridad bloqueada",
+      paragraphs: [
+        "**Integridad bloqueada** no es el bloqueo normal que impide editar una factura emitida. Significa que falta o no coincide alguna evidencia protegida —como el snapshot fiscal, el PDF conservado, su sello o una relación fiscal congelada— y la app no puede demostrar con seguridad que el contenido sigue siendo el emitido.",
+        "Como protección fail-closed, la app muestra **0,00 €** y desactiva cobro, envío, rectificación y otros cálculos o acciones que podrían usar cifras no verificadas. No sustituye el importe histórico del PDF ni significa que la operación valiera cero.",
+        "Conserva el PDF original y una copia de seguridad. La recuperación debe ser explícita y auditable, comparando esas evidencias y sin regenerar silenciosamente el snapshot, el sello ni el hash del documento emitido.",
+      ],
     },
   ],
 };

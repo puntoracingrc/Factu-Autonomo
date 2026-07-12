@@ -25,6 +25,7 @@ import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
+import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import {
   documentHasLinkedCustomerNameMismatch,
@@ -425,6 +426,9 @@ export function DocumentList({
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
             const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+            const integrityFeedback = getDocumentIntegrityBlockedFeedback(
+              doc.snapshotIntegrity?.issues,
+            );
             const statusHint = documentStatusHint(doc, type);
             const linkedInvoice =
               type === "presupuesto"
@@ -650,9 +654,19 @@ export function DocumentList({
                       role="alert"
                       className="md:col-start-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
                     >
-                      Acciones bloqueadas. Conserva los datos y revisa una copia de
-                      seguridad antes de cobrar, compartir, rectificar o regenerar
-                      este documento.
+                      <p>{integrityFeedback.title}</p>
+                      <p className="mt-1 font-medium">
+                        {integrityFeedback.reason}{" "}
+                        {integrityFeedback.consequence}
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {integrityFeedback.recovery}
+                      </p>
+                      {type === "factura" && (
+                        <div className="mt-2 flex justify-start">
+                          <GenerateReceiptButton doc={doc} />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">

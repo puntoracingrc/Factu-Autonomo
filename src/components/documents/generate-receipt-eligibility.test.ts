@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentPaid } from "@/lib/document-integrity";
 import { DEFAULT_PROFILE, type Document } from "@/lib/types";
-import { isReceiptGenerationEligible } from "./generate-receipt-eligibility";
+import {
+  isReceiptGenerationEligible,
+  receiptGenerationBlockedMessage,
+  type ReceiptGenerationFeedbackReason,
+} from "./generate-receipt-eligibility";
 
 const PROFILE = { ...DEFAULT_PROFILE, nif: "12345678Z" };
 const NOW = "2026-07-11T10:00:00.000Z";
@@ -66,5 +70,43 @@ describe("elegibilidad de GenerateReceiptButton", () => {
     };
 
     expect(isReceiptGenerationEligible(linked)).toBe(false);
+  });
+
+  it("ofrece un motivo visible y seguro para cada bloqueo de dominio o guardado", () => {
+    const reasons: ReceiptGenerationFeedbackReason[] = [
+      "invoice_not_found",
+      "invoice_not_collected",
+      "invoice_integrity_blocked",
+      "invoice_rectification",
+      "receipt_link_missing",
+      "receipt_link_ambiguous",
+      "source_invalid",
+      "generated_relationship_invalid",
+      "quota_exceeded",
+      "storage_unavailable",
+      "serialization_failed",
+      "protected_existing_data",
+      "stale_precondition",
+      "write_failed",
+      "verification_failed",
+      "transition_failed",
+      "identifier_collision",
+      "not_found",
+    ];
+
+    for (const reason of reasons) {
+      const message = receiptGenerationBlockedMessage(reason);
+      expect(message.length, reason).toBeGreaterThan(45);
+      expect(message, reason).not.toMatch(/undefined|null|error técnico/i);
+    }
+    expect(receiptGenerationBlockedMessage("invoice_integrity_blocked")).toContain(
+      "integridad",
+    );
+    expect(receiptGenerationBlockedMessage("receipt_link_ambiguous")).toContain(
+      "No se creará otro",
+    );
+    expect(receiptGenerationBlockedMessage("verification_failed")).toContain(
+      "No se pudo confirmar",
+    );
   });
 });
