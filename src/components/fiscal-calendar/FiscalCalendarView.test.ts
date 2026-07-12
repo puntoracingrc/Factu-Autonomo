@@ -55,6 +55,19 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).not.toContain("Sin consulta externa");
   });
 
+  it("aclara que las categorías de Renta y Sociedades son calendarios distintos", () => {
+    expect(componentSource).toContain(
+      "La AEAT publica «Renta», «Renta y Sociedades» y «Sociedades»",
+    );
+    expect(componentSource).toContain(
+      "«Renta y Sociedades» es su categoría",
+    );
+    expect(componentSource).toContain("conjunta, no una repetición");
+    expect(componentSource).toContain(
+      'aria-describedby="fiscal-calendar-category-help"',
+    );
+  });
+
   it("retira resultados anteriores antes de cargar otra consulta", () => {
     expect(componentSource).toContain("setData(null)");
     expect(componentSource.indexOf("setData(null)")).toBeLessThan(
