@@ -38,8 +38,8 @@ export const presupuestosSection: ManualSection = {
       paragraphs: [
         "Pulsa **Convertir** para crear una factura en **borrador** desde el presupuesto.",
         "La factura creada conserva cliente, conceptos y vínculo con el presupuesto, pero sigue siendo editable antes de emitirla. Esto permite ajustar extras o cambios acordados con el cliente.",
-        "Después de convertir, el presupuesto mostrará el vínculo con la factura. En los listados verás una pastilla con icono de cadena para abrir el documento relacionado.",
-        "También puedes vincular un presupuesto existente desde la tarjeta de su factura. La cadena visual permite abrir ambos documentos y la **X** quita solo la relación, sin cambiar los PDF emitidos.",
+        "Después de convertir, la tarjeta del presupuesto presupone el documento actual y la cadena muestra solo los relacionados: la factura y, cuando existan, su rectificativa, recibo o gastos. Puedes abrir cada documento desde su pastilla.",
+        "El vínculo presupuesto↔factura registra la procedencia histórica de la conversión. Una vez establecido se conserva en ambos documentos: no se reasigna ni se quita con una **X**.",
       ],
     },
     {
@@ -66,6 +66,7 @@ export const recibosSection: ManualSection = {
         "Si el cliente lo solicita, usa el botón **Recibo** de la factura cobrada. La app lo crea con el mismo importe y conserva el vínculo con su factura de origen.",
         "Si ya hay un recibo, el acceso pasa a **Ver recibo** y abre el existente: nunca crea un duplicado. Si la factura no es elegible o el vínculo no es inequívoco, verás el motivo y no se guardará ningún cambio parcial.",
         "El recibo aparece automáticamente en la cadena visual de la factura. Ese vínculo no se crea, reasigna ni rompe manualmente desde el panel de vínculos.",
+        "En la tarjeta del recibo se presupone el recibo actual y la cadena muestra solo su factura de origen. Esa procedencia fiscal no tiene **X**; la **X** se reserva para gastos operativos que sí sean desvinculables.",
       ],
       screenshot: {
         src: "/ayuda/capturas/recibos-automatico.png",

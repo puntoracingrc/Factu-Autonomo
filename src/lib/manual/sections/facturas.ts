@@ -51,9 +51,9 @@ export const facturasSection: ManualSection = {
       title: "4. Vincular documentos y gastos desde la factura",
       paragraphs: [
         "En el listado de **Facturas**, pulsa el icono de **Vínculos** de una factura. La gestión se abre dentro de su propia tarjeta, sin llevarte a la calculadora de rentabilidad.",
-        "La cadena muestra, por este orden, la factura, su rectificativa si existe, el presupuesto de origen, el recibo generado desde la factura y los gastos vinculados.",
-        "Puedes buscar y enlazar un presupuesto. Si te has equivocado, pulsa la **X** de su bloque: solo elimina la relación y no borra ninguno de los documentos.",
-        "La pestaña **Gastos** permite buscar por factura, producto o proveedor y vincular varios gastos al mismo trabajo. La **X** de un gasto enlazado lo desvincula, pero el gasto sigue intacto en Gastos.",
+        "La tarjeta actual ya identifica la factura, por eso la cadena no la repite: muestra solo sus documentos relacionados, como la rectificativa, el presupuesto de origen y el recibo, además de los gastos vinculados.",
+        "El presupuesto del que procede una factura es una relación histórica de conversión. Si esa procedencia ya está establecida, se conserva en ambos documentos y no se puede cambiar ni quitar con una **X**.",
+        "La pestaña **Gastos** permite buscar por factura, producto o proveedor y vincular varios gastos al mismo trabajo. La **X** aparece únicamente en estos gastos operativos y desvinculables: al pulsarla, el gasto sigue intacto en Gastos.",
         "Si una factura de proveedor contiene líneas que no corresponden al trabajo, abre **Elegir líneas**. Las líneas naranjas cuentan en la rentabilidad y las grises quedan fuera de ese cálculo; la factura de proveedor y su tratamiento fiscal no se modifican.",
         "El recibo no se crea ni se reasigna desde este panel. Cuando lo generas con el botón **Recibo** de la factura, aparece automáticamente en la cadena.",
       ],

@@ -9,6 +9,7 @@ import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButto
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelationshipFlow";
+import { selectDocumentRelationshipPresentationItems } from "@/components/documents/document-relationship-presentation";
 import { InvoiceRelationshipWorkspace } from "@/components/documents/InvoiceRelationshipWorkspace";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
@@ -386,17 +387,22 @@ export function DocumentList({
                 timelineMonthKey(doc.date);
             const amounts = documentAmounts(doc, vatExempt);
             const total = amounts.total;
-            const documentChain = getDocumentChainItems(
+            const canonicalDocumentChain = getDocumentChainItems(
               doc,
               data.documents,
               data.expenses,
               expenseAllocationsByDocumentId[doc.id] ?? {},
             );
+            const relationshipItems =
+              selectDocumentRelationshipPresentationItems(
+                canonicalDocumentChain,
+                doc,
+              );
             const workExpenseSummary =
               type === "factura"
                 ? summarizeAllocatedWorkExpenses({
                     expenses: data.expenses,
-                    workDocumentIds: documentChain
+                    workDocumentIds: canonicalDocumentChain
                       .map((item) => item.document?.id)
                       .filter((id): id is string => Boolean(id)),
                     allocations: expenseAllocationsByDocumentId[doc.id] ?? {},
@@ -622,10 +628,10 @@ export function DocumentList({
                         </p>
                       )}
                     </div>
-                    {documentChain.length > 1 && (
+                    {relationshipItems.length > 0 && (
                       <div className="min-w-0 xl:row-span-2">
                         <DocumentRelationshipFlow
-                          items={documentChain}
+                          items={relationshipItems}
                           vatExempt={vatExempt}
                           compact
                           onExpensesClick={
@@ -746,7 +752,7 @@ export function DocumentList({
                           doc={doc}
                           quoteLinkEditable={
                             editable &&
-                            !documentChain.some(
+                            !canonicalDocumentChain.some(
                               (item) => item.role === "presupuesto",
                             )
                           }
