@@ -66,6 +66,7 @@ export const gastosSection: ManualSection = {
       title: "4. Gastos fijos",
       paragraphs: [
         "En **Gastos fijos** defines pagos recurrentes (alquiler, software, cuota de autónomos, etc.). La app crea el gasto automáticamente cuando toca y lo verás en **Gastos y compras**.",
+        "En una frecuencia **anual**, elige el mes y el vencimiento: día 1, día 15, último día o un día concreto. Las cuatro opciones se guardan y se repiten cada año; si el día concreto no existe en ese mes, se ajusta a su último día.",
         "Puedes elegir **Extra no desgravable** para un coste real que quieres controlar sin tratarlo como gasto fiscal. Un cargo positivo sí reduce el beneficio económico; un abono negativo revierte ese coste. Ambos siguen en Gastos, balance y Rentabilidad Real, pero aportan base e IVA deducibles cero: este tratamiento no reduce la base ni la reserva estimada de IRPF.",
         "Las ocurrencias no desgravables aparecen identificadas en el listado y en los CSV/PDF fiscales.",
         "Desde esa pantalla puedes volver al listado principal con **Volver**.",

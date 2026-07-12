@@ -108,6 +108,24 @@ function parseIso(date: string): { year: number; month: number; day: number } {
   return { year, month, day };
 }
 
+export function recurringAnnualDueMonth(
+  template: Pick<RecurringExpense, "dueMonth" | "startDate">,
+): number {
+  const configuredMonth = template.dueMonth;
+  if (
+    typeof configuredMonth === "number" &&
+    Number.isInteger(configuredMonth) &&
+    configuredMonth >= 1 &&
+    configuredMonth <= 12
+  ) {
+    return configuredMonth;
+  }
+  const startMonth = Number(template.startDate.split("-")[1]);
+  return Number.isInteger(startMonth) && startMonth >= 1 && startMonth <= 12
+    ? startMonth
+    : 1;
+}
+
 function compareIso(a: string, b: string): number {
   return a.localeCompare(b);
 }
@@ -433,7 +451,7 @@ export function listRecurringOccurrenceDates(
   let occurrenceIndex = 0;
 
   if (template.frequency === "annual") {
-    const month = template.dueMonth ?? start.month;
+    const month = recurringAnnualDueMonth(template);
     let year = start.year;
     if (
       compareIso(
@@ -552,13 +570,8 @@ export function recurringFrequencyLabel(
 }
 
 export function recurringDueLabel(template: RecurringExpense): string {
-  if (template.frequency === "annual" && template.dueMonth) {
-    const date = resolveDueDate(
-      2026,
-      template.dueMonth,
-      template.dueTiming,
-    );
-    const [, , day] = date.split("-");
+  if (template.frequency === "annual") {
+    const dueMonth = recurringAnnualDueMonth(template);
     const months = [
       "enero",
       "febrero",
@@ -573,7 +586,21 @@ export function recurringDueLabel(template: RecurringExpense): string {
       "noviembre",
       "diciembre",
     ];
-    return `${Number(day)} de ${months[template.dueMonth - 1]}`;
+    const month = months[dueMonth - 1];
+    if (template.dueTiming.kind === "start_of_month") {
+      return `Día 1 de ${month}`;
+    }
+    if (template.dueTiming.kind === "mid_of_month") {
+      return `Día 15 de ${month}`;
+    }
+    if (template.dueTiming.kind === "end_of_month") {
+      return `Último día de ${month}`;
+    }
+    const needsAdjustment =
+      template.dueTiming.day > lastDayOfMonth(2026, dueMonth);
+    return `Día ${template.dueTiming.day} de ${month}${
+      needsAdjustment ? " (se ajusta al último día disponible)" : ""
+    }`;
   }
   if (template.dueTiming.kind === "start_of_month") return "Inicio de mes";
   if (template.dueTiming.kind === "mid_of_month") return "Mediados de mes";

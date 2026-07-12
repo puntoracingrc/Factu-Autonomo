@@ -70,6 +70,7 @@ import {
 import {
   normalizeRecurringOccurrenceCount,
   occurrenceKey,
+  recurringAnnualDueMonth,
 } from "@/lib/recurring-expenses";
 import {
   purchaseLineHasCatalogProduct,
@@ -291,7 +292,7 @@ export default function NuevoGastoPage() {
           ? String(recurringTemplate.dueTiming.day)
           : "1",
       );
-      setFixedDueMonth(String(recurringTemplate.dueMonth ?? 1));
+      setFixedDueMonth(String(recurringAnnualDueMonth(recurringTemplate)));
       setFixedDurationKind(recurringTemplate.duration.kind);
       setFixedEndDate(
         recurringTemplate.duration.kind === "until_date"
@@ -1340,10 +1341,6 @@ export default function NuevoGastoPage() {
         alert("Indica desde qué fecha empieza este gasto fijo");
         return;
       }
-      if (fixedFrequency === "annual" && fixedDueKind === "end_of_month") {
-        alert("En gastos anuales indica un día concreto del mes");
-        return;
-      }
       if (
         fixedDurationKind === "until_date" &&
         fixedEndDate &&
@@ -1982,17 +1979,11 @@ export default function NuevoGastoPage() {
                     <Field label="Frecuencia">
                       <Select
                         value={fixedFrequency}
-                        onChange={(event) => {
-                          const nextFrequency = event.target
-                            .value as RecurringExpenseFrequency;
-                          setFixedFrequency(nextFrequency);
-                          if (
-                            nextFrequency === "annual" &&
-                            fixedDueKind !== "day_of_month"
-                          ) {
-                            setFixedDueKind("day_of_month");
-                          }
-                        }}
+                        onChange={(event) =>
+                          setFixedFrequency(
+                            event.target.value as RecurringExpenseFrequency,
+                          )
+                        }
                       >
                         <option value="monthly">Mensual</option>
                         <option value="quarterly">Trimestral</option>
@@ -2017,54 +2008,48 @@ export default function NuevoGastoPage() {
                           setFixedDueKind(event.target.value as FixedDueKind)
                         }
                       >
-                        <option value="start_of_month">Inicio de mes</option>
-                        <option value="mid_of_month">Mitad de mes</option>
-                        <option value="end_of_month">Final de mes</option>
-                        <option value="day_of_month">Día concreto</option>
+                        <option value="start_of_month">
+                          Día 1 del mes de vencimiento
+                        </option>
+                        <option value="mid_of_month">
+                          Día 15 del mes de vencimiento
+                        </option>
+                        <option value="end_of_month">
+                          Último día del mes de vencimiento
+                        </option>
+                        <option value="day_of_month">
+                          Día concreto del mes de vencimiento
+                        </option>
                       </Select>
                     </Field>
-                    {fixedDueKind === "day_of_month" ||
-                    fixedFrequency === "annual" ? (
-                      <Field
-                        label={
-                          fixedFrequency === "annual"
-                            ? "Mes y día"
-                            : "Día del mes"
-                        }
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          {fixedFrequency === "annual" ? (
-                            <Select
-                              value={fixedDueMonth}
-                              onChange={(event) =>
-                                setFixedDueMonth(event.target.value)
-                              }
-                            >
-                              {FIXED_MONTHS.map((month, index) => (
-                                <option key={month} value={index + 1}>
-                                  {month}
-                                </option>
-                              ))}
-                            </Select>
-                          ) : null}
-                          <Input
-                            type="number"
-                            min={1}
-                            max={31}
-                            value={fixedDueDay}
-                            onChange={(event) =>
-                              setFixedDueDay(event.target.value)
-                            }
-                            className={
-                              fixedFrequency === "annual"
-                                ? undefined
-                                : "col-span-2"
-                            }
-                          />
-                        </div>
+                    {fixedFrequency === "annual" && (
+                      <Field label="Mes del año">
+                        <Select
+                          value={fixedDueMonth}
+                          onChange={(event) =>
+                            setFixedDueMonth(event.target.value)
+                          }
+                        >
+                          {FIXED_MONTHS.map((month, index) => (
+                            <option key={month} value={index + 1}>
+                              {month}
+                            </option>
+                          ))}
+                        </Select>
                       </Field>
-                    ) : (
-                      <div className="hidden lg:block" />
+                    )}
+                    {fixedDueKind === "day_of_month" && (
+                      <Field label="Día del mes (1-31)">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={fixedDueDay}
+                          onChange={(event) =>
+                            setFixedDueDay(event.target.value)
+                          }
+                        />
+                      </Field>
                     )}
                     <Field label="Duración">
                       <Select

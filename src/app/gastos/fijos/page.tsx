@@ -22,6 +22,7 @@ import { isExpenseFiscalDeductible } from "@/lib/expenses";
 import {
   isRecurringExpenseApplicableOn,
   normalizeRecurringOccurrenceCount,
+  recurringAnnualDueMonth,
   recurringDueLabel,
   recurringDurationLabel,
   recurringExpenseTotals,
@@ -85,7 +86,7 @@ function recurringExpenseForm(item: RecurringExpense) {
       item.dueTiming.kind === "day_of_month"
         ? String(item.dueTiming.day)
         : "1",
-    dueMonth: String(item.dueMonth ?? 1),
+    dueMonth: String(recurringAnnualDueMonth(item)),
     durationKind: item.duration.kind,
     endDate: item.duration.kind === "until_date" ? item.duration.endDate : "",
     occurrenceCount:
@@ -234,10 +235,6 @@ export default function GastosFijosPage() {
     }
     if (!startDate) {
       alert("Indica desde qué fecha se aplica el gasto");
-      return;
-    }
-    if (form.frequency === "annual" && form.dueKind === "end_of_month") {
-      alert("En gastos anuales indica un día concreto del mes");
       return;
     }
     if (
@@ -552,10 +549,18 @@ export default function GastosFijosPage() {
                   }))
                 }
               >
-                <option value="start_of_month">Inicio de mes</option>
-                <option value="mid_of_month">Mediados de mes</option>
-                <option value="end_of_month">Final de mes</option>
-                <option value="day_of_month">Día concreto del mes</option>
+                <option value="start_of_month">
+                  Día 1 del mes de vencimiento
+                </option>
+                <option value="mid_of_month">
+                  Día 15 del mes de vencimiento
+                </option>
+                <option value="end_of_month">
+                  Último día del mes de vencimiento
+                </option>
+                <option value="day_of_month">
+                  Día concreto del mes de vencimiento
+                </option>
               </Select>
             </Field>
             {form.dueKind === "day_of_month" && (
