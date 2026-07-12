@@ -2,9 +2,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ExternalLink,
-  FileClock,
   History,
-  Info,
   LibraryBig,
   ShieldAlert,
 } from "lucide-react";
@@ -16,8 +14,10 @@ const focusRing =
 
 export function FiscalModelStructuralDetailView({
   page,
+  calendarReturnHref,
 }: {
   page: PublicAeatModelReviewPageV1;
+  calendarReturnHref: "/consultor-fiscal/calendario" | null;
 }) {
   const historical = page.lifecycleStatus === "HISTORICAL";
   const historicalDate = page.effectiveTo
@@ -26,16 +26,30 @@ export function FiscalModelStructuralDetailView({
 
   return (
     <article className="mx-auto w-full max-w-5xl space-y-6 text-slate-900 dark:text-slate-100">
-      <Link
-        href="/consultor-fiscal/modelos"
-        className={
-          "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 " +
-          focusRing
-        }
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Volver a Modelos AEAT
-      </Link>
+      <nav aria-label="Volver" className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/consultor-fiscal/modelos"
+          className={
+            "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 " +
+            focusRing
+          }
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Volver a Modelos AEAT
+        </Link>
+        {calendarReturnHref && (
+          <Link
+            href={calendarReturnHref}
+            className={
+              "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 " +
+              focusRing
+            }
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Volver al Calendario
+          </Link>
+        )}
+      </nav>
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -108,93 +122,6 @@ export function FiscalModelStructuralDetailView({
         </Card>
       )}
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <Card className="min-w-0 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2">
-            <Info
-              className="h-5 w-5 text-blue-700 dark:text-blue-300"
-              aria-hidden="true"
-            />
-            <h2 className="text-lg font-bold text-slate-950 dark:text-slate-100">
-              Alcance de esta ficha
-            </h2>
-          </div>
-          <p className="mt-3 break-words text-sm leading-6 text-slate-700 dark:text-slate-300">
-            {page.summary}
-          </p>
-          {page.sourceRowLabel && (
-            <dl className="mt-4 space-y-2 text-sm">
-              <div>
-                <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                  Fila registrada en el índice AEAT
-                </dt>
-                <dd className="mt-0.5 break-words text-slate-800 dark:text-slate-200">
-                  {page.sourceRowLabel}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                  Identificadores de esa fila
-                </dt>
-                <dd className="mt-0.5 break-words text-slate-800 dark:text-slate-200">
-                  {page.sourceGroupCodes.join(", ")}
-                </dd>
-              </div>
-            </dl>
-          )}
-        </Card>
-
-        <Card className="min-w-0 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2">
-            <FileClock
-              className="h-5 w-5 text-blue-700 dark:text-blue-300"
-              aria-hidden="true"
-            />
-            <h2 className="text-lg font-bold text-slate-950 dark:text-slate-100">
-              Estado registrado
-            </h2>
-          </div>
-          <dl className="mt-3 space-y-3 text-sm">
-            <div>
-              <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                Ruta informativa
-              </dt>
-              <dd className="mt-0.5 font-semibold text-blue-800 dark:text-blue-200">
-                Ficha desplegada
-              </dd>
-            </div>
-            <div>
-              <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                Revisión de contenido
-              </dt>
-              <dd className="mt-0.5 font-semibold text-amber-800 dark:text-amber-200">
-                Pendiente de revisión fiscal
-              </dd>
-            </div>
-            <div>
-              <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                Vigencia
-              </dt>
-              <dd className="mt-0.5 text-slate-800 dark:text-slate-200">
-                {historical
-                  ? "Histórico · no vigente"
-                  : "Pendiente de verificación"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-semibold text-slate-500 dark:text-slate-400">
-                Cobertura
-              </dt>
-              <dd className="mt-0.5 text-slate-800 dark:text-slate-200">
-                {historical
-                  ? "Solo información histórica"
-                  : "Solo estructura e identidad del índice oficial"}
-              </dd>
-            </div>
-          </dl>
-        </Card>
-      </div>
-
       <Card className="dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center gap-2">
           <LibraryBig
@@ -218,9 +145,6 @@ export function FiscalModelStructuralDetailView({
               <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wide">
                 <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-900 dark:bg-blue-950 dark:text-blue-100">
                   {source.authority}
-                </span>
-                <span className="text-amber-800 dark:text-amber-200">
-                  Revisión fiscal pendiente
                 </span>
               </div>
               <p className="mt-3 break-words font-semibold text-slate-900 dark:text-slate-100">
@@ -270,28 +194,26 @@ export function FiscalModelStructuralDetailView({
 
       <Card className="border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-bold text-slate-950 dark:text-slate-100">
-          Límites y campos pendientes
+          Trazabilidad y límites
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
           {page.limitations}
         </p>
-        <ul className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 dark:text-slate-300">
-          <li className="rounded-xl bg-white px-3 py-2 dark:bg-slate-950">
-            {historical
-              ? "Aplicabilidad detallada: pendiente de revisión"
-              : "Vigencia y aplicabilidad: pendientes"}
-          </li>
-          <li className="rounded-xl bg-white px-3 py-2 dark:bg-slate-950">
-            Contenido fiscal detallado: pendiente
-          </li>
-          <li className="rounded-xl bg-white px-3 py-2 dark:bg-slate-950">
-            Casillas e importes: no incluidos
-          </li>
-          <li className="rounded-xl bg-white px-3 py-2 dark:bg-slate-950">
-            Presentación o envío: no disponible
-          </li>
-        </ul>
         <dl className="mt-4 grid min-w-0 gap-3 text-xs text-slate-500 sm:grid-cols-2 dark:text-slate-400">
+          {page.sourceRowLabel && (
+            <div className="min-w-0">
+              <dt className="font-semibold">Fila del índice AEAT</dt>
+              <dd className="mt-1 break-words">{page.sourceRowLabel}</dd>
+            </div>
+          )}
+          {page.sourceRowLabel && (
+            <div className="min-w-0">
+              <dt className="font-semibold">Identificadores de la fila</dt>
+              <dd className="mt-1 break-words">
+                {page.sourceGroupCodes.join(", ")}
+              </dd>
+            </div>
+          )}
           <div className="min-w-0">
             <dt className="font-semibold">Release de ficha</dt>
             <dd className="mt-1 break-all">{page.descriptorReleaseId}</dd>

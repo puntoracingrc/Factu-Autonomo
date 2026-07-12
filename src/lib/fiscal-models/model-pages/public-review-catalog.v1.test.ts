@@ -6,6 +6,9 @@ import {
 } from "../inventory/index.v1";
 import {
   listPublicAeatModelReviewPagesV1,
+  resolvePublicAeatModelCalendarCatalogContextV1,
+  resolvePublicAeatModelCalendarDetailContextV1,
+  resolvePublicAeatModelCalendarNavigationV1,
   resolvePublicAeatModelReviewPageV1,
   searchPublicAeatModelReviewPagesV1,
 } from "./public-review-catalog.v1";
@@ -133,6 +136,233 @@ describe("public AEAT model review catalog v1", () => {
         effectiveTo: null,
         historicalNotice: null,
       });
+    }
+  });
+
+  it("exposes an exhaustive immutable Calendar navigation descriptor without deriving consumer hrefs", () => {
+    const catalog = listPublicAeatModelReviewPagesV1();
+    expect(catalog.status).toBe("REVIEW_ONLY");
+    if (catalog.status !== "REVIEW_ONLY") return;
+
+    expect(catalog.data).toHaveLength(229);
+    for (const page of catalog.data) {
+      expect(page.catalogCardId, page.code).toBe(`modelo-${page.code}`);
+
+      const first = resolvePublicAeatModelCalendarNavigationV1({
+        code: page.code,
+      });
+      const second = resolvePublicAeatModelCalendarNavigationV1({
+        code: page.code,
+      });
+      expect(first.status, page.code).toBe("REVIEW_ONLY");
+      expect(second.status, page.code).toBe("REVIEW_ONLY");
+      if (first.status !== "REVIEW_ONLY" || second.status !== "REVIEW_ONLY") {
+        continue;
+      }
+
+      const expectedCatalogFocusHref =
+        `/consultor-fiscal/modelos?origen=calendario&foco=${page.code}` +
+        `#modelo-${page.code}`;
+      const expectedDetailHref = `${page.href}?origen=calendario`;
+      expect(first).toEqual({
+        status: "REVIEW_ONLY",
+        data: {
+          code: page.code,
+          origin: "FISCAL_CALENDAR",
+          originQueryValue: "calendario",
+          routeDeploymentStatus: "DEPLOYED",
+          catalogCardId: `modelo-${page.code}`,
+          catalogFocusHref: expectedCatalogFocusHref,
+          detailHref: expectedDetailHref,
+          returnHref: "/consultor-fiscal/calendario",
+        },
+        catalogFocusHref: expectedCatalogFocusHref,
+        detailHref: expectedDetailHref,
+      });
+      expect(second).toEqual(first);
+      expect(second).not.toBe(first);
+      expect(second.data).not.toBe(first.data);
+      expect(Object.isFrozen(first)).toBe(true);
+      expect(Object.isFrozen(first.data)).toBe(true);
+    }
+
+    expect(
+      new Set(catalog.data.map((page) => page.catalogCardId)).size,
+    ).toBe(229);
+  });
+
+  it("fails Calendar navigation closed for unknown, coerced, decorated, and accessor inputs", () => {
+    for (const code of ["000", "601", "999", "A25", "99X"]) {
+      expect(resolvePublicAeatModelCalendarNavigationV1({ code })).toEqual({
+        status: "BLOCKED",
+        reason: "MODEL_NOT_FOUND",
+        catalogFocusHref: null,
+        detailHref: null,
+      });
+    }
+
+    let getterCalls = 0;
+    const accessor = {};
+    Object.defineProperty(accessor, "code", {
+      enumerable: true,
+      get: () => {
+        getterCalls += 1;
+        return "130";
+      },
+    });
+
+    for (const input of [
+      null,
+      undefined,
+      [],
+      {},
+      { code: 130 },
+      { code: ["130"] },
+      { code: "130", extra: true },
+      { code: "130", returnTo: "/evil" },
+      { code: "130 " },
+      { code: "130/extra" },
+      { code: "01c" },
+      Object.create({ code: "130" }),
+      accessor,
+    ]) {
+      expect(resolvePublicAeatModelCalendarNavigationV1(input)).toEqual({
+        status: "BLOCKED",
+        reason: "INVALID_INPUT",
+        catalogFocusHref: null,
+        detailHref: null,
+      });
+    }
+    expect(getterCalls).toBe(0);
+  });
+
+  it("accepts only the exact Calendar catalog origin and ignores manipulated context", () => {
+    for (const code of PUBLIC_AEAT_MODEL_REVIEW_CODES_V1) {
+      for (const input of [
+        { origen: "calendario", foco: code },
+        { modelo: "", origen: "calendario", foco: code },
+      ]) {
+        const result = resolvePublicAeatModelCalendarCatalogContextV1(input);
+        expect(result.status, code).toBe("FROM_CALENDAR");
+        if (result.status !== "FROM_CALENDAR") continue;
+        expect(result.data).toMatchObject({
+          code,
+          origin: "FISCAL_CALENDAR",
+          catalogCardId: `modelo-${code}`,
+          catalogFocusHref:
+            `/consultor-fiscal/modelos?origen=calendario&foco=${code}` +
+            `#modelo-${code}`,
+          detailHref: `/consultor-fiscal/modelos/${code}?origen=calendario`,
+          returnHref: "/consultor-fiscal/calendario",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+        expect(Object.isFrozen(result.data)).toBe(true);
+      }
+    }
+
+    for (const input of [
+      null,
+      undefined,
+      [],
+      {},
+      { origen: "calendario" },
+      { foco: "130" },
+      { origen: ["calendario"], foco: "130" },
+      { origen: "FISCAL_CALENDAR", foco: "130" },
+      { origen: "calendario", foco: ["130"] },
+      { origen: "calendario", foco: "130", extra: true },
+      { origen: "calendario", foco: "130", returnTo: "/evil" },
+      { modelo: "IVA", origen: "calendario", foco: "130" },
+      { modelo: [""], origen: "calendario", foco: "130" },
+      { origen: "calendario", foco: "999" },
+      { origen: "calendario", foco: "130 " },
+      Object.create({ origen: "calendario", foco: "130" }),
+    ]) {
+      expect(resolvePublicAeatModelCalendarCatalogContextV1(input)).toEqual({
+        status: "DIRECT",
+        data: null,
+      });
+    }
+  });
+
+  it("propagates only the fixed Calendar origin to detail pages", () => {
+    for (const code of PUBLIC_AEAT_MODEL_REVIEW_CODES_V1) {
+      const result = resolvePublicAeatModelCalendarDetailContextV1({
+        code,
+        searchParams: { origen: "calendario" },
+      });
+      expect(result.status, code).toBe("FROM_CALENDAR");
+      if (result.status !== "FROM_CALENDAR") continue;
+      expect(result.data).toMatchObject({
+        code,
+        origin: "FISCAL_CALENDAR",
+        detailHref: `/consultor-fiscal/modelos/${code}?origen=calendario`,
+        returnHref: "/consultor-fiscal/calendario",
+      });
+      expect(Object.isFrozen(result)).toBe(true);
+      expect(Object.isFrozen(result.data)).toBe(true);
+    }
+
+    for (const input of [
+      null,
+      undefined,
+      [],
+      {},
+      { code: "130" },
+      { code: ["130"], searchParams: { origen: "calendario" } },
+      { code: "999", searchParams: { origen: "calendario" } },
+      { code: "130 ", searchParams: { origen: "calendario" } },
+      { code: "130", searchParams: null },
+      { code: "130", searchParams: [] },
+      { code: "130", searchParams: {} },
+      { code: "130", searchParams: { origen: ["calendario"] } },
+      { code: "130", searchParams: { origen: "FISCAL_CALENDAR" } },
+      {
+        code: "130",
+        searchParams: { origen: "calendario", returnTo: "/evil" },
+      },
+      {
+        code: "130",
+        searchParams: { origen: "calendario" },
+        returnTo: "/evil",
+      },
+      Object.create({
+        code: "130",
+        searchParams: { origen: "calendario" },
+      }),
+    ]) {
+      expect(resolvePublicAeatModelCalendarDetailContextV1(input)).toEqual({
+        status: "DIRECT",
+        data: null,
+      });
+    }
+  });
+
+  it("returns fresh Calendar descriptors that consumer mutation cannot corrupt", () => {
+    const first = resolvePublicAeatModelCalendarNavigationV1({ code: "130" });
+    const context = resolvePublicAeatModelCalendarCatalogContextV1({
+      origen: "calendario",
+      foco: "130",
+    });
+    expect(first.status).toBe("REVIEW_ONLY");
+    expect(context.status).toBe("FROM_CALENDAR");
+    if (first.status !== "REVIEW_ONLY" || context.status !== "FROM_CALENDAR") {
+      return;
+    }
+
+    expect(() => {
+      (first.data as unknown as { returnHref: string }).returnHref = "/evil";
+    }).toThrow(TypeError);
+    expect(() => {
+      (context.data as unknown as { catalogCardId: string }).catalogCardId =
+        "modelo-999";
+    }).toThrow(TypeError);
+
+    const after = resolvePublicAeatModelCalendarNavigationV1({ code: "130" });
+    expect(after).toEqual(first);
+    expect(after).not.toBe(first);
+    if (after.status === "REVIEW_ONLY") {
+      expect(after.data).not.toBe(first.data);
     }
   });
 
