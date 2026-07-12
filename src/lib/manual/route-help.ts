@@ -28,6 +28,12 @@ export function resolveManualSlug(pathname: string): string | null {
   if (path.startsWith("/cuenta")) return "cuenta";
   if (path.startsWith("/configuracion")) return "configuracion";
   if (path.startsWith("/importar")) return "importacion";
+  if (
+    path === "/rentabilidad-real" ||
+    path.startsWith("/rentabilidad-real/")
+  ) {
+    return "rentabilidad-real";
+  }
 
   return null;
 }
