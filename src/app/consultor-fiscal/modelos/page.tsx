@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FiscalModelCatalogView } from "@/components/fiscal-models/FiscalModelCatalogView";
-import { searchFiscalModelReviewPageViewsV1 } from "@/lib/fiscal-models/model-pages/review-view-model.v1";
+import { searchPublicAeatModelReviewPagesV1 } from "@/lib/fiscal-models/model-pages";
 
 export const metadata: Metadata = {
   title: "Modelos AEAT · Información en revisión",
@@ -21,7 +21,7 @@ interface FiscalModelCatalogPageProps {
 export default async function FiscalModelCatalogPage({
   searchParams,
 }: FiscalModelCatalogPageProps) {
-  const result = searchFiscalModelReviewPageViewsV1(await searchParams);
+  const result = searchPublicAeatModelReviewPagesV1(await searchParams);
   if (result.status === "BLOCKED" && result.reason !== "INVALID_INPUT") {
     notFound();
   }

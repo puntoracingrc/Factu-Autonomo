@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { isPublicAeatModelReviewPathV1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { buildSecurityResponseHeaders } from "@/lib/security-response-headers";
 
 const PRIVATE_APP_HEADERS = {
@@ -33,22 +34,21 @@ function isConsultorFiscalReleasePath(pathname: string): boolean {
 }
 
 function isFiscalModelReviewNamespacePath(pathname: string): boolean {
-  return (
-    pathname === "/consultor-fiscal/modelos" ||
-    pathname.startsWith("/consultor-fiscal/modelos/")
-  );
+  return pathname.toLowerCase().startsWith("/consultor-fiscal/modelos");
+}
+
+function isNormalizedFiscalModelTraversalTarget(pathname: string): boolean {
+  const prefix = "/consultor-fiscal/";
+  if (!pathname.startsWith(prefix)) return false;
+  const segment = pathname.slice(prefix.length);
+  return /^(?:\d{2,3}|\d{2}[A-Za-z]|[A-Za-z]\d{2})$/.test(segment);
 }
 
 function isAllowedFiscalModelReviewPath(pathname: string): boolean {
-  switch (pathname) {
-    case "/consultor-fiscal/modelos":
-    case "/consultor-fiscal/modelos/036":
-    case "/consultor-fiscal/modelos/037":
-    case "/consultor-fiscal/modelos/303":
-      return true;
-    default:
-      return false;
-  }
+  return (
+    pathname === "/consultor-fiscal/modelos" ||
+    isPublicAeatModelReviewPathV1(pathname)
+  );
 }
 
 function privateNotFoundResponse(): NextResponse {
@@ -79,8 +79,9 @@ export function middleware(request?: NextRequest) {
 
   if (
     request &&
-    isFiscalModelReviewNamespacePath(request.nextUrl.pathname) &&
-    !isAllowedFiscalModelReviewPath(request.nextUrl.pathname)
+    ((isFiscalModelReviewNamespacePath(request.nextUrl.pathname) &&
+      !isAllowedFiscalModelReviewPath(request.nextUrl.pathname)) ||
+      isNormalizedFiscalModelTraversalTarget(request.nextUrl.pathname))
   ) {
     return privateNotFoundResponse();
   }

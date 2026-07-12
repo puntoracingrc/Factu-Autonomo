@@ -8,7 +8,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import type { FiscalModelReviewPageSearchResultV1 } from "@/lib/fiscal-models/model-pages/review-view-model.v1";
+import type { PublicAeatModelReviewSearchResultV1 } from "@/lib/fiscal-models/model-pages";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -16,7 +16,7 @@ const focusRing =
 export function FiscalModelCatalogView({
   result,
 }: {
-  result: FiscalModelReviewPageSearchResultV1;
+  result: PublicAeatModelReviewSearchResultV1;
 }) {
   const blocked = result.status === "BLOCKED";
   const currentQuery = blocked ? "" : (result.query ?? "");
@@ -84,7 +84,8 @@ export function FiscalModelCatalogView({
               id="buscar-modelo-hint"
               className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300"
             >
-              Escribe exactamente tres dígitos. La búsqueda es local y no envía
+              Escribe un código exacto de dos o tres caracteres, usando
+              mayúsculas cuando incluya letras. La búsqueda es local y no envía
               datos a servicios externos.
             </p>
           </div>
@@ -100,10 +101,10 @@ export function FiscalModelCatalogView({
                 id="modelo-aeat"
                 name="modelo"
                 type="text"
-                inputMode="numeric"
                 autoComplete="off"
+                autoCapitalize="characters"
                 maxLength={3}
-                pattern="[0-9]{3}"
+                pattern="([0-9]{2,3}|[0-9]{2}[A-Z]|[A-Z][0-9]{2})"
                 defaultValue={currentQuery}
                 aria-describedby={
                   blocked
@@ -112,7 +113,7 @@ export function FiscalModelCatalogView({
                 }
                 aria-invalid={blocked}
                 aria-errormessage={blocked ? "buscar-modelo-error" : undefined}
-                placeholder="Ej.: 036"
+                placeholder="Ej.: 130 o A22"
                 className={`min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-950 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 ${focusRing}`}
               />
             </div>
@@ -160,8 +161,8 @@ export function FiscalModelCatalogView({
               La búsqueda no es válida.
             </p>
             <p className="mt-1 text-sm leading-6 text-red-800 dark:text-red-200">
-              Usa un único código de tres dígitos, sin espacios, letras ni
-              parámetros adicionales.
+              Usa un único código exacto de dos o tres caracteres, sin espacios
+              ni parámetros adicionales; las letras deben estar en mayúscula.
             </p>
           </Card>
         ) : result.match === "NO_MATCH" ? (
@@ -222,13 +223,14 @@ export function FiscalModelCatalogView({
                     {page.summary}
                   </p>
                   <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
-                    Enlace automático bloqueado
+                    Ficha desplegada · contenido en revisión
                   </p>
                   <Link
-                    href={page.reviewPagePath}
+                    href={page.href}
                     className={`mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
                   >
                     Abrir ficha en revisión
+                    <span className="sr-only"> del modelo {page.code}</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Card>
