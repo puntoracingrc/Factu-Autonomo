@@ -1,4 +1,5 @@
 import { isDateOnly } from "./dates";
+import { isCanonicalFiscalCalendarModelPageLink } from "./model-reference-links";
 import {
   FISCAL_CALENDAR_CATEGORIES,
   type FiscalCalendarCategory,
@@ -20,7 +21,6 @@ const MAX_SOURCE_ID_LENGTH = 200;
 const MAX_SOURCE_TITLE_LENGTH = 300;
 const MAX_SOURCE_URL_LENGTH = 2_048;
 const MAX_CATALOG_VERSION_LENGTH = 200;
-const MAX_MODEL_HREF_LENGTH = 2_048;
 
 const EVENT_STATUSES = new Set([
   "confirmed",
@@ -37,7 +37,6 @@ const DEADLINE_KINDS = new Set([
 const REVIEW_STATUSES = new Set(["source-classified", "review-with-advisor"]);
 const PROVIDER_MODES = new Set(["fixture", "google-calendar", "review-only"]);
 const CATEGORY_SET = new Set<string>(FISCAL_CALENDAR_CATEGORIES);
-const MODEL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const RFC3339 =
   /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|([+-])(\d{2}):(\d{2}))$/;
@@ -206,32 +205,6 @@ function isOfficialSource(
   }
 }
 
-function isModelPageLink(value: unknown): value is FiscalCalendarModelPageLink {
-  if (
-    !isRecord(value) ||
-    typeof value.code !== "string" ||
-    !MODEL_CODE.test(value.code) ||
-    !isBoundedString(value.href, MAX_MODEL_HREF_LENGTH) ||
-    !value.href.startsWith("/") ||
-    value.href.startsWith("//") ||
-    typeof value.historical !== "boolean"
-  ) {
-    return false;
-  }
-  try {
-    const url = new URL(value.href, "https://calendar.invalid");
-    return (
-      url.origin === "https://calendar.invalid" &&
-      url.pathname === "/consultor-fiscal/modelos" &&
-      !url.username &&
-      !url.password &&
-      (url.search.length > 0 || url.hash.length > 0)
-    );
-  } catch {
-    return false;
-  }
-}
-
 function areModelPageLinks(
   value: unknown,
 ): value is readonly FiscalCalendarModelPageLink[] {
@@ -239,7 +212,12 @@ function areModelPageLinks(
     return false;
   const codes = new Set<string>();
   for (const link of value) {
-    if (!isModelPageLink(link) || codes.has(link.code)) return false;
+    if (
+      !isCanonicalFiscalCalendarModelPageLink(link) ||
+      codes.has(link.code)
+    ) {
+      return false;
+    }
     codes.add(link.code);
   }
   return true;

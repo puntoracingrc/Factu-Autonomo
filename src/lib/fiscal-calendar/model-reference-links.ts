@@ -27,6 +27,68 @@ const FISCAL_LABEL_CONTEXT_PATTERN = new RegExp(
 );
 const MAX_RESOLVED_MODEL_LINKS = 512;
 const MAX_MODEL_REFERENCE_SCAN_LENGTH = 20_000;
+const CANONICAL_CATALOG_FOCUS_HREF = new RegExp(
+  String.raw`^/consultor-fiscal/modelos\?origen=calendario&foco=(${MODEL_CODE_SOURCE})#modelo-(${MODEL_CODE_SOURCE})$`,
+);
+
+export function isCanonicalFiscalCalendarModelPageLink(
+  value: unknown,
+): value is FiscalCalendarModelPageLink {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  try {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+    const keys = Reflect.ownKeys(value);
+    if (
+      keys.length !== 3 ||
+      !keys.every(
+        (key) =>
+          typeof key === "string" &&
+          (key === "code" || key === "href" || key === "historical"),
+      )
+    ) {
+      return false;
+    }
+    const descriptors = Object.fromEntries(
+      keys.map((key) => [key, Object.getOwnPropertyDescriptor(value, key)]),
+    );
+    if (
+      keys.some((key) => {
+        const descriptor = descriptors[key as string];
+        return (
+          !descriptor ||
+          !descriptor.enumerable ||
+          !("value" in descriptor)
+        );
+      })
+    ) {
+      return false;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (
+      typeof record.code !== "string" ||
+      typeof record.href !== "string" ||
+      typeof record.historical !== "boolean"
+    ) {
+      return false;
+    }
+    const match = CANONICAL_CATALOG_FOCUS_HREF.exec(record.href);
+    if (!match || match[1] !== record.code || match[2] !== record.code) {
+      return false;
+    }
+    const url = new URL(record.href, "https://calendar.invalid");
+    return (
+      url.origin === "https://calendar.invalid" &&
+      url.pathname === "/consultor-fiscal/modelos" &&
+      url.port === "" &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
 
 function candidateMatches(text: string): Array<{
   code: string;
@@ -64,19 +126,6 @@ export function extractFiscalCalendarModelCodes(text: string): string[] {
   return [...new Set(candidateMatches(text).map((match) => match.code))];
 }
 
-function isCanonicalCatalogFocusHref(href: string): boolean {
-  try {
-    const url = new URL(href, "https://calendar.invalid");
-    return (
-      url.origin === "https://calendar.invalid" &&
-      url.pathname === "/consultor-fiscal/modelos" &&
-      (url.search.length > 0 || url.hash.length > 0)
-    );
-  } catch {
-    return false;
-  }
-}
-
 export function collectFiscalCalendarModelPageLinks(
   events: readonly FiscalCalendarTextEvent[],
   resolveLink: (code: string) => unknown,
@@ -100,20 +149,16 @@ export function collectFiscalCalendarModelPageLinks(
     } catch {
       continue;
     }
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    const candidate = value as Partial<FiscalCalendarModelPageLink>;
     if (
-      candidate.code !== code ||
-      typeof candidate.href !== "string" ||
-      !isCanonicalCatalogFocusHref(candidate.href) ||
-      typeof candidate.historical !== "boolean"
+      !isCanonicalFiscalCalendarModelPageLink(value) ||
+      value.code !== code
     ) {
       continue;
     }
     links.push({
       code,
-      href: candidate.href,
-      historical: candidate.historical,
+      href: value.href,
+      historical: value.historical,
     });
   }
   return links;

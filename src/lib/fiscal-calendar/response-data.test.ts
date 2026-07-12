@@ -71,7 +71,7 @@ function validEnvelope(): { data: Record<string, unknown> } {
       modelPageLinks: [
         {
           code: "303",
-          href: "/consultor-fiscal/modelos?modelo=303#modelo-303",
+          href: "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
           historical: false,
         },
       ],
@@ -135,7 +135,7 @@ describe("parseFiscalCalendarResponseData", () => {
     const tooManyLinks = withDataChange((data) => {
       data.modelPageLinks = Array.from({ length: 1_001 }, (_, index) => ({
         code: String(index).padStart(3, "0").slice(-3),
-        href: `/consultor-fiscal/modelos?modelo=${index}`,
+        href: `/consultor-fiscal/modelos?origen=calendario&foco=${String(index).padStart(3, "0").slice(-3)}#modelo-${String(index).padStart(3, "0").slice(-3)}`,
         historical: false,
       }));
     });
@@ -300,7 +300,10 @@ describe("parseFiscalCalendarResponseData", () => {
       "//calendar.invalid/consultor-fiscal/modelos?modelo=303",
       "/consultor-fiscal/modelos/303",
       "/consultor-fiscal/modelos",
-      "/consultor-fiscal/modelos?modelo=303" + "x".repeat(2_048),
+      "/consultor-fiscal/modelos?focus=303#modelo-303",
+      "/consultor-fiscal/modelos?foco=303&origen=calendario#modelo-303",
+      "/consultor-fiscal/modelos?origen=calendario&foco=303&extra=1#modelo-303",
+      "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-130",
     ];
     for (const href of invalidHrefs) {
       const envelope = withDataChange((data) => {

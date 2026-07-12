@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectFiscalCalendarModelPageLinks,
   extractFiscalCalendarModelCodes,
+  isCanonicalFiscalCalendarModelPageLink,
   segmentFiscalCalendarModelReferences,
   type FiscalCalendarModelPageLink,
 } from "./model-reference-links";
@@ -18,6 +19,33 @@ function link(
 }
 
 describe("referencias a modelos en texto de calendario", () => {
+  it("acepta únicamente el href canónico exacto del catálogo", () => {
+    expect(
+      isCanonicalFiscalCalendarModelPageLink({
+        code: "303",
+        href: "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
+        historical: false,
+      }),
+    ).toBe(true);
+    for (const href of [
+      "/consultor-fiscal/modelos?focus=303#modelo-303",
+      "/consultor-fiscal/modelos?foco=303&origen=calendario#modelo-303",
+      "/consultor-fiscal/modelos?origen=calendario&foco=303&extra=1#modelo-303",
+      "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-130",
+      "/consultor-fiscal/modelos/303?origen=calendario",
+      "https://calendar.invalid/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
+    ]) {
+      expect(
+        isCanonicalFiscalCalendarModelPageLink({
+          code: "303",
+          href,
+          historical: false,
+        }),
+        href,
+      ).toBe(false);
+    }
+  });
+
   it("extrae códigos solo con contexto fiscal explícito", () => {
     expect(
       extractFiscalCalendarModelCodes(
@@ -115,7 +143,7 @@ describe("referencias a modelos en texto de calendario", () => {
       if (code === "303") {
         return {
           code,
-          href: "/consultor-fiscal/modelos?focus=303#modelo-303",
+          href: "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
           historical: false,
         };
       }
@@ -132,7 +160,7 @@ describe("referencias a modelos en texto de calendario", () => {
     expect(result).toEqual([
       {
         code: "303",
-        href: "/consultor-fiscal/modelos?focus=303#modelo-303",
+        href: "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
         historical: false,
       },
     ]);
@@ -145,7 +173,7 @@ describe("referencias a modelos en texto de calendario", () => {
         if (code === "303") throw new Error("resolver failure");
         return {
           code: "303",
-          href: "/consultor-fiscal/modelos?focus=037#modelo-037",
+          href: "/consultor-fiscal/modelos?origen=calendario&foco=037#modelo-037",
           historical: true,
         };
       }),
