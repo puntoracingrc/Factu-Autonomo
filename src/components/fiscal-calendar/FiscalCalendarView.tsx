@@ -403,10 +403,18 @@ export function FiscalCalendarView({
             </Field>
           </div>
 
-          <fieldset>
+          <fieldset aria-describedby="fiscal-calendar-category-help">
             <legend className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               Categorías
             </legend>
+            <p
+              id="fiscal-calendar-category-help"
+              className="mt-1 max-w-3xl text-sm leading-5 text-slate-600 dark:text-slate-400"
+            >
+              La AEAT publica «Renta», «Renta y Sociedades» y «Sociedades»
+              como calendarios separados. «Renta y Sociedades» es su categoría
+              conjunta, no una repetición.
+            </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {categoryOptions.map((option) => (
                 <label
