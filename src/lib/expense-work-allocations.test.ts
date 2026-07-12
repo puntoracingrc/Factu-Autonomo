@@ -53,6 +53,31 @@ describe("expense work allocations", () => {
     expect(expenseAllocatedAmountForWorkIds(allocated, ["doc_1"], -100)).toBe(
       -35,
     );
+    expect(allocated.workAllocations?.[0]?.fullAmountAtAllocation).toBe(-100);
+  });
+
+  it("sella solo la asignación creada o actualizada con el canon firmado usado", () => {
+    const existing = expense({
+      workDocumentId: "doc_1",
+      workAllocations: [
+        {
+          workDocumentId: "doc_1",
+          amount: 60,
+          includedLineIds: ["line_1"],
+          allocatedAt: "2026-07-11T09:00:00.000Z",
+        },
+      ],
+    });
+    const result = upsertExpenseWorkAllocation(existing, {
+      workDocumentId: "doc_2",
+      amount: 40,
+      fullAmount: 126.2,
+      includedLineIds: ["line_2"],
+      now: "2026-07-11T11:00:00.000Z",
+    });
+
+    expect(result.workAllocations?.[0]?.fullAmountAtAllocation).toBeUndefined();
+    expect(result.workAllocations?.[1]?.fullAmountAtAllocation).toBe(126.2);
   });
 
   it("migra un vínculo antiguo al añadir un segundo reparto", () => {
