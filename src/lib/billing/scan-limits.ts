@@ -24,6 +24,9 @@ export const CUSTOMER_AI_AUTOFILL_UNITS = 1;
 /** Revisar una previsualización de importación con IA es un uso pequeño. */
 export const IMPORT_AI_REVIEW_UNITS = 1;
 
+/** Clasificar un NO_MATCH fiscal para revisión humana es un uso pequeño. */
+export const FISCAL_AI_FALLBACK_UNITS = 1;
+
 export interface ScanQuota {
   plan: PlanId;
   /** Cupo mensual incluido en el plan (Pro). */

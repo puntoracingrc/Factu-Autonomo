@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getManualSection, getManualSlugs, manualSections } from "./sections";
+import {
+  buildManualSections,
+  getManualSection,
+  getManualSlugs,
+  manualSections,
+} from "./sections";
 
 describe("manual sections", () => {
   it("expone secciones ordenadas con slugs únicos", () => {
@@ -18,6 +23,19 @@ describe("manual sections", () => {
       expect(section?.slug).toBe(slug);
       expect(section?.steps.length).toBeGreaterThan(0);
     }
+  });
+
+  it("no publica la ayuda de Consultor fiscal cuando la Beta está apagada", () => {
+    expect(
+      buildManualSections(false).some(
+        (section) => section.slug === "consultor-fiscal",
+      ),
+    ).toBe(false);
+    expect(
+      buildManualSections(true).some(
+        (section) => section.slug === "consultor-fiscal",
+      ),
+    ).toBe(true);
   });
 
   it("documenta los flujos recientes de entrada, cuenta y confianza", () => {

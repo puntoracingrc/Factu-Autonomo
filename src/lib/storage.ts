@@ -17,6 +17,7 @@ import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductCatalogItem } from "./purchase-products";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
+import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
@@ -64,6 +65,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     iva: normalizeIvaSettings(profile?.iva),
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
     vatExempt: normalizeVatExempt(profile?.vatExempt),
+    fiscalProfile: normalizeBusinessFiscalProfile(profile?.fiscalProfile),
     quoteValidityDays: normalizeQuoteValidityDays(profile?.quoteValidityDays),
     numbering: normalizeNumbering(profile?.numbering),
     verifactu: normalizeVerifactuSettings(profile?.verifactu),

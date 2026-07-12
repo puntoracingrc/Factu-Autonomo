@@ -13,6 +13,7 @@ interface AiProcessingConsentNoticeProps {
   accepted: boolean;
   onAccepted: () => void;
   compact?: boolean;
+  contextNote?: string;
 }
 
 export function useAiProcessingConsent() {
@@ -37,15 +38,19 @@ export function AiProcessingConsentNotice({
   accepted,
   onAccepted,
   compact = false,
+  contextNote,
 }: AiProcessingConsentNoticeProps) {
   if (accepted) {
     return (
-      <p className="text-xs text-slate-500">
-        Usa IA externa.{" "}
-        <Link href="/legal/privacidad" className="font-semibold underline">
-          Privacidad
-        </Link>
-      </p>
+      <div className="space-y-1 text-xs text-slate-500">
+        <p>
+          Usa IA externa.{" "}
+          <Link href="/legal/privacidad" className="font-semibold underline">
+            Privacidad
+          </Link>
+        </p>
+        {contextNote ? <p>{contextNote}</p> : null}
+      </div>
     );
   }
 
@@ -64,6 +69,9 @@ export function AiProcessingConsentNotice({
             proveedor de IA. Sube solo la información necesaria y revisa siempre
             el resultado antes de guardarlo.
           </p>
+          {contextNote ? (
+            <p className="text-sm leading-relaxed">{contextNote}</p>
+          ) : null}
           <p className="text-sm leading-relaxed">
             En cuentas autorizadas de aprendizaje, las correcciones pueden
             guardar solo patrones técnicos limpios para mejorar lecturas futuras.

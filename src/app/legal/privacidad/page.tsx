@@ -40,7 +40,9 @@ export default function PrivacidadPage() {
           </li>
           <li>
             Datos enviados voluntariamente a funciones IA: imágenes, PDF o
-            textos necesarios para escanear gastos o rellenar fichas.
+            textos necesarios para escanear gastos, rellenar fichas o solicitar
+            una clasificación fiscal auxiliar cuando el motor local no encuentra
+            una regla.
           </li>
         </ul>
         <h2>Finalidades y bases legales</h2>
@@ -96,6 +98,26 @@ export default function PrivacidadPage() {
           guardada la aceptación en este dispositivo. No subas información que
           no sea necesaria para la tarea.
         </p>
+        <p>
+          En el Consultor fiscal se ejecuta siempre primero el motor local. El
+          fallback externo solo recibe vocabulario genérico extraído del concepto,
+          medio de pago, tipo de justificante y contexto fiscal estructurado
+          imprescindible; no recibe fechas, importes, nombre del proveedor, OCR
+          completo, identificadores de cuenta ni el documento.
+          Se eliminan los términos fuera de una lista fiscal segura, además de
+          NIF, IBAN, correos, teléfonos, direcciones, URL y secretos detectables.
+          La propuesta queda pendiente de revisión y
+          nunca crea ni confirma un asiento contable.
+        </p>
+        <p>
+          Si eliges importar un certificado censal en el Consultor fiscal, el
+          PDF con texto seleccionable se lee localmente en tu navegador. El
+          archivo, su texto completo y el Código Seguro de Verificación no se
+          guardan ni se envían al proveedor de IA. Solo se conserva el perfil
+          fiscal estructurado que confirmas y metadatos mínimos sobre su
+          procedencia. Los PDF escaneados sin texto deben completarse
+          manualmente en esta versión.
+        </p>
         <h2>Aprendizaje de lecturas IA</h2>
         <p>
           Algunas cuentas autorizadas pueden corregir lecturas para mejorar el
@@ -140,7 +162,7 @@ export default function PrivacidadPage() {
           previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>4 de julio de 2026.</p>
+        <p>12 de julio de 2026.</p>
       </Card>
     </div>
   );

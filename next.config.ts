@@ -23,6 +23,7 @@ const appNoIndexRoutes = [
   "/avisos/:path*",
   "/clientes/:path*",
   "/configuracion/:path*",
+  "/consultor-fiscal/:path*",
   "/cuenta/:path*",
   "/drive/callback/:path*",
   "/facturas/:path*",

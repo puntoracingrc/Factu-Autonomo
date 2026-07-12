@@ -5,6 +5,7 @@ import {
   Landmark,
   PackageSearch,
   Receipt,
+  Scale,
   Settings,
   ShoppingCart,
   Truck,
@@ -12,12 +13,20 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
 
 export type AppNavItem = {
   href: string;
   label: string;
   shortLabel: string;
   icon: LucideIcon;
+};
+
+const CONSULTOR_FISCAL_NAV_ITEM: AppNavItem = {
+  href: "/consultor-fiscal",
+  label: "Consultor fiscal",
+  shortLabel: "Consultor",
+  icon: Scale,
 };
 
 export const APP_NAV_ITEMS: readonly AppNavItem[] = [
@@ -66,6 +75,7 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     shortLabel: "Impuestos",
     icon: Landmark,
   },
+  ...(isConsultorFiscalEnabled() ? [CONSULTOR_FISCAL_NAV_ITEM] : []),
   {
     href: "/configuracion",
     label: "Ajustes",

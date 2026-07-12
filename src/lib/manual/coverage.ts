@@ -9,6 +9,7 @@ export const APP_ROUTES_WITH_MANUAL = [
   "/gastos",
   "/productos",
   "/impuestos",
+  "/consultor-fiscal",
   "/proveedores",
   "/configuracion",
 ] as const;

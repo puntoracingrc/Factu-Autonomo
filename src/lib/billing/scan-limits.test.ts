@@ -4,6 +4,7 @@ import {
   buildAiUsageMeter,
   buildScanQuota,
   CUSTOMER_AI_AUTOFILL_UNITS,
+  FISCAL_AI_FALLBACK_UNITS,
   FREE_EXPENSE_SCAN_TRIAL,
   PRO_EXPENSE_SCANS_PER_MONTH,
   PRO_PLUS_EXPENSE_SCANS_PER_MONTH,
@@ -46,6 +47,11 @@ describe("scan limits", () => {
     expect(CUSTOMER_AI_AUTOFILL_UNITS).toBe(1);
     expect(q.remainingUnits).toBe(PRO_EXPENSE_SCANS_PER_MONTH * AI_UNITS_PER_SCAN - 9);
     expect(q.remaining).toBe(PRO_EXPENSE_SCANS_PER_MONTH - 1);
+  });
+
+  it("cobra el fallback fiscal como un uso pequeño de IA", () => {
+    expect(FISCAL_AI_FALLBACK_UNITS).toBe(1);
+    expect(FISCAL_AI_FALLBACK_UNITS).toBe(CUSTOMER_AI_AUTOFILL_UNITS);
   });
 
   it("combina escaneos incluidos y extra", () => {

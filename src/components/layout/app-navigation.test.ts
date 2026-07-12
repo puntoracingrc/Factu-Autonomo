@@ -45,4 +45,13 @@ describe("app navigation", () => {
       findActiveAppNavItem("/facturas/nuevo", MOBILE_MORE_NAV_ITEMS),
     ).toBeUndefined();
   });
+
+  it("expone el Consultor fiscal en navegación y rutas anidadas", () => {
+    expect(
+      APP_NAV_ITEMS.find((item) => item.href === "/consultor-fiscal")?.label,
+    ).toBe("Consultor fiscal");
+    expect(
+      findActiveAppNavItem("/consultor-fiscal/analisis", APP_NAV_ITEMS)?.href,
+    ).toBe("/consultor-fiscal");
+  });
 });

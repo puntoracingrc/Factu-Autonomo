@@ -4,6 +4,7 @@ import { currentMonthKey } from "./usage";
 import {
   AI_UNITS_PER_SCAN,
   CUSTOMER_AI_AUTOFILL_UNITS,
+  FISCAL_AI_FALLBACK_UNITS,
   IMPORT_AI_REVIEW_UNITS,
   aiUsageBlockedMessage,
   buildScanQuota,
@@ -487,6 +488,20 @@ export async function consumeImportAiReview(userId: string) {
       customerAiAutofillsCreated: IMPORT_AI_REVIEW_UNITS,
     },
     "No hemos podido descontar el uso de IA. Inténtalo de nuevo en unos minutos.",
+    aiUsageBlockedMessage,
+  );
+}
+
+export async function consumeFiscalAiFallback(userId: string) {
+  return consumeAiUnits(
+    userId,
+    FISCAL_AI_FALLBACK_UNITS,
+    {
+      // El esquema histórico usa este contador como bolsa de usos pequeños de
+      // texto. No se crea una tabla ni una segunda cuota para este fallback.
+      customerAiAutofillsCreated: FISCAL_AI_FALLBACK_UNITS,
+    },
+    "No hemos podido descontar el uso del fallback fiscal. Inténtalo de nuevo en unos minutos.",
     aiUsageBlockedMessage,
   );
 }

@@ -45,11 +45,13 @@ export default function TerminosPage() {
         </p>
         <p>
           <strong>Créditos IA:</strong> las funciones de escaneo y autorrelleno
-          consumen créditos o unidades IA según se indique en pantalla. El
-          resultado debe revisarse antes de guardar. En cuentas autorizadas, las
-          correcciones de lecturas IA pueden usarse para mejorar el sistema con
-          patrones estructurales limpios, sin conservar documentos originales ni
-          datos identificativos como aprendizaje.
+          y el fallback opcional del Consultor fiscal consumen créditos o
+          unidades IA según se indique en pantalla. El resultado debe revisarse
+          antes de guardar. Una propuesta fiscal de IA no es una resolución ni
+          autoriza su contabilización. En cuentas autorizadas, las correcciones
+          de lecturas IA pueden usarse para mejorar el sistema con patrones
+          estructurales limpios, sin conservar documentos originales ni datos
+          identificativos como aprendizaje.
         </p>
         <p>
           <strong>Reembolsos:</strong> solicitudes en los 14 días siguientes al
@@ -82,7 +84,7 @@ export default function TerminosPage() {
           estimaciones o por incumplimiento de normativa (VeriFactu, etc.).
         </p>
         <h2>Última actualización</h2>
-        <p>4 de julio de 2026.</p>
+        <p>12 de julio de 2026.</p>
       </Card>
     </div>
   );
