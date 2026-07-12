@@ -7,7 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { X } from "lucide-react";
+import { Delete, X } from "lucide-react";
+import {
+  calculatorHasEditableValue,
+  deleteLastCalculatorCharacter,
+} from "./quick-calculator-logic";
 
 type Operator = "+" | "-" | "*" | "/";
 
@@ -23,6 +27,7 @@ interface CalculatorButton {
   tone?: CalculatorButtonTone;
   wide?: boolean;
   ariaLabel?: string;
+  clearControl?: boolean;
 }
 
 interface CalculatorPosition {
@@ -76,6 +81,8 @@ function calculate(first: number, second: number, operator: Operator): number {
 export function QuickCalculator({ onClose }: QuickCalculatorProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
+  const clearHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longClearTriggeredRef = useRef(false);
   const [position, setPosition] = useState<CalculatorPosition>({
     x: 12,
     y: 120,
@@ -87,8 +94,8 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
 
   useEffect(() => {
     const panel = panelRef.current;
-    const width = panel?.offsetWidth ?? 256;
-    const height = panel?.offsetHeight ?? 360;
+    const width = panel?.offsetWidth ?? 212;
+    const height = panel?.offsetHeight ?? 320;
     setPosition(
       clampPosition({
         x: window.innerWidth >= 640 ? 24 : (window.innerWidth - width) / 2,
@@ -96,12 +103,18 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
       }),
     );
     panelRef.current?.focus();
+
+    return () => {
+      if (clearHoldTimerRef.current) {
+        clearTimeout(clearHoldTimerRef.current);
+      }
+    };
   }, []);
 
   function clampPosition(next: CalculatorPosition): CalculatorPosition {
     const panel = panelRef.current;
-    const width = panel?.offsetWidth ?? 256;
-    const height = panel?.offsetHeight ?? 360;
+    const width = panel?.offsetWidth ?? 212;
+    const height = panel?.offsetHeight ?? 320;
     return {
       x: Math.min(Math.max(8, next.x), Math.max(8, window.innerWidth - width - 8)),
       y: Math.min(
@@ -145,6 +158,40 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     setStoredValue(null);
     setOperator(null);
     setWaitingForNumber(false);
+  }
+
+  function deleteLastCharacter() {
+    setDisplay((current) => deleteLastCalculatorCharacter(current));
+    setWaitingForNumber(false);
+  }
+
+  function cancelClearHold() {
+    if (!clearHoldTimerRef.current) return;
+    clearTimeout(clearHoldTimerRef.current);
+    clearHoldTimerRef.current = null;
+  }
+
+  function startClearHold() {
+    if (!calculatorHasEditableValue(display)) return;
+    cancelClearHold();
+    longClearTriggeredRef.current = false;
+    clearHoldTimerRef.current = setTimeout(() => {
+      longClearTriggeredRef.current = true;
+      clearHoldTimerRef.current = null;
+      clear();
+    }, 600);
+  }
+
+  function handleClearClick() {
+    if (longClearTriggeredRef.current) {
+      longClearTriggeredRef.current = false;
+      return;
+    }
+    if (calculatorHasEditableValue(display)) {
+      deleteLastCharacter();
+      return;
+    }
+    clear();
   }
 
   function inputDigit(digit: string) {
@@ -226,9 +273,7 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     }
     if (key === "Backspace") {
       event.preventDefault();
-      setDisplay((current) =>
-        current.length > 1 && current !== "Error" ? current.slice(0, -1) : "0",
-      );
+      deleteLastCharacter();
       return;
     }
     if (key === "Escape") {
@@ -237,8 +282,17 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     }
   }
 
+  const showBackspace = calculatorHasEditableValue(display);
   const buttons: CalculatorButton[] = [
-    { label: "AC", action: clear, tone: "utility", ariaLabel: "Borrar" },
+    {
+      label: "AC",
+      action: handleClearClick,
+      tone: "utility",
+      ariaLabel: showBackspace
+        ? "Borrar último carácter. Mantén pulsado para borrar todo"
+        : "Borrar todo",
+      clearControl: true,
+    },
     { label: "+/-", action: toggleSign, tone: "utility", ariaLabel: "Cambiar signo" },
     { label: "%", action: percent, tone: "utility", ariaLabel: "Porcentaje" },
     { label: "÷", action: () => applyOperator("/"), tone: "operator", ariaLabel: "Dividir" },
@@ -265,12 +319,12 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
       tabIndex={-1}
       onKeyDown={handleKeyDown}
       style={{ left: position.x, top: position.y }}
-      className="fixed z-50 w-[min(16rem,calc(100vw-1.5rem))] rounded-2xl border border-blue-100 bg-white p-3 text-slate-900 shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      className="fixed z-50 w-[min(13.25rem,calc(100vw-1rem))] rounded-xl border border-blue-100 bg-white p-2.5 text-slate-900 shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
       aria-label="Panel de calculadora rápida"
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
         <div
-          className="min-h-8 flex-1 cursor-move rounded-xl px-1 active:cursor-grabbing"
+          className="min-h-6 flex-1 cursor-move rounded-lg px-1 active:cursor-grabbing"
           onPointerDown={startDrag}
           onPointerMove={drag}
           onPointerUp={stopDrag}
@@ -281,37 +335,55 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
           type="button"
           onClick={onClose}
           aria-label="Cerrar calculadora"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="mb-3 min-h-20 rounded-xl bg-blue-50 px-4 py-3 text-right ring-1 ring-blue-100">
-        <p className="text-xs font-bold uppercase text-blue-400">
+      <div className="mb-2 min-h-16 rounded-lg bg-blue-50 px-3 py-2 text-right ring-1 ring-blue-100 dark:bg-slate-800 dark:ring-slate-700">
+        <p className="text-[0.65rem] font-bold uppercase text-blue-400 dark:text-blue-300">
           {operator ? operatorLabels[operator] : ""}
         </p>
-        <p className="truncate text-4xl font-semibold tabular-nums text-slate-950">
+        <p className="truncate text-3xl font-semibold tabular-nums text-slate-950 dark:text-white">
           {displayText(display)}
         </p>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5">
         {buttons.map((button) => (
           <button
             key={button.label}
             type="button"
             onClick={button.action}
+            onPointerDown={button.clearControl ? startClearHold : undefined}
+            onPointerUp={button.clearControl ? cancelClearHold : undefined}
+            onPointerCancel={button.clearControl ? cancelClearHold : undefined}
+            onPointerLeave={button.clearControl ? cancelClearHold : undefined}
+            onContextMenu={
+              button.clearControl
+                ? (event) => event.preventDefault()
+                : undefined
+            }
             aria-label={button.ariaLabel}
-            className={`flex h-12 items-center justify-center rounded-2xl text-lg font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+            title={
+              button.clearControl && showBackspace
+                ? "Borra un carácter; mantén pulsado para borrar todo"
+                : button.ariaLabel
+            }
+            className={`flex h-10 select-none items-center justify-center rounded-full text-base font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
               button.wide ? "col-span-2" : ""
             } ${
               button.tone === "operator"
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : button.tone === "utility"
-                  ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                  : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                  ? "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-500"
+                  : "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
             }`}
           >
-            {button.label}
+            {button.clearControl && showBackspace ? (
+              <Delete className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              button.label
+            )}
           </button>
         ))}
       </div>
