@@ -56,9 +56,7 @@ export function isCanonicalFiscalCalendarModelPageLink(
       keys.some((key) => {
         const descriptor = descriptors[key as string];
         return (
-          !descriptor ||
-          !descriptor.enumerable ||
-          !("value" in descriptor)
+          !descriptor || !descriptor.enumerable || !("value" in descriptor)
         );
       })
     ) {
@@ -96,7 +94,10 @@ function candidateMatches(text: string): Array<{
   end: number;
 }> {
   const scannedText = text.slice(0, MAX_MODEL_REFERENCE_SCAN_LENGTH);
-  const matches = new Map<string, { code: string; start: number; end: number }>();
+  const matches = new Map<
+    string,
+    { code: string; start: number; end: number }
+  >();
   for (const pattern of [
     MODEL_LIST_CONTEXT_PATTERN,
     FISCAL_LABEL_CONTEXT_PATTERN,
@@ -149,10 +150,7 @@ export function collectFiscalCalendarModelPageLinks(
     } catch {
       continue;
     }
-    if (
-      !isCanonicalFiscalCalendarModelPageLink(value) ||
-      value.code !== code
-    ) {
+    if (!isCanonicalFiscalCalendarModelPageLink(value) || value.code !== code) {
       continue;
     }
     links.push({

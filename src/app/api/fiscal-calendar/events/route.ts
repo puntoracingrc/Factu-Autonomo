@@ -11,6 +11,8 @@ import {
   FiscalCalendarProviderError,
   FiscalCalendarValidationError,
 } from "@/lib/fiscal-calendar/errors";
+import { resolveFiscalCalendarModelPageLinkServer } from "@/lib/fiscal-calendar/model-page-links.server";
+import { collectFiscalCalendarModelPageLinks } from "@/lib/fiscal-calendar/model-reference-links";
 import { getFiscalCalendarService } from "@/lib/fiscal-calendar/service";
 import type { FiscalCalendarResponseData } from "@/lib/fiscal-calendar/types";
 import {
@@ -79,7 +81,10 @@ function providerFailureResponse(error: FiscalCalendarProviderError) {
 export async function GET(request: Request) {
   const config = resolveFiscalCalendarConfig();
   if (!config.enabled) {
-    return json({ error: "El calendario fiscal no está disponible." }, { status: 404 });
+    return json(
+      { error: "El calendario fiscal no está disponible." },
+      { status: 404 },
+    );
   }
 
   const rateLimit = await checkRateLimit(request, {
@@ -101,13 +106,17 @@ export async function GET(request: Request) {
       range,
       categories,
     );
+    const modelPageLinks = collectFiscalCalendarModelPageLinks(
+      result.events,
+      resolveFiscalCalendarModelPageLinkServer,
+    );
     const data: FiscalCalendarResponseData = {
       ...result,
       categories: fiscalCalendarCategoryOptions(),
       officialSource: AEAT_FISCAL_CALENDAR_OFFICIAL_SOURCE,
       timeZone: FISCAL_CALENDAR_TIME_ZONE,
       generalInformationOnly: true,
-      modelPageLinks: [],
+      modelPageLinks,
     };
     return json({ data });
   } catch (error) {
@@ -119,8 +128,7 @@ export async function GET(request: Request) {
     }
     return json(
       {
-        error:
-          "No se pudo cargar el calendario fiscal. Inténtalo de nuevo.",
+        error: "No se pudo cargar el calendario fiscal. Inténtalo de nuevo.",
         retryable: true,
       },
       { status: 500 },

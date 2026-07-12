@@ -34,6 +34,16 @@ logs. La caché de cinco minutos es local al proceso y no contiene credenciales
 ni claves de usuario. Peticiones concurrentes idénticas comparten la misma
 promesa para evitar una llamada externa por usuario.
 
+Las referencias a modelos se resuelven también en servidor. El adaptador
+consume `resolvePublicAeatModelCalendarNavigationV1` y contrasta su resultado
+con `resolvePublicAeatModelReviewPageV1`; la API devuelve únicamente código,
+`catalogFocusHref` canónico y marca histórica. Al pulsarlo se abre el catálogo
+general de Modelos, se desplaza y enfoca la tarjeta correspondiente y la
+resalta con contorno azul. Desde esa tarjeta se puede abrir la ficha. El origen
+`FISCAL_CALENDAR` habilita un retorno fijo a
+`/consultor-fiscal/calendario` tanto en la tarjeta como en el detalle, sin
+aceptar `returnTo` ni rutas construidas desde el texto del evento.
+
 El catálogo jurídico de `src/lib/tax-engine/sources.ts` se inspeccionó, pero no
 se amplió: representa leyes y fuentes asociadas a reglas de deducibilidad. El
 calendario es una integración externa distinta y mantiene un catálogo propio,
@@ -51,12 +61,12 @@ La allowlist única está en `src/lib/fiscal-calendar/catalog.ts`, versión
 `aeat-public-calendars-2026-07-12.v1`, con hash SHA-256 reproducible del catálogo
 `162d9d10580f0cbaa1bb0af8b7226020de2bbfce72aa0b655912fcfc66dd7e43`.
 
-| Categoría | Calendar ID público |
-|---|---|
-| Renta | `invitado2aeat@gmail.com` |
-| Renta y Sociedades | `aio2b0s64q65r7v87j5ma8fvog@group.calendar.google.com` |
-| Sociedades | `b7g1j3bod3gdjbka03uo6kr988@group.calendar.google.com` |
-| IVA | `517mcuhcis0lldnp9b7c0nk2q8@group.calendar.google.com` |
+| Categoría                  | Calendar ID público                                    |
+| -------------------------- | ------------------------------------------------------ |
+| Renta                      | `invitado2aeat@gmail.com`                              |
+| Renta y Sociedades         | `aio2b0s64q65r7v87j5ma8fvog@group.calendar.google.com` |
+| Sociedades                 | `b7g1j3bod3gdjbka03uo6kr988@group.calendar.google.com` |
+| IVA                        | `517mcuhcis0lldnp9b7c0nk2q8@group.calendar.google.com` |
 | Declaraciones informativas | `hqp9h5ft4snag42aea96791g28@group.calendar.google.com` |
 
 La AEAT documenta suscripción iCalendar, no garantiza un contrato específico
@@ -173,8 +183,9 @@ La clave no debe aparecer en comandos, capturas, logs, commits ni variables
   realiza llamadas Google. Hasta incorporar un dataset verificado, conserva
   cero eventos y enlaza a la fuente oficial.
 - Los códigos de modelo enlazan únicamente mediante el resolver público de
-  Modelos. Códigos desconocidos permanecen como texto; nunca se construyen rutas
-  desde el contenido del evento.
+  Modelos y llevan al catálogo enfocado, no directamente al detalle. Códigos
+  desconocidos permanecen como texto; nunca se construyen rutas desde el
+  contenido del evento.
 - La ayuda contextual apunta al índice público `/ayuda`; no registra capturas
   manuales ni abre la ayuda privada del analizador.
 

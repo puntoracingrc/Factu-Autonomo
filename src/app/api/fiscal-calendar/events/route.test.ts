@@ -26,14 +26,35 @@ function request(query = "from=2026-07-01&to=2026-12-31&categories=iva") {
   );
 }
 
-function providerResult(
-  providerMode: "fixture" | "review-only" = "fixture",
-) {
+function providerResult(providerMode: "fixture" | "review-only" = "fixture") {
   return {
     events: [],
     fetchedAt: "2026-07-12T08:00:00.000Z",
     providerMode,
     truncated: false,
+  };
+}
+
+function eventWithModels(title: string, description: string) {
+  return {
+    id: "aeat_test-model-links",
+    source: "AEAT" as const,
+    sourceProvider: "google-calendar" as const,
+    sourceCalendarKey: "iva" as const,
+    sourceCalendarId: "fixture@example.invalid",
+    externalEventId: "fixture-model-links",
+    iCalUID: null,
+    title,
+    description,
+    category: "iva" as const,
+    deadlineKind: "unclassified" as const,
+    reviewStatus: "review-with-advisor" as const,
+    startDate: "2026-07-20",
+    endDateExclusive: "2026-07-21",
+    allDay: true,
+    status: "confirmed" as const,
+    sourceUpdatedAt: null,
+    fetchedAt: "2026-07-12T08:00:00.000Z",
   };
 }
 
@@ -47,14 +68,16 @@ describe("GET /api/fiscal-calendar/events", () => {
     vi.mocked(getFiscalCalendarService).mockReturnValue({
       listEvents,
     } as never);
-    vi.mocked(checkRateLimit).mockReset().mockResolvedValue({
-      allowed: true,
-      limit: 120,
-      remaining: 119,
-      resetAt: Date.now() + 300_000,
-      retryAfterSeconds: 300,
-      backend: "memory",
-    });
+    vi.mocked(checkRateLimit)
+      .mockReset()
+      .mockResolvedValue({
+        allowed: true,
+        limit: 120,
+        remaining: 119,
+        resetAt: Date.now() + 300_000,
+        retryAfterSeconds: 300,
+        backend: "memory",
+      });
     listEvents.mockReset().mockResolvedValue(providerResult());
     resetRateLimitBucketsForTests();
   });
@@ -124,6 +147,43 @@ describe("GET /api/fiscal-calendar/events", () => {
     expect(JSON.stringify(body)).not.toContain("secret-server-key");
   });
 
+  it("publica solo enlaces canónicos al catálogo para modelos desplegados", async () => {
+    listEvents.mockResolvedValue({
+      ...providerResult(),
+      events: [
+        eventWithModels(
+          "Modelos 303, 037 y 999",
+          "Declaración recapitulativa: 349",
+        ),
+      ],
+    });
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.modelPageLinks).toEqual([
+      {
+        code: "303",
+        href: "/consultor-fiscal/modelos?origen=calendario&foco=303#modelo-303",
+        historical: false,
+      },
+      {
+        code: "037",
+        href: "/consultor-fiscal/modelos?origen=calendario&foco=037#modelo-037",
+        historical: true,
+      },
+      {
+        code: "349",
+        href: "/consultor-fiscal/modelos?origen=calendario&foco=349#modelo-349",
+        historical: false,
+      },
+    ]);
+    expect(JSON.stringify(body.data.modelPageLinks)).not.toContain(
+      "/consultor-fiscal/modelos/",
+    );
+    expect(JSON.stringify(body.data.modelPageLinks)).not.toContain("999");
+  });
+
   it("pasa únicamente categorías allowlistadas y el rango Madrid al servicio", async () => {
     const response = await GET(
       request("from=2026-07-15&to=2026-07-15&categories=renta,iva"),
@@ -152,14 +212,17 @@ describe("GET /api/fiscal-calendar/events", () => {
       "from=2026-07-01&to=2026-12-31&calendarId=attacker@example.com",
       "No se admiten identificadores",
     ],
-  ])("rechaza entradas no válidas sin consultar Google", async (query, message) => {
-    const response = await GET(request(query));
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
-      error: expect.stringContaining(message),
-    });
-    expect(listEvents).not.toHaveBeenCalled();
-  });
+  ])(
+    "rechaza entradas no válidas sin consultar Google",
+    async (query, message) => {
+      const response = await GET(request(query));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: expect.stringContaining(message),
+      });
+      expect(listEvents).not.toHaveBeenCalled();
+    },
+  );
 
   it("convierte fallos del proveedor en un error recuperable y opaco", async () => {
     listEvents.mockRejectedValue(

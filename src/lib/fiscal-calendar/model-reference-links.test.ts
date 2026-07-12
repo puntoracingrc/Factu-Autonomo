@@ -7,10 +7,7 @@ import {
   type FiscalCalendarModelPageLink,
 } from "./model-reference-links";
 
-function link(
-  code: string,
-  historical = false,
-): FiscalCalendarModelPageLink {
+function link(code: string, historical = false): FiscalCalendarModelPageLink {
   return {
     code,
     href: `/canonical-focus-${code}`,
@@ -118,9 +115,7 @@ describe("referencias a modelos en texto de calendario", () => {
         "Declaración recapitulativa: 349",
         new Map(),
       ),
-    ).toEqual([
-      { text: "Declaración recapitulativa: 349", modelPage: null },
-    ]);
+    ).toEqual([{ text: "Declaración recapitulativa: 349", modelPage: null }]);
   });
 
   it("deduplica candidatos repetidos sin alterar sus apariciones al segmentar", () => {

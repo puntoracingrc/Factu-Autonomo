@@ -212,10 +212,7 @@ function areModelPageLinks(
     return false;
   const codes = new Set<string>();
   for (const link of value) {
-    if (
-      !isCanonicalFiscalCalendarModelPageLink(link) ||
-      codes.has(link.code)
-    ) {
+    if (!isCanonicalFiscalCalendarModelPageLink(link) || codes.has(link.code)) {
       return false;
     }
     codes.add(link.code);

@@ -2,13 +2,19 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FISCAL_CALENDAR_MODULE_DESCRIPTOR } from "./module-descriptor";
 
-const envExample = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
+const envExample = readFileSync(
+  new URL("../../../.env.example", import.meta.url),
+  "utf8",
+);
 const apiSource = readFileSync(
   new URL("../../app/api/fiscal-calendar/events/route.ts", import.meta.url),
   "utf8",
 );
 const uiSource = readFileSync(
-  new URL("../../components/fiscal-calendar/FiscalCalendarView.tsx", import.meta.url),
+  new URL(
+    "../../components/fiscal-calendar/FiscalCalendarView.tsx",
+    import.meta.url,
+  ),
   "utf8",
 );
 const navigationSource = readFileSync(
@@ -17,6 +23,10 @@ const navigationSource = readFileSync(
 );
 const smokeSource = readFileSync(
   new URL("../../../scripts/smoke-fiscal-calendar.mjs", import.meta.url),
+  "utf8",
+);
+const modelAdapterSource = readFileSync(
+  new URL("./model-page-links.server.ts", import.meta.url),
   "utf8",
 );
 
@@ -46,11 +56,21 @@ describe("aislamiento del calendario fiscal", () => {
     expect(apiSource).not.toContain("GOOGLE_CALENDAR_API_KEY");
   });
 
+  it("resuelve Modelos solo en servidor y entrega el href canónico", () => {
+    expect(modelAdapterSource).toContain(
+      "resolvePublicAeatModelCalendarNavigationV1",
+    );
+    expect(modelAdapterSource).toContain("resolvePublicAeatModelReviewPageV1");
+    expect(apiSource).toContain("resolveFiscalCalendarModelPageLinkServer");
+    expect(apiSource).toContain("collectFiscalCalendarModelPageLinks");
+    expect(uiSource).toContain("href={segment.modelPage.href}");
+    expect(uiSource).not.toContain("fiscal-models/model-pages");
+    expect(uiSource).not.toMatch(/modelos\/\$\{/);
+  });
+
   it("hace encontrable Asesoría sin aceptar calendarId del cliente", () => {
     expect(navigationSource).toContain('label: "Asesoría fiscal"');
-    expect(navigationSource).toContain(
-      'href: "/consultor-fiscal/modelos"',
-    );
+    expect(navigationSource).toContain('href: "/consultor-fiscal/modelos"');
     expect(apiSource).toContain('searchParams.has("calendarId")');
     expect(apiSource).toContain("parseFiscalCalendarCategories");
   });

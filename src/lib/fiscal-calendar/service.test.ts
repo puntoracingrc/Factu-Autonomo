@@ -124,8 +124,10 @@ describe("FiscalCalendarService", () => {
     expect(provider).toBeInstanceOf(FixtureFiscalCalendarProvider);
   });
 
-  it("selecciona el proveedor público sin red en modo review-only", () => {
-    const fetchImpl = vi.fn();
+  it("ejecuta el proveedor público review-only con cero eventos y cero red", async () => {
+    const fetchImpl = vi.fn(() => {
+      throw new Error("la red no debe ejecutarse");
+    });
     const provider = createFiscalCalendarProvider(
       {
         enabled: true,
@@ -138,6 +140,11 @@ describe("FiscalCalendarService", () => {
     );
 
     expect(provider).toBeInstanceOf(ReviewOnlyFiscalCalendarProvider);
+    await expect(provider.listEvents(RANGE, ["iva"])).resolves.toMatchObject({
+      events: [],
+      providerMode: "review-only",
+      truncated: false,
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
