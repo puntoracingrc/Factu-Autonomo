@@ -26,6 +26,9 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
+import {
+  inspectFixedExpenseBundle,
+} from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import {
@@ -227,6 +230,10 @@ export default function NuevoGastoPage() {
   const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(null);
   const [inboxLoadError, setInboxLoadError] = useState<string | null>(null);
   const [vatSubmitError, setVatSubmitError] = useState<string | null>(null);
+  const [saveSubmitError, setSaveSubmitError] = useState<string | null>(null);
+  const [storageStateUnknown, setStorageStateUnknown] = useState(false);
+  const fixedSaveOperationIdRef = useRef<string | null>(null);
+  const fixedSaveInProgressRef = useRef(false);
   const [, setSupplierHint] = useState<string | null>(null);
 
   const editingExpense = useMemo(
@@ -330,6 +337,8 @@ export default function NuevoGastoPage() {
   const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
     const { payload, fileName } = review;
     setVatSubmitError(null);
+    if (!storageStateUnknown) setSaveSubmitError(null);
+    fixedSaveOperationIdRef.current = null;
     const scannedSupplierNif =
       payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif;
     const match = findBestSupplierMatch(data.suppliers, {
@@ -386,7 +395,7 @@ export default function NuevoGastoPage() {
         ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
         : "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
     );
-  }, [data.suppliers, vatExempt]);
+  }, [data.suppliers, storageStateUnknown, vatExempt]);
 
   useEffect(() => {
     if (!inboxItemId || loadedInboxItemId === inboxItemId) return;
@@ -445,6 +454,8 @@ export default function NuevoGastoPage() {
 
   function clearScanForm() {
     setVatSubmitError(null);
+    if (!storageStateUnknown) setSaveSubmitError(null);
+    fixedSaveOperationIdRef.current = null;
     setDate(todayISO());
     setSupplierName("");
     setDescription("");
@@ -630,9 +641,20 @@ export default function NuevoGastoPage() {
     duplicateExpense && isProviderSummaryPendingOriginal(duplicateExpense)
       ? duplicateExpense
       : null;
-  const blockingDuplicateExpense = providerSummaryUpgradeTarget
-    ? null
-    : duplicateExpense;
+  const fixedOperationSourceId = activeInboxItemId ?? activeScanReview?.id;
+  const currentFixedOperationId = fixedOperationSourceId
+    ? `scan-${fixedOperationSourceId}`
+    : fixedSaveOperationIdRef.current;
+  const fixedOperationInspection = currentFixedOperationId
+    ? inspectFixedExpenseBundle(data, currentFixedOperationId)
+    : ({ status: "not_applied" } as const);
+  const fixedOperationAlreadySaved =
+    fixedOperationInspection.status === "applied";
+  const blockingDuplicateExpense =
+    providerSummaryUpgradeTarget ||
+    fixedOperationInspection.status !== "not_applied"
+      ? null
+      : duplicateExpense;
   const duplicateExpenseNumber =
     duplicateExpense?.purchaseDocument?.invoiceNumber?.trim() || "sin número";
   const duplicateExpenseLines =
@@ -671,6 +693,17 @@ export default function NuevoGastoPage() {
   }
 
   function openScanReview(review: PendingExpenseScan) {
+    if (
+      activeScanReview &&
+      activeScanReview.id !== review.id &&
+      businessKind === "fixed"
+    ) {
+      setSaveSubmitError(
+        "Guarda el gasto fijo desde el formulario o quítalo de la revisión antes de abrir otro documento.",
+      );
+      scrollToScanForm();
+      return;
+    }
     scanReviewReturnScrollY.current = window.scrollY;
     setPendingScans((prev) => {
       const remaining = prev.filter((item) => item.id !== review.id);
@@ -685,6 +718,7 @@ export default function NuevoGastoPage() {
   }
 
   function collapseActiveScanReview() {
+    if (businessKind === "fixed") return;
     setScanFormCollapsed(true);
     restoreScanReviewScroll();
   }
@@ -1059,6 +1093,10 @@ export default function NuevoGastoPage() {
     );
     if (negativeAmountReason) return negativeAmountReason;
 
+    if (review.payload.expense.businessKind === "fixed") {
+      return "Los gastos fijos necesitan confirmar frecuencia y vencimiento antes de guardar.";
+    }
+
     const vatResolution = vatResolutionForScanPayload(review.payload);
     if (vatResolution.blocked) {
       return expenseVatIssueMessage(vatResolution.issue);
@@ -1101,6 +1139,7 @@ export default function NuevoGastoPage() {
 
   function scanReviewStatus(review: PendingExpenseScan): ScanReviewStatus {
     if (nonExpenseReasonForScanReview(review)) return "blocked";
+    if (review.payload.expense.businessKind === "fixed") return "review";
     if (negativeAmountReasonForScanPayload(review.payload)) return "review";
     if (
       !canAutoSaveScannedExpenseVat(
@@ -1135,6 +1174,7 @@ export default function NuevoGastoPage() {
     savedPayloads: ExpenseScanPayload[] = [],
   ): boolean {
     const { payload } = review;
+    if (payload.expense.businessKind === "fixed") return false;
     const rawVatResolution = vatResolutionForScanPayload(payload);
     if (payload.expense.amount > 0 && rawVatResolution.blocked) return false;
     const vatPreparation = prepareExpenseVatForSave(
@@ -1215,6 +1255,8 @@ export default function NuevoGastoPage() {
   }
 
   async function handleSaveReadyScans() {
+    if (storageStateUnknown) return;
+    if (activeScanReview && businessKind === "fixed") return;
     const reviews = [
       ...(activeScanReview && scanFormCollapsed ? [activeScanReview] : []),
       ...pendingScans,
@@ -1253,6 +1295,8 @@ export default function NuevoGastoPage() {
   }
 
   async function handleSaveSingleScan(review: PendingExpenseScan) {
+    if (storageStateUnknown) return;
+    if (review.id === activeScanReview?.id && businessKind === "fixed") return;
     if (scanReviewStatus(review) !== "ready") return;
     if (review.id === activeScanReview?.id && !scanFormCollapsed) return;
     if (!saveScanPayload(review)) return;
@@ -1310,21 +1354,85 @@ export default function NuevoGastoPage() {
     ],
   );
 
-  async function markInboxItemProcessed() {
-    if (!activeInboxItemId) return;
-    const headers = await currentAuthHeaders();
-    await fetch("/api/expense-inbox", {
-      method: "PATCH",
-      headers: {
-        ...headers,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id: activeInboxItemId, status: "processed" }),
-    });
-    setActiveInboxItemId(null);
+  function fixedSaveOperationId(): string {
+    const sourceId = activeInboxItemId ?? activeScanReview?.id;
+    if (sourceId) return `scan-${sourceId}`;
+    fixedSaveOperationIdRef.current ??= crypto.randomUUID();
+    return fixedSaveOperationIdRef.current;
+  }
+
+  async function markInboxItemProcessed(options?: {
+    requireConfirmation?: boolean;
+  }): Promise<boolean> {
+    if (!activeInboxItemId) return true;
+    try {
+      const headers = await currentAuthHeaders();
+      const response = await fetch("/api/expense-inbox", {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: activeInboxItemId, status: "processed" }),
+      });
+      if (!response.ok && options?.requireConfirmation) {
+        setSaveSubmitError(
+          "El gasto fijo sí quedó guardado, pero no pudimos marcar el documento del buzón como procesado. El formulario sigue abierto: vuelve a pulsar Guardar para reintentar solo ese cierre.",
+        );
+        return false;
+      }
+      setActiveInboxItemId(null);
+      return response.ok;
+    } catch {
+      if (options?.requireConfirmation) {
+        setSaveSubmitError(
+          "El gasto fijo sí quedó guardado, pero no pudimos confirmar el cierre del documento del buzón. El formulario sigue abierto: comprueba la conexión y vuelve a pulsar Guardar.",
+        );
+        return false;
+      }
+      throw new Error("expense_inbox_update_failed");
+    }
   }
 
   async function handleSubmit() {
+    if (storageStateUnknown) return;
+    if (activeInboxItemId && currentFixedOperationId) {
+      if (fixedOperationInspection.status === "ambiguous") {
+        setSaveSubmitError(
+          "Hay un guardado previo del buzón que no se puede identificar de forma inequívoca. No se ha marcado el documento como procesado: recarga y exporta una copia antes de revisarlo.",
+        );
+        return;
+      }
+      if (fixedOperationInspection.status === "applied") {
+        if (fixedSaveInProgressRef.current) return;
+        setSaveSubmitError(null);
+        fixedSaveInProgressRef.current = true;
+        const inboxProcessed = await markInboxItemProcessed({
+          requireConfirmation: true,
+        });
+        if (!inboxProcessed) {
+          fixedSaveInProgressRef.current = false;
+          return;
+        }
+        setActiveScanReview(null);
+        router.push("/gastos");
+        return;
+      }
+    }
+
+    const existingRecurringId = editingExpense?.recurringExpenseId;
+    const editingCurrentDurableOperation = Boolean(
+      currentFixedOperationId &&
+        existingRecurringId ===
+          `fixed-recurring-${currentFixedOperationId}`,
+    );
+    const usesDurableFixedSave =
+      businessKind === "fixed" &&
+      (!(editingExpense && existingRecurringId) ||
+        editingCurrentDurableOperation);
+    if (usesDurableFixedSave && fixedSaveInProgressRef.current) return;
+    setSaveSubmitError(null);
+
     const totals = expenseTotalsFromBase(
       parseDecimalInput(amountText),
       ivaPercent,
@@ -1397,7 +1505,7 @@ export default function NuevoGastoPage() {
         };
 
     let supplierId = resolved.supplierId;
-    if (resolved.create) {
+    if (resolved.create && !usesDurableFixedSave) {
       const created = addSupplier(resolved.create);
       supplierId = created.id;
     }
@@ -1430,6 +1538,7 @@ export default function NuevoGastoPage() {
       businessKind,
     };
 
+    let durableFixedApplied = false;
     if (businessKind === "fixed") {
       const recurringPayload = {
         supplierName: resolved.supplierName,
@@ -1448,8 +1557,11 @@ export default function NuevoGastoPage() {
         enabled: true,
         notes: notes || undefined,
       };
-      const existingRecurringId = editingExpense?.recurringExpenseId;
-      if (editingExpense && existingRecurringId) {
+      if (
+        editingExpense &&
+        existingRecurringId &&
+        !editingCurrentDurableOperation
+      ) {
         updateExpense({
           ...editingExpense,
           ...payload,
@@ -1458,21 +1570,53 @@ export default function NuevoGastoPage() {
             editingExpense.recurringOccurrenceKey ??
             occurrenceKey(existingRecurringId, expenseDate),
         });
-      } else if (editingExpense) {
-        saveFixedExpenseWithRecurringTemplate(
-          {
-            ...editingExpense,
-            ...payload,
-          },
-          recurringPayload,
-        );
-      } else if (providerSummaryUpgradeTarget) {
-        saveFixedExpenseWithRecurringTemplate(
-          mergeProviderSummaryWithOriginal(providerSummaryUpgradeTarget, payload),
-          recurringPayload,
-        );
       } else {
-        saveFixedExpenseWithRecurringTemplate(payload, recurringPayload);
+        fixedSaveInProgressRef.current = true;
+        const fixedExpense = editingExpense
+          ? { ...editingExpense, ...payload }
+          : providerSummaryUpgradeTarget
+            ? mergeProviderSummaryWithOriginal(
+                providerSummaryUpgradeTarget,
+                payload,
+              )
+            : payload;
+        const result = saveFixedExpenseWithRecurringTemplate(
+          fixedExpense,
+          recurringPayload,
+          {
+            expected: data,
+            operationId: fixedSaveOperationId(),
+            supplier: resolved.create,
+          },
+        );
+        if (result.status !== "applied") {
+          if (result.status === "indeterminate") {
+            setStorageStateUnknown(true);
+          } else {
+            fixedSaveInProgressRef.current = false;
+          }
+          setSaveSubmitError(
+            result.status === "indeterminate"
+              ? `No hemos podido confirmar que el navegador guardara el gasto fijo. Conservamos el formulario${
+                  activeInboxItemId
+                    ? " y no hemos marcado el documento como procesado"
+                    : " y no hemos salido de esta pantalla"
+                }. Recarga y exporta una copia de seguridad antes de continuar.`
+              : result.reason === "stale_precondition"
+                ? "Los datos cambiaron antes de persistir el gasto fijo. Conservamos el formulario; recarga y revisa la información antes de continuar."
+                : result.reason === "identifier_collision" ||
+                    result.reason === "not_found" ||
+                    result.reason === "transition_failed"
+                  ? "No se puede confirmar de forma inequívoca este guardado. Conservamos el formulario y no hemos marcado el documento como procesado; recarga y revisa los datos antes de continuar."
+                  : `No se pudo guardar el gasto fijo en este navegador. Conservamos el formulario${
+                      activeInboxItemId
+                        ? " y no hemos marcado el documento como procesado"
+                        : " y no hemos salido de esta pantalla"
+                    }. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.`,
+          );
+          return;
+        }
+        durableFixedApplied = true;
       }
     } else if (editingExpense) {
       updateExpense({
@@ -1487,7 +1631,13 @@ export default function NuevoGastoPage() {
       addExpense(payload);
     }
 
-    await markInboxItemProcessed();
+    const inboxProcessed = await markInboxItemProcessed({
+      requireConfirmation: durableFixedApplied,
+    });
+    if (durableFixedApplied && !inboxProcessed) {
+      fixedSaveInProgressRef.current = false;
+      return;
+    }
 
     setActiveScanReview(null);
     if (!editingExpense && pendingScans.length > 0) {
@@ -1495,6 +1645,8 @@ export default function NuevoGastoPage() {
       setPendingScans(rest);
       fillFormFromScan(next);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      fixedSaveInProgressRef.current = false;
+      fixedSaveOperationIdRef.current = null;
       return;
     }
 
@@ -1549,6 +1701,8 @@ export default function NuevoGastoPage() {
                 variant="secondary"
                 onClick={() => void handleSaveReadyScans()}
                 disabled={
+                  storageStateUnknown ||
+                  Boolean(activeScanReview && businessKind === "fixed") ||
                   ![
                     ...(activeScanReview && scanFormCollapsed
                       ? [activeScanReview]
@@ -1582,7 +1736,9 @@ export default function NuevoGastoPage() {
                     newCatalogProductLinesEnabledForScanPayload(review.payload);
                   const isActive = review.id === activeScanReview?.id;
                   const canSaveThisScan =
-                    status === "ready" && (!isActive || scanFormCollapsed);
+                    status === "ready" &&
+                    (!isActive || scanFormCollapsed) &&
+                    (!isActive || businessKind !== "fixed");
                   const icon =
                     status === "ready" ? (
                       <CheckCircle2 className="h-5 w-5 text-green-700" />
@@ -1731,7 +1887,8 @@ export default function NuevoGastoPage() {
                             <button
                               type="button"
                               onClick={() => void handleSaveSingleScan(review)}
-                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center whitespace-nowrap rounded-xl border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+                              disabled={storageStateUnknown}
+                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center whitespace-nowrap rounded-xl border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
                             >
                               Guardar esta
                             </button>
@@ -1746,9 +1903,25 @@ export default function NuevoGastoPage() {
                                 }
                                 openScanReview(review);
                               }}
-                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700"
+                              disabled={
+                                isActive &&
+                                !scanFormCollapsed &&
+                                businessKind === "fixed"
+                              }
+                              title={
+                                isActive &&
+                                !scanFormCollapsed &&
+                                businessKind === "fixed"
+                                  ? "Guarda el gasto fijo desde el formulario para confirmar su recurrencia"
+                                  : undefined
+                              }
+                              className="inline-flex min-h-11 min-w-[7rem] items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                             >
-                              {isActive && !scanFormCollapsed
+                              {isActive &&
+                              !scanFormCollapsed &&
+                              businessKind === "fixed"
+                                ? "Guardar abajo"
+                                : isActive && !scanFormCollapsed
                                 ? "Contraer"
                                 : "Revisar"}
                               <ChevronDown className="h-4 w-4" />
@@ -2725,6 +2898,14 @@ export default function NuevoGastoPage() {
                   {vatSubmitError}
                 </p>
               ) : null}
+              {saveSubmitError ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+                >
+                  {saveSubmitError}
+                </p>
+              ) : null}
             </div>
           </FormSection>
             </Card>
@@ -2734,9 +2915,13 @@ export default function NuevoGastoPage() {
           <Button
             fullWidth
             onClick={() => void handleSubmit()}
-            disabled={Boolean(blockingDuplicateExpense)}
+            disabled={Boolean(blockingDuplicateExpense) || storageStateUnknown}
           >
-            {blockingDuplicateExpense
+            {storageStateUnknown
+              ? "Recarga antes de continuar"
+              : fixedOperationAlreadySaved && activeInboxItemId
+                ? "Cerrar documento del buzón"
+                : blockingDuplicateExpense
               ? "Factura ya guardada"
               : providerSummaryUpgradeTarget
                 ? "Completar factura original"

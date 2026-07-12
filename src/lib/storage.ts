@@ -32,6 +32,7 @@ import {
   deriveLegacySnapshotForReadOnly,
   inspectDocumentSnapshotsIntegrity,
   projectCanonicalSnapshotOntoDocument,
+  stableStringifySnapshot,
   withDocumentSnapshotIntegritySignal,
 } from "./document-integrity";
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
@@ -969,45 +970,236 @@ export function loadData(): AppData {
   }
 }
 
+function profileDiffersFromDefault(
+  profile: Partial<BusinessProfile> | undefined,
+): boolean {
+  if (!profile) return false;
+  const current = profile as Record<string, unknown>;
+  const defaults = DEFAULT_PROFILE as unknown as Record<string, unknown>;
+  return Object.keys(current).some(
+    (key) => JSON.stringify(current[key]) !== JSON.stringify(defaults[key]),
+  );
+}
+
 function storedDataHasContent(parsed: Partial<AppData>): boolean {
   return (
     (parsed.documents?.length ?? 0) > 0 ||
     (parsed.customers?.length ?? 0) > 0 ||
     (parsed.expenses?.length ?? 0) > 0 ||
+    (parsed.recurringExpenses?.length ?? 0) > 0 ||
+    (parsed.userReminders?.length ?? 0) > 0 ||
     (parsed.suppliers?.length ?? 0) > 0 ||
     (parsed.products?.length ?? 0) > 0 ||
     (parsed.workspaceIntegrityQuarantine?.length ?? 0) > 0 ||
-    Boolean(parsed.profile?.name?.trim())
+    (parsed.meta?.pendingChanges?.length ?? 0) > 0 ||
+    Object.values(parsed.counters ?? {}).some((value) => (value ?? 0) > 0) ||
+    Boolean(parsed.verifactuChain) ||
+    profileDiffersFromDefault(parsed.profile)
   );
 }
 
 function inMemoryDataIsEmpty(data: AppData): boolean {
-  return (
-    data.documents.length === 0 &&
-    data.customers.length === 0 &&
-    data.expenses.length === 0 &&
-    data.suppliers.length === 0 &&
-    data.products.length === 0 &&
-    (data.workspaceIntegrityQuarantine?.length ?? 0) === 0 &&
-    !data.profile.name.trim()
-  );
+  return !storedDataHasContent(data);
 }
 
-export function saveData(data: AppData): void {
-  if (typeof window === "undefined") return;
+export type SaveDataBlockedReason =
+  | "quota_exceeded"
+  | "storage_unavailable"
+  | "serialization_failed"
+  | "protected_existing_data"
+  | "stale_precondition"
+  | "write_failed"
+  | "verification_failed";
+
+export type SaveDataResult =
+  | { status: "applied" }
+  | { status: "blocked"; reason: SaveDataBlockedReason }
+  | { status: "indeterminate"; reason: "storage_state_unknown" };
+
+export interface SaveDataOptions {
+  expected?: AppData;
+}
+
+function storageWriteFailureReason(error: unknown): SaveDataBlockedReason {
   try {
-    const storageKey = currentStorageKey();
-    const existing = localStorage.getItem(storageKey);
-    if (existing && inMemoryDataIsEmpty(data)) {
-      const parsed = parseStoredData(existing) as Partial<AppData>;
-      if (storedDataHasContent(parsed)) {
-        return;
-      }
+    const source = error as { name?: unknown; code?: unknown } | null;
+    const name = source ? String(source.name ?? "") : "";
+    const code = source ? Number(source.code) : Number.NaN;
+    if (
+      name === "QuotaExceededError" ||
+      name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+      code === 22 ||
+      code === 1014
+    ) {
+      return "quota_exceeded";
     }
-    localStorage.setItem(storageKey, serializeStoredData(data));
-  } catch (error) {
-    console.error("No se pudo guardar en localStorage:", error);
+    if (name === "SecurityError" || code === 18) {
+      return "storage_unavailable";
+    }
+  } catch {
+    return "write_failed";
   }
+  return "write_failed";
+}
+
+function restoreStoredRaw(
+  storage: Storage,
+  storageKey: string,
+  beforeRaw: string | null,
+  attemptedRaw: string,
+): boolean {
+  let currentRaw: string | null;
+  try {
+    currentRaw = storage.getItem(storageKey);
+  } catch {
+    return false;
+  }
+
+  if (currentRaw === beforeRaw) return true;
+  if (currentRaw !== attemptedRaw) return false;
+
+  try {
+    if (beforeRaw === null) {
+      storage.removeItem(storageKey);
+    } else {
+      storage.setItem(storageKey, beforeRaw);
+    }
+  } catch {
+    return false;
+  }
+
+  try {
+    return storage.getItem(storageKey) === beforeRaw;
+  } catch {
+    return false;
+  }
+}
+
+function storedRawMatchesExpected(
+  raw: string | null,
+  expected: AppData,
+  storageKey: string,
+): boolean {
+  if (raw === null) {
+    if (inMemoryDataIsEmpty(expected)) return true;
+    if (storageKey !== DEMO_WORKSPACE_STORAGE_KEY) return false;
+    return (
+      stableStringifySnapshot(normalizedDemoWorkspaceData()) ===
+      stableStringifySnapshot(expected)
+    );
+  }
+
+  try {
+    return (
+      stableStringifySnapshot(normalizeLoadedData(parseStoredData(raw))) ===
+      stableStringifySnapshot(expected)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function saveData(
+  data: AppData,
+  options: SaveDataOptions = {},
+): SaveDataResult {
+  if (typeof window === "undefined") {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  let serialized: string;
+  try {
+    serialized = serializeStoredData(data);
+  } catch {
+    return { status: "blocked", reason: "serialization_failed" };
+  }
+
+  let storage: Storage;
+  let storageKey: string;
+  let beforeRaw: string | null;
+  try {
+    storage = localStorage;
+    storageKey = currentStorageKey();
+    beforeRaw = storage.getItem(storageKey);
+  } catch {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  if (
+    options.expected &&
+    !storedRawMatchesExpected(beforeRaw, options.expected, storageKey)
+  ) {
+    return { status: "blocked", reason: "stale_precondition" };
+  }
+
+  if (beforeRaw && inMemoryDataIsEmpty(data)) {
+    try {
+      const parsed = parseStoredData(beforeRaw) as Partial<AppData>;
+      if (storedDataHasContent(parsed)) {
+        return { status: "blocked", reason: "protected_existing_data" };
+      }
+    } catch {
+      return { status: "blocked", reason: "protected_existing_data" };
+    }
+  }
+
+  if (beforeRaw === serialized) return { status: "applied" };
+
+  // La serialización y la protección anti-vaciado pueden ser costosas. Una
+  // segunda lectura inmediatamente antes del write evita pisar un cambio de
+  // otra pestaña que ya sea observable. localStorage no ofrece CAS síncrono;
+  // cualquier cambio detectado se conserva y se declara indeterminado.
+  try {
+    if (storage.getItem(storageKey) !== beforeRaw) {
+      return { status: "indeterminate", reason: "storage_state_unknown" };
+    }
+  } catch {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  let writeError: unknown;
+  try {
+    storage.setItem(storageKey, serialized);
+  } catch (error) {
+    writeError = error;
+  }
+
+  let writtenRaw: string | null | undefined;
+  try {
+    writtenRaw = storage.getItem(storageKey);
+  } catch {
+    writtenRaw = undefined;
+  }
+
+  if (writeError === undefined && writtenRaw === serialized) {
+    return { status: "applied" };
+  }
+
+  if (writtenRaw === beforeRaw) {
+    return {
+      status: "blocked",
+      reason:
+        writeError === undefined
+          ? "verification_failed"
+          : storageWriteFailureReason(writeError),
+    };
+  }
+
+  // Un tercer raw no se puede atribuir con seguridad a esta escritura: puede
+  // proceder de otra pestaña. Sobrescribirlo con un rollback ciego perdería
+  // datos, así que se conserva y el estado se declara indeterminado.
+  if (writtenRaw !== undefined && writtenRaw !== serialized) {
+    return { status: "indeterminate", reason: "storage_state_unknown" };
+  }
+
+  if (!restoreStoredRaw(storage, storageKey, beforeRaw, serialized)) {
+    return { status: "indeterminate", reason: "storage_state_unknown" };
+  }
+
+  if (writeError !== undefined) {
+    return { status: "blocked", reason: storageWriteFailureReason(writeError) };
+  }
+  return { status: "blocked", reason: "verification_failed" };
 }
 
 /** @deprecated Usar assignNextDocumentNumber desde documents.ts */

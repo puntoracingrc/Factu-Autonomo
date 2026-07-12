@@ -119,6 +119,8 @@ export default function GastosFijosPage() {
   const [editApplyMode, setEditApplyMode] =
     useState<EditApplyMode>("today");
   const [effectiveDate, setEffectiveDate] = useState(today);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [storageStateUnknown, setStorageStateUnknown] = useState(false);
   const [form, setForm] = useState({
     ...EMPTY_FORM,
     ivaPercent: defaultIva,
@@ -172,6 +174,7 @@ export default function GastosFijosPage() {
   }, [data.recurringExpenses, editingId, requestedEditId]);
 
   function openNew() {
+    if (!storageStateUnknown) setPersistenceError(null);
     setEditingId(null);
     setEditApplyMode("today");
     setEffectiveDate(todayISO());
@@ -195,6 +198,7 @@ export default function GastosFijosPage() {
   }
 
   function startEdit(item: RecurringExpense) {
+    if (!storageStateUnknown) setPersistenceError(null);
     setEditingId(item.id);
     setEditApplyMode("today");
     setEffectiveDate(todayISO());
@@ -228,6 +232,8 @@ export default function GastosFijosPage() {
   }
 
   function handleSave() {
+    if (storageStateUnknown) return;
+    setPersistenceError(null);
     const amount = parseDecimalInput(form.amountText);
     const startDate = editingId ? selectedEffectiveDate : form.startDate;
     if (!form.supplierName.trim() || !form.description.trim() || amount <= 0) {
@@ -296,8 +302,29 @@ export default function GastosFijosPage() {
       const result = applyRecurringExpenseChange(editingId, payload, startDate, {
         precondition: preview.precondition,
         referenceDate: preview.referenceDate,
+        expected: data,
       });
+      if (result.status === "indeterminate") {
+        setStorageStateUnknown(true);
+        setPersistenceError(
+          "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar.",
+        );
+        return;
+      }
       if (result.status === "blocked") {
+        if (
+          result.reason !== "stale_preview" &&
+          result.reason !== "manual_review" &&
+          result.reason !== "not_found" &&
+          result.reason !== "identifier_collision"
+        ) {
+          setPersistenceError(
+            result.reason === "stale_precondition"
+              ? "Los datos cambiaron antes de guardar. El formulario sigue abierto; recarga y revisa la información antes de continuar."
+              : "No se pudo guardar en este navegador. El formulario sigue abierto y no se ha aplicado el cambio en esta sesión. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
+          );
+          return;
+        }
         alert(
           result.reason === "stale_preview"
             ? "Los datos cambiaron después de la vista previa. No se ha modificado nada; vuelve a revisar y guardar."
@@ -306,7 +333,24 @@ export default function GastosFijosPage() {
         return;
       }
     } else {
-      addRecurringExpense(payload);
+      const result = addRecurringExpense(payload, data);
+      if (result.status !== "applied") {
+        if (result.status === "indeterminate") {
+          setStorageStateUnknown(true);
+        }
+        setPersistenceError(
+          result.status === "indeterminate"
+            ? "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar."
+            : result.reason === "stale_precondition"
+              ? "Los datos cambiaron antes de guardar. El formulario sigue abierto; recarga y revisa la información antes de continuar."
+              : result.reason === "identifier_collision" ||
+                  result.reason === "not_found" ||
+                  result.reason === "transition_failed"
+                ? "No se puede identificar una única regla segura para guardar. El formulario sigue abierto; recarga y revisa los datos antes de continuar."
+              : "No se pudo guardar en este navegador. El formulario sigue abierto y no se ha aplicado el cambio en esta sesión. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
+        );
+        return;
+      }
     }
 
     closeForm();
@@ -331,6 +375,15 @@ export default function GastosFijosPage() {
           </div>
         }
       />
+
+      {persistenceError && !formOpen && (
+        <p
+          role="alert"
+          className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+        >
+          {persistenceError}
+        </p>
+      )}
 
       <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
         {activeSummary.totalActive > 0 ? (
@@ -367,6 +420,14 @@ export default function GastosFijosPage() {
         onClose={closeForm}
       >
         <div className="space-y-5">
+          {persistenceError && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+            >
+              {persistenceError}
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:col-span-2">
               <p className="text-sm font-bold text-slate-900">
@@ -711,8 +772,16 @@ export default function GastosFijosPage() {
             </div>
           </div>
 
-          <Button fullWidth onClick={handleSave}>
-            {editingId ? "Guardar cambios" : "Guardar gasto fijo"}
+          <Button
+            fullWidth
+            onClick={handleSave}
+            disabled={storageStateUnknown}
+          >
+            {storageStateUnknown
+              ? "Recarga antes de continuar"
+              : editingId
+                ? "Guardar cambios"
+                : "Guardar gasto fijo"}
           </Button>
         </div>
       </ResponsiveEntityPanel>
@@ -783,9 +852,30 @@ export default function GastosFijosPage() {
                   {!isClosed && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setRecurringExpenseEnabled(item.id, !item.enabled)
-                      }
+                      disabled={storageStateUnknown}
+                      onClick={() => {
+                        if (storageStateUnknown) return;
+                        setPersistenceError(null);
+                        const result = setRecurringExpenseEnabled(
+                          item.id,
+                          !item.enabled,
+                          data,
+                        );
+                        if (result.status !== "applied") {
+                          if (result.status === "indeterminate") {
+                            setStorageStateUnknown(true);
+                          }
+                          setPersistenceError(
+                            result.status === "indeterminate"
+                              ? "No hemos podido confirmar el cambio. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
+                              : result.reason === "stale_precondition" ||
+                                  result.reason === "not_found" ||
+                                  result.reason === "identifier_collision"
+                                ? "Los datos de la regla cambiaron. Recarga y revísalos antes de volver a intentarlo."
+                                : "No se pudo guardar el cambio. La regla conserva su estado anterior; revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
+                          );
+                        }
+                      }}
                       className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
                     >
                       {item.enabled ? "Pausar" : "Activar"}
@@ -802,11 +892,28 @@ export default function GastosFijosPage() {
                   </button>
                   <button
                     type="button"
+                    disabled={storageStateUnknown}
                     onClick={() => {
+                      if (storageStateUnknown) return;
                       if (
                         confirm(`¿Borrar el gasto fijo «${item.description}»?`)
                       ) {
-                        deleteRecurringExpense(item.id);
+                        setPersistenceError(null);
+                        const result = deleteRecurringExpense(item.id, data);
+                        if (result.status !== "applied") {
+                          if (result.status === "indeterminate") {
+                            setStorageStateUnknown(true);
+                          }
+                          setPersistenceError(
+                            result.status === "indeterminate"
+                              ? "No hemos podido confirmar el borrado. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
+                              : result.reason === "stale_precondition" ||
+                                  result.reason === "not_found" ||
+                                  result.reason === "identifier_collision"
+                                ? "Los datos de la regla cambiaron. Recarga y revísalos antes de volver a intentarlo."
+                                : "No se pudo guardar el borrado. La regla sigue visible; revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
+                          );
+                        }
                       }
                     }}
                     className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 p-2 text-red-600"

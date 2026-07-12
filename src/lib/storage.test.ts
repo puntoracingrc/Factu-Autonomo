@@ -229,15 +229,489 @@ describe("storage", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
   it("guarda y recupera datos", () => {
     const data = sampleData();
-    saveData(data);
+    expect(saveData(data)).toEqual({ status: "applied" });
     const loaded = loadData();
     expect(loaded.customers).toHaveLength(1);
     expect(loaded.profile.name).toBe("Mi negocio");
+  });
+
+  it("bloquea QuotaExceeded y conserva byte a byte el raw anterior", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const store = new Map([[STORAGE_KEY, beforeRaw]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (value !== beforeRaw) {
+          throw new DOMException("workspace omitted", "QuotaExceededError");
+        }
+        store.set(key, value);
+      },
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    const result = saveData({
+      ...sampleData(),
+      profile: { ...sampleData().profile, name: "Cambio no persistido" },
+    });
+
+    expect(result).toEqual({ status: "blocked", reason: "quota_exceeded" });
+    expect(store.get(STORAGE_KEY)).toBe(beforeRaw);
+  });
+
+  it("bloquea SecurityError antes de escribir sin exponer el error", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new DOMException("private profile path", "SecurityError");
+      },
+      setItem,
+      removeItem: vi.fn(),
+    });
+
+    expect(saveData(sampleData())).toEqual({
+      status: "blocked",
+      reason: "storage_unavailable",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("clasifica SecurityError de escritura si el raw anterior sigue verificado", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("localStorage", {
+      getItem: () => beforeRaw,
+      setItem: () => {
+        throw new DOMException("customer Ana private path", "SecurityError");
+      },
+      removeItem: vi.fn(),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Dato sensible" },
+      }),
+    ).toEqual({ status: "blocked", reason: "storage_unavailable" });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("no rompe el triestado si el error de escritura tiene getters hostiles", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const hostile = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new Error("hostile error getter");
+        },
+      },
+    );
+    vi.stubGlobal("localStorage", {
+      getItem: () => beforeRaw,
+      setItem: () => {
+        throw hostile;
+      },
+      removeItem: vi.fn(),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Cambio bloqueado" },
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+  });
+
+  it("bloquea una serialización circular antes de consultar storage", () => {
+    const getItem = vi.fn();
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem,
+      setItem,
+      removeItem: vi.fn(),
+    });
+    const circular = sampleData() as AppData & { loop?: unknown };
+    circular.loop = circular;
+
+    expect(saveData(circular)).toEqual({
+      status: "blocked",
+      reason: "serialization_failed",
+    });
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("bloquea un fallo de compresión antes del primer write", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const getItem = vi.fn(() => beforeRaw);
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem,
+      setItem,
+      removeItem: vi.fn(),
+    });
+    vi.stubGlobal("btoa", () => {
+      throw new Error("binary encoder unavailable");
+    });
+
+    const result = saveData({
+      ...sampleData(),
+      profile: {
+        ...sampleData().profile,
+        name: "contenido grande ".repeat(60_000),
+      },
+    });
+
+    expect(result).toEqual({
+      status: "blocked",
+      reason: "serialization_failed",
+    });
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("clasifica el guard anti-vaciado como bloqueo y conserva el raw", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    localStorage.setItem(STORAGE_KEY, beforeRaw);
+
+    expect(saveData(EMPTY_DATA)).toEqual({
+      status: "blocked",
+      reason: "protected_existing_data",
+    });
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(beforeRaw);
+  });
+
+  it.each([
+    {
+      label: "recurrencias",
+      data: {
+        ...EMPTY_DATA,
+        recurringExpenses: [
+          {
+            id: "recurring-only",
+            supplierName: "Proveedor",
+            description: "Cuota",
+            amount: 50,
+            ivaPercent: 21,
+            category: "Otros",
+            paymentMethod: "Domiciliación",
+            frequency: "monthly" as const,
+            dueTiming: { kind: "end_of_month" as const },
+            duration: { kind: "indefinite" as const },
+            startDate: "2026-07-01",
+            enabled: true,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+    },
+    {
+      label: "recordatorios",
+      data: {
+        ...EMPTY_DATA,
+        userReminders: [
+          {
+            id: "reminder-only",
+            text: "Revisar vencimiento",
+            link: { kind: "none" as const },
+            target: "self" as const,
+            completed: false,
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+      },
+    },
+    {
+      label: "perfil sin nombre",
+      data: {
+        ...EMPTY_DATA,
+        profile: { ...EMPTY_DATA.profile, nif: "12345678Z" },
+      },
+    },
+    {
+      label: "cambios pendientes",
+      data: {
+        ...EMPTY_DATA,
+        meta: {
+          lastModified: NOW,
+          pendingChanges: [
+            {
+              entityType: "profile" as const,
+              entityId: "profile",
+              deleted: false,
+              payload: { nif: "12345678Z" },
+              updatedAt: NOW,
+            },
+          ],
+        },
+      },
+    },
+    {
+      label: "contador fiscal",
+      data: {
+        ...EMPTY_DATA,
+        counters: { ...EMPTY_DATA.counters, factura: 7 },
+      },
+    },
+    {
+      label: "cadena VeriFactu",
+      data: {
+        ...EMPTY_DATA,
+        verifactuChain: {
+          issuerNif: "12345678Z",
+          lastHash: "A".repeat(64),
+          recordCount: 1,
+        },
+      },
+    },
+  ])("no vacía un workspace que solo conserva $label", ({ data }) => {
+    expect(saveData(data)).toEqual({ status: "applied" });
+    const beforeRaw = localStorage.getItem(STORAGE_KEY);
+
+    expect(saveData(EMPTY_DATA)).toEqual({
+      status: "blocked",
+      reason: "protected_existing_data",
+    });
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(beforeRaw);
+  });
+
+  it("no pisa un tercer raw que puede proceder de otra pestaña", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const store = new Map([[STORAGE_KEY, beforeRaw]]);
+    let writes = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        store.set(key, writes === 1 ? "raw-intermedio" : value);
+      },
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Nuevo nombre" },
+      }),
+    ).toEqual({
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    });
+    expect(store.get(STORAGE_KEY)).toBe("raw-intermedio");
+    expect(writes).toBe(1);
+  });
+
+  it("bloquea antes del write si otra pestaña cambió el raw inicial", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const concurrentRaw = JSON.stringify({
+      ...sampleData(),
+      profile: { ...sampleData().profile, name: "Otra pestaña" },
+    });
+    let reads = 0;
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => {
+        if (key !== STORAGE_KEY) return null;
+        return ++reads === 1 ? beforeRaw : concurrentRaw;
+      },
+      setItem,
+      removeItem: vi.fn(),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Cambio local" },
+      }),
+    ).toEqual({
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("no sobrescribe un raw que ya diverge del AppData esperado", () => {
+    const expected = normalizeLoadedData(sampleData());
+    const persistedByAnotherTab = {
+      ...expected,
+      profile: { ...expected.profile, name: "Ya persistido por otra pestaña" },
+    };
+    const candidate = {
+      ...expected,
+      profile: { ...expected.profile, name: "Candidato local obsoleto" },
+    };
+    const rawFromAnotherTab = JSON.stringify(persistedByAnotherTab);
+    const store = new Map([[STORAGE_KEY, rawFromAnotherTab]]);
+    const setItem = vi.fn((key: string, value: string) => store.set(key, value));
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem,
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    expect(saveData(candidate, { expected })).toEqual({
+      status: "blocked",
+      reason: "stale_precondition",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+    expect(store.get(STORAGE_KEY)).toBe(rawFromAnotherTab);
+  });
+
+  it("permite el write durable cuando el raw normaliza al AppData esperado", () => {
+    const expected = normalizeLoadedData(sampleData());
+    const store = new Map([[STORAGE_KEY, JSON.stringify(expected)]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    const candidate = {
+      ...expected,
+      profile: { ...expected.profile, name: "Cambio durable" },
+    };
+
+    expect(loadData()).toEqual(expected);
+    expect(saveData(candidate, { expected })).toEqual({ status: "applied" });
+    expect(loadData().profile.name).toBe("Cambio durable");
+  });
+
+  it("acepta como expected el workspace demo sintetizado antes de su primer raw", () => {
+    setDemoWorkspaceMode(true);
+    const expected = loadData();
+    expect(localStorage.getItem(DEMO_WORKSPACE_STORAGE_KEY)).toBeNull();
+    const candidate = {
+      ...expected,
+      profile: { ...expected.profile, name: "Demo durable" },
+    };
+
+    expect(saveData(candidate, { expected })).toEqual({ status: "applied" });
+    expect(localStorage.getItem(DEMO_WORKSPACE_STORAGE_KEY)).not.toBeNull();
+    expect(loadData().profile.name).toBe("Demo durable");
+  });
+
+  it("no hace rollback sobre un raw concurrente aparecido tras el readback", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const concurrentRaw = JSON.stringify({
+      ...sampleData(),
+      profile: { ...sampleData().profile, name: "Cambio concurrente tardío" },
+    });
+    const store = new Map([[STORAGE_KEY, beforeRaw]]);
+    let reads = 0;
+    let writes = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => {
+        if (key !== STORAGE_KEY) return null;
+        reads += 1;
+        if (reads === 4) store.set(key, concurrentRaw);
+        return store.get(key) ?? null;
+      },
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        store.set(key, value);
+        if (writes === 1) throw new Error("write interrupted");
+      },
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Cambio local" },
+      }),
+    ).toEqual({
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    });
+    expect(store.get(STORAGE_KEY)).toBe(concurrentRaw);
+    expect(writes).toBe(1);
+  });
+
+  it("restaura tras una escritura intermedia que termina lanzando", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const store = new Map([[STORAGE_KEY, beforeRaw]]);
+    let writes = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        if (writes === 1) {
+          store.set(key, value);
+          throw new Error("write interrupted");
+        }
+        store.set(key, value);
+      },
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "No debe quedar" },
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(store.get(STORAGE_KEY)).toBe(beforeRaw);
+  });
+
+  it("usa removeItem y verifica el rollback cuando el raw anterior era null", () => {
+    const store = new Map<string, string>();
+    const removeItem = vi.fn((key: string) => store.delete(key));
+    let writes = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        if (writes === 1) {
+          store.set(key, value);
+          throw new Error("write interrupted");
+        }
+        store.set(key, value);
+      },
+      removeItem,
+    });
+
+    expect(saveData(sampleData())).toEqual({
+      status: "blocked",
+      reason: "write_failed",
+    });
+    expect(removeItem).toHaveBeenCalledWith(STORAGE_KEY);
+    expect(store.has(STORAGE_KEY)).toBe(false);
+  });
+
+  it("devuelve indeterminate si no puede restaurar ni verificar el raw", () => {
+    const beforeRaw = JSON.stringify(sampleData());
+    const store = new Map([[STORAGE_KEY, beforeRaw]]);
+    let writes = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        if (writes === 1) {
+          store.set(key, value);
+          throw new Error("write interrupted");
+        }
+        store.set(key, "raw-intermedio");
+        throw new Error("rollback failed");
+      },
+      removeItem: vi.fn(),
+    });
+
+    expect(
+      saveData({
+        ...sampleData(),
+        profile: { ...sampleData().profile, name: "Estado incierto" },
+      }),
+    ).toEqual({
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    });
+    expect(store.get(STORAGE_KEY)).toBe("raw-intermedio");
   });
 
   it("persiste la evidencia separada del recargo de equivalencia", () => {

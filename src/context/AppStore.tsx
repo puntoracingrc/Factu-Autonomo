@@ -26,7 +26,6 @@ import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
   deleteRecurringExpenseFromData,
-  saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
   type RecurringExpenseChangeApplyResult,
   type RecurringExpenseDraft,
@@ -88,6 +87,16 @@ import {
   unmarkInvoiceCollection,
 } from "@/lib/receipts";
 import { loadData, saveData, touchAppData } from "@/lib/storage";
+import {
+  commitAppDataDurably,
+  durableBaselineContainsFixedExpenseBundle,
+  durableStorageBaselineAfterSave,
+  fixedExpenseBundleIds,
+  prepareFixedExpenseBundle,
+  type AppDataDurabilityResult,
+  type DurableStorageBaseline,
+  type FixedExpenseBundleValue,
+} from "@/lib/app-data-durability";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
@@ -154,6 +163,17 @@ interface ReplaceDataOptions {
   fromRemote?: boolean;
 }
 
+type RecurringExpenseChangeBlockedReason = Extract<
+  RecurringExpenseChangeApplyResult,
+  { status: "blocked" }
+>["reason"];
+
+type DurableRecurringExpenseChangeResult =
+  | AppDataDurabilityResult<
+      Extract<RecurringExpenseChangeApplyResult, { status: "applied" }>
+    >
+  | { status: "blocked"; reason: RecurringExpenseChangeBlockedReason };
+
 interface AppStoreValue {
   data: AppData;
   ready: boolean;
@@ -194,7 +214,12 @@ interface AppStoreValue {
       | Omit<Expense, "id" | "createdAt">
       | Expense,
     item: RecurringExpenseDraft,
-  ) => RecurringExpense;
+    options: {
+      expected: AppData;
+      operationId: string;
+      supplier?: Omit<Supplier, "id" | "createdAt">;
+    },
+  ) => AppDataDurabilityResult<FixedExpenseBundleValue>;
   addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Product;
   updateProduct: (product: Product) => void;
   renameProductFamily: (
@@ -203,15 +228,29 @@ interface AppStoreValue {
   ) => ProductFamilyRenameResult;
   deleteProduct: (id: string) => void;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
-  addRecurringExpense: (item: RecurringExpenseDraft) => RecurringExpense;
-  setRecurringExpenseEnabled: (id: string, enabled: boolean) => void;
+  addRecurringExpense: (
+    item: RecurringExpenseDraft,
+    expected: AppData,
+  ) => AppDataDurabilityResult<RecurringExpense>;
+  setRecurringExpenseEnabled: (
+    id: string,
+    enabled: boolean,
+    expected: AppData,
+  ) => AppDataDurabilityResult<RecurringExpense>;
   applyRecurringExpenseChange: (
     id: string,
     item: RecurringExpenseDraft,
     effectiveDate: string,
-    approval: { precondition: string; referenceDate: string },
-  ) => RecurringExpenseChangeApplyResult;
-  deleteRecurringExpense: (id: string) => void;
+    approval: {
+      precondition: string;
+      referenceDate: string;
+      expected: AppData;
+    },
+  ) => DurableRecurringExpenseChangeResult;
+  deleteRecurringExpense: (
+    id: string,
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   addUserReminder: (
     item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
       completed?: boolean;
@@ -402,6 +441,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const dataRef = useRef<AppData>(EMPTY_DATA);
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
+  const durablyPersistedDataRef = useRef<AppData | null>(null);
+  const durableStorageBaselineRef = useRef<DurableStorageBaseline>({
+    status: "known",
+    data: EMPTY_DATA,
+  });
 
   const setAppData = useCallback(
     (
@@ -422,8 +466,37 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const commitDurableAppData = useCallback(
+    <T,>(
+      expected: AppData,
+      build: (previous: AppData) => { data: AppData; value: T },
+    ): AppDataDurabilityResult<T> => {
+      const result = commitAppDataDurably({
+        expected,
+        storageBaseline: durableStorageBaselineRef.current,
+        getCurrent: () => dataRef.current,
+        build,
+        persist: (candidate, storageExpected) =>
+          saveData(candidate, { expected: storageExpected }),
+      });
+      if (result.status !== "applied") return result;
+
+      durableStorageBaselineRef.current = {
+        status: "known",
+        data: result.data,
+      };
+      durablyPersistedDataRef.current = result.data;
+      dataRef.current = result.data;
+      setData(result.data);
+      return result;
+    },
+    [],
+  );
+
   useEffect(() => {
-    const loaded = syncRecurringExpenses(loadData());
+    const persisted = loadData();
+    durableStorageBaselineRef.current = { status: "known", data: persisted };
+    const loaded = syncRecurringExpenses(persisted);
     dataRef.current = loaded;
     setData(loaded);
     setReady(true);
@@ -431,11 +504,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
+    if (durablyPersistedDataRef.current === data) {
+      durablyPersistedDataRef.current = null;
+      skipNextSave.current = false;
+      return;
+    }
+    durablyPersistedDataRef.current = null;
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
     }
-    saveData(data);
+    const result = saveData(data);
+    durableStorageBaselineRef.current = durableStorageBaselineAfterSave(
+      data,
+      result,
+    );
   }, [data, ready]);
 
   const replaceData = useCallback(
@@ -444,7 +527,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         skipNextSave.current = false;
         dataRef.current = next;
         setData(next);
-        saveData(next);
+        const result = saveData(next);
+        durableStorageBaselineRef.current = durableStorageBaselineAfterSave(
+          next,
+          result,
+        );
         return;
       }
       setAppData(next, { skipDirty: false });
@@ -1276,29 +1363,58 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (
       expense: Omit<Expense, "id" | "createdAt"> | Expense,
       item: RecurringExpenseDraft,
-    ): RecurringExpense => {
+      options: {
+        expected: AppData;
+        operationId: string;
+        supplier?: Omit<Supplier, "id" | "createdAt">;
+      },
+    ): AppDataDurabilityResult<FixedExpenseBundleValue> => {
       const now = new Date().toISOString();
-      let created: RecurringExpense | null = null;
-
-      setAppData((prev) => {
-        const result = saveFixedExpenseWithRecurringTemplateToData(
-          prev,
-          expense,
-          item,
-          { now, newId },
-        );
-        created = result.recurringExpense;
-        return result.data;
-      });
-
-      if (!created) {
-        throw new Error(
-          "No se pudo crear la regla recurrente del gasto fijo",
-        );
+      const ids = fixedExpenseBundleIds(options.operationId);
+      const command = {
+        expense,
+        recurringExpense: item,
+        supplier: options.supplier,
+        ids,
+      };
+      const current = dataRef.current;
+      let inspected: ReturnType<typeof prepareFixedExpenseBundle>;
+      try {
+        inspected = prepareFixedExpenseBundle(current, command, { now });
+      } catch {
+        return { status: "blocked", reason: "transition_failed" };
       }
-      return created;
+
+      if (inspected.status === "already_applied") {
+        const baseline = durableStorageBaselineRef.current;
+        if (baseline.status !== "known") return baseline;
+        if (
+          !durableBaselineContainsFixedExpenseBundle(
+            baseline.data,
+            command,
+            { now },
+          )
+        ) {
+          return { status: "blocked", reason: "stale_precondition" };
+        }
+        return {
+          status: "applied",
+          data: current,
+          value: inspected.value,
+          replayed: true,
+        };
+      }
+      if (current !== options.expected) {
+        return { status: "blocked", reason: "stale_precondition" };
+      }
+      if (inspected.status === "blocked") return inspected;
+
+      return commitDurableAppData(
+        options.expected,
+        () => inspected.transition,
+      );
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
   const addProduct = useCallback(
@@ -1410,7 +1526,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }, [setAppData]);
 
   const addRecurringExpense = useCallback(
-    (item: RecurringExpenseDraft): RecurringExpense => {
+    (
+      item: RecurringExpenseDraft,
+      expected: AppData,
+    ): AppDataDurabilityResult<RecurringExpense> => {
       const now = new Date().toISOString();
       const created: RecurringExpense = {
         ...item,
@@ -1418,32 +1537,49 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         createdAt: now,
         updatedAt: now,
       };
-      setAppData((prev) =>
-        syncRecurringExpenses({
-          ...prev,
-          recurringExpenses: [...prev.recurringExpenses, created],
+      if (expected.recurringExpenses.some((entry) => entry.id === created.id)) {
+        return { status: "blocked", reason: "identifier_collision" };
+      }
+      return commitDurableAppData(expected, (previous) => ({
+        data: syncRecurringExpenses({
+          ...previous,
+          recurringExpenses: [...previous.recurringExpenses, created],
         }),
-      );
-      return created;
+        value: created,
+      }));
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
   const setRecurringExpenseEnabled = useCallback(
-    (id: string, enabled: boolean) => {
+    (
+      id: string,
+      enabled: boolean,
+      expected: AppData,
+    ): AppDataDurabilityResult<RecurringExpense> => {
       const now = new Date().toISOString();
-      setAppData((prev) =>
-        syncRecurringExpenses({
-          ...prev,
-          recurringExpenses: prev.recurringExpenses.map((entry) =>
-            entry.id === id
-              ? { ...entry, enabled, updatedAt: now }
-              : entry,
+      const matches = expected.recurringExpenses.filter(
+        (entry) => entry.id === id,
+      );
+      if (matches.length === 0) {
+        return { status: "blocked", reason: "not_found" };
+      }
+      if (matches.length !== 1) {
+        return { status: "blocked", reason: "identifier_collision" };
+      }
+      const existing = matches[0];
+      const updated = { ...existing, enabled, updatedAt: now };
+      return commitDurableAppData(expected, (previous) => ({
+        data: syncRecurringExpenses({
+          ...previous,
+          recurringExpenses: previous.recurringExpenses.map((entry) =>
+            entry.id === id ? updated : entry,
           ),
         }),
-      );
+        value: updated,
+      }));
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
   const applyRecurringExpenseChange = useCallback(
@@ -1451,34 +1587,60 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       id: string,
       item: RecurringExpenseDraft,
       effectiveDate: string,
-      approval: { precondition: string; referenceDate: string },
-    ): RecurringExpenseChangeApplyResult => {
+      approval: {
+        precondition: string;
+        referenceDate: string;
+        expected: AppData;
+      },
+    ): DurableRecurringExpenseChangeResult => {
       const now = new Date().toISOString();
-      let result: RecurringExpenseChangeApplyResult | undefined;
-
-      setAppData((prev) => {
-        result = applyRecurringExpenseChangeToData(
-          prev,
-          id,
-          item,
-          effectiveDate,
-          {
-            now,
-            newId,
-            referenceDate: approval.referenceDate,
-            expectedPrecondition: approval.precondition,
-          },
-        );
-        return result.data;
-      });
-      return result!;
+      if (dataRef.current !== approval.expected) {
+        return { status: "blocked", reason: "stale_preview" };
+      }
+      const domainResult = applyRecurringExpenseChangeToData(
+        approval.expected,
+        id,
+        item,
+        effectiveDate,
+        {
+          now,
+          newId,
+          referenceDate: approval.referenceDate,
+          expectedPrecondition: approval.precondition,
+        },
+      );
+      if (domainResult.status === "blocked") {
+        return { status: "blocked", reason: domainResult.reason };
+      }
+      return commitDurableAppData(approval.expected, () => ({
+        data: domainResult.data,
+        value: domainResult,
+      }));
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
-  const deleteRecurringExpense = useCallback((id: string) => {
-    setAppData((prev) => deleteRecurringExpenseFromData(prev, id));
-  }, [setAppData]);
+  const deleteRecurringExpense = useCallback(
+    (
+      id: string,
+      expected: AppData,
+    ): AppDataDurabilityResult<string> => {
+      const matches = expected.recurringExpenses.filter(
+        (entry) => entry.id === id,
+      );
+      if (matches.length === 0) {
+        return { status: "blocked", reason: "not_found" };
+      }
+      if (matches.length !== 1) {
+        return { status: "blocked", reason: "identifier_collision" };
+      }
+      return commitDurableAppData(expected, (previous) => ({
+        data: deleteRecurringExpenseFromData(previous, id),
+        value: id,
+      }));
+    },
+    [commitDurableAppData],
+  );
 
   const addUserReminder = useCallback(
     (
