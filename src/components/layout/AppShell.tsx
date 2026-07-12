@@ -21,6 +21,7 @@ import {
 import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
+import { QuickToolsLauncher } from "@/components/documents/QuickToolsLauncher";
 import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
 import { useBilling } from "@/context/BillingContext";
@@ -257,6 +258,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="space-y-3 border-t border-slate-200 px-4 py-4">
+          <QuickToolsLauncher />
           <div className="flex items-center justify-between gap-2">
             <FactuHelpButton />
             <CloudSyncHeaderIndicator />
@@ -368,6 +370,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
               <CloudSyncHeaderIndicator />
             </div>
+          </div>
+          <div className="border-t border-slate-100 px-4 py-1.5">
+            <QuickToolsLauncher compact />
           </div>
           <CloudSyncPendingBanner />
         </header>

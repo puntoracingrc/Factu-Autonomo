@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { X } from "lucide-react";
+import { QUICK_POST_IT_MAX_LENGTH } from "./quick-post-it-session";
 
 interface QuickPostItProps {
   value: string;
@@ -26,8 +27,6 @@ interface DragState {
   originY: number;
 }
 
-const POST_IT_MAX_LENGTH = 2_000;
-
 export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -41,7 +40,7 @@ export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
     setPosition(
       clampPosition({
         x: window.innerWidth - width - 24,
-        y: window.innerWidth < 640 ? 96 : window.innerHeight - height - 80,
+        y: window.innerWidth < 640 ? 128 : window.innerHeight - height - 80,
       }),
     );
     textareaRef.current?.focus();
@@ -127,7 +126,7 @@ export function QuickPostIt({ value, onChange, onClose }: QuickPostItProps) {
         ref={textareaRef}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        maxLength={POST_IT_MAX_LENGTH}
+        maxLength={QUICK_POST_IT_MAX_LENGTH}
         aria-label="Contenido del post-it"
         placeholder="Escribe una nota rápida…"
         className="relative z-10 min-h-0 flex-1 resize-none overflow-y-auto !bg-transparent px-2 pb-2 text-base font-medium leading-6 !text-slate-900 outline-none placeholder:!text-slate-500/75 focus-visible:ring-0"

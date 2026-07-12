@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculatorHasEditableValue,
   deleteLastCalculatorCharacter,
+  initialCalculatorX,
 } from "./quick-calculator-logic";
 
 describe("QuickCalculator", () => {
@@ -18,5 +19,11 @@ describe("QuickCalculator", () => {
     expect(deleteLastCalculatorCharacter("7")).toBe("0");
     expect(deleteLastCalculatorCharacter("-7")).toBe("0");
     expect(deleteLastCalculatorCharacter("Error")).toBe("0");
+  });
+
+  it("no tapa los lanzadores globales al abrirse", () => {
+    expect(initialCalculatorX(1440, 212)).toBe(304);
+    expect(initialCalculatorX(900, 212)).toBe(24);
+    expect(initialCalculatorX(390, 212)).toBe(89);
   });
 });
