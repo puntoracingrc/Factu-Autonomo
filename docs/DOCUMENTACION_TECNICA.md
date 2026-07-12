@@ -154,7 +154,8 @@ Campos relevantes:
 
 Barra inferior (`AppShell`): Inicio, Clientes, Facturas, Presupuestos, Recibos, Gastos, Impuestos, Proveedores, Ajustes.
 
-Rutas fuera de la barra: `/precios`, `/legal/*`, `/auth/callback`, `/ayuda`.
+Rutas fuera de la barra: `/rentabilidad-real/*`, `/precios`, `/legal/*`,
+`/auth/callback`, `/ayuda`.
 
 ---
 
@@ -167,6 +168,12 @@ Rutas fuera de la barra: `/precios`, `/legal/*`, `/auth/callback`, `/ayuda`.
 | Índice y secciones | `src/app/ayuda/`, contenido en `src/lib/manual/sections/` |
 | Ayuda contextual (🤖+?) | `FactuHelpButton` en cabecera → `src/lib/manual/route-help.ts` |
 | Capturas | `public/ayuda/capturas/` |
+
+La sección **Rentabilidad Real** dedica una entrada a cada una de sus ocho
+rutas actuales: centro, test, validación, calculadoras de trabajo y horas,
+simulador de precio mínimo, informes y evolución. El botón contextual conserva
+la ruta de origen y abre directamente esa sección; el retorno se rotula
+**Rentabilidad Real**.
 
 **Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **y sustituir las capturas afectadas** en el mismo commit/PR (`npm run manual:screenshots` → `public/ayuda/capturas/`). Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`. Verificación: `npm run manual:verify` (incluye test de que existen todos los PNG referenciados).
 
@@ -910,6 +917,14 @@ Variables críticas: Supabase URL/keys, Stripe keys, OpenAI key (escaneo), Veri\
 | `/proveedores` | Proveedores | Sí |
 | `/impuestos` | Resumen fiscal | Sí |
 | `/configuracion` | Ajustes | Sí |
+| `/rentabilidad-real` | Centro de Rentabilidad Real | Sí |
+| `/rentabilidad-real/test` | Test guiado de módulos | Sí |
+| `/rentabilidad-real/validar-configuracion` | Resumen para validar con el gestor | Sí |
+| `/rentabilidad-real/calculadora/trabajo` | Rentabilidad por presupuesto o factura | Sí |
+| `/rentabilidad-real/calculadora/horas` | Rentabilidad por horas o proyecto | Sí |
+| `/rentabilidad-real/simulador-precio-minimo` | Simulador de precio mínimo | Sí |
+| `/rentabilidad-real/informes` | Informes por documento y cliente | Sí |
+| `/rentabilidad-real/evolucion` | Evolución por periodo, cliente o modo | Sí |
 | `/precios` | Planes | Sí |
 | `/auth/callback` | OAuth Supabase | No |
 | `/legal/privacidad` | Legal | No |

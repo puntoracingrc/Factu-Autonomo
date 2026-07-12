@@ -18,6 +18,7 @@ import { inicioSection } from "./inicio";
 import { productosSection } from "./productos";
 import { presupuestosSection, recibosSection } from "./presupuestos-recibos";
 import { primerosPasosSection } from "./primeros-pasos";
+import { rentabilidadRealSection } from "./rentabilidad-real";
 
 export function buildManualSections(
   consultorFiscalEnabled: boolean,
@@ -38,6 +39,7 @@ export function buildManualSections(
     cuentaSection,
     configuracionSection,
     importacionSection,
+    rentabilidadRealSection,
   ].sort((a, b) => a.order - b.order);
 }
 

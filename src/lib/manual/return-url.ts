@@ -1,6 +1,7 @@
 export const MANUAL_FROM_PARAM = "from";
 
 const RETURN_LABELS: Array<{ prefix: string; label: string }> = [
+  { prefix: "/rentabilidad-real", label: "Rentabilidad Real" },
   { prefix: "/configuracion", label: "Ajustes" },
   { prefix: "/proveedores", label: "Proveedores" },
   { prefix: "/impuestos", label: "Impuestos" },
