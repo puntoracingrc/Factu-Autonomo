@@ -61,6 +61,28 @@ describe("recurring expense form integrity", () => {
     );
   });
 
+  it("previsualiza y bloquea cambios sobre ocurrencias ya materializadas", () => {
+    const fixedExpenseForm = source("../app/gastos/fijos/page.tsx");
+    const appStore = source("../context/AppStore.tsx");
+
+    expect(fixedExpenseForm).toContain("previewRecurringExpenseChangeToData");
+    expect(fixedExpenseForm).toContain('preview.status === "manual_review"');
+    expect(fixedExpenseForm).toContain("Vista previa bloqueada");
+    expect(fixedExpenseForm).toContain("ningún gasto creado se borra");
+    expect(fixedExpenseForm).toContain("precondition: preview.precondition");
+    expect(fixedExpenseForm).toContain('result.reason === "stale_preview"');
+    expect(fixedExpenseForm).toContain("setRecurringExpenseEnabled");
+    expect(fixedExpenseForm).not.toContain("updateRecurringExpense");
+    expect(appStore).toContain("expectedPrecondition: approval.precondition");
+    expect(appStore).toContain("return result.data");
+    expect(appStore).toContain(
+      "setRecurringExpenseEnabled: (id: string, enabled: boolean)",
+    );
+    expect(appStore).not.toContain(
+      "updateRecurringExpense: (item: RecurringExpense)",
+    );
+  });
+
   it("identifica como no desgravable cualquier estado fiscal no reconocido", () => {
     const fixedExpenseForm = source("../app/gastos/fijos/page.tsx");
 

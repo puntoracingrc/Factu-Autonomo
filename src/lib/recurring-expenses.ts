@@ -260,6 +260,16 @@ function isIsoCalendarDate(value: string): boolean {
   );
 }
 
+export function recurringScheduleAnchorDate(
+  template: Pick<RecurringExpense, "scheduleAnchorDate" | "startDate">,
+): string {
+  return template.scheduleAnchorDate &&
+    isIsoCalendarDate(template.scheduleAnchorDate) &&
+    template.scheduleAnchorDate <= template.startDate
+    ? template.scheduleAnchorDate
+    : template.startDate;
+}
+
 function occurrenceDateFromKey(templateId: string, key: string): string | null {
   const prefix = `${templateId}:`;
   if (!key.startsWith(prefix)) return null;
@@ -474,8 +484,18 @@ export function listRecurringOccurrenceDates(
     return dates;
   }
 
-  let cursor = { year: start.year, month: start.month };
   const step = template.frequency === "monthly" ? 1 : 3;
+  const anchor = parseIso(recurringScheduleAnchorDate(template));
+  const startMonthIndex = start.year * 12 + (start.month - 1);
+  const anchorMonthIndex = anchor.year * 12 + (anchor.month - 1);
+  const cadenceOffset = Math.ceil(
+    (startMonthIndex - anchorMonthIndex) / step,
+  );
+  let cursor = addMonths(
+    anchor.year,
+    anchor.month,
+    cadenceOffset * step,
+  );
   let guard = 0;
 
   while (guard < 600) {
@@ -654,16 +674,6 @@ export function recurringExpenseTotals(
   return expenseTotalsFromBase(template.amount, ivaPercent, vatExempt);
 }
 
-function expenseBelongsToRecurringTemplate(
-  expense: Expense,
-  recurringExpenseId: string,
-) {
-  return (
-    expense.recurringExpenseId === recurringExpenseId ||
-    expense.recurringOccurrenceKey?.startsWith(`${recurringExpenseId}:`)
-  );
-}
-
 function recurringTemplateForExpense(
   templates: RecurringExpense[],
   expense: Expense,
@@ -743,6 +753,284 @@ export function deleteRecurringExpenseFromData(
   };
 }
 
+export type RecurringExpenseChangeManualReviewReason =
+  | "materialized_occurrence"
+  | "ambiguous_provenance"
+  | "duplicate_occurrence_key"
+  | "occurrence_exclusion"
+  | "duplicate_template_id"
+  | "duplicate_exclusion"
+  | "invalid_exclusion"
+  | "invalid_effective_date"
+  | "invalid_reference_date";
+
+export interface RecurringExpenseChangeManualReviewItem {
+  kind: "template" | "expense" | "exclusion";
+  id: string;
+  logicalDate?: string;
+  reason: RecurringExpenseChangeManualReviewReason;
+}
+
+export interface RecurringExpenseChangePreview {
+  status: "ready" | "manual_review" | "not_found";
+  precondition: string;
+  effectiveDate: string;
+  referenceDate: string;
+  preservedExpenseCount: number;
+  affectedExpenseCount: number;
+  affectedExclusionCount: number;
+  affectedDates: string[];
+  manualReview: RecurringExpenseChangeManualReviewItem[];
+}
+
+export type RecurringExpenseChangeApplyResult =
+  | {
+      status: "applied";
+      data: AppData;
+      preview: RecurringExpenseChangePreview;
+    }
+  | {
+      status: "blocked";
+      reason:
+        | "not_found"
+        | "manual_review"
+        | "stale_preview"
+        | "identifier_collision";
+      data: AppData;
+      preview: RecurringExpenseChangePreview;
+    };
+
+function recurringExpenseChangeRelatedExpenses(
+  data: AppData,
+  templateId: string,
+): Expense[] {
+  const keyPrefix = `${templateId}:`;
+  return data.expenses
+    .filter(
+      (expense) =>
+        expense.recurringExpenseId === templateId ||
+        expense.recurringOccurrenceKey?.startsWith(keyPrefix),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function recurringExpenseChangePrecondition(
+  templates: RecurringExpense[],
+  relatedExpenses: Expense[],
+  item: RecurringExpenseDraft,
+  effectiveDate: string,
+  referenceDate: string,
+): string {
+  return JSON.stringify({
+    templates,
+    relatedExpenses,
+    item,
+    effectiveDate,
+    referenceDate,
+  });
+}
+
+export function previewRecurringExpenseChangeToData(
+  data: AppData,
+  id: string,
+  item: RecurringExpenseDraft,
+  effectiveDate: string,
+  options: { referenceDate?: string } = {},
+): RecurringExpenseChangePreview {
+  const referenceDate =
+    options.referenceDate ?? new Date().toISOString().split("T")[0];
+  const sourceEntries = data.recurringExpenses.filter((entry) => entry.id === id);
+  const relatedExpenses = recurringExpenseChangeRelatedExpenses(data, id);
+  const precondition = recurringExpenseChangePrecondition(
+    sourceEntries,
+    relatedExpenses,
+    item,
+    effectiveDate,
+    referenceDate,
+  );
+
+  if (sourceEntries.length === 0) {
+    return {
+      status: "not_found",
+      precondition,
+      effectiveDate,
+      referenceDate,
+      preservedExpenseCount: 0,
+      affectedExpenseCount: 0,
+      affectedExclusionCount: 0,
+      affectedDates: [],
+      manualReview: [],
+    };
+  }
+
+  const manualReview: RecurringExpenseChangeManualReviewItem[] = [];
+  if (sourceEntries.length !== 1) {
+    manualReview.push({
+      kind: "template",
+      id,
+      reason: "duplicate_template_id",
+    });
+  }
+  if (!isIsoCalendarDate(effectiveDate)) {
+    manualReview.push({
+      kind: "template",
+      id,
+      reason: "invalid_effective_date",
+    });
+  }
+  if (!isIsoCalendarDate(referenceDate)) {
+    manualReview.push({
+      kind: "template",
+      id,
+      reason: "invalid_reference_date",
+    });
+  }
+  if (manualReview.length > 0) {
+    return {
+      status: "manual_review",
+      precondition,
+      effectiveDate,
+      referenceDate,
+      preservedExpenseCount: 0,
+      affectedExpenseCount: 0,
+      affectedExclusionCount: 0,
+      affectedDates: [],
+      manualReview,
+    };
+  }
+
+  const sourceExisting = sourceEntries[0]!;
+  const affectedDates = new Set<string>();
+  const seenOccurrenceKeys = new Set<string>();
+  const seenExclusionKeys = new Set<string>();
+  let preservedExpenseCount = 0;
+  let affectedExpenseCount = 0;
+  let affectedExclusionCount = 0;
+
+  for (const expense of relatedExpenses) {
+    const key = expense.recurringOccurrenceKey;
+    const logicalDate = key ? occurrenceDateFromKey(id, key) : null;
+    const hasConflictingTemplateId =
+      expense.recurringExpenseId !== undefined &&
+      expense.recurringExpenseId !== id;
+
+    if (!logicalDate || hasConflictingTemplateId) {
+      manualReview.push({
+        kind: "expense",
+        id: expense.id,
+        reason: "ambiguous_provenance",
+      });
+      continue;
+    }
+
+    const stableKey = key ?? "";
+    if (seenOccurrenceKeys.has(stableKey)) {
+      if (logicalDate >= effectiveDate) {
+        affectedExpenseCount += 1;
+        affectedDates.add(logicalDate);
+        manualReview.push({
+          kind: "expense",
+          id: expense.id,
+          logicalDate,
+          reason: "duplicate_occurrence_key",
+        });
+      } else {
+        preservedExpenseCount += 1;
+      }
+      continue;
+    }
+    seenOccurrenceKeys.add(stableKey);
+
+    if (logicalDate >= effectiveDate) {
+      affectedExpenseCount += 1;
+      affectedDates.add(logicalDate);
+      manualReview.push({
+        kind: "expense",
+        id: expense.id,
+        logicalDate,
+        reason: "materialized_occurrence",
+      });
+    } else {
+      preservedExpenseCount += 1;
+    }
+  }
+
+  const sourceExclusions = sourceExisting.occurrenceExclusions as unknown;
+  if (sourceExclusions !== undefined && !Array.isArray(sourceExclusions)) {
+    manualReview.push({
+      kind: "exclusion",
+      id: "exclusiones-invalidas",
+      reason: "invalid_exclusion",
+    });
+  }
+  const rawExclusions = Array.isArray(sourceExclusions)
+    ? sourceExclusions
+    : [];
+  for (const exclusion of rawExclusions) {
+    const key =
+      exclusion && typeof exclusion.key === "string" ? exclusion.key : "";
+    const logicalDate = occurrenceDateFromKey(id, key);
+    const excludedAt =
+      exclusion && typeof exclusion.excludedAt === "string"
+        ? exclusion.excludedAt
+        : "";
+    if (!logicalDate || !Number.isFinite(Date.parse(excludedAt))) {
+      manualReview.push({
+        kind: "exclusion",
+        id: key || "exclusion-sin-clave",
+        reason: "invalid_exclusion",
+      });
+      continue;
+    }
+    if (seenExclusionKeys.has(key)) {
+      manualReview.push({
+        kind: "exclusion",
+        id: key,
+        logicalDate,
+        reason: "duplicate_exclusion",
+      });
+      continue;
+    }
+    seenExclusionKeys.add(key);
+    if (logicalDate >= effectiveDate) {
+      affectedExclusionCount += 1;
+      affectedDates.add(logicalDate);
+      manualReview.push({
+        kind: "exclusion",
+        id: key,
+        logicalDate,
+        reason: "occurrence_exclusion",
+      });
+    }
+  }
+
+  return {
+    status: manualReview.length > 0 ? "manual_review" : "ready",
+    precondition,
+    effectiveDate,
+    referenceDate,
+    preservedExpenseCount,
+    affectedExpenseCount,
+    affectedExclusionCount,
+    affectedDates: [...affectedDates].sort(),
+    manualReview,
+  };
+}
+
+function syncRecurringExpenseChangeTemplates(
+  data: AppData,
+  templates: RecurringExpense[],
+  referenceDate: string,
+): AppData {
+  const synced = syncRecurringExpenses(
+    { ...data, recurringExpenses: templates },
+    referenceDate,
+  );
+  return synced.expenses === data.expenses
+    ? data
+    : { ...data, expenses: synced.expenses };
+}
+
 export function applyRecurringExpenseChangeToData(
   data: AppData,
   id: string,
@@ -752,47 +1040,59 @@ export function applyRecurringExpenseChangeToData(
     now?: string;
     newId?: () => string;
     referenceDate?: string;
+    expectedPrecondition?: string;
   } = {},
-): AppData {
-  const sourceExisting = data.recurringExpenses.find((entry) => entry.id === id);
-  if (!sourceExisting) return data;
-  const existing = normalizeRecurringExpense(sourceExisting);
+): RecurringExpenseChangeApplyResult {
+  const preview = previewRecurringExpenseChangeToData(
+    data,
+    id,
+    item,
+    effectiveDate,
+    { referenceDate: options.referenceDate },
+  );
+  if (preview.status === "not_found") {
+    return { status: "blocked", reason: "not_found", data, preview };
+  }
+  if (preview.status === "manual_review") {
+    return { status: "blocked", reason: "manual_review", data, preview };
+  }
+  if (options.expectedPrecondition !== preview.precondition) {
+    return { status: "blocked", reason: "stale_preview", data, preview };
+  }
+
+  const sourceEntries = data.recurringExpenses.filter((entry) => entry.id === id);
+  if (sourceEntries.length !== 1) {
+    return { status: "blocked", reason: "not_found", data, preview };
+  }
+  const existing = sourceEntries[0]!;
 
   const now = options.now ?? new Date().toISOString();
-  const referenceDate = options.referenceDate ?? now.split("T")[0];
+  const referenceDate = preview.referenceDate;
+  const scheduleAnchorDate =
+    item.frequency === existing.frequency
+      ? recurringScheduleAnchorDate(existing)
+      : effectiveDate;
 
   if (effectiveDate <= existing.startDate) {
     const updated: RecurringExpense = {
       ...existing,
       ...item,
+      scheduleAnchorDate,
       startDate: effectiveDate,
       updatedAt: now,
     };
-
-    return syncRecurringExpenses(
-      {
-        ...data,
-        recurringExpenses: data.recurringExpenses.map((entry) =>
-          entry.id === id ? updated : entry,
-        ),
-        expenses: data.expenses.map((expense) => {
-          if (
-            !expenseBelongsToRecurringTemplate(expense, id) ||
-            expense.date < effectiveDate
-          ) {
-            return expense;
-          }
-          const snapshot = expenseFromRecurring(updated, expense.date);
-          return {
-            ...expense,
-            ...snapshot,
-            id: expense.id,
-            createdAt: expense.createdAt,
-          };
-        }),
-      },
+    const prepared = {
+      ...data,
+      recurringExpenses: data.recurringExpenses.map((entry) =>
+        entry.id === id ? updated : entry,
+      ),
+    };
+    const nextData = syncRecurringExpenseChangeTemplates(
+      prepared,
+      [updated],
       referenceDate,
     );
+    return { status: "applied", data: nextData, preview };
   }
 
   const closingDate = addDaysIso(effectiveDate, -1);
@@ -807,57 +1107,43 @@ export function applyRecurringExpenseChangeToData(
     updatedAt: now,
   };
   const nextTemplateId = options.newId?.() ?? crypto.randomUUID();
-  const transferredExclusions = (existing.occurrenceExclusions ?? []).flatMap(
-    (exclusion) => {
-      const date = occurrenceDateFromKey(existing.id, exclusion.key);
-      if (!date || date < effectiveDate) return [];
-      return [
-        {
-          ...exclusion,
-          key: occurrenceKey(nextTemplateId, date),
-        },
-      ];
-    },
-  );
+  if (
+    !nextTemplateId ||
+    data.recurringExpenses.some((entry) => entry.id === nextTemplateId) ||
+    recurringExpenseChangeRelatedExpenses(data, nextTemplateId).length > 0
+  ) {
+    return {
+      status: "blocked",
+      reason: "identifier_collision",
+      data,
+      preview,
+    };
+  }
   const nextTemplate: RecurringExpense = normalizeRecurringExpense({
     ...item,
     id: nextTemplateId,
+    scheduleAnchorDate,
     startDate: effectiveDate,
     enabled: true,
-    occurrenceExclusions:
-      transferredExclusions.length > 0 ? transferredExclusions : undefined,
     createdAt: now,
     updatedAt: now,
   });
 
-  return syncRecurringExpenses(
-    {
-      ...data,
-      recurringExpenses: [
-        ...data.recurringExpenses.map((entry) =>
-          entry.id === id ? closedExisting : entry,
-        ),
-        nextTemplate,
-      ],
-      expenses: data.expenses.map((expense) => {
-        if (
-          !expenseBelongsToRecurringTemplate(expense, id) ||
-          expense.date < effectiveDate
-        ) {
-          return expense;
-        }
-        const snapshot = expenseFromRecurring(nextTemplate, expense.date);
-        return {
-          ...expense,
-          ...snapshot,
-          id: expense.id,
-          createdAt: expense.createdAt,
-          recurringOccurrenceKey: occurrenceKey(nextTemplate.id, expense.date),
-        };
-      }),
-    },
+  const prepared = {
+    ...data,
+    recurringExpenses: [
+      ...data.recurringExpenses.map((entry) =>
+        entry.id === id ? closedExisting : entry,
+      ),
+      nextTemplate,
+    ],
+  };
+  const nextData = syncRecurringExpenseChangeTemplates(
+    prepared,
+    [nextTemplate],
     referenceDate,
   );
+  return { status: "applied", data: nextData, preview };
 }
 
 function existingOccurrenceKeys(expenses: Expense[]): Set<string> {

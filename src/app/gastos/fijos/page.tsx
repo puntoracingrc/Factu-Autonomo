@@ -22,6 +22,7 @@ import { isExpenseFiscalDeductible } from "@/lib/expenses";
 import {
   isRecurringExpenseApplicableOn,
   normalizeRecurringOccurrenceCount,
+  previewRecurringExpenseChangeToData,
   recurringAnnualDueMonth,
   recurringDueLabel,
   recurringDurationLabel,
@@ -105,7 +106,7 @@ export default function GastosFijosPage() {
   const {
     data,
     addRecurringExpense,
-    updateRecurringExpense,
+    setRecurringExpenseEnabled,
     applyRecurringExpenseChange,
     deleteRecurringExpense,
   } = useAppStore();
@@ -268,9 +269,41 @@ export default function GastosFijosPage() {
     };
 
     if (editingId) {
-      const existing = data.recurringExpenses.find((item) => item.id === editingId);
-      if (existing) {
-        applyRecurringExpenseChange(editingId, payload, startDate);
+      const preview = previewRecurringExpenseChangeToData(
+        data,
+        editingId,
+        payload,
+        startDate,
+        { referenceDate: today },
+      );
+      if (preview.status === "manual_review") {
+        const dated = preview.affectedDates;
+        const dateSummary =
+          dated.length === 0
+            ? ""
+            : dated.length === 1
+              ? ` Fecha afectada: ${formatShortDate(dated[0])}.`
+              : ` Fechas afectadas: ${formatShortDate(dated[0])}–${formatShortDate(dated[dated.length - 1])}.`;
+        alert(
+          `Vista previa bloqueada: hay ${preview.affectedExpenseCount} cargo(s) ya creado(s), ${preview.affectedExclusionCount} exclusión(es) o datos de procedencia que requieren revisión manual desde ${formatShortDate(startDate)}.${dateSummary} No se ha modificado nada. Elige una fecha posterior al último cargo afectado o revisa esas ocurrencias por separado. Todo lo anterior a la fecha efectiva permanece intacto.`,
+        );
+        return;
+      }
+      if (preview.status === "not_found") {
+        alert("La regla ya no existe. No se ha modificado nada.");
+        return;
+      }
+      const result = applyRecurringExpenseChange(editingId, payload, startDate, {
+        precondition: preview.precondition,
+        referenceDate: preview.referenceDate,
+      });
+      if (result.status === "blocked") {
+        alert(
+          result.reason === "stale_preview"
+            ? "Los datos cambiaron después de la vista previa. No se ha modificado nada; vuelve a revisar y guardar."
+            : "El cambio requiere revisión manual. No se ha modificado nada.",
+        );
+        return;
       }
     } else {
       addRecurringExpense(payload);
@@ -396,12 +429,12 @@ export default function GastosFijosPage() {
                   {[
                     {
                       value: "today" as EditApplyMode,
-                      label: "Nuevo importe desde hoy",
+                      label: "Cambios desde hoy",
                       hint: `No cambia nada anterior a ${formatShortDate(today)}.`,
                     },
                     {
                       value: "custom" as EditApplyMode,
-                      label: "Nuevo importe desde otra fecha",
+                      label: "Cambios desde otra fecha",
                       hint: "Para poner al día meses que aún no habías cambiado.",
                     },
                   ].map((option) => {
@@ -445,10 +478,11 @@ export default function GastosFijosPage() {
                   </div>
                 )}
                 <p className="mt-3 text-xs font-medium text-amber-900">
-                  No se toca ningún gasto anterior a{" "}
-                  {formatShortDate(selectedEffectiveDate)}. El tramo anterior se
-                  cierra el día previo. Si ya había cargos desde esa fecha, se
-                  actualizan al nuevo tramo para no duplicarlos.
+                  Los cambios de la regla se aplican desde{" "}
+                  {formatShortDate(selectedEffectiveDate)}. Si ya hay cargos o
+                  exclusiones desde esa fecha, la vista previa bloquea el cambio
+                  para que los revises: ningún gasto creado se borra, mueve de
+                  fecha ni reescribe.
                 </p>
               </div>
             )}
@@ -750,10 +784,7 @@ export default function GastosFijosPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        updateRecurringExpense({
-                          ...item,
-                          enabled: !item.enabled,
-                        })
+                        setRecurringExpenseEnabled(item.id, !item.enabled)
                       }
                       className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
                     >

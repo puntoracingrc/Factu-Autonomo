@@ -11,8 +11,10 @@ import {
   listRecurringOccurrenceDates,
   normalizeRecurringOccurrenceCount,
   normalizeRecurringExpense,
+  previewRecurringExpenseChangeToData,
   recurringAnnualDueMonth,
   recurringDueLabel,
+  recurringScheduleAnchorDate,
   recurringExpenseStatusOn,
   recurringExpenseTotals,
   resolveDueDate,
@@ -83,6 +85,26 @@ describe("resolveDueDate", () => {
     expect(resolveDueDate(2026, 2, { kind: "day_of_month", day: 31 })).toBe(
       "2026-02-28",
     );
+  });
+});
+
+describe("recurringScheduleAnchorDate", () => {
+  it("usa startDate para datos legacy o anclas inválidas", () => {
+    const legacy = template({ frequency: "quarterly", startDate: "2026-01-01" });
+
+    expect(recurringScheduleAnchorDate(legacy)).toBe("2026-01-01");
+    expect(
+      recurringScheduleAnchorDate({
+        ...legacy,
+        scheduleAnchorDate: "2026-02-31",
+      }),
+    ).toBe("2026-01-01");
+    expect(
+      recurringScheduleAnchorDate({
+        ...legacy,
+        scheduleAnchorDate: "2026-04-01",
+      }),
+    ).toBe("2026-01-01");
   });
 });
 
@@ -644,11 +666,54 @@ describe("syncRecurringExpenses", () => {
 });
 
 describe("applyRecurringExpenseChangeToData", () => {
-  it("traslada una exclusión al tramo nuevo al editar la regla", () => {
+  it("bloquea sin cambios una reprogramación con cargos materializados", () => {
     const recurring = template({
       id: "autonomo",
       frequency: "monthly",
-      amount: 300,
+      startDate: "2026-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-03-31",
+    );
+    const change = draft(recurring, {
+      dueTiming: { kind: "day_of_month", day: 15 },
+    });
+    const preview = previewRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      recurring.startDate,
+      { referenceDate: "2026-03-31" },
+    );
+
+    expect(preview).toMatchObject({
+      status: "manual_review",
+      affectedExpenseCount: 3,
+      affectedExclusionCount: 0,
+      affectedDates: ["2026-01-31", "2026-02-28", "2026-03-31"],
+    });
+
+    const result = applyRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      recurring.startDate,
+      {
+        now: "2026-07-08T10:00:00.000Z",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+
+    expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+    expect(result.data).toBe(synced);
+  });
+
+  it("bloquea exclusiones y cargos posteriores sin reinterpretarlos", () => {
+    const recurring = template({
+      id: "autonomo",
+      frequency: "monthly",
       startDate: "2026-01-01",
     });
     const synced = syncRecurringExpenses(
@@ -663,136 +728,642 @@ describe("applyRecurringExpenseChangeToData", () => {
       may!.id,
       "2026-07-01T08:00:00.000Z",
     );
-
-    const updated = applyRecurringExpenseChangeToData(
+    const change = draft(recurring, { amount: 350 });
+    const preview = previewRecurringExpenseChangeToData(
       withExclusion,
-      "autonomo",
-      draft(recurring, { amount: 350, startDate: "2026-05-01" }),
+      recurring.id,
+      change,
+      "2026-05-01",
+      { referenceDate: "2026-06-30" },
+    );
+
+    expect(preview).toMatchObject({
+      status: "manual_review",
+      affectedExpenseCount: 1,
+      affectedExclusionCount: 1,
+      affectedDates: ["2026-05-31", "2026-06-30"],
+    });
+    const result = applyRecurringExpenseChangeToData(
+      withExclusion,
+      recurring.id,
+      change,
       "2026-05-01",
       {
         now: "2026-07-08T10:00:00.000Z",
         newId: () => "autonomo-v2",
-        referenceDate: "2026-06-30",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
       },
     );
 
-    expect(updated.recurringExpenses[1]?.occurrenceExclusions).toEqual([
-      {
-        key: "autonomo-v2:2026-05-31",
-        excludedAt: "2026-07-01T08:00:00.000Z",
-      },
-    ]);
-    expect(
-      updated.expenses.some(
-        (expense) =>
-          expense.recurringOccurrenceKey === "autonomo-v2:2026-05-31",
-      ),
-    ).toBe(false);
-    expect(
-      updated.expenses.find(
-        (expense) =>
-          expense.recurringOccurrenceKey === "autonomo-v2:2026-06-30",
-      ),
-    ).toMatchObject({ amount: 350, recurringExpenseId: "autonomo-v2" });
+    expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+    expect(result.data).toBe(withExclusion);
   });
 
-  it("crea un tramo nuevo desde la fecha elegida sin tocar meses anteriores", () => {
+  it("abre un tramo mensual seguro sin reescribir el histórico", () => {
     const recurring = template({
       id: "autonomo",
       frequency: "monthly",
-      amount: 300,
-      startDate: "2026-01-01",
-    });
-    const synced = syncRecurringExpenses(
-      { ...EMPTY_DATA, recurringExpenses: [recurring] },
-      "2026-06-30",
-    );
-
-    const updated = applyRecurringExpenseChangeToData(
-      synced,
-      "autonomo",
-      draft(recurring, { amount: 350, startDate: "2026-05-01" }),
-      "2026-05-01",
-      {
-        now: "2026-07-08T10:00:00.000Z",
-        newId: () => "autonomo-v2",
-        referenceDate: "2026-06-30",
-      },
-    );
-
-    expect(updated.recurringExpenses).toHaveLength(2);
-    expect(updated.recurringExpenses[0]?.duration).toEqual({
-      kind: "until_date",
-      endDate: "2026-04-30",
-    });
-    expect(updated.recurringExpenses[1]).toMatchObject({
-      id: "autonomo-v2",
-      amount: 350,
-      startDate: "2026-05-01",
-    });
-    expect(updated.expenses).toHaveLength(6);
-
-    const byDate = new Map(
-      updated.expenses.map((expense) => [expense.date, expense]),
-    );
-    expect(byDate.get("2026-04-30")).toMatchObject({
-      amount: 300,
-      recurringExpenseId: "autonomo",
-    });
-    expect(byDate.get("2026-05-31")).toMatchObject({
-      amount: 350,
-      recurringExpenseId: "autonomo-v2",
-      recurringOccurrenceKey: "autonomo-v2:2026-05-31",
-    });
-    expect(byDate.get("2026-06-30")).toMatchObject({
-      amount: 350,
-      recurringExpenseId: "autonomo-v2",
-      recurringOccurrenceKey: "autonomo-v2:2026-06-30",
-    });
-    expect(new Set(updated.expenses.map((expense) => expense.date)).size).toBe(
-      updated.expenses.length,
-    );
-  });
-
-  it("si la fecha es el inicio, corrige la serie existente sin duplicarla", () => {
-    const recurring = template({
-      id: "mutua",
-      frequency: "monthly",
-      amount: 64.46,
-      ivaPercent: 21,
       startDate: "2026-01-01",
     });
     const synced = syncRecurringExpenses(
       { ...EMPTY_DATA, recurringExpenses: [recurring] },
       "2026-03-31",
     );
+    const withManualHistory = {
+      ...synced,
+      expenses: synced.expenses.map((expense, index) =>
+        index === 0
+          ? {
+              ...expense,
+              date: "2026-09-09",
+              description: "Ajuste manual conservado",
+              amount: 999,
+            }
+          : expense,
+      ),
+    };
+    const historicalExpenses = withManualHistory.expenses;
+    const change = draft(recurring, {
+      amount: 350,
+      dueTiming: { kind: "day_of_month", day: 15 },
+    });
+    const preview = previewRecurringExpenseChangeToData(
+      withManualHistory,
+      recurring.id,
+      change,
+      "2026-04-01",
+      { referenceDate: "2026-04-30" },
+    );
+    expect(preview).toMatchObject({
+      status: "ready",
+      preservedExpenseCount: 3,
+      affectedExpenseCount: 0,
+    });
 
-    const updated = applyRecurringExpenseChangeToData(
-      synced,
-      "mutua",
-      draft(recurring, { amount: 70 }),
-      "2026-01-01",
+    const result = applyRecurringExpenseChangeToData(
+      withManualHistory,
+      recurring.id,
+      change,
+      "2026-04-01",
       {
-        now: "2026-07-08T10:00:00.000Z",
-        newId: () => "mutua-v2",
-        referenceDate: "2026-03-31",
+        now: "2026-04-01T10:00:00.000Z",
+        newId: () => "autonomo-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
       },
     );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
 
-    expect(updated.recurringExpenses).toHaveLength(1);
-    expect(updated.recurringExpenses[0]).toMatchObject({
-      id: "mutua",
-      amount: 70,
+    expect(result.data.recurringExpenses).toHaveLength(2);
+    expect(result.data.recurringExpenses[0]?.duration).toEqual({
+      kind: "until_date",
+      endDate: "2026-03-31",
+    });
+    expect(result.data.recurringExpenses[1]).toMatchObject({
+      id: "autonomo-v2",
+      amount: 350,
+      startDate: "2026-04-01",
+      scheduleAnchorDate: "2026-01-01",
+      dueTiming: { kind: "day_of_month", day: 15 },
+    });
+    expect(result.data.expenses.slice(0, historicalExpenses.length)).toEqual(
+      historicalExpenses,
+    );
+    expect(result.data.expenses.at(-1)).toMatchObject({
+      date: "2026-04-15",
+      amount: 350,
+      recurringExpenseId: "autonomo-v2",
+      recurringOccurrenceKey: "autonomo-v2:2026-04-15",
+    });
+    expect(syncRecurringExpenses(result.data, "2026-04-30")).toBe(result.data);
+  });
+
+  it("conserva la cadencia trimestral legacy al cambiar solo el tramo", () => {
+    const recurring = template({
+      id: "seguro",
+      frequency: "quarterly",
       startDate: "2026-01-01",
     });
-    expect(updated.expenses).toHaveLength(3);
-    expect(updated.expenses.every((expense) => expense.amount === 70)).toBe(
-      true,
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-04-30",
+    );
+    const change = draft(recurring, { amount: 350 });
+    const preview = previewRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2026-05-01",
+      { referenceDate: "2026-07-31" },
+    );
+    const result = applyRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2026-05-01",
+      {
+        now: "2026-05-01T10:00:00.000Z",
+        newId: () => "seguro-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    expect(recurringScheduleAnchorDate(result.data.recurringExpenses[1]!)).toBe(
+      "2026-01-01",
     );
     expect(
-      updated.expenses.every(
-        (expense) => expense.recurringExpenseId === "mutua",
+      result.data.expenses.map((expense) => expense.recurringOccurrenceKey),
+    ).toEqual([
+      "seguro:2026-01-31",
+      "seguro:2026-04-30",
+      "seguro-v2:2026-07-31",
+    ]);
+  });
+
+  it("reinicia el ancla al cambiar de frecuencia", () => {
+    const recurring = template({
+      id: "plan",
+      frequency: "quarterly",
+      startDate: "2026-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-04-30",
+    );
+    const change = draft(recurring, { frequency: "monthly" });
+    const preview = previewRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2026-05-01",
+      { referenceDate: "2026-06-30" },
+    );
+    const result = applyRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2026-05-01",
+      {
+        now: "2026-05-01T10:00:00.000Z",
+        newId: () => "plan-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    expect(result.data.recurringExpenses[1]).toMatchObject({
+      frequency: "monthly",
+      scheduleAnchorDate: "2026-05-01",
+    });
+    expect(
+      result.data.expenses.map((expense) => expense.recurringOccurrenceKey),
+    ).toEqual([
+      "plan:2026-01-31",
+      "plan:2026-04-30",
+      "plan-v2:2026-05-31",
+      "plan-v2:2026-06-30",
+    ]);
+  });
+
+  it("mantiene el histórico anual y genera febrero bisiesto en el tramo nuevo", () => {
+    const recurring = template({
+      id: "anual",
+      frequency: "annual",
+      dueMonth: 2,
+      dueTiming: { kind: "end_of_month" },
+      startDate: "2027-01-01",
+    });
+    const synced = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2027-02-28",
+    );
+    const historical = synced.expenses[0];
+    const change = draft(recurring, { amount: 450 });
+    const preview = previewRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2027-03-01",
+      { referenceDate: "2028-02-29" },
+    );
+    const result = applyRecurringExpenseChangeToData(
+      synced,
+      recurring.id,
+      change,
+      "2027-03-01",
+      {
+        now: "2027-03-01T10:00:00.000Z",
+        newId: () => "anual-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    expect(result.data.expenses[0]).toEqual(historical);
+    expect(result.data.expenses[1]).toMatchObject({
+      date: "2028-02-29",
+      recurringOccurrenceKey: "anual-v2:2028-02-29",
+      amount: 450,
+    });
+  });
+
+  it("bloquea provenance ambigua y claves duplicadas", () => {
+    const recurring = template({ id: "r-safe", frequency: "monthly" });
+    const canonical = syncRecurringExpenses(
+      { ...EMPTY_DATA, recurringExpenses: [recurring] },
+      "2026-01-31",
+    ).expenses[0]!;
+    const ambiguous = {
+      ...canonical,
+      id: "sin-clave",
+      recurringOccurrenceKey: undefined,
+    };
+    const duplicate = { ...canonical, id: "duplicado" };
+    const data = {
+      ...EMPTY_DATA,
+      recurringExpenses: [recurring],
+      expenses: [ambiguous, canonical, duplicate],
+    };
+    const preview = previewRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      draft(recurring, { amount: 301 }),
+      "2026-01-01",
+      { referenceDate: "2026-01-31" },
+    );
+
+    expect(preview.status).toBe("manual_review");
+    expect(preview.manualReview.map((item) => item.reason)).toEqual(
+      expect.arrayContaining([
+        "ambiguous_provenance",
+        "duplicate_occurrence_key",
+      ]),
+    );
+  });
+
+  it("conserva literalmente exclusiones históricas válidas", () => {
+    const historicalExclusions = [
+      {
+        key: "seguro:2026-01-31",
+        excludedAt: "2026-02-01T09:00:00.000Z",
+      },
+      {
+        key: "seguro:2025-12-31",
+        excludedAt: "2026-01-01T09:00:00.000Z",
+      },
+    ];
+    const recurring = template({
+      id: "seguro",
+      frequency: "monthly",
+      startDate: "2025-12-01",
+      occurrenceExclusions: historicalExclusions,
+    });
+    const data = { ...EMPTY_DATA, recurringExpenses: [recurring] };
+    const change = draft(recurring, { amount: 350 });
+    const preview = previewRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+    expect(preview.status).toBe("ready");
+
+    const result = applyRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        now: "2026-02-01T10:00:00.000Z",
+        newId: () => "seguro-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    expect(result.data.recurringExpenses[0]?.occurrenceExclusions).toBe(
+      historicalExclusions,
+    );
+    expect(result.data.recurringExpenses[0]?.occurrenceExclusions).toEqual(
+      historicalExclusions,
+    );
+  });
+
+  it("bloquea exclusiones históricas inválidas o duplicadas", () => {
+    const recurring = template({
+      id: "seguro",
+      frequency: "monthly",
+      occurrenceExclusions: [
+        {
+          key: "seguro:2025-12-31",
+          excludedAt: "fecha-invalida",
+        },
+        {
+          key: "seguro:2025-11-30",
+          excludedAt: "2025-12-01T09:00:00.000Z",
+        },
+        {
+          key: "seguro:2025-11-30",
+          excludedAt: "2025-12-02T09:00:00.000Z",
+        },
+      ],
+    });
+    const data = { ...EMPTY_DATA, recurringExpenses: [recurring] };
+    const preview = previewRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      draft(recurring, { amount: 350 }),
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+
+    expect(preview.status).toBe("manual_review");
+    expect(preview.manualReview.map((item) => item.reason)).toEqual(
+      expect.arrayContaining(["invalid_exclusion", "duplicate_exclusion"]),
+    );
+  });
+
+  it("bloquea IDs de plantilla duplicados y colisiones del tramo nuevo", () => {
+    const recurring = template({
+      id: "duplicada",
+      frequency: "monthly",
+      startDate: "2026-01-01",
+    });
+    const duplicatedData = {
+      ...EMPTY_DATA,
+      recurringExpenses: [recurring, { ...recurring, amount: 999 }],
+    };
+    const change = draft(recurring, { amount: 350 });
+    const duplicatePreview = previewRecurringExpenseChangeToData(
+      duplicatedData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+    expect(duplicatePreview).toMatchObject({ status: "manual_review" });
+    expect(duplicatePreview.manualReview).toContainEqual({
+      kind: "template",
+      id: "duplicada",
+      reason: "duplicate_template_id",
+    });
+    const duplicateResult = applyRecurringExpenseChangeToData(
+      duplicatedData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        referenceDate: duplicatePreview.referenceDate,
+        expectedPrecondition: duplicatePreview.precondition,
+      },
+    );
+    expect(duplicateResult).toMatchObject({
+      status: "blocked",
+      reason: "manual_review",
+    });
+    expect(duplicateResult.data).toBe(duplicatedData);
+
+    const collision = template({
+      id: "tramo-existente",
+      frequency: "annual",
+      startDate: "2027-01-01",
+    });
+    const collisionData = {
+      ...EMPTY_DATA,
+      recurringExpenses: [recurring, collision],
+    };
+    const readyPreview = previewRecurringExpenseChangeToData(
+      collisionData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+    const result = applyRecurringExpenseChangeToData(
+      collisionData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        now: "2026-02-01T10:00:00.000Z",
+        newId: () => collision.id,
+        referenceDate: readyPreview.referenceDate,
+        expectedPrecondition: readyPreview.precondition,
+      },
+    );
+    expect(result).toMatchObject({
+      status: "blocked",
+      reason: "identifier_collision",
+    });
+    expect(result.data).toBe(collisionData);
+
+    const orphanTemplate = template({
+      id: "tramo-huerfano",
+      frequency: "monthly",
+    });
+    const orphanData = {
+      ...EMPTY_DATA,
+      recurringExpenses: [recurring],
+      expenses: [
+        {
+          ...expenseFromRecurring(orphanTemplate, "2026-02-28"),
+          id: "gasto-huerfano",
+          createdAt: "2026-02-28T10:00:00.000Z",
+        },
+      ],
+    };
+    const orphanPreview = previewRecurringExpenseChangeToData(
+      orphanData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+    const orphanCollision = applyRecurringExpenseChangeToData(
+      orphanData,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        newId: () => orphanTemplate.id,
+        referenceDate: orphanPreview.referenceDate,
+        expectedPrecondition: orphanPreview.precondition,
+      },
+    );
+    expect(orphanCollision).toMatchObject({
+      status: "blocked",
+      reason: "identifier_collision",
+    });
+    expect(orphanCollision.data).toBe(orphanData);
+  });
+
+  it.each([
+    { effectiveDate: "", referenceDate: "2026-02-28", reason: "invalid_effective_date" },
+    {
+      effectiveDate: "2026-02-31",
+      referenceDate: "2026-02-28",
+      reason: "invalid_effective_date",
+    },
+    {
+      effectiveDate: "2026-02-01",
+      referenceDate: "fecha-invalida",
+      reason: "invalid_reference_date",
+    },
+  ])(
+    "bloquea fechas inválidas sin mutar ($reason)",
+    ({ effectiveDate, referenceDate, reason }) => {
+      const recurring = template({ id: "fecha", frequency: "monthly" });
+      const data = { ...EMPTY_DATA, recurringExpenses: [recurring] };
+      const change = draft(recurring, { amount: 350 });
+      const preview = previewRecurringExpenseChangeToData(
+        data,
+        recurring.id,
+        change,
+        effectiveDate,
+        { referenceDate },
+      );
+      expect(preview.status).toBe("manual_review");
+      expect(preview.manualReview.map((item) => item.reason)).toContain(reason);
+
+      const result = applyRecurringExpenseChangeToData(
+        data,
+        recurring.id,
+        change,
+        effectiveDate,
+        {
+          referenceDate,
+          expectedPrecondition: preview.precondition,
+        },
+      );
+      expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+      expect(result.data).toBe(data);
+    },
+  );
+
+  it("sincroniza solo el tramo cambiado y no materializa reglas ajenas", () => {
+    const recurring = template({
+      id: "objetivo",
+      frequency: "monthly",
+      startDate: "2026-01-01",
+    });
+    const unrelated = template({
+      id: "ajena",
+      frequency: "monthly",
+      startDate: "2026-01-01",
+    });
+    const data = {
+      ...EMPTY_DATA,
+      recurringExpenses: [recurring, unrelated],
+    };
+    const change = draft(recurring, { amount: 350 });
+    const preview = previewRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2026-02-01",
+      { referenceDate: "2026-02-28" },
+    );
+    const result = applyRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2026-02-01",
+      {
+        now: "2026-02-01T10:00:00.000Z",
+        newId: () => "objetivo-v2",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    expect(result.data.expenses).toHaveLength(1);
+    expect(result.data.expenses[0]?.recurringOccurrenceKey).toBe(
+      "objetivo-v2:2026-02-28",
+    );
+    expect(
+      result.data.expenses.some(
+        (expense) => expense.recurringExpenseId === unrelated.id,
       ),
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it("falla cerrado si la preview queda obsoleta y la segunda aplicación", () => {
+    const recurring = template({
+      id: "futuro",
+      frequency: "monthly",
+      startDate: "2027-01-01",
+    });
+    const data = { ...EMPTY_DATA, recurringExpenses: [recurring] };
+    const change = draft(recurring, { amount: 350 });
+    const preview = previewRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2027-01-01",
+      { referenceDate: "2026-12-31" },
+    );
+    const changedData = {
+      ...data,
+      recurringExpenses: [
+        { ...recurring, updatedAt: "2026-12-01T10:00:00.000Z" },
+      ],
+    };
+    const stale = applyRecurringExpenseChangeToData(
+      changedData,
+      recurring.id,
+      change,
+      "2027-01-01",
+      {
+        now: "2026-12-02T10:00:00.000Z",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(stale).toMatchObject({ status: "blocked", reason: "stale_preview" });
+    expect(stale.data).toBe(changedData);
+
+    const applied = applyRecurringExpenseChangeToData(
+      data,
+      recurring.id,
+      change,
+      "2027-01-01",
+      {
+        now: "2026-12-02T10:00:00.000Z",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const repeated = applyRecurringExpenseChangeToData(
+      applied.data,
+      recurring.id,
+      change,
+      "2027-01-01",
+      {
+        now: "2026-12-02T10:00:00.000Z",
+        referenceDate: preview.referenceDate,
+        expectedPrecondition: preview.precondition,
+      },
+    );
+    expect(repeated).toMatchObject({
+      status: "blocked",
+      reason: "stale_preview",
+    });
+    expect(repeated.data).toBe(applied.data);
   });
 });

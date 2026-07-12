@@ -28,6 +28,7 @@ import {
   deleteRecurringExpenseFromData,
   saveFixedExpenseWithRecurringTemplateToData,
   syncRecurringExpenses,
+  type RecurringExpenseChangeApplyResult,
   type RecurringExpenseDraft,
 } from "@/lib/recurring-expenses";
 import {
@@ -203,12 +204,13 @@ interface AppStoreValue {
   deleteProduct: (id: string) => void;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (item: RecurringExpenseDraft) => RecurringExpense;
-  updateRecurringExpense: (item: RecurringExpense) => void;
+  setRecurringExpenseEnabled: (id: string, enabled: boolean) => void;
   applyRecurringExpenseChange: (
     id: string,
     item: RecurringExpenseDraft,
     effectiveDate: string,
-  ) => void;
+    approval: { precondition: string; referenceDate: string },
+  ) => RecurringExpenseChangeApplyResult;
   deleteRecurringExpense: (id: string) => void;
   addUserReminder: (
     item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
@@ -1427,14 +1429,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const updateRecurringExpense = useCallback(
-    (item: RecurringExpense) => {
+  const setRecurringExpenseEnabled = useCallback(
+    (id: string, enabled: boolean) => {
+      const now = new Date().toISOString();
       setAppData((prev) =>
         syncRecurringExpenses({
           ...prev,
           recurringExpenses: prev.recurringExpenses.map((entry) =>
-            entry.id === item.id
-              ? { ...item, updatedAt: new Date().toISOString() }
+            entry.id === id
+              ? { ...entry, enabled, updatedAt: now }
               : entry,
           ),
         }),
@@ -1448,15 +1451,27 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       id: string,
       item: RecurringExpenseDraft,
       effectiveDate: string,
-    ) => {
+      approval: { precondition: string; referenceDate: string },
+    ): RecurringExpenseChangeApplyResult => {
       const now = new Date().toISOString();
+      let result: RecurringExpenseChangeApplyResult | undefined;
 
       setAppData((prev) => {
-        return applyRecurringExpenseChangeToData(prev, id, item, effectiveDate, {
-          now,
-          newId,
-        });
+        result = applyRecurringExpenseChangeToData(
+          prev,
+          id,
+          item,
+          effectiveDate,
+          {
+            now,
+            newId,
+            referenceDate: approval.referenceDate,
+            expectedPrecondition: approval.precondition,
+          },
+        );
+        return result.data;
       });
+      return result!;
     },
     [setAppData],
   );
@@ -1858,7 +1873,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteProduct,
       mergeProducts,
       addRecurringExpense,
-      updateRecurringExpense,
+      setRecurringExpenseEnabled,
       applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
@@ -1912,7 +1927,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteProduct,
       mergeProducts,
       addRecurringExpense,
-      updateRecurringExpense,
+      setRecurringExpenseEnabled,
       applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
