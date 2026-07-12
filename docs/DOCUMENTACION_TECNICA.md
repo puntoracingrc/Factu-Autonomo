@@ -175,7 +175,14 @@ simulador de precio mínimo, informes y evolución. El botón contextual conserv
 la ruta de origen y abre directamente esa sección; el retorno se rotula
 **Rentabilidad Real**.
 
-**Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **y sustituir las capturas afectadas** en el mismo commit/PR (`npm run manual:screenshots` → `public/ayuda/capturas/`). Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`. Verificación: `npm run manual:verify` (incluye test de que existen todos los PNG referenciados).
+**Mantenimiento obligatorio:** cualquier cambio que altere el uso visible de la app debe actualizar el manual **y sustituir las capturas afectadas** en el mismo PR atómico (`npm run manual:screenshots` → `public/ayuda/capturas/`). Regla Cursor: `.cursor/rules/manual-usuario.mdc`. Procedimiento: `src/lib/manual/MAINTENANCE.md`.
+
+Las capturas tienen un manifiesto con ruta/estado previsto, hash, dimensiones,
+procedencia Git verificable y revisión. Un PNG pendiente, defectuoso, caducado
+o con procedencia inválida no se renderiza aunque exista en `public/`.
+`npm run manual:verify:contract` comprueba que inventario, PNG decodificados y
+objetos Git coincidan; `npm run manual:verify` es la puerta estricta y falla
+mientras quede una captura referenciada sin revisión vigente.
 
 ---
 

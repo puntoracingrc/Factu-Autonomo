@@ -6,6 +6,10 @@ import { ManualScreenshot } from "@/components/manual/ManualScreenshot";
 import { FactuManualLogo } from "@/components/manual/FactuManualLogo";
 import { ManualReturnBar } from "@/components/manual/ManualReturnBar";
 import { buildManualHref } from "@/lib/manual/return-url";
+import {
+  getManualScreenshotContract,
+  isManualScreenshotApproved,
+} from "@/lib/manual/screenshot-contracts";
 import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSectionViewProps {
@@ -56,32 +60,46 @@ export function ManualSectionView({
       ))}
 
       <div className="space-y-6">
-        {section.steps.map((step) => (
-          <Card key={step.title} className="overflow-hidden p-0">
-            <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
-              <h2 className="text-lg font-bold text-slate-900">{step.title}</h2>
-            </div>
-            <div className="space-y-3 px-5 py-5 text-sm leading-relaxed text-slate-700">
-              {step.paragraphs.map((paragraph) => (
-                <ManualRichText key={paragraph} text={paragraph} />
-              ))}
+        {section.steps.map((step) => {
+          const screenshotContract = step.screenshot
+            ? getManualScreenshotContract(step.screenshot.src)
+            : undefined;
+          return (
+            <Card key={step.title} className="overflow-hidden p-0">
+              <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
+                <h2 className="text-lg font-bold text-slate-900">
+                  {step.title}
+                </h2>
+              </div>
+              <div className="space-y-3 px-5 py-5 text-sm leading-relaxed text-slate-700">
+                {step.paragraphs.map((paragraph) => (
+                  <ManualRichText key={paragraph} text={paragraph} />
+                ))}
 
-              {step.screenshot && (
-                <ManualScreenshot screenshot={step.screenshot} />
-              )}
+                {step.screenshot && (
+                  <ManualScreenshot
+                    screenshot={step.screenshot}
+                    reviewStatus={
+                      screenshotContract?.review.status ?? "pending-review"
+                    }
+                    approved={isManualScreenshotApproved(step.screenshot.src)}
+                    validUntil={screenshotContract?.review.validUntil}
+                  />
+                )}
 
-              {step.tip && (
-                <div className="flex gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-950">
-                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                  <p className="text-sm">
-                    <span className="font-semibold">Consejo: </span>
-                    {step.tip}
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-        ))}
+                {step.tip && (
+                  <div className="flex gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-950">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <p className="text-sm">
+                      <span className="font-semibold">Consejo: </span>
+                      {step.tip}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       <nav className="mt-8 grid gap-3 sm:grid-cols-2">

@@ -1,0 +1,923 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "maxReviewAgeDays": 90,
+    "recaptureTracking": "AUD-P2-03",
+    "visualMatrixTracking": "AUD-P2-04"
+  },
+  "contexts": {
+    "legacy-a7226f9": {
+      "kind": "legacy-inferred",
+      "assetCommit": "a7226f9c6478246f3051ef75385314cd3a806705",
+      "assetCommittedAt": "2026-06-11T06:16:40+02:00",
+      "scriptCommit": "a7226f9c6478246f3051ef75385314cd3a806705",
+      "fixtureGitBlob": "e56da162c255dd56aff01d3c6557aed6783bdb38",
+      "fixtureSha256": null,
+      "sourceTreeSha256": null,
+      "appCommit": null,
+      "capturedAt": null,
+      "viewport": {
+        "width": 720,
+        "height": 1280
+      },
+      "deviceScaleFactor": 2,
+      "locale": "es-ES",
+      "theme": "light",
+      "themeEvidence": "inferred-from-assets-and-history",
+      "browser": "playwright-chromium",
+      "browserVersion": null,
+      "operatingSystem": null,
+      "timezone": null
+    },
+    "legacy-dcbde21": {
+      "kind": "legacy-inferred",
+      "assetCommit": "dcbde212b6d8ee68a2efddb4fd8258306ad099f5",
+      "assetCommittedAt": "2026-06-11T21:50:49+02:00",
+      "scriptCommit": "dcbde212b6d8ee68a2efddb4fd8258306ad099f5",
+      "fixtureGitBlob": "cbced85d1bcc816f05a9717039d678871329b9d6",
+      "fixtureSha256": null,
+      "sourceTreeSha256": null,
+      "appCommit": null,
+      "capturedAt": null,
+      "viewport": {
+        "width": 720,
+        "height": 1280
+      },
+      "deviceScaleFactor": 2,
+      "locale": "es-ES",
+      "theme": "light",
+      "themeEvidence": "inferred-from-assets-and-history",
+      "browser": "playwright-chromium",
+      "browserVersion": null,
+      "operatingSystem": null,
+      "timezone": null
+    },
+    "legacy-80802e6": {
+      "kind": "legacy-inferred",
+      "assetCommit": "80802e6a54b8b619ef9a61227a7d28fc6f9368db",
+      "assetCommittedAt": "2026-06-29T17:43:03+02:00",
+      "scriptCommit": "80802e6a54b8b619ef9a61227a7d28fc6f9368db",
+      "fixtureGitBlob": "cbced85d1bcc816f05a9717039d678871329b9d6",
+      "fixtureSha256": null,
+      "sourceTreeSha256": null,
+      "appCommit": null,
+      "capturedAt": null,
+      "viewport": {
+        "width": 720,
+        "height": 1280
+      },
+      "deviceScaleFactor": 2,
+      "locale": "es-ES",
+      "theme": "light",
+      "themeEvidence": "inferred-from-assets-and-history",
+      "browser": "playwright-chromium",
+      "browserVersion": null,
+      "operatingSystem": null,
+      "timezone": null
+    }
+  },
+  "captures": [
+    {
+      "src": "/ayuda/capturas/ajustes-copia.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/cuenta",
+        "stateId": "account-backup",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Cuenta y copia de seguridad",
+          "Exportar copia de seguridad"
+        ]
+      },
+      "artifact": {
+        "sha256": "b74dadef7b2a4a31d4f81fa902b1db965a813845e96a205dfd9d5498519ebf53",
+        "width": 1292,
+        "height": 1246
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Muestra la copia dentro de Ajustes; la función actual vive en Cuenta."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/ajustes-datos-negocio.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/configuracion",
+        "stateId": "business-profile",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Datos del negocio en documentos",
+          "Datos listos para emitir documentos reales"
+        ]
+      },
+      "artifact": {
+        "sha256": "5356714650dd2a88736b789562767975d7f7fc8c40cc33196d26881664b70479",
+        "width": 1292,
+        "height": 1510
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Contiene el copy antiguo «QR disponible», contrario al estado VeriFactu fail-closed actual."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/ajustes-frases.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/configuracion#ajustes-documentos",
+        "stateId": "document-phrases",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Frases en documentos",
+          "Añadir frase"
+        ]
+      },
+      "artifact": {
+        "sha256": "a9f35965ba1b12b016638a0ded71b048f9e7ad9d327dbaeb949bf29e88cdfd04",
+        "width": 1292,
+        "height": 986
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/ajustes-iva-irpf.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/configuracion#ajustes-impuestos",
+        "stateId": "tax-settings",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Régimen de IVA",
+          "IRPF orientativo"
+        ]
+      },
+      "artifact": {
+        "sha256": "2a39ec6094f63a5787772628b72b9217a83b726546a11d51d0ede864b05a0fc7",
+        "width": 1292,
+        "height": 426
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "El propósito anunciado es IVA e IRPF, pero el recorte solo muestra la opción de IVA."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/ajustes-numeracion.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/configuracion#ajustes-documentos",
+        "stateId": "document-numbering",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Numeración",
+          "Formato del número",
+          "Último número usado"
+        ]
+      },
+      "artifact": {
+        "sha256": "7adc09af8e697139a853b9418759ee62a83fb90011f2118e396f6cef18d3bae8",
+        "width": 1292,
+        "height": 3168
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/avisos-centro.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/avisos",
+        "stateId": "reminders-my-tasks",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Avisos y recordatorios",
+          "Mis tareas",
+          "Automáticos"
+        ]
+      },
+      "artifact": {
+        "sha256": "9fdf343ffacf563049f0eb3002fc36b2e2de783611e5615dd9e4fef6075e81d4",
+        "width": 1440,
+        "height": 2560
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/clientes-nuevo.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/clientes/nuevo",
+        "stateId": "customer-create",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Nuevo cliente",
+          "Rellenar con IA",
+          "Guardar cliente"
+        ]
+      },
+      "artifact": {
+        "sha256": "d34a8e36774b1ed84cde5d320692d84bf2886774a1b7208eb4848eb8ccd8a30b",
+        "width": 1440,
+        "height": 4148
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/clientes-seleccion.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas/nuevo",
+        "stateId": "invoice-customer-selector",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Datos del cliente",
+          "Buscar o elegir cliente"
+        ]
+      },
+      "artifact": {
+        "sha256": "1e8b365cb1d7f21b60211c8626fad4ffc44939d3ca757119693cd9597b667e56",
+        "width": 1292,
+        "height": 56
+      },
+      "provenance": {
+        "contextId": "legacy-a7226f9"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Es una franja de 56 px: no muestra selector, opciones ni foco."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/cuenta-nube.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/cuenta",
+        "stateId": "account-signed-out",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Cuenta y copia de seguridad",
+          "Mínimo 12 caracteres"
+        ]
+      },
+      "artifact": {
+        "sha256": "1e3e45e069bdb4d8d6bed77b7c7ac96b6314e77eca0e09bc4b6ddc510f00ceaa",
+        "width": 1376,
+        "height": 1446
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Muestra la política antigua de contraseña mínima de 6 caracteres y copy anterior."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-cobrar.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "invoice-mark-paid-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "F-2026-0002",
+          "Marcar como cobrada"
+        ]
+      },
+      "artifact": {
+        "sha256": "a90f516c70afdf5f3e09009e9603a570153fa4baf2529eed0aaffd41eb52cc2b",
+        "width": 88,
+        "height": 88
+      },
+      "provenance": {
+        "contextId": "legacy-dcbde21"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Solo contiene un círculo sin factura, estado ni nombre accesible de la acción."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-enviar.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "invoice-share-actions",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "F-2026-0002",
+          "Email",
+          "WhatsApp"
+        ]
+      },
+      "artifact": {
+        "sha256": "ac11b87aec5408e826936684ca1830416a8d618237114a4e3e556ae730153f7f",
+        "width": 1308,
+        "height": 88
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG es solo una tira de iconos: no demuestra la factura F-2026-0002 ni las acciones Email/WhatsApp previstas."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-nueva.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas/nuevo",
+        "stateId": "invoice-create-draft",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Nueva factura",
+          "Veri*Factu y el QR tributario permanecen desactivados"
+        ]
+      },
+      "artifact": {
+        "sha256": "a083caac53250481809f7d0845abe244c68e9e1fd35a5b243eaddb31bf00e7d9",
+        "width": 1440,
+        "height": 6476
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Contiene el copy antiguo «se genera el QR tributario», contrario al fail-closed actual."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-pdf.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "invoice-download-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "F-2026-0002",
+          "Descargar PDF"
+        ]
+      },
+      "artifact": {
+        "sha256": "7cfaad76404a555e13ac0b79f0146f4cf8c2af5a00626075a455ec3266cdf547",
+        "width": 88,
+        "height": 88
+      },
+      "provenance": {
+        "contextId": "legacy-dcbde21"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Solo contiene el icono de descarga y no demuestra documento, ruta ni estado."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-recordatorio.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "invoice-reminder-dialog",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Recordatorio de pago",
+          "Mensaje",
+          "Enviar"
+        ]
+      },
+      "artifact": {
+        "sha256": "e2d7f30593d7eb93847278c8138e3d3322ba3e5f613abf726af238618f02865a",
+        "width": 1440,
+        "height": 3002
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "La captura es la página completa y no contiene el diálogo ni el mensaje editable."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/facturas-rectificar.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "invoice-corrective-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "F-2026-0003",
+          "Rectificar"
+        ]
+      },
+      "artifact": {
+        "sha256": "5c127989ed8c2e6f821e3da889833014518ea036147edeeed07ab4e516a7aba7",
+        "width": 88,
+        "height": 88
+      },
+      "provenance": {
+        "contextId": "legacy-dcbde21"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Solo contiene un icono sin factura ni contexto que pruebe la rectificación."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/gastos-exportar.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/gastos",
+        "stateId": "expense-export-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Exportar CSV"
+        ]
+      },
+      "artifact": {
+        "sha256": "9227f9c4c8429b951e4610da5029829ea86ae20952b1be28cee88e0490465215",
+        "width": 344,
+        "height": 96
+      },
+      "provenance": {
+        "contextId": "legacy-a7226f9"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/gastos-fijos.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/gastos/fijos",
+        "stateId": "recurring-expenses-list",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Gastos fijos",
+          "Nuevo gasto fijo"
+        ]
+      },
+      "artifact": {
+        "sha256": "d572bd2bc3937a37c89c63c3f27185f598a8f8d7649b2c38cf8222a27504b0ea",
+        "width": 1440,
+        "height": 2560
+      },
+      "provenance": {
+        "contextId": "legacy-dcbde21"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Muestra un Runtime TypeError en GastosFijosPage en lugar de la pantalla anunciada."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/gastos-filtros.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/gastos",
+        "stateId": "expense-list-filters",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Gastos y compras",
+          "Periodo",
+          "Proveedor",
+          "Gasto neto"
+        ]
+      },
+      "artifact": {
+        "sha256": "bd1cfd0b0666bb77aa54aa09aa1d9360b77ac4cce723511adc0032c3979fb773",
+        "width": 1440,
+        "height": 2590
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/gastos-nuevo.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/gastos/nuevo",
+        "stateId": "expense-create",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Añadir gasto",
+          "Escanear factura o ticket",
+          "Guardar gasto"
+        ]
+      },
+      "artifact": {
+        "sha256": "ff775ca9276b90213a34ed0fd1f9c91c23b405faa60b15707c4b09ef39385841",
+        "width": 1440,
+        "height": 3452
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/impuestos-csv.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/impuestos",
+        "stateId": "tax-export-csv-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "CSV"
+        ]
+      },
+      "artifact": {
+        "sha256": "c494da4b245a7390ebe4c5dc904ab16acbbbc310ed0403c5781ff6920da42a47",
+        "width": 202,
+        "height": 98
+      },
+      "provenance": {
+        "contextId": "legacy-a7226f9"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/impuestos-pdf-anual.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/impuestos",
+        "stateId": "tax-export-pdf-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "PDF"
+        ]
+      },
+      "artifact": {
+        "sha256": "0d7f1da8c0c743ea7c2b52d4a0fbae3c8d5d78972009d43ef2ef39bfcc792531",
+        "width": 200,
+        "height": 98
+      },
+      "provenance": {
+        "contextId": "legacy-a7226f9"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/impuestos-resumen.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/impuestos",
+        "stateId": "tax-summary",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Resumen fiscal",
+          "Beneficio económico antes de reservar IRPF",
+          "Resultado tras reservar IRPF"
+        ]
+      },
+      "artifact": {
+        "sha256": "000388e48f116841614669f87214e1c1271dcc12e1fedbc8b2d73ad52936271d",
+        "width": 1440,
+        "height": 3116
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Usa rótulos fiscales antiguos como «Beneficio bruto est.» y no refleja el contrato actual."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/impuestos-trimestre.png",
+      "usage": "orphan",
+      "intended": {
+        "route": "/impuestos",
+        "stateId": "tax-quarter-cards",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Ingresos cobrados",
+          "Gasto neto",
+          "Beneficio económico"
+        ]
+      },
+      "artifact": {
+        "sha256": "aafba3eca5662fdcc008fba41a2833246af9e3316d874f6be230e9cdbfe93ff1",
+        "width": 1292,
+        "height": 426
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Está huérfana y usa rótulos fiscales obsoletos."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/inicio-accesos-rapidos.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/",
+        "stateId": "home-quick-actions",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Crear recordatorio",
+          "Avisos",
+          "Nuevo producto"
+        ]
+      },
+      "artifact": {
+        "sha256": "1591d9f4b81bc037c29d5f2e60b02518157b4f0e04bcf048d083eaa435ab55db",
+        "width": 1376,
+        "height": 552
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "La captura muestra «Nuevo cliente» donde el contrato y el flujo actual esperan el acceso «Nuevo producto»."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/inicio-recordatorios.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/",
+        "stateId": "home-team-reminders",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Recordatorios del equipo",
+          "para oficina"
+        ]
+      },
+      "artifact": {
+        "sha256": "cf6134d2b6ede0cbe77e28e104c60c523badc1e8e169c1d85a24ef5c690b30ef",
+        "width": 1376,
+        "height": 498
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/navegacion-inferior.png",
+      "usage": "orphan",
+      "intended": {
+        "route": "/",
+        "stateId": "legacy-mobile-navigation",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Inicio",
+          "Más"
+        ]
+      },
+      "artifact": {
+        "sha256": "4ae9ab3743e0d8ae3458daefbafc5986568439f3f7c7c2aa64a31d63466b150c",
+        "width": 1440,
+        "height": 178
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Está huérfana y muestra la navegación móvil antigua completa."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/presupuestos-aceptado.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/presupuestos",
+        "stateId": "quote-accept-action",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "P-2026-0002",
+          "Marcar presupuesto como aceptado"
+        ]
+      },
+      "artifact": {
+        "sha256": "37e00b7de1190b817775e399f45d56b8bf5f8d14acd2e09e7a31867eae52f145",
+        "width": 88,
+        "height": 88
+      },
+      "provenance": {
+        "contextId": "legacy-dcbde21"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Solo muestra un círculo vacío sin presupuesto, estado ni texto."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/presupuestos-nuevo.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/presupuestos/nuevo",
+        "stateId": "quote-create",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Nuevo presupuesto",
+          "Válido hasta",
+          "Guardar borrador"
+        ]
+      },
+      "artifact": {
+        "sha256": "b8410add52d4e85aeb249f6d4ff28ee832baeeee473824fc7a0efed838fb3f31",
+        "width": 1440,
+        "height": 6364
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/proveedores-nuevo.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/proveedores/nuevo",
+        "stateId": "supplier-create",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Nuevo proveedor",
+          "Guardar proveedor"
+        ]
+      },
+      "artifact": {
+        "sha256": "0091c174281586e052870d800acd508ac39f8b8cb795f43046dd9086c3ba0293",
+        "width": 1440,
+        "height": 2810
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Muestra el listado de Proveedores, no el formulario de alta anunciado."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/proveedores-unificar.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/proveedores",
+        "stateId": "supplier-merge-panel",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Unificación manual",
+          "Unificar"
+        ]
+      },
+      "artifact": {
+        "sha256": "120ed5e0b4024fe4e5dbaed9c2532210e9cf2da4e5aa449c24e1843962b9614c",
+        "width": 1292,
+        "height": 48
+      },
+      "provenance": {
+        "contextId": "legacy-a7226f9"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Es una franja de 48 px que prácticamente solo contiene el título."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/recibos-automatico.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/facturas",
+        "stateId": "receipt-from-paid-invoice",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "F-2026-0001",
+          "Recibo"
+        ]
+      },
+      "artifact": {
+        "sha256": "132a9cca00b081a165ca006ea749bb1540b48c9d998427a58cd357c97f745dac",
+        "width": 1376,
+        "height": 420
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "known-defect",
+        "tracking": "AUD-P2-03",
+        "reason": "Muestra una factura cobrada, pero no el recibo relacionado ni su acción."
+      }
+    },
+    {
+      "src": "/ayuda/capturas/recibos-nuevo.png",
+      "usage": "referenced",
+      "intended": {
+        "route": "/recibos/nuevo",
+        "stateId": "receipt-create",
+        "setupId": "manual-demo-data",
+        "expectedMarkers": [
+          "Nuevo recibo",
+          "Justificante de cobro",
+          "Guardar borrador y descargar PDF"
+        ]
+      },
+      "artifact": {
+        "sha256": "ddbb6151d67cea0d1dffd3e905aca525d3956b33ba95f0653f5a86c097341df6",
+        "width": 1440,
+        "height": 6364
+      },
+      "provenance": {
+        "contextId": "legacy-80802e6"
+      },
+      "review": {
+        "status": "pending-review",
+        "tracking": "AUD-P2-03",
+        "reason": "El PNG parece relacionado, pero no consta el commit real de la app ni la fecha de captura; requiere recaptura y revisión ligada al hash."
+      }
+    }
+  ]
+}
