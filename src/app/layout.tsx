@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
+import { QuickToolsProvider } from "@/components/documents/QuickToolsProvider";
 import { AppErrorMonitor } from "@/components/monitoring/AppErrorMonitor";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { AppStoreProvider } from "@/context/AppStore";
@@ -86,7 +87,9 @@ export default function RootLayout({
         <AppStoreProvider>
           <CloudSyncProvider>
             <BillingProvider>
-              <ConditionalAppShell>{children}</ConditionalAppShell>
+              <QuickToolsProvider>
+                <ConditionalAppShell>{children}</ConditionalAppShell>
+              </QuickToolsProvider>
               <AppErrorMonitor />
               <RegisterServiceWorker />
             </BillingProvider>

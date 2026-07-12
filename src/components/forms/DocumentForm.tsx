@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
-  Calculator,
   CircleHelp,
   Edit3,
   Eye,
@@ -15,7 +14,6 @@ import {
   PackagePlus,
   PackageSearch,
   Plus,
-  StickyNote,
   Trash2,
 } from "lucide-react";
 import {
@@ -63,8 +61,6 @@ import {
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
-import { QuickCalculator } from "@/components/documents/QuickCalculator";
-import { QuickPostIt } from "@/components/documents/QuickPostIt";
 import {
   defaultPhraseForType,
   normalizeDocumentPhrases,
@@ -579,9 +575,6 @@ export function DocumentForm({
   const [openMarginInfoLineId, setOpenMarginInfoLineId] = useState<
     string | null
   >(null);
-  const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [postItOpen, setPostItOpen] = useState(false);
-  const [postItText, setPostItText] = useState("");
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
@@ -1525,9 +1518,6 @@ export function DocumentForm({
 
     maybeCelebrateFirstInvoice(data.documents, saved);
     if (!existing) clearDocumentSessionDraft(type);
-    setCalculatorOpen(false);
-    setPostItOpen(false);
-    setPostItText("");
     setFormError(null);
     setSaveAction("idle");
     await finishDocumentSave({
@@ -1673,26 +1663,6 @@ export function DocumentForm({
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-bold text-slate-900">Conceptos</h2>
-            <button
-              type="button"
-              onClick={() => setCalculatorOpen(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-100 dark:hover:bg-blue-900/60"
-              aria-label="Abrir calculadora rápida"
-              title="Calculadora rápida"
-            >
-              <Calculator className="h-4 w-4" />
-              Calculadora
-            </button>
-            <button
-              type="button"
-              onClick={() => setPostItOpen(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/60"
-              aria-label="Abrir post-it de notas rápidas"
-              title="Post-it"
-            >
-              <StickyNote className="h-4 w-4" />
-              Post-it
-            </button>
           </div>
           {!vatExempt && (
             <div className="w-full space-y-2 sm:w-64">
@@ -1722,16 +1692,6 @@ export function DocumentForm({
             </div>
           )}
         </div>
-        {calculatorOpen && (
-          <QuickCalculator onClose={() => setCalculatorOpen(false)} />
-        )}
-        {postItOpen && (
-          <QuickPostIt
-            value={postItText}
-            onChange={setPostItText}
-            onClose={() => setPostItOpen(false)}
-          />
-        )}
         <div className="space-y-3">
           <div className="space-y-3 lg:space-y-0 lg:overflow-x-auto lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
             <div

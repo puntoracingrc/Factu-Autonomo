@@ -11,6 +11,7 @@ import { Delete, X } from "lucide-react";
 import {
   calculatorHasEditableValue,
   deleteLastCalculatorCharacter,
+  initialCalculatorX,
 } from "./quick-calculator-logic";
 
 type Operator = "+" | "-" | "*" | "/";
@@ -98,7 +99,7 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     const height = panel?.offsetHeight ?? 320;
     setPosition(
       clampPosition({
-        x: window.innerWidth >= 640 ? 24 : (window.innerWidth - width) / 2,
+        x: initialCalculatorX(window.innerWidth, width),
         y: window.innerHeight - height - 80,
       }),
     );

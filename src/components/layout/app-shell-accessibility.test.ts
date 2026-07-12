@@ -9,6 +9,14 @@ const layoutSource = readFileSync(
   new URL("../../app/layout.tsx", import.meta.url),
   "utf8",
 );
+const documentFormSource = readFileSync(
+  new URL("../forms/DocumentForm.tsx", import.meta.url),
+  "utf8",
+);
+const quickToolsLauncherSource = readFileSync(
+  new URL("../documents/QuickToolsLauncher.tsx", import.meta.url),
+  "utf8",
+);
 const helpButtonSource = readFileSync(
   new URL("../manual/FactuHelpButton.tsx", import.meta.url),
   "utf8",
@@ -78,5 +86,22 @@ describe("AppShell accessibility contracts", () => {
     expect(helpButtonSource).toContain("focus-visible:outline");
     expect(cloudIndicatorSource).toContain("min-h-11 min-w-11");
     expect(cloudIndicatorSource).toContain("focus-visible:outline");
+  });
+
+  it("keeps the quick calculator and post-it available globally", () => {
+    expect(layoutSource).toContain("<QuickToolsProvider>");
+    expect(appShellSource).toContain("<QuickToolsLauncher />");
+    expect(appShellSource).toContain("<QuickToolsLauncher compact />");
+    expect(quickToolsLauncherSource).toContain(
+      'aria-label="Herramientas rápidas"',
+    );
+    expect(quickToolsLauncherSource).toContain(
+      'aria-label="Abrir calculadora rápida"',
+    );
+    expect(quickToolsLauncherSource).toContain(
+      'aria-label="Abrir post-it de notas rápidas"',
+    );
+    expect(documentFormSource).not.toContain("<QuickCalculator");
+    expect(documentFormSource).not.toContain("<QuickPostIt");
   });
 });
