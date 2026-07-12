@@ -469,6 +469,45 @@ describe("storage", () => {
     ).toBeUndefined();
   });
 
+  it("conserva el mes y todas las reglas de vencimiento anual al recargar", () => {
+    const dueTimings: AppData["recurringExpenses"][number]["dueTiming"][] = [
+      { kind: "start_of_month" },
+      { kind: "mid_of_month" },
+      { kind: "end_of_month" },
+      { kind: "day_of_month", day: 31 },
+    ];
+    const recurringExpenses: AppData["recurringExpenses"] = dueTimings.map(
+      (dueTiming, index) => ({
+        id: `annual-storage-${index}`,
+        supplierName: "Proveedor",
+        description: "Seguro anual",
+        amount: 120,
+        ivaPercent: 21,
+        category: "Seguros",
+        paymentMethod: "Domiciliación",
+        frequency: "annual",
+        dueTiming,
+        dueMonth: 2,
+        duration: { kind: "indefinite" },
+        startDate: "2027-01-01",
+        enabled: true,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }),
+    );
+
+    saveData({ ...EMPTY_DATA, recurringExpenses });
+
+    expect(
+      loadData().recurringExpenses.map(({ dueMonth, dueTiming }) => ({
+        dueMonth,
+        dueTiming,
+      })),
+    ).toEqual(
+      dueTimings.map((dueTiming) => ({ dueMonth: 2, dueTiming })),
+    );
+  });
+
   it("normaliza preferencias de app en datos antiguos y nuevos", () => {
     expect(
       normalizeLoadedData({ profile: {} } as Partial<AppData>).profile

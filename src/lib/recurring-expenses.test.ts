@@ -11,6 +11,8 @@ import {
   listRecurringOccurrenceDates,
   normalizeRecurringOccurrenceCount,
   normalizeRecurringExpense,
+  recurringAnnualDueMonth,
+  recurringDueLabel,
   recurringExpenseStatusOn,
   recurringExpenseTotals,
   resolveDueDate,
@@ -81,6 +83,55 @@ describe("resolveDueDate", () => {
     expect(resolveDueDate(2026, 2, { kind: "day_of_month", day: 31 })).toBe(
       "2026-02-28",
     );
+  });
+});
+
+describe("recurringDueLabel", () => {
+  it("describe la regla anual sin fijarla a un año no bisiesto", () => {
+    expect(
+      recurringDueLabel(
+        template({
+          frequency: "annual",
+          dueMonth: 2,
+          dueTiming: { kind: "end_of_month" },
+        }),
+      ),
+    ).toBe("Último día de febrero");
+    expect(
+      recurringDueLabel(
+        template({
+          frequency: "annual",
+          dueMonth: 2,
+          dueTiming: { kind: "day_of_month", day: 31 },
+        }),
+      ),
+    ).toBe("Día 31 de febrero (se ajusta al último día disponible)");
+  });
+
+  it("conserva el mes semántico de una recurrencia anual legacy", () => {
+    const legacy = template({
+      frequency: "annual",
+      dueMonth: undefined,
+      dueTiming: { kind: "end_of_month" },
+      startDate: "2027-07-10",
+    });
+
+    expect(recurringAnnualDueMonth(legacy)).toBe(7);
+    expect(recurringDueLabel(legacy)).toBe("Último día de julio");
+    expect(
+      listRecurringOccurrenceDates(legacy, "2028-12-31"),
+    ).toEqual(["2027-07-31", "2028-07-31"]);
+  });
+
+  it("descarta meses anuales inválidos sin cambiar el mes de inicio", () => {
+    for (const dueMonth of [0, 13, 2.5, Number.NaN]) {
+      expect(
+        recurringAnnualDueMonth({ dueMonth, startDate: "2027-07-10" }),
+      ).toBe(7);
+    }
+    expect(
+      recurringAnnualDueMonth({ dueMonth: undefined, startDate: "sin-fecha" }),
+    ).toBe(1);
   });
 });
 
@@ -191,6 +242,45 @@ describe("listRecurringOccurrenceDates", () => {
       "2028-12-31",
     );
     expect(dates).toEqual(["2026-03-15", "2027-03-15", "2028-03-15"]);
+  });
+
+  it("aplica todas las opciones anuales en el mes de vencimiento", () => {
+    const cases = [
+      [
+        { kind: "start_of_month" } as const,
+        ["2027-02-01", "2028-02-01"],
+      ],
+      [
+        { kind: "mid_of_month" } as const,
+        ["2027-02-15", "2028-02-15"],
+      ],
+      [
+        { kind: "end_of_month" } as const,
+        ["2027-02-28", "2028-02-29"],
+      ],
+      [
+        { kind: "day_of_month", day: 20 } as const,
+        ["2027-02-20", "2028-02-20"],
+      ],
+      [
+        { kind: "day_of_month", day: 31 } as const,
+        ["2027-02-28", "2028-02-29"],
+      ],
+    ] as const;
+
+    for (const [dueTiming, expected] of cases) {
+      expect(
+        listRecurringOccurrenceDates(
+          template({
+            frequency: "annual",
+            dueMonth: 2,
+            dueTiming,
+            startDate: "2027-01-01",
+          }),
+          "2028-12-31",
+        ),
+      ).toEqual(expected);
+    }
   });
 });
 

@@ -465,9 +465,9 @@ Acciones: Actualizar vuelve a consultar buzón/cuota; Copiar usa portapapeles; G
 | IVA | select | R | perfil/0 | tasa configurada; 0 si no deducible | plantilla | ocurrencias |
 | Categoría/forma de pago | selects | R | valores de gasto normal | opción conocida | plantilla | ocurrencias |
 | Frecuencia | select | R | mensual; mensual/trimestral/anual | opción conocida | plantilla | calendario |
-| Cuándo vence | select | R | fin de mes; inicio/mitad/fin/día concreto | opción coherente; anual fuerza día | plantilla | fecha de cada cargo |
+| Cuándo vence | select | R | fin de mes; día 1/día 15/último día/día concreto | las cuatro reglas son válidas también en anual | plantilla | fecha de cada cargo |
 | Mes anual | select | C anual | enero | 1–12 | plantilla | calendario anual |
-| Día | número | C día concreto/anual | 1 | 1–31 | plantilla | calendario; meses cortos deben documentarse |
+| Día | número | C día concreto | 1 | 1–31 | plantilla | calendario; meses cortos se ajustan al último día |
 | Desde | fecha | R | hoy | no vacía | plantilla | primera vigencia |
 | Duración | select | R | indefinida; nº cargos/hasta fecha | opción conocida | plantilla | fin de vigencia |
 | Nº de cargos | número | C por ocurrencias | 12 | entero positivo | plantilla | fin calculado |
