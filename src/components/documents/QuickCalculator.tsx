@@ -13,6 +13,7 @@ import {
   deleteLastCalculatorCharacter,
   initialCalculatorX,
 } from "./quick-calculator-logic";
+import { quickToolDragVisualStyle } from "./quick-tool-drag-visual";
 
 type Operator = "+" | "-" | "*" | "/";
 
@@ -88,10 +89,30 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
     x: 12,
     y: 120,
   });
+  const [isDragging, setIsDragging] = useState(false);
   const [display, setDisplay] = useState("0");
   const [storedValue, setStoredValue] = useState<number | null>(null);
   const [operator, setOperator] = useState<Operator | null>(null);
   const [waitingForNumber, setWaitingForNumber] = useState(false);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const finishDrag = () => {
+      dragRef.current = null;
+      setIsDragging(false);
+    };
+
+    window.addEventListener("pointerup", finishDrag, { once: true });
+    window.addEventListener("pointercancel", finishDrag, { once: true });
+    window.addEventListener("blur", finishDrag, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", finishDrag);
+      window.removeEventListener("blur", finishDrag);
+    };
+  }, [isDragging]);
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -133,6 +154,7 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
       originX: position.x,
       originY: position.y,
     };
+    setIsDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -149,9 +171,15 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
 
   function stopDrag(event: PointerEvent<HTMLDivElement>) {
     dragRef.current = null;
+    setIsDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }
+
+  function cancelDrag() {
+    dragRef.current = null;
+    setIsDragging(false);
   }
 
   function clear() {
@@ -319,8 +347,12 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
       ref={panelRef}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      style={{ left: position.x, top: position.y }}
-      className="fixed z-50 w-[min(13.25rem,calc(100vw-1rem))] rounded-xl border border-blue-100 bg-white p-2.5 text-slate-900 shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+      style={{
+        left: position.x,
+        top: position.y,
+        ...quickToolDragVisualStyle("calculator", isDragging),
+      }}
+      className="fixed w-[min(13.25rem,calc(100vw-1rem))] origin-center rounded-xl border border-blue-100 bg-white p-2.5 text-slate-900 motion-reduce:!transform-none motion-reduce:!transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
       aria-label="Panel de calculadora rápida"
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -330,6 +362,7 @@ export function QuickCalculator({ onClose }: QuickCalculatorProps) {
           onPointerMove={drag}
           onPointerUp={stopDrag}
           onPointerCancel={stopDrag}
+          onLostPointerCapture={cancelDrag}
           title="Arrastrar calculadora"
         />
         <button
