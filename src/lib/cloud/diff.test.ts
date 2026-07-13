@@ -118,6 +118,86 @@ function attestedHistoricalData(): AppData {
   return result.data;
 }
 
+function attestedHistoricalReceiptData(): AppData {
+  const invoiceId = "pcfacturacion:factura:F-2024-0001";
+  const receiptId = "pcfacturacion:recibo:R-2024-0001";
+  const profile = {
+    ...EMPTY_DATA.profile,
+    name: "Negocio historico",
+    nif: "12345678Z",
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const historical = (
+    id: string,
+    type: Document["type"],
+    number: string,
+    date: string,
+  ): Document => ({
+    id,
+    type,
+    number,
+    date,
+    client: { name: "Cliente historico" },
+    items: [
+      {
+        id: `${id}:line:1`,
+        description: "Servicio historico",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "pagado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      capturedAt: `${date}T10:00:00.000Z`,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T10:00:00.000Z`,
+  });
+  const data: AppData = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [
+      {
+        ...historical(invoiceId, "factura", "F-2024-0001", "2024-04-01"),
+        receiptDocumentId: receiptId,
+      },
+      {
+        ...historical(receiptId, "recibo", "R-2024-0001", "2024-04-02"),
+        sourceDocumentId: invoiceId,
+      },
+    ],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar el recibo historico: ${result.reason}`);
+  }
+  return result.data;
+}
+
 describe("sync por cambios", () => {
   it("detecta solo el cliente añadido", () => {
     const prev = EMPTY_DATA;
@@ -165,10 +245,7 @@ describe("sync por cambios", () => {
       afterExpense.meta?.pendingChanges
         ?.map((change) => `${change.entityType}:${change.entityId}`)
         .sort(),
-    ).toEqual([
-      "expense:expense-batch",
-      "supplier:supplier-batch",
-    ]);
+    ).toEqual(["expense:expense-batch", "supplier:supplier-batch"]);
   });
 
   it("encola juntos el gasto fijo escaneado y su regla recurrente", () => {
@@ -209,10 +286,7 @@ describe("sync por cambios", () => {
     const changes = diffAppData(EMPTY_DATA, saved.data);
     expect(
       changes.map((change) => `${change.entityType}:${change.entityId}`).sort(),
-    ).toEqual([
-      "expense:fixed-expense",
-      "recurring_expense:fixed-template",
-    ]);
+    ).toEqual(["expense:fixed-expense", "recurring_expense:fixed-template"]);
 
     const reloaded = applySyncChanges(EMPTY_DATA, changes);
     expect(reloaded.expenses[0]?.recurringExpenseId).toBe("fixed-template");
@@ -278,9 +352,8 @@ describe("sync por cambios", () => {
     ]);
     expect(applied.data.expenses).toEqual(before.expenses);
     expect(
-      changes.find(
-        (change) => change.entityId === "recurring-segment-v2",
-      )?.payload,
+      changes.find((change) => change.entityId === "recurring-segment-v2")
+        ?.payload,
     ).toMatchObject({ scheduleAnchorDate: "2026-01-01" });
 
     const reloaded = applySyncChanges(before, changes);
@@ -402,6 +475,37 @@ describe("sync por cambios", () => {
     expect(inspectLegacyImportAttestation(rebuilt.documents[0]!).ok).toBe(true);
   });
 
+  it("sincroniza de forma exacta los dos extremos de una relación histórica V3", () => {
+    const source = attestedHistoricalReceiptData();
+    const expected = source.documents.map((document) => ({
+      id: document.id,
+      attestation: document.legacyImportAttestation,
+      snapshot: document.documentSnapshot,
+    }));
+    const changes = diffAppData(emptyCloudBootstrapData(), source);
+
+    expect(
+      changes.filter((change) => change.entityType === "document"),
+    ).toHaveLength(2);
+    const rebuilt = rebuildCloudSnapshot(changes).data;
+    expect(
+      rebuilt.documents.map((document) => ({
+        id: document.id,
+        attestation: document.legacyImportAttestation,
+        snapshot: document.documentSnapshot,
+      })),
+    ).toEqual(expected);
+    expect(rebuilt.documents[0].receiptDocumentId).toBe(
+      rebuilt.documents[1].id,
+    );
+    expect(rebuilt.documents[1].sourceDocumentId).toBe(rebuilt.documents[0].id);
+    expect(
+      rebuilt.documents.every(
+        (document) => inspectLegacyImportAttestation(document).ok,
+      ),
+    ).toBe(true);
+  });
+
   it("sincroniza una reparación reversible cambiando solo la entidad expense", () => {
     const beforeAllocation = {
       workDocumentId: "doc-work",
@@ -461,9 +565,7 @@ describe("sync por cambios", () => {
             afterFingerprint: "after",
             beforeAllocations: [beforeAllocation],
             afterAllocations: [afterAllocation],
-            events: [
-              { action: "applied", at: "2026-07-12T02:00:00.000Z" },
-            ],
+            events: [{ action: "applied", at: "2026-07-12T02:00:00.000Z" }],
           },
         },
       ],
@@ -517,9 +619,7 @@ describe("sync por cambios", () => {
       }),
     ]);
     expect(diffAppData(versioned, legacy)).toEqual([]);
-    expect(
-      appDataToSyncChanges(versioned).at(-1),
-    ).toMatchObject({
+    expect(appDataToSyncChanges(versioned).at(-1)).toMatchObject({
       entityType: "workspace_metadata",
       entityId: "snapshot_integrity_version",
       payload: { snapshotIntegrityVersion: 1 },
@@ -583,9 +683,9 @@ describe("sync por cambios", () => {
     const downloaded = applySyncChanges(before, changes);
     const reloaded = syncRecurringExpenses(downloaded, "2026-01-31");
     expect(reloaded.expenses).toEqual([]);
-    expect(
-      reloaded.recurringExpenses[0]?.occurrenceExclusions?.[0]?.key,
-    ).toBe("recurring-cloud:2026-01-31");
+    expect(reloaded.recurringExpenses[0]?.occurrenceExclusions?.[0]?.key).toBe(
+      "recurring-cloud:2026-01-31",
+    );
   });
 
   it("conserva el tombstone ante un segundo dispositivo con plantilla obsoleta", () => {

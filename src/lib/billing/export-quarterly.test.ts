@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { buildQuarterlyExportCsv } from "./export-quarterly";
-import { DEFAULT_PROFILE, type Document, type Expense, type Supplier } from "../types";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type Document,
+  type Expense,
+  type Supplier,
+} from "../types";
 import { issueDocument } from "../document-integrity";
-import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "../document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { TaxExportBlockedError } from "../taxes";
 
@@ -41,11 +51,70 @@ const draftDoc: Document = {
   updatedAt: "2026-05-10",
 };
 
-const doc = issueDocument(
-  draftDoc,
-  profile,
-  "2026-05-10T10:00:00.000Z",
-);
+const doc = issueDocument(draftDoc, profile, "2026-05-10T10:00:00.000Z");
+
+function attestedHistoricalCorrectionDocuments(): Document[] {
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const original: Document = {
+    ...draftDoc,
+    id: originalId,
+    number: "F-2024-0001",
+    date: "2024-04-01",
+    status: "rectificada",
+    issuer: captureIssuerSnapshot(profile, "2024-04-01T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectifiedById: rectificationId,
+    ...rolloutResidue,
+  };
+  const rectification: Document = {
+    ...draftDoc,
+    id: rectificationId,
+    number: "FR-2024-0001",
+    date: "2024-04-02",
+    status: "enviado",
+    issuer: captureIssuerSnapshot(profile, "2024-04-02T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectification: {
+      originalDocumentId: originalId,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Correccion historica",
+      type: "correccion",
+    },
+    ...rolloutResidue,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la correccion historica: ${result.reason}`,
+    );
+  }
+  return result.data.documents;
+}
 
 const expense: Expense = {
   id: "e1",
@@ -106,14 +175,9 @@ function captureBlockedExport(action: () => unknown): TaxExportBlockedError {
 
 describe("export quarterly csv", () => {
   it("incluye resumen, ventas y gastos con formato para gestoría", () => {
-    const csv = buildQuarterlyExportCsv(
-      [doc],
-      [expense],
-      profile,
-      2026,
-      2,
-      [supplier],
-    );
+    const csv = buildQuarterlyExportCsv([doc], [expense], profile, 2026, 2, [
+      supplier,
+    ]);
 
     expect(csv).toContain("EXPORTACIÓN TRIMESTRAL FISCAL");
     expect(csv).toContain("2.º trimestre 2026");
@@ -121,9 +185,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("RESUMEN DEL PERIODO");
     expect(csv).toContain("IVA neto a ingresar;10,50");
     expect(csv).toContain("Coste económico de gastos;50,00");
-    expect(csv).toContain(
-      "Beneficio económico antes de reservar IRPF;50,00",
-    );
+    expect(csv).toContain("Beneficio económico antes de reservar IRPF;50,00");
     expect(csv).toContain("Base estimada para IRPF;50,00");
     expect(csv).toContain("IRPF estimado (orientativo);10,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;40,00");
@@ -149,13 +211,7 @@ describe("export quarterly csv", () => {
       items: [{ ...doc.items[0], unitPrice: 999 }],
     };
 
-    const csv = buildQuarterlyExportCsv(
-      [drifted],
-      [],
-      profile,
-      2026,
-      2,
-    );
+    const csv = buildQuarterlyExportCsv([drifted], [], profile, 2026, 2);
 
     expect(csv).toContain("F-2026-0001");
     expect(csv).toContain("Cliente Test");
@@ -184,15 +240,9 @@ describe("export quarterly csv", () => {
 
     expect(csv).toContain("Gasto neto deducible en IRPF;0,00");
     expect(csv).toContain("IVA deducible;0,00");
-    expect(csv).toContain(
-      "Gastos no deducibles (coste registrado);145,20",
-    );
-    expect(csv).toContain(
-      "Coste económico de gastos;145,20",
-    );
-    expect(csv).toContain(
-      "Beneficio económico antes de reservar IRPF;-45,20",
-    );
+    expect(csv).toContain("Gastos no deducibles (coste registrado);145,20");
+    expect(csv).toContain("Coste económico de gastos;145,20");
+    expect(csv).toContain("Beneficio económico antes de reservar IRPF;-45,20");
     expect(csv).toContain("Base estimada para IRPF;100,00");
     expect(csv).toContain("IRPF estimado (orientativo);20,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-65,20");
@@ -291,9 +341,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Coste económico de gastos;100,00");
     expect(csv).toContain("Gasto neto deducible en IRPF;0,00");
     expect(csv).toContain("IVA deducible;0,00");
-    expect(csv).toContain(
-      "Beneficio económico antes de reservar IRPF;-100,00",
-    );
+    expect(csv).toContain("Beneficio económico antes de reservar IRPF;-100,00");
     expect(csv).toContain("Base estimada para IRPF;0,00");
     expect(csv).toContain("IRPF estimado (orientativo);0,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-100,00");
@@ -354,13 +402,7 @@ describe("export quarterly csv", () => {
       "2026-07-12T22:00:00.000Z",
     );
 
-    const csv = buildQuarterlyExportCsv(
-      [historical],
-      [],
-      profile,
-      2026,
-      2,
-    );
+    const csv = buildQuarterlyExportCsv([historical], [], profile, 2026, 2);
     expect(csv).toContain("Base imponible ventas;100,00");
     expect(csv).toContain("IVA repercutido;21,00");
     expect(csv).toContain("100,00;21,00;121,00");
@@ -376,6 +418,16 @@ describe("export quarterly csv", () => {
     });
     expect(historical.pdfSnapshot).toBeUndefined();
     expect(historical.snapshotSeal).toBeUndefined();
+  });
+
+  it("exporta solo la rectificativa vigente de una relación histórica V3", () => {
+    const documents = attestedHistoricalCorrectionDocuments();
+    const csv = buildQuarterlyExportCsv(documents, [], profile, 2024, 2);
+
+    expect(csv).toContain("Base imponible ventas;100,00");
+    expect(csv).toContain("IVA repercutido;21,00");
+    expect(csv).toContain("FR-2024-0001");
+    expect(csv).not.toMatch(/;F-2024-0001;/);
   });
 
   it("compensa compra y abono y rotula el saldo a favor en el libro", () => {

@@ -5,7 +5,11 @@ import {
 } from "./product-business-summary";
 import { issueDocument, markDocumentPaid } from "./document-integrity";
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
-import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "./document-integrity/legacy-import-attestation";
 import { canMarkAsCollected } from "./income";
 import {
   DEFAULT_PROFILE,
@@ -247,6 +251,99 @@ describe("buildProductBusinessSummary", () => {
     expect(summary.totalPendingCollection).toBe(60.5);
     expect(summary.pendingInvoices.map((document) => document.id)).toEqual([
       "rect-1",
+    ]);
+  });
+
+  it("incluye una pareja histórica V3 una sola vez en las cuentas generales", () => {
+    const capturedAt = "2024-04-01T10:00:00.000Z";
+    const originalId = "pcfacturacion:factura:F-2024-0001";
+    const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+    const historical = (
+      id: string,
+      number: string,
+      clientName: string,
+    ): Document => ({
+      id,
+      type: "factura",
+      number,
+      date: id === originalId ? "2024-04-01" : "2024-04-02",
+      client: { ...TEST_CLIENT, name: clientName },
+      items: [
+        {
+          id: `${id}:line`,
+          description: "Servicio histórico",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: id === originalId ? "rectificada" : "enviado",
+      issuer: {
+        name: TEST_PROFILE.name,
+        nif: TEST_PROFILE.nif,
+        address: TEST_PROFILE.address,
+        city: TEST_PROFILE.city,
+        postalCode: TEST_PROFILE.postalCode,
+        capturedAt,
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+      createdAt: capturedAt,
+      updatedAt: capturedAt,
+    });
+    const original: Document = {
+      ...historical(originalId, "F-2024-0001", "Cliente histórico"),
+      rectifiedById: rectificationId,
+    };
+    const rectification: Document = {
+      ...historical(
+        rectificationId,
+        "FR-2024-0001",
+        "Cliente histórico corregido",
+      ),
+      rectification: {
+        originalDocumentId: original.id,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Corrección de datos del cliente",
+        type: "correccion",
+      },
+    };
+    const before = {
+      ...EMPTY_DATA,
+      profile: TEST_PROFILE,
+      documents: [original, rectification],
+      snapshotIntegrityVersion: 1 as const,
+    };
+    const repaired = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-13T10:00:00.000Z",
+    );
+    expect(repaired.status).toBe("applied");
+    if (repaired.status !== "applied") return;
+
+    const summary = buildProductBusinessSummary(repaired.data);
+
+    expect(summary).toMatchObject({
+      issuedInvoicesCount: 1,
+      totalBilledIssued: 121,
+      salesIvaEstimated: 21,
+      balanceEstimated: 121,
+      pendingInvoicesCount: 1,
+      totalPendingCollection: 121,
+    });
+    expect(summary.pendingInvoices.map((document) => document.id)).toEqual([
+      rectificationId,
     ]);
   });
 

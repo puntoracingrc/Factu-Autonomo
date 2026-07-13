@@ -9,6 +9,7 @@ import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { roundMoney } from "../calculations";
 import { deriveDocumentLifecycle } from "./index";
 import {
+  inspectLegacyImportRelationshipCollection,
   inspectUsableHistoricalDocumentEvidence,
   isVerifiedLegacyImportRepairSnapshotCandidate,
 } from "./legacy-import-attestation";
@@ -19,7 +20,9 @@ function normalizedIdentityText(value: string | undefined): string {
 }
 
 function hasValidIssuerTaxId(value: string | undefined): boolean {
-  return Boolean(normalizedIdentityText(value)) && hasUsualSpanishTaxIdShape(value);
+  return (
+    Boolean(normalizedIdentityText(value)) && hasUsualSpanishTaxIdShape(value)
+  );
 }
 
 function normalizedName(value: string | undefined): string {
@@ -50,8 +53,8 @@ function customerIdentityMatches(left: Client, right: Client): boolean {
     });
   return Boolean(
     normalizedName(left.name) &&
-      normalizedName(right.name) &&
-      fallbackIdentity(left) === fallbackIdentity(right)
+    normalizedName(right.name) &&
+    fallbackIdentity(left) === fallbackIdentity(right),
   );
 }
 
@@ -98,11 +101,11 @@ function isIssuedRectification(document: Document): boolean {
   }
   return Boolean(
     document.status !== "borrador" ||
-      document.documentLifecycle === "issued" ||
-      document.documentLifecycle === "canceled" ||
-      document.issuedAt ||
-      document.documentSnapshot ||
-      document.snapshotIntegrityRequired,
+    document.documentLifecycle === "issued" ||
+    document.documentLifecycle === "canceled" ||
+    document.issuedAt ||
+    document.documentSnapshot ||
+    document.snapshotIntegrityRequired,
   );
 }
 
@@ -115,9 +118,7 @@ function hasVerifiedOriginalEvidence(document: Document): boolean {
 
 function monetaryAmountsCancel(left: number, right: number): boolean {
   const difference = left + right;
-  return (
-    Number.isFinite(difference) && roundMoney(Math.abs(difference)) === 0
-  );
+  return Number.isFinite(difference) && roundMoney(Math.abs(difference)) === 0;
 }
 
 function isZeroTaxRateRow(
@@ -199,29 +200,29 @@ function relationshipMatches(
 
   return Boolean(
     hasVerifiedOriginalEvidence(original) &&
-      hasOperationalFiscalStatus(rectification) &&
-      deriveDocumentLifecycle(rectification) === "issued" &&
-      deriveDocumentLifecycle(original) === expectedOriginalLifecycle &&
-      original.rectifiedById === rectification.id &&
-      original.status === expectedStatus &&
-      relation.originalDocumentId === original.id &&
-      relation.originalNumber === originalSnapshot.number &&
-      relation.originalDate === originalSnapshot.date &&
-      rectificationSnapshot.date >= originalSnapshot.date &&
-      originalIssuerNif &&
-      rectificationIssuerNif &&
-      hasValidIssuerTaxId(originalSnapshot.issuer.nif) &&
-      hasValidIssuerTaxId(rectificationSnapshot.issuer.nif) &&
-      rectificationIssuerNif === originalIssuerNif &&
-      (relation.type !== "anulacion" ||
-        (customerIdentityMatches(
-          rectificationSnapshot.customer,
-          originalSnapshot.customer,
-        ) &&
-          cancellationTaxSummaryMatches(
-            originalSnapshot,
-            rectificationSnapshot,
-          )))
+    hasOperationalFiscalStatus(rectification) &&
+    deriveDocumentLifecycle(rectification) === "issued" &&
+    deriveDocumentLifecycle(original) === expectedOriginalLifecycle &&
+    original.rectifiedById === rectification.id &&
+    original.status === expectedStatus &&
+    relation.originalDocumentId === original.id &&
+    relation.originalNumber === originalSnapshot.number &&
+    relation.originalDate === originalSnapshot.date &&
+    rectificationSnapshot.date >= originalSnapshot.date &&
+    originalIssuerNif &&
+    rectificationIssuerNif &&
+    hasValidIssuerTaxId(originalSnapshot.issuer.nif) &&
+    hasValidIssuerTaxId(rectificationSnapshot.issuer.nif) &&
+    rectificationIssuerNif === originalIssuerNif &&
+    (relation.type !== "anulacion" ||
+      (customerIdentityMatches(
+        rectificationSnapshot.customer,
+        originalSnapshot.customer,
+      ) &&
+        cancellationTaxSummaryMatches(
+          originalSnapshot,
+          rectificationSnapshot,
+        ))),
   );
 }
 
@@ -250,10 +251,7 @@ function receiptRelationshipMatches(
     !invoiceSnapshot ||
     invoiceSnapshot.rectification ||
     !receiptSnapshot ||
-    !Object.prototype.hasOwnProperty.call(
-      receiptSnapshot,
-      "sourceDocumentId",
-    )
+    !Object.prototype.hasOwnProperty.call(receiptSnapshot, "sourceDocumentId")
   ) {
     return false;
   }
@@ -262,32 +260,39 @@ function receiptRelationshipMatches(
   const receiptIssuerNif = normalizedIdentityText(receiptSnapshot.issuer.nif);
   return Boolean(
     invoiceIssuerNif &&
-      receiptIssuerNif &&
-      hasValidIssuerTaxId(invoiceSnapshot.issuer.nif) &&
-      hasValidIssuerTaxId(receiptSnapshot.issuer.nif) &&
-      invoiceIssuerNif === receiptIssuerNif &&
-      receiptSnapshot.sourceDocumentId === invoice.id &&
-      receipt.sourceDocumentId === invoice.id &&
-      invoice.receiptDocumentId === receipt.id &&
-      invoice.status === "pagado" &&
-      receipt.status === "pagado" &&
-      deriveDocumentLifecycle(invoice) === "issued" &&
-      deriveDocumentLifecycle(receipt) === "issued" &&
-      receipt.paymentStatus === "paid" &&
-      Boolean(receipt.paidAt) &&
-      receiptSnapshot.date >= invoiceSnapshot.date &&
-      customerIdentityMatches(invoiceSnapshot.customer, receiptSnapshot.customer) &&
-      comparableSnapshotLines(invoiceSnapshot) ===
-        comparableSnapshotLines(receiptSnapshot) &&
-      invoiceSnapshot.taxSummary.subtotal ===
-        receiptSnapshot.taxSummary.subtotal &&
-      invoiceSnapshot.taxSummary.iva === receiptSnapshot.taxSummary.iva &&
-      invoiceSnapshot.taxSummary.total === receiptSnapshot.taxSummary.total
+    receiptIssuerNif &&
+    hasValidIssuerTaxId(invoiceSnapshot.issuer.nif) &&
+    hasValidIssuerTaxId(receiptSnapshot.issuer.nif) &&
+    invoiceIssuerNif === receiptIssuerNif &&
+    receiptSnapshot.sourceDocumentId === invoice.id &&
+    receipt.sourceDocumentId === invoice.id &&
+    invoice.receiptDocumentId === receipt.id &&
+    invoice.status === "pagado" &&
+    receipt.status === "pagado" &&
+    deriveDocumentLifecycle(invoice) === "issued" &&
+    deriveDocumentLifecycle(receipt) === "issued" &&
+    receipt.paymentStatus === "paid" &&
+    Boolean(receipt.paidAt) &&
+    receiptSnapshot.date >= invoiceSnapshot.date &&
+    customerIdentityMatches(
+      invoiceSnapshot.customer,
+      receiptSnapshot.customer,
+    ) &&
+    comparableSnapshotLines(invoiceSnapshot) ===
+      comparableSnapshotLines(receiptSnapshot) &&
+    invoiceSnapshot.taxSummary.subtotal ===
+      receiptSnapshot.taxSummary.subtotal &&
+    invoiceSnapshot.taxSummary.iva === receiptSnapshot.taxSummary.iva &&
+    invoiceSnapshot.taxSummary.total === receiptSnapshot.taxSummary.total,
   );
 }
 
 function clearRelationshipSignal(document: Document): Document {
-  if (!document.snapshotIntegrity?.issues.includes("document_relationship_invalid")) {
+  if (
+    !document.snapshotIntegrity?.issues.includes(
+      "document_relationship_invalid",
+    )
+  ) {
     return document;
   }
   const issues = document.snapshotIntegrity.issues.filter(
@@ -305,8 +310,7 @@ function clearRelationshipSignal(document: Document): Document {
 }
 
 function blockRelationship(document: Document): Document {
-  const issue: DocumentSnapshotIntegrityIssue =
-    "document_relationship_invalid";
+  const issue: DocumentSnapshotIntegrityIssue = "document_relationship_invalid";
   const issues = new Set(document.snapshotIntegrity?.issues ?? []);
   issues.add(issue);
   return {
@@ -324,9 +328,7 @@ function duplicateDocumentIds(documents: Document[]): Set<string> {
     counts.set(document.id, (counts.get(document.id) ?? 0) + 1);
   }
   return new Set(
-    [...counts]
-      .filter(([, count]) => count > 1)
-      .map(([id]) => id),
+    [...counts].filter(([, count]) => count > 1).map(([id]) => id),
   );
 }
 
@@ -390,13 +392,24 @@ export function withDocumentRelationshipIntegritySignals(
   const documents = inputDocuments.map(clearRelationshipSignal);
   const byId = new Map(documents.map((document) => [document.id, document]));
   const invalidIds = duplicateDocumentIds(documents);
+  const legacyRelationshipInspection =
+    inspectLegacyImportRelationshipCollection(documents);
+  for (const documentId of legacyRelationshipInspection.claimedDocumentIds) {
+    if (!legacyRelationshipInspection.validDocumentIds.has(documentId)) {
+      invalidIds.add(documentId);
+    }
+  }
+  const isValidLegacyPair = (left: Document, right: Document) =>
+    legacyRelationshipInspection.validDocumentIds.has(left.id) &&
+    legacyRelationshipInspection.validDocumentIds.has(right.id);
   const issuedByOriginal = new Map<string, Document[]>();
   const identities = new Map<string, Document[]>();
   const numberIdentities = new Map<string, Document[]>();
 
   for (const document of documents) {
     const snapshot = document.documentSnapshot;
-    const historicalEvidence = inspectUsableHistoricalDocumentEvidence(document);
+    const historicalEvidence =
+      inspectUsableHistoricalDocumentEvidence(document);
     const acceptsStoredHistoricalContent =
       historicalEvidence.ok &&
       historicalEvidence.acceptedContentPolicy ===
@@ -471,7 +484,10 @@ export function withDocumentRelationshipIntegritySignals(
 
     const rectification = rectifications[0];
     const relation = verifiedRectification(rectification)!;
-    if (!relationshipMatches(original, rectification, relation)) {
+    if (
+      !isValidLegacyPair(original, rectification) &&
+      !relationshipMatches(original, rectification, relation)
+    ) {
       invalidIds.add(rectification.id);
     }
   }
@@ -496,7 +512,8 @@ export function withDocumentRelationshipIntegritySignals(
       !rectification ||
       invalidIds.has(rectification.id) ||
       !relation ||
-      !relationshipMatches(document, rectification, relation)
+      (!isValidLegacyPair(document, rectification) &&
+        !relationshipMatches(document, rectification, relation))
     ) {
       invalidIds.add(document.id);
       if (rectification) invalidIds.add(rectification.id);
@@ -524,7 +541,8 @@ export function withDocumentRelationshipIntegritySignals(
     if (
       invalidIds.has(invoice.id) ||
       invalidIds.has(receipt.id) ||
-      !receiptRelationshipMatches(invoice, receipt)
+      (!isValidLegacyPair(invoice, receipt) &&
+        !receiptRelationshipMatches(invoice, receipt))
     ) {
       invalidIds.add(receipt.id);
     }
@@ -536,7 +554,8 @@ export function withDocumentRelationshipIntegritySignals(
     if (
       !receipt ||
       invalidIds.has(receipt.id) ||
-      !receiptRelationshipMatches(invoice, receipt)
+      (!isValidLegacyPair(invoice, receipt) &&
+        !receiptRelationshipMatches(invoice, receipt))
     ) {
       if (receipt) invalidIds.add(receipt.id);
     }

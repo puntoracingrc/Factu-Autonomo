@@ -141,6 +141,86 @@ function attestedHistoricalDocument(
   return attestedHistoricalDocuments(options)[0]!;
 }
 
+function attestedHistoricalReceiptDocuments(): Document[] {
+  const invoiceId = "pcfacturacion:factura:F-2024-0001";
+  const receiptId = "pcfacturacion:recibo:R-2024-0001";
+  const profile = {
+    ...EMPTY_DATA.profile,
+    name: "Negocio historico",
+    nif: "12345678Z",
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const historical = (
+    id: string,
+    type: Document["type"],
+    number: string,
+    date: string,
+  ): Document => ({
+    id,
+    type,
+    number,
+    date,
+    client: { name: "Cliente historico" },
+    items: [
+      {
+        id: `${id}:line:1`,
+        description: "Servicio historico",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "pagado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      capturedAt: `${date}T10:00:00.000Z`,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T10:00:00.000Z`,
+  });
+  const data = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [
+      {
+        ...historical(invoiceId, "factura", "F-2024-0001", "2024-04-01"),
+        receiptDocumentId: receiptId,
+      },
+      {
+        ...historical(receiptId, "recibo", "R-2024-0001", "2024-04-02"),
+        sourceDocumentId: invoiceId,
+      },
+    ],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar el recibo historico: ${result.reason}`);
+  }
+  return result.data.documents;
+}
+
 describe("backup", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -685,7 +765,9 @@ describe("backup", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toBe("La copia contiene campos privados no permitidos.");
+    expect(result.error).toBe(
+      "La copia contiene campos privados no permitidos.",
+    );
     expect(result.error).not.toContain("SHOULD_NOT_LEAK");
     expect(result.error).not.toContain("accessToken");
   });
@@ -731,7 +813,9 @@ describe("backup", () => {
       "utf8",
     );
 
-    expect(`${helperSource}\n${cardSource}`).not.toContain("localStorage.setItem");
+    expect(`${helperSource}\n${cardSource}`).not.toContain(
+      "localStorage.setItem",
+    );
     expect(cardSource).toContain("replaceData(restoreDraft.data");
     expect(cardSource).not.toContain("getSupabase");
     expect(cardSource).not.toContain("fiscal_transport_attempts");
@@ -1002,7 +1086,9 @@ describe("backup", () => {
 
     expect(draft.ok).toBe(false);
     if (draft.ok) return;
-    expect(draft.error).toBe("La copia contiene campos privados no permitidos.");
+    expect(draft.error).toBe(
+      "La copia contiene campos privados no permitidos.",
+    );
     expect(draft.error).not.toContain("SHOULD_NOT_LEAK");
     expect(draft.error).not.toContain("privateKey");
   });
@@ -1150,6 +1236,46 @@ describe("backup", () => {
     expect(inspectLegacyImportAttestation(restored.documents[0]!).ok).toBe(
       true,
     );
+  });
+
+  it("exportar e importar conserva exactamente una relación histórica V3", () => {
+    const documents = attestedHistoricalReceiptDocuments();
+    const expected = documents.map((document) => ({
+      id: document.id,
+      attestation: document.legacyImportAttestation,
+      snapshot: document.documentSnapshot,
+    }));
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        documents,
+        snapshotIntegrityVersion: 1,
+      },
+      NOW,
+    );
+
+    const restored = parseBackupJson(JSON.parse(JSON.stringify(payload)));
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(
+      restored.documents.map((document) => ({
+        id: document.id,
+        attestation: document.legacyImportAttestation,
+        snapshot: document.documentSnapshot,
+      })),
+    ).toEqual(expected);
+    expect(restored.documents[0].receiptDocumentId).toBe(
+      restored.documents[1].id,
+    );
+    expect(restored.documents[1].sourceDocumentId).toBe(
+      restored.documents[0].id,
+    );
+    expect(
+      restored.documents.every(
+        (document) => inspectLegacyImportAttestation(document).ok,
+      ),
+    ).toBe(true);
   });
 
   it("restaura una copia V2 válida mayor de 5 MiB sin perder su atestación", () => {

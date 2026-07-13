@@ -42,6 +42,174 @@ function sampleData(): AppData {
   };
 }
 
+function attestedHistoricalReceiptData(): AppData {
+  const invoiceId = "pcfacturacion:factura:F-2024-0001";
+  const receiptId = "pcfacturacion:recibo:R-2024-0001";
+  const profile = {
+    ...sampleData().profile,
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const historical = (
+    id: string,
+    type: Document["type"],
+    number: string,
+    date: string,
+  ): Document => ({
+    id,
+    type,
+    number,
+    date,
+    client: { name: "Cliente historico" },
+    items: [
+      {
+        id: `${id}:line:1`,
+        description: "Servicio historico",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "pagado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      capturedAt: `${date}T10:00:00.000Z`,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T10:00:00.000Z`,
+  });
+  const invoice = {
+    ...historical(invoiceId, "factura", "F-2024-0001", "2024-04-01"),
+    receiptDocumentId: receiptId,
+  };
+  const receipt = {
+    ...historical(receiptId, "recibo", "R-2024-0001", "2024-04-02"),
+    sourceDocumentId: invoiceId,
+  };
+  const data: AppData = {
+    ...sampleData(),
+    profile,
+    documents: [invoice, receipt],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar el recibo historico: ${result.reason}`);
+  }
+  return result.data;
+}
+
+function attestedHistoricalCancellationData(): AppData {
+  const originalId = "pcfacturacion:factura:F-2024-0002";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const profile = {
+    ...sampleData().profile,
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const historical = (
+    id: string,
+    number: string,
+    date: string,
+    unitPrice: number,
+  ): Document => ({
+    id,
+    type: "factura",
+    number,
+    date,
+    client: { name: "Cliente historico" },
+    items: [
+      {
+        id: `${id}:line:1`,
+        description: "Servicio historico",
+        quantity: 1,
+        unitPrice,
+        ivaPercent: 21,
+      },
+    ],
+    status: "enviado",
+    issuer: {
+      name: profile.name,
+      nif: profile.nif,
+      address: profile.address,
+      city: profile.city,
+      postalCode: profile.postalCode,
+      capturedAt: `${date}T10:00:00.000Z`,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+      ],
+    },
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T10:00:00.000Z`,
+  });
+  const original: Document = {
+    ...historical(originalId, "F-2024-0002", "2024-04-01", 100),
+    status: "anulada",
+    documentLifecycle: "canceled",
+    rectifiedById: rectificationId,
+  };
+  const rectification: Document = {
+    ...historical(
+      rectificationId,
+      "FR-2024-0001",
+      "2024-04-02",
+      -100,
+    ),
+    status: "pagado",
+    rectification: {
+      originalDocumentId: originalId,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Anulación histórica",
+      type: "anulacion",
+    },
+  };
+  const data: AppData = {
+    ...sampleData(),
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar la anulación histórica: ${result.reason}`);
+  }
+  return result.data;
+}
+
 function snapshotDocument(): Document {
   return issueDocument(
     {
@@ -156,7 +324,9 @@ describe("storage", () => {
         csv: { detected: true, verificationStatus: "PENDING_VERIFICATION" },
       },
     });
-    expect(JSON.stringify(normalized.profile.fiscalProfile)).not.toContain("PDF");
+    expect(JSON.stringify(normalized.profile.fiscalProfile)).not.toContain(
+      "PDF",
+    );
   });
 
   it("desactiva el antiguo default VeriFactu hasta un opt-in explícito", () => {
@@ -289,7 +459,9 @@ describe("storage", () => {
 
   it("clasifica SecurityError de escritura si el raw anterior sigue verificado", () => {
     const beforeRaw = JSON.stringify(sampleData());
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     vi.stubGlobal("localStorage", {
       getItem: () => beforeRaw,
       setItem: () => {
@@ -555,7 +727,9 @@ describe("storage", () => {
     };
     const rawFromAnotherTab = JSON.stringify(persistedByAnotherTab);
     const store = new Map([[STORAGE_KEY, rawFromAnotherTab]]);
-    const setItem = vi.fn((key: string, value: string) => store.set(key, value));
+    const setItem = vi.fn((key: string, value: string) =>
+      store.set(key, value),
+    );
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store.get(key) ?? null,
       setItem,
@@ -898,9 +1072,9 @@ describe("storage", () => {
     );
 
     expect(loaded.documents).toHaveLength(2);
-    expect(loaded.documents.some((document) => document.id === healthy.id)).toBe(
-      true,
-    );
+    expect(
+      loaded.documents.some((document) => document.id === healthy.id),
+    ).toBe(true);
     expect(loaded.customers).toHaveLength(1);
     expect(loaded.expenses[0]?.id).toBe("expense-preserved");
     expect(migratedLegacy?.verifactuPersistence).toBe("legacy_unverified");
@@ -983,9 +1157,7 @@ describe("storage", () => {
         dueMonth,
         dueTiming,
       })),
-    ).toEqual(
-      dueTimings.map((dueTiming) => ({ dueMonth: 2, dueTiming })),
-    );
+    ).toEqual(dueTimings.map((dueTiming) => ({ dueMonth: 2, dueTiming })));
   });
 
   it("conserva el ancla opcional de una cadencia recurrente al recargar", () => {
@@ -1234,7 +1406,9 @@ describe("storage", () => {
     localStorage.setItem(STORAGE_KEY, truncated);
 
     const loaded = loadData();
-    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as AppData;
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
 
     expect(loaded.workspaceIntegrityQuarantine?.[0]).toMatchObject({
       collection: "workspace",
@@ -1794,15 +1968,15 @@ describe("storage", () => {
       ],
     });
     expect(rolloutResidueReload.documents[0].snapshotIntegrity).toBeUndefined();
-    expect(
-      rolloutResidueReload.documents[0].legacyImportAttestation,
-    ).toEqual(expectedAttestation);
+    expect(rolloutResidueReload.documents[0].legacyImportAttestation).toEqual(
+      expectedAttestation,
+    );
     expect(
       inspectLegacyImportAttestation(rolloutResidueReload.documents[0]!),
     ).toMatchObject({ ok: true });
-    expect(documentAmounts(rolloutResidueReload.documents[0], false).total).toBe(
-      121,
-    );
+    expect(
+      documentAmounts(rolloutResidueReload.documents[0], false).total,
+    ).toBe(121);
 
     const oldClientSignalReload = normalizeLoadedData({
       ...repaired.data,
@@ -1816,10 +1990,12 @@ describe("storage", () => {
         },
       ],
     });
-    expect(oldClientSignalReload.documents[0].snapshotIntegrity).toBeUndefined();
-    expect(documentAmounts(oldClientSignalReload.documents[0], false).total).toBe(
-      121,
-    );
+    expect(
+      oldClientSignalReload.documents[0].snapshotIntegrity,
+    ).toBeUndefined();
+    expect(
+      documentAmounts(oldClientSignalReload.documents[0], false).total,
+    ).toBe(121);
 
     const actuallyCorrupt = normalizeLoadedData({
       ...repaired.data,
@@ -1888,6 +2064,67 @@ describe("storage", () => {
       status: "blocked",
       issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),
     });
+  });
+
+  it("guarda y recarga una pareja histórica V3 sin perder su vínculo ni sus huellas", () => {
+    const repaired = attestedHistoricalReceiptData();
+    const expected = repaired.documents.map((document) => ({
+      id: document.id,
+      attestation: document.legacyImportAttestation,
+      snapshot: document.documentSnapshot,
+    }));
+
+    expect(expected.map(({ attestation }) => attestation)).toEqual([
+      expect.objectContaining({ schemaVersion: 3 }),
+      expect.objectContaining({ schemaVersion: 3 }),
+    ]);
+    expect(saveData(repaired)).toEqual({ status: "applied" });
+
+    const reloaded = loadData();
+    expect(
+      reloaded.documents.map((document) => ({
+        id: document.id,
+        attestation: document.legacyImportAttestation,
+        snapshot: document.documentSnapshot,
+      })),
+    ).toEqual(expected);
+    expect(reloaded.documents[0].receiptDocumentId).toBe(
+      reloaded.documents[1].id,
+    );
+    expect(reloaded.documents[1].sourceDocumentId).toBe(
+      reloaded.documents[0].id,
+    );
+    expect(
+      reloaded.documents.every(
+        (document) => inspectLegacyImportAttestation(document).ok,
+      ),
+    ).toBe(true);
+    expect(buildLegacyImportRepairPreview(reloaded).affectedCount).toBe(0);
+  });
+
+  it("bloquea al recargar si la rectificación viva V3 ya no coincide con su snapshot", () => {
+    const repaired = attestedHistoricalCancellationData();
+    const tampered: AppData = {
+      ...repaired,
+      documents: repaired.documents.map((document, index) =>
+        index === 1 ? { ...document, rectification: undefined } : document,
+      ),
+    };
+
+    expect(saveData(tampered)).toEqual({ status: "applied" });
+    const reloaded = loadData();
+
+    expect(reloaded.documents[1].rectification).toBeUndefined();
+    expect(
+      reloaded.documents.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      reloaded.documents.map((document) => documentAmounts(document, false).total),
+    ).toEqual([0, 0]);
   });
 
   it("no limpia una señal de hash inválido aunque la atestación legacy sea válida", () => {
@@ -2051,7 +2288,9 @@ describe("storage", () => {
       "workspace_metadata:snapshot_integrity_version",
     ]);
 
-    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as AppData;
+    const persisted = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as AppData;
     expect(persisted.snapshotIntegrityVersion).toBe(1);
     expect(persisted.documents[0].snapshotSeal).toBeDefined();
 
@@ -2466,9 +2705,7 @@ describe("storage", () => {
     ) as AppData;
 
     expect(loaded.documents[0].items).toHaveLength(1);
-    expect(
-      loaded.documents[0].integrityQuarantine?.rawDocument,
-    ).toMatchObject({
+    expect(loaded.documents[0].integrityQuarantine?.rawDocument).toMatchObject({
       items: expect.arrayContaining([
         expect.objectContaining({
           id: "broken-line",
@@ -2502,9 +2739,7 @@ describe("storage", () => {
     ) as AppData;
 
     expect(loaded.profile.name).toBe("Mi negocio");
-    expect(loaded.documents.map((document) => document.id)).toEqual([
-      valid.id,
-    ]);
+    expect(loaded.documents.map((document) => document.id)).toEqual([valid.id]);
     expect(loaded.customers).toEqual([]);
     expect(loaded.workspaceIntegrityQuarantine).toEqual([
       expect.objectContaining({
@@ -2574,7 +2809,8 @@ describe("storage", () => {
     ).toBe("se conserva");
     expect(
       (
-        normalized.documents[0].documentSnapshot as Document["documentSnapshot"] & {
+        normalized.documents[0]
+          .documentSnapshot as Document["documentSnapshot"] & {
           futureSnapshotField?: { keep: boolean };
         }
       )?.futureSnapshotField,

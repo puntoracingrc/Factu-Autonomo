@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { jsPDF } from "jspdf";
 import { buildAnnualSummaryPdf } from "./export-annual-pdf";
-import { DEFAULT_PROFILE, type Document, type Expense } from "../types";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type Document,
+  type Expense,
+} from "../types";
 import { issueDocument, markDocumentPaid } from "../document-integrity";
-import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "../document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
 import { TaxExportBlockedError } from "../taxes";
 
@@ -47,6 +56,69 @@ const doc = markDocumentPaid(
   "2026-05-10T11:00:00.000Z",
 );
 
+function attestedHistoricalCorrectionDocuments(): Document[] {
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const original: Document = {
+    ...draftDoc,
+    id: originalId,
+    number: "F-2024-0001",
+    date: "2024-04-01",
+    status: "rectificada",
+    issuer: captureIssuerSnapshot(profile, "2024-04-01T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectifiedById: rectificationId,
+    ...rolloutResidue,
+  };
+  const rectification: Document = {
+    ...draftDoc,
+    id: rectificationId,
+    number: "FR-2024-0001",
+    date: "2024-04-02",
+    status: "pagado",
+    issuer: captureIssuerSnapshot(profile, "2024-04-02T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectification: {
+      originalDocumentId: originalId,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Correccion historica",
+      type: "correccion",
+    },
+    ...rolloutResidue,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la correccion historica: ${result.reason}`,
+    );
+  }
+  return result.data.documents;
+}
+
 const expense: Expense = {
   id: "e1",
   date: "2026-04-02",
@@ -87,9 +159,8 @@ function mixedVatExpense(overrides: Partial<Expense> = {}): Expense {
 }
 
 function pdfCommands(pdf: jsPDF): string {
-  const pages = (
-    pdf.internal as unknown as { pages: Array<string[] | null> }
-  ).pages;
+  const pages = (pdf.internal as unknown as { pages: Array<string[] | null> })
+    .pages;
   return pages.flatMap((page) => page ?? []).join("\n");
 }
 
@@ -306,6 +377,23 @@ describe("export annual pdf", () => {
     expect(historical.snapshotSeal).toBeUndefined();
   });
 
+  it("incluye solo la rectificativa vigente de una relación histórica V3", () => {
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf(
+        attestedHistoricalCorrectionDocuments(),
+        [],
+        profile,
+        2024,
+      ),
+    );
+
+    expect(commands).toContain("FR-2024-0001");
+    expect(commands).not.toContain("F-2024-0001");
+    expect(commands).toContain("100,00");
+    expect(commands).toContain("21,00");
+    expect(commands).toContain("121,00");
+  });
+
   it("bloquea el PDF si existe evidencia fiscal corrupta", () => {
     const blocked: Document = {
       ...doc,
@@ -358,12 +446,7 @@ describe("export annual pdf", () => {
     };
 
     const error = captureBlockedExport(() =>
-      buildAnnualSummaryPdf(
-        [linkedOriginal, rectification],
-        [],
-        profile,
-        2026,
-      ),
+      buildAnnualSummaryPdf([linkedOriginal, rectification], [], profile, 2026),
     );
 
     expect(error).toMatchObject({

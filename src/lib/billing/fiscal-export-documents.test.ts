@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentPaid } from "../document-integrity";
 import { issueDraftDocumentWithStatus } from "../document-integrity/issuance";
 import { captureIssuerSnapshot } from "../issuer-snapshot";
-import { DEFAULT_PROFILE, type Document } from "../types";
+import { DEFAULT_PROFILE, EMPTY_DATA, type Document } from "../types";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
-import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "../document-integrity/legacy-import-attestation";
 
 const NOW = "2026-07-11T10:00:00.000Z";
 const profile = {
@@ -71,6 +75,71 @@ function select(documents: Document[]) {
   );
 }
 
+function attestedHistoricalCorrectionDocuments(): Document[] {
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const original: Document = {
+    ...invoiceDraft({
+      id: originalId,
+      number: "F-2024-0001",
+      date: "2024-04-01",
+    }),
+    status: "rectificada",
+    issuer: captureIssuerSnapshot(profile, "2024-04-01T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectifiedById: rectificationId,
+    ...rolloutResidue,
+  };
+  const rectification: Document = {
+    ...invoiceDraft({
+      id: rectificationId,
+      number: "FR-2024-0001",
+      date: "2024-04-02",
+      rectification: {
+        originalDocumentId: originalId,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Correccion historica",
+        type: "correccion",
+      },
+    }),
+    status: "enviado",
+    issuer: captureIssuerSnapshot(profile, "2024-04-02T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    ...rolloutResidue,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la correccion historica: ${result.reason}`,
+    );
+  }
+  return result.data.documents;
+}
+
 describe("selectCanonicalFiscalDocumentsForExport", () => {
   it("selecciona un histórico importado atestado sin exigir PDF ni sello moderno", () => {
     const imported = attestNewImportedDocument(
@@ -96,6 +165,33 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     expect(result.documents[0].documentSnapshot?.taxSummary.total).toBe(121);
     expect(imported.pdfSnapshot).toBeUndefined();
     expect(imported.snapshotSeal).toBeUndefined();
+  });
+
+  it("conserva la cadena V3 para seleccionar la rectificativa vigente sin bloquear", () => {
+    const documents = attestedHistoricalCorrectionDocuments();
+    const result = select(documents);
+
+    expect(result.blockedDocuments).toEqual([]);
+    expect(result.documents.map((document) => document.id)).toEqual([
+      "pcfacturacion:factura:F-2024-0001",
+      "pcfacturacion:factura:FR-2024-0001",
+    ]);
+    const rectification = result.documents.find(
+      (document) => document.id === "pcfacturacion:factura:FR-2024-0001",
+    );
+    expect(rectification?.legacyImportAttestation).toMatchObject({
+      schemaVersion: 3,
+      relationshipGroup: {
+        kind: "rectification_correction",
+        role: "rectification",
+        counterpartDocumentId: "pcfacturacion:factura:F-2024-0001",
+      },
+    });
+    expect(rectification?.documentSnapshot?.taxSummary).toMatchObject({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
   });
 
   it("exporta un V2 aceptado aunque conserve campos históricos incompletos", () => {
@@ -204,10 +300,7 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
   );
 
   it("bloquea un snapshot legacy con emisor incompleto aunque el perfil vivo esté completo", () => {
-    const legacy = legacyFiscalDocument(
-      {},
-      { ...profile, address: "" },
-    );
+    const legacy = legacyFiscalDocument({}, { ...profile, address: "" });
 
     const result = select([legacy]);
 
@@ -436,10 +529,9 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     );
 
     expect(result.documents).toHaveLength(0);
-    expect(result.blockedDocuments.map((document) => document.id).sort()).toEqual([
-      first.id,
-      second.id,
-    ]);
+    expect(
+      result.blockedDocuments.map((document) => document.id).sort(),
+    ).toEqual([first.id, second.id]);
     expect(
       result.blockedDocuments.every((document) =>
         document.issues.includes("document_relationship_invalid"),
@@ -756,12 +848,9 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
       collidingLegacyInvoice,
     ]);
 
-    expect(
-      result.blockedDocuments.map((document) => document.id),
-    ).toEqual(expect.arrayContaining([
-      cancellation.id,
-      collidingLegacyInvoice.id,
-    ]));
+    expect(result.blockedDocuments.map((document) => document.id)).toEqual(
+      expect.arrayContaining([cancellation.id, collidingLegacyInvoice.id]),
+    );
     expect(
       result.blockedDocuments
         .filter((document) =>

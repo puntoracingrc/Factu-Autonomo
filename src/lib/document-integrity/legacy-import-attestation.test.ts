@@ -24,7 +24,9 @@ import {
   applyLegacyImportRepair,
   attestNewImportedDocument,
   buildLegacyImportRepairPreview,
+  detectLegacyImportSource,
   hasLegacyImportProtectionClaim,
+  inspectLegacyImportRelationshipCollection,
   inspectLegacyImportAttestation,
   isDocumentUsableForFinancialCalculations,
   projectLegacyImportSnapshotOntoDocument,
@@ -41,9 +43,7 @@ const PROFILE: BusinessProfile = {
   email: "negocio@example.test",
 };
 
-function importedDocument(
-  id = "pcfacturacion:factura:F-2024-0001",
-): Document {
+function importedDocument(id = "pcfacturacion:factura:F-2024-0001"): Document {
   const capturedAt = "2024-04-01T10:00:00.000Z";
   return {
     id,
@@ -103,6 +103,80 @@ function appData(documents: Document[]): AppData {
   };
 }
 
+function historicalCorrectionPair(): [Document, Document] {
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const original: Document = {
+    ...importedDocument("pcfacturacion:factura:F-2024-0001"),
+    status: "rectificada",
+    rectifiedById: rectificationId,
+  };
+  const rectification: Document = {
+    ...importedDocument(rectificationId),
+    number: "FR-2024-0001",
+    date: "2024-04-02",
+    client: {
+      ...original.client,
+      name: "Cliente histórico corregido",
+    },
+    rectification: {
+      originalDocumentId: original.id,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Corrección de datos del cliente",
+      type: "correccion",
+    },
+  };
+  return [original, rectification];
+}
+
+function historicalCancellationPair(): [Document, Document] {
+  const rectificationId = "pcfacturacion:factura:FR-2024-0002";
+  const original: Document = {
+    ...importedDocument("pcfacturacion:factura:F-2024-0002"),
+    number: "F-2024-0002",
+    status: "anulada",
+    documentLifecycle: "canceled",
+    rectifiedById: rectificationId,
+  };
+  const rectification: Document = {
+    ...importedDocument(rectificationId),
+    number: "FR-2024-0002",
+    date: "2024-04-03",
+    items: original.items.map((item) => ({
+      ...item,
+      id: `cancel-${item.id}`,
+      unitPrice: -item.unitPrice,
+    })),
+    rectification: {
+      originalDocumentId: original.id,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Anulación completa",
+      type: "anulacion",
+    },
+  };
+  return [original, rectification];
+}
+
+function historicalReceiptPair(): [Document, Document] {
+  const receiptId = "pcfacturacion:recibo:R-2024-0001";
+  const invoice: Document = {
+    ...importedDocument("pcfacturacion:factura:F-2024-0003"),
+    number: "F-2024-0003",
+    status: "pagado",
+    receiptDocumentId: receiptId,
+  };
+  const receipt: Document = {
+    ...importedDocument(receiptId),
+    type: "recibo",
+    number: "R-2024-0001",
+    date: "2024-04-04",
+    status: "pagado",
+    sourceDocumentId: invoice.id,
+  };
+  return [invoice, receipt];
+}
+
 describe("legacy imported document attestation", () => {
   it("repara de forma explícita un histórico PCF v2 sin fabricar PDF ni sello", () => {
     const before = appData([importedDocument()]);
@@ -111,6 +185,7 @@ describe("legacy imported document attestation", () => {
     expect(preview.affectedCount).toBe(1);
     expect(preview.manualReview).toEqual([]);
     expect(preview.schemaVersion).toBe(2);
+    expect(preview.relationshipGroups).toEqual([]);
     expect(preview.candidates[0]).toMatchObject({
       issuerOrigin: "current_profile_at_import",
       completenessExceptions: [],
@@ -124,6 +199,7 @@ describe("legacy imported document attestation", () => {
     );
     expect(result.status).toBe("applied");
     if (result.status !== "applied") return;
+    expect(result.appliedRelationshipGroupFingerprints).toEqual([]);
 
     const repaired = result.data.documents[0];
     expect(repaired.documentSnapshot?.source).toBe("legacy_import_attested");
@@ -180,12 +256,389 @@ describe("legacy imported document attestation", () => {
     expect(repaired.snapshotSeal).toBeUndefined();
     expect(repaired.snapshotIntegrityRequired).toBeUndefined();
     expect(repaired.snapshotIntegrity).toBeUndefined();
-    expect(inspectLegacyImportAttestation(repaired)).toMatchObject({ ok: true });
+    expect(inspectLegacyImportAttestation(repaired)).toMatchObject({
+      ok: true,
+    });
     expect(isDocumentEditable(repaired)).toBe(false);
 
     const replay = buildLegacyImportRepairPreview(result.data);
     expect(replay.affectedCount).toBe(0);
     expect(replay.alreadyAttestedDocumentIds).toEqual([repaired.id]);
+  });
+
+  it.each([
+    [
+      "corrección positiva",
+      historicalCorrectionPair,
+      "rectification_correction",
+    ],
+    [
+      "anulación exacta",
+      historicalCancellationPair,
+      "rectification_cancellation",
+    ],
+    ["factura y recibo", historicalReceiptPair, "invoice_receipt"],
+  ] as const)(
+    "atesta como grupo V3 una pareja histórica inequívoca: %s",
+    (_label, buildPair, expectedRelation) => {
+      const before = appData([...buildPair()]);
+      const preview = buildLegacyImportRepairPreview(before);
+
+      expect(preview.schemaVersion).toBe(3);
+      expect(preview.affectedCount).toBe(2);
+      expect(preview.manualReview).toEqual([]);
+      expect(preview.relationshipGroups).toHaveLength(1);
+      expect(preview.relationshipGroups[0]).toMatchObject({
+        relation: expectedRelation,
+        groupFingerprint: expect.stringMatching(/^sha256:/),
+        documentIds: before.documents.map((document) => document.id),
+        documentNumbers: before.documents.map((document) => document.number),
+      });
+
+      const result = applyLegacyImportRepair(
+        before,
+        preview,
+        "2026-07-13T09:00:00.000Z",
+      );
+      expect(result.status).toBe("applied");
+      if (result.status !== "applied") return;
+      expect(result.appliedDocumentIds).toEqual(
+        before.documents.map((document) => document.id),
+      );
+      expect(result.appliedRelationshipGroupFingerprints).toEqual([
+        preview.relationshipGroups[0].groupFingerprint,
+      ]);
+      expect(
+        result.data.documents.every(
+          (document) =>
+            document.legacyImportAttestation?.schemaVersion === 3 &&
+            inspectLegacyImportAttestation(document).ok,
+        ),
+      ).toBe(true);
+      const relationshipInspection = inspectLegacyImportRelationshipCollection(
+        result.data.documents,
+      );
+      expect([...relationshipInspection.validDocumentIds].sort()).toEqual(
+        before.documents.map((document) => document.id).sort(),
+      );
+      expect(
+        withDocumentRelationshipIntegritySignals(result.data.documents).every(
+          (document) => !document.snapshotIntegrity,
+        ),
+      ).toBe(true);
+      const replay = buildLegacyImportRepairPreview(result.data);
+      expect(replay.affectedCount).toBe(0);
+      expect(replay.alreadyAttestedDocumentIds.sort()).toEqual(
+        before.documents.map((document) => document.id).sort(),
+      );
+    },
+  );
+
+  it("solo admite el namespace recibo al quedar protegido por un V3 válido", () => {
+    const before = appData([...historicalReceiptPair()]);
+    expect(detectLegacyImportSource(before.documents[1])).toBeNull();
+    expect(before.documents[1].legacyImportAttestation).toBeUndefined();
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-13T09:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.documents[1].legacyImportAttestation).toMatchObject({
+      schemaVersion: 3,
+      relationshipGroup: { role: "receipt" },
+    });
+    expect(detectLegacyImportSource(result.data.documents[1])).toBe(
+      "pcfacturacion",
+    );
+    expect(inspectLegacyImportAttestation(result.data.documents[1]).ok).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["rectificativa huérfana", () => [historicalCorrectionPair()[1]]],
+    [
+      "relación no recíproca",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [{ ...original, rectifiedById: undefined }, rectification];
+      },
+    ],
+    [
+      "corrección con importes distintos",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          original,
+          {
+            ...rectification,
+            items: rectification.items.map((item) => ({
+              ...item,
+              unitPrice: item.unitPrice + 1,
+            })),
+          },
+        ];
+      },
+    ],
+    [
+      "recibo con contenido distinto",
+      () => {
+        const [invoice, receipt] = historicalReceiptPair();
+        return [
+          invoice,
+          {
+            ...receipt,
+            items: receipt.items.map((item) => ({ ...item, quantity: 2 })),
+          },
+        ];
+      },
+    ],
+    [
+      "evidencia moderna presente",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          original,
+          { ...rectification, snapshotSeal: { schemaVersion: 1 } as never },
+        ];
+      },
+    ],
+    [
+      "VeriFactu presente",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          original,
+          {
+            ...rectification,
+            verifactuPersistence: "legacy_unverified" as const,
+          },
+        ];
+      },
+    ],
+    [
+      "cuarentena presente",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          original,
+          {
+            ...rectification,
+            integrityQuarantine: {
+              reason: "malformed_document" as const,
+              rawDocument: {},
+            },
+          },
+        ];
+      },
+    ],
+    [
+      "rectificativa con emisor distinto",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          original,
+          {
+            ...rectification,
+            issuer: { ...rectification.issuer!, nif: "B87654321" },
+          },
+        ];
+      },
+    ],
+    [
+      "recibo con emisor distinto",
+      () => {
+        const [invoice, receipt] = historicalReceiptPair();
+        return [
+          invoice,
+          { ...receipt, issuer: { ...receipt.issuer!, nif: "B87654321" } },
+        ];
+      },
+    ],
+    [
+      "rectificativa sin estado operativo",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [original, { ...rectification, status: "rectificada" as const }];
+      },
+    ],
+    [
+      "original con relación lateral huérfana",
+      () => {
+        const [original, rectification] = historicalCorrectionPair();
+        return [
+          { ...original, receiptDocumentId: "receipt-missing" },
+          rectification,
+        ];
+      },
+    ],
+    [
+      "recibo con relación lateral extra",
+      () => {
+        const [invoice, receipt] = historicalReceiptPair();
+        return [
+          invoice,
+          { ...receipt, rectifiedById: "rectification-missing" },
+        ];
+      },
+    ],
+  ] as Array<[string, () => Document[]]>)(
+    "deja en revisión y no atesta una relación histórica ambigua: %s",
+    (_label, build) => {
+      const preview = buildLegacyImportRepairPreview(appData(build()));
+      expect(preview.relationshipGroups).toEqual([]);
+      expect(preview.affectedCount).toBe(0);
+      expect(preview.manualReview.length).toBeGreaterThan(0);
+    },
+  );
+
+  it("explica ambos miembros si una colisión fiscal invalida el grupo", () => {
+    const [original, rectification] = historicalCorrectionPair();
+    const collision: Document = {
+      ...original,
+      id: "app-issued-duplicate-identity",
+      rectifiedById: undefined,
+      status: "enviado",
+      integrityLock: "unlocked",
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+    const preview = buildLegacyImportRepairPreview(
+      appData([original, rectification, collision]),
+    );
+    expect(preview.relationshipGroups).toEqual([]);
+    expect(preview.affectedCount).toBe(0);
+    expect(
+      preview.manualReview.find((item) => item.documentId === original.id)
+        ?.reasons,
+    ).toEqual(
+      expect.arrayContaining([
+        "duplicate_fiscal_identity",
+        "unsupported_historical_relation",
+      ]),
+    );
+    expect(
+      preview.manualReview.find((item) => item.documentId === rectification.id)
+        ?.reasons,
+    ).toContain("unsupported_historical_relation");
+  });
+
+  it("bloquea atómicamente una vista V3 stale", () => {
+    const before = appData([...historicalReceiptPair()]);
+    const preview = buildLegacyImportRepairPreview(before);
+    const changed: AppData = {
+      ...before,
+      documents: before.documents.map((document, index) =>
+        index === 0 ? { ...document, notes: "Cambio posterior" } : document,
+      ),
+    };
+    expect(applyLegacyImportRepair(changed, preview)).toEqual({
+      status: "blocked",
+      reason: "stale_preview",
+    });
+    expect(
+      changed.documents.every(
+        (document) => document.legacyImportAttestation === undefined,
+      ),
+    ).toBe(true);
+  });
+
+  it("bloquea ambos extremos si un V3 se queda huérfano o su hash cruzado cambia", () => {
+    const before = appData([...historicalReceiptPair()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-13T09:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    const orphanInspection = inspectLegacyImportRelationshipCollection([
+      result.data.documents[0],
+    ]);
+    expect(orphanInspection.validDocumentIds.size).toBe(0);
+    const [orphan] = withDocumentRelationshipIntegritySignals([
+      result.data.documents[0],
+    ]);
+    expect(orphan.snapshotIntegrity?.issues).toContain(
+      "document_relationship_invalid",
+    );
+
+    const tampered = structuredClone(result.data.documents);
+    const attestation = tampered[1].legacyImportAttestation!;
+    if (attestation.schemaVersion !== 3) return;
+    attestation.relationshipGroup.relationshipHash = "sha256:tampered";
+    const payload = { ...attestation } as Record<string, unknown>;
+    delete payload.attestationHash;
+    attestation.attestationHash = `sha256:${sha256Hex(
+      stableStringifySnapshot(payload),
+    )}`;
+    const checked = withDocumentRelationshipIntegritySignals(tampered);
+    expect(
+      checked.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("bloquea ambos extremos si cambia la rectificación viva aunque el snapshot siga intacto", () => {
+    const before = appData([...historicalCorrectionPair()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-13T09:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    const tampered = structuredClone(result.data.documents);
+    tampered[1].rectification = undefined;
+
+    expect(inspectLegacyImportAttestation(tampered[1]).ok).toBe(false);
+    const checked = withDocumentRelationshipIntegritySignals(tampered);
+    expect(
+      checked.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("recalcula la huella del grupo y bloquea una sustitución coordinada", () => {
+    const before = appData([...historicalReceiptPair()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-13T09:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+
+    const tampered = structuredClone(result.data.documents);
+    for (const document of tampered) {
+      const attestation = document.legacyImportAttestation;
+      if (!attestation || attestation.schemaVersion !== 3) return;
+      attestation.relationshipGroup.groupFingerprint = "sha256:tampered";
+      const payload = { ...attestation } as Record<string, unknown>;
+      delete payload.attestationHash;
+      attestation.attestationHash = `sha256:${sha256Hex(
+        stableStringifySnapshot(payload),
+      )}`;
+    }
+
+    const checked = withDocumentRelationshipIntegritySignals(tampered);
+    expect(
+      checked.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("la proyección fiscal nunca borra un bloqueo relacional posterior", () => {
@@ -348,9 +801,7 @@ describe("legacy imported document attestation", () => {
                 importedAt: "2026-07-01T10:00:00.000Z",
               },
             };
-    const preview = buildLegacyImportRepairPreview(
-      appData([historical]),
-    );
+    const preview = buildLegacyImportRepairPreview(appData([historical]));
     expect(preview.candidates[0]?.importer).toBe(importer);
   });
 
@@ -484,9 +935,7 @@ describe("legacy imported document attestation", () => {
       },
     };
 
-    const preview = buildLegacyImportRepairPreview(
-      appData([holdedHistorical]),
-    );
+    const preview = buildLegacyImportRepairPreview(appData([holdedHistorical]));
 
     expect(preview.affectedCount).toBe(1);
     expect(preview.candidates[0]).toMatchObject({
@@ -539,9 +988,9 @@ describe("legacy imported document attestation", () => {
       },
     };
 
-    expect(buildLegacyImportRepairPreview(appData([residue])).affectedCount).toBe(
-      1,
-    );
+    expect(
+      buildLegacyImportRepairPreview(appData([residue])).affectedCount,
+    ).toBe(1);
     expect(
       buildLegacyImportRepairPreview(appData([historical])).affectedCount,
     ).toBe(0);
@@ -587,7 +1036,9 @@ describe("legacy imported document attestation", () => {
 
     expect(preview).toMatchObject({
       affectedCount: 1,
-      candidates: [{ documentId: "legacy-stable-id", importer: "pcfacturacion" }],
+      candidates: [
+        { documentId: "legacy-stable-id", importer: "pcfacturacion" },
+      ],
     });
     const result = applyLegacyImportRepair(
       before,
@@ -604,9 +1055,7 @@ describe("legacy imported document attestation", () => {
       provenanceRecordedAt: "2026-07-13T08:00:00.000Z",
       issuerOrigin: "current_profile_at_import",
     });
-    expect(
-      result.data.documents[0].legacyImportAttestation,
-    ).toMatchObject({
+    expect(result.data.documents[0].legacyImportAttestation).toMatchObject({
       schemaVersion: 2,
       attestedAt: "2026-07-13T08:00:00.000Z",
       importProvenance: {
@@ -659,9 +1108,7 @@ describe("legacy imported document attestation", () => {
       snapshotIntegrity: { status: "blocked", issues: [] },
     };
 
-    const preview = buildLegacyImportRepairPreview(
-      appData([malformedSignal]),
-    );
+    const preview = buildLegacyImportRepairPreview(appData([malformedSignal]));
 
     expect(preview.affectedCount).toBe(0);
     expect(preview.manualReview[0]?.reasons).toContain(
@@ -754,9 +1201,7 @@ describe("legacy imported document attestation", () => {
         issuer: { ...historical.issuer!, nif: "" },
       };
     };
-    const first = withoutIssuerNif(
-      "pcfacturacion:factura:F-2024-0001",
-    );
+    const first = withoutIssuerNif("pcfacturacion:factura:F-2024-0001");
     const second = withoutIssuerNif("pcfacturacion:factura:row-2");
 
     const preview = buildLegacyImportRepairPreview(appData([first, second]));
@@ -843,11 +1288,13 @@ describe("legacy imported document attestation", () => {
     expect(result.status).toBe("applied");
     if (result.status !== "applied") return;
 
-    expect(result.data.documents[0].documentSnapshot?.taxSummary).toMatchObject({
-      subtotal: 100,
-      iva: 21,
-      total: 121,
-    });
+    expect(result.data.documents[0].documentSnapshot?.taxSummary).toMatchObject(
+      {
+        subtotal: 100,
+        iva: 21,
+        total: 121,
+      },
+    );
     expect(result.data.documents[0].items[0].unitPrice).toBe(100);
     expect(result.data.documents[0].documentSnapshot).toEqual(frozen);
     expect(documentAmounts(result.data.documents[0], false).total).toBe(121);
@@ -889,9 +1336,9 @@ describe("legacy imported document attestation", () => {
       ...residue,
       documentSnapshot: { ...frozen, snapshotHash: "sha256:corrupt" },
     };
-    expect(buildLegacyImportRepairPreview(appData([corrupt])).affectedCount).toBe(
-      0,
-    );
+    expect(
+      buildLegacyImportRepairPreview(appData([corrupt])).affectedCount,
+    ).toBe(0);
 
     const liveRectification: Document = {
       ...residue,
@@ -1147,12 +1594,12 @@ describe("legacy imported document attestation", () => {
     expect(canConvertQuoteToInvoice(tampered)).toBe(false);
     expect(canMarkQuoteAsAccepted(tampered)).toBe(false);
     expect(canMarkQuoteAsRejected(tampered)).toBe(false);
-    expect(
-      canUnmarkQuoteAsAccepted({ ...tampered, status: "aceptado" }),
-    ).toBe(false);
-    expect(
-      canUnmarkQuoteAsRejected({ ...tampered, status: "rechazado" }),
-    ).toBe(false);
+    expect(canUnmarkQuoteAsAccepted({ ...tampered, status: "aceptado" })).toBe(
+      false,
+    );
+    expect(canUnmarkQuoteAsRejected({ ...tampered, status: "rechazado" })).toBe(
+      false,
+    );
   });
 
   it("convierte las carencias formales históricas en avisos sin perder importes", () => {
@@ -1211,42 +1658,40 @@ describe("legacy imported document attestation", () => {
       iva: 21,
       total: 121,
     });
-    expect(inspectLegacyImportAttestation(result.data.documents[0])).toMatchObject(
-      { ok: true },
-    );
+    expect(
+      inspectLegacyImportAttestation(result.data.documents[0]),
+    ).toMatchObject({ ok: true });
   });
 
   it.each([
     ["IVA histórico inusual", 100, 101, 201],
     ["importe histórico negativo", -100, 21, -121],
-  ])("acepta %s si el usuario confirma las cifras almacenadas", (
-    _label,
-    unitPrice,
-    ivaPercent,
-    expectedTotal,
-  ) => {
-    const historical = {
-      ...importedDocument(),
-      items: [
-        {
-          id: "historical-line",
-          description: "Importe presentado históricamente",
-          quantity: 1,
-          unitPrice,
-          ivaPercent,
-        },
-      ],
-    };
-    const before = appData([historical]);
-    const preview = buildLegacyImportRepairPreview(before);
-    expect(preview.affectedCount).toBe(1);
-    const result = applyLegacyImportRepair(before, preview);
-    expect(result.status).toBe("applied");
-    if (result.status !== "applied") return;
-    expect(documentAmounts(result.data.documents[0], false).total).toBe(
-      expectedTotal,
-    );
-  });
+  ])(
+    "acepta %s si el usuario confirma las cifras almacenadas",
+    (_label, unitPrice, ivaPercent, expectedTotal) => {
+      const historical = {
+        ...importedDocument(),
+        items: [
+          {
+            id: "historical-line",
+            description: "Importe presentado históricamente",
+            quantity: 1,
+            unitPrice,
+            ivaPercent,
+          },
+        ],
+      };
+      const before = appData([historical]);
+      const preview = buildLegacyImportRepairPreview(before);
+      expect(preview.affectedCount).toBe(1);
+      const result = applyLegacyImportRepair(before, preview);
+      expect(result.status).toBe("applied");
+      if (result.status !== "applied") return;
+      expect(documentAmounts(result.data.documents[0], false).total).toBe(
+        expectedTotal,
+      );
+    },
+  );
 
   it.each([
     { items: [] },
@@ -1337,8 +1782,7 @@ describe("legacy imported document attestation", () => {
     const { attestationHash: previousHash, ...payload } =
       invalidEvidence.legacyImportAttestation!;
     expect(previousHash).toMatch(/^sha256:/);
-    invalidEvidence.legacyImportAttestation!.attestationHash =
-      `sha256:${sha256Hex(stableStringifySnapshot(payload))}`;
+    invalidEvidence.legacyImportAttestation!.attestationHash = `sha256:${sha256Hex(stableStringifySnapshot(payload))}`;
     expect(inspectLegacyImportAttestation(invalidEvidence).ok).toBe(false);
   });
 

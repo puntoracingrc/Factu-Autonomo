@@ -13,6 +13,7 @@ type DomainBlockedResult = Extract<
 
 export interface AppliedLegacyImportRepair {
   appliedDocumentIds: string[];
+  appliedRelationshipGroupFingerprints: string[];
 }
 
 export type DurableLegacyImportRepairResult =
@@ -42,6 +43,10 @@ export function runLegacyImportRepairCommand(input: {
 
   return input.commit(input.expected, () => ({
     data: transition.data,
-    value: { appliedDocumentIds: transition.appliedDocumentIds },
+    value: {
+      appliedDocumentIds: transition.appliedDocumentIds,
+      appliedRelationshipGroupFingerprints:
+        transition.appliedRelationshipGroupFingerprints,
+    },
   }));
 }
