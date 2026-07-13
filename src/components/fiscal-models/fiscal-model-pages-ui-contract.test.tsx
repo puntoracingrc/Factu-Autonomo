@@ -181,8 +181,15 @@ describe("fiscal model structural review pages UI contract", () => {
     );
     expect(officialVisual).toContain("Procedimiento AEAT");
     expect(officialVisual).toContain("Información oficial de la AEAT");
+    expect(officialVisual).toContain("Formulario web descrito por la AEAT");
+    expect(officialVisual).toContain("Carga de fichero descrita por la AEAT");
+    expect(officialVisual).toContain("Servicio web descrito por la AEAT");
+    expect(officialVisual).toContain("Servicio web previsto por la AEAT");
+    expect(officialVisual).toContain("Procedimiento histórico de la AEAT");
     expect(officialVisual).toContain('role="img"');
-    expect(officialVisual).toContain("aria-label={accessibleLabel}");
+    expect(officialVisual).toContain(
+      "aria-label={visualCopy.accessibleLabel}",
+    );
     expect(officialVisual).not.toContain("href=");
     expect(officialVisual).not.toMatch(/\bfetch\s*\(/);
     expect(detail).toContain("FiscalModelOfficialContentView");

@@ -75,6 +75,16 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("consumo energia electrica")).toContain("159");
     expect(resultCodes("entidades nueva creacion")).toContain("165");
     expect(resultCodes("pagos asociados telefono movil")).toContain("170");
+    expect(resultCodes("imposiciones disposiciones fondos")).toContain("171");
+    expect(resultCodes("saldos monedas virtuales")).toContain("172");
+    expect(resultCodes("operaciones monedas virtuales")).toContain("173");
+    expect(resultCodes("todo tipo tarjetas")).toContain("174");
+    expect(resultCodes("viviendas fines turisticos")).toContain("179");
+    expect(resultCodes("arrendamiento inmuebles urbanos")).toContain("180");
+    expect(resultCodes("prestamos creditos inmuebles")).toContain("181");
+    expect(resultCodes("donativos aportaciones recibidas")).toContain("182");
+    expect(resultCodes("atribucion rentas anual")).toContain("184");
+    expect(resultCodes("cotizaciones afiliados mutualistas")).toContain("185");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {

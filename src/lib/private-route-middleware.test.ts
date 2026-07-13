@@ -97,8 +97,8 @@ describe("private route middleware", () => {
     }
   });
 
-  it("retira noindex únicamente del índice y las cuarenta y una fichas contrastadas", () => {
-    expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(42);
+  it("retira noindex únicamente del índice y las cincuenta y una fichas contrastadas", () => {
+    expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(52);
     for (const pathname of PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1) {
       const response = middleware(
         new NextRequest("https://facturacion-autonomos.app" + pathname),
@@ -111,8 +111,8 @@ describe("private route middleware", () => {
     }
     for (const pathname of [
       "/consultor-fiscal/modelos/037",
-      "/consultor-fiscal/modelos/171",
-      "/consultor-fiscal/modelos/180",
+      "/consultor-fiscal/modelos/186",
+      "/consultor-fiscal/modelos/187",
       "/consultor-fiscal/modelos/303",
     ]) {
       expect(

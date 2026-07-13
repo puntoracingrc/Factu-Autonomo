@@ -102,6 +102,24 @@ export interface PublicAeatOfficialContentExternalNavigationV1 {
   readonly policy: "EXTERNAL_INFORMATIONAL_NAVIGATION_ONLY";
 }
 
+export type PublicAeatOfficialAccessMethodV1 =
+  | "BROWSER_FORM"
+  | "FILE_UPLOAD"
+  | "WEB_SERVICE";
+
+export interface PublicAeatOfficialAccessMethodsV1 {
+  readonly methods: readonly [
+    PublicAeatOfficialAccessMethodV1,
+    ...PublicAeatOfficialAccessMethodV1[],
+  ];
+  readonly status:
+    | "SOURCE_DESCRIBED"
+    | "SOURCE_DESCRIBED_FUTURE"
+    | "SOURCE_DESCRIBED_HISTORICAL";
+  readonly sourceIds: readonly [string, ...string[]];
+  readonly semantics: "OFFICIAL_INFORMATION_ONLY";
+}
+
 export interface PublicAeatOfficialContentFaqItemV1 {
   readonly id: string;
   readonly question: string;
@@ -137,6 +155,7 @@ export interface PublicAeatOfficialModelContentV1<Code extends string = string> 
     PublicAeatOfficialContentFaqItemV1,
     ...PublicAeatOfficialContentFaqItemV1[],
   ];
+  readonly accessMethods?: PublicAeatOfficialAccessMethodsV1;
   readonly externalNavigation:
     | PublicAeatOfficialContentExternalNavigationV1
     | null;

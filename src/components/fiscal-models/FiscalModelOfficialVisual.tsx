@@ -1,5 +1,14 @@
 import Image from "next/image";
-import { Globe2, Landmark, Monitor, MousePointer2 } from "lucide-react";
+import {
+  CalendarClock,
+  Code2,
+  FileUp,
+  Globe2,
+  History,
+  Landmark,
+  Monitor,
+  MousePointer2,
+} from "lucide-react";
 import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
 import { resolveFiscalModelOfficialVisualMode } from "./fiscal-model-official-visual";
 
@@ -32,17 +41,70 @@ export function FiscalModelOfficialVisual({
     );
   }
 
-  const electronicOffice = mode === "AEAT_ELECTRONIC_OFFICE";
-  const accessibleLabel = electronicOffice
-    ? "Información del procedimiento en la sede electrónica de la AEAT"
-    : "Información oficial de la AEAT";
+  const visualCopy = (() => {
+    switch (mode) {
+      case "AEAT_BROWSER_FORM":
+        return {
+          accessibleLabel: "Formulario web descrito por la AEAT",
+          label: "Formulario web",
+        };
+      case "AEAT_FILE_UPLOAD":
+        return {
+          accessibleLabel: "Carga de fichero descrita por la AEAT",
+          label: "Carga de fichero",
+        };
+      case "AEAT_WEB_SERVICE":
+        return {
+          accessibleLabel: "Servicio web descrito por la AEAT",
+          label: "Servicio web",
+        };
+      case "AEAT_FORM_AND_FILE":
+        return {
+          accessibleLabel:
+            "Formulario web y carga de fichero descritos por la AEAT",
+          label: "Web y fichero",
+        };
+      case "AEAT_FUTURE_SERVICE":
+        return {
+          accessibleLabel: "Servicio web previsto por la AEAT",
+          label: "Servicio previsto",
+        };
+      case "AEAT_HISTORICAL_PROCEDURE":
+        return {
+          accessibleLabel: "Procedimiento histórico de la AEAT",
+          label: "Histórico AEAT",
+        };
+      case "AEAT_ELECTRONIC_OFFICE":
+        return {
+          accessibleLabel:
+            "Información del procedimiento en la sede electrónica de la AEAT",
+          label: "Procedimiento AEAT",
+        };
+      default:
+        return {
+          accessibleLabel: "Información oficial de la AEAT",
+          label: "Información AEAT",
+        };
+    }
+  })();
+
+  const iconClassName = compact
+    ? "h-7 w-7"
+    : "h-7 w-7 sm:h-12 sm:w-12";
+  const accentIconClassName = `absolute -bottom-1 -right-2 fill-white text-blue-700 dark:fill-slate-900 dark:text-blue-200 ${compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 sm:h-5 sm:w-5"}`;
+  const surfaceClassName =
+    mode === "AEAT_HISTORICAL_PROCEDURE"
+      ? "from-slate-100 via-white to-slate-200 text-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-800 dark:text-slate-100"
+      : mode === "AEAT_FUTURE_SERVICE"
+        ? "from-amber-50 via-white to-orange-100 text-amber-950 dark:from-amber-950 dark:via-slate-950 dark:to-orange-950 dark:text-amber-100"
+        : "from-blue-50 via-white to-sky-100 text-blue-950 dark:from-blue-950 dark:via-slate-900 dark:to-sky-950 dark:text-blue-100";
 
   return (
     <div className={frameClassName}>
       <div
         role="img"
-        aria-label={accessibleLabel}
-        className="relative flex aspect-square w-full flex-col overflow-hidden rounded-[0.6rem] bg-gradient-to-br from-blue-50 via-white to-sky-100 text-blue-950 dark:from-blue-950 dark:via-slate-900 dark:to-sky-950 dark:text-blue-100"
+        aria-label={visualCopy.accessibleLabel}
+        className={`relative flex aspect-square w-full flex-col overflow-hidden rounded-[0.6rem] bg-gradient-to-br ${surfaceClassName}`}
       >
         <div
           className={`flex items-center gap-1 border-b border-blue-200/80 bg-white/80 dark:border-blue-800 dark:bg-slate-950/70 ${compact ? "h-4 px-1.5" : "h-4 px-1.5 sm:h-7 sm:px-2.5"}`}
@@ -54,15 +116,25 @@ export function FiscalModelOfficialVisual({
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
           <div className="relative" aria-hidden="true">
-            {electronicOffice ? (
+            {mode === "AEAT_BROWSER_FORM" ||
+            mode === "AEAT_ELECTRONIC_OFFICE" ? (
               <>
-                <Monitor
-                  className={compact ? "h-7 w-7" : "h-7 w-7 sm:h-12 sm:w-12"}
-                />
-                <MousePointer2
-                  className={`absolute -bottom-1 -right-2 fill-white text-blue-700 dark:fill-slate-900 dark:text-blue-200 ${compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 sm:h-5 sm:w-5"}`}
-                />
+                <Monitor className={iconClassName} />
+                <MousePointer2 className={accentIconClassName} />
               </>
+            ) : mode === "AEAT_FILE_UPLOAD" ? (
+              <FileUp className={iconClassName} />
+            ) : mode === "AEAT_WEB_SERVICE" ? (
+              <Code2 className={iconClassName} />
+            ) : mode === "AEAT_FORM_AND_FILE" ? (
+              <>
+                <Monitor className={iconClassName} />
+                <FileUp className={accentIconClassName} />
+              </>
+            ) : mode === "AEAT_FUTURE_SERVICE" ? (
+              <CalendarClock className={iconClassName} />
+            ) : mode === "AEAT_HISTORICAL_PROCEDURE" ? (
+              <History className={iconClassName} />
             ) : (
               <div className="relative">
                 <Landmark
@@ -78,7 +150,7 @@ export function FiscalModelOfficialVisual({
             aria-hidden="true"
             className={`font-black uppercase tracking-wide ${compact ? "mt-2 px-1 text-[0.56rem] leading-3" : "mt-2 px-1 text-[0.56rem] leading-3 sm:mt-3 sm:px-3 sm:text-xs sm:leading-4"}`}
           >
-            {electronicOffice ? "Procedimiento AEAT" : "Información AEAT"}
+            {visualCopy.label}
           </span>
         </div>
       </div>

@@ -48,6 +48,16 @@ const EXPECTED_CODES = [
   "159",
   "165",
   "170",
+  "171",
+  "172",
+  "173",
+  "174",
+  "179",
+  "180",
+  "181",
+  "182",
+  "184",
+  "185",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -56,14 +66,16 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(41);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(51);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
         sourceVerificationStatus: "VERIFIED",
         applicabilityStatus: "NOT_EVALUATED",
         lifecycleStatus:
-          entry.code === "150" ? "HISTORICAL" : "UNDETERMINED",
+          entry.code === "150" || entry.code === "179"
+            ? "HISTORICAL"
+            : "UNDETERMINED",
         reviewedOn: "2026-07-13",
       });
       expect(entry.faq.length).toBeGreaterThanOrEqual(3);
@@ -135,6 +147,19 @@ describe("public AEAT official model content v1", () => {
         expect(item.answer.length).toBeGreaterThan(0);
         expect(item.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
       }
+      if (entry.accessMethods) {
+        expect(entry.accessMethods.methods.length).toBeGreaterThan(0);
+        expect(new Set(entry.accessMethods.methods).size).toBe(
+          entry.accessMethods.methods.length,
+        );
+        expect(entry.accessMethods.sourceIds.length).toBeGreaterThan(0);
+        expect(
+          entry.accessMethods.sourceIds.every((id) => sourceIds.has(id)),
+        ).toBe(true);
+        expect(entry.accessMethods.semantics).toBe(
+          "OFFICIAL_INFORMATION_ONLY",
+        );
+      }
     }
   });
 
@@ -154,6 +179,61 @@ describe("public AEAT official model content v1", () => {
     if (second.status !== "OFFICIAL_INFORMATION") return;
     expect(second.data.canonicalName).toBe(originalName);
     expect(second.data.faq[0].question).toBe(originalQuestion);
+  });
+
+  it("keeps the source-backed access channels exact and immutable", () => {
+    const expected = {
+      "171": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "172": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
+      "173": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
+      "174": {
+        methods: ["WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED_FUTURE",
+      },
+      "179": {
+        methods: ["BROWSER_FORM", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED_HISTORICAL",
+      },
+      "180": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "181": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "182": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "184": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "185": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+    } as const;
+
+    for (const [code, access] of Object.entries(expected)) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.accessMethods).toMatchObject(access);
+      expect(Object.isFrozen(result.data.accessMethods)).toBe(true);
+      expect(Object.isFrozen(result.data.accessMethods?.methods)).toBe(true);
+      expect(Object.isFrozen(result.data.accessMethods?.sourceIds)).toBe(true);
+    }
+  });
+
+  it("keeps the Model 180 certificate with active content external-only", () => {
+    const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
+    expect(result.status).toBe("OFFICIAL_INFORMATION");
+    if (result.status !== "OFFICIAL_INFORMATION") return;
+
+    const certificate = result.data.documents.find(
+      (document) => document.id === "model-180-certificate-form",
+    );
+    expect(certificate).toMatchObject({
+      activeContentStatus: "JAVASCRIPT_PRESENT",
+      previewSuitability: "NONE",
+      usePolicy: "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+    });
   });
 
   it("keeps thumbnails tied to hashed official documents or images", () => {
