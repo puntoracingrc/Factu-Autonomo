@@ -1,0 +1,33 @@
+name: Fiscal Watch
+
+on:
+  schedule:
+    - cron: "15 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: fiscal-watch
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Inspect official fiscal sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the reviewed watcher
+        uses: actions/checkout@v5
+
+      - name: Use the project Node.js version
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Inspect official sources and reconcile review alerts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/fiscal-watch/run.mjs

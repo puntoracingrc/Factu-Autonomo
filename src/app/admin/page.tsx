@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHealthPanel";
+import { FiscalWatchPanel } from "@/components/admin/FiscalWatchPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -45,6 +46,7 @@ import type {
 } from "@/lib/admin/health";
 import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
 import type { FiscalCalendarAdminHealth } from "@/lib/fiscal-calendar/admin-health";
+import type { FiscalWatchAdminStatus } from "@/lib/fiscal-watch/admin-status";
 import {
   type AdminRestoreDataSummary,
   type AdminRestoreDiffSummary,
@@ -156,6 +158,11 @@ interface AdminHealthResponse {
 
 interface AdminFiscalCalendarHealthResponse {
   health?: FiscalCalendarAdminHealth | null;
+  error?: string;
+}
+
+interface AdminFiscalWatchResponse {
+  status?: FiscalWatchAdminStatus | null;
   error?: string;
 }
 
@@ -318,6 +325,8 @@ function buildAdminSectionSignals(input: {
   health: AdminHealthSnapshot | null;
   calendarHealth: FiscalCalendarAdminHealth | null;
   calendarHealthProbeFailed?: boolean;
+  fiscalWatch: FiscalWatchAdminStatus | null;
+  fiscalWatchProbeFailed?: boolean;
   operations: AdminOperationsStatus | null;
   vercel: AdminVercelUsageSnapshot | null;
   errors: AdminErrorRow[];
@@ -327,20 +336,27 @@ function buildAdminSectionSignals(input: {
     health,
     calendarHealth,
     calendarHealthProbeFailed,
+    fiscalWatch,
+    fiscalWatchProbeFailed,
     operations,
     vercel,
     errors,
   } = input;
 
+  const systemLevels: AdminHealthLevel[] = [];
+  const systemSignalIds: string[] = [];
+
   if (
     calendarHealthProbeFailed ||
     (calendarHealth !== null && calendarHealth.level !== "ok")
   ) {
-    signals.sistema = {
-      level: calendarHealthProbeFailed
+    systemLevels.push(
+      calendarHealthProbeFailed
         ? "action"
         : (calendarHealth?.level ?? "action"),
-      id: calendarHealthProbeFailed
+    );
+    systemSignalIds.push(
+      calendarHealthProbeFailed
         ? "fiscal-calendar-probe-failed"
         : calendarHealth?.feeds
             .filter((feed) => feed.level !== "ok")
@@ -349,6 +365,27 @@ function buildAdminSectionSignals(input: {
                 `${feed.category}:${feed.level}:${feed.code}:${feed.eventCount ?? "unknown"}:${feed.upcomingEventCount ?? "unknown"}`,
             )
             .join("|") || "fiscal-calendar-unavailable",
+    );
+  }
+
+  if (
+    fiscalWatchProbeFailed ||
+    (fiscalWatch !== null && fiscalWatch.level !== "ok")
+  ) {
+    systemLevels.push(
+      fiscalWatchProbeFailed ? "action" : (fiscalWatch?.level ?? "action"),
+    );
+    systemSignalIds.push(
+      fiscalWatchProbeFailed
+        ? "fiscal-watch-probe-failed"
+        : fiscalWatch?.signalId || "fiscal-watch-unavailable",
+    );
+  }
+
+  if (systemLevels.length > 0) {
+    signals.sistema = {
+      level: highestAdminLevel(systemLevels),
+      id: systemSignalIds.join("||"),
     };
   }
 
@@ -3078,6 +3115,8 @@ function OperationsPanel({
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [calendarHealth, setCalendarHealth] =
     useState<FiscalCalendarAdminHealth | null>(null);
+  const [fiscalWatch, setFiscalWatch] =
+    useState<FiscalWatchAdminStatus | null>(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
   const [operations, setOperations] = useState<AdminOperationsStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -3087,15 +3126,25 @@ function OperationsPanel({
   const [calendarHealthNotice, setCalendarHealthNotice] = useState<
     string | null
   >(null);
+  const [fiscalWatchNotice, setFiscalWatchNotice] = useState<string | null>(
+    null,
+  );
   const [vercelNotice, setVercelNotice] = useState<string | null>(null);
   const [operationsNotice, setOperationsNotice] = useState<string | null>(null);
 
   const loadOperations = useCallback(async () => {
     setLoading(true);
+    setErrors([]);
+    setHealth(null);
+    setCalendarHealth(null);
+    setFiscalWatch(null);
+    setVercel(null);
+    setOperations(null);
     setError(null);
     setNotice(null);
     setHealthNotice(null);
     setCalendarHealthNotice(null);
+    setFiscalWatchNotice(null);
     setVercelNotice(null);
     setOperationsNotice(null);
     const token = await getAccessToken();
@@ -3112,12 +3161,14 @@ function OperationsPanel({
       vercelResponse,
       operationsResponse,
       calendarHealthResponse,
+      fiscalWatchResponse,
     ] = await Promise.all([
       fetchAdminResponse("/api/admin/errors?limit=80", { headers }),
       fetchAdminResponse("/api/admin/health", { headers }),
       fetchAdminResponse("/api/admin/vercel-usage", { headers }),
       fetchAdminResponse("/api/admin/operations-status", { headers }),
       fetchAdminResponse("/api/admin/fiscal-calendar-health", { headers }),
+      fetchAdminResponse("/api/admin/fiscal-watch", { headers }),
     ]);
 
     const calendarHealthBody = calendarHealthResponse
@@ -3143,6 +3194,29 @@ function OperationsPanel({
       );
     }
 
+    const fiscalWatchBody = fiscalWatchResponse
+      ? await readAdminJsonResponse<AdminFiscalWatchResponse>(
+          fiscalWatchResponse,
+        )
+      : {};
+    let nextFiscalWatch: FiscalWatchAdminStatus | null = null;
+    const fiscalWatchProbeFailed = !fiscalWatchResponse?.ok;
+    if (fiscalWatchProbeFailed) {
+      setFiscalWatch(null);
+      setFiscalWatchNotice(
+        fiscalWatchBody.error ??
+          "No se pudo comprobar la vigilancia de fuentes fiscales.",
+      );
+    } else {
+      nextFiscalWatch = fiscalWatchBody.status ?? null;
+      setFiscalWatch(nextFiscalWatch);
+      setFiscalWatchNotice(
+        nextFiscalWatch
+          ? null
+          : "La vigilancia no devolvió un diagnóstico utilizable.",
+      );
+    }
+
     const errorsBody = errorsResponse
       ? await readAdminJsonResponse<AdminErrorsResponse>(errorsResponse)
       : {};
@@ -3157,6 +3231,9 @@ function OperationsPanel({
           calendarHealth: nextCalendarHealth,
           calendarHealthProbeFailed:
             calendarHealthProbeFailed || !nextCalendarHealth,
+          fiscalWatch: nextFiscalWatch,
+          fiscalWatchProbeFailed:
+            fiscalWatchProbeFailed || !nextFiscalWatch,
           operations: null,
           vercel: null,
           errors: [],
@@ -3225,6 +3302,9 @@ function OperationsPanel({
         calendarHealth: nextCalendarHealth,
         calendarHealthProbeFailed:
           calendarHealthProbeFailed || !nextCalendarHealth,
+        fiscalWatch: nextFiscalWatch,
+        fiscalWatchProbeFailed:
+          fiscalWatchProbeFailed || !nextFiscalWatch,
         operations: nextOperations,
         vercel: nextVercel,
         errors: nextErrors,
@@ -3306,6 +3386,10 @@ function OperationsPanel({
           <FiscalCalendarHealthPanel
             health={calendarHealth}
             notice={calendarHealthNotice}
+          />
+          <FiscalWatchPanel
+            status={fiscalWatch}
+            notice={fiscalWatchNotice}
           />
           {!error && health && (
             <>
@@ -3964,6 +4048,8 @@ export default function AdminPage() {
       health: body.health ?? null,
       calendarHealth: null,
       calendarHealthProbeFailed: false,
+      fiscalWatch: null,
+      fiscalWatchProbeFailed: false,
       operations: null,
       vercel: null,
       errors: [],

@@ -14,6 +14,7 @@ const expectedMethods: Record<string, string[]> = {
   "admin/capabilities/route.ts": ["GET"],
   "admin/errors/route.ts": ["GET"],
   "admin/fiscal-calendar-health/route.ts": ["GET"],
+  "admin/fiscal-watch/route.ts": ["GET"],
   "admin/health/route.ts": ["GET"],
   "admin/operations-status/route.ts": ["GET"],
   "admin/users/[userId]/mfa/route.ts": ["DELETE", "GET", "POST"],
@@ -56,6 +57,7 @@ const expectedMethods: Record<string, string[]> = {
 const adminRoutes = [
   "admin/errors/route.ts",
   "admin/fiscal-calendar-health/route.ts",
+  "admin/fiscal-watch/route.ts",
   "admin/health/route.ts",
   "admin/operations-status/route.ts",
   "admin/users/[userId]/mfa/route.ts",
