@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "fiscal-watch-sources.v1",
+  "catalogVersion": "official-fiscal-watch.2026-07-13.v2",
+  "parserContractVersion": "fiscal-watch-parser.2026-07-13.v2",
+  "reviewedAt": "2026-07-13",
+  "timeZone": "Europe/Madrid",
+  "limits": {
+    "timeoutMs": 10000,
+    "maxResponseBytes": 4194304,
+    "maxItemsPerSource": 5000,
+    "maxTrackedItems": 500,
+    "maxTextCodePoints": 12000,
+    "futureHorizonDays": 730
+  },
+  "sources": [
+    {
+      "id": "boe-tax-legislation-rss",
+      "authority": "BOE",
+      "label": "BOE — Sistema tributario",
+      "format": "RSS",
+      "mode": "APPEND_ONLY",
+      "url": "https://www.boe.es/rss/canal_leg.php?c=128&l=l",
+      "officialPageUrl": "https://www.boe.es/alertas/alerta.php",
+      "acceptedMimeTypes": ["application/rss+xml", "application/xml", "text/xml"]
+    },
+    {
+      "id": "boe-daily-summary-api",
+      "authority": "BOE",
+      "label": "BOE — Sumario diario",
+      "format": "BOE_JSON",
+      "mode": "APPEND_ONLY",
+      "urlTemplate": "https://www.boe.es/datosabiertos/api/boe/sumario/{date}",
+      "officialPageUrl": "https://www.boe.es/datosabiertos/api/api.php",
+      "acceptedMimeTypes": ["application/json", "application/problem+json"],
+      "emptyHttpStatuses": [404],
+      "structuralFilter": {
+        "publicationPrefix": "BOE-A-",
+        "sectionCode": "1",
+        "sectionName": "I. Disposiciones generales"
+      },
+      "titleFilterTerms": [
+        "tribut",
+        "impuesto",
+        "recaudaci",
+        "aduan",
+        "iva",
+        "irpf",
+        "impuesto sobre sociedades",
+        "modelo tributario",
+        "modelos de autoliquidacion"
+      ]
+    },
+    {
+      "id": "aeat-all-news-rss",
+      "authority": "AEAT",
+      "label": "AEAT — Todas las novedades",
+      "format": "RSS",
+      "mode": "APPEND_ONLY",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/todas-noticias.xml",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/todas-noticias.html",
+      "acceptedMimeTypes": ["application/rss+xml", "application/xml", "text/xml"]
+    },
+    {
+      "id": "aeat-analysis-rss",
+      "authority": "AEAT",
+      "label": "AEAT — Análisis y criterios",
+      "format": "RSS",
+      "mode": "APPEND_ONLY",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/normativa-criterios-interpretativos/analisis.xml",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/normativa-criterios-interpretativos.html",
+      "acceptedMimeTypes": ["application/rss+xml", "application/xml", "text/xml"]
+    },
+    {
+      "id": "aeat-irpf-news",
+      "authority": "AEAT",
+      "label": "AEAT — Novedades IRPF",
+      "format": "HTML",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/irpf/novedades-impuesto.html",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/irpf/novedades-impuesto.html",
+      "acceptedMimeTypes": ["text/html"],
+      "expectedHeading": "Novedades de IRPF"
+    },
+    {
+      "id": "aeat-iva-news",
+      "authority": "AEAT",
+      "label": "AEAT — Novedades IVA",
+      "format": "HTML",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/novedades.html",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/iva/novedades.html",
+      "acceptedMimeTypes": ["text/html"],
+      "expectedHeading": "Novedades de IVA"
+    },
+    {
+      "id": "aeat-corporate-tax-news",
+      "authority": "AEAT",
+      "label": "AEAT — Novedades Impuesto sobre Sociedades",
+      "format": "HTML",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/novedades-impuesto-sobre-sociedades.html",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/novedades-impuesto-sobre-sociedades.html",
+      "acceptedMimeTypes": ["text/html"],
+      "expectedHeading": "Novedades en el Impuesto sobre Sociedades"
+    },
+    {
+      "id": "aeat-calendar-year-news",
+      "authority": "AEAT",
+      "label": "AEAT — Novedades del calendario del contribuyente",
+      "format": "HTML",
+      "mode": "FUTURE_SNAPSHOT",
+      "urlTemplate": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/calendario-contribuyente-{year}/novedades-ano.html",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/Bibl_virtual/folletos/calendario_contribuyente.shtml",
+      "acceptedMimeTypes": ["text/html"],
+      "expectedHeading": "Novedades para este año"
+    },
+    {
+      "id": "aeat-calendar-renta-ics",
+      "authority": "AEAT",
+      "label": "AEAT — Calendario Renta",
+      "format": "ICS",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://calendar.google.com/calendar/ical/invitado2aeat%40gmail.com/public/basic.ics",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar.html",
+      "acceptedMimeTypes": ["text/calendar"]
+    },
+    {
+      "id": "aeat-calendar-renta-sociedades-ics",
+      "authority": "AEAT",
+      "label": "AEAT — Calendario Renta y Sociedades",
+      "format": "ICS",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://calendar.google.com/calendar/ical/aio2b0s64q65r7v87j5ma8fvog%40group.calendar.google.com/public/basic.ics",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar.html",
+      "acceptedMimeTypes": ["text/calendar"]
+    },
+    {
+      "id": "aeat-calendar-sociedades-ics",
+      "authority": "AEAT",
+      "label": "AEAT — Calendario Sociedades",
+      "format": "ICS",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://calendar.google.com/calendar/ical/b7g1j3bod3gdjbka03uo6kr988%40group.calendar.google.com/public/basic.ics",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar.html",
+      "acceptedMimeTypes": ["text/calendar"]
+    },
+    {
+      "id": "aeat-calendar-iva-ics",
+      "authority": "AEAT",
+      "label": "AEAT — Calendario IVA",
+      "format": "ICS",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://calendar.google.com/calendar/ical/517mcuhcis0lldnp9b7c0nk2q8%40group.calendar.google.com/public/basic.ics",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar.html",
+      "acceptedMimeTypes": ["text/calendar"]
+    },
+    {
+      "id": "aeat-calendar-information-returns-ics",
+      "authority": "AEAT",
+      "label": "AEAT — Calendario Declaraciones informativas",
+      "format": "ICS",
+      "mode": "FUTURE_SNAPSHOT",
+      "url": "https://calendar.google.com/calendar/ical/hqp9h5ft4snag42aea96791g28%40group.calendar.google.com/public/basic.ics",
+      "officialPageUrl": "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/icalendar.html",
+      "acceptedMimeTypes": ["text/calendar"]
+    }
+  ]
+}
