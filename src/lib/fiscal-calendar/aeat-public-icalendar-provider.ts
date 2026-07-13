@@ -1,6 +1,9 @@
 import { getAeatCalendarSource } from "./catalog";
-import { eventOverlapsRange } from "./dates";
-import { FiscalCalendarProviderError } from "./errors";
+import { eventOverlapsRange, todayInMadrid } from "./dates";
+import {
+  FiscalCalendarProviderError,
+  type FiscalCalendarProviderErrorCode,
+} from "./errors";
 import {
   normalizeGoogleCalendarEvent,
   sortFiscalCalendarEvents,
@@ -48,6 +51,27 @@ interface SourceCacheEntry {
   expiresAt: number;
   promise: Promise<SourceSnapshot>;
 }
+
+export type AeatPublicIcalendarSourceInspection =
+  | {
+      category: FiscalCalendarCategory;
+      ok: true;
+      fetchedAt: string;
+      eventCount: number;
+      upcomingEventCount: number;
+      truncated: boolean;
+      earliestEventDate: string | null;
+      latestEventDate: string | null;
+      latestSourceUpdatedAt: string | null;
+    }
+  | {
+      category: FiscalCalendarCategory;
+      ok: false;
+      code: FiscalCalendarProviderErrorCode;
+      status: number | null;
+      attempts: number;
+      retryable: boolean;
+    };
 
 function assertServerOnlyModule() {
   if (typeof window !== "undefined") {
@@ -334,6 +358,62 @@ export class AeatPublicIcalendarProvider implements FiscalCalendarProvider {
       }
     });
     return promise;
+  }
+
+  /**
+   * Diagnóstico server-only del feed completo, antes de aplicar rangos de UI.
+   * Reutiliza la misma allowlist, descarga acotada, parser y caché del calendario.
+   */
+  async inspectSources(
+    categories: readonly FiscalCalendarCategory[],
+  ): Promise<readonly AeatPublicIcalendarSourceInspection[]> {
+    const today = todayInMadrid(this.now());
+    return Promise.all(
+      categories.map(async (category) => {
+        try {
+          const snapshot = await this.sourceSnapshot(category);
+          const eventDates = snapshot.events.map((event) =>
+            event.startDate.slice(0, 10),
+          );
+          const updatedDates = snapshot.events
+            .map((event) => event.sourceUpdatedAt)
+            .filter((value): value is string => Boolean(value))
+            .sort();
+          return {
+            category,
+            ok: true as const,
+            fetchedAt: snapshot.fetchedAt,
+            eventCount: snapshot.events.length,
+            upcomingEventCount: snapshot.events.filter(
+              (event) => event.endDateExclusive.slice(0, 10) > today,
+            ).length,
+            truncated: snapshot.truncated,
+            earliestEventDate:
+              eventDates.length > 0 ? [...eventDates].sort()[0] : null,
+            latestEventDate:
+              eventDates.length > 0 ? [...eventDates].sort().at(-1) ?? null : null,
+            latestSourceUpdatedAt: updatedDates.at(-1) ?? null,
+          };
+        } catch (error) {
+          const failure =
+            error instanceof FiscalCalendarProviderError
+              ? error
+              : new FiscalCalendarProviderError({
+                  code: "SOURCE_UNAVAILABLE",
+                  retryable: true,
+                  attempts: 1,
+                });
+          return {
+            category,
+            ok: false as const,
+            code: failure.code,
+            status: failure.status ?? null,
+            attempts: failure.attempts,
+            retryable: failure.retryable,
+          };
+        }
+      }),
+    );
   }
 
   async listEvents(
