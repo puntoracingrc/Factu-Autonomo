@@ -118,4 +118,17 @@ describe("security headers config", () => {
       );
     }
   });
+
+  it("leaves Consultor indexing to the exact middleware allowlist", async () => {
+    const rules = await configuredHeaders();
+    const rule = rules.find(
+      (candidate) => candidate.source === "/consultor-fiscal/:path*",
+    );
+    expect(rule).toBeDefined();
+    const headers = headerMap(rule?.headers ?? []);
+    expect(headers.get("Cache-Control")).toBe("no-store, max-age=0");
+    expect(headers.get("CDN-Cache-Control")).toBe("no-store");
+    expect(headers.get("Vercel-CDN-Cache-Control")).toBe("no-store");
+    expect(headers.has("X-Robots-Tag")).toBe(false);
+  });
 });

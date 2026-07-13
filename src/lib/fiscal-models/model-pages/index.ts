@@ -35,13 +35,15 @@ export type {
   PublicAeatModelSearchEntryV2,
 } from "./public-review-search.v2";
 export {
-  PUBLIC_AEAT_MODEL_CONTENT_SCHEMA_VERSION_V1,
-  resolvePublicAeatModelContentV1,
-} from "./model-01-content.v1";
+  PUBLIC_AEAT_OFFICIAL_CONTENT_SCHEMA_VERSION_V1,
+  PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1,
+  isPublicAeatOfficialIndexablePathV1,
+  listPublicAeatOfficialModelContentsV1,
+  resolvePublicAeatOfficialModelContentV1,
+} from "./official-content";
 export type {
-  PublicAeatModel01ContentV1,
-  PublicAeatModelContentFactV1,
-  PublicAeatModelContentResolveResultV1,
-  PublicAeatModelContentSourceV1,
-  PublicAeatModelPdfResourceV1,
-} from "./model-01-content.v1";
+  PublicAeatOfficialContentListResultV1,
+  PublicAeatOfficialContentResolveResultV1,
+  PublicAeatOfficialContentSourceV1,
+  PublicAeatOfficialModelContentV1,
+} from "./official-content";

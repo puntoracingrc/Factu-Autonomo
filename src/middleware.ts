@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { isPublicAeatOfficialIndexablePathV1 } from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
 import { isPublicAeatModelReviewPathV1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { buildSecurityResponseHeaders } from "@/lib/security-response-headers";
 
@@ -7,6 +8,8 @@ const PRIVATE_APP_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
   "CDN-Cache-Control": "no-store",
   "Vercel-CDN-Cache-Control": "no-store",
+};
+const PRIVATE_APP_ROBOTS_HEADERS = {
   "X-Robots-Tag": "noindex, nofollow, noarchive",
 };
 
@@ -17,9 +20,17 @@ const LEGAL_ALIAS_DESTINATIONS: Readonly<Record<string, string>> = {
   "/terms": "/legal/terminos",
 };
 
-function applyPrivateHeaders(response: NextResponse): NextResponse {
+function applyPrivateHeaders(
+  response: NextResponse,
+  options: Readonly<{ allowIndex?: boolean }> = {},
+): NextResponse {
   for (const [key, value] of Object.entries(PRIVATE_APP_HEADERS)) {
     response.headers.set(key, value);
+  }
+  if (!options.allowIndex) {
+    for (const [key, value] of Object.entries(PRIVATE_APP_ROBOTS_HEADERS)) {
+      response.headers.set(key, value);
+    }
   }
   return response;
 }
@@ -102,7 +113,11 @@ export function middleware(request?: NextRequest) {
     return privateNotFoundResponse();
   }
 
-  return applyPrivateHeaders(NextResponse.next());
+  return applyPrivateHeaders(NextResponse.next(), {
+    allowIndex:
+      request !== undefined &&
+      isPublicAeatOfficialIndexablePathV1(request.nextUrl.pathname),
+  });
 }
 
 export const config = {

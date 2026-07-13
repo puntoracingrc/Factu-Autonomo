@@ -17,13 +17,18 @@ const appNoIndexHeaders = [
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ];
 
+const appNoStoreHeaders = [
+  { key: "Cache-Control", value: "no-store, max-age=0" },
+  { key: "CDN-Cache-Control", value: "no-store" },
+  { key: "Vercel-CDN-Cache-Control", value: "no-store" },
+];
+
 const appNoIndexRoutes = [
   "/admin/:path*",
   "/auth/callback/:path*",
   "/avisos/:path*",
   "/clientes/:path*",
   "/configuracion/:path*",
-  "/consultor-fiscal/:path*",
   "/cuenta/:path*",
   "/drive/callback/:path*",
   "/facturas/:path*",
@@ -57,6 +62,10 @@ const nextConfig: NextConfig = {
         source,
         headers: appNoIndexHeaders,
       })),
+      {
+        source: "/consultor-fiscal/:path*",
+        headers: appNoStoreHeaders,
+      },
     ];
   },
   webpack: (config, { dev }) => {

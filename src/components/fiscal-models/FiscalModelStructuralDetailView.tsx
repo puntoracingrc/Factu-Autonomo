@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { PublicAeatModelReviewPageV1 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
-import type { PublicAeatModel01ContentV1 } from "@/lib/fiscal-models/model-pages/model-01-content.v1";
-import { FiscalModelReviewedContentView } from "./FiscalModelReviewedContentView";
+import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
+import { FiscalModelOfficialContentView } from "./FiscalModelOfficialContentView";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -22,7 +22,7 @@ export function FiscalModelStructuralDetailView({
 }: {
   page: PublicAeatModelReviewPageV1;
   calendarReturnHref: "/consultor-fiscal/calendario" | null;
-  enrichedContent: PublicAeatModel01ContentV1 | null;
+  enrichedContent: PublicAeatOfficialModelContentV1 | null;
 }) {
   const historical = page.lifecycleStatus === "HISTORICAL";
   const historicalDate = page.effectiveTo
@@ -58,7 +58,7 @@ export function FiscalModelStructuralDetailView({
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          {enrichedContent && (
+          {enrichedContent?.thumbnail && (
             <div className="w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-40 dark:border-slate-700">
               <Image
                 src={enrichedContent.thumbnail.publicHref}
@@ -80,37 +80,39 @@ export function FiscalModelStructuralDetailView({
             </p>
           </div>
         </div>
-        <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
-          <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-          {page.reviewBadge}
-        </span>
+        {!enrichedContent && (
+          <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
+            <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+            {page.reviewBadge}
+          </span>
+        )}
       </header>
 
-      <Card
-        className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
-        role="note"
-        aria-labelledby="ficha-estructural-revision-title"
-      >
-        <div className="flex items-start gap-3">
-          <ShieldAlert
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <h2
-              id="ficha-estructural-revision-title"
-              className="font-bold text-amber-950 dark:text-amber-100"
-            >
-              {page.reviewTitle}
-            </h2>
-            <p className="mt-1 break-words text-sm leading-6 text-amber-900 dark:text-amber-200">
-              {enrichedContent
-                ? "La información de esta ficha se ha contrastado con las fuentes oficiales indicadas. Se mantiene en revisión fiscal y no sustituye la información de la AEAT o el BOE."
-                : page.reviewMessage}
-            </p>
+      {!enrichedContent && (
+        <Card
+          className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
+          role="note"
+          aria-labelledby="ficha-estructural-revision-title"
+        >
+          <div className="flex items-start gap-3">
+            <ShieldAlert
+              className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300"
+              aria-hidden="true"
+            />
+            <div className="min-w-0">
+              <h2
+                id="ficha-estructural-revision-title"
+                className="font-bold text-amber-950 dark:text-amber-100"
+              >
+                {page.reviewTitle}
+              </h2>
+              <p className="mt-1 break-words text-sm leading-6 text-amber-900 dark:text-amber-200">
+                {page.reviewMessage}
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {historical && page.historicalNotice && historicalDate && (
         <Card
@@ -145,7 +147,7 @@ export function FiscalModelStructuralDetailView({
       )}
 
       {enrichedContent && (
-        <FiscalModelReviewedContentView content={enrichedContent} />
+        <FiscalModelOfficialContentView content={enrichedContent} />
       )}
 
       {!enrichedContent && (
