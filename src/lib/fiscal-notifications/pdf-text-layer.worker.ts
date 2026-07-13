@@ -9,14 +9,10 @@ interface FiscalNotificationPdfWorkerScope {
   postMessage(message: unknown): void;
 }
 
-const REQUEST_KEYS = new Set([
-  "type",
-  "requestId",
-  "ownerScope",
-  "documentId",
-  "bytes",
-]);
+const REQUEST_KEYS = new Set(["type", "requestId", "bytes"]);
 const REQUEST_ID = "parse" as const;
+const EPHEMERAL_WORKER_OWNER_SCOPE = "worker:ephemeral" as const;
+const EPHEMERAL_WORKER_DOCUMENT_ID = "document:ephemeral" as const;
 const workerScope = globalThis as unknown as FiscalNotificationPdfWorkerScope;
 
 workerScope.onmessage = (event: MessageEvent<unknown>) => {
@@ -40,14 +36,14 @@ async function processMessage(value: unknown): Promise<void> {
     }
 
     const documentInput = await parseFiscalNotificationPdfTextLayerBytes({
-      ownerScope: request.ownerScope as string,
-      documentId: request.documentId as string,
+      ownerScope: EPHEMERAL_WORKER_OWNER_SCOPE,
+      documentId: EPHEMERAL_WORKER_DOCUMENT_ID,
       bytes: new Uint8Array(request.bytes),
     });
     workerScope.postMessage({
       type: "RESULT",
       requestId: REQUEST_ID,
-      documentInput,
+      pages: documentInput.pages,
     });
   } catch (error) {
     workerScope.postMessage({
