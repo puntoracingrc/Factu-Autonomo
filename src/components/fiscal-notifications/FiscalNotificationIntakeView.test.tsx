@@ -582,14 +582,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("publica la página únicamente tras el gate server-side y sin indexación", () => {
-    expect(pageSource).toContain(
-      'import { notFound } from "next/navigation"',
-    );
-    expect(pageSource).toContain("isConsultorFiscalEnabled");
-    expect(pageSource).toContain(
-      "if (!isConsultorFiscalEnabled()) notFound();",
-    );
+  it("publica la revisión local fuera del gate de gastos y sin indexación", () => {
+    expect(pageSource).not.toContain("notFound");
+    expect(pageSource).not.toContain("isConsultorFiscalEnabled");
     expect(pageSource).toContain('export const dynamic = "force-dynamic"');
     expect(compact(pageSource)).toContain(
       "robots: { index: false, follow: false, noarchive: true }",

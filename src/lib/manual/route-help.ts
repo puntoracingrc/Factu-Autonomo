@@ -25,6 +25,7 @@ export function resolveManualSlug(pathname: string): string | null {
   if (path.startsWith("/impuestos")) return "impuestos";
   if (
     path === "/consultor-fiscal/calendario" ||
+    path === "/consultor-fiscal/notificaciones" ||
     path === "/consultor-fiscal/modelos" ||
     path.startsWith("/consultor-fiscal/modelos/")
   ) {

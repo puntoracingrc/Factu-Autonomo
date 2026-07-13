@@ -65,6 +65,7 @@ function isAllowedFiscalModelReviewPath(pathname: string): boolean {
 function isAllowedConsultorPublicReviewPath(pathname: string): boolean {
   return (
     pathname === "/consultor-fiscal/calendario" ||
+    pathname === "/consultor-fiscal/notificaciones" ||
     isAllowedFiscalModelReviewPath(pathname)
   );
 }

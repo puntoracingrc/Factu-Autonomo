@@ -29,7 +29,6 @@ describe("private route middleware", () => {
     for (const pathname of [
       "/consultor-fiscal",
       "/consultor-fiscal/analisis",
-      "/consultor-fiscal/notificaciones",
       "/ayuda/consultor-fiscal",
     ]) {
       const response = middleware(
@@ -47,23 +46,16 @@ describe("private route middleware", () => {
   it("deja continuar la Beta solo tras activación explícita", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 
-    for (const pathname of [
-      "/consultor-fiscal",
-      "/consultor-fiscal/notificaciones",
-    ]) {
-      const response = middleware(
-        new NextRequest("https://facturacion-autonomos.app" + pathname),
-      );
+    const response = middleware(
+      new NextRequest("https://facturacion-autonomos.app/consultor-fiscal"),
+    );
 
-      expect(response.status, pathname).toBe(200);
-      expect(response.headers.get("x-middleware-next"), pathname).toBe("1");
-      expect(response.headers.get("Cache-Control"), pathname).toBe(
-        "no-store, max-age=0",
-      );
-      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
-        "noindex, nofollow, noarchive",
-      );
-    }
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
+    expect(response.headers.get("X-Robots-Tag")).toBe(
+      "noindex, nofollow, noarchive",
+    );
   });
 
   it("publica únicamente el índice y las 229 rutas literales informativas", () => {
@@ -147,6 +139,45 @@ describe("private route middleware", () => {
         ).status,
         pathname,
       ).toBe(404);
+    }
+  });
+
+  it("publica únicamente Notificaciones literal sin abrir el analizador", () => {
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", enabled);
+
+      const notifications = middleware(
+        new NextRequest(
+          "https://facturacion-autonomos.app/consultor-fiscal/notificaciones",
+        ),
+      );
+      expect(notifications.status, enabled).toBe(200);
+      expect(notifications.headers.get("x-middleware-next"), enabled).toBe("1");
+      expect(notifications.headers.get("Cache-Control"), enabled).toBe(
+        "no-store, max-age=0",
+      );
+      expect(notifications.headers.get("X-Robots-Tag"), enabled).toBe(
+        "noindex, nofollow, noarchive",
+      );
+    }
+
+    vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
+    for (const pathname of [
+      "/consultor-fiscal/Notificaciones",
+      "/consultor-fiscal/notificaciones/extra",
+      "/consultor-fiscal/notificaciones%2Fextra",
+      "/consultor-fiscal/analisis",
+    ]) {
+      const response = middleware(
+        new NextRequest("https://facturacion-autonomos.app" + pathname),
+      );
+      expect(response.status, pathname).toBe(404);
+      expect(response.headers.get("Cache-Control"), pathname).toBe(
+        "no-store, max-age=0",
+      );
+      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
+        "noindex, nofollow, noarchive",
+      );
     }
   });
 

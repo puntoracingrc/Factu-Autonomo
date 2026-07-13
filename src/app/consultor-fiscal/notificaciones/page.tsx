@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { FiscalNotificationIntakeView } from "@/components/fiscal-notifications/FiscalNotificationIntakeView";
-import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function FiscalNotificationsPage() {
-  if (!isConsultorFiscalEnabled()) notFound();
   return <FiscalNotificationIntakeView />;
 }
