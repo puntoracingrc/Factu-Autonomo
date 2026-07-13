@@ -2,11 +2,14 @@
 
 import {
   FiscalNotificationInputError,
-  assertBoundedDocumentInput,
   assertBoundedId,
   assertBoundedOwnerScope,
-  type BoundedDocumentInput,
 } from "./input-contract";
+import {
+  FiscalNotificationPdfWorkerAnalysisError,
+  parseFiscalNotificationPdfWorkerAnalysis,
+  type FiscalNotificationPdfWorkerAnalysis,
+} from "./pdf-worker-analysis-contract";
 import {
   FISCAL_NOTIFICATION_PDF_LIMITS,
   FiscalNotificationPdfError,
@@ -14,8 +17,8 @@ import {
   type FiscalNotificationPdfErrorCode,
 } from "./pdf-text-layer-parser";
 
-export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 1 as const;
-export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "1.0.1" as const;
+export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 2 as const;
+export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "2.0.0" as const;
 
 export interface FiscalNotificationPdfTextLayerRequest {
   readonly ownerScope: string;
@@ -31,12 +34,17 @@ export interface FiscalNotificationPdfFileIntegrity {
 }
 
 export interface FiscalNotificationPdfTextLayerResult {
-  readonly schemaVersion: 1;
-  readonly adapterVersion: "1.0.1";
+  readonly schemaVersion: 2;
+  readonly adapterVersion: "2.0.0";
   readonly status: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly fileIntegrity: FiscalNotificationPdfFileIntegrity;
-  readonly documentInput: BoundedDocumentInput;
+  readonly analysis: FiscalNotificationPdfWorkerAnalysis;
+  readonly reviewContext: Readonly<{
+    ownerScope: string;
+    documentId: string;
+    signal?: AbortSignal;
+  }>;
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
 }
@@ -65,9 +73,8 @@ export interface FiscalNotificationPdfAdapterDependencies {
 }
 
 const REQUEST_KEYS = new Set(["ownerScope", "documentId", "file", "signal"]);
-const RESULT_KEYS = new Set(["type", "requestId", "pages"]);
+const RESULT_KEYS = new Set(["type", "requestId", "analysis"]);
 const ERROR_KEYS = new Set(["type", "requestId", "code"]);
-const PAGE_KEYS = new Set(["pageNumber", "text", "isBlank"]);
 const PDFJS_READY_KEYS = new Set([
   "sourceName",
   "targetName",
@@ -106,15 +113,21 @@ export async function readFiscalNotificationPdfTextLayer(
 
   let timedOut = false;
   let worker: FiscalNotificationPdfWorkerLike | null = null;
+  let callerAbortListenerRegistered = false;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   const operationController = new AbortController();
   const abortFromCaller = () => operationController.abort();
-  request.signal?.addEventListener("abort", abortFromCaller, { once: true });
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    operationController.abort();
-  }, timeoutMs);
 
   try {
+    if (request.signal) {
+      addAbortListener(request.signal, abortFromCaller);
+      callerAbortListenerRegistered = true;
+      if (request.signal.aborted) operationController.abort();
+    }
+    timeout = setTimeout(() => {
+      timedOut = true;
+      operationController.abort();
+    }, timeoutMs);
     assertOperationActive(operationController.signal);
     const declaredSize = readFileSize(request.file);
     if (declaredSize <= 0) throw new FiscalNotificationPdfError("INVALID_PDF");
@@ -153,26 +166,24 @@ export async function readFiscalNotificationPdfTextLayer(
       buffer,
       operationController.signal,
     );
-    const documentInput = snapshotDocumentInput(
-      workerResult,
+    const analysis = parseFiscalNotificationPdfWorkerAnalysis(workerResult);
+    const reviewContext = snapshotReviewContext(
       request.ownerScope,
       request.documentId,
       request.signal,
     );
-    const hasText = documentInput.pages.some(
-      (page) => page.text.trim().length > 0,
-    );
     return Object.freeze({
       schemaVersion: FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION,
       adapterVersion: FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION,
-      status: hasText ? "TEXT_LAYER_AVAILABLE" : "NO_EXTRACTABLE_TEXT",
+      status: analysis.textLayerStatus,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: Object.freeze({
         mimeType: "application/pdf",
         byteLength: declaredSize,
         sha256,
       }),
-      documentInput,
+      analysis,
+      reviewContext,
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
     });
@@ -184,11 +195,19 @@ export async function readFiscalNotificationPdfTextLayer(
     if (error instanceof FiscalNotificationInputError) {
       throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
     }
+    if (error instanceof FiscalNotificationPdfWorkerAnalysisError) {
+      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+    }
     throw new FiscalNotificationPdfError("INVALID_PDF");
   } finally {
-    clearTimeout(timeout);
-    request.signal?.removeEventListener("abort", abortFromCaller);
-    if (worker) terminateWorker(worker);
+    if (timeout !== null) clearTimeout(timeout);
+    try {
+      if (request.signal && callerAbortListenerRegistered) {
+        safeRemoveAbortListener(request.signal, abortFromCaller);
+      }
+    } finally {
+      if (worker) terminateWorker(worker);
+    }
   }
 }
 
@@ -331,7 +350,7 @@ function awaitWorkerResult(
         }
         if (message.type === "RESULT") {
           assertKnownKeys(message, RESULT_KEYS, "INVALID_WORKER_RESPONSE");
-          finish(() => resolve(message.pages));
+          finish(() => resolve(message.analysis));
           return;
         }
         if (message.type === "ERROR") {
@@ -363,10 +382,10 @@ function awaitWorkerResult(
       finish(() => reject(new FiscalNotificationPdfError("INVALID_PDF")));
     const onAbort = () =>
       finish(() => reject(new FiscalNotificationPdfError("ABORTED")));
-    worker.addEventListener("message", onMessage);
-    worker.addEventListener("error", onError);
-    signal.addEventListener("abort", onAbort, { once: true });
     try {
+      worker.addEventListener("message", onMessage);
+      worker.addEventListener("error", onError);
+      addAbortListener(signal, onAbort);
       worker.postMessage(
         {
           type: "PARSE",
@@ -381,52 +400,28 @@ function awaitWorkerResult(
   });
 }
 
-function snapshotDocumentInput(
-  pageList: unknown,
+function snapshotReviewContext(
   expectedOwnerScope: string,
   expectedDocumentId: string,
   signal?: AbortSignal,
-): BoundedDocumentInput {
-  const pageValues = snapshotArray(pageList);
-  const pages = pageValues.map((pageValue, index) => {
-    const page = snapshotRecord(pageValue);
-    if (!page) throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-    assertKnownKeys(page, PAGE_KEYS, "INVALID_WORKER_RESPONSE");
-    if (
-      !Number.isSafeInteger(page.pageNumber) ||
-      page.pageNumber !== index + 1 ||
-      typeof page.text !== "string" ||
-      typeof page.isBlank !== "boolean" ||
-      page.isBlank !== (page.text.trim().length === 0)
-    ) {
-      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-    }
-    return Object.freeze({
-      pageNumber: page.pageNumber as number,
-      text: page.text,
-      isBlank: page.isBlank,
-    });
-  });
-  const documentInput = {
+): FiscalNotificationPdfTextLayerResult["reviewContext"] {
+  const reviewContext = {
     ownerScope: expectedOwnerScope,
     documentId: expectedDocumentId,
-    pages: Object.freeze(pages),
-  } as BoundedDocumentInput;
+  } as {
+    ownerScope: string;
+    documentId: string;
+    signal?: AbortSignal;
+  };
   if (signal) {
-    Object.defineProperty(documentInput, "signal", {
+    Object.defineProperty(reviewContext, "signal", {
       value: signal,
       enumerable: false,
       writable: false,
       configurable: false,
     });
   }
-  Object.freeze(documentInput);
-  try {
-    assertBoundedDocumentInput(documentInput);
-  } catch {
-    throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-  }
-  return documentInput;
+  return Object.freeze(reviewContext);
 }
 
 function isExactPdfJsReadyEnvelope(
@@ -442,48 +437,6 @@ function isExactPdfJsReadyEnvelope(
     message.action === "ready" &&
     message.data === null
   );
-}
-
-function snapshotArray(value: unknown): readonly unknown[] {
-  try {
-    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
-      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-    }
-    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
-    if (!lengthDescriptor || !("value" in lengthDescriptor)) {
-      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-    }
-    const length = Number(lengthDescriptor.value);
-    if (
-      !Number.isSafeInteger(length) ||
-      length <= 0 ||
-      length > FISCAL_NOTIFICATION_PDF_LIMITS.maxPages
-    ) {
-      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-    }
-    for (const key of Reflect.ownKeys(value)) {
-      if (key === "length") continue;
-      if (typeof key !== "string" || !/^(?:0|[1-9]\d*)$/u.test(key)) {
-        throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-      }
-      const index = Number(key);
-      if (!Number.isSafeInteger(index) || index < 0 || index >= length) {
-        throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-      }
-    }
-    const snapshot = new Array<unknown>(length);
-    for (let index = 0; index < length; index += 1) {
-      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-      if (!descriptor || !("value" in descriptor)) {
-        throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-      }
-      snapshot[index] = descriptor.value;
-    }
-    return Object.freeze(snapshot);
-  } catch (error) {
-    if (error instanceof FiscalNotificationPdfError) throw error;
-    throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-  }
 }
 
 function assertKnownKeys(
@@ -530,14 +483,14 @@ function awaitAbortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T>
   assertOperationActive(signal);
   return new Promise<T>((resolve, reject) => {
     const abort = () => reject(new FiscalNotificationPdfError("ABORTED"));
-    signal.addEventListener("abort", abort, { once: true });
+    addAbortListener(signal, abort);
     promise.then(
       (result) => {
-        signal.removeEventListener("abort", abort);
+        safeRemoveAbortListener(signal, abort);
         resolve(result);
       },
       (error) => {
-        signal.removeEventListener("abort", abort);
+        safeRemoveAbortListener(signal, abort);
         reject(error);
       },
     );
@@ -582,9 +535,19 @@ function safeRemoveAbortListener(
   listener: () => void,
 ): void {
   try {
-    signal.removeEventListener("abort", listener);
+    EventTarget.prototype.removeEventListener.call(signal, "abort", listener);
   } catch {
     // A real AbortSignal should not throw; Worker termination remains authoritative.
+  }
+}
+
+function addAbortListener(signal: AbortSignal, listener: () => void): void {
+  try {
+    EventTarget.prototype.addEventListener.call(signal, "abort", listener, {
+      once: true,
+    });
+  } catch {
+    throw new FiscalNotificationPdfError("INVALID_PDF");
   }
 }
 

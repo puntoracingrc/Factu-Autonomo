@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM } from "./local-review-flow";
+import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 import {
   FISCAL_NOTIFICATION_SAFE_REVIEW_REPOSITORY_LIMITS,
   createFiscalNotificationLocalReviewRepository,
@@ -234,13 +235,13 @@ describe("fiscal notification safe local review repository", () => {
     if (!FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM) {
       throw new Error("Local review test seam is unavailable");
     }
-    const actual = await FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM.analyzeWithDependencies(
+    const analysis = await FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM.analyzeEphemeralWithDependencies(
       {},
       {
         readPdf: async () =>
           Object.freeze({
-            schemaVersion: 1 as const,
-            adapterVersion: "1.0.1" as const,
+            schemaVersion: 2 as const,
+            adapterVersion: "2.0.0" as const,
             status: "TEXT_LAYER_AVAILABLE" as const,
             sourceContentPolicy:
               "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
@@ -249,23 +250,119 @@ describe("fiscal notification safe local review repository", () => {
               byteLength: 2_048,
               sha256: "c".repeat(64),
             }),
-            documentInput: Object.freeze({
+            analysis: projectFiscalNotificationPdfWorkerAnalysis({
+              textLayerStatus: "TEXT_LAYER_AVAILABLE",
+              pageCount: 1,
+              familyAnalysis: Object.freeze({
+                schemaVersion: 1 as const,
+                engineId:
+                  "fiscal-notification-family-candidate-engine" as const,
+                engineVersion: "1.0.0" as const,
+                ownerScope: OWNER_A,
+                documentId: "document:synthetic-round-trip",
+                status: "REVIEW_REQUIRED" as const,
+                reason: "SUPPORTED_FAMILY_CANDIDATE" as const,
+                candidates: Object.freeze([
+                  Object.freeze({
+                    familyId:
+                      "AEAT_ENFORCEMENT_ORDER_CANDIDATE" as const,
+                    documentType: "AEAT_ENFORCEMENT_ORDER" as const,
+                    authoritySignal: "AEAT_UNVERIFIED" as const,
+                    handlerId:
+                      "aeat-enforcement-order-candidate" as const,
+                    handlerVersion: "1.0.0" as const,
+                    signalStatus: "COMPLETE_REQUIRED_ANCHORS" as const,
+                    matchedAnchors: Object.freeze([
+                      Object.freeze({
+                        anchorId: "AEAT_AUTHORITY_LABEL" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                      Object.freeze({
+                        anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                      Object.freeze({
+                        anchorId: "ENFORCEMENT_ORDER_TITLE" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                      Object.freeze({
+                        anchorId:
+                          "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                      Object.freeze({
+                        anchorId:
+                          "ENFORCEMENT_DEBT_AMOUNT_SECTION" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                      Object.freeze({
+                        anchorId: "STRUCTURAL_FIRST_PAGE_HEADER" as const,
+                        pageNumbers: Object.freeze([1]),
+                      }),
+                    ]),
+                    missingRequiredAnchorIds: Object.freeze([]),
+                    conflictingAnchorIds: Object.freeze([]),
+                    requiresHumanReview: true as const,
+                  }),
+                ]),
+                selectedFamilyId: null,
+                requiresHumanReview: true as const,
+                materializationPolicy:
+                  "PROHIBITED_UNTIL_REVIEW" as const,
+                retainedSourceContent: "NONE" as const,
+              }),
+              enforcementMoneyFacts: Object.freeze({
+                schemaVersion: 1 as const,
+                engineId: "aeat-enforcement-money-facts" as const,
+                engineVersion: "1.0.0" as const,
+                documentType: "AEAT_ENFORCEMENT_ORDER" as const,
+                status: "REVIEW_REQUIRED" as const,
+                outcome: "FACTS_AVAILABLE" as const,
+                facts: Object.freeze([
+                  Object.freeze({
+                    kind: "OUTSTANDING_PRINCIPAL" as const,
+                    amountCents: 10_000,
+                    currency: "EUR" as const,
+                    evidence: Object.freeze([
+                      Object.freeze({
+                        pageNumber: 1,
+                        label: "OUTSTANDING_PRINCIPAL_LABEL" as const,
+                        extractionMethod: "RULE" as const,
+                        assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+                      }),
+                    ]),
+                    reviewStatus: "REVIEW_REQUIRED" as const,
+                  }),
+                ]),
+                issues: Object.freeze([
+                  Object.freeze({
+                    code: "NO_CLOSED_LABEL_MATCH" as const,
+                    kind: "ORDINARY_ENFORCEMENT_SURCHARGE" as const,
+                    pageNumbers: Object.freeze([1]),
+                  }),
+                  Object.freeze({
+                    code: "NO_CLOSED_LABEL_MATCH" as const,
+                    kind: "PAYMENT_ON_ACCOUNT" as const,
+                    pageNumbers: Object.freeze([1]),
+                  }),
+                  Object.freeze({
+                    code: "NO_CLOSED_LABEL_MATCH" as const,
+                    kind: "DOCUMENT_TOTAL" as const,
+                    pageNumbers: Object.freeze([1]),
+                  }),
+                ]),
+                selectedPaymentAmountKind: null,
+                semanticPolicy: "EXPLICIT_DOCUMENT_FACTS_ONLY" as const,
+                legalRuleStatus: "NOT_APPLIED" as const,
+                requiresHumanReview: true as const,
+                materializationPolicy:
+                  "PROHIBITED_UNTIL_REVIEW" as const,
+                retainedSourceContent: "NONE" as const,
+              }),
+            }),
+            reviewContext: Object.freeze({
               ownerScope: OWNER_A,
               documentId: "document:synthetic-round-trip",
-              pages: Object.freeze([
-                Object.freeze({
-                  pageNumber: 1,
-                  text: [
-                    "AGENCIA TRIBUTARIA",
-                    "sede.agenciatributaria.gob.es",
-                    "PROVIDENCIA DE APREMIO",
-                    "IDENTIFICACION DEL DOCUMENTO",
-                    "IMPORTE DE LA DEUDA",
-                    "PRIVATE_DOCUMENT_TEXT_SENTINEL",
-                  ].join("\n"),
-                  isBlank: false,
-                }),
-              ]),
             }),
             requiresHumanReview: true as const,
             materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
@@ -273,16 +370,28 @@ describe("fiscal notification safe local review repository", () => {
         ocrPort: DISABLED_FISCAL_NOTIFICATION_OCR_PORT,
       },
     );
+    const actual = analysis.technicalReview;
 
     const storage = new MemoryStorage();
+    await expect(
+      repository(storage).append(
+        appendInput("review-ephemeral-envelope-rejected", {
+          result: analysis,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+    expect(storage.values.size).toBe(0);
+    expect(storage.setItem).not.toHaveBeenCalled();
+
     await expect(
       repository(storage).append(
         appendInput("review-real-flow-round-trip", { result: actual }),
       ),
     ).resolves.toMatchObject({ status: "applied" });
-    expect([...storage.values.values()].join("|")).not.toContain(
-      "PRIVATE_DOCUMENT_TEXT_SENTINEL",
-    );
+    const serialized = [...storage.values.values()].join("|");
+    expect(serialized).not.toContain("PRIVATE_DOCUMENT_TEXT_SENTINEL");
+    expect(serialized).not.toContain("amountCents");
+    expect(serialized).not.toContain("ephemeralEnforcementMoneyFacts");
   });
 
   it("isolates owners into independent keys and envelopes", async () => {

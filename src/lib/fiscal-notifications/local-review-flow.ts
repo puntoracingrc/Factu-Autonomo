@@ -5,7 +5,7 @@ import {
   type FiscalNotificationOcrPort,
   type FiscalNotificationOcrUnavailableOutcome,
 } from "./disabled-ocr-port";
-import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
+import type { AeatEnforcementMoneyFactsResult } from "./aeat-enforcement-money-facts";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationCandidateSignalStatus,
@@ -13,11 +13,15 @@ import type {
   FiscalNotificationFamilyCandidate,
   FiscalNotificationSupportedFamilyId,
 } from "./extraction-contract";
-import { FiscalNotificationInputError } from "./input-contract";
+import {
+  FiscalNotificationInputError,
+  assertNotAborted,
+} from "./input-contract";
 import {
   readFiscalNotificationPdfTextLayer,
   type FiscalNotificationPdfTextLayerResult,
 } from "./pdf-text-layer-adapter";
+import { FiscalNotificationPdfError } from "./pdf-text-layer-parser";
 import type { AdministrativeDocumentType } from "./types";
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_SCHEMA_VERSION = 1 as const;
@@ -68,6 +72,18 @@ export interface FiscalNotificationLocalReviewResult {
   readonly retainedSourceContent: "NONE";
 }
 
+export interface FiscalNotificationLocalAnalysisResult {
+  readonly schemaVersion: 1;
+  readonly analysisVersion: "1.0.0";
+  readonly technicalReview: FiscalNotificationLocalReviewResult;
+  readonly ephemeralEnforcementMoneyFacts:
+    | AeatEnforcementMoneyFactsResult
+    | null;
+  readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
+  readonly requiresHumanReview: true;
+  readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
+}
+
 /** @internal Test-only dependency contract. Production dependencies are fixed. */
 export interface FiscalNotificationLocalReviewDependencies {
   readonly readPdf: (
@@ -85,6 +101,16 @@ const PRODUCTION_DEPENDENCIES: FiscalNotificationLocalReviewDependencies =
 export async function analyzeFiscalNotificationLocally(
   request: unknown,
 ): Promise<FiscalNotificationLocalReviewResult> {
+  const analysis = await analyzeFiscalNotificationWithDependencies(
+    request,
+    PRODUCTION_DEPENDENCIES,
+  );
+  return analysis.technicalReview;
+}
+
+export async function analyzeFiscalNotificationLocallyWithEphemeralFacts(
+  request: unknown,
+): Promise<FiscalNotificationLocalAnalysisResult> {
   return analyzeFiscalNotificationWithDependencies(
     request,
     PRODUCTION_DEPENDENCIES,
@@ -94,72 +120,105 @@ export async function analyzeFiscalNotificationLocally(
 async function analyzeFiscalNotificationWithDependencies(
   request: unknown,
   dependencies: FiscalNotificationLocalReviewDependencies,
-): Promise<FiscalNotificationLocalReviewResult> {
+): Promise<FiscalNotificationLocalAnalysisResult> {
   const intake = await dependencies.readPdf(request);
-  const signal = intake.documentInput.signal;
-  const pageCount = intake.documentInput.pages.length;
+  const signal = intake.reviewContext.signal;
+  const pageCount = intake.analysis.pageCount;
+  assertNotAborted(signal);
 
   if (intake.status === "NO_EXTRACTABLE_TEXT") {
     const ocr = await dependencies.ocrPort.recognize({
       schemaVersion: 1,
-      ownerScope: intake.documentInput.ownerScope,
-      documentId: intake.documentInput.documentId,
+      ownerScope: intake.reviewContext.ownerScope,
+      documentId: intake.reviewContext.documentId,
       mimeType: intake.fileIntegrity.mimeType,
       byteLength: intake.fileIntegrity.byteLength,
       sha256: intake.fileIntegrity.sha256,
       ...(signal ? { signal } : {}),
     });
+    assertNotAborted(signal);
     assertDisabledOcrOutcome(ocr);
-    return freezeResult({
-      status: ocr.status,
-      reason: ocr.reason,
-      engineId: null,
-      engineVersion: null,
+    return freezeAnalysisResult(
+      freezeResult({
+        status: ocr.status,
+        reason: ocr.reason,
+        engineId: null,
+        engineVersion: null,
+        pageCount,
+        byteLength: intake.fileIntegrity.byteLength,
+        sha256: intake.fileIntegrity.sha256,
+        candidates: [],
+      }),
+      null,
+    );
+  }
+
+  const extraction = intake.analysis.familyAnalysis;
+  if (!extraction) {
+    throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+  }
+
+  return freezeAnalysisResult(
+    freezeResult({
+      status: extraction.status,
+      reason: extraction.reason,
+      engineId: extraction.engineId,
+      engineVersion: extraction.engineVersion,
       pageCount,
       byteLength: intake.fileIntegrity.byteLength,
       sha256: intake.fileIntegrity.sha256,
-      candidates: [],
-    });
-  }
-
-  const extraction = extractFiscalNotificationCandidates(Object.freeze({
-    ownerScope: intake.documentInput.ownerScope,
-    documentId: intake.documentInput.documentId,
-    pages: intake.documentInput.pages,
-    ...(signal ? { signal } : {}),
-  }));
-  return freezeResult({
-    status: extraction.status,
-    reason: extraction.reason,
-    engineId: extraction.engineId,
-    engineVersion: extraction.engineVersion,
-    pageCount,
-    byteLength: intake.fileIntegrity.byteLength,
-    sha256: intake.fileIntegrity.sha256,
-    candidates: extraction.candidates.map((candidate) => ({
-      familyId: candidate.familyId,
-      documentType: candidate.documentType,
-      authoritySignal: candidate.authoritySignal,
-      handlerId: candidate.handlerId,
-      handlerVersion: candidate.handlerVersion,
-      signalStatus: candidate.signalStatus,
-      matchedAnchors: candidate.matchedAnchors.map((anchor) => ({
-        anchorId: anchor.anchorId,
-        pageNumbers: [...anchor.pageNumbers],
+      candidates: extraction.candidates.map((candidate) => ({
+        familyId: candidate.familyId,
+        documentType: candidate.documentType,
+        authoritySignal: candidate.authoritySignal,
+        handlerId: candidate.handlerId,
+        handlerVersion: candidate.handlerVersion,
+        signalStatus: candidate.signalStatus,
+        matchedAnchors: candidate.matchedAnchors.map((anchor) => ({
+          anchorId: anchor.anchorId,
+          pageNumbers: [...anchor.pageNumbers],
+        })),
+        missingRequiredAnchorIds: [...candidate.missingRequiredAnchorIds],
+        conflictingAnchorIds: [...candidate.conflictingAnchorIds],
+        requiresHumanReview: true,
       })),
-      missingRequiredAnchorIds: [...candidate.missingRequiredAnchorIds],
-      conflictingAnchorIds: [...candidate.conflictingAnchorIds],
-      requiresHumanReview: true,
-    })),
-  });
+    }),
+    intake.analysis.enforcementMoneyFacts,
+  );
 }
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM =
   process.env.NODE_ENV === "test"
     ? Object.freeze({
-        analyzeWithDependencies: analyzeFiscalNotificationWithDependencies,
+        analyzeWithDependencies: async (
+          request: unknown,
+          dependencies: FiscalNotificationLocalReviewDependencies,
+        ) =>
+          (
+            await analyzeFiscalNotificationWithDependencies(
+              request,
+              dependencies,
+            )
+          ).technicalReview,
+        analyzeEphemeralWithDependencies:
+          analyzeFiscalNotificationWithDependencies,
       })
     : null;
+
+function freezeAnalysisResult(
+  technicalReview: FiscalNotificationLocalReviewResult,
+  ephemeralEnforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null,
+): FiscalNotificationLocalAnalysisResult {
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    analysisVersion: "1.0.0" as const,
+    technicalReview,
+    ephemeralEnforcementMoneyFacts,
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
+    requiresHumanReview: true as const,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
+  });
+}
 
 function freezeResult(input: {
   status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";

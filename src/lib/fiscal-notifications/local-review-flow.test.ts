@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
+import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import {
   analyzeFiscalNotificationLocally,
@@ -7,6 +9,7 @@ import {
   type FiscalNotificationLocalReviewDependencies,
 } from "./local-review-flow";
 import type { FiscalNotificationPdfTextLayerResult } from "./pdf-text-layer-adapter";
+import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
 const HASH = "b".repeat(64);
 const PRIVATE_TEXT = "PRIVATE_TAX_ID_AND_CSV_SENTINEL";
@@ -41,17 +44,52 @@ function intake(
   text: string,
   signal?: AbortSignal,
 ): FiscalNotificationPdfTextLayerResult {
+  const boundedInput = documentInput(text, signal);
+  const hasText = text.trim().length > 0;
+  const familyAnalysis = hasText
+    ? extractFiscalNotificationCandidates(boundedInput)
+    : null;
+  const enforcementCandidate =
+    familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+    familyAnalysis.candidates.length === 1 &&
+    familyAnalysis.candidates[0]?.familyId ===
+      "AEAT_ENFORCEMENT_ORDER_CANDIDATE";
+  const analysis = projectFiscalNotificationPdfWorkerAnalysis({
+    textLayerStatus: hasText
+      ? "TEXT_LAYER_AVAILABLE"
+      : "NO_EXTRACTABLE_TEXT",
+    pageCount: boundedInput.pages.length,
+    familyAnalysis,
+    enforcementMoneyFacts: enforcementCandidate
+      ? extractAeatEnforcementMoneyFacts(boundedInput)
+      : null,
+  });
+  const reviewContext = {
+    ownerScope: boundedInput.ownerScope,
+    documentId: boundedInput.documentId,
+  } as {
+    ownerScope: string;
+    documentId: string;
+    signal?: AbortSignal;
+  };
+  if (signal) {
+    Object.defineProperty(reviewContext, "signal", {
+      value: signal,
+      enumerable: false,
+    });
+  }
   return Object.freeze({
-    schemaVersion: 1,
-    adapterVersion: "1.0.1",
-    status: text.trim() ? "TEXT_LAYER_AVAILABLE" : "NO_EXTRACTABLE_TEXT",
+    schemaVersion: 2,
+    adapterVersion: "2.0.0",
+    status: analysis.textLayerStatus,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     fileIntegrity: Object.freeze({
       mimeType: "application/pdf",
       byteLength: 2_048,
       sha256: HASH,
     }),
-    documentInput: documentInput(text, signal),
+    analysis,
+    reviewContext: Object.freeze(reviewContext),
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
   });
@@ -76,6 +114,19 @@ function analyzeForTest(
     throw new Error("Local review test seam is unavailable");
   }
   return FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM.analyzeWithDependencies(
+    request,
+    testDependencies,
+  );
+}
+
+function analyzeEphemeralForTest(
+  request: unknown,
+  testDependencies: FiscalNotificationLocalReviewDependencies,
+) {
+  if (!FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM) {
+    throw new Error("Local review test seam is unavailable");
+  }
+  return FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM.analyzeEphemeralWithDependencies(
     request,
     testDependencies,
   );
@@ -129,6 +180,66 @@ describe("fiscal notification local review flow", () => {
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.candidates)).toBe(true);
     expect(Object.isFrozen(result.candidates[0]?.matchedAnchors)).toBe(true);
+    expect(result).not.toHaveProperty("ephemeralEnforcementMoneyFacts");
+  });
+
+  it("returns explicit money facts in a separate ephemeral envelope", async () => {
+    const text = [
+      "AGENCIA TRIBUTARIA",
+      "sede.agenciatributaria.gob.es",
+      "PROVIDENCIA DE APREMIO",
+      "IDENTIFICACION DEL DOCUMENTO",
+      "IMPORTE DE LA DEUDA",
+      "Principal pendiente: 100,00 EUR",
+      "Recargo ordinario (20 %): 20,00 EUR",
+      "Ingreso a cuenta: 0,00 EUR",
+      "Importe total: 120,00 EUR",
+      "PLAZOS DE PAGO",
+      PRIVATE_TEXT,
+    ].join("\n");
+
+    const analysis = await analyzeEphemeralForTest({}, dependencies(text));
+
+    expect(analysis).toMatchObject({
+      schemaVersion: 1,
+      analysisVersion: "1.0.0",
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      technicalReview: {
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        retainedSourceContent: "NONE",
+      },
+      ephemeralEnforcementMoneyFacts: {
+        status: "REVIEW_REQUIRED",
+        outcome: "FACTS_AVAILABLE",
+        selectedPaymentAmountKind: null,
+        facts: [
+          { kind: "OUTSTANDING_PRINCIPAL", amountCents: 10_000 },
+          { kind: "ORDINARY_ENFORCEMENT_SURCHARGE", amountCents: 2_000 },
+          { kind: "PAYMENT_ON_ACCOUNT", amountCents: 0 },
+          { kind: "DOCUMENT_TOTAL", amountCents: 12_000 },
+        ],
+      },
+    });
+    const serialized = JSON.stringify(analysis);
+    expect(serialized).not.toContain(PRIVATE_TEXT);
+    expect(serialized).not.toMatch(/ownerScope|documentId|filename|textSnippet/i);
+    expect(Object.isFrozen(analysis)).toBe(true);
+    expect(Object.isFrozen(analysis.ephemeralEnforcementMoneyFacts)).toBe(true);
+    expect(Object.isFrozen(analysis.technicalReview)).toBe(true);
+  });
+
+  it("does not attach the enforcement reader to an unsupported family", async () => {
+    const analysis = await analyzeEphemeralForTest(
+      {},
+      dependencies("COMUNICACION ADMINISTRATIVA SINTETICA"),
+    );
+    expect(analysis.ephemeralEnforcementMoneyFacts).toBeNull();
+    expect(analysis.technicalReview).toMatchObject({
+      reason: "NO_SUPPORTED_FAMILY_SIGNAL",
+      status: "INFORMATION_PENDING",
+    });
   });
 
   it("uses only metadata with the disabled OCR port for a scanned PDF", async () => {
@@ -231,9 +342,10 @@ describe("fiscal notification local review flow", () => {
 
   it("propagates the non-enumerable abort signal into deterministic extraction", async () => {
     const controller = new AbortController();
+    const prepared = intake("PROVIDENCIA DE APREMIO", controller.signal);
     const readPdf = vi.fn(async () => {
       controller.abort();
-      return intake("PROVIDENCIA DE APREMIO", controller.signal);
+      return prepared;
     });
 
     await expect(
@@ -242,6 +354,6 @@ describe("fiscal notification local review flow", () => {
         ocrPort: DISABLED_FISCAL_NOTIFICATION_OCR_PORT,
       }),
     ).rejects.toMatchObject({ code: "ABORTED", path: "signal" });
-    expect(JSON.stringify(await readPdf())).not.toContain("signal");
+    expect(JSON.stringify(await readPdf())).not.toContain('"signal":');
   });
 });

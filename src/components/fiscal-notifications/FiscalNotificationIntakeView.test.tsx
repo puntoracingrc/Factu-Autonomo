@@ -16,6 +16,12 @@ const pageSource = readSource(
 const flowSource = readSource(
   "../../lib/fiscal-notifications/local-review-flow.ts",
 );
+const workerSource = readSource(
+  "../../lib/fiscal-notifications/pdf-text-layer.worker.ts",
+);
+const workerContractSource = readSource(
+  "../../lib/fiscal-notifications/pdf-worker-analysis-contract.ts",
+);
 const browserRepositorySource = readSource(
   "../../lib/fiscal-notifications/browser-local-review-repository.ts",
 );
@@ -108,14 +114,25 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("encadena únicamente lector PDF local, reglas deterministas y OCR deshabilitado", () => {
-    expect(componentSource).toContain("analyzeFiscalNotificationLocally({");
+    expect(componentSource).toContain(
+      "analyzeFiscalNotificationLocallyWithEphemeralFacts({",
+    );
     expect(componentSource).toContain("ownerScope,");
     expect(componentSource).toContain("file,");
     expect(componentSource).toContain("signal: controller.signal");
     expect(componentSource).toContain("globalThis.crypto?.randomUUID");
 
     expect(flowSource).toContain("readFiscalNotificationPdfTextLayer");
-    expect(flowSource).toContain("extractFiscalNotificationCandidates");
+    expect(flowSource).not.toContain("extractFiscalNotificationCandidates");
+    expect(workerSource).toContain("extractFiscalNotificationCandidates");
+    expect(workerSource).toContain("extractAeatEnforcementMoneyFacts");
+    expect(workerSource).toContain(
+      "projectFiscalNotificationPdfWorkerAnalysis",
+    );
+    expect(workerSource).not.toContain("pages: documentInput.pages");
+    expect(workerContractSource).toContain(
+      'retainedSourceContent: "NONE"',
+    );
     expect(flowSource).toContain("DISABLED_FISCAL_NOTIFICATION_OCR_PORT");
     expect(flowSource).toContain("PRODUCTION_DEPENDENCIES");
     expect(flowSource).toContain(
@@ -177,9 +194,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
 
-    const analysisStart = componentSource.indexOf(
-      "const nextResult = await analyzeFiscalNotificationLocally",
-    );
+    const analysisStart = componentSource.indexOf("const nextAnalysis =");
     const analysisEnd = componentSource.indexOf(
       "} catch (caught)",
       analysisStart,
@@ -187,7 +202,17 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const analysisSuccess = componentSource.slice(analysisStart, analysisEnd);
     expect(analysisStart).toBeGreaterThan(-1);
     expect(analysisEnd).toBeGreaterThan(analysisStart);
+    expect(analysisSuccess).toContain(
+      "await analyzeFiscalNotificationLocallyWithEphemeralFacts",
+    );
+    expect(analysisSuccess).toContain(
+      "const nextResult = nextAnalysis.technicalReview",
+    );
     expect(analysisSuccess).toContain("setResult(nextResult)");
+    expect(analysisSuccess).toContain(
+      "nextAnalysis.ephemeralEnforcementMoneyFacts",
+    );
+    expect(analysisSuccess).toContain("result: nextResult");
     expect(analysisSuccess).not.toContain(".append(");
 
     const appendStart = componentSource.indexOf(".repository.append({");
@@ -302,6 +327,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
       "Reconoce únicamente indicios de providencia de apremio y concesión de aplazamiento o fraccionamiento de la AEAT.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
+      "Los importes impresos se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
       "No consulta sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
@@ -311,6 +337,44 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "Resultado local · pendiente de revisión",
     );
+  });
+
+  it("muestra solo importes explícitos efímeros sin inventar moneda, cero o total", () => {
+    for (const expected of [
+      "Principal pendiente impreso",
+      "Recargo ordinario impreso",
+      "Ingreso a cuenta impreso",
+      "Importe total impreso",
+      "Importes impresos detectados",
+      "según el documento",
+      "revisión obligatoria",
+      "moneda no confirmada",
+      "Una ausencia nunca se convierte en cero.",
+      "No se han sumado, recalculado ni elegido como importe a pagar.",
+      "Estos importes son efímeros",
+      "No se encontró una etiqueta cubierta; no se ha convertido en cero.",
+      "Una etiqueta cubierta aparece sin cifra; se mantiene pendiente.",
+    ]) {
+      expect(compact(componentSource)).toContain(expected);
+    }
+    expect(componentSource).toContain(
+      'result.outcome !== "FACTS_AVAILABLE"',
+    );
+    expect(componentSource).toContain(
+      'fact.currency === "EUR"',
+    );
+    expect(componentSource).toContain("BigInt(fact.amountCents)");
+    expect(componentSource).not.toMatch(
+      /(?:amountCents|ephemeralMoneyFacts)[^\n]{0,120}\?\?\s*0/,
+    );
+    expect(componentSource.match(/setEphemeralMoneyFacts\(null\)/g)?.length)
+      .toBeGreaterThanOrEqual(3);
+
+    const appendStart = componentSource.indexOf(".repository.append({");
+    const appendEnd = componentSource.indexOf("});", appendStart);
+    const appendPayload = componentSource.slice(appendStart, appendEnd);
+    expect(appendPayload).toContain("result: pendingReview.result");
+    expect(appendPayload).not.toMatch(/money|amount|fact/i);
   });
 
   it("mantiene controles y estados accesibles en escritorio y móvil", () => {
