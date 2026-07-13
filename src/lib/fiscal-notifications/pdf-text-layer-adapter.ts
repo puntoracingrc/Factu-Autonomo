@@ -317,7 +317,8 @@ function awaitWorkerResult(
       try {
         const message = snapshotRecord(event.data);
         // pdfjs-dist 4.10.38 initializes its in-worker fake transport with this
-        // single exact envelope before our own RESULT/ERROR protocol.
+        // single exact envelope before our own RESULT/ERROR protocol. Keep this
+        // pinned-version allowlist exact; every other message is rejected.
         if (message && isExactPdfJsReadyEnvelope(message)) {
           if (pdfJsReadySeen) {
             throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
