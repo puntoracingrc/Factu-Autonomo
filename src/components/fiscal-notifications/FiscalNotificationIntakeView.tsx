@@ -20,6 +20,7 @@ import {
 } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   analyzeFiscalNotificationLocallyWithEphemeralFacts,
@@ -42,6 +43,7 @@ import {
   FiscalNotificationPdfError,
   type FiscalNotificationPdfErrorCode,
 } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
+import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Posible providencia de apremio AEAT",
@@ -259,7 +261,8 @@ export function FiscalNotificationIntakeView() {
             desaparecen al salir y nunca se guardan en la ficha técnica.
           </li>
           <li>
-            No consulta sedes oficiales, no ejecuta OCR remoto y no utiliza IA.
+            No consulta automáticamente sedes oficiales, no ejecuta OCR remoto
+            y no utiliza IA.
           </li>
         </ul>
         <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -483,6 +486,12 @@ function FiscalNotificationReviewWorkspace({
 
   const saving = persistenceState === "saving";
   const busy = processing || saving;
+  const reviewGuidance = result
+    ? projectFiscalNotificationReviewGuidanceV1({
+        technicalReview: result,
+        ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts,
+      })
+    : null;
 
   return (
     <>
@@ -597,6 +606,11 @@ function FiscalNotificationReviewWorkspace({
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
         />
+      ) : null}
+      {reviewGuidance ? (
+        <div className="mt-4">
+          <FiscalNotificationReviewSteps guidance={reviewGuidance} />
+        </div>
       ) : null}
       {result ? (
         <ReviewPersistencePanel
