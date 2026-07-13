@@ -109,6 +109,16 @@ describe("fiscal model structural review pages UI contract", () => {
       ["resumen anual IVA", ["390"]],
       ["servicios digitales interfaz digital", ["490"]],
       ["solicitud autorizacion productos union europea", ["504"]],
+      ["devolución introducción depósito fiscal", ["506"]],
+      ["devolución envíos garantizados", ["507"]],
+      ["devolución ventas distancia", ["508"]],
+      ["operaciones recepción resto UE", ["510"]],
+      ["destinatarios productos tarifa segunda", ["512"]],
+      ["marcas fiscales labores tabaco", ["515"]],
+      ["marcas fiscales alcohol bebidas derivadas", ["517"]],
+      ["declaración trabajo alcohol", ["518"]],
+      ["incidencias operaciones trabajo", ["519"]],
+      ["resultado operaciones trabajo", ["520"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
