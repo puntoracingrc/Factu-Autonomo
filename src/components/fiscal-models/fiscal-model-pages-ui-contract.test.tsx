@@ -83,6 +83,7 @@ describe("fiscal model structural review pages UI contract", () => {
     const invalid = searchPublicAeatModelReviewPagesV2({ modelo: "036 " });
     expect(invalid).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
     expect(browser).toContain("Escribe hasta 80 caracteres");
+    expect(browser).toContain("usa un solo código de modelo");
     expect(browser).toContain("aria-invalid={blocked}");
     expect(browser).toContain(
       'aria-errormessage={blocked ? "buscar-modelo-error"',
