@@ -84,6 +84,100 @@ describe("review guidance v1", () => {
     expectDeepFrozen(result);
   });
 
+  it("accepts historical and current candidate-engine versions but rejects unknown versions", () => {
+    for (const engineVersion of ["1.0.0", "1.1.0"] as const) {
+      expect(
+        projectFiscalNotificationReviewGuidanceV1(
+          analysisInput({
+            engineVersion,
+            candidates: [completeDeferralCandidate()],
+          }),
+        ),
+      ).toMatchObject({
+        projectionStatus: "GUIDANCE_AVAILABLE",
+        candidateContext: { familyId: "collection.deferral_grant" },
+      });
+    }
+
+    const current = analysisInput({
+      engineVersion: "1.1.0",
+      candidates: [completeDeferralCandidate()],
+    });
+    expect(
+      projectFiscalNotificationReviewGuidanceV1({
+        ...current,
+        technicalReview: {
+          ...current.technicalReview,
+          engineVersion: "1.2.0",
+        },
+      }),
+    ).toMatchObject({
+      projectionStatus: "GUIDANCE_BLOCKED",
+      candidateContext: null,
+      officialProcedureContexts: [],
+    });
+  });
+
+  it("keeps a current attached act as incomplete review guidance", () => {
+    const result = projectFiscalNotificationReviewGuidanceV1(
+      analysisInput({
+        engineVersion: "1.1.0",
+        pageCount: 4,
+        status: "INFORMATION_PENDING",
+        reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+        candidates: [attachedPartialEnforcementCandidate()],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      projectionStatus: "GUIDANCE_AVAILABLE",
+      candidateContext: null,
+      officialProcedureContexts: [],
+      completionTracking: "DISABLED",
+      persistencePolicy: "DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    });
+    expect(result.steps[1]).toMatchObject({
+      state: "INFORMATION_PENDING",
+      reason: "CANDIDATE_INFORMATION_INCOMPLETE",
+    });
+  });
+
+  it("keeps the historical wrapper domain on page one and rejects it on page three", () => {
+    const common = {
+      engineVersion: "1.0.0" as const,
+      pageCount: 4,
+      status: "INFORMATION_PENDING" as const,
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL" as const,
+    };
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(
+        analysisInput({
+          ...common,
+          candidates: [historicalWrapperPartialEnforcementCandidate()],
+        }),
+      ),
+    ).toMatchObject({
+      projectionStatus: "GUIDANCE_AVAILABLE",
+      candidateContext: null,
+      persistencePolicy: "DO_NOT_PERSIST",
+    });
+
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(
+        analysisInput({
+          ...common,
+          candidates: [attachedPartialEnforcementCandidate()],
+        }),
+      ),
+    ).toMatchObject({
+      projectionStatus: "GUIDANCE_BLOCKED",
+      candidateContext: null,
+      officialProcedureContexts: [],
+    });
+  });
+
   it("maps a complete deferral candidate to context-only RB01 without a money step", () => {
     const result = projectFiscalNotificationReviewGuidanceV1(
       analysisInput({ candidates: [completeDeferralCandidate()] }),
@@ -426,6 +520,7 @@ describe("review guidance v1", () => {
 });
 
 function analysisInput(options: {
+  readonly pageCount?: number;
   readonly status?: FiscalNotificationLocalReviewResult["status"];
   readonly reason?: FiscalNotificationLocalReviewReason;
   readonly candidates?: readonly FiscalNotificationLocalReviewCandidate[];
@@ -442,6 +537,7 @@ function analysisInput(options: {
 function completeReview(
   candidates: readonly FiscalNotificationLocalReviewCandidate[],
   options: {
+    readonly pageCount?: number;
     readonly status?: FiscalNotificationLocalReviewResult["status"];
     readonly reason?: FiscalNotificationLocalReviewReason;
     readonly engineId?: FiscalNotificationLocalReviewResult["engineId"];
@@ -459,7 +555,7 @@ function completeReview(
         : options.engineId,
     engineVersion:
       options.engineVersion === undefined ? "1.0.0" : options.engineVersion,
-    pageCount: 2,
+    pageCount: options.pageCount ?? 2,
     byteLength: 2_048,
     sha256: HASH,
     candidates,
@@ -510,6 +606,41 @@ function partialEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {
     ],
     ["ENFORCEMENT_DEBT_AMOUNT_SECTION"],
   );
+}
+
+function attachedPartialEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {
+  const base = candidate(
+    "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+    [
+      "AEAT_OFFICIAL_DOMAIN_LABEL",
+      "ENFORCEMENT_ORDER_TITLE",
+      "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+      "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+    ],
+    ["STRUCTURAL_FIRST_PAGE_HEADER"],
+  );
+  return {
+    ...base,
+    matchedAnchors: base.matchedAnchors.map((anchor) => ({
+      ...anchor,
+      pageNumbers:
+        anchor.anchorId === "ENFORCEMENT_DEBT_AMOUNT_SECTION" ? [4] : [3],
+    })),
+  };
+}
+
+function historicalWrapperPartialEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {
+  const current = attachedPartialEnforcementCandidate();
+  return {
+    ...current,
+    matchedAnchors: current.matchedAnchors.map((anchor) => ({
+      ...anchor,
+      pageNumbers:
+        anchor.anchorId === "AEAT_OFFICIAL_DOMAIN_LABEL"
+          ? [1]
+          : anchor.pageNumbers,
+    })),
+  };
 }
 
 function forgedCompleteEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {

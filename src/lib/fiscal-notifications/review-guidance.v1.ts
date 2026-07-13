@@ -401,7 +401,11 @@ function validateTechnicalReview(
   if (!candidates) return null;
   const validatedCandidates: FiscalNotificationLocalReviewCandidate[] = [];
   for (const candidate of candidates) {
-    const validated = validateCandidate(candidate, review.pageCount);
+    const validated = validateCandidate(
+      candidate,
+      review.pageCount,
+      review.engineVersion,
+    );
     if (!validated) return null;
     validatedCandidates.push(validated);
   }
@@ -466,6 +470,7 @@ function validateTechnicalReview(
 function validateCandidate(
   value: unknown,
   pageCountValue: unknown,
+  engineVersionValue: unknown,
 ): FiscalNotificationLocalReviewCandidate | null {
   if (!Number.isSafeInteger(pageCountValue)) return null;
   const candidate = snapshotRecord(value, CANDIDATE_KEYS);
@@ -528,13 +533,31 @@ function validateCandidate(
       : "DEFERRAL_GRANT_TITLE";
   const domainPages = pagesByAnchor.get("AEAT_OFFICIAL_DOMAIN_LABEL");
   const structuralPages = pagesByAnchor.get("STRUCTURAL_FIRST_PAGE_HEADER");
+  const titlePages = pagesByAnchor.get(titleAnchor);
+  const titlePageNumber = titlePages?.[0];
   if (
     !matchedAnchorIds.has(titleAnchor) ||
-    (domainPages !== undefined && !sameNumberList(domainPages, [1])) ||
+    !titlePages ||
+    (domainPages !== undefined &&
+      (engineVersionValue === "1.0.0"
+        ? !sameNumberList(domainPages, [1])
+        : engineVersionValue === "1.1.0"
+          ? titlePages.length !== 1 || !sameNumberList(domainPages, titlePages)
+          : true)) ||
     (structuralPages !== undefined &&
       (!sameNumberList(structuralPages, [1]) ||
         !domainPages?.includes(1) ||
-        !pagesByAnchor.get(titleAnchor)?.includes(1)))
+        !titlePages.includes(1))) ||
+    (engineVersionValue === "1.1.0" &&
+      (titlePages.length !== 1 ||
+        titlePageNumber === undefined ||
+        (domainPages !== undefined &&
+          !sameNumberList(domainPages, [titlePageNumber])) ||
+        (titlePageNumber > 1 &&
+          (candidate.signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" ||
+            structuralPages !== undefined)) ||
+        (candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
+          titlePageNumber !== 1)))
   ) {
     return null;
   }
@@ -799,7 +822,7 @@ function validEngineForReason(
   return reason === "OCR_DISABLED"
     ? engineId === null && engineVersion === null
     : engineId === "fiscal-notification-family-candidate-engine" &&
-        engineVersion === "1.0.0";
+        (engineVersion === "1.0.0" || engineVersion === "1.1.0");
 }
 
 function validReviewSemantics(

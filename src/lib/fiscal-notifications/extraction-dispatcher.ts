@@ -13,6 +13,12 @@ import {
   assertNotAborted,
   type BoundedDocumentInput,
 } from "./input-contract";
+import {
+  AEAT_DEFERRAL_PRIMARY_TITLE_V1,
+  AEAT_ENFORCEMENT_PRIMARY_TITLE_V1,
+  segmentFiscalNotificationPrimaryActsV1,
+  type FiscalNotificationPrimaryActSegmentV1,
+} from "./primary-act-segmentation.v1";
 
 type AnchorMatchMode =
   | "LINE_EXACT"
@@ -36,6 +42,8 @@ interface PrivateTextIndex {
     readonly normalizedLines: readonly string[];
   }[];
   readonly extractablePageCount: number;
+  /** Page whose header scopes PAGE_ONE/HEADER match modes for this segment. */
+  readonly headerPageNumber: number;
 }
 
 type PrivateTextIndexResult =
@@ -136,9 +144,9 @@ const COMMON_CONFLICTING_ANCHORS = Object.freeze([
 const ENFORCEMENT_REQUIRED_ANCHORS = Object.freeze([
   ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
   {
-    anchorId: "ENFORCEMENT_ORDER_TITLE",
-    matchMode: "LINE_EXACT",
-    literals: ["providencia de apremio"],
+    anchorId: AEAT_ENFORCEMENT_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_ENFORCEMENT_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_ENFORCEMENT_PRIMARY_TITLE_V1.literals,
   },
   {
     anchorId: "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
@@ -155,15 +163,9 @@ const ENFORCEMENT_REQUIRED_ANCHORS = Object.freeze([
 const DEFERRAL_REQUIRED_ANCHORS = Object.freeze([
   ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
   {
-    anchorId: "DEFERRAL_GRANT_TITLE",
-    matchMode: "LINE_PREFIX",
-    literals: [
-      "concesion de aplazamiento o fraccionamiento",
-      "concesion de aplazamiento fraccionamiento",
-      "concesion del aplazamiento o fraccionamiento",
-      "concesion del aplazamiento fraccionamiento",
-      "acuerdo de concesion de aplazamiento",
-    ],
+    anchorId: AEAT_DEFERRAL_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_DEFERRAL_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_DEFERRAL_PRIMARY_TITLE_V1.literals,
   },
   {
     anchorId: "DEFERRAL_INSTALLMENT_ANNEX",
@@ -190,30 +192,15 @@ export function extractFiscalNotificationCandidates(
     return freezeResult(input, "INFORMATION_PENDING", "NO_EXTRACTABLE_TEXT", []);
   }
 
-  const candidates = [
-    evaluateFamilyCandidate(
-      textIndexResult.index,
-      input.signal,
-      ENFORCEMENT_REQUIRED_ANCHORS,
-      "ENFORCEMENT_ORDER_TITLE",
-      {
-        familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
-        documentType: "AEAT_ENFORCEMENT_ORDER",
-        handlerId: "aeat-enforcement-order-candidate",
-      },
-    ),
-    evaluateFamilyCandidate(
-      textIndexResult.index,
-      input.signal,
-      DEFERRAL_REQUIRED_ANCHORS,
-      "DEFERRAL_GRANT_TITLE",
-      {
-        familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
-        documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
-        handlerId: "aeat-deferral-grant-candidate",
-      },
-    ),
-  ].filter((candidate) => candidate !== null);
+  const segmentation = segmentFiscalNotificationPrimaryActsV1(
+    textIndexResult.index.pages,
+    input.signal,
+  );
+  const candidates = segmentation.segments
+    .map((segment) =>
+      evaluateSegmentCandidate(textIndexResult.index, segment, input.signal),
+    )
+    .filter((candidate) => candidate !== null);
   assertNotAborted(input.signal);
 
   if (candidates.length === 0) {
@@ -264,6 +251,45 @@ export function extractFiscalNotificationCandidates(
     "INFORMATION_PENDING",
     "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
     candidates,
+  );
+}
+
+function evaluateSegmentCandidate(
+  index: PrivateTextIndex,
+  segment: FiscalNotificationPrimaryActSegmentV1,
+  signal?: AbortSignal,
+): FiscalNotificationFamilyCandidate | null {
+  const pageNumbers = new Set(segment.pageNumbers);
+  const segmentIndex = Object.freeze({
+    pages: Object.freeze(
+      index.pages.filter((page) => pageNumbers.has(page.pageNumber)),
+    ),
+    extractablePageCount: segment.pageNumbers.length,
+    headerPageNumber: segment.startPageNumber,
+  });
+  if (segment.familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      ENFORCEMENT_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+        documentType: "AEAT_ENFORCEMENT_ORDER",
+        handlerId: "aeat-enforcement-order-candidate",
+      },
+    );
+  }
+  return evaluateFamilyCandidate(
+    segmentIndex,
+    signal,
+    DEFERRAL_REQUIRED_ANCHORS,
+    segment.titleAnchorId,
+    {
+      familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
+      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+      handlerId: "aeat-deferral-grant-candidate",
+    },
   );
 }
 
@@ -443,6 +469,7 @@ function createPrivateTextIndex(value: unknown): PrivateTextIndexResult {
         ),
       ),
       extractablePageCount,
+      headerPageNumber: 1,
     }),
   });
 }
@@ -595,7 +622,7 @@ function collectClosedAnchorEvidence(
     if (
       (definition.matchMode.startsWith("HEADER_") ||
         definition.matchMode === "PAGE_ONE_TOKEN_SEQUENCE") &&
-      page.pageNumber !== 1
+      page.pageNumber !== index.headerPageNumber
     ) {
       continue;
     }

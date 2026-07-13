@@ -35,6 +35,7 @@ describe("fiscal notification extraction dispatcher", () => {
     const result = extractFiscalNotificationCandidates(documentWith(text));
 
     expect(result).toMatchObject({
+      engineVersion: "1.1.0",
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       selectedFamilyId: null,
@@ -194,11 +195,194 @@ describe("fiscal notification extraction dispatcher", () => {
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
         expect.objectContaining({
+          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
           missingRequiredAnchorIds: expect.arrayContaining([
+            "AEAT_OFFICIAL_DOMAIN_LABEL",
             "STRUCTURAL_FIRST_PAGE_HEADER",
           ]),
         }),
       ],
+    });
+  });
+
+  it("evaluates the first attached act from its own header without making it complete", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        "Wrapper sintético\nsede.agenciatributaria.gob.es\nIMPORTE DE LA DEUDA",
+        "Continuación del wrapper\nIDENTIFICACIÓN DEL DOCUMENTO",
+        [
+          "Agencia Tributaria",
+          "sede.agenciatributaria.gob.es",
+          "PROVIDENCIA DE APREMIO",
+          "IDENTIFICACIÓN DEL DOCUMENTO",
+        ].join("\n"),
+        "IMPORTE DE LA DEUDA",
+      ),
+    );
+
+    expect(result).toMatchObject({
+      engineVersion: "1.1.0",
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      selectedFamilyId: null,
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      retainedSourceContent: "NONE",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: ["STRUCTURAL_FIRST_PAGE_HEADER"],
+        }),
+      ],
+    });
+    const pagesByAnchor = new Map(
+      result.candidates[0]?.matchedAnchors.map((anchor) => [
+        anchor.anchorId,
+        anchor.pageNumbers,
+      ]),
+    );
+    expect(pagesByAnchor.get("AEAT_OFFICIAL_DOMAIN_LABEL")).toEqual([3]);
+    expect(pagesByAnchor.get("ENFORCEMENT_ORDER_TITLE")).toEqual([3]);
+    expect(
+      pagesByAnchor.get("ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION"),
+    ).toEqual([3]);
+    expect(pagesByAnchor.get("ENFORCEMENT_DEBT_AMOUNT_SECTION")).toEqual([4]);
+    expect(pagesByAnchor.has("STRUCTURAL_FIRST_PAGE_HEADER")).toBe(false);
+  });
+
+  it("does not borrow required anchors printed before an attached title", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        "Wrapper\nsede.agenciatributaria.gob.es\nIMPORTE DE LA DEUDA",
+        "IDENTIFICACIÓN DEL DOCUMENTO",
+        "PROVIDENCIA DE APREMIO",
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        expect.objectContaining({
+          missingRequiredAnchorIds: expect.arrayContaining([
+            "AEAT_OFFICIAL_DOMAIN_LABEL",
+            "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+            "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+            "STRUCTURAL_FIRST_PAGE_HEADER",
+          ]),
+        }),
+      ],
+    });
+  });
+
+  it("keeps two titles on the first attached page ambiguous", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith("Wrapper", "Wrapper continuation", `${ENFORCEMENT}\n${DEFERRAL}`),
+    );
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      reason: "AMBIGUOUS_SUPPORTED_FAMILIES",
+      selectedFamilyId: null,
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: ["STRUCTURAL_FIRST_PAGE_HEADER"],
+        }),
+        expect.objectContaining({
+          familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
+          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: ["STRUCTURAL_FIRST_PAGE_HEADER"],
+        }),
+      ],
+    });
+  });
+
+  it("never retains wrapper or attached-act text", () => {
+    const sentinel = "PRIVATE_ATTACHED_ACT_SENTINEL";
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        `Wrapper ${sentinel}`,
+        "Wrapper continuation",
+        `${ENFORCEMENT}\n${sentinel}`,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain(sentinel);
+  });
+
+  it("does not borrow required anchors from a later bundled act", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        [
+          "Agencia Tributaria",
+          "sede.agenciatributaria.gob.es",
+          "PROVIDENCIA DE APREMIO",
+          "IDENTIFICACIÓN DEL DOCUMENTO",
+        ].join("\n"),
+        DEFERRAL,
+        "IMPORTE DE LA DEUDA",
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          missingRequiredAnchorIds: expect.arrayContaining([
+            "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+          ]),
+        }),
+      ],
+    });
+    expect(result.candidates[0]?.matchedAnchors).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          anchorId: "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+        }),
+      ]),
+    );
+  });
+
+  it("does not let a later act conflict with a complete primary act", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        ENFORCEMENT,
+        `${DEFERRAL}\nTesorería General de la Seguridad Social`,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          conflictingAnchorIds: [],
+        }),
+      ],
+    });
+  });
+
+  it("requires the primary title inside the first forty normalized lines", () => {
+    const titleAfterHeader = [
+      ...Array.from({ length: 40 }, () => "cabecera"),
+      ENFORCEMENT,
+    ].join("\n");
+    expect(
+      extractFiscalNotificationCandidates(documentWith(titleAfterHeader)),
+    ).toMatchObject({
+      status: "INFORMATION_PENDING",
+      reason: "NO_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [],
     });
   });
 

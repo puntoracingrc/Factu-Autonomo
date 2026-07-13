@@ -258,7 +258,7 @@ describe("fiscal notification safe local review repository", () => {
                 schemaVersion: 1 as const,
                 engineId:
                   "fiscal-notification-family-candidate-engine" as const,
-                engineVersion: "1.0.0" as const,
+                engineVersion: "1.1.0" as const,
                 ownerScope: OWNER_A,
                 documentId: "document:synthetic-round-trip",
                 status: "REVIEW_REQUIRED" as const,
@@ -415,6 +415,182 @@ describe("fiscal notification safe local review repository", () => {
     expect(serialized).not.toContain("PRIVATE_DOCUMENT_TEXT_SENTINEL");
     expect(serialized).not.toContain("amountCents");
     expect(serialized).not.toContain("ephemeralEnforcementMoneyFacts");
+  });
+
+  it("accepts historical and current engine versions but rejects a historical trace relabelled current", async () => {
+    const storage = new MemoryStorage();
+    const reviews = repository(storage);
+
+    const historical = await reviews.append(appendInput("review-version-100"));
+    expect(historical.status).toBe("applied");
+
+    const current = clonedResult();
+    current.engineVersion = "1.1.0";
+    current.candidates[0]!.matchedAnchors.find(
+      (anchor) => anchor.anchorId === "ENFORCEMENT_ORDER_TITLE",
+    )!.pageNumbers = [1];
+    const currentWrite = await reviews.append(
+      appendInput("review-version-110", {
+        expectedRevision: 1,
+        createdAt: "2026-07-12T08:01:00.000Z",
+        result: current,
+      }),
+    );
+    expect(currentWrite.status).toBe("applied");
+    expect(reviews.load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          { result: { engineVersion: "1.0.0" } },
+          {
+            result: {
+              engineVersion: "1.1.0",
+              candidates: [{ handlerVersion: "1.0.0" }],
+            },
+          },
+        ],
+      },
+    });
+
+    const mixed = structuredClone(current);
+    mixed.candidates[0]!.matchedAnchors.find(
+      (anchor) => anchor.anchorId === "ENFORCEMENT_ORDER_TITLE",
+    )!.pageNumbers = [1, 2];
+    const rawBefore = [...storage.values.values()][0];
+    await expect(
+      reviews.append(
+        appendInput("review-version-mixed", {
+          expectedRevision: 2,
+          createdAt: "2026-07-12T08:02:00.000Z",
+          result: mixed,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+    expect([...storage.values.values()][0]).toBe(rawBefore);
+  });
+
+  it("accepts a current incomplete attached act but rejects it as complete", async () => {
+    const storage = new MemoryStorage();
+    const reviews = repository(storage);
+    const attached = clonedResult();
+    attached.engineVersion = "1.1.0";
+    attached.status = "INFORMATION_PENDING";
+    attached.reason = "PARTIAL_SUPPORTED_FAMILY_SIGNAL";
+    attached.pageCount = 4;
+    attached.candidates[0]!.signalStatus = "INCOMPLETE_REQUIRED_ANCHORS";
+    attached.candidates[0]!.matchedAnchors = [
+      { anchorId: "AEAT_AUTHORITY_LABEL", pageNumbers: [3] },
+      { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [3] },
+      { anchorId: "ENFORCEMENT_ORDER_TITLE", pageNumbers: [3] },
+      {
+        anchorId: "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+        pageNumbers: [3],
+      },
+      { anchorId: "ENFORCEMENT_DEBT_AMOUNT_SECTION", pageNumbers: [4] },
+    ];
+    attached.candidates[0]!.missingRequiredAnchorIds = [
+      "STRUCTURAL_FIRST_PAGE_HEADER",
+    ];
+
+    await expect(
+      reviews.append(
+        appendInput("review-attached-110", {
+          result: attached,
+        }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(reviews.load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          {
+            result: {
+              engineVersion: "1.1.0",
+              status: "INFORMATION_PENDING",
+              candidates: [
+                {
+                  signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
+                  matchedAnchors: expect.arrayContaining([
+                    {
+                      anchorId: "ENFORCEMENT_ORDER_TITLE",
+                      pageNumbers: [3],
+                    },
+                  ]),
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const forgedComplete = structuredClone(attached);
+    forgedComplete.status = "REVIEW_REQUIRED";
+    forgedComplete.reason = "SUPPORTED_FAMILY_CANDIDATE";
+    forgedComplete.candidates[0]!.signalStatus = "COMPLETE_REQUIRED_ANCHORS";
+    forgedComplete.candidates[0]!.missingRequiredAnchorIds = [];
+    forgedComplete.candidates[0]!.matchedAnchors.push({
+      anchorId: "STRUCTURAL_FIRST_PAGE_HEADER",
+      pageNumbers: [1],
+    });
+    const rawBefore = [...storage.values.values()][0];
+    await expect(
+      reviews.append(
+        appendInput("review-attached-forged-complete", {
+          expectedRevision: 1,
+          createdAt: "2026-07-12T08:03:00.000Z",
+          result: forgedComplete,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+    expect([...storage.values.values()][0]).toBe(rawBefore);
+  });
+
+  it("preserves the exact v1 wrapper domain rule and rejects a later v1 domain", async () => {
+    const storage = new MemoryStorage();
+    const reviews = repository(storage);
+    const historicalWrapper = clonedResult();
+    historicalWrapper.status = "INFORMATION_PENDING";
+    historicalWrapper.reason = "PARTIAL_SUPPORTED_FAMILY_SIGNAL";
+    historicalWrapper.pageCount = 4;
+    historicalWrapper.candidates[0]!.signalStatus =
+      "INCOMPLETE_REQUIRED_ANCHORS";
+    historicalWrapper.candidates[0]!.matchedAnchors = [
+      { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+      { anchorId: "ENFORCEMENT_ORDER_TITLE", pageNumbers: [3] },
+      {
+        anchorId: "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+        pageNumbers: [3],
+      },
+      { anchorId: "ENFORCEMENT_DEBT_AMOUNT_SECTION", pageNumbers: [4] },
+    ];
+    historicalWrapper.candidates[0]!.missingRequiredAnchorIds = [
+      "STRUCTURAL_FIRST_PAGE_HEADER",
+    ];
+
+    await expect(
+      reviews.append(
+        appendInput("review-historical-wrapper-domain-page-one", {
+          result: historicalWrapper,
+        }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+
+    const invalidHistoricalDomain = structuredClone(historicalWrapper);
+    invalidHistoricalDomain.candidates[0]!.matchedAnchors.find(
+      (anchor) => anchor.anchorId === "AEAT_OFFICIAL_DOMAIN_LABEL",
+    )!.pageNumbers = [3];
+    const rawBefore = [...storage.values.values()][0];
+    await expect(
+      reviews.append(
+        appendInput("review-historical-wrapper-domain-page-three", {
+          expectedRevision: 1,
+          createdAt: "2026-07-12T08:04:00.000Z",
+          result: invalidHistoricalDomain,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+    expect([...storage.values.values()][0]).toBe(rawBefore);
   });
 
   it("isolates owners into independent keys and envelopes", async () => {

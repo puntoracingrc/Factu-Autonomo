@@ -2,7 +2,7 @@ import type { AdministrativeDocumentType } from "./types";
 export const FISCAL_NOTIFICATION_EXTRACTION_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_ID =
   "fiscal-notification-family-candidate-engine" as const;
-export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.0.0" as const;
+export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.1.0" as const;
 
 export type FiscalNotificationSupportedFamilyId =
   | "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
@@ -70,7 +70,7 @@ export type FiscalNotificationExtractionReason =
 export interface FiscalNotificationExtractionResult {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.0.0";
+  readonly engineVersion: "1.1.0";
   readonly ownerScope: string;
   readonly documentId: string;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";

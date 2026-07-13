@@ -161,7 +161,7 @@ describe("fiscal notification local review flow", () => {
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       engineId: "fiscal-notification-family-candidate-engine",
-      engineVersion: "1.0.0",
+      engineVersion: "1.1.0",
       pageCount: 1,
       byteLength: 2_048,
       sha256: HASH,

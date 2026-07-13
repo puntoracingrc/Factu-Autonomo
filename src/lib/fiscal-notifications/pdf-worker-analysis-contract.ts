@@ -61,7 +61,7 @@ export interface FiscalNotificationPdfWorkerCandidate {
 export interface FiscalNotificationPdfWorkerFamilyAnalysis {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.0.0";
+  readonly engineVersion: "1.1.0";
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly reason: FiscalNotificationExtractionReason;
   readonly candidates: readonly FiscalNotificationPdfWorkerCandidate[];
@@ -504,7 +504,7 @@ function parseFamilyAnalysis(
   if (
     family.schemaVersion !== 1 ||
     family.engineId !== "fiscal-notification-family-candidate-engine" ||
-    family.engineVersion !== "1.0.0" ||
+    family.engineVersion !== "1.1.0" ||
     (family.status !== "REVIEW_REQUIRED" &&
       family.status !== "INFORMATION_PENDING") ||
     !REASONS.has(family.reason as FiscalNotificationExtractionReason) ||
@@ -536,7 +536,7 @@ function parseFamilyAnalysis(
   return Object.freeze({
     schemaVersion: 1 as const,
     engineId: "fiscal-notification-family-candidate-engine" as const,
-    engineVersion: "1.0.0" as const,
+    engineVersion: "1.1.0" as const,
     status: family.status as FiscalNotificationPdfWorkerFamilyAnalysis["status"],
     reason: family.reason as FiscalNotificationExtractionReason,
     candidates: Object.freeze(candidates),
@@ -605,6 +605,7 @@ function parseCandidate(
   );
   assertCandidateTrace(
     candidate.familyId as FiscalNotificationPdfWorkerCandidate["familyId"],
+    candidate.signalStatus as FiscalNotificationPdfWorkerCandidate["signalStatus"],
     matchedAnchors,
     missingRequiredAnchorIds,
     conflictingAnchorIds,
@@ -1217,6 +1218,7 @@ function assertCandidateSemantics(
 
 function assertCandidateTrace(
   familyId: FiscalNotificationPdfWorkerCandidate["familyId"],
+  signalStatus: FiscalNotificationPdfWorkerCandidate["signalStatus"],
   matchedAnchors: readonly FiscalNotificationPdfWorkerAnchor[],
   missing: readonly FiscalNotificationAnchorId[],
   conflicting: readonly FiscalNotificationAnchorId[],
@@ -1269,10 +1271,17 @@ function assertCandidateTrace(
         ? "ENFORCEMENT_ORDER_TITLE"
         : "DEFERRAL_GRANT_TITLE"),
   );
+  const titlePageNumber = familyTitle?.pageNumbers[0];
   if (
+    !familyTitle ||
+    familyTitle.pageNumbers.length !== 1 ||
+    titlePageNumber === undefined ||
     (officialDomain &&
       (officialDomain.pageNumbers.length !== 1 ||
-        officialDomain.pageNumbers[0] !== 1)) ||
+        officialDomain.pageNumbers[0] !== titlePageNumber)) ||
+    (titlePageNumber > 1 &&
+      (signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" || structuralHeader)) ||
+    (signalStatus === "COMPLETE_REQUIRED_ANCHORS" && titlePageNumber !== 1) ||
     (structuralHeader &&
       (structuralHeader.pageNumbers.length !== 1 ||
         structuralHeader.pageNumbers[0] !== 1 ||
