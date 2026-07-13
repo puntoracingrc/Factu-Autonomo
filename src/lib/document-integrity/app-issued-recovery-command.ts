@@ -163,6 +163,14 @@ export function runAppIssuedDocumentRecoveryCommand(input: {
   if (transition.status === "blocked") return transition;
 
   const candidate = withFreshRelationshipSignals(transition.data);
+  const isReplay =
+    transition.appliedRepairIds.length === 0 &&
+    transition.data === input.expected;
+  if (transition.appliedRepairIds.length === 0) {
+    if (!isReplay || !sameDurableData(candidate, input.expected)) {
+      return { status: "blocked", reason: "stale_preview" };
+    }
+  }
   if (
     !activeTargetsRemainGloballyUsable(
       candidate,
@@ -173,11 +181,7 @@ export function runAppIssuedDocumentRecoveryCommand(input: {
   }
 
   const value = withoutTransitionEnvelope(transition);
-  if (
-    transition.appliedRepairIds.length === 0 &&
-    transition.data === input.expected &&
-    sameDurableData(candidate, input.expected)
-  ) {
+  if (isReplay) {
     return {
       status: "applied",
       data: input.expected,
@@ -215,6 +219,12 @@ export function runAppIssuedDocumentRecoveryRollbackCommand(input: {
     transition.rolledBackRepairIds.length === 0 &&
     transition.data === input.expected;
   if (
+    transition.rolledBackRepairIds.length === 0 &&
+    (!isReplay || !sameDurableData(candidate, input.expected))
+  ) {
+    return { status: "blocked", reason: "stale_preview" };
+  }
+  if (
     isReplay
       ? !rolledBackTargetsRemainGloballyValid(candidate, targetDocumentIds)
       : !activeTargetsRemainGloballyUsable(
@@ -226,7 +236,7 @@ export function runAppIssuedDocumentRecoveryRollbackCommand(input: {
   }
 
   const value = withoutTransitionEnvelope(transition);
-  if (isReplay && sameDurableData(candidate, input.expected)) {
+  if (isReplay) {
     return {
       status: "applied",
       data: input.expected,

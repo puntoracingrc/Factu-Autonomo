@@ -13,10 +13,21 @@ import {
   PORTABLE_BACKUP_VERSION,
 } from "./backup";
 import {
+  buildDocumentPdfSnapshot,
+  buildDocumentSnapshot,
+  hashDocumentPdfSnapshot,
+  hashDocumentSnapshot,
   hasDocumentSnapshot,
+  inspectDocumentSnapshotsIntegrity,
   isDocumentIntegrityLocked,
   issueDocument,
+  markDocumentPaid,
 } from "./document-integrity";
+import {
+  applyAppIssuedDocumentRecovery,
+  buildAppIssuedDocumentRecoveryPreview,
+  inspectAppIssuedDocumentRecovery,
+} from "./document-integrity/app-issued-recovery";
 import {
   applyLegacyImportRepair,
   buildLegacyImportRepairPreview,
@@ -1282,6 +1293,206 @@ describe("backup", () => {
         (document) => inspectLegacyImportAttestation(document).ok,
       ),
     ).toBe(true);
+  });
+
+  it("exportar e importar conserva exactamente una recuperación V2 con evidencia TEST local", async () => {
+    const documentId = "11111111-2222-4333-8444-555555555555";
+    const profile = {
+      ...EMPTY_DATA.profile,
+      name: "Negocio sintético",
+      nif: "B12345678",
+      address: "Calle Prueba 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const issued = markDocumentPaid(
+      issueDocument(
+        {
+          id: documentId,
+          type: "factura",
+          number: "F-TEST-0002",
+          date: "2026-07-06",
+          client: {
+            name: "Cliente sintético",
+            nif: "B87654321",
+            address: "Calle Cliente 2",
+            city: "Madrid",
+            postalCode: "28002",
+          },
+          items: [
+            {
+              id: "line-test-v2",
+              description: "Servicio sintético",
+              quantity: 1,
+              unitPrice: 90,
+              ivaPercent: 21,
+            },
+          ],
+          status: "borrador",
+          documentLifecycle: "draft",
+          integrityLock: "unlocked",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+        profile,
+        NOW,
+      ),
+      NOW,
+    );
+    const originalVerifactu = {
+      recordHash: "a".repeat(64),
+      previousHash: "",
+      recordTimestamp: NOW,
+      qrUrl: "https://example.invalid/verifactu-test",
+      status: "test_registered" as const,
+      recordType: "alta" as const,
+      environment: "test" as const,
+      tipoFactura: "F1",
+      cuotaTotal: "18.90",
+      importeTotal: "108.90",
+      csv: "TEST-SYNTHETIC-CSV",
+      submittedAt: NOW,
+    };
+    const snapshotBeforeTestArtifact = buildDocumentSnapshot(issued, profile, {
+      capturedAt: NOW,
+      source: "legacy_backfill",
+      issuer: issued.documentSnapshot!.issuer,
+    });
+    const pdfBeforeTestArtifact = buildDocumentPdfSnapshot(
+      snapshotBeforeTestArtifact,
+      profile,
+      NOW,
+    );
+    const snapshotContent = {
+      ...snapshotBeforeTestArtifact,
+      verifactu: originalVerifactu,
+    };
+    const originalSnapshot = {
+      ...snapshotContent,
+      snapshotHash: hashDocumentSnapshot(snapshotContent),
+    };
+    const originalPdfSnapshot = {
+      ...pdfBeforeTestArtifact,
+      contentHash: hashDocumentPdfSnapshot({
+        ...pdfBeforeTestArtifact,
+        documentSnapshotHash: originalSnapshot.snapshotHash,
+      }),
+    };
+    const recoverable: Document = {
+      ...issued,
+      documentSnapshot: originalSnapshot,
+      pdfSnapshot: originalPdfSnapshot,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["document_snapshot_semantic_invalid"],
+      },
+      verifactu: originalVerifactu,
+      verifactuPersistence: "legacy_unverified",
+    };
+    const data = {
+      ...EMPTY_DATA,
+      profile,
+      documents: [recoverable],
+      snapshotIntegrityVersion: 1 as const,
+    };
+    const originalIntegrity = inspectDocumentSnapshotsIntegrity(recoverable, {
+      requireDocumentSnapshot: true,
+      requirePdfSnapshot: true,
+    });
+    expect(originalIntegrity.documentSnapshot.status).toBe("verified");
+    expect(originalIntegrity.pdfSnapshot.status).toBe("verified");
+    expect(originalIntegrity.issues).toEqual([
+      "document_snapshot_semantic_invalid",
+    ]);
+    const pending = buildAppIssuedDocumentRecoveryPreview(data);
+    const recoveredSnapshot = pending.candidates[0]?.members[0]
+      ?.recoveredSnapshot;
+    expect(pending.requiredPdfDocumentIds).toEqual([documentId]);
+    expect(recoveredSnapshot).toBeDefined();
+    if (!recoveredSnapshot) return;
+
+    const preview = buildAppIssuedDocumentRecoveryPreview(data, {
+      [documentId]: {
+        kind: "external_pdf_user_confirmed",
+        sha256: "b".repeat(64),
+        byteLength: 42_000,
+        mediaType: "application/pdf",
+        preservation: "user_managed",
+        confirmedSummary: {
+          number: recoveredSnapshot.number,
+          date: recoveredSnapshot.date,
+          subtotal: recoveredSnapshot.taxSummary.subtotal,
+          iva: recoveredSnapshot.taxSummary.iva,
+          total: recoveredSnapshot.taxSummary.total,
+          confirmedFiscalContentHash: recoveredSnapshot.snapshotHash,
+        },
+      },
+    });
+    const applied = applyAppIssuedDocumentRecovery(data, preview, NOW);
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const recoveredDocument = applied.data.documents[0]!;
+    const expectedAttestation = recoveredDocument.appIssuedRecoveryAttestation;
+    expect(expectedAttestation).toMatchObject({
+      schemaVersion: 2,
+      recoveryKind: "pre_seal_snapshot_pdf_gap_v1",
+      counterpartDocumentId: null,
+      verifactuDisposition: "preserved_unattested_test_artifact",
+      beforeEvidence: {
+        snapshotSeal: { present: false },
+        snapshotIntegrityRequired: { present: false },
+        snapshotIntegrity: {
+          present: true,
+          value: {
+            status: "blocked",
+            issues: ["document_snapshot_semantic_invalid"],
+          },
+        },
+        verifactu: { present: true, value: originalVerifactu },
+        verifactuPersistence: {
+          present: true,
+          value: "legacy_unverified",
+        },
+      },
+    });
+    expect(inspectAppIssuedDocumentRecovery(recoveredDocument)).toMatchObject({
+      ok: true,
+      active: true,
+      kind: "pre_seal_snapshot_pdf_gap_v1",
+    });
+
+    const blob = createBackupBlob(applied.data, NOW);
+    const restored = parseBackupJson(JSON.parse(await blob.text()));
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    const restoredDocument = restored.documents[0]!;
+    expect(restoredDocument.appIssuedRecoveryAttestation).toEqual(
+      expectedAttestation,
+    );
+    expect(restoredDocument.documentSnapshot).toEqual(originalSnapshot);
+    expect(restoredDocument.pdfSnapshot).toEqual(originalPdfSnapshot);
+    expect(restoredDocument.snapshotSeal).toBeUndefined();
+    expect(restoredDocument.verifactu).toEqual(originalVerifactu);
+    expect(restoredDocument.verifactuPersistence).toBe("legacy_unverified");
+    expect(
+      restoredDocument.appIssuedRecoveryAttestation?.beforeEvidence
+        .documentSnapshot,
+    ).toEqual({ present: true, value: originalSnapshot });
+    expect(
+      restoredDocument.appIssuedRecoveryAttestation?.beforeEvidence.pdfSnapshot,
+    ).toEqual({ present: true, value: originalPdfSnapshot });
+    expect(
+      restoredDocument.appIssuedRecoveryAttestation?.recoveredSnapshot
+        ?.verifactu,
+    ).toBeUndefined();
+    expect(inspectAppIssuedDocumentRecovery(restoredDocument)).toMatchObject({
+      ok: true,
+      active: true,
+      kind: "pre_seal_snapshot_pdf_gap_v1",
+    });
   });
 
   it("restaura una copia V2 válida mayor de 5 MiB sin perder su atestación", () => {

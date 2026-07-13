@@ -16,9 +16,18 @@ describe("app-issued document recovery governance", () => {
     expect(agents).toContain("nunca fabrica un sello de emisión");
     expect(agents).toContain("sourceDocumentId");
     expect(agents).toContain("VeriFactu existentes");
+    expect(agents).toContain("test_registered + environment=test + legacy_unverified");
+    expect(agents).toContain("server_confirmed");
+    expect(agents).toContain("descarga real");
 
     expect(adr).toContain("pre_canonical_rectification_v1");
     expect(adr).toContain("receipt_source_snapshot_gap_v1");
+    expect(adr).toContain("receipt_source_and_payment_markers_gap_v1");
+    expect(adr).toContain("pre_seal_snapshot_pdf_gap_v1");
+    expect(adr).toContain("preserved_unattested_test_artifact");
+    expect(adr).toContain("Versión de contrato: 2");
+    expect(adr).toContain("AppData` completo");
+    expect(adr).toContain("pareja híbrida");
     expect(adr).toContain("Nunca se infiere una recuperación por fecha");
     expect(adr).toContain("nunca ocupa");
     expect(adr).toContain("`documentSnapshot`");

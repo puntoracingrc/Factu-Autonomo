@@ -43,10 +43,23 @@ La decisión obligatoria y versionada está en
   [`docs/architecture/ADR-0002-app-issued-document-recovery.md`](docs/architecture/ADR-0002-app-issued-document-recovery.md): nunca se ejecuta al cargar, nunca
   reclasifica como legacy y nunca fabrica un sello de emisión.
 - Una recuperación `app_issued` solo puede aceptar contenido visible en un PDF
-  original preservado por el usuario cuando falta por completo el bundle, o el
-  gap de relación de recibos anterior a la congelación de `sourceDocumentId`.
-  Debe conservar snapshots, PDF snapshots, sellos, hashes y VeriFactu existentes
-  byte-semánticamente, exigir preview/confirmación y ser reversible.
+  original preservado por el usuario cuando falta por completo el bundle, el
+  gap de relación de recibos anterior a la congelación de `sourceDocumentId` o
+  el caso pre-sello exacto de ADR-0002 V2. Ese caso solo admite
+  `test_registered + environment=test + legacy_unverified`: es un artefacto
+  local de desarrollo no enviado a AEAT, se preserva byte-semánticamente y no
+  entra en el snapshot recuperado ni se presenta como evidencia Veri*Factu.
+  `server_confirmed`, producción, atestación autenticada o cualquier otra
+  evidencia Veri*Factu siguen fail-closed.
+- El gap V2 de cobro de recibos solo admite una pareja recíproca con bundles
+  válidos, estado `pagado` en ambos extremos y ausencia completa de
+  `paymentStatus` y `paidAt` en ambos; un estado híbrido o procedencia importada
+  queda bloqueado y no se completa ni migra automáticamente.
+- Toda recuperación debe conservar snapshots, PDF snapshots, sellos, hashes y
+  artefactos VeriFactu existentes byte-semánticamente, exigir una descarga real
+  de copia ligada al `AppData` completo, preview/confirmación por un único grupo
+  y rollback reversible. El contexto VeriFactu del perfil por sí solo no es
+  evidencia del documento.
 - Si existe evidencia moderna y su hash, snapshot o sello es inválido, el
   documento siempre queda bloqueado: nunca se degrada a legacy.
 - Está prohibido inferir que un documento es legacy solo por su fecha o por la

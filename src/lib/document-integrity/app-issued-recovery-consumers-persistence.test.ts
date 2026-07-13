@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackupPayload, parseBackupJson } from "@/lib/backup";
+import { buildAnnualSummaryPdf } from "@/lib/billing/export-annual-pdf";
+import { buildQuarterlyExportCsv } from "@/lib/billing/export-quarterly";
 import { selectCanonicalFiscalDocumentsForExport } from "@/lib/billing/fiscal-export-documents";
 import { diffAppData, emptyCloudBootstrapData } from "@/lib/cloud/diff";
 import {
@@ -7,9 +9,16 @@ import {
   rebuildCloudSnapshot,
 } from "@/lib/cloud/incremental";
 import { collectedIncome } from "@/lib/income";
+import {
+  buildCustomerInvoicedTotals,
+  customerInvoicedTotal,
+} from "@/lib/customers";
 import { buildProductBusinessSummary } from "@/lib/product-business-summary";
 import { loadData, saveData } from "@/lib/storage";
-import { calculateTaxSummary } from "@/lib/taxes";
+import {
+  calculateTaxSummary,
+  selectTaxableFiscalDocumentsForPeriod,
+} from "@/lib/taxes";
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type {
   AppData,
@@ -24,6 +33,8 @@ import {
   buildDocumentPdfSnapshot,
   buildDocumentSnapshot,
   buildDocumentSnapshotSeal,
+  hashDocumentPdfSnapshot,
+  hashDocumentSnapshot,
   issueDocument,
   markDocumentPaid,
 } from "./index";
@@ -44,6 +55,7 @@ const BACKUP_AT = "2026-07-13T10:30:00.000Z";
 const RECTIFICATION_ID = "synthetic:modern-recovery:rectification";
 const RECEIPT_ID = "synthetic:modern-recovery:receipt";
 const PROTECTED_VERIFACTU_ID = "synthetic:unaffected:verifactu";
+const STANDALONE_ID = "55555555-5555-4555-8555-555555555555";
 
 const PROFILE: BusinessProfile = {
   ...DEFAULT_PROFILE,
@@ -210,6 +222,104 @@ function receiptPair(): [Document, Document] {
   return [{ ...paidInvoice, receiptDocumentId: receipt.id }, receipt];
 }
 
+function receiptV2Workspace(): { before: AppData; recovered: AppData } {
+  const invoiceId = "66666666-6666-4666-8666-666666666666";
+  const receiptId = "77777777-7777-4777-8777-777777777777";
+  const paid = markDocumentPaid(
+    issueDocument(
+      draftInvoice(invoiceId, "F-SYNTH-RECEIPT-V2"),
+      PROFILE,
+      ISSUE_AT,
+    ),
+    ISSUE_AT,
+  );
+  const invoiceSnapshot = buildDocumentSnapshot(paid, PROFILE, {
+    capturedAt: ISSUE_AT,
+    source: "legacy_backfill",
+    issuer: paid.documentSnapshot!.issuer,
+  });
+  const invoicePdf = buildDocumentPdfSnapshot(
+    invoiceSnapshot,
+    PROFILE,
+    ISSUE_AT,
+  );
+  const invoice: Document = {
+    ...paid,
+    receiptDocumentId: receiptId,
+    documentSnapshot: invoiceSnapshot,
+    pdfSnapshot: invoicePdf,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      invoiceId,
+      invoiceSnapshot,
+      invoicePdf,
+    ),
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: undefined,
+  };
+  delete invoice.paymentStatus;
+  delete invoice.paidAt;
+  const receiptBase: Document = {
+    ...draftInvoice(receiptId, "R-SYNTH-RECEIPT-V2"),
+    type: "recibo",
+    date: paid.date,
+    client: structuredClone(paid.client),
+    items: paid.items.map((item) => ({
+      ...item,
+      id: `${receiptId}:${item.id}`,
+    })),
+    status: "pagado",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    issuedAt: ISSUE_AT,
+    notes: `Pago de la factura ${paid.number}`,
+  };
+  const receiptSnapshot = buildDocumentSnapshot(receiptBase, PROFILE, {
+    capturedAt: ISSUE_AT,
+    source: "legacy_backfill",
+    issuer: invoiceSnapshot.issuer,
+  });
+  const receiptPdf = buildDocumentPdfSnapshot(
+    receiptSnapshot,
+    PROFILE,
+    ISSUE_AT,
+  );
+  const receipt: Document = {
+    ...receiptBase,
+    sourceDocumentId: invoiceId,
+    documentSnapshot: receiptSnapshot,
+    pdfSnapshot: receiptPdf,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      receiptId,
+      receiptSnapshot,
+      receiptPdf,
+    ),
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: ["document_relationship_invalid"],
+    },
+  };
+  const before: AppData = {
+    ...EMPTY_DATA,
+    profile: PROFILE,
+    documents: [invoice, receipt],
+  };
+  const preview = buildAppIssuedDocumentRecoveryPreview(before);
+  expect(preview.candidates.map((candidate) => candidate.recoveryKind)).toEqual([
+    "receipt_source_and_payment_markers_gap_v1",
+  ]);
+  const applied = runAppIssuedDocumentRecoveryCommand({
+    expected: before,
+    preview,
+    now: REPAIR_AT,
+    commit: appliedCommit,
+  });
+  if (applied.status !== "applied") {
+    throw new Error(`receipt_v2_recovery_failed:${applied.reason}`);
+  }
+  return { before, recovered: applied.data };
+}
+
 function unaffectedVerifactuDocument(): Document {
   const verifactuProfile: BusinessProfile = {
     ...PROFILE,
@@ -256,6 +366,126 @@ function baselineWorkspace(): AppData {
       recordCount: 1,
     },
   };
+}
+
+function standaloneWorkspace(): { data: AppData; document: Document } {
+  const issued = markDocumentPaid(
+    issueDocument(
+      draftInvoice(STANDALONE_ID, "F-SYNTH-STANDALONE-001"),
+      PROFILE,
+      ISSUE_AT,
+    ),
+    ISSUE_AT,
+  );
+  const verifactu = {
+    recordHash: "b".repeat(64),
+    previousHash: "",
+    recordTimestamp: ISSUE_AT,
+    qrUrl: "https://example.invalid/local-test-artifact",
+    status: "test_registered" as const,
+    recordType: "alta" as const,
+    environment: "test" as const,
+    tipoFactura: "F1",
+    cuotaTotal: "21.00",
+    importeTotal: "121.00",
+    csv: "LOCAL-TEST-ONLY",
+    submittedAt: ISSUE_AT,
+  };
+  const validSnapshot = buildDocumentSnapshot(issued, PROFILE, {
+    capturedAt: ISSUE_AT,
+    source: "legacy_backfill",
+    issuer: issued.documentSnapshot!.issuer,
+  });
+  const validPdf = buildDocumentPdfSnapshot(
+    validSnapshot,
+    PROFILE,
+    ISSUE_AT,
+  );
+  const snapshotContent = { ...validSnapshot, verifactu };
+  const documentSnapshot = {
+    ...snapshotContent,
+    snapshotHash: hashDocumentSnapshot(snapshotContent),
+  };
+  const pdfSnapshot = {
+    ...validPdf,
+    contentHash: hashDocumentPdfSnapshot({
+      ...validPdf,
+      documentSnapshotHash: documentSnapshot.snapshotHash,
+    }),
+  };
+  const document: Document = {
+    ...issued,
+    documentSnapshot,
+    pdfSnapshot,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: ["document_snapshot_semantic_invalid"],
+    },
+    verifactu,
+    verifactuPersistence: "legacy_unverified",
+  };
+  delete document.snapshotSeal;
+  delete document.snapshotIntegrityRequired;
+  return {
+    document,
+    data: {
+      ...EMPTY_DATA,
+      profile: PROFILE,
+      documents: [document],
+      snapshotIntegrityVersion: 1,
+    },
+  };
+}
+
+function recoveredStandaloneWorkspace(): {
+  before: AppData;
+  recovered: AppData;
+  preview: ReturnType<typeof buildAppIssuedDocumentRecoveryPreview>;
+} {
+  const fixture = standaloneWorkspace();
+  const pending = buildAppIssuedDocumentRecoveryPreview(fixture.data);
+  const recoveredSnapshot = pending.candidates[0]?.members[0]
+    ?.recoveredSnapshot;
+  if (!recoveredSnapshot) throw new Error("missing standalone snapshot");
+  const evidence: AppIssuedDocumentRecoveryPdfEvidenceV1 = {
+    kind: "external_pdf_user_confirmed",
+    sha256: "c".repeat(64),
+    byteLength: 42_000,
+    mediaType: "application/pdf",
+    preservation: "user_managed",
+    confirmedSummary: {
+      number: recoveredSnapshot.number,
+      date: recoveredSnapshot.date,
+      subtotal: recoveredSnapshot.taxSummary.subtotal,
+      iva: recoveredSnapshot.taxSummary.iva,
+      total: recoveredSnapshot.taxSummary.total,
+      confirmedFiscalContentHash: recoveredSnapshot.snapshotHash,
+    },
+  };
+  const preview = buildAppIssuedDocumentRecoveryPreview(
+    fixture.data,
+    { [fixture.document.id]: evidence },
+    { selectedCandidateKeys: [pending.candidates[0]!.candidateKey] },
+  );
+  const applied = runAppIssuedDocumentRecoveryCommand({
+    expected: fixture.data,
+    preview,
+    now: REPAIR_AT,
+    commit: appliedCommit,
+  });
+  if (applied.status !== "applied") {
+    throw new Error(`standalone_recovery_failed:${applied.reason}`);
+  }
+  return { before: fixture.data, recovered: applied.data, preview };
+}
+
+function pdfCommands(
+  pdf: ReturnType<typeof buildAnnualSummaryPdf>,
+): string {
+  const pages = (pdf.internal as unknown as {
+    pages: Array<string[] | null>;
+  }).pages;
+  return pages.flatMap((page) => page ?? []).join("\n");
 }
 
 function rectificationPdfEvidence(
@@ -412,6 +642,248 @@ afterEach(() => {
 });
 
 describe("app-issued recovery consumer and persistence regression", () => {
+  it("standalone V2 entra en importes, ingresos, impuestos y export tras save/load y cloud", () => {
+    const { before, recovered, preview } = recoveredStandaloneWorkspace();
+    const expectedEvidence = structuredClone(
+      documentStandardEvidence(recovered),
+    );
+    const expectedAttestations = structuredClone(
+      recoveryAttestations(recovered),
+    );
+    expect(documentAmounts(before.documents[0]!, false).total).toBe(0);
+    expect(
+      calculateTaxSummary(before.documents, [], {
+        profile: PROFILE,
+        isDocumentDateInPeriod: (date) => date.startsWith("2026-07"),
+      }),
+    ).toMatchObject({ salesBase: 0, salesIva: 0, integrityBlockedDocuments: 1 });
+    expect(documentAmounts(recovered.documents[0]!, false)).toEqual({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
+    expect(collectedIncome(recovered.documents)).toBe(121);
+    const customer = {
+      id: "customer-standalone-v2",
+      firstName: "",
+      lastName: "",
+      name: recovered.documents[0]!.client.name,
+      nif: recovered.documents[0]!.client.nif,
+      createdAt: ISSUE_AT,
+      updatedAt: ISSUE_AT,
+    };
+    expect(customerInvoicedTotal(recovered.documents, customer)).toBe(121);
+    expect(
+      buildCustomerInvoicedTotals([customer], recovered.documents).get(
+        customer.id,
+      ),
+    ).toBe(121);
+    expect(
+      selectTaxableFiscalDocumentsForPeriod(recovered.documents, {
+        profile: PROFILE,
+        isDocumentDateInPeriod: (date) => date.startsWith("2026-07"),
+      }).documents.map((document) => ({
+        id: document.id,
+        type: document.type,
+        status: document.status,
+        snapshotIntegrity: document.snapshotIntegrity,
+      })),
+    ).toEqual([
+      {
+        id: STANDALONE_ID,
+        type: "factura",
+        status: "pagado",
+        snapshotIntegrity: {
+          status: "blocked",
+          issues: ["document_snapshot_semantic_invalid"],
+        },
+      },
+    ]);
+    expect(
+      calculateTaxSummary(recovered.documents, [], {
+        profile: PROFILE,
+        isDocumentDateInPeriod: (date) => date.startsWith("2026-07"),
+      }),
+    ).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      grossProfit: 100,
+      estimatedIrpfBase: 100,
+      integrityBlockedDocuments: 0,
+    });
+    const fiscal = selectCanonicalFiscalDocumentsForExport(
+      recovered.documents,
+      PROFILE,
+      (date) => date.startsWith("2026-07"),
+    );
+    expect(fiscal.blockedDocuments).toEqual([]);
+    expect(fiscal.documents.map((document) => document.id)).toEqual([
+      STANDALONE_ID,
+    ]);
+    const quarterlyCsv = buildQuarterlyExportCsv(
+      recovered.documents,
+      [],
+      PROFILE,
+      2026,
+      3,
+    );
+    expect(quarterlyCsv).toContain("F-SYNTH-STANDALONE-001");
+    expect(quarterlyCsv).toContain(
+      "TOTAL VENTAS;;;1 documento;;100,00;21,00;121,00;",
+    );
+    const annualPdfCommands = pdfCommands(
+      buildAnnualSummaryPdf(recovered.documents, [], PROFILE, 2026),
+    );
+    expect(annualPdfCommands).toContain("Cobrado en el año");
+    expect(annualPdfCommands).toContain("F-SYNTH-STANDALONE-001");
+    expect(annualPdfCommands).toContain("121,00");
+
+    const foreignSeal = issueDocument(
+      draftInvoice(
+        "88888888-8888-4888-8888-888888888888",
+        "F-SYNTH-FOREIGN-SEAL",
+      ),
+      PROFILE,
+      ISSUE_AT,
+    ).snapshotSeal!;
+    const invalidVariants: Document[] = [
+      {
+        ...recovered.documents[0]!,
+        documentSnapshot: {
+          ...recovered.documents[0]!.documentSnapshot!,
+          snapshotHash: "sha256:" + "0".repeat(64),
+        },
+      },
+      { ...recovered.documents[0]!, snapshotSeal: foreignSeal },
+    ];
+    for (const invalid of invalidVariants) {
+      expect(
+        calculateTaxSummary([invalid], [], {
+          profile: PROFILE,
+          isDocumentDateInPeriod: (date) => date.startsWith("2026-07"),
+        }),
+      ).toMatchObject({
+        salesBase: 0,
+        salesIva: 0,
+        integrityBlockedDocuments: 1,
+      });
+      expect(() =>
+        buildQuarterlyExportCsv([invalid], [], PROFILE, 2026, 3),
+      ).toThrow();
+      expect(() =>
+        buildAnnualSummaryPdf([invalid], [], PROFILE, 2026),
+      ).toThrow();
+    }
+
+    expect(saveData(recovered)).toEqual({ status: "applied" });
+    const reloaded = loadData();
+    expect(documentStandardEvidence(reloaded)).toEqual(expectedEvidence);
+    expect(recoveryAttestations(reloaded)).toEqual(expectedAttestations);
+    expect(documentAmounts(reloaded.documents[0]!, false).total).toBe(121);
+
+    const rebuiltCloud = rebuildCloudSnapshot(
+      diffAppData(emptyCloudBootstrapData(), recovered),
+    ).data;
+    expect(documentStandardEvidence(rebuiltCloud)).toEqual(expectedEvidence);
+    expect(recoveryAttestations(rebuiltCloud)).toEqual(expectedAttestations);
+    expect(documentAmounts(rebuiltCloud.documents[0]!, false).total).toBe(121);
+
+    const secondCommit = vi.fn();
+    expect(
+      runAppIssuedDocumentRecoveryCommand({
+        expected: recovered,
+        preview,
+        now: "2026-07-13T12:00:00.000Z",
+        commit: secondCommit,
+      }),
+    ).toMatchObject({
+      status: "applied",
+      data: recovered,
+      value: { appliedRepairIds: [] },
+      replayed: true,
+    });
+    expect(secondCommit).not.toHaveBeenCalled();
+  });
+
+  it("rollback durable del standalone V2 restaura solo semantic_invalid y conserva bytes", () => {
+    const { before, recovered } = recoveredStandaloneWorkspace();
+    const evidenceBefore = structuredClone(documentStandardEvidence(before));
+    const rollbackPreview = buildAppIssuedDocumentRecoveryRollbackPreview(
+      recovered,
+    );
+    const rolledBack = runAppIssuedDocumentRecoveryRollbackCommand({
+      expected: recovered,
+      preview: rollbackPreview,
+      now: "2026-07-13T11:00:00.000Z",
+      commit: appliedCommit,
+    });
+    expect(rolledBack.status).toBe("applied");
+    if (rolledBack.status !== "applied") return;
+    expect(documentStandardEvidence(rolledBack.data)).toEqual(evidenceBefore);
+    expect(rolledBack.data.documents[0]?.snapshotIntegrity).toEqual({
+      status: "blocked",
+      issues: ["document_snapshot_semantic_invalid"],
+    });
+    expect(documentAmounts(rolledBack.data.documents[0]!, false).total).toBe(
+      0,
+    );
+  });
+
+  it("recibo V2 sin markers persiste por save/load/cloud sin duplicación fiscal", () => {
+    const { recovered } = receiptV2Workspace();
+    const invoice = recovered.documents[0]!;
+    const receipt = recovered.documents[1]!;
+    const expectedEvidence = structuredClone(
+      documentStandardEvidence(recovered),
+    );
+    const expectedAttestations = structuredClone(
+      recoveryAttestations(recovered),
+    );
+    expect(documentAmounts(invoice, false).total).toBe(121);
+    expect(documentAmounts(receipt, false).total).toBe(121);
+    expect(Object.hasOwn(invoice, "paymentStatus")).toBe(false);
+    expect(Object.hasOwn(invoice, "paidAt")).toBe(false);
+    expect(Object.hasOwn(receipt, "paymentStatus")).toBe(false);
+    expect(Object.hasOwn(receipt, "paidAt")).toBe(false);
+    expect(receipt.appIssuedRecoveryAttestation).toMatchObject({
+      schemaVersion: 2,
+      recoveryKind: "receipt_source_and_payment_markers_gap_v1",
+    });
+    expect(
+      inspectAppIssuedDocumentRecoveryCollection(recovered.documents)
+        .validDocumentIds,
+    ).toContain(receipt.id);
+    const fiscal = selectCanonicalFiscalDocumentsForExport(
+      recovered.documents,
+      PROFILE,
+      (date) => date.startsWith("2026-07"),
+    );
+    expect(fiscal.blockedDocuments).toEqual([]);
+    expect(fiscal.documents.map((document) => document.id)).toEqual([
+      invoice.id,
+    ]);
+    expect(collectedIncome(recovered.documents)).toBe(121);
+
+    expect(saveData(recovered)).toEqual({ status: "applied" });
+    const reloaded = loadData();
+    expect(documentStandardEvidence(reloaded)).toEqual(expectedEvidence);
+    expect(recoveryAttestations(reloaded)).toEqual(expectedAttestations);
+    expect(documentAmounts(reloaded.documents[0]!, false).total).toBe(121);
+    expect(documentAmounts(reloaded.documents[1]!, false).total).toBe(121);
+    expect(
+      inspectAppIssuedDocumentRecoveryCollection(reloaded.documents)
+        .validDocumentIds,
+    ).toContain(receipt.id);
+
+    const rebuiltCloud = rebuildCloudSnapshot(
+      diffAppData(emptyCloudBootstrapData(), recovered),
+    ).data;
+    expect(documentStandardEvidence(rebuiltCloud)).toEqual(expectedEvidence);
+    expect(recoveryAttestations(rebuiltCloud)).toEqual(expectedAttestations);
+    expect(documentAmounts(rebuiltCloud.documents[0]!, false).total).toBe(121);
+    expect(documentAmounts(rebuiltCloud.documents[1]!, false).total).toBe(121);
+  });
+
   it("restaura importes, ingresos, resumen fiscal y exportación sin duplicar el recibo", () => {
     const { before, recovered } = recoveredWorkspace();
 

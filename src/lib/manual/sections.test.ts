@@ -131,4 +131,18 @@ describe("manual sections", () => {
     expect(manualText).toContain("base e IVA deducibles en IVA son cero");
     expect(manualText).toContain("columnas separadas");
   });
+
+  it("documenta la recuperación pre-sello sin afirmar un envío VeriFactu", () => {
+    const accountManual = JSON.stringify(getManualSection("cuenta"));
+
+    expect(accountManual).toContain("test_registered");
+    expect(accountManual).toContain("legacy_unverified");
+    expect(accountManual).toContain("no fue un envío a AEAT");
+    expect(accountManual).toContain("elegir un único grupo");
+    expect(accountManual).toContain("copia JSON ligada a esa vista");
+    expect(accountManual).toContain("cualquier cambio del workspace invalida");
+    expect(accountManual).toContain("registro confirmado por servidor");
+    expect(accountManual).toContain("paymentStatus");
+    expect(accountManual).toContain("un caso híbrido queda fuera");
+  });
 });

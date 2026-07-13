@@ -1,20 +1,26 @@
 # ADR-0002 — Recuperación explícita de documentos emitidos por Factu
 
 - Estado: aceptada
-- Versión de contrato: 1
+- Versión de contrato: 2
 - Fecha: 2026-07-13
 - Decisión de producto: explícita
 
 ## Contexto
 
-Dos defectos históricos de Factu podían dejar a cero documentos cuyo contenido
+Tres defectos históricos de Factu podían dejar a cero documentos cuyo contenido
 seguía visible en el PDF original:
 
 1. algunas rectificativas se guardaron como emitidas antes de pasar por el
    flujo canónico que crea snapshot, snapshot PDF y sello;
 2. algunos recibos conservan un bundle criptográfico válido anterior a la
    congelación de `sourceDocumentId` dentro del snapshot y hoy fallan solo al
-   verificar la relación con la factura.
+   verificar la relación con la factura;
+3. una versión de desarrollo podía guardar una factura con snapshot y snapshot
+   PDF verificables, pero todavía sin sello, junto a un resultado local
+   `test_registered` marcado expresamente como `legacy_unverified`. Ese
+   artefacto nunca fue una atestación del servidor ni un envío a la AEAT, pero
+   la política posterior lo confundía con evidencia Veri*Factu auténtica y
+   bloqueaba todo el documento.
 
 El bloqueo actual es deliberadamente _fail-closed_. Un PDF permite contrastar
 el contenido fiscal, pero no puede reconstruir el sello original de emisión.
@@ -33,9 +39,30 @@ Se admite una recuperación manual, versionada y reversible distinta de
   huella del contenido fiscal completo mostrado para revisión;
 - `receipt_source_snapshot_gap_v1`: pareja recíproca factura–recibo cuyo bundle
   individual verifica íntegramente y cuyo único defecto es que el snapshot del
-  recibo, creado por una versión anterior, no contiene `sourceDocumentId`.
+  recibo, creado por una versión anterior, no contiene `sourceDocumentId`;
+- `receipt_source_and_payment_markers_gap_v1`: la misma pareja pre-canónica,
+  creada antes de persistir `paymentStatus` y `paidAt`, cuando ambos extremos
+  conservan estado `pagado`, ambos carecen exactamente de esos marcadores y no
+  existe procedencia de importación ni evidencia Veri*Factu del documento. Una
+  pareja híbrida —marcadores solo en un extremo— queda fuera;
+- `pre_seal_snapshot_pdf_gap_v1`: factura independiente con snapshot y snapshot
+  PDF pre-canónicos cuyos hashes individuales verifican, sin sello, con la única
+  incoherencia semántica exacta causada por un artefacto local
+  `test_registered + environment=test + legacy_unverified`. Exige el PDF
+  original y confirmación humana del contenido fiscal completo.
 
-La recuperación se guarda en `appIssuedRecoveryAttestation`. Un snapshot de
+El caso pre-sello se apoya en una decisión explícita de producto: durante esa fase
+de desarrollo no se enviaron registros Veri*Factu a la AEAT. El artefacto local
+no se borra, reescribe ni presenta como evidencia fiscal. Se conserva
+byte-semánticamente y la atestación V2 declara
+`preserved_unattested_test_artifact`. Cualquier `server_confirmed`, entorno de
+producción, atestación autenticada o evidencia distinta de esa combinación
+exacta queda fuera y sigue bloqueada.
+
+La recuperación se guarda en `appIssuedRecoveryAttestation`. Las atestaciones
+V1 ya aplicadas siguen siendo válidas; V2 añade la recuperación independiente,
+permite `counterpartDocumentId: null` solo para ese caso y registra el destino
+del artefacto de prueba. Un snapshot de
 recuperación puede representar el contenido confirmado, pero nunca ocupa
 `documentSnapshot`, nunca genera `pdfSnapshot` ni `snapshotSeal` y siempre lleva
 la fuente `app_issued_recovery`. Los consumidores financieros lo aceptan a
@@ -56,15 +83,31 @@ interfaz no puede presentarlo como una verificación automática del PDF.
 - Nunca se infiere una recuperación por fecha, número, ausencia de `issuedAt` o
   por estar bloqueado.
 - No se ejecuta nada en `load`, normalización, nube, backup o demo. Siempre hay
-  vista previa, copia recomendada, confirmación y commit durable único.
+  vista previa, descarga real de una copia JSON ligada a la precondición,
+  confirmación y commit durable único.
+- Cada aplicación o rollback selecciona un único grupo mediante una clave
+  estable independiente del PDF. La precondición incluye el `AppData` completo,
+  la evidencia PDF y esa selección; cambiar cualquier dato invalida copia y
+  confirmación.
 - La factura y su rectificativa o recibo se aplican como un grupo atómico. IDs,
   fechas, números, líneas, importes, cliente, emisor, estados y relaciones deben
   coincidir de forma determinista.
+- La ausencia pre-canónica de marcadores de cobro solo es admisible si falta la
+  pareja completa (`paymentStatus` y `paidAt`) tanto en factura como en recibo,
+  mientras ambos estados siguen siendo `pagado`. No se rellena ni modifica
+  ninguno de esos campos; se conserva el estado original byte-semánticamente.
 - Una relación congelada en un snapshot moderno prevalece sobre los campos
   vivos. Una pareja híbrida que apunte a otro original o emisor queda bloqueada.
-- Toda evidencia VeriFactu excluye el candidato. También lo excluye cualquier
-  snapshot, hash, snapshot PDF o sello presente que no verifique. La ausencia
-  total y el gap exacto de recibo no se confunden con corrupción.
+- El contexto Veri*Factu del perfil no es evidencia del documento. Toda
+  evidencia `server_confirmed`, de producción o autenticada excluye el
+  candidato. La única excepción es el artefacto de desarrollo exacto descrito
+  arriba: se preserva intacto, nunca entra en el snapshot recuperado y nunca se
+  interpreta como AEAT.
+- Cualquier hash, snapshot PDF o sello presente que no verifique excluye el
+  candidato. El caso pre-sello solo admite hashes individuales verificables,
+  ausencia total de sello y la incidencia semántica exacta causada por el
+  artefacto `legacy_unverified`; ninguna otra pieza parcial o corrupta se
+  recupera.
 - La aplicación y el rollback usan precondiciones frescas y fingerprints. Un
   cambio posterior bloquea el rollback; no se sobrescribe.
 - `documentSnapshot`, `pdfSnapshot`, `snapshotSeal`, sus hashes,

@@ -483,6 +483,32 @@ describe("app-issued-recovery-command", () => {
     expect(evidence.usable).toHaveBeenCalled();
   });
 
+  it("bloquea un replay apply cuya normalización global difiere y nunca hace una segunda escritura", () => {
+    const recovered = recoveryDocument();
+    const expected = {
+      ...data("already-applied-with-external-change"),
+      documents: [recovered, externalFiscalDuplicate()],
+    };
+    const preview = applyPreviewFor(recovered.id);
+    engine.apply.mockReturnValue({
+      status: "applied",
+      data: expected,
+      appliedRepairIds: [],
+    });
+    const commit = vi.fn();
+
+    expect(
+      runAppIssuedDocumentRecoveryCommand({
+        expected,
+        preview,
+        now: NOW,
+        commit,
+      }),
+    ).toEqual({ status: "blocked", reason: "stale_preview" });
+    expect(commit).not.toHaveBeenCalled();
+    expect(expected.documents[0]?.snapshotIntegrity).toBeUndefined();
+  });
+
   it("resuelve un replay rollback idéntico sin invocar persistencia", () => {
     const rolledBack = {
       ...recoveryDocument({ status: "rolled_back" }),
@@ -521,5 +547,31 @@ describe("app-issued-recovery-command", () => {
     expect(engine.inspect).toHaveBeenCalledWith(
       expect.objectContaining({ id: rolledBack.id }),
     );
+  });
+
+  it("bloquea un replay rollback cuya normalización global difiere y nunca hace una segunda escritura", () => {
+    const rolledBack = recoveryDocument({ status: "rolled_back" });
+    const expected = {
+      ...data("already-rolled-back-with-derived-change"),
+      documents: [rolledBack],
+    };
+    const preview = rollbackPreviewFor(rolledBack.id);
+    engine.rollback.mockReturnValue({
+      status: "applied",
+      data: expected,
+      rolledBackRepairIds: [],
+    });
+    const commit = vi.fn();
+
+    expect(
+      runAppIssuedDocumentRecoveryRollbackCommand({
+        expected,
+        preview,
+        now: NOW,
+        commit,
+      }),
+    ).toEqual({ status: "blocked", reason: "stale_preview" });
+    expect(commit).not.toHaveBeenCalled();
+    expect(expected.documents[0]?.snapshotIntegrity).toBeUndefined();
   });
 });
