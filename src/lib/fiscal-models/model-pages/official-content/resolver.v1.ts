@@ -46,6 +46,8 @@ import { PUBLIC_AEAT_BATCH_13_INSURANCE_DIGITAL_430_490_CONTENT_V1 } from "./bat
 import { PUBLIC_AEAT_BATCH_13_EXCISE_504_505_CONTENT_V1 } from "./batch-13-excise-504-505.release.v1";
 import { PUBLIC_AEAT_BATCH_14_EXCISE_REFUNDS_506_512_CONTENT_V1 } from "./batch-14-excise-refunds-506-512.release.v1";
 import { PUBLIC_AEAT_BATCH_14_EXCISE_MARKS_OPERATIONS_515_520_CONTENT_V1 } from "./batch-14-excise-marks-operations-515-520.release.v1";
+import { PUBLIC_AEAT_BATCH_15_EXCISE_REPORTS_REFUNDS_521_524_CONTENT_V1 } from "./batch-15-excise-reports-refunds-521-524.release.v1";
+import { PUBLIC_AEAT_BATCH_15_EXCISE_FUEL_WINE_544_553_CONTENT_V1 } from "./batch-15-excise-fuel-wine-544-553.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -189,6 +191,16 @@ const EXPECTED_CODES = Object.freeze([
   "518",
   "519",
   "520",
+  "521",
+  "522",
+  "523",
+  "524",
+  "544",
+  "545",
+  "546",
+  "547",
+  "548",
+  "553",
 ] as const);
 const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
@@ -338,7 +350,13 @@ function contentIsCoherent(content: PublicAeatOfficialModelContentV1): boolean {
     ) &&
     (content.accessMethods === undefined ||
       (content.accessMethods.sourceIds.every(
-        (sourceId) => sourceById.get(sourceId)?.authority === "AEAT",
+        (sourceId) => {
+          const source = sourceById.get(sourceId);
+          return (
+            source?.authority === "AEAT" ||
+            (source?.authority === "BOE" && source.kind === "LEGAL_TEXT")
+          );
+        },
       ) &&
         (content.accessMethods.status !== "SOURCE_DESCRIBED_HISTORICAL" ||
           content.lifecycleStatus === "HISTORICAL") &&
@@ -399,6 +417,8 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_13_EXCISE_504_505_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_14_EXCISE_REFUNDS_506_512_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_14_EXCISE_MARKS_OPERATIONS_515_520_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_15_EXCISE_REPORTS_REFUNDS_521_524_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_15_EXCISE_FUEL_WINE_544_553_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

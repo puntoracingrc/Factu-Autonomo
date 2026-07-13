@@ -119,6 +119,16 @@ describe("fiscal model structural review pages UI contract", () => {
       ["declaración trabajo alcohol", ["518"]],
       ["incidencias operaciones trabajo", ["519"]],
       ["resultado operaciones trabajo", ["520"]],
+      ["primeras materias entregadas", ["521"]],
+      ["productos artículo 108 ter", ["522"]],
+      ["beneficio devolución aromas", ["523"]],
+      ["solicitud devolución alcohol bebidas alcohólicas", ["524"]],
+      ["cheque tarjetas gasóleo bonificado", ["544"]],
+      ["carburantes relaciones internacionales hidrocarburos", ["545"]],
+      ["avituallamiento embarcaciones SIANE", ["546"]],
+      ["abonos detallistas gasóleo bonificado", ["547"]],
+      ["cuotas repercutidas declaración informativa", ["548"]],
+      ["fábricas depósitos vino bebidas fermentadas", ["553"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
