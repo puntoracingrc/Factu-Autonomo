@@ -90,6 +90,26 @@ describe("FiscalModelOfficialVisual", () => {
   );
 
   it.each([
+    ["270", "AEAT_FILE_UPLOAD"],
+    ["280", "AEAT_FILE_UPLOAD"],
+    ["281", "AEAT_FORM_AND_FILE"],
+    ["282", "AEAT_FORM_AND_FILE"],
+    ["283", "AEAT_FORM_AND_FILE"],
+    ["289", "AEAT_FORM_AND_WEB_SERVICE"],
+    ["290", "AEAT_WEB_SERVICE"],
+    ["291", "AEAT_FILE_UPLOAD"],
+    ["294", "AEAT_FILE_UPLOAD"],
+    ["295", "AEAT_FILE_UPLOAD"],
+  ] as const)(
+    "uses the source-backed Batch 10 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     ["198", "AEAT_FORM_AND_FILE"],
     ["199", "AEAT_FILE_UPLOAD"],
     ["202", "AEAT_FORM_AND_FILE"],

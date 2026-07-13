@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { PublicAeatOfficialModelContentV1 } from "./contracts.v1";
 import {
   listPublicAeatOfficialModelContentsV1,
   resolvePublicAeatOfficialModelContentV1,
@@ -98,6 +99,16 @@ const EXPECTED_CODES = [
   "241",
   "242",
   "247",
+  "270",
+  "280",
+  "281",
+  "282",
+  "283",
+  "289",
+  "290",
+  "291",
+  "294",
+  "295",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -106,7 +117,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(91);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(101);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -150,7 +161,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "270" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "296" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -185,6 +196,29 @@ describe("public AEAT official model content v1", () => {
       expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
       expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
       expect(result.data.externalNavigation, code).toBeNull();
+    }
+  });
+
+  it("keeps every Batch 10 page useful and source-backed without evaluating applicability", () => {
+    for (const code of [
+      "270",
+      "280",
+      "281",
+      "282",
+      "283",
+      "289",
+      "290",
+      "291",
+      "294",
+      "295",
+    ]) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
     }
   });
 
@@ -391,6 +425,28 @@ describe("public AEAT official model content v1", () => {
       },
       "242": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
       "247": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "270": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "280": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "281": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "282": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "283": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "289": {
+        methods: ["BROWSER_FORM", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "290": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
+      "291": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "294": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "295": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -651,6 +707,98 @@ describe("public AEAT official model content v1", () => {
     expect(model247.data.thumbnail).toMatchObject({
       pageNumber: 1,
       provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
+    });
+  });
+
+  it("preserves the source-backed Batch 10 channel, document and legal-source distinctions", () => {
+    const codes = [
+      "270",
+      "280",
+      "281",
+      "282",
+      "283",
+      "289",
+      "290",
+      "291",
+      "294",
+      "295",
+    ] as const;
+    const models = new Map<
+      (typeof codes)[number],
+      PublicAeatOfficialModelContentV1
+    >();
+
+    for (const code of codes) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      models.set(code, result.data);
+      expect(result.data.thumbnail, code).toBeNull();
+      expect(
+        result.data.sources
+          .filter((source) => source.authority === "BOE")
+          .every((source) => {
+            const url = new URL(source.canonicalUrl);
+            return (
+              url.pathname === "/diario_boe/txt.php" &&
+              url.searchParams.get("id")?.startsWith("BOE-A-") === true
+            );
+          }),
+        code,
+      ).toBe(true);
+      expect(
+        result.data.links.some((link) =>
+          /firmar|pagar|enviar|presentar declaraci[oó]n/i.test(link.label),
+        ),
+        code,
+      ).toBe(false);
+    }
+
+    for (const code of [
+      "270",
+      "280",
+      "281",
+      "283",
+      "291",
+      "294",
+      "295",
+    ] as const) {
+      expect(models.get(code)?.documents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "REGISTER_DESIGN",
+            formStatus: "NO_ACROFORM_DETECTED",
+            activeContentStatus: "NO_JAVASCRIPT_DETECTED",
+            previewSuitability: "NONE",
+          }),
+        ]),
+      );
+    }
+    expect(models.get("282")?.documents).toEqual([]);
+    expect(
+      models
+        .get("282")
+        ?.sources.some((source) => source.canonicalUrl.endsWith(".xlsx")),
+    ).toBe(true);
+    expect(models.get("289")?.documents).toHaveLength(3);
+    expect(
+      models
+        .get("289")
+        ?.documents.every((document) => document.kind === "GUIDE"),
+    ).toBe(true);
+    expect(models.get("290")?.documents).toHaveLength(2);
+    expect(
+      models
+        .get("290")
+        ?.documents.every((document) => document.kind === "GUIDE"),
+    ).toBe(true);
+    expect(models.get("270")?.externalNavigation).toMatchObject({
+      kind: "AEAT_PERSONAL_AREA",
+      policy: "EXTERNAL_INFORMATIONAL_NAVIGATION_ONLY",
+    });
+    expect(models.get("280")?.externalNavigation).toMatchObject({
+      kind: "AEAT_PERSONAL_AREA",
+      policy: "EXTERNAL_INFORMATIONAL_NAVIGATION_ONLY",
     });
   });
 

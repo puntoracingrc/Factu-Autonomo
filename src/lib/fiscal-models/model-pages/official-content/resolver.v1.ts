@@ -31,6 +31,9 @@ import { PUBLIC_AEAT_BATCH_08_INFORMATION_RETURNS_231_233_CONTENT_V1 } from "./b
 import { PUBLIC_AEAT_BATCH_09_CROSS_BORDER_MECHANISMS_234_236_CONTENT_V1 } from "./batch-09-cross-border-mechanisms-234-236.release.v1";
 import { PUBLIC_AEAT_BATCH_09_SOCIMI_PLATFORM_AMAC_237_239_CONTENT_V1 } from "./batch-09-socimi-platform-amac-237-239.release.v1";
 import { PUBLIC_AEAT_BATCH_09_COMPLEMENTARY_TAX_IRNR_240_247_CONTENT_V1 } from "./batch-09-complementary-tax-irnr-240-247.release.v1";
+import { PUBLIC_AEAT_BATCH_10_LOTTERY_SAVINGS_270_280_CONTENT_V1 } from "./batch-10-lottery-savings-270-280.release.v1";
+import { PUBLIC_AEAT_BATCH_10_REGIONAL_AID_281_283_CONTENT_V1 } from "./batch-10-regional-aid-281-283.release.v1";
+import { PUBLIC_AEAT_BATCH_10_FINANCIAL_INFORMATION_289_295_CONTENT_V1 } from "./batch-10-financial-information-289-295.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -124,6 +127,16 @@ const EXPECTED_CODES = Object.freeze([
   "241",
   "242",
   "247",
+  "270",
+  "280",
+  "281",
+  "282",
+  "283",
+  "289",
+  "290",
+  "291",
+  "294",
+  "295",
 ] as const);
 const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
@@ -319,6 +332,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_09_CROSS_BORDER_MECHANISMS_234_236_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_09_SOCIMI_PLATFORM_AMAC_237_239_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_09_COMPLEMENTARY_TAX_IRNR_240_247_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_10_LOTTERY_SAVINGS_270_280_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_10_REGIONAL_AID_281_283_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_10_FINANCIAL_INFORMATION_289_295_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (
