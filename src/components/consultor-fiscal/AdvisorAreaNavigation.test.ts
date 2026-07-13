@@ -14,6 +14,14 @@ describe("AdvisorAreaNavigation", () => {
     expect(source).toContain("notificationsEnabled = false");
   });
 
+  it("añade Notificaciones únicamente cuando el módulo está habilitado", () => {
+    expect(source).toContain("notificationsEnabled");
+    expect(source).toContain('href: "/consultor-fiscal/notificaciones"');
+    expect(source).toContain(
+      'pathname.startsWith(\n              "/consultor-fiscal/notificaciones",',
+    );
+  });
+
   it("mantiene foco visible, targets táctiles y estado de página", () => {
     expect(source).toContain('aria-label="Herramientas de Asesoría fiscal"');
     expect(source).toContain('aria-current={active ? "page" : undefined}');
