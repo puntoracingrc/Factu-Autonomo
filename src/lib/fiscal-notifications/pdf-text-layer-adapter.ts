@@ -15,7 +15,7 @@ import {
 } from "./pdf-text-layer-parser";
 
 export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 1 as const;
-export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "1.0.0" as const;
+export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "1.0.1" as const;
 
 export interface FiscalNotificationPdfTextLayerRequest {
   readonly ownerScope: string;
@@ -32,7 +32,7 @@ export interface FiscalNotificationPdfFileIntegrity {
 
 export interface FiscalNotificationPdfTextLayerResult {
   readonly schemaVersion: 1;
-  readonly adapterVersion: "1.0.0";
+  readonly adapterVersion: "1.0.1";
   readonly status: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly fileIntegrity: FiscalNotificationPdfFileIntegrity;
@@ -65,10 +65,15 @@ export interface FiscalNotificationPdfAdapterDependencies {
 }
 
 const REQUEST_KEYS = new Set(["ownerScope", "documentId", "file", "signal"]);
-const RESULT_KEYS = new Set(["type", "requestId", "documentInput"]);
+const RESULT_KEYS = new Set(["type", "requestId", "pages"]);
 const ERROR_KEYS = new Set(["type", "requestId", "code"]);
-const DOCUMENT_KEYS = new Set(["ownerScope", "documentId", "pages"]);
 const PAGE_KEYS = new Set(["pageNumber", "text", "isBlank"]);
+const PDFJS_READY_KEYS = new Set([
+  "sourceName",
+  "targetName",
+  "action",
+  "data",
+]);
 const REQUEST_ID = "parse" as const;
 const ERROR_CODES = new Set<FiscalNotificationPdfErrorCode>([
   "UNSUPPORTED_FILE",
@@ -145,8 +150,6 @@ export async function readFiscalNotificationPdfTextLayer(
     worker = createWorker(dependencies.createWorker);
     const workerResult = await awaitWorkerResult(
       worker,
-      request.ownerScope,
-      request.documentId,
       buffer,
       operationController.signal,
     );
@@ -154,6 +157,7 @@ export async function readFiscalNotificationPdfTextLayer(
       workerResult,
       request.ownerScope,
       request.documentId,
+      request.signal,
     );
     const hasText = documentInput.pages.some(
       (page) => page.text.trim().length > 0,
@@ -294,14 +298,13 @@ function createWorker(
 
 function awaitWorkerResult(
   worker: FiscalNotificationPdfWorkerLike,
-  ownerScope: string,
-  documentId: string,
   bytes: ArrayBuffer,
   signal: AbortSignal,
 ): Promise<unknown> {
   assertOperationActive(signal);
   return new Promise<unknown>((resolve, reject) => {
     let settled = false;
+    let pdfJsReadySeen = false;
     const finish = (action: () => void) => {
       if (settled) return;
       settled = true;
@@ -313,12 +316,21 @@ function awaitWorkerResult(
     const onMessage = (event: MessageEvent<unknown>) => {
       try {
         const message = snapshotRecord(event.data);
+        // pdfjs-dist 4.10.38 initializes its in-worker fake transport with this
+        // single exact envelope before our own RESULT/ERROR protocol.
+        if (message && isExactPdfJsReadyEnvelope(message)) {
+          if (pdfJsReadySeen) {
+            throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+          }
+          pdfJsReadySeen = true;
+          return;
+        }
         if (!message || message.requestId !== REQUEST_ID) {
           throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
         }
         if (message.type === "RESULT") {
           assertKnownKeys(message, RESULT_KEYS, "INVALID_WORKER_RESPONSE");
-          finish(() => resolve(message.documentInput));
+          finish(() => resolve(message.pages));
           return;
         }
         if (message.type === "ERROR") {
@@ -358,8 +370,6 @@ function awaitWorkerResult(
         {
           type: "PARSE",
           requestId: REQUEST_ID,
-          ownerScope,
-          documentId,
           bytes,
         },
         [bytes],
@@ -371,21 +381,12 @@ function awaitWorkerResult(
 }
 
 function snapshotDocumentInput(
-  value: unknown,
+  pageList: unknown,
   expectedOwnerScope: string,
   expectedDocumentId: string,
+  signal?: AbortSignal,
 ): BoundedDocumentInput {
-  const input = snapshotRecord(value);
-  if (!input) throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-  assertKnownKeys(input, DOCUMENT_KEYS, "INVALID_WORKER_RESPONSE");
-  if (
-    input.ownerScope !== expectedOwnerScope ||
-    input.documentId !== expectedDocumentId ||
-    !Array.isArray(input.pages)
-  ) {
-    throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
-  }
-  const pageValues = snapshotArray(input.pages);
+  const pageValues = snapshotArray(pageList);
   const pages = pageValues.map((pageValue, index) => {
     const page = snapshotRecord(pageValue);
     if (!page) throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
@@ -405,17 +406,41 @@ function snapshotDocumentInput(
       isBlank: page.isBlank,
     });
   });
-  const documentInput = Object.freeze({
+  const documentInput = {
     ownerScope: expectedOwnerScope,
     documentId: expectedDocumentId,
     pages: Object.freeze(pages),
-  });
+  } as BoundedDocumentInput;
+  if (signal) {
+    Object.defineProperty(documentInput, "signal", {
+      value: signal,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
+  Object.freeze(documentInput);
   try {
     assertBoundedDocumentInput(documentInput);
   } catch {
     throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
   }
   return documentInput;
+}
+
+function isExactPdfJsReadyEnvelope(
+  message: Record<string, unknown>,
+): boolean {
+  if (Reflect.ownKeys(message).length !== PDFJS_READY_KEYS.size) return false;
+  for (const key of Reflect.ownKeys(message)) {
+    if (typeof key !== "string" || !PDFJS_READY_KEYS.has(key)) return false;
+  }
+  return (
+    message.sourceName === "worker" &&
+    message.targetName === "main" &&
+    message.action === "ready" &&
+    message.data === null
+  );
 }
 
 function snapshotArray(value: unknown): readonly unknown[] {
