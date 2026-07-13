@@ -1,5 +1,9 @@
-export function isBillingEnforced(
-  env: Readonly<Record<string, string | undefined>> = process.env,
+export function isBillingEnforced(): boolean {
+  return process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
+}
+
+export function isBillingEnforcedForEnv(
+  env: Readonly<Record<string, string | undefined>>,
 ): boolean {
   return env.NEXT_PUBLIC_BILLING_ENABLED === "true";
 }
