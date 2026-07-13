@@ -39,6 +39,16 @@ desconocido: debe reconciliarse con Stripe y el saldo antes de actuar. No
 reviertas la migración después de recibir tráfico; conserva el ledger y usa una
 corrección hacia delante.
 
+El marcador `scan_pack_atomic_v1` empezó a emitirse antes de que el ledger
+atómico quedara asignado al dominio canónico. Por ello el webhook solo acredita
+automáticamente sesiones creadas desde `2026-07-13T01:35:00Z`. Es una frontera
+conservadora: queda más de catorce minutos después de activar #426 y más de dos
+minutos después de que otro despliegue descendiente reasignara el alias. Una
+sesión v1 anterior debe incluirse en la revisión manual, aunque esté pagada o
+ya figure procesada. El webhook no reclasifica filas `processed`: se limita a
+no volver a ejecutar su efecto. Contrasta primero Checkout, todos sus eventos,
+el ledger y el saldo; nunca la reacredites ni corrijas el saldo a ciegas.
+
 ## 3. Vercel
 
 Variables de entorno (Production):

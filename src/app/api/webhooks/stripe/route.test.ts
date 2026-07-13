@@ -14,6 +14,7 @@ import {
   sendPaymentReceiptEmail,
 } from "@/lib/billing/payment-receipt-email";
 import { syncBillingProfileFromCustomerId } from "@/lib/billing/sync-billing-profile";
+import { SCAN_PACK_ATOMIC_LEDGER_CUTOVER_UNIX } from "@/lib/billing/scan-packs";
 
 vi.mock("@/lib/billing/stripe", () => ({
   getStripe: vi.fn(),
@@ -89,6 +90,7 @@ function scanPackEvent(
     data: {
       object: {
         id: "cs_test_scan_pack_1",
+        created: SCAN_PACK_ATOMIC_LEDGER_CUTOVER_UNIX,
         mode: "payment",
         payment_status: "paid",
         metadata: {
@@ -383,6 +385,51 @@ describe("POST /api/webhooks/stripe", () => {
       manualReview: true,
       status: "failed",
     });
+    expect(completeStripeScanPackEvent).not.toHaveBeenCalled();
+    expect(markStripeEventFailed).toHaveBeenCalledWith(
+      event.id,
+      ATTEMPT_TOKEN,
+      "legacy_checkout_unresolved",
+    );
+  });
+
+  it("aparca una sesión v1 creada antes de activar el ledger atómico", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const event = scanPackEvent("checkout.session.async_payment_succeeded", {
+      created: SCAN_PACK_ATOMIC_LEDGER_CUTOVER_UNIX - 1,
+    });
+    vi.mocked(getStripe).mockReturnValue(fakeStripe(event) as never);
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+    vi.mocked(markStripeEventFailed).mockResolvedValue("manual_review");
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      received: true,
+      manualReview: true,
+      status: "failed",
+    });
+    expect(completeStripeScanPackEvent).not.toHaveBeenCalled();
+    expect(markStripeEventFailed).toHaveBeenCalledWith(
+      event.id,
+      ATTEMPT_TOKEN,
+      "legacy_checkout_unresolved",
+    );
+  });
+
+  it("aparca un pack sin fecha de creación verificable", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const event = scanPackEvent("checkout.session.completed", {
+      created: undefined,
+    });
+    vi.mocked(getStripe).mockReturnValue(fakeStripe(event) as never);
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+    vi.mocked(markStripeEventFailed).mockResolvedValue("manual_review");
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(200);
     expect(completeStripeScanPackEvent).not.toHaveBeenCalled();
     expect(markStripeEventFailed).toHaveBeenCalledWith(
       event.id,
