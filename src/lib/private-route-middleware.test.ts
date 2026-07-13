@@ -181,6 +181,35 @@ describe("private route middleware", () => {
     }
   });
 
+  it("rechaza aliases percent-encoded del Consultor con ambos estados de la Beta", () => {
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", enabled);
+
+      for (const pathname of [
+        "/%63onsultor-fiscal/notificaciones",
+        "/consultor%2Dfiscal/notificaciones",
+        "/consultor-fisca%6C/notificaciones",
+        "/consultor-fiscal%2Fnotificaciones",
+        "/%2563onsultor-fiscal/notificaciones",
+        "/consultor-fiscal%252Fnotificaciones",
+      ]) {
+        const response = middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        );
+
+        expect(response.status, `${enabled} ${pathname}`).toBe(404);
+        expect(
+          response.headers.get("Cache-Control"),
+          `${enabled} ${pathname}`,
+        ).toBe("no-store, max-age=0");
+        expect(
+          response.headers.get("X-Robots-Tag"),
+          `${enabled} ${pathname}`,
+        ).toBe("noindex, nofollow, noarchive");
+      }
+    }
+  });
+
   it("rechaza variantes y códigos no catalogados incluso con la Beta activa", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 
