@@ -3,6 +3,9 @@ import {
   parseFiscalNotificationPdfTextLayerBytes,
   type FiscalNotificationPdfErrorCode,
 } from "./pdf-text-layer-parser";
+import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
+import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
 interface FiscalNotificationPdfWorkerScope {
   onmessage: ((event: MessageEvent<unknown>) => void) | null;
@@ -40,10 +43,36 @@ async function processMessage(value: unknown): Promise<void> {
       documentId: EPHEMERAL_WORKER_DOCUMENT_ID,
       bytes: new Uint8Array(request.bytes),
     });
+    const pageCount = documentInput.pages.length;
+    const hasText = documentInput.pages.some(
+      (page) => page.text.trim().length > 0,
+    );
+    const familyAnalysis = hasText
+      ? extractFiscalNotificationCandidates(documentInput)
+      : null;
+    const enforcementCandidate =
+      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+      familyAnalysis.candidates.length === 1 &&
+      familyAnalysis.candidates[0]?.familyId ===
+        "AEAT_ENFORCEMENT_ORDER_CANDIDATE" &&
+      familyAnalysis.candidates[0].signalStatus ===
+        "COMPLETE_REQUIRED_ANCHORS" &&
+      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
+    const enforcementMoneyFacts = enforcementCandidate
+      ? extractAeatEnforcementMoneyFacts(documentInput)
+      : null;
+    const analysis = projectFiscalNotificationPdfWorkerAnalysis({
+      textLayerStatus: hasText
+        ? "TEXT_LAYER_AVAILABLE"
+        : "NO_EXTRACTABLE_TEXT",
+      pageCount,
+      familyAnalysis,
+      enforcementMoneyFacts,
+    });
     workerScope.postMessage({
       type: "RESULT",
       requestId: REQUEST_ID,
-      pages: documentInput.pages,
+      analysis,
     });
   } catch (error) {
     workerScope.postMessage({

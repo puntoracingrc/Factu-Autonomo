@@ -22,10 +22,14 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
-  analyzeFiscalNotificationLocally,
+  analyzeFiscalNotificationLocallyWithEphemeralFacts,
   type FiscalNotificationLocalReviewReason,
   type FiscalNotificationLocalReviewResult,
 } from "@/lib/fiscal-notifications/local-review-flow";
+import type {
+  AeatEnforcementMoneyFact,
+  AeatEnforcementMoneyFactsResult,
+} from "@/lib/fiscal-notifications/aeat-enforcement-money-facts";
 import {
   createBrowserFiscalNotificationLocalReviewStore,
   type FiscalNotificationBrowserLocalReviewStore,
@@ -51,6 +55,15 @@ const SIGNAL_LABELS = {
   CONFLICTING_AUTHORITY_OR_TERRITORY: "Organismo o territorio incompatible",
   CONFLICTING_DOCUMENT_SIGNAL: "El archivo parece una guía u otro documento",
 } as const;
+
+const MONEY_FACT_LABELS: Readonly<
+  Record<AeatEnforcementMoneyFact["kind"], string>
+> = {
+  OUTSTANDING_PRINCIPAL: "Principal pendiente impreso",
+  ORDINARY_ENFORCEMENT_SURCHARGE: "Recargo ordinario impreso",
+  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta impreso",
+  DOCUMENT_TOTAL: "Importe total impreso",
+};
 
 const REASON_COPY: Readonly<
   Record<
@@ -242,6 +255,10 @@ export function FiscalNotificationIntakeView() {
             obligado, expediente, cuotas u obligaciones.
           </li>
           <li>
+            Los importes impresos se muestran solo durante la revisión actual;
+            desaparecen al salir y nunca se guardan en la ficha técnica.
+          </li>
+          <li>
             No consulta sedes oficiales, no ejecuta OCR remoto y no utiliza IA.
           </li>
         </ul>
@@ -271,6 +288,8 @@ function FiscalNotificationReviewWorkspace({
   const [processing, setProcessing] = useState(false);
   const [result, setResult] =
     useState<FiscalNotificationLocalReviewResult | null>(null);
+  const [ephemeralMoneyFacts, setEphemeralMoneyFacts] =
+    useState<AeatEnforcementMoneyFactsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingSafeReview | null>(null);
@@ -324,6 +343,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = false;
     setProcessing(false);
     setResult(null);
+    setEphemeralMoneyFacts(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
@@ -339,6 +359,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = false;
     setProcessing(false);
     setError(null);
+    setEphemeralMoneyFacts(null);
     clearFileSelection();
   }
 
@@ -363,23 +384,27 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = true;
     setProcessing(true);
     setResult(null);
+    setEphemeralMoneyFacts(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
     try {
-      const nextResult = await analyzeFiscalNotificationLocally({
-        ownerScope,
-        documentId: `notification-review:${reviewUuid}`,
-        file,
-        signal: controller.signal,
-      });
+      const nextAnalysis =
+        await analyzeFiscalNotificationLocallyWithEphemeralFacts({
+          ownerScope,
+          documentId: `notification-review:${reviewUuid}`,
+          file,
+          signal: controller.signal,
+        });
       if (
         controller.signal.aborted ||
         controllerRef.current !== controller
       ) {
         return;
       }
+      const nextResult = nextAnalysis.technicalReview;
       setResult(nextResult);
+      setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
       setPendingReview({
         reviewId: `review:${reviewUuid}`,
         createdAt: new Date().toISOString(),
@@ -567,7 +592,12 @@ function FiscalNotificationReviewWorkspace({
         </form>
       </Card>
 
-      {result ? <ReviewResult result={result} /> : null}
+      {result ? (
+        <ReviewResult
+          result={result}
+          ephemeralMoneyFacts={ephemeralMoneyFacts}
+        />
+      ) : null}
       {result ? (
         <ReviewPersistencePanel
           state={persistenceState}
@@ -774,8 +804,10 @@ function InfoTile({
 
 function ReviewResult({
   result,
+  ephemeralMoneyFacts,
 }: {
   result: FiscalNotificationLocalReviewResult;
+  ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
 }) {
   const copy = REASON_COPY[result.reason];
   return (
@@ -870,6 +902,10 @@ function ReviewResult({
           </div>
         )}
 
+        {ephemeralMoneyFacts ? (
+          <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />
+        ) : null}
+
         <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <ShieldCheck
             aria-hidden="true"
@@ -883,6 +919,113 @@ function ReviewResult({
           </p>
         </div>
       </Card>
+    </section>
+  );
+}
+
+function EphemeralMoneyFactsPanel({
+  result,
+}: {
+  result: AeatEnforcementMoneyFactsResult;
+}) {
+  if (result.outcome !== "FACTS_AVAILABLE") {
+    const copy =
+      result.outcome === "AMBIGUOUS"
+        ? {
+            title: "Importes ambiguos",
+            detail:
+              "Hay etiquetas o secciones repetidas. No mostramos ninguna cifra hasta que una persona revise el documento.",
+          }
+        : result.outcome === "PROCESSING_BLOCKED"
+          ? {
+              title: "Lectura de importes bloqueada",
+              detail:
+                "El formato no supera la validación estricta. No se ha aceptado ni corregido ninguna cifra automáticamente.",
+            }
+          : {
+              title: "Importes todavía pendientes",
+              detail:
+                "No se han encontrado importes bajo las etiquetas cerradas de esta versión. Una ausencia nunca se convierte en cero.",
+            };
+    return (
+      <div
+        className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"
+        role={result.outcome === "INFORMATION_PENDING" ? "status" : "alert"}
+      >
+        <h3 className="font-bold text-amber-950">{copy.title}</h3>
+        <p className="mt-1 text-sm leading-6 text-amber-900">
+          {copy.detail}
+        </p>
+      </div>
+    );
+  }
+
+  const labelWithoutAmountKinds = new Set(
+    result.issues.flatMap((item) =>
+      item.code === "LABEL_WITHOUT_AMOUNT" && item.kind !== null
+        ? [item.kind]
+        : [],
+    ),
+  );
+  const missingLabelCount = result.issues.filter(
+    (item) =>
+      item.code === "NO_CLOSED_LABEL_MATCH" &&
+      item.kind !== null &&
+      !labelWithoutAmountKinds.has(item.kind),
+  ).length;
+  const labelWithoutAmountCount = labelWithoutAmountKinds.size;
+  return (
+    <section
+      className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4"
+      aria-labelledby="notification-money-facts-heading"
+    >
+      <h3
+        id="notification-money-facts-heading"
+        className="font-bold text-blue-950"
+      >
+        Importes impresos detectados
+      </h3>
+      <p className="mt-1 text-sm leading-6 text-blue-900">
+        Son cifras leídas literalmente. No se han sumado, recalculado ni elegido
+        como importe a pagar.
+      </p>
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+        {result.facts.map((fact) => (
+          <div
+            key={fact.kind}
+            className="rounded-xl border border-blue-100 bg-white p-4"
+          >
+            <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              {MONEY_FACT_LABELS[fact.kind]}
+            </dt>
+            <dd className="mt-1 text-lg font-bold text-slate-950">
+              {formatPrintedMoney(fact)}
+            </dd>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Página {fact.evidence[0]?.pageNumber} · según el documento ·
+              revisión obligatoria
+            </p>
+          </div>
+        ))}
+      </dl>
+      {missingLabelCount > 0 ? (
+        <p className="mt-3 text-sm font-semibold text-blue-950">
+          {missingLabelCount === 1
+            ? "No se encontró una etiqueta cubierta; no se ha convertido en cero."
+            : `No se encontraron ${missingLabelCount} etiquetas cubiertas; no se han convertido en cero.`}
+        </p>
+      ) : null}
+      {labelWithoutAmountCount > 0 ? (
+        <p className="mt-3 text-sm font-semibold text-blue-950">
+          {labelWithoutAmountCount === 1
+            ? "Una etiqueta cubierta aparece sin cifra; se mantiene pendiente."
+            : `${labelWithoutAmountCount} etiquetas cubiertas aparecen sin cifra; se mantienen pendientes.`}
+        </p>
+      ) : null}
+      <p className="mt-3 text-xs leading-5 text-blue-900">
+        Estos importes son efímeros: desaparecen al salir y no se incluyen en
+        la ficha técnica ni en el historial local.
+      </p>
     </section>
   );
 }
@@ -909,6 +1052,19 @@ function formatBytes(value: number): string {
   if (value < 1_024) return `${value} B`;
   if (value < 1_024 * 1_024) return `${Math.ceil(value / 1_024)} KB`;
   return `${(value / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
+function formatPrintedMoney(fact: AeatEnforcementMoneyFact): string {
+  const cents = BigInt(fact.amountCents);
+  const hundred = BigInt(100);
+  const integerPart = (cents / hundred)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const decimalPart = (cents % hundred).toString().padStart(2, "0");
+  const value = `${integerPart},${decimalPart}`;
+  return fact.currency === "EUR"
+    ? `${value} €`
+    : `${value} · moneda no confirmada`;
 }
 
 function formatReviewTimestamp(value: string): string {
