@@ -161,6 +161,10 @@ import {
   runLegacyImportRepairCommand,
   type DurableLegacyImportRepairResult,
 } from "@/lib/document-integrity/legacy-import-repair-command";
+import {
+  runBackupRestoreCommand,
+  type BackupRestoreValue,
+} from "@/lib/backup-restore-command";
 import type { LegacyImportRepairPreview } from "@/lib/document-integrity/legacy-import-attestation";
 import {
   runAppIssuedDocumentRecoveryCommand,
@@ -194,6 +198,10 @@ interface AppStoreValue {
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
   getCurrentData: () => AppData;
   replaceDataIfCurrent: (data: AppData, expected: AppData) => boolean;
+  restoreBackupData: (
+    restored: AppData,
+    expected: AppData,
+  ) => AppDataDurabilityResult<BackupRestoreValue>;
   applyImportedLegacyDocumentRepair: (
     preview: LegacyImportRepairPreview,
     expected: AppData,
@@ -487,6 +495,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updater: AppData | ((prev: AppData) => AppData),
       options?: { skipDirty?: boolean },
     ) => {
+      if (durableStorageBaselineRef.current.status === "indeterminate") {
+        return dataRef.current;
+      }
       const prev = dataRef.current;
       const next = typeof updater === "function" ? updater(prev) : updater;
       if (next === prev) return prev;
@@ -514,6 +525,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         persist: (candidate, storageExpected) =>
           saveData(candidate, { expected: storageExpected }),
       });
+      if (result.status === "indeterminate") {
+        durableStorageBaselineRef.current = result;
+      }
       if (result.status !== "applied") return result;
 
       durableStorageBaselineRef.current = {
@@ -539,6 +553,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
+    if (durableStorageBaselineRef.current.status === "indeterminate") return;
     if (durablyPersistedDataRef.current === data) {
       durablyPersistedDataRef.current = null;
       skipNextSave.current = false;
@@ -558,6 +573,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const replaceData = useCallback(
     (next: AppData, options?: ReplaceDataOptions) => {
+      if (durableStorageBaselineRef.current.status === "indeterminate") {
+        return;
+      }
       if (options?.fromRemote) {
         skipNextSave.current = false;
         dataRef.current = next;
@@ -578,11 +596,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const replaceDataIfCurrent = useCallback(
     (next: AppData, expected: AppData): boolean => {
+      if (durableStorageBaselineRef.current.status === "indeterminate") {
+        return false;
+      }
       if (dataRef.current !== expected) return false;
       setAppData(next, { skipDirty: false });
       return true;
     },
     [setAppData],
+  );
+
+  const restoreBackupData = useCallback(
+    (restored: AppData, expected: AppData) =>
+      runBackupRestoreCommand({
+        restored,
+        expected,
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
   );
 
   const applyImportedLegacyDocumentRepair = useCallback(
@@ -2024,6 +2055,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       getCurrentData,
       replaceDataIfCurrent,
+      restoreBackupData,
       applyImportedLegacyDocumentRepair,
       applyAppIssuedDocumentRecovery,
       rollbackAppIssuedDocumentRecovery,
@@ -2081,6 +2113,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       replaceData,
       getCurrentData,
       replaceDataIfCurrent,
+      restoreBackupData,
       applyImportedLegacyDocumentRepair,
       applyAppIssuedDocumentRecovery,
       rollbackAppIssuedDocumentRecovery,

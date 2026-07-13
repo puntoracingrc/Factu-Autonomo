@@ -828,6 +828,24 @@ export interface LegacyImportAttestationV1 extends LegacyImportAttestationBaseV1
 }
 
 /**
+ * Huellas del paquete técnico que el rollout inicial generó para una
+ * importación externa. No conserva ni afirma un PDF original, un sello de
+ * emisión de Factu o evidencia Veri*Factu: el rollback del alcance exportable
+ * depende de la copia completa descargada antes de confirmar la reparación.
+ */
+export interface LegacyImportRolloutRepairEvidenceV1 {
+  schemaVersion: 1;
+  kind: "verified_importer_rollout_bundle";
+  beforeDocumentFingerprint: string;
+  bundleFingerprint: string;
+  documentSnapshotStrongHash: string;
+  pdfSnapshotStrongHash: string;
+  sealContextHash: string;
+  hadVerifactuProfileContext: boolean;
+  rollback: "external_workspace_backup";
+}
+
+/**
  * V2 hace explícita la decisión del usuario de conservar el contenido fiscal
  * histórico tal como fue importado, aunque no cumpla campos exigidos hoy.
  */
@@ -854,6 +872,8 @@ export interface LegacyImportAttestationV2 extends LegacyImportAttestationBaseV1
     kind: "stored_fiscal_content_user_authoritative";
     completenessExceptions: LegacyImportCompletenessException[];
   };
+  /** Registro auditado y sin PII de una conversión explícita del rollout. */
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1;
 }
 
 /**

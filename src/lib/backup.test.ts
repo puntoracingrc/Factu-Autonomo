@@ -816,7 +816,13 @@ describe("backup", () => {
     expect(`${helperSource}\n${cardSource}`).not.toContain(
       "localStorage.setItem",
     );
-    expect(cardSource).toContain("replaceData(restoreDraft.data");
+    expect(cardSource).toContain("restoreBackupData(restoreDraft.data, data)");
+    expect(cardSource).toContain('result.status === "indeterminate"');
+    expect(cardSource).toContain('result.status === "blocked"');
+    expect(cardSource).toContain('result.reason === "stale_precondition"');
+    expect(cardSource).toContain("currentBackupData === data");
+    expect(cardSource).toContain("setCurrentBackupData(null)");
+    expect(cardSource).toContain("restoreLockRef.current");
     expect(cardSource).not.toContain("getSupabase");
     expect(cardSource).not.toContain("fiscal_transport_attempts");
     expect(cardSource).not.toContain("api/verifactu");

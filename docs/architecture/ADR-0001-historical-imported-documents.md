@@ -1,7 +1,7 @@
 # ADR-0001: documentos históricos importados y atestados por el usuario
 
 - Estado: Aceptado
-- Versión de la decisión: 3
+- Versión de la decisión: 4
 - Fecha: 2026-07-13
 - Responsables: Producto e Integridad fiscal
 
@@ -19,6 +19,14 @@ histórico sin pareja de snapshots o sello resultaba indistinguible de un
 documento moderno que había perdido evidencia y se bloqueaba. Endurecer la
 integridad moderna no debe inutilizar documentos históricos legítimos ni
 inventarles una garantía que nunca tuvieron.
+
+Otra variante del mismo rollout completó automáticamente para ciertos IDs del
+importador un `documentSnapshot.source = legacy_backfill`, una configuración PDF
+y un sello interno. Ese PDF snapshot describe una plantilla; no contiene el PDF
+original. El snapshot también pudo copiar la configuración VeriFactu del perfil
+sin que existiera un registro VeriFactu del documento. Esos artefactos técnicos,
+cuando el bundle completo verifica, tampoco prueban una emisión de Factu ni un
+envío a la AEAT.
 
 ## Decisión
 
@@ -68,6 +76,23 @@ exportadores.
   nunca se corrige ni reproyecta silenciosamente al cargar.
 - No se fabrica `pdfSnapshot`, `snapshotSeal`, hash moderno ni estado VeriFactu,
   ni se presenta al usuario que tales garantías existen.
+- La política central puede reconocer un `verified_importer_rollout_bundle`
+  únicamente si el namespace y fingerprint del importador son inequívocos, el
+  source es `legacy_backfill`, snapshot + PDF técnico + sello están completos y
+  todos sus hashes fuertes, identidad y contexto verifican. Exige además que no
+  exista `document.verifactu`, `verifactuPersistence`, `snapshot.verifactu`,
+  cuarentena, borrador emitido después ni acción posterior incompatible. El
+  contexto VeriFactu aislado del perfil se retira al atestar y no se presenta
+  como registro. Una pieza parcial, un hash/sello incoherente, source `issue` o
+  `customer_repair`, evidencia VeriFactu real o procedencia dudosa permanece
+  bloqueada.
+- La atestación que convierte ese residuo conserva, dentro de su hash, huellas
+  no identificativas del documento anterior, bundle, snapshots y sello, además
+  del algoritmo de hash histórico cuando su redondeo legacy válido lo necesita.
+  No duplica el bundle ni afirma conservar un PDF original. La copia JSON
+  completa descargada antes de confirmar permite restaurar de forma durable el
+  alcance de datos de negocio que la exportación declara; no incluye metadata
+  efímera ni datos de Rentabilidad Real guardados fuera de AppData.
 - V2 conserva `importProvenance` con el origen y, solo cuando existe evidencia
   persistida, la fecha real de importación. Si el rollout antiguo no la guardó,
   usa `importedAt: null` y separa `provenanceRecordedAt` de `attestedAt`; nunca
@@ -117,7 +142,8 @@ exportadores.
 
 ## Migración y reparación
 
-La reparación V2/V3 es explícita, previsualizable e idempotente. La detección
+La reparación V2/V3 y la conversión versionada del residuo de rollout son
+explícitas, previsualizables e idempotentes. La detección
 automática solo propone candidatos con procedencia inequívoca de namespaces o
 metadatos conocidos de PC Facturación, Holded, FacturaDirecta o documentos
 genéricos. No muta al cargar.
@@ -132,10 +158,19 @@ precondición contra cambios posteriores antes de aplicar. La cuenta real se
 reparará únicamente después del despliegue y QA, con backup previo, preview de
 los afectados, confirmación del usuario, aplicación idempotente, registro
 auditable y rollback protegido. En la primera versión, el rollback consiste en
-restaurar mediante el flujo revisado la copia JSON completa descargada justo
-antes de confirmar; no se ofrece un deshacer parcial que pudiera mezclar
-documentos anteriores y posteriores. El desarrollo y los tests usan solo
-fixtures.
+restaurar mediante el flujo durable revisado la copia JSON completa descargada
+justo antes de confirmar. La restauración persiste antes de publicar memoria,
+registra el diff cloud pendiente y no afirma éxito ante un resultado bloqueado
+o indeterminado; no se ofrece un deshacer parcial que pudiera mezclar documentos
+anteriores y posteriores. El desarrollo y los tests usan solo fixtures.
+
+Cuando hay residuos del rollout, la vista previa los desglosa de los candidatos
+sin bundle y explica que su sello técnico no es de emisión. La propia tarjeta
+debe descargar la copia del mismo precondition; cualquier cambio posterior la
+invalida y obliga a descargar otra. Aplicar elimina únicamente el PDF snapshot,
+sello, expectativa y señal sintéticos, sanea el contexto de perfil y produce el
+snapshot `legacy_import_attested` con las mismas líneas y resumen fiscal. Nunca
+se recalculan silenciosamente los importes declarados ni se muta durante load.
 
 ## Experiencia de usuario
 
@@ -146,6 +181,10 @@ carencias antiguas son visibles y no equivalen a una validación formal nueva. E
 documento no posee un sello moderno ni una certificación VeriFactu creada por
 esta app. Un fallo de evidencia moderna se presenta como bloqueo de integridad,
 no como histórico.
+Cuando se reconoce un paquete técnico del rollout, la UI separa expresamente
+«bundle verificado» de «sello de emisión» y exige descargar una copia completa
+del estado vigente antes de habilitar la confirmación. Cualquier cambio del
+workspace invalida esa copia y obliga a descargar otra.
 
 ## Alcance fiscal
 

@@ -26,9 +26,7 @@ describe("recurring expense form integrity", () => {
     expect(fixedExpenseForm).toMatch(
       /isRecurringExpenseApplicableOn\(item, today\)/,
     );
-    expect(fixedExpenseForm).toMatch(
-      /recurringExpenseStatusOn\(item, today\)/,
-    );
+    expect(fixedExpenseForm).toMatch(/recurringExpenseStatusOn\(item, today\)/);
   });
 
   it("permite guardar todas las reglas anuales que ofrece el formulario", () => {
@@ -111,23 +109,26 @@ describe("recurring expense form integrity", () => {
     expect(appliedGate).toBeGreaterThan(commitStart);
     expect(publishRef).toBeGreaterThan(appliedGate);
     expect(publishReact).toBeGreaterThan(publishRef);
-    expect(appStore).toContain(
-      "durablyPersistedDataRef.current === data",
-    );
+    expect(appStore).toContain("durablyPersistedDataRef.current === data");
     expect(appStore).toContain("durableStorageBaselineRef");
     expect(appStore).toContain(
       "storageBaseline: durableStorageBaselineRef.current",
     );
     expect(appStore).toContain("durableStorageBaselineAfterSave");
-    expect(appStore).toContain("saveData(candidate, { expected: storageExpected })");
+    expect(appStore).toContain(
+      "saveData(candidate, { expected: storageExpected })",
+    );
     expect(appStore).toContain("const persisted = loadData();");
     expect(appStore).toContain("syncRecurringExpenses(persisted)");
+    expect(
+      appStore.match(
+        /durableStorageBaselineRef\.current\.status === "indeterminate"/g,
+      )?.length,
+    ).toBeGreaterThanOrEqual(4);
     expect(appStore).toContain(
       'if (baseline.status !== "known") return baseline;',
     );
-    expect(appStore).toContain(
-      "durableBaselineContainsFixedExpenseBundle",
-    );
+    expect(appStore).toContain("durableBaselineContainsFixedExpenseBundle");
     expect(appStore).toContain("() => inspected.transition");
   });
 
@@ -157,17 +158,13 @@ describe("recurring expense form integrity", () => {
     expect(fixedExpenseForm).toMatch(
       /setRecurringExpenseEnabled\(\s*item\.id,\s*!item\.enabled,\s*data/,
     );
-    expect(fixedExpenseForm).toContain(
-      "deleteRecurringExpense(item.id, data)",
-    );
+    expect(fixedExpenseForm).toContain("deleteRecurringExpense(item.id, data)");
   });
 
   it("hace atómico el bundle fijo del escaneo antes de inbox o navegación", () => {
     const newExpenseForm = source("../app/gastos/nuevo/page.tsx");
     const submitStart = newExpenseForm.indexOf("async function handleSubmit()");
-    const scanStatusStart = newExpenseForm.indexOf(
-      "function scanReviewStatus",
-    );
+    const scanStatusStart = newExpenseForm.indexOf("function scanReviewStatus");
     const fixedScanReviewGate = newExpenseForm.indexOf(
       'review.payload.expense.businessKind === "fixed"',
       scanStatusStart,
@@ -222,10 +219,7 @@ describe("recurring expense form integrity", () => {
       "await markInboxItemProcessed({",
       durableSave,
     );
-    const navigation = newExpenseForm.indexOf(
-      'router.push("/gastos")',
-      inbox,
-    );
+    const navigation = newExpenseForm.indexOf('router.push("/gastos")', inbox);
 
     expect(replayGate).toBeGreaterThan(submitStart);
     expect(fixedScanReviewGate).toBeGreaterThan(scanStatusStart);
@@ -275,20 +269,22 @@ describe("recurring expense form integrity", () => {
     expect(newExpenseForm).toContain(
       'if (review.id === activeScanReview?.id && businessKind === "fixed") return;',
     );
-    expect(newExpenseForm).toContain(
-      '(!isActive || businessKind !== "fixed")',
-    );
+    expect(newExpenseForm).toContain('(!isActive || businessKind !== "fixed")');
     expect(newExpenseForm).toContain("Guardar abajo");
     expect(newExpenseForm).toContain(
-      "storageStateUnknown ||\n                  Boolean(activeScanReview && businessKind === \"fixed\") ||",
+      'storageStateUnknown ||\n                  Boolean(activeScanReview && businessKind === "fixed") ||',
     );
     expect(newExpenseForm).toContain("disabled={storageStateUnknown}");
     expect(newExpenseForm).toContain(
       "Boolean(blockingDuplicateExpense) || storageStateUnknown",
     );
-    expect(newExpenseForm).toContain("requireConfirmation: durableFixedApplied");
+    expect(newExpenseForm).toContain(
+      "requireConfirmation: durableFixedApplied",
+    );
     expect(newExpenseForm).toContain("if (!response.ok");
-    expect(newExpenseForm).toContain("Recarga y exporta una copia de seguridad");
+    expect(newExpenseForm).toContain(
+      "Recarga y exporta una copia de seguridad",
+    );
     expect(newExpenseForm).toContain('role="alert"');
   });
 

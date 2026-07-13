@@ -21,14 +21,23 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
       "applyImportedLegacyDocumentRepair(preview, data)",
     );
     expect(cardSource).toContain("preview.affectedCount > 0 &&");
-    expect(cardSource).toContain("disabled={!confirmed}");
-    expect(cardSource).toContain("Descargar copia antes");
-    expect(cardSource).toContain("He descargado y guardado una copia JSON");
-    expect(cardSource).toContain("deshacer de forma exacta");
+    expect(cardSource).toContain("downloadBackup(data)");
+    expect(cardSource).toContain("backupPrecondition === preview.precondition");
+    expect(cardSource).toContain("!confirmed ||");
+    expect(cardSource).toContain("Descargar copia JSON completa antes");
+    expect(cardSource).toContain("He guardado la copia JSON completa");
+    expect(cardSource).toContain("restauración durable");
+    expect(cardSource).toContain("BACKUP_SCOPE_NOTICE");
     expect(cardSource).toContain('result.status === "indeterminate"');
     expect(cardSource).toContain('result.status === "blocked"');
+    expect(cardSource).toContain("storageStateUnknown");
+    expect(cardSource).toContain('result.reason === "stale_precondition"');
+    expect(cardSource).toContain("setBackupPrecondition(null)");
+    expect(cardSource).toContain("applyLockRef.current");
+    expect(cardSource).toContain("visibleCandidates");
+    expect(cardSource).toContain("CANDIDATE_PAGE_SIZE");
     expect(cardSource).not.toContain("replaceDataIfCurrent");
-    expect(cardSource).toContain("preview.candidates.map");
+    expect(cardSource).toContain("visibleCandidates.map");
     expect(cardSource).toContain("preview.relationshipGroups.map");
     expect(cardSource).toContain("group.groupFingerprint");
     expect(cardSource).toContain("RELATION_LABELS[group.relation]");
@@ -39,6 +48,16 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
     expect(cardSource).toContain("candidate.amounts.iva");
     expect(cardSource).toContain("candidate.amounts.total");
     expect(cardSource).toContain("candidate.completenessExceptions");
+    expect(cardSource).toContain(
+      'candidate.evidenceBasis === "verified_importer_rollout_bundle"',
+    );
+    expect(cardSource).toContain(
+      "paquetes técnicos de importación verificados",
+    );
+    expect(cardSource).toContain(
+      "Paquete técnico coherente generado por el rollout antiguo",
+    );
+    expect(cardSource).toContain("no acreditan emisión por Factu");
     expect(cardSource).toContain(
       "ISSUER_ORIGIN_LABELS[candidate.issuerOrigin]",
     );

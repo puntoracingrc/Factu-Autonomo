@@ -4,9 +4,15 @@ import type {
   BusinessProfile,
   Document,
   DocumentSnapshot,
+  LegacyImportAttestationV2,
 } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
-import { deriveLegacySnapshotForReadOnly } from "./snapshots";
+import {
+  buildDocumentPdfSnapshot,
+  buildDocumentSnapshotSeal,
+  deriveLegacySnapshotForReadOnly,
+  hashDocumentSnapshot,
+} from "./snapshots";
 import { documentAmounts } from "@/lib/vat-regime";
 import { legacyFnv1a32, sha256Hex } from "./snapshot-hash";
 import { stableStringifySnapshot } from "./snapshots";
@@ -32,6 +38,7 @@ import {
   projectLegacyImportSnapshotOntoDocument,
 } from "./legacy-import-attestation";
 import { withDocumentRelationshipIntegritySignals } from "./relationships";
+import { normalizeLoadedData } from "@/lib/storage";
 
 const PROFILE: BusinessProfile = {
   ...EMPTY_DATA.profile,
@@ -100,6 +107,103 @@ function appData(documents: Document[]): AppData {
     profile: PROFILE,
     documents,
     snapshotIntegrityVersion: 1,
+  };
+}
+
+function importerRolloutBundle(overrides: Partial<Document> = {}): {
+  document: Document;
+  profile: BusinessProfile;
+} {
+  const { documents, profile } = importerRolloutBundleDocuments([
+    {
+      ...importedDocument(),
+      ...overrides,
+    },
+  ]);
+  return { document: documents[0], profile };
+}
+
+function importerRolloutBundleDocuments(documents: Document[]): {
+  documents: Document[];
+  profile: BusinessProfile;
+} {
+  const profile: BusinessProfile = {
+    ...PROFILE,
+    verifactu: { enabled: true, environment: "test" },
+  };
+  const cleanDocuments = documents.map((document) => ({
+    ...document,
+    documentSnapshot: undefined,
+    pdfSnapshot: undefined,
+    snapshotSeal: undefined,
+    snapshotIntegrityRequired: undefined,
+    snapshotIntegrity: undefined,
+  }));
+  const normalized = normalizeLoadedData(
+    {
+      ...appData(cleanDocuments),
+      profile,
+      documents: cleanDocuments,
+    },
+    {
+      legacyBackfillDocumentIds: new Set(
+        cleanDocuments.map((document) => document.id),
+      ),
+    },
+  );
+  return {
+    documents: normalized.documents.map((normalizedDocument) => {
+      const snapshot: DocumentSnapshot = {
+        ...normalizedDocument.documentSnapshot!,
+        fiscalContext: {
+          ...normalizedDocument.documentSnapshot!.fiscalContext,
+          verifactu: { enabled: true, environment: "test", optInVersion: 1 },
+        },
+        snapshotHash: "",
+      };
+      snapshot.snapshotHash = hashDocumentSnapshot(snapshot);
+      const pdfSnapshot = buildDocumentPdfSnapshot(
+        snapshot,
+        profile,
+        snapshot.capturedAt,
+      );
+      return {
+        ...normalizedDocument,
+        documentSnapshot: snapshot,
+        pdfSnapshot,
+        snapshotSeal: buildDocumentSnapshotSeal(
+          normalizedDocument.id,
+          snapshot,
+          pdfSnapshot,
+        ),
+        snapshotIntegrityRequired: true,
+        snapshotIntegrity: undefined,
+      };
+    }),
+    profile,
+  };
+}
+
+function withLegacySnapshotHash(snapshot: DocumentSnapshot): DocumentSnapshot {
+  const hashPayload = { ...snapshot } as Record<string, unknown>;
+  delete hashPayload.capturedAt;
+  delete hashPayload.source;
+  delete hashPayload.snapshotHash;
+  const issuer = { ...snapshot.issuer } as Record<string, unknown>;
+  delete issuer.capturedAt;
+  return {
+    ...snapshot,
+    snapshotHash: `fnv1a32:${legacyFnv1a32(
+      stableStringifySnapshot({
+        ...hashPayload,
+        issuer,
+        items: snapshot.items.map((item) => {
+          const line = { ...item } as Record<string, unknown>;
+          delete line.id;
+          return line;
+        }),
+      }),
+    )}`,
   };
 }
 
@@ -1147,6 +1251,365 @@ describe("legacy imported document attestation", () => {
     );
   });
 
+  it("convierte solo el bundle completo y verificado que generó el rollout del importador", () => {
+    const { document, profile } = importerRolloutBundle();
+    const before = {
+      ...appData([document]),
+      profile,
+    };
+    const beforeSerialized = stableStringifySnapshot(before);
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(document.documentSnapshot?.source).toBe("legacy_backfill");
+    expect(document.documentSnapshot?.fiscalContext.verifactu?.enabled).toBe(
+      true,
+    );
+    expect(document.documentSnapshot?.verifactu).toBeUndefined();
+    expect(document.verifactu).toBeUndefined();
+    expect(document.verifactuPersistence).toBeUndefined();
+    expect(preview).toMatchObject({
+      affectedCount: 1,
+      candidates: [
+        {
+          evidenceBasis: "verified_importer_rollout_bundle",
+          rolloutRepairEvidence: {
+            schemaVersion: 1,
+            kind: "verified_importer_rollout_bundle",
+            hadVerifactuProfileContext: true,
+            rollback: "external_workspace_backup",
+          },
+        },
+      ],
+    });
+
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T17:00:00.000Z",
+    );
+
+    expect(result.status).toBe("applied");
+    expect(stableStringifySnapshot(before)).toBe(beforeSerialized);
+    if (result.status !== "applied") return;
+    const repaired = result.data.documents[0];
+    expect(repaired.documentSnapshot).toMatchObject({
+      source: "legacy_import_attested",
+      taxSummary: document.documentSnapshot?.taxSummary,
+    });
+    expect(repaired.documentSnapshot?.fiscalContext.verifactu).toBeUndefined();
+    expect(repaired.pdfSnapshot).toBeUndefined();
+    expect(repaired.snapshotSeal).toBeUndefined();
+    expect(repaired.snapshotIntegrityRequired).toBeUndefined();
+    expect(repaired.snapshotIntegrity).toBeUndefined();
+    expect(repaired.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      amountOrigin: "verified_legacy_snapshot",
+      rolloutRepairEvidence: preview.candidates[0].rolloutRepairEvidence,
+    });
+    expect(inspectLegacyImportAttestation(repaired).ok).toBe(true);
+    expect(isDocumentUsableForFinancialCalculations(repaired)).toBe(true);
+    expect(documentAmounts(repaired, false)).toMatchObject(
+      preview.candidates[0].amounts,
+    );
+    expect(buildLegacyImportRepairPreview(result.data)).toMatchObject({
+      affectedCount: 0,
+      alreadyAttestedDocumentIds: [document.id],
+    });
+
+    const repairedAttestation =
+      repaired.legacyImportAttestation as LegacyImportAttestationV2;
+    const tampered: Document = {
+      ...repaired,
+      legacyImportAttestation: {
+        ...repairedAttestation,
+        rolloutRepairEvidence: {
+          ...repairedAttestation.rolloutRepairEvidence!,
+          bundleFingerprint: `sha256:${"0".repeat(64)}`,
+        },
+      } as Document["legacyImportAttestation"],
+    };
+    expect(inspectLegacyImportAttestation(tampered).ok).toBe(false);
+    expect(documentAmounts(tampered, false).total).toBe(0);
+  });
+
+  it("recupera un bundle genérico anterior a provenance V2 sin inferir una emisión de Factu", () => {
+    const { document, profile } = importerRolloutBundle({
+      id: "generic-documents:factura:F-GEN-2024-0001",
+      number: "F-GEN-2024-0001",
+      legacyImportProvenance: undefined,
+    });
+    const before = { ...appData([document]), profile };
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(preview).toMatchObject({
+      affectedCount: 1,
+      candidates: [
+        {
+          importer: "generic_documents",
+          evidenceBasis: "verified_importer_rollout_bundle",
+        },
+      ],
+    });
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T17:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.documents[0].legacyImportProvenance).toMatchObject({
+      schemaVersion: 2,
+      importer: "generic_documents",
+      importedAt: null,
+      documentStateAtImport: "unknown_legacy_import",
+    });
+    expect(inspectLegacyImportAttestation(result.data.documents[0]).ok).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    [
+      "corrección positiva",
+      historicalCorrectionPair,
+      "rectification_correction",
+    ],
+    [
+      "anulación exacta",
+      historicalCancellationPair,
+      "rectification_cancellation",
+    ],
+    ["factura y recibo", historicalReceiptPair, "invoice_receipt"],
+  ] as const)(
+    "convierte como V3 atómico una relación con bundle completo: %s",
+    (_label, buildPair, expectedRelation) => {
+      const { documents, profile } = importerRolloutBundleDocuments([
+        ...buildPair(),
+      ]);
+      const before = { ...appData(documents), profile };
+      const preview = buildLegacyImportRepairPreview(before);
+
+      expect(preview).toMatchObject({
+        schemaVersion: 3,
+        affectedCount: 2,
+        manualReview: [],
+        relationshipGroups: [{ relation: expectedRelation }],
+      });
+      expect(
+        preview.candidates.every(
+          (candidate) =>
+            candidate.evidenceBasis === "verified_importer_rollout_bundle" &&
+            candidate.rolloutRepairEvidence?.kind ===
+              "verified_importer_rollout_bundle",
+        ),
+      ).toBe(true);
+
+      const result = applyLegacyImportRepair(
+        before,
+        preview,
+        "2026-07-13T17:00:00.000Z",
+      );
+      expect(result.status).toBe("applied");
+      if (result.status !== "applied") return;
+      expect(
+        result.data.documents.every(
+          (document) =>
+            document.legacyImportAttestation?.schemaVersion === 3 &&
+            document.legacyImportAttestation.rolloutRepairEvidence?.kind ===
+              "verified_importer_rollout_bundle" &&
+            inspectLegacyImportAttestation(document).ok,
+        ),
+      ).toBe(true);
+      expect(
+        inspectLegacyImportRelationshipCollection(result.data.documents)
+          .validDocumentIds.size,
+      ).toBe(2);
+    },
+  );
+
+  it("bloquea ambos extremos si un bundle relacional está corrupto o tiene VeriFactu real", () => {
+    const { documents, profile } = importerRolloutBundleDocuments([
+      ...historicalReceiptPair(),
+    ]);
+    const corrupt = structuredClone(documents);
+    corrupt[1].documentSnapshot!.items[0].description = "contenido alterado";
+    const withRealVerifactu = structuredClone(documents);
+    withRealVerifactu[1].verifactu = {
+      recordHash: "a".repeat(64),
+      previousHash: "",
+      recordTimestamp: "2026-07-13T17:00:00.000Z",
+      qrUrl: "https://example.test/verifactu",
+      status: "test_registered",
+      recordType: "alta",
+      environment: "test",
+    };
+    withRealVerifactu[1].verifactuPersistence = "server_confirmed";
+
+    for (const unsafe of [corrupt, withRealVerifactu]) {
+      const preview = buildLegacyImportRepairPreview({
+        ...appData(unsafe),
+        profile,
+      });
+      expect(preview.affectedCount).toBe(0);
+      expect(preview.relationshipGroups).toEqual([]);
+      expect(preview.manualReview).toHaveLength(2);
+    }
+  });
+
+  it("no convierte parcialmente un extremo con relación unilateral", () => {
+    const { documents, profile } = importerRolloutBundleDocuments([
+      ...historicalReceiptPair(),
+    ]);
+    const unilateral = structuredClone(documents);
+    unilateral[0].receiptDocumentId = undefined;
+    unilateral[0].snapshotIntegrity = {
+      status: "blocked",
+      issues: ["document_relationship_invalid"],
+    };
+    unilateral[1].snapshotIntegrity = {
+      status: "blocked",
+      issues: ["document_relationship_invalid"],
+    };
+
+    const preview = buildLegacyImportRepairPreview({
+      ...appData(unilateral),
+      profile,
+    });
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.relationshipGroups).toEqual([]);
+    expect(preview.manualReview).toHaveLength(2);
+  });
+
+  it("preserva redondeo e importe legacy al sanear un bundle FNV verificado", () => {
+    const historical = importedDocument();
+    historical.items = [
+      {
+        ...historical.items[0],
+        quantity: 0.5,
+        unitPrice: -0.05,
+      },
+    ];
+    const { document, profile } = importerRolloutBundle(historical);
+    const current = document.documentSnapshot!;
+    const frozen = withLegacySnapshotHash({
+      ...current,
+      items: [
+        {
+          ...current.items[0],
+          subtotal: -0.02,
+          ivaAmount: -0.01,
+          total: -0.03,
+        },
+      ],
+      taxSummary: {
+        subtotal: -0.02,
+        iva: -0.01,
+        total: -0.03,
+        vatExempt: false,
+        byRate: [
+          {
+            ivaPercent: 21,
+            taxableBase: -0.02,
+            ivaAmount: -0.01,
+            total: -0.03,
+          },
+        ],
+      },
+    });
+    const pdfSnapshot = buildDocumentPdfSnapshot(
+      frozen,
+      profile,
+      frozen.capturedAt,
+    );
+    const bundle: Document = {
+      ...document,
+      documentSnapshot: frozen,
+      pdfSnapshot,
+      snapshotSeal: buildDocumentSnapshotSeal(document.id, frozen, pdfSnapshot),
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: undefined,
+    };
+    const before = { ...appData([bundle]), profile };
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(preview.candidates[0]).toMatchObject({
+      evidenceBasis: "verified_importer_rollout_bundle",
+      amounts: { subtotal: -0.02, iva: -0.01, total: -0.03 },
+    });
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T17:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const repaired = result.data.documents[0];
+    expect(repaired.documentSnapshot?.snapshotHash).toMatch(/^fnv1a32:/);
+    expect(repaired.documentSnapshot?.taxSummary).toEqual(frozen.taxSummary);
+    expect(documentAmounts(repaired, false)).toMatchObject({
+      subtotal: -0.02,
+      iva: -0.01,
+      total: -0.03,
+    });
+  });
+
+  it("mantiene fail-closed el bundle parcial, corrupto, con acción posterior o VeriFactu real", () => {
+    const { document } = importerRolloutBundle();
+    const corrupt = structuredClone(document);
+    corrupt.documentSnapshot!.items[0].description = "contenido alterado";
+    const partial = { ...document, snapshotSeal: undefined };
+    const actedAfterImport = {
+      ...document,
+      sentAt: "2026-07-13T17:00:00.000Z",
+    };
+    const realVerifactu: Document = {
+      ...document,
+      verifactu: {
+        recordHash: "a".repeat(64),
+        previousHash: "",
+        recordTimestamp: "2026-07-13T17:00:00.000Z",
+        qrUrl: "https://example.test/verifactu",
+        status: "test_registered",
+        recordType: "alta",
+        environment: "test",
+      },
+      verifactuPersistence: "server_confirmed",
+    };
+
+    for (const unsafe of [corrupt, partial, actedAfterImport, realVerifactu]) {
+      const before = appData([unsafe]);
+      const serialized = stableStringifySnapshot(before);
+      const preview = buildLegacyImportRepairPreview(before);
+      expect(preview.affectedCount).toBe(0);
+      expect(preview.manualReview).toHaveLength(1);
+      expect(stableStringifySnapshot(before)).toBe(serialized);
+      expect(isDocumentUsableForFinancialCalculations(unsafe)).toBe(false);
+    }
+  });
+
+  it("no reinterpreta como rollout un documento emitido por Factu aunque use namespace importado", () => {
+    const issued = issueDocument(
+      {
+        ...importedDocument(),
+        status: "borrador",
+        issuer: undefined,
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+        snapshotIntegrityRequired: undefined,
+        snapshotIntegrity: undefined,
+      },
+      PROFILE,
+      "2026-07-13T17:00:00.000Z",
+    );
+    const preview = buildLegacyImportRepairPreview(appData([issued]));
+
+    expect(issued.documentSnapshot?.source).toBe("issue");
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "existing_integrity_evidence",
+    );
+  });
+
   it("mantiene rectificativas y recibos históricos en revisión manual", () => {
     const rectification: Document = {
       ...importedDocument("pcfacturacion:factura:FR-2024-0001"),
@@ -1731,6 +2194,35 @@ describe("legacy imported document attestation", () => {
         notes: "Cambio posterior",
       })),
     };
+    expect(applyLegacyImportRepair(changed, preview)).toEqual({
+      status: "blocked",
+      reason: "stale_preview",
+    });
+  });
+
+  it("invalida también la copia previa si cambia un dato no documental", () => {
+    const before = appData([importedDocument()]);
+    const preview = buildLegacyImportRepairPreview(before);
+    const changed: AppData = {
+      ...before,
+      expenses: [
+        {
+          id: "expense-after-backup",
+          date: "2026-07-13",
+          supplierName: "Proveedor sintético",
+          description: "Cambio posterior a la copia",
+          amount: 10,
+          ivaPercent: 21,
+          category: "Otros",
+          paymentMethod: "Tarjeta",
+          createdAt: "2026-07-13T17:01:00.000Z",
+        },
+      ],
+    };
+
+    expect(buildLegacyImportRepairPreview(changed).precondition).not.toBe(
+      preview.precondition,
+    );
     expect(applyLegacyImportRepair(changed, preview)).toEqual({
       status: "blocked",
       reason: "stale_preview",
