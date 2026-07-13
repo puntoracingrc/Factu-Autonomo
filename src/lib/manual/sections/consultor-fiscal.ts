@@ -62,5 +62,14 @@ export const consultorFiscalSection: ManualSection = {
       ],
       tip: "No uses este análisis como declaración oficial ni como sustituto de los modelos tributarios.",
     },
+    {
+      title: "6. Analizar una notificación",
+      paragraphs: [
+        "Abre **Notificaciones y expedientes** dentro de Asesoría fiscal con una cuenta confirmada y selecciona un PDF. El archivo se lee de forma local y aislada: no se conserva ni el PDF, ni su texto, ni el nombre del archivo, y el resultado desaparece al recargar.",
+        "Esta primera versión solo detecta indicios estructurales de una providencia de apremio o de una concesión de aplazamiento o fraccionamiento de la AEAT. Un documento escaneado sin texto seleccionable queda como **OCR pendiente** y no se envía a un proveedor ni a una IA.",
+        "Toda coincidencia permanece como **Revisión humana obligatoria**. El analizador no extrae ni guarda importes, fechas, obligado, expediente u obligaciones, y nunca crea deudas, plazos, pagos, gastos o asientos.",
+      ],
+      tip: "El resultado solo orienta la revisión del documento; no confirma su autenticidad ni sus efectos jurídicos.",
+    },
   ],
 };
