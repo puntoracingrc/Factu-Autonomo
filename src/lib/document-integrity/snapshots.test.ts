@@ -24,6 +24,7 @@ import {
   stableStringifySnapshot,
 } from ".";
 import { legacyFnv1a32 } from "./snapshot-hash";
+import { hashDocumentSnapshotWithAlgorithm } from "./snapshots";
 import { buildPdfViewModelForDocument } from "./pdf-source";
 import { buildDocumentPdf } from "../pdf";
 import type {
@@ -992,6 +993,19 @@ describe("document snapshots", () => {
     });
 
     expect(hashDocumentSnapshot(snapshot)).toBe(snapshot.snapshotHash);
+  });
+
+  it("rehashea una proyección conservando el algoritmo histórico verificado", () => {
+    const snapshot = buildDocumentSnapshot(invoice(), profile, {
+      capturedAt: NOW,
+    });
+
+    expect(hashDocumentSnapshotWithAlgorithm(snapshot, "sha256")).toBe(
+      snapshot.snapshotHash,
+    );
+    expect(hashDocumentSnapshotWithAlgorithm(snapshot, "fnv1a32")).toMatch(
+      /^fnv1a32:/,
+    );
   });
 
   it("snapshotHash no cambia si solo cambian campos operativos", () => {

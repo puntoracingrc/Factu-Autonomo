@@ -38,7 +38,14 @@ describe("historical imported document governance", () => {
     expect(agents).toContain("importedAt: null");
     expect(agents).toContain("issuerOrigin");
     expect(agents).toContain("documentStateAtImport");
-    expect(agents).toContain("V3 cubre únicamente relaciones históricas inequívocas");
+    expect(agents).toContain(
+      "V3 cubre únicamente relaciones históricas inequívocas",
+    );
+    expect(agents).toContain("bundle completo `legacy_backfill`");
+    expect(agents).toContain(
+      "contexto VeriFactu copiado del perfil no es un registro",
+    );
+    expect(agents).toContain("hash/sello inválido");
 
     expect(adr).toContain("Estado: Aceptado");
     expect(adr).toContain("LegacyImportAttestationV1");
@@ -57,6 +64,11 @@ describe("historical imported document governance", () => {
     expect(adr).toContain("attestNewImportedDocument");
     expect(adr).toContain("Una auditoría de seguridad");
     expect(adr).toContain("migración versionada");
+    expect(adr).toContain("Versión de la decisión: 4");
+    expect(adr).toContain("`verified_importer_rollout_bundle`");
+    expect(adr).toContain("snapshot + PDF técnico + sello");
+    expect(adr).toContain("La copia JSON");
+    expect(adr).toContain("flujo durable revisado");
   });
 
   it("keeps persistent provenance behind the central attestation policy", () => {
@@ -68,6 +80,11 @@ describe("historical imported document governance", () => {
     expect(policy).toContain("legacyImportAttestation: attestation");
     expect(policy).toContain("legacyImportProvenance: provenance");
     expect(policy).toContain("importedAt: null");
+    expect(policy).toContain(
+      "export function inspectVerifiedImporterRolloutBundle",
+    );
+    expect(policy).toContain("sanitizeVerifiedRolloutSnapshot");
+    expect(policy).toContain("verified_importer_rollout_bundle");
 
     importerContracts.forEach(({ path, provenance }) => {
       const importer = readRepositoryFile(path);

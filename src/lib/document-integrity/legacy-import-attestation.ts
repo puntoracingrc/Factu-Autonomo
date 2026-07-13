@@ -16,10 +16,13 @@ import type {
   LegacyImportProvenanceV2,
   LegacyImportRelationshipKind,
   LegacyImportRelationshipRole,
+  LegacyImportRolloutRepairEvidenceV1,
   LegacyImportSource,
 } from "@/lib/types";
 import {
   buildDocumentSnapshot,
+  hashDocumentSnapshotWithAlgorithm,
+  hashStrongDocumentPdfSnapshotContent,
   hashStrongDocumentSnapshotContent,
   inspectDocumentSnapshotsIntegrity,
   stableStringifySnapshot,
@@ -79,6 +82,11 @@ export interface LegacyImportRepairCandidate {
     total: number;
   };
   beforeFingerprint: string;
+  evidenceBasis:
+    | "persisted_lines_user_confirmed"
+    | "verified_legacy_snapshot"
+    | "verified_importer_rollout_bundle";
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1;
 }
 
 export interface LegacyImportRepairRelationshipMember {
@@ -153,11 +161,10 @@ function documentFingerprint(document: Document): string {
 }
 
 function previewPrecondition(data: AppData): string {
-  return sha256Stable({
-    snapshotIntegrityVersion: data.snapshotIntegrityVersion,
-    profile: data.profile,
-    documents: data.documents.map(documentFingerprint),
-  });
+  // La misma huella protege tanto la transición como la copia previa. Sería
+  // incorrecto mantenerla válida si cambia un gasto, cliente, contador, cola
+  // cloud o cualquier otro dato que la reparación conservará al persistir.
+  return sha256Stable(data);
 }
 
 function sourceForPrefix(prefix: string): LegacyImportSource | null {
@@ -191,6 +198,24 @@ function isValidLegacyImportProvenance(
     (provenance.documentStateAtImport === "draft" ||
       provenance.documentStateAtImport === "issued" ||
       provenance.documentStateAtImport === "unknown_legacy_import"),
+  );
+}
+
+function isValidRolloutRepairEvidence(
+  evidence: LegacyImportAttestationV2["rolloutRepairEvidence"],
+): evidence is LegacyImportRolloutRepairEvidenceV1 {
+  const isSha256 = (value: string) => /^sha256:[0-9a-f]{64}$/.test(value);
+  return Boolean(
+    evidence &&
+    evidence.schemaVersion === 1 &&
+    evidence.kind === "verified_importer_rollout_bundle" &&
+    isSha256(evidence.beforeDocumentFingerprint) &&
+    isSha256(evidence.bundleFingerprint) &&
+    isSha256(evidence.documentSnapshotStrongHash) &&
+    isSha256(evidence.pdfSnapshotStrongHash) &&
+    isSha256(evidence.sealContextHash) &&
+    typeof evidence.hadVerifactuProfileContext === "boolean" &&
+    evidence.rollback === "external_workspace_backup",
   );
 }
 
@@ -392,6 +417,7 @@ function buildAttestation(
   importProvenance: LegacyImportProvenanceV2,
   amountOrigin: LegacyImportAttestationV2["amountOrigin"],
   attestedAt: string,
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1,
 ): LegacyImportAttestationV2 {
   const sourceRecord = sourceRecordFromDocument(fiscalSource);
   const withoutHash: Omit<LegacyImportAttestationV2, "attestationHash"> = {
@@ -416,6 +442,7 @@ function buildAttestation(
       kind: "stored_fiscal_content_user_authoritative",
       completenessExceptions: completenessExceptionsFromDocument(fiscalSource),
     },
+    ...(rolloutRepairEvidence ? { rolloutRepairEvidence } : {}),
   };
   return {
     ...withoutHash,
@@ -432,6 +459,7 @@ function buildRelationshipAttestation(
   amountOrigin: LegacyImportAttestationV2["amountOrigin"],
   attestedAt: string,
   relationshipGroup: LegacyImportAttestationV3["relationshipGroup"],
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1,
 ): LegacyImportAttestationV3 {
   const sourceRecord = sourceRecordFromDocument(fiscalSource);
   const withoutHash: Omit<LegacyImportAttestationV3, "attestationHash"> = {
@@ -457,6 +485,7 @@ function buildRelationshipAttestation(
       completenessExceptions: completenessExceptionsFromDocument(fiscalSource),
     },
     relationshipGroup,
+    ...(rolloutRepairEvidence ? { rolloutRepairEvidence } : {}),
   };
   return {
     ...withoutHash,
@@ -656,6 +685,10 @@ export function inspectLegacyImportAttestation(
         attestation.amountOrigin !== "persisted_lines_user_confirmed") ||
       attestation.acceptedContentPolicy?.kind !==
         "stored_fiscal_content_user_authoritative" ||
+      (attestation.rolloutRepairEvidence &&
+        (!isValidRolloutRepairEvidence(attestation.rolloutRepairEvidence) ||
+          snapshot.source !== "legacy_import_attested" ||
+          attestation.amountOrigin !== "verified_legacy_snapshot")) ||
       stableStringifySnapshot(attestation.importProvenance) !==
         stableStringifySnapshot(document.legacyImportProvenance) ||
       snapshot.items.length === 0 ||
@@ -912,22 +945,10 @@ function hasSafeStoredFiscalContent(document: Document): boolean {
   );
 }
 
-function verifiedLegacyBackfillProjection(document: Document): Document | null {
-  const snapshot = document.documentSnapshot;
-  if (
-    snapshot?.source !== "legacy_backfill" ||
-    snapshot.documentType !== document.type ||
-    Boolean(snapshot.verifactu) ||
-    Boolean(snapshot.fiscalContext.verifactu?.enabled) ||
-    document.pdfSnapshot ||
-    document.snapshotSeal ||
-    !inspectDocumentSnapshotsIntegrity(
-      { documentSnapshot: snapshot },
-      { requireDocumentSnapshot: true },
-    ).ok
-  ) {
-    return null;
-  }
+function projectLegacySnapshotOntoDocument(
+  document: Document,
+  snapshot: DocumentSnapshot,
+): Document {
   const projected: Document = {
     ...document,
     type: snapshot.documentType,
@@ -956,19 +977,275 @@ function verifiedLegacyBackfillProjection(document: Document): Document | null {
   return projected;
 }
 
+function verifiedLegacyBackfillProjection(document: Document): Document | null {
+  const snapshot = document.documentSnapshot;
+  if (
+    snapshot?.source !== "legacy_backfill" ||
+    snapshot.documentType !== document.type ||
+    Boolean(snapshot.verifactu) ||
+    Boolean(snapshot.fiscalContext.verifactu?.enabled) ||
+    document.pdfSnapshot ||
+    document.snapshotSeal ||
+    !inspectDocumentSnapshotsIntegrity(
+      { documentSnapshot: snapshot },
+      { requireDocumentSnapshot: true },
+    ).ok
+  ) {
+    return null;
+  }
+  return projectLegacySnapshotOntoDocument(document, snapshot);
+}
+
+export type VerifiedImporterRolloutBundleInspection =
+  | {
+      ok: true;
+      importer: LegacyImportSource;
+      fiscalSource: Document;
+      snapshot: DocumentSnapshot;
+      evidence: LegacyImportRolloutRepairEvidenceV1;
+    }
+  | { ok: false };
+
+function hasCompatibleRolloutImporterFingerprint(
+  document: Document,
+  importer: LegacyImportSource,
+): boolean {
+  if (importer === "pcfacturacion") {
+    return hasNoAppActionTimestamps(document);
+  }
+  if (importer === "generic_documents") {
+    // El importador Word/Excel/PDF ya generaba IDs `generic-documents:*` y el
+    // rollout podía sellar el bundle antes de que provenance V2 se persistiera.
+    // El source legacy_backfill íntegro y la ausencia de acciones de Factu son
+    // la prueba; una emisión posterior usa source `issue` y queda excluida.
+    return hasNoAppActionTimestamps(document);
+  }
+  return hasHistoricalImporterIssuedAtProof(document, importer);
+}
+
+function hasOnlyCompatibleRolloutIntegritySignal(
+  document: Document,
+  allowHistoricalRelationship: boolean,
+): boolean {
+  if (!document.snapshotIntegrity) return true;
+  if (!allowHistoricalRelationship) return false;
+  return Boolean(
+    document.snapshotIntegrity.status === "blocked" &&
+    document.snapshotIntegrity.issues.length > 0 &&
+    document.snapshotIntegrity.issues.every(
+      (issue) => issue === "document_relationship_invalid",
+    ),
+  );
+}
+
+/**
+ * Reconoce exclusivamente el paquete completo que la migración inicial creó
+ * para un importador conocido. No es una excepción general a la evidencia
+ * moderna: cualquier pieza parcial, hash inválido, acción posterior o registro
+ * Veri*Factu real permanece bloqueado.
+ */
+export function inspectVerifiedImporterRolloutBundle(
+  document: Document,
+  options: { allowHistoricalRelationship?: boolean } = {},
+): VerifiedImporterRolloutBundleInspection {
+  const allowHistoricalRelationship =
+    options.allowHistoricalRelationship === true;
+  const importer = allowHistoricalRelationship
+    ? detectLegacyImportSourceForRelationshipRepair(document)
+    : detectLegacyImportSource(document);
+  const snapshot = document.documentSnapshot;
+  const pdfSnapshot = document.pdfSnapshot;
+  const seal = document.snapshotSeal;
+  if (
+    !importer ||
+    !snapshot ||
+    !pdfSnapshot ||
+    !seal ||
+    document.snapshotIntegrityRequired !== true ||
+    snapshot.source !== "legacy_backfill" ||
+    snapshot.documentType !== document.type ||
+    document.legacyImportAttestation ||
+    document.appIssuedRecoveryAttestation ||
+    (document.legacyImportProvenance?.schemaVersion === 2 &&
+      document.legacyImportProvenance.documentStateAtImport === "draft") ||
+    document.verifactu ||
+    document.verifactuPersistence ||
+    snapshot.verifactu ||
+    document.integrityQuarantine ||
+    document.status === "borrador" ||
+    (!allowHistoricalRelationship && document.status === "anulada") ||
+    (!allowHistoricalRelationship && document.status === "rectificada") ||
+    (!allowHistoricalRelationship && document.documentLifecycle !== "issued") ||
+    document.integrityLock !== "locked" ||
+    (!allowHistoricalRelationship && Boolean(document.rectification)) ||
+    (!allowHistoricalRelationship && Boolean(document.rectifiedById)) ||
+    (!allowHistoricalRelationship && Boolean(document.receiptDocumentId)) ||
+    (!allowHistoricalRelationship && Boolean(document.sourceDocumentId)) ||
+    !hasCompatibleRolloutImporterFingerprint(document, importer) ||
+    !hasOnlyCompatibleRolloutIntegritySignal(
+      document,
+      allowHistoricalRelationship,
+    ) ||
+    snapshot.capturedAt !== (document.issuedAt ?? document.updatedAt) ||
+    pdfSnapshot.renderedAt !== snapshot.capturedAt
+  ) {
+    return { ok: false };
+  }
+  const integrity = inspectDocumentSnapshotsIntegrity(document, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+    requireSnapshotSeal: true,
+  });
+  if (!integrity.ok) return { ok: false };
+
+  const documentSnapshotStrongHash =
+    hashStrongDocumentSnapshotContent(snapshot);
+  const evidence: LegacyImportRolloutRepairEvidenceV1 = {
+    schemaVersion: 1,
+    kind: "verified_importer_rollout_bundle",
+    beforeDocumentFingerprint: documentFingerprint(document),
+    bundleFingerprint: sha256Stable({
+      documentSnapshot: snapshot,
+      pdfSnapshot,
+      snapshotSeal: seal,
+      snapshotIntegrityRequired: true,
+    }),
+    documentSnapshotStrongHash,
+    pdfSnapshotStrongHash: hashStrongDocumentPdfSnapshotContent(
+      pdfSnapshot,
+      documentSnapshotStrongHash,
+    ),
+    sealContextHash: seal.contextHash,
+    hadVerifactuProfileContext: Boolean(
+      snapshot.fiscalContext.verifactu?.enabled,
+    ),
+    rollback: "external_workspace_backup",
+  };
+  return {
+    ok: true,
+    importer,
+    fiscalSource: projectLegacySnapshotOntoDocument(document, snapshot),
+    snapshot,
+    evidence,
+  };
+}
+
+function verifiedRelationshipRolloutProjection(
+  document: Document,
+): VerifiedImporterRolloutBundleInspection {
+  return inspectVerifiedImporterRolloutBundle(document, {
+    allowHistoricalRelationship: true,
+  });
+}
+
+function historicalRelationshipFiscalProjection(
+  document: Document,
+): Document | null {
+  const legacySnapshot = verifiedLegacyBackfillProjection(document);
+  if (legacySnapshot) return legacySnapshot;
+  const rollout = verifiedRelationshipRolloutProjection(document);
+  return rollout.ok ? rollout.fiscalSource : null;
+}
+
+interface LegacyRepairEvidenceProjection {
+  fiscalSource: Document;
+  evidenceBasis: LegacyImportRepairCandidate["evidenceBasis"];
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1;
+}
+
+function legacyRepairEvidenceProjection(
+  document: Document,
+  allowRolloutBundle = true,
+): LegacyRepairEvidenceProjection {
+  const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
+  if (legacySnapshotProjection) {
+    return {
+      fiscalSource: legacySnapshotProjection,
+      evidenceBasis: "verified_legacy_snapshot",
+    };
+  }
+  if (allowRolloutBundle) {
+    const rollout = inspectVerifiedImporterRolloutBundle(document);
+    if (rollout.ok) {
+      return {
+        fiscalSource: rollout.fiscalSource,
+        evidenceBasis: "verified_importer_rollout_bundle",
+        rolloutRepairEvidence: rollout.evidence,
+      };
+    }
+  }
+  return {
+    fiscalSource: document,
+    evidenceBasis: "persisted_lines_user_confirmed",
+  };
+}
+
 interface PreparedLegacyImportDocument {
   document: Document;
   fiscalSource: Document & { issuer: NonNullable<Document["issuer"]> };
   snapshot: DocumentSnapshot;
   amountOrigin: LegacyImportAttestationV2["amountOrigin"];
+  rolloutRepairEvidence?: LegacyImportRolloutRepairEvidenceV1;
+}
+
+function sanitizeVerifiedRolloutSnapshot(
+  snapshot: DocumentSnapshot,
+  options: { relationshipSourceDocumentId?: string } = {},
+): DocumentSnapshot {
+  const originalIntegrity = inspectDocumentSnapshotsIntegrity(
+    { documentSnapshot: snapshot },
+    { requireDocumentSnapshot: true },
+  );
+  if (
+    !originalIntegrity.ok ||
+    originalIntegrity.documentSnapshot.status !== "verified"
+  ) {
+    throw new Error("legacy_rollout_snapshot_invalid");
+  }
+  const fiscalContext = { ...snapshot.fiscalContext };
+  delete fiscalContext.verifactu;
+  const sanitized: DocumentSnapshot = {
+    ...snapshot,
+    source: "legacy_import_attested",
+    fiscalContext,
+    snapshotHash: "",
+  };
+  if (
+    options.relationshipSourceDocumentId &&
+    !Object.prototype.hasOwnProperty.call(snapshot, "sourceDocumentId")
+  ) {
+    // El contrato de snapshot de aquel rollout aún no congelaba el origen del
+    // recibo. V3 puede añadirlo solo después de validar ambos extremos vivos,
+    // recíprocos y atómicos; la huella del bundle anterior queda auditada.
+    sanitized.sourceDocumentId = options.relationshipSourceDocumentId;
+  }
+  delete sanitized.verifactu;
+  sanitized.snapshotHash = hashDocumentSnapshotWithAlgorithm(
+    sanitized,
+    originalIntegrity.documentSnapshot.algorithm,
+  );
+  const integrity = inspectDocumentSnapshotsIntegrity(
+    { documentSnapshot: sanitized },
+    { requireDocumentSnapshot: true },
+  );
+  if (!integrity.ok) {
+    throw new Error(
+      `legacy_rollout_snapshot_invalid:${integrity.issues.join(",")}`,
+    );
+  }
+  return sanitized;
 }
 
 function prepareLegacyImportDocument(
   document: Document,
   profile: BusinessProfile,
+  options: { allowHistoricalRelationship?: boolean } = {},
 ): PreparedLegacyImportDocument | null {
   const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
-  const fiscalSource = legacySnapshotProjection ?? document;
+  const rolloutBundle = inspectVerifiedImporterRolloutBundle(document, options);
+  const fiscalSource =
+    legacySnapshotProjection ??
+    (rolloutBundle.ok ? rolloutBundle.fiscalSource : document);
   if (!fiscalSource.issuer) return null;
   const historicalProfile: BusinessProfile = {
     ...profile,
@@ -983,18 +1260,30 @@ function prepareLegacyImportDocument(
   };
   const snapshot = legacySnapshotProjection
     ? document.documentSnapshot!
-    : buildDocumentSnapshot(fiscalSource, historicalProfile, {
-        source: "legacy_import_attested",
-        capturedAt: fiscalSource.issuer.capturedAt,
-        issuer: fiscalSource.issuer,
-      });
+    : rolloutBundle.ok
+      ? sanitizeVerifiedRolloutSnapshot(rolloutBundle.snapshot, {
+          ...(options.allowHistoricalRelationship &&
+          rolloutBundle.fiscalSource.type === "recibo" &&
+          document.sourceDocumentId
+            ? { relationshipSourceDocumentId: document.sourceDocumentId }
+            : {}),
+        })
+      : buildDocumentSnapshot(fiscalSource, historicalProfile, {
+          source: "legacy_import_attested",
+          capturedAt: fiscalSource.issuer.capturedAt,
+          issuer: fiscalSource.issuer,
+        });
   return {
     document,
     fiscalSource: { ...fiscalSource, issuer: fiscalSource.issuer },
     snapshot,
-    amountOrigin: legacySnapshotProjection
-      ? "verified_legacy_snapshot"
-      : "persisted_lines_user_confirmed",
+    amountOrigin:
+      legacySnapshotProjection || rolloutBundle.ok
+        ? "verified_legacy_snapshot"
+        : "persisted_lines_user_confirmed",
+    ...(rolloutBundle.ok
+      ? { rolloutRepairEvidence: rolloutBundle.evidence }
+      : {}),
   };
 }
 
@@ -1182,6 +1471,7 @@ function hasNoAppActionTimestamps(document: Document): boolean {
 function hasUnambiguousHistoricalRepairFingerprint(
   document: Document,
   importer: LegacyImportSource | null,
+  options: { allowHistoricalRelationship?: boolean } = {},
 ): boolean {
   if (!importer) return false;
   const provenance = document.legacyImportProvenance;
@@ -1196,6 +1486,7 @@ function hasUnambiguousHistoricalRepairFingerprint(
   // documento externo ya persistido. Un snapshot íntegro de ese origen es la
   // prueba más fuerte disponible para workspaces anteriores a V2, donde la
   // procedencia aún no se guardaba en el propio Document.
+  if (inspectVerifiedImporterRolloutBundle(document, options).ok) return true;
   if (verifiedLegacyBackfillProjection(document)) return true;
 
   if (importer === "pcfacturacion") {
@@ -1232,9 +1523,13 @@ export function isVerifiedLegacyImportRepairSnapshotCandidate(
   document: Document,
 ): boolean {
   const importer = detectLegacyImportSource(document);
+  const verifiedSnapshot = Boolean(
+    verifiedLegacyBackfillProjection(document) ||
+    inspectVerifiedImporterRolloutBundle(document).ok,
+  );
   return Boolean(
     importer &&
-    verifiedLegacyBackfillProjection(document) &&
+    verifiedSnapshot &&
     hasUnambiguousHistoricalRepairFingerprint(document, importer) &&
     !document.verifactu &&
     !document.verifactuPersistence &&
@@ -1257,7 +1552,10 @@ function isSafeHistoricalRelationshipCandidate(
   snapshotIntegrityVersion: AppData["snapshotIntegrityVersion"],
 ): boolean {
   const importer = detectLegacyImportSourceForRelationshipRepair(document);
-  const projection = verifiedLegacyBackfillProjection(document);
+  const legacyProjection = verifiedLegacyBackfillProjection(document);
+  const rollout = verifiedRelationshipRolloutProjection(document);
+  const projection =
+    legacyProjection ?? (rollout.ok ? rollout.fiscalSource : null);
   return Boolean(
     importer &&
     !duplicateIds.has(document.id) &&
@@ -1267,17 +1565,20 @@ function isSafeHistoricalRelationshipCandidate(
     (document.documentLifecycle === "issued" ||
       document.documentLifecycle === "canceled") &&
     snapshotIntegrityVersion === 1 &&
-    hasUnambiguousHistoricalRepairFingerprint(document, importer) &&
+    hasUnambiguousHistoricalRepairFingerprint(document, importer, {
+      allowHistoricalRelationship: true,
+    }) &&
     hasSafeStoredFiscalContent(projection ?? document) &&
-    (!document.documentSnapshot || Boolean(projection)) &&
-    !document.pdfSnapshot &&
-    !document.snapshotSeal &&
+    ((!document.documentSnapshot && !rollout.ok) || Boolean(projection)) &&
+    (rollout.ok || !document.pdfSnapshot) &&
+    (rollout.ok || !document.snapshotSeal) &&
     !document.verifactu &&
     !document.verifactuPersistence &&
     !document.documentSnapshot?.verifactu &&
-    !document.documentSnapshot?.fiscalContext.verifactu?.enabled &&
+    (rollout.ok ||
+      !document.documentSnapshot?.fiscalContext.verifactu?.enabled) &&
     !document.integrityQuarantine &&
-    rolloutIssuesAreOnlyMissing(document),
+    (rollout.ok || rolloutIssuesAreOnlyMissing(document)),
   );
 }
 
@@ -1375,7 +1676,8 @@ function detectLegacyRelationshipGroups(
   const rectificationsByOriginal = new Map<string, Document[]>();
   const receiptsByInvoice = new Map<string, Document[]>();
   for (const document of data.documents) {
-    const projected = verifiedLegacyBackfillProjection(document) ?? document;
+    const projected =
+      historicalRelationshipFiscalProjection(document) ?? document;
     const rectification = projected.rectification;
     if (rectification) {
       const existing =
@@ -1411,7 +1713,9 @@ function detectLegacyRelationshipGroups(
     }
     const prepared = specs.map(({ role, document }) => ({
       role,
-      prepared: prepareLegacyImportDocument(document, data.profile),
+      prepared: prepareLegacyImportDocument(document, data.profile, {
+        allowHistoricalRelationship: true,
+      }),
     }));
     if (prepared.some(({ prepared: value }) => !value)) return;
     const first = prepared[0].prepared!;
@@ -1460,7 +1764,7 @@ function detectLegacyRelationshipGroups(
     const original = byId.get(originalId);
     const rectification = rectifications[0];
     const projected =
-      verifiedLegacyBackfillProjection(rectification) ?? rectification;
+      historicalRelationshipFiscalProjection(rectification) ?? rectification;
     if (!original || original.rectifiedById !== rectification.id) continue;
     addGroup(
       projected.rectification?.type === "anulacion"
@@ -1493,10 +1797,17 @@ function reviewReasons(
   document: Document,
   duplicateIds: ReadonlySet<string>,
   context: "repair" | "direct_import" = "repair",
+  precomputedEvidence?: LegacyRepairEvidenceProjection,
 ): LegacyImportRepairReviewReason[] {
   const reasons: LegacyImportRepairReviewReason[] = [];
-  const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
-  const fiscalSource = legacySnapshotProjection ?? document;
+  const evidence =
+    precomputedEvidence ??
+    legacyRepairEvidenceProjection(document, context === "repair");
+  const legacySnapshotProjection =
+    evidence.evidenceBasis === "verified_legacy_snapshot";
+  const rolloutBundle =
+    evidence.evidenceBasis === "verified_importer_rollout_bundle";
+  const fiscalSource = evidence.fiscalSource;
   const importer = detectLegacyImportSource(document);
   if (!importer) reasons.push("namespace_type_mismatch");
   if (duplicateIds.has(document.id)) reasons.push("duplicate_document_id");
@@ -1515,10 +1826,13 @@ function reviewReasons(
     reasons.push("unsupported_historical_relation");
   }
   if (
-    (document.documentSnapshot && !legacySnapshotProjection) ||
-    document.pdfSnapshot ||
-    document.snapshotSeal ||
+    (document.documentSnapshot &&
+      !legacySnapshotProjection &&
+      !rolloutBundle) ||
+    (document.pdfSnapshot && !rolloutBundle) ||
+    (document.snapshotSeal && !rolloutBundle) ||
     (context === "repair" &&
+      !rolloutBundle &&
       !hasUnambiguousHistoricalRepairFingerprint(document, importer))
   ) {
     reasons.push("existing_integrity_evidence");
@@ -1527,12 +1841,13 @@ function reviewReasons(
     document.verifactu ||
     document.verifactuPersistence ||
     document.documentSnapshot?.verifactu ||
-    document.documentSnapshot?.fiscalContext?.verifactu?.enabled
+    (document.documentSnapshot?.fiscalContext?.verifactu?.enabled &&
+      !rolloutBundle)
   ) {
     reasons.push("verifactu_evidence");
   }
   if (document.integrityQuarantine) reasons.push("integrity_quarantine");
-  if (!rolloutIssuesAreOnlyMissing(document)) {
+  if (!rolloutBundle && !rolloutIssuesAreOnlyMissing(document)) {
     reasons.push("unexpected_integrity_issue");
   }
   if (!fiscalSource.issuer) reasons.push("issuer_incomplete");
@@ -1565,8 +1880,13 @@ function hasStrongIssuerIdentity(value: string | undefined): boolean {
   );
 }
 
-function fiscalIdentityFromDocument(document: Document): string | null {
-  const projected = verifiedLegacyBackfillProjection(document) ?? document;
+function fiscalIdentityFromDocument(
+  document: Document,
+  evidence?: LegacyRepairEvidenceProjection,
+): string | null {
+  const projected =
+    evidence?.fiscalSource ??
+    legacyRepairEvidenceProjection(document).fiscalSource;
   if (projected.type !== "factura" && projected.type !== "recibo") return null;
   const issuerNif = normalizedFiscalIdentityText(projected.issuer?.nif);
   const number = projected.number.trim().toUpperCase();
@@ -1608,8 +1928,13 @@ function storedFiscalIdentityClaim(document: Document): string | null {
   return [snapshot.documentType, issuerNif, year, number].join("|");
 }
 
-function fiscalNumberIdentityFromDocument(document: Document): string | null {
-  const projected = verifiedLegacyBackfillProjection(document) ?? document;
+function fiscalNumberIdentityFromDocument(
+  document: Document,
+  evidence?: LegacyRepairEvidenceProjection,
+): string | null {
+  const projected =
+    evidence?.fiscalSource ??
+    legacyRepairEvidenceProjection(document).fiscalSource;
   if (projected.type !== "factura" && projected.type !== "recibo") return null;
   const number = projected.number.trim().toUpperCase();
   const year = projected.date.slice(0, 4);
@@ -1624,6 +1949,19 @@ export function buildLegacyImportRepairPreview(
   const manualReview: LegacyImportRepairReviewItem[] = [];
   const alreadyAttestedDocumentIds: string[] = [];
   const duplicateIds = duplicateDocumentIds(data.documents);
+  const repairEvidenceByDocument = new Map<
+    Document,
+    LegacyRepairEvidenceProjection
+  >();
+  const repairEvidenceFor = (
+    document: Document,
+  ): LegacyRepairEvidenceProjection => {
+    const existing = repairEvidenceByDocument.get(document);
+    if (existing) return existing;
+    const evidence = legacyRepairEvidenceProjection(document);
+    repairEvidenceByDocument.set(document, evidence);
+    return evidence;
+  };
   const reportedDuplicateIds = new Set<string>();
   const detectedRelationshipGroups = detectLegacyRelationshipGroups(
     data,
@@ -1651,6 +1989,12 @@ export function buildLegacyImportRepairPreview(
         ),
         amounts: member.amounts,
         beforeFingerprint: documentFingerprint(prepared.document),
+        evidenceBasis: prepared.rolloutRepairEvidence
+          ? "verified_importer_rollout_bundle"
+          : "verified_legacy_snapshot",
+        ...(prepared.rolloutRepairEvidence
+          ? { rolloutRepairEvidence: prepared.rolloutRepairEvidence }
+          : {}),
       });
     }
   }
@@ -1687,7 +2031,8 @@ export function buildLegacyImportRepairPreview(
     if (!hasKnownImportPrefix(document) && !document.legacyImportProvenance) {
       continue;
     }
-    const reasons = reviewReasons(document, duplicateIds);
+    const evidence = repairEvidenceFor(document);
+    const reasons = reviewReasons(document, duplicateIds, "repair", evidence);
     if (
       document.documentLifecycle !== "issued" ||
       document.integrityLock !== "locked"
@@ -1706,8 +2051,7 @@ export function buildLegacyImportRepairPreview(
       });
       continue;
     }
-    const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
-    const fiscalSource = legacySnapshotProjection ?? document;
+    const fiscalSource = evidence.fiscalSource;
     if (!fiscalSource.issuer) {
       manualReview.push({
         documentId: document.id,
@@ -1716,9 +2060,11 @@ export function buildLegacyImportRepairPreview(
       });
       continue;
     }
-    const amounts = legacySnapshotProjection
-      ? document.documentSnapshot!.taxSummary
-      : documentTotals(fiscalSource, false);
+    const amounts =
+      evidence.evidenceBasis === "verified_legacy_snapshot" ||
+      evidence.evidenceBasis === "verified_importer_rollout_bundle"
+        ? document.documentSnapshot!.taxSummary
+        : documentTotals(fiscalSource, false);
     candidates.push({
       documentId: document.id,
       documentNumber: fiscalSource.number,
@@ -1734,6 +2080,10 @@ export function buildLegacyImportRepairPreview(
         total: roundMoney(amounts.total),
       },
       beforeFingerprint: documentFingerprint(document),
+      evidenceBasis: evidence.evidenceBasis,
+      ...(evidence.rolloutRepairEvidence
+        ? { rolloutRepairEvidence: evidence.rolloutRepairEvidence }
+        : {}),
     });
   }
 
@@ -1745,7 +2095,7 @@ export function buildLegacyImportRepairPreview(
     const identity =
       storedFiscalIdentityClaim(document) ??
       (candidateIds.has(document.id) || document.status !== "borrador"
-        ? fiscalIdentityFromDocument(document)
+        ? fiscalIdentityFromDocument(document, repairEvidenceFor(document))
         : null);
     if (!identity) continue;
     const ids = claims.get(identity) ?? new Set<string>();
@@ -1757,7 +2107,9 @@ export function buildLegacyImportRepairPreview(
     const document = data.documents.find(
       (entry) => entry.id === candidate.documentId,
     );
-    const identity = document ? fiscalIdentityFromDocument(document) : null;
+    const identity = document
+      ? fiscalIdentityFromDocument(document, repairEvidenceFor(document))
+      : null;
     if (identity && (claims.get(identity)?.size ?? 0) > 1) {
       collidingCandidateIds.add(candidate.documentId);
       manualReview.push({
@@ -1778,7 +2130,10 @@ export function buildLegacyImportRepairPreview(
     if (document.status === "borrador" && !candidateIds.has(document.id)) {
       continue;
     }
-    const identity = fiscalNumberIdentityFromDocument(document);
+    const identity = fiscalNumberIdentityFromDocument(
+      document,
+      repairEvidenceFor(document),
+    );
     if (!identity) continue;
     const entries = numberClaims.get(identity) ?? [];
     entries.push({
@@ -1795,7 +2150,7 @@ export function buildLegacyImportRepairPreview(
       (entry) => entry.id === candidate.documentId,
     );
     const identity = document
-      ? fiscalNumberIdentityFromDocument(document)
+      ? fiscalNumberIdentityFromDocument(document, repairEvidenceFor(document))
       : null;
     const entries = identity ? (numberClaims.get(identity) ?? []) : [];
     if (
@@ -1816,7 +2171,10 @@ export function buildLegacyImportRepairPreview(
     const document = data.documents.find((entry) => entry.id === documentId);
     if (!document) continue;
     const strongIdentity = storedFiscalIdentityClaim(document);
-    const numberIdentity = fiscalNumberIdentityFromDocument(document);
+    const numberIdentity = fiscalNumberIdentityFromDocument(
+      document,
+      repairEvidenceFor(document),
+    );
     const numberEntries = numberIdentity
       ? (numberClaims.get(numberIdentity) ?? [])
       : [];
@@ -1912,6 +2270,7 @@ function buildAttestedDocument(
     importProvenance,
     prepared.amountOrigin,
     attestedAt,
+    prepared.rolloutRepairEvidence,
   );
   const next: Document = {
     ...protectedDocument,
@@ -1960,7 +2319,9 @@ function buildAttestedRelationshipGroup(
     return { role: member.role, document, candidate };
   });
   const preparedSpecs = rawSpecs.map(({ role, document, candidate }) => {
-    const prepared = prepareLegacyImportDocument(document, profile);
+    const prepared = prepareLegacyImportDocument(document, profile, {
+      allowHistoricalRelationship: true,
+    });
     if (!prepared) throw new Error("legacy_import_issuer_missing");
     return {
       role,
@@ -2021,6 +2382,7 @@ function buildAttestedRelationshipGroup(
           groupFingerprint: group.groupFingerprint,
           relationshipHash,
         },
+        prepared.rolloutRepairEvidence,
       );
       const next: Document = {
         ...protectedDocument,

@@ -18,6 +18,14 @@ La decisión obligatoria y versionada está en
   referencia histórica aunque falten NIF, dirección u otros campos exigidos hoy;
   esas carencias se conservan como avisos y el documento participa en Panel,
   ingresos, cobros, beneficio, periodos, Rentabilidad Real y exportaciones.
+- Un bundle completo `legacy_backfill` que el rollout antiguo creó durante una
+  importación solo puede convertirse mediante preview y confirmación si el
+  importador/fingerprint son inequívocos y snapshot, PDF técnico y sello
+  verifican juntos. El contexto VeriFactu copiado del perfil no es un registro;
+  cualquier VeriFactu real, acción posterior, pieza parcial o hash/sello inválido
+  sigue fail-closed. La conversión conserva hashes auditables del bundle y exige
+  una copia JSON completa del alcance exportable para rollback; nunca se
+  ejecuta al cargar.
 - No se inventa una fecha de importación ni se presenta el perfil activo como
   emisor extraído del original: V2 conserva `importedAt: null` cuando no se
   conoce y declara `issuerOrigin` (`source_document`,

@@ -323,6 +323,23 @@ export function hashDocumentPdfSnapshot(
 
 export type SnapshotHashAlgorithm = "sha256" | "fnv1a32";
 
+/**
+ * Recalcula un snapshot transformado sin convertir silenciosamente un
+ * histórico con redondeo FNV compatible al contrato SHA moderno. El contenido
+ * sigue protegido además por los hashes fuertes de la atestación.
+ */
+export function hashDocumentSnapshotWithAlgorithm(
+  snapshot: Omit<DocumentSnapshot, "snapshotHash"> & {
+    snapshotHash?: string;
+  },
+  algorithm: SnapshotHashAlgorithm,
+): string {
+  const payload = documentSnapshotHashPayload(snapshot);
+  return algorithm === "fnv1a32"
+    ? legacyHashStableValue(payload)
+    : sha256StableValue(payload);
+}
+
 export type SnapshotHashVerification =
   | { status: "missing"; algorithm: null }
   | { status: "verified"; algorithm: SnapshotHashAlgorithm }

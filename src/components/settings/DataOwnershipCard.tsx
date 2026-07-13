@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, FileJson, HardDrive, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -13,28 +13,37 @@ import {
   getBackupRestoreBlocker,
 } from "@/lib/backup";
 import type { BackupRestoreDraft } from "@/lib/backup";
+import type { AppData } from "@/lib/types";
 
 export function DataOwnershipCard() {
-  const { data, replaceData } = useAppStore();
+  const { data, restoreBackupData } = useAppStore();
   const { user, cloudEnabled } = useCloudSync();
   const hasCloudSession = Boolean(user);
   const [backupFeedback, setBackupFeedback] = useState<{
     tone: "success" | "error";
     message: string;
   } | null>(null);
-  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
+  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(
+    null,
+  );
   const [restoreDraft, setRestoreDraft] = useState<BackupRestoreDraft | null>(
     null,
   );
   const [importError, setImportError] = useState<string | null>(null);
-  const [currentBackupReady, setCurrentBackupReady] = useState(false);
+  const [currentBackupData, setCurrentBackupData] = useState<AppData | null>(
+    null,
+  );
   const [confirmedReplacement, setConfirmedReplacement] = useState(false);
   const [confirmedCurrentBackup, setConfirmedCurrentBackup] = useState(false);
   const [restoreFeedback, setRestoreFeedback] = useState<{
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [restoreInProgress, setRestoreInProgress] = useState(false);
+  const [storageStateUnknown, setStorageStateUnknown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoreLockRef = useRef(false);
+  const currentBackupReady = currentBackupData === data;
 
   const restoreBlocker = getBackupRestoreBlocker({
     draftReady: Boolean(restoreDraft),
@@ -42,6 +51,12 @@ export function DataOwnershipCard() {
     confirmedReplacement,
     confirmedCurrentBackup,
   });
+
+  useEffect(() => {
+    if (!currentBackupData || currentBackupData === data) return;
+    setCurrentBackupData(null);
+    setConfirmedCurrentBackup(false);
+  }, [currentBackupData, data]);
 
   function handleBackupExport() {
     const result = downloadBackup(data);
@@ -78,7 +93,7 @@ export function DataOwnershipCard() {
     setSelectedBackupFile(file ?? null);
     setRestoreDraft(null);
     setImportError(null);
-    setCurrentBackupReady(false);
+    setCurrentBackupData(null);
     setConfirmedReplacement(false);
     setConfirmedCurrentBackup(false);
     setRestoreFeedback(null);
@@ -92,7 +107,7 @@ export function DataOwnershipCard() {
 
     setImportError(null);
     setRestoreDraft(null);
-    setCurrentBackupReady(false);
+    setCurrentBackupData(null);
     setConfirmedReplacement(false);
     setConfirmedCurrentBackup(false);
     setRestoreFeedback(null);
@@ -121,7 +136,7 @@ export function DataOwnershipCard() {
     setRestoreFeedback(null);
     const result = downloadBackup(data);
     if (!result.ok) {
-      setCurrentBackupReady(false);
+      setCurrentBackupData(null);
       setConfirmedCurrentBackup(false);
       setRestoreFeedback({
         tone: "error",
@@ -130,14 +145,15 @@ export function DataOwnershipCard() {
       return;
     }
 
-    setCurrentBackupReady(true);
+    setCurrentBackupData(data);
     setRestoreFeedback({
       tone: "success",
       message: `Copia actual descargada: ${result.filename}`,
     });
   }
 
-  function handleRestoreBackup() {
+  async function handleRestoreBackup() {
+    if (restoreLockRef.current || storageStateUnknown) return;
     const blocker = getBackupRestoreBlocker({
       draftReady: Boolean(restoreDraft),
       currentBackupReady,
@@ -153,15 +169,49 @@ export function DataOwnershipCard() {
       return;
     }
 
-    replaceData(restoreDraft.data, { fromRemote: true });
+    restoreLockRef.current = true;
+    setRestoreInProgress(true);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    let result: ReturnType<typeof restoreBackupData>;
+    try {
+      result = restoreBackupData(restoreDraft.data, data);
+    } finally {
+      restoreLockRef.current = false;
+      setRestoreInProgress(false);
+    }
+    if (result.status === "indeterminate") {
+      setStorageStateUnknown(true);
+      setCurrentBackupData(null);
+      setConfirmedCurrentBackup(false);
+      setRestoreFeedback({
+        tone: "error",
+        message:
+          "No se puede confirmar el estado del almacenamiento. No se ha publicado la copia en memoria. Exporta lo visible y recarga la página antes de continuar.",
+      });
+      return;
+    }
+    if (result.status === "blocked") {
+      if (result.reason === "stale_precondition") {
+        setCurrentBackupData(null);
+        setConfirmedCurrentBackup(false);
+      }
+      setRestoreFeedback({
+        tone: "error",
+        message:
+          result.reason === "stale_precondition"
+            ? "Los datos cambiaron antes de restaurar. Descarga otra copia actual y repite la confirmación."
+            : "No se pudo guardar la restauración completa. Los datos visibles anteriores se conservan; revisa el almacenamiento del navegador y vuelve a intentarlo.",
+      });
+      return;
+    }
     setRestoreFeedback({
       tone: "success",
       message:
-        "Copia restaurada. Los datos locales se han reemplazado en este navegador.",
+        "Copia restaurada y guardada. Los datos locales se han reemplazado en este navegador y la sincronización pendiente queda registrada.",
     });
     setConfirmedReplacement(false);
     setConfirmedCurrentBackup(false);
-    setCurrentBackupReady(false);
+    setCurrentBackupData(null);
   }
 
   return (
@@ -173,8 +223,8 @@ export function DataOwnershipCard() {
         <div>
           <h2 className="font-bold text-slate-900">¿Dónde están mis datos?</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Tus facturas y gastos son tuyos. Esta app no los vende ni los usa para
-            otra cosa.
+            Tus facturas y gastos son tuyos. Esta app no los vende ni los usa
+            para otra cosa.
           </p>
         </div>
       </div>
@@ -184,8 +234,8 @@ export function DataOwnershipCard() {
           <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
           <span>
             <strong>En este dispositivo:</strong> todo se guarda en tu navegador
-            (móvil u ordenador). Funciona sin cuenta. Si borras datos del sitio o
-            cambias de navegador sin copia, puedes perder el histórico.
+            (móvil u ordenador). Funciona sin cuenta. Si borras datos del sitio
+            o cambias de navegador sin copia, puedes perder el histórico.
           </span>
         </li>
         {cloudEnabled && (
@@ -204,17 +254,19 @@ export function DataOwnershipCard() {
         <li className="flex gap-2">
           <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <span>
-            <strong>Contraseña:</strong> si alguien obtiene tu email y contraseña
-            de la cuenta en la nube, podría entrar desde otro dispositivo y ver tu
-            copia sincronizada. Usa una contraseña fuerte y no la compartas. Sin
-            cuenta en la nube, el riesgo es quien use tu móvil u ordenador
-            desbloqueado.
+            <strong>Contraseña:</strong> si alguien obtiene tu email y
+            contraseña de la cuenta en la nube, podría entrar desde otro
+            dispositivo y ver tu copia sincronizada. Usa una contraseña fuerte y
+            no la compartas. Sin cuenta en la nube, el riesgo es quien use tu
+            móvil u ordenador desbloqueado.
           </span>
         </li>
       </ul>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-4">
-        <h3 className="text-base font-bold text-slate-900">Copia de seguridad</h3>
+        <h3 className="text-base font-bold text-slate-900">
+          Copia de seguridad
+        </h3>
         <p className="mt-1 text-sm text-slate-600">
           Descarga una copia JSON de tus datos locales. Guárdala en un lugar
           seguro.
@@ -257,6 +309,7 @@ export function DataOwnershipCard() {
             type="button"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
+            disabled={storageStateUnknown || restoreInProgress}
           >
             <FileJson className="h-5 w-5" />
             Seleccionar archivo de copia
@@ -265,7 +318,9 @@ export function DataOwnershipCard() {
             type="button"
             variant="secondary"
             onClick={() => void handleReviewBackup()}
-            disabled={!selectedBackupFile}
+            disabled={
+              !selectedBackupFile || storageStateUnknown || restoreInProgress
+            }
           >
             Revisar copia
           </Button>
@@ -285,7 +340,10 @@ export function DataOwnershipCard() {
           </p>
         )}
         {importError && (
-          <p aria-live="polite" className="mt-3 text-sm font-medium text-red-600">
+          <p
+            aria-live="polite"
+            className="mt-3 text-sm font-medium text-red-600"
+          >
             {importError}
           </p>
         )}
@@ -364,9 +422,7 @@ export function DataOwnershipCard() {
               ))}
             </ul>
             <div className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 text-slate-700">
-              <p className="font-semibold text-slate-900">
-                Restaurar copia
-              </p>
+              <p className="font-semibold text-slate-900">Restaurar copia</p>
               <p>
                 Antes de restaurar, descarga una copia actual. Después confirma
                 que se reemplazarán los datos locales de este navegador.
@@ -375,6 +431,7 @@ export function DataOwnershipCard() {
                 type="button"
                 variant="secondary"
                 onClick={handlePrepareCurrentBackup}
+                disabled={storageStateUnknown || restoreInProgress}
               >
                 <Download className="h-5 w-5" />
                 Descargar copia actual
@@ -383,6 +440,7 @@ export function DataOwnershipCard() {
                 <input
                   type="checkbox"
                   checked={confirmedReplacement}
+                  disabled={storageStateUnknown || restoreInProgress}
                   onChange={(event) =>
                     setConfirmedReplacement(event.target.checked)
                   }
@@ -396,7 +454,11 @@ export function DataOwnershipCard() {
                 <input
                   type="checkbox"
                   checked={confirmedCurrentBackup}
-                  disabled={!currentBackupReady}
+                  disabled={
+                    !currentBackupReady ||
+                    storageStateUnknown ||
+                    restoreInProgress
+                  }
                   onChange={(event) =>
                     setConfirmedCurrentBackup(event.target.checked)
                   }
@@ -410,10 +472,14 @@ export function DataOwnershipCard() {
               <Button
                 type="button"
                 variant="danger"
-                onClick={handleRestoreBackup}
-                disabled={Boolean(restoreBlocker)}
+                onClick={() => void handleRestoreBackup()}
+                disabled={
+                  Boolean(restoreBlocker) ||
+                  storageStateUnknown ||
+                  restoreInProgress
+                }
               >
-                Restaurar copia
+                {restoreInProgress ? "Guardando…" : "Restaurar copia"}
               </Button>
             </div>
           </div>
