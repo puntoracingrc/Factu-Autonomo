@@ -134,7 +134,9 @@ function legacyHash(value: unknown): string {
   return `fnv1a32:${legacyFnv1a32(stableStringifySnapshot(value))}`;
 }
 
-function asLegacyDocumentSnapshot(snapshot: DocumentSnapshot): DocumentSnapshot {
+function asLegacyDocumentSnapshot(
+  snapshot: DocumentSnapshot,
+): DocumentSnapshot {
   const content = { ...snapshot } as Record<string, unknown>;
   delete content.capturedAt;
   delete content.source;
@@ -276,7 +278,9 @@ describe("document snapshots", () => {
       dueDate: "2026-07-24",
       currency: "EUR",
     });
-    expect(issued.documentSnapshot?.snapshotHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(issued.documentSnapshot?.snapshotHash).toMatch(
+      /^sha256:[a-f0-9]{64}$/,
+    );
     expect(issued.pdfSnapshot).toMatchObject({
       schemaVersion: 1,
       renderedAt: NOW,
@@ -291,9 +295,7 @@ describe("document snapshots", () => {
       documentSnapshotHash: issued.documentSnapshot?.snapshotHash,
       pdfSnapshotHash: issued.pdfSnapshot?.contentHash,
     });
-    expect(issued.snapshotSeal?.contextHash).toMatch(
-      /^sha256:[a-f0-9]{64}$/,
-    );
+    expect(issued.snapshotSeal?.contextHash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
   it("verifica SHA-256 en snapshots nuevos", () => {
@@ -306,6 +308,36 @@ describe("document snapshots", () => {
       pdfSnapshot: { status: "verified", algorithm: "sha256" },
       issues: [],
     });
+  });
+
+  it("rechaza un snapshot recovery como bundle top-level y solo permite validarlo anidado", () => {
+    const documentSnapshot = buildDocumentSnapshot(invoice(), profile, {
+      capturedAt: NOW,
+      source: "app_issued_recovery",
+    });
+    const misplaced: Document = {
+      ...invoice({
+        status: "enviado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      }),
+      documentSnapshot,
+      snapshotIntegrityRequired: true,
+    };
+
+    expect(inspectDocumentSnapshotsIntegrity(misplaced)).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining(["app_issued_recovery_invalid"]),
+    });
+    expect(
+      inspectDocumentSnapshotsIntegrity(
+        { documentSnapshot },
+        {
+          requireDocumentSnapshot: true,
+          allowAppIssuedRecoverySnapshot: true,
+        },
+      ),
+    ).toMatchObject({ ok: true, issues: [] });
   });
 
   it("mantiene lectura y render compatibles con snapshots FNV-1a legacy", () => {
@@ -680,9 +712,7 @@ describe("document snapshots", () => {
     };
 
     const integrity = inspectDocumentSnapshotsIntegrity(tampered);
-    expect(integrity.issues).toContain(
-      "document_snapshot_semantic_invalid",
-    );
+    expect(integrity.issues).toContain("document_snapshot_semantic_invalid");
     expect(integrity.documentSnapshot.status).toBe("verified");
     expect(integrity.pdfSnapshot.status).toBe("verified");
   });
@@ -728,9 +758,7 @@ describe("document snapshots", () => {
 
     const integrity = inspectDocumentSnapshotsIntegrity(malformed);
     expect(integrity.documentSnapshot.status).toBe("verified");
-    expect(integrity.issues).toContain(
-      "document_snapshot_semantic_invalid",
-    );
+    expect(integrity.issues).toContain("document_snapshot_semantic_invalid");
   });
 
   it("issueDocument no reemite ni vuelve a sellar snapshots existentes", () => {
@@ -927,7 +955,11 @@ describe("document snapshots", () => {
 
   it("snapshotHash es estable para el mismo contenido aunque cambie capturedAt", () => {
     const first = issueDocument(invoice({ issuer: undefined }), profile, NOW);
-    const second = issueDocument(invoice({ issuer: undefined }), profile, LATER);
+    const second = issueDocument(
+      invoice({ issuer: undefined }),
+      profile,
+      LATER,
+    );
 
     expect(first.documentSnapshot?.snapshotHash).toBe(
       second.documentSnapshot?.snapshotHash,
@@ -1117,7 +1149,9 @@ describe("document snapshots", () => {
     const view = buildPdfViewModelForDocument(sealed, profile);
 
     expect(sealed.documentSnapshot?.verifactu).toEqual(verifactu);
-    expect(sealed.documentSnapshot?.snapshotHash).not.toBe(previousSnapshotHash);
+    expect(sealed.documentSnapshot?.snapshotHash).not.toBe(
+      previousSnapshotHash,
+    );
     expect(sealed.pdfSnapshot?.contentHash).not.toBe(previousPdfHash);
     expect(
       hashDocumentPdfSnapshot({
@@ -1441,9 +1475,9 @@ describe("document snapshots", () => {
     const snapshot = deriveLegacySnapshotForReadOnly(legacy, profile, NOW);
 
     expect(snapshot.source).toBe("legacy_backfill");
-    expect(getDocumentSnapshotSource({ ...legacy, documentSnapshot: snapshot })).toBe(
-      "legacy_backfill",
-    );
+    expect(
+      getDocumentSnapshotSource({ ...legacy, documentSnapshot: snapshot }),
+    ).toBe("legacy_backfill");
     expect(legacy.documentSnapshot).toBeUndefined();
   });
 

@@ -7,7 +7,10 @@ import {
 } from "@/lib/calculations";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
-import { legacyFnv1a32, sha256Hex } from "@/lib/document-integrity/snapshot-hash";
+import {
+  legacyFnv1a32,
+  sha256Hex,
+} from "@/lib/document-integrity/snapshot-hash";
 import type {
   BusinessProfile,
   Client,
@@ -49,10 +52,13 @@ function stableNormalize(value: unknown): unknown {
     return Object.keys(record)
       .filter((key) => record[key] !== undefined)
       .sort()
-      .reduce<JsonRecord>((acc, key) => {
-        acc[key] = stableNormalize(record[key]);
-        return acc;
-      }, Object.create(null) as JsonRecord);
+      .reduce<JsonRecord>(
+        (acc, key) => {
+          acc[key] = stableNormalize(record[key]);
+          return acc;
+        },
+        Object.create(null) as JsonRecord,
+      );
   }
 
   return value;
@@ -103,12 +109,18 @@ export function hashStrongDocumentPdfSnapshotContent(
   return sha256StableValue(content);
 }
 
-export function documentKindForSnapshot(doc: Pick<Document, "type" | "rectification">): DocumentKind {
-  if (doc.type === "factura" && doc.rectification) return "factura_rectificativa";
+export function documentKindForSnapshot(
+  doc: Pick<Document, "type" | "rectification">,
+): DocumentKind {
+  if (doc.type === "factura" && doc.rectification)
+    return "factura_rectificativa";
   return doc.type;
 }
 
-function snapshotLineItems(items: LineItem[], vatExempt: boolean): LineItemSnapshot[] {
+function snapshotLineItems(
+  items: LineItem[],
+  vatExempt: boolean,
+): LineItemSnapshot[] {
   return items.map((item) => {
     const amounts = lineMoneyAmounts(item, vatExempt);
 
@@ -174,9 +186,7 @@ function taxSummaryFromFrozenItems(
   }
 
   return {
-    subtotal: round(
-      frozenItems.reduce((sum, item) => sum + item.subtotal, 0),
-    ),
+    subtotal: round(frozenItems.reduce((sum, item) => sum + item.subtotal, 0)),
     iva: round(frozenItems.reduce((sum, item) => sum + item.ivaAmount, 0)),
     total: round(frozenItems.reduce((sum, item) => sum + item.total, 0)),
     vatExempt,
@@ -234,7 +244,9 @@ function snapshotNumbering(
   };
 }
 
-function snapshotFiscalContext(profile: BusinessProfile): FiscalContextSnapshot {
+function snapshotFiscalContext(
+  profile: BusinessProfile,
+): FiscalContextSnapshot {
   return {
     vatExempt: Boolean(profile.vatExempt),
     iva: {
@@ -259,7 +271,9 @@ function cloneRectification(
   return rectification ? { ...rectification } : undefined;
 }
 
-function cloneVerifactu(verifactu: VerifactuInfo | undefined): VerifactuInfo | undefined {
+function cloneVerifactu(
+  verifactu: VerifactuInfo | undefined,
+): VerifactuInfo | undefined {
   return verifactu ? { ...verifactu } : undefined;
 }
 
@@ -327,6 +341,8 @@ export interface DocumentSnapshotIntegrityRequirements {
   requireDocumentSnapshot?: boolean;
   requirePdfSnapshot?: boolean;
   requireSnapshotSeal?: boolean;
+  /** Solo para validar el snapshot anidado dentro de una atestación recovery. */
+  allowAppIssuedRecoverySnapshot?: boolean;
 }
 
 type DocumentSnapshotIntegrityInput = Pick<
@@ -343,7 +359,10 @@ function verifyStoredHash(
   storedHash: unknown,
 ): SnapshotHashVerification {
   let algorithm: SnapshotHashAlgorithm | null = null;
-  if (typeof storedHash === "string" && /^sha256:[a-f0-9]{64}$/.test(storedHash)) {
+  if (
+    typeof storedHash === "string" &&
+    /^sha256:[a-f0-9]{64}$/.test(storedHash)
+  ) {
     algorithm = "sha256";
   } else if (
     typeof storedHash === "string" &&
@@ -381,8 +400,8 @@ export function verifyDocumentSnapshotHash(
     const algorithm =
       typeof snapshot.snapshotHash === "string" &&
       snapshot.snapshotHash.startsWith("fnv1a32:")
-      ? "fnv1a32"
-      : "sha256";
+        ? "fnv1a32"
+        : "sha256";
     return { status: "invalid", algorithm };
   }
 }
@@ -403,8 +422,8 @@ export function verifyDocumentPdfSnapshotHash(
     const algorithm =
       typeof snapshot.contentHash === "string" &&
       snapshot.contentHash.startsWith("fnv1a32:")
-      ? "fnv1a32"
-      : "sha256";
+        ? "fnv1a32"
+        : "sha256";
     return { status: "invalid", algorithm };
   }
 }
@@ -437,7 +456,8 @@ function isDocumentSnapshotSemanticallyValid(
   allowLegacyTaxRounding = false,
 ): boolean {
   try {
-    if (snapshot.schemaVersion !== DOCUMENT_SNAPSHOT_SCHEMA_VERSION) return false;
+    if (snapshot.schemaVersion !== DOCUMENT_SNAPSHOT_SCHEMA_VERSION)
+      return false;
     if (!isIsoDateTime(snapshot.capturedAt)) return false;
     if (!isIsoDateTime(snapshot.issuer?.capturedAt)) return false;
     if (
@@ -447,18 +467,28 @@ function isDocumentSnapshotSemanticallyValid(
           "legacy_backfill",
           "legacy_import_attested",
           "customer_repair",
+          "app_issued_recovery",
         ] as const
       ).includes(snapshot.source)
     ) {
       return false;
     }
-    if (!(["factura", "presupuesto", "recibo"] as const).includes(snapshot.documentType)) {
+    if (
+      !(["factura", "presupuesto", "recibo"] as const).includes(
+        snapshot.documentType,
+      )
+    ) {
       return false;
     }
     if (!snapshot.number?.trim() || !isIsoDate(snapshot.date)) return false;
     if (snapshot.dueDate && !isIsoDate(snapshot.dueDate)) return false;
-    if (snapshot.currency !== "EUR" || !Array.isArray(snapshot.items)) return false;
-    if (!snapshot.fiscalContext || !snapshot.taxSummary || !snapshot.numbering) {
+    if (snapshot.currency !== "EUR" || !Array.isArray(snapshot.items))
+      return false;
+    if (
+      !snapshot.fiscalContext ||
+      !snapshot.taxSummary ||
+      !snapshot.numbering
+    ) {
       return false;
     }
     if (
@@ -713,7 +743,9 @@ function integrityIssueForVerification(
     return null;
   }
   if (verification.status === "mismatch") {
-    return target === "document" ? "document_hash_mismatch" : "pdf_hash_mismatch";
+    return target === "document"
+      ? "document_hash_mismatch"
+      : "pdf_hash_mismatch";
   }
   if (verification.status === "unsupported") {
     return target === "document"
@@ -736,6 +768,16 @@ export function inspectDocumentSnapshotsIntegrity(
   );
   const issues: DocumentSnapshotIntegrityIssue[] = [];
 
+  // `app_issued_recovery` is evidence nested inside its versioned attestation,
+  // never a canonical snapshot that may be mounted on a persisted Document.
+  // The only caller allowed to inspect that nested evidence opts in explicitly.
+  if (
+    doc.documentSnapshot?.source === "app_issued_recovery" &&
+    !requirements.allowAppIssuedRecoverySnapshot
+  ) {
+    issues.push("app_issued_recovery_invalid");
+  }
+
   const requireSealedPair = Boolean(doc.snapshotIntegrityRequired);
   if (
     doc.status === "borrador" &&
@@ -751,10 +793,16 @@ export function inspectDocumentSnapshotsIntegrity(
   ) {
     issues.push("document_snapshot_missing");
   }
-  if ((requirements.requirePdfSnapshot || requireSealedPair) && !doc.pdfSnapshot) {
+  if (
+    (requirements.requirePdfSnapshot || requireSealedPair) &&
+    !doc.pdfSnapshot
+  ) {
     issues.push("pdf_snapshot_missing");
   }
-  if ((requirements.requireSnapshotSeal || requireSealedPair) && !doc.snapshotSeal) {
+  if (
+    (requirements.requireSnapshotSeal || requireSealedPair) &&
+    !doc.snapshotSeal
+  ) {
     issues.push("snapshot_seal_missing");
   }
 
@@ -810,7 +858,9 @@ export function inspectDocumentSnapshotsIntegrity(
         if (!issues.includes("document_snapshot_missing")) {
           issues.push("document_snapshot_missing");
         }
-      } else if (doc.documentSnapshot.snapshotHash !== seal.documentSnapshotHash) {
+      } else if (
+        doc.documentSnapshot.snapshotHash !== seal.documentSnapshotHash
+      ) {
         issues.push("document_seal_mismatch");
       }
 
@@ -1055,9 +1105,7 @@ export function buildDocumentPdfSnapshot(
   };
 }
 
-export function attachRegisteredVerifactuToSnapshots(
-  doc: Document,
-): Document {
+export function attachRegisteredVerifactuToSnapshots(doc: Document): Document {
   const verifactu = doc.verifactu;
   if (
     !verifactu ||
@@ -1066,9 +1114,7 @@ export function attachRegisteredVerifactuToSnapshots(
   ) {
     return projectCanonicalSnapshotOntoDocument(doc);
   }
-  if (
-    doc.verifactuPersistence !== "server_confirmed"
-  ) {
+  if (doc.verifactuPersistence !== "server_confirmed") {
     throw new DocumentSnapshotIntegrityError([
       "document_snapshot_semantic_invalid",
     ]);

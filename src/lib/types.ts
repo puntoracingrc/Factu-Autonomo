@@ -178,6 +178,11 @@ export interface Document {
    * de emisión de esta app ni acredita Veri*Factu.
    */
   legacyImportAttestation?: LegacyImportAttestation;
+  /**
+   * Recuperación explícita y reversible de una incidencia histórica de Factu.
+   * No es una importación legacy, un sello de emisión ni evidencia Veri*Factu.
+   */
+  appIssuedRecoveryAttestation?: AppIssuedDocumentRecoveryAttestationV1;
   /** Procedencia persistente también para borradores externos todavía editables. */
   legacyImportProvenance?: LegacyImportProvenance;
   /** Snapshot mínimo de configuración PDF congelado al emitir. */
@@ -240,7 +245,8 @@ export type DocumentSnapshotIntegrityIssue =
   | "pdf_strong_hash_mismatch"
   | "document_seal_mismatch"
   | "pdf_seal_mismatch"
-  | "legacy_import_attestation_invalid";
+  | "legacy_import_attestation_invalid"
+  | "app_issued_recovery_invalid";
 
 export interface DocumentSnapshotSeal {
   version: 1;
@@ -733,7 +739,11 @@ export interface AppPreferences {
 }
 
 export type DocumentSnapshotSource =
-  "issue" | "legacy_backfill" | "legacy_import_attested" | "customer_repair";
+  | "issue"
+  | "legacy_backfill"
+  | "legacy_import_attested"
+  | "customer_repair"
+  | "app_issued_recovery";
 
 export type LegacyImportSource =
   "pcfacturacion" | "holded" | "facturadirecta" | "generic_documents";
@@ -901,6 +911,97 @@ export interface LegacyImportProvenanceV2 {
 
 export type LegacyImportProvenance =
   LegacyImportProvenanceV1 | LegacyImportProvenanceV2;
+
+export type AppIssuedDocumentRecoveryKind =
+  "pre_canonical_rectification_v1" | "receipt_source_snapshot_gap_v1";
+
+export type AppIssuedDocumentRecoveryRole =
+  "original_invoice" | "rectification" | "invoice" | "receipt";
+
+export interface AppIssuedDocumentRecoveryPdfEvidenceV1 {
+  kind: "external_pdf_user_confirmed";
+  sha256: string;
+  byteLength: number;
+  mediaType: "application/pdf";
+  preservation: "user_managed";
+  confirmedSummary: {
+    number: string;
+    date: string;
+    subtotal: number;
+    iva: number;
+    total: number;
+    /** Huella del snapshot fiscal completo que el usuario contrastó en UI. */
+    confirmedFiscalContentHash: string;
+  };
+}
+
+export type AppIssuedDocumentRecoveryEvidenceSlotV1<T> =
+  { present: false } | { present: true; value: T };
+
+export interface AppIssuedDocumentRecoveryBeforeEvidenceV1 {
+  documentSnapshot: AppIssuedDocumentRecoveryEvidenceSlotV1<DocumentSnapshot>;
+  pdfSnapshot: AppIssuedDocumentRecoveryEvidenceSlotV1<DocumentPdfSnapshot>;
+  snapshotSeal: AppIssuedDocumentRecoveryEvidenceSlotV1<DocumentSnapshotSeal>;
+  snapshotIntegrityRequired: AppIssuedDocumentRecoveryEvidenceSlotV1<true>;
+  snapshotIntegrity: AppIssuedDocumentRecoveryEvidenceSlotV1<DocumentSnapshotIntegritySignal>;
+  verifactu: AppIssuedDocumentRecoveryEvidenceSlotV1<VerifactuInfo>;
+  verifactuPersistence: AppIssuedDocumentRecoveryEvidenceSlotV1<
+    NonNullable<Document["verifactuPersistence"]>
+  >;
+}
+
+export interface AppIssuedDocumentRecoveryAcceptedStateV1 {
+  status: DocumentStatus;
+  documentLifecycle: "issued" | "canceled";
+  integrityLock: "locked";
+  deliveryStatus: DocumentDeliveryStatus | null;
+  paymentStatus: DocumentPaymentStatus | null;
+  acceptanceStatus: DocumentAcceptanceStatus | null;
+  issuedAt: string | null;
+  sentAt: string | null;
+  paidAt: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  relationships: {
+    sourceQuoteDocumentId: string | null;
+    sourceQuoteNumber: string | null;
+    rectifiedById: string | null;
+    receiptDocumentId: string | null;
+    sourceDocumentId: string | null;
+  };
+}
+
+export interface AppIssuedDocumentRecoveryEventV1 {
+  action: "applied" | "rolled_back";
+  at: string;
+}
+
+/**
+ * Atestación de recuperación de contenido emitido por Factu. Mantiene la
+ * evidencia original byte-semánticamente separada y nunca equivale al sello
+ * moderno de emisión ni a una atestación de importación legacy.
+ */
+export interface AppIssuedDocumentRecoveryAttestationV1 {
+  schemaVersion: 1;
+  kind: "app_issued_document_recovery";
+  recoveryKind: AppIssuedDocumentRecoveryKind;
+  repairId: string;
+  status: "applied" | "rolled_back";
+  documentId: string;
+  role: AppIssuedDocumentRecoveryRole;
+  counterpartDocumentId: string;
+  groupFingerprint: string;
+  acceptedState: AppIssuedDocumentRecoveryAcceptedStateV1;
+  beforeEvidence: AppIssuedDocumentRecoveryBeforeEvidenceV1;
+  beforeFingerprint: string;
+  afterFingerprint: string;
+  sourcePdfEvidence?: AppIssuedDocumentRecoveryPdfEvidenceV1;
+  /** Snapshot reconstruido y etiquetado solo para contenido sin bundle. */
+  recoveredSnapshot?: DocumentSnapshot;
+  events: AppIssuedDocumentRecoveryEventV1[];
+  attestationHash: string;
+}
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;

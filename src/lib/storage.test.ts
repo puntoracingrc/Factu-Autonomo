@@ -17,6 +17,12 @@ import {
   buildLegacyImportRepairPreview,
   inspectLegacyImportAttestation,
 } from "./document-integrity/legacy-import-attestation";
+import {
+  applyAppIssuedDocumentRecovery,
+  buildAppIssuedDocumentRecoveryPreview,
+  buildAppIssuedDocumentRecoveryRollbackPreview,
+  rollbackAppIssuedDocumentRecovery,
+} from "./document-integrity/app-issued-recovery";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
 import { hasWorkspaceContent } from "./workspace-state";
@@ -178,12 +184,7 @@ function attestedHistoricalCancellationData(): AppData {
     rectifiedById: rectificationId,
   };
   const rectification: Document = {
-    ...historical(
-      rectificationId,
-      "FR-2024-0001",
-      "2024-04-02",
-      -100,
-    ),
+    ...historical(rectificationId, "FR-2024-0001", "2024-04-02", -100),
     status: "pagado",
     rectification: {
       originalDocumentId: originalId,
@@ -205,7 +206,9 @@ function attestedHistoricalCancellationData(): AppData {
     "2026-07-13T08:00:00.000Z",
   );
   if (result.status !== "applied") {
-    throw new Error(`No se pudo atestar la anulación histórica: ${result.reason}`);
+    throw new Error(
+      `No se pudo atestar la anulación histórica: ${result.reason}`,
+    );
   }
   return result.data;
 }
@@ -236,6 +239,133 @@ function snapshotDocument(): Document {
     sampleData().profile,
     NOW,
   );
+}
+
+function appIssuedRecoveredRectificationData(): AppData {
+  const profile = {
+    ...sampleData().profile,
+    address: "Calle Sintética 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const originalIssued = issueDocument(
+    {
+      id: "synthetic:storage-recovery:original",
+      type: "factura",
+      number: "F-SYNTH-STORAGE-001",
+      date: "2026-06-24",
+      client: {
+        name: "Cliente Sintético SL",
+        nif: "B87654321",
+        address: "Calle Cliente 2",
+        city: "Madrid",
+        postalCode: "28002",
+      },
+      items: [
+        {
+          id: "synthetic:storage-recovery:original:line",
+          description: "Servicio sintético",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "borrador",
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+    profile,
+    NOW,
+  );
+  const rectification: Document = {
+    id: "synthetic:storage-recovery:rectification",
+    type: "factura",
+    number: "FR-SYNTH-STORAGE-001",
+    date: originalIssued.date,
+    client: {
+      ...originalIssued.client,
+      name: "Cliente Sintético Corregido SL",
+    },
+    items: originalIssued.items.map((item) => ({
+      ...item,
+      id: `rectification:${item.id}`,
+    })),
+    status: "pagado",
+    issuer: originalIssued.issuer,
+    rectification: {
+      type: "correccion",
+      reason: "Corrección sintética",
+      originalDocumentId: originalIssued.id,
+      originalNumber: originalIssued.number,
+      originalDate: originalIssued.date,
+    },
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    deliveryStatus: "sent",
+    paymentStatus: "paid",
+    issuedAt: NOW,
+    sentAt: NOW,
+    paidAt: NOW,
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+        "document_relationship_invalid",
+      ],
+    },
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  const original: Document = {
+    ...originalIssued,
+    status: "rectificada",
+    rectifiedById: rectification.id,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: ["document_relationship_invalid"],
+    },
+  };
+  const data: AppData = {
+    ...sampleData(),
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1,
+  };
+  const snapshot = buildAppIssuedDocumentRecoveryPreview(data)
+    .candidates.flatMap((candidate) => candidate.members)
+    .find(
+      (member) => member.documentId === rectification.id,
+    )?.recoveredSnapshot;
+  if (!snapshot) throw new Error("No se pudo preparar recovery sintético");
+  const preview = buildAppIssuedDocumentRecoveryPreview(data, {
+    [rectification.id]: {
+      kind: "external_pdf_user_confirmed",
+      sha256: "a".repeat(64),
+      byteLength: 42_000,
+      mediaType: "application/pdf",
+      preservation: "user_managed",
+      confirmedSummary: {
+        number: snapshot.number,
+        date: snapshot.date,
+        subtotal: snapshot.taxSummary.subtotal,
+        iva: snapshot.taxSummary.iva,
+        total: snapshot.taxSummary.total,
+        confirmedFiscalContentHash: snapshot.snapshotHash,
+      },
+    },
+  });
+  const applied = applyAppIssuedDocumentRecovery(
+    data,
+    preview,
+    "2026-07-13T10:00:00.000Z",
+  );
+  if (applied.status !== "applied") {
+    throw new Error(`No se pudo crear recovery sintético: ${applied.reason}`);
+  }
+  return applied.data;
 }
 
 function legacyAcceptedDocument(): Document {
@@ -2123,7 +2253,9 @@ describe("storage", () => {
       ),
     ).toBe(true);
     expect(
-      reloaded.documents.map((document) => documentAmounts(document, false).total),
+      reloaded.documents.map(
+        (document) => documentAmounts(document, false).total,
+      ),
     ).toEqual([0, 0]);
   });
 
@@ -2914,5 +3046,215 @@ describe("storage", () => {
 
     expect(normalized.documents[0].receiptDocumentId).toBe("receipt-1");
     expect(normalized.documents[1].sourceDocumentId).toBe("invoice-1");
+  });
+
+  it("preserva byte-semánticamente una recovery válida aunque falte la versión del workspace", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const expected = recovered.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    const { snapshotIntegrity: _expectedSignal, ...expectedPersistent } =
+      structuredClone(expected);
+
+    const normalized = normalizeLoadedData({
+      ...recovered,
+      snapshotIntegrityVersion: undefined,
+    });
+    const actual = normalized.documents.find(
+      (document) => document.id === expected.id,
+    )!;
+    const { snapshotIntegrity: _actualSignal, ...actualPersistent } = actual;
+    void _expectedSignal;
+    void _actualSignal;
+
+    expect(actualPersistent).toEqual(expectedPersistent);
+    expect(actual.documentSnapshot).toBeUndefined();
+    expect(actual.pdfSnapshot).toBeUndefined();
+    expect(actual.snapshotSeal).toBeUndefined();
+  });
+
+  it("no autosana ni fabrica evidencia para una recovery corrupta", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const target = recovered.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    const corrupt: Document = {
+      ...target,
+      issuedAt: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+      appIssuedRecoveryAttestation: {
+        ...target.appIssuedRecoveryAttestation!,
+        attestationHash: `sha256:${"f".repeat(64)}`,
+      },
+    };
+    const expectedAttestation = structuredClone(
+      corrupt.appIssuedRecoveryAttestation,
+    );
+
+    const normalized = normalizeLoadedData({
+      ...recovered,
+      snapshotIntegrityVersion: undefined,
+      documents: recovered.documents.map((document) =>
+        document.id === corrupt.id ? corrupt : document,
+      ),
+    });
+    const actual = normalized.documents.find(
+      (document) => document.id === corrupt.id,
+    )!;
+
+    expect(actual.appIssuedRecoveryAttestation).toEqual(expectedAttestation);
+    expect(actual.documentSnapshot).toBeUndefined();
+    expect(actual.pdfSnapshot).toBeUndefined();
+    expect(actual.snapshotSeal).toBeUndefined();
+    expect(actual.snapshotIntegrity?.issues).toContain(
+      "app_issued_recovery_invalid",
+    );
+  });
+
+  it("aísla una recovery con eventos malformados sin romper la rehidratación", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const target = recovered.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    const malformed = {
+      ...target,
+      appIssuedRecoveryAttestation: {
+        ...target.appIssuedRecoveryAttestation!,
+        events: null,
+      },
+    } as unknown as Document;
+
+    const normalized = normalizeLoadedData({
+      ...recovered,
+      documents: recovered.documents.map((document) =>
+        document.id === target.id ? malformed : document,
+      ),
+    });
+    const actual = normalized.documents.find(
+      (document) => document.id === target.id,
+    )!;
+
+    expect(actual.appIssuedRecoveryAttestation).toEqual(
+      malformed.appIssuedRecoveryAttestation,
+    );
+    expect(actual.snapshotIntegrity?.issues).toContain(
+      "app_issued_recovery_invalid",
+    );
+    expect(normalized.documents).toHaveLength(recovered.documents.length);
+  });
+
+  it("trata una claim recovery nula como corrupción y nunca como ausencia", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const target = recovered.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    const malformed = {
+      ...target,
+      appIssuedRecoveryAttestation: null,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+    } as unknown as Document;
+
+    const normalized = normalizeLoadedData({
+      ...recovered,
+      snapshotIntegrityVersion: undefined,
+      documents: recovered.documents.map((document) =>
+        document.id === target.id ? malformed : document,
+      ),
+    });
+    const actual = normalized.documents.find(
+      (document) => document.id === target.id,
+    )!;
+
+    expect(actual.appIssuedRecoveryAttestation).toBeNull();
+    expect(actual.documentSnapshot).toBeUndefined();
+    expect(actual.pdfSnapshot).toBeUndefined();
+    expect(actual.snapshotSeal).toBeUndefined();
+    expect(actual.snapshotIntegrity?.issues).toContain(
+      "app_issued_recovery_invalid",
+    );
+    expect(documentAmounts(actual, false).total).toBe(0);
+  });
+
+  it("rollback -> load conserva la reversibilidad y permite una nueva preview explícita", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const rollbackPreview =
+      buildAppIssuedDocumentRecoveryRollbackPreview(recovered);
+    const rolledBack = rollbackAppIssuedDocumentRecovery(
+      recovered,
+      rollbackPreview,
+      "2026-07-13T11:00:00.000Z",
+    );
+    expect(rolledBack.status).toBe("applied");
+    if (rolledBack.status !== "applied") return;
+
+    const reloaded = normalizeLoadedData({
+      ...rolledBack.data,
+      snapshotIntegrityVersion: undefined,
+    });
+    const inactive = reloaded.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    expect(inactive.appIssuedRecoveryAttestation?.status).toBe("rolled_back");
+    expect(inactive.snapshotIntegrity?.status).toBe("blocked");
+    expect(inactive.snapshotIntegrity?.issues).not.toContain(
+      "app_issued_recovery_invalid",
+    );
+
+    const reapplyPreview = buildAppIssuedDocumentRecoveryPreview(reloaded);
+    expect(reapplyPreview.affectedCount).toBe(1);
+    expect(reapplyPreview.requiredPdfDocumentIds).toEqual([]);
+    expect(
+      applyAppIssuedDocumentRecovery(
+        reloaded,
+        reapplyPreview,
+        "2026-07-13T12:00:00.000Z",
+      ).status,
+    ).toBe("applied");
+  });
+
+  it("bloquea un snapshot recovery top-level sin atestación y no lo proyecta", () => {
+    const recovered = appIssuedRecoveredRectificationData();
+    const target = recovered.documents.find((document) =>
+      Boolean(document.appIssuedRecoveryAttestation),
+    )!;
+    const recoveredSnapshot =
+      target.appIssuedRecoveryAttestation!.recoveredSnapshot!;
+    const misplaced: Document = {
+      ...target,
+      client: { ...target.client, name: "Cliente vivo no canónico" },
+      appIssuedRecoveryAttestation: undefined,
+      documentSnapshot: recoveredSnapshot,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: undefined,
+    };
+
+    const normalized = normalizeLoadedData({
+      ...recovered,
+      snapshotIntegrityVersion: undefined,
+      documents: recovered.documents.map((document) =>
+        document.id === misplaced.id ? misplaced : document,
+      ),
+    });
+    const actual = normalized.documents.find(
+      (document) => document.id === misplaced.id,
+    )!;
+
+    expect(actual.documentSnapshot).toEqual(recoveredSnapshot);
+    expect(actual.pdfSnapshot).toBeUndefined();
+    expect(actual.snapshotSeal).toBeUndefined();
+    expect(actual.client.name).toBe("Cliente vivo no canónico");
+    expect(actual.snapshotIntegrity?.issues).toContain(
+      "app_issued_recovery_invalid",
+    );
+    expect(documentAmounts(actual, false)).toEqual({
+      subtotal: 0,
+      iva: 0,
+      total: 0,
+    });
   });
 });

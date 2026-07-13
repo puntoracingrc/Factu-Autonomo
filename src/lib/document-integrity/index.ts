@@ -7,6 +7,7 @@ import {
   projectCanonicalSnapshotOntoDocument,
   withDocumentSnapshotIntegritySignal,
 } from "@/lib/document-integrity/snapshots";
+import { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
 import type {
   BusinessProfile,
   Document,
@@ -56,6 +57,13 @@ export {
   isUsableLegacyImportedDocument,
   projectLegacyImportSnapshotOntoDocument,
 } from "@/lib/document-integrity/legacy-import-attestation";
+export { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
+export {
+  buildAppIssuedDocumentRecoveryPreview,
+  buildAppIssuedDocumentRecoveryRollbackPreview,
+  inspectAppIssuedDocumentRecovery,
+  inspectAppIssuedDocumentRecoveryCollection,
+} from "@/lib/document-integrity/app-issued-recovery";
 
 export type DocumentIntegrityErrorCode =
   | "DOCUMENT_ID_MISMATCH"
@@ -75,13 +83,16 @@ export type DocumentIntegrityErrorCode =
 
 const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
   DOCUMENT_ID_MISMATCH: "El documento no coincide con el registro guardado.",
-  DOCUMENT_LOCKED: "Este documento ya está emitido y no admite edición directa.",
+  DOCUMENT_LOCKED:
+    "Este documento ya está emitido y no admite edición directa.",
   DOCUMENT_ALREADY_ISSUED: "Este documento ya está emitido.",
   DOCUMENT_NOT_ISSUED: "Primero hay que emitir el documento.",
-  DOCUMENT_NUMBER_REQUIRED: "El documento necesita un número válido antes de emitirse.",
+  DOCUMENT_NUMBER_REQUIRED:
+    "El documento necesita un número válido antes de emitirse.",
   GENERIC_UPDATE_WOULD_LOCK_DOCUMENT:
     "La edición genérica no puede emitir ni bloquear documentos.",
-  INVALID_DOCUMENT_TYPE: "La operación no es válida para este tipo de documento.",
+  INVALID_DOCUMENT_TYPE:
+    "La operación no es válida para este tipo de documento.",
   DOCUMENT_EMISSION_INVALID: "Faltan datos obligatorios antes de emitir.",
   RECTIFICATION_ORIGINAL_MISSING:
     "No se encuentra la factura original de esta rectificativa.",
@@ -100,7 +111,10 @@ const DEFAULT_MESSAGES: Record<DocumentIntegrityErrorCode, string> = {
 export class DocumentIntegrityError extends Error {
   readonly code: DocumentIntegrityErrorCode;
 
-  constructor(code: DocumentIntegrityErrorCode, message = DEFAULT_MESSAGES[code]) {
+  constructor(
+    code: DocumentIntegrityErrorCode,
+    message = DEFAULT_MESSAGES[code],
+  ) {
     super(message);
     this.name = "DocumentIntegrityError";
     this.code = code;
@@ -118,10 +132,10 @@ function hasLegacyIssuedStatus(doc: Document): boolean {
 function hasSnapshotIntegrityEvidence(doc: Document): boolean {
   return Boolean(
     doc.documentSnapshot ||
-      doc.pdfSnapshot ||
-      doc.snapshotSeal ||
-      doc.snapshotIntegrityRequired ||
-      doc.issuedAt,
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired ||
+    doc.issuedAt,
   );
 }
 
@@ -142,15 +156,15 @@ function hasIssuedRectificationEvidence(doc: Document): boolean {
 
   return Boolean(
     doc.rectification &&
-      (doc.documentSnapshot ||
-        doc.pdfSnapshot ||
-        doc.snapshotSeal ||
-        doc.snapshotIntegrityRequired ||
-        doc.verifactu ||
-        doc.issuedAt ||
-        doc.documentLifecycle === "issued" ||
-        doc.integrityLock === "locked" ||
-        (hasFinalNumber && !hasExplicitDraftMarkers)),
+    (doc.documentSnapshot ||
+      doc.pdfSnapshot ||
+      doc.snapshotSeal ||
+      doc.snapshotIntegrityRequired ||
+      doc.verifactu ||
+      doc.issuedAt ||
+      doc.documentLifecycle === "issued" ||
+      doc.integrityLock === "locked" ||
+      (hasFinalNumber && !hasExplicitDraftMarkers)),
   );
 }
 
@@ -204,6 +218,16 @@ export function assertDocumentEditable(
   current: Document,
   next?: Document,
 ): void {
+  if (
+    hasAppIssuedRecoveryProtectionClaim(current) ||
+    (next !== undefined && hasAppIssuedRecoveryProtectionClaim(next))
+  ) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento con una recuperación registrada está congelado y no admite edición ni emisión.",
+    );
+  }
+
   if (next && current.id !== next.id) {
     throw new DocumentIntegrityError("DOCUMENT_ID_MISMATCH");
   }
@@ -235,7 +259,10 @@ export function issueDocument(
   profile: BusinessProfile,
   issuedAt: Date | string = new Date(),
 ): Document {
-  if (deriveDocumentLifecycle(doc) !== "draft" || isDocumentIntegrityLocked(doc)) {
+  if (
+    deriveDocumentLifecycle(doc) !== "draft" ||
+    isDocumentIntegrityLocked(doc)
+  ) {
     throw new DocumentIntegrityError("DOCUMENT_ALREADY_ISSUED");
   }
 
@@ -302,6 +329,13 @@ export function markDocumentSent(
   doc: Document,
   sentAt: Date | string = new Date(),
 ): Document {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento recuperado está congelado y no admite nuevos cambios de envío.",
+    );
+  }
+
   assertIssued(doc);
   assertDocumentSnapshotsIntegrity(doc, {
     requireDocumentSnapshot: true,
@@ -327,6 +361,13 @@ export function markDocumentPaid(
   doc: Document,
   paidAt: Date | string = new Date(),
 ): Document {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento recuperado está congelado y no admite nuevos cambios de cobro.",
+    );
+  }
+
   assertIssued(doc);
   assertDocumentSnapshotsIntegrity(doc, {
     requireDocumentSnapshot: true,
@@ -357,6 +398,13 @@ export function acceptQuote(
   doc: Document,
   acceptedAt: Date | string = new Date(),
 ): Document {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento con una recuperación registrada está congelado y no admite cambios de aceptación.",
+    );
+  }
+
   assertIssued(doc);
   assertDocumentSnapshotsIntegrity(doc, {
     requireDocumentSnapshot: true,
@@ -386,6 +434,13 @@ export function rejectQuote(
   doc: Document,
   rejectedAt: Date | string = new Date(),
 ): Document {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento con una recuperación registrada está congelado y no admite cambios de aceptación.",
+    );
+  }
+
   assertIssued(doc);
   assertDocumentSnapshotsIntegrity(doc, {
     requireDocumentSnapshot: true,

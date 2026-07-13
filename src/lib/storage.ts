@@ -36,6 +36,8 @@ import {
   withDocumentSnapshotIntegritySignal,
 } from "./document-integrity";
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
+import { inspectAppIssuedDocumentRecovery } from "./document-integrity/app-issued-recovery";
+import { hasAppIssuedRecoveryProtectionClaim } from "./document-integrity/app-issued-recovery-protection";
 import {
   detectLegacyImportSource,
   inspectUsableHistoricalDocumentEvidence,
@@ -251,41 +253,41 @@ function isNormalizableDocument(value: unknown): value is Document {
   const items = value.items;
   return Boolean(
     typeof value.id === "string" &&
-      value.id.trim() &&
-      (value.type === "factura" ||
-        value.type === "presupuesto" ||
-        value.type === "recibo") &&
-      typeof value.number === "string" &&
-      value.number.trim() &&
-      isIsoDateString(value.date) &&
-      isRecord(client) &&
-      typeof client.name === "string" &&
-      Array.isArray(items) &&
-      items.every(
-        (item) =>
-          isRecord(item) &&
-          typeof item.id === "string" &&
-          typeof item.description === "string" &&
-          typeof item.quantity === "number" &&
-          Number.isFinite(item.quantity) &&
-          typeof item.unitPrice === "number" &&
-          Number.isFinite(item.unitPrice) &&
-          typeof item.ivaPercent === "number" &&
-          Number.isFinite(item.ivaPercent),
-      ) &&
-      typeof value.status === "string" &&
-      [
-        "borrador",
-        "enviado",
-        "aceptado",
-        "rechazado",
-        "pagado",
-        "vencido",
-        "rectificada",
-        "anulada",
-      ].includes(value.status) &&
-      typeof value.createdAt === "string" &&
-      typeof value.updatedAt === "string",
+    value.id.trim() &&
+    (value.type === "factura" ||
+      value.type === "presupuesto" ||
+      value.type === "recibo") &&
+    typeof value.number === "string" &&
+    value.number.trim() &&
+    isIsoDateString(value.date) &&
+    isRecord(client) &&
+    typeof client.name === "string" &&
+    Array.isArray(items) &&
+    items.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.id === "string" &&
+        typeof item.description === "string" &&
+        typeof item.quantity === "number" &&
+        Number.isFinite(item.quantity) &&
+        typeof item.unitPrice === "number" &&
+        Number.isFinite(item.unitPrice) &&
+        typeof item.ivaPercent === "number" &&
+        Number.isFinite(item.ivaPercent),
+    ) &&
+    typeof value.status === "string" &&
+    [
+      "borrador",
+      "enviado",
+      "aceptado",
+      "rechazado",
+      "pagado",
+      "vencido",
+      "rectificada",
+      "anulada",
+    ].includes(value.status) &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string",
   );
 }
 
@@ -465,7 +467,11 @@ export function normalizeLoadedData(
       if (!isNormalizableDocument(document)) {
         throw new Error("Documento persistido no normalizable");
       }
-      const persisted = preclassifyLegacyVerifactuDocument(document);
+      // A recovery attestation owns its exact evidence. It must reach the
+      // dedicated fail-closed branch below without legacy preclassification.
+      const persisted = hasAppIssuedRecoveryProtectionClaim(document)
+        ? document
+        : preclassifyLegacyVerifactuDocument(document);
       const explicitLegacyImport =
         options.legacyBackfillDocumentIds?.has(persisted.id) === true;
       const knownPersistentImportSource = Boolean(
@@ -497,9 +503,8 @@ export function normalizeLoadedData(
       );
     }
   });
-  const documents = withDocumentRelationshipIntegritySignals(
-    normalizedDocuments,
-  );
+  const documents =
+    withDocumentRelationshipIntegritySignals(normalizedDocuments);
   const migrationChanges: SyncChange[] = migratedDocuments.map((document) => ({
     entityType: "document",
     entityId: document.id,
@@ -508,9 +513,7 @@ export function normalizeLoadedData(
     updatedAt: migrationTimestamp,
   }));
   if (firstIntegrityMigration || migrationChanges.length > 0) {
-    migrationChanges.push(
-      snapshotIntegrityMetadataChange(migrationTimestamp),
-    );
+    migrationChanges.push(snapshotIntegrityMetadataChange(migrationTimestamp));
   }
   const parsedMeta = isRecord(parsed.meta)
     ? (parsed.meta as unknown as NonNullable<AppData["meta"]>)
@@ -547,10 +550,7 @@ export function normalizeLoadedData(
       ? {
           ...baseMeta,
           lastModified: migrationTimestamp,
-          pendingChanges: mergePendingChanges(
-            pendingChanges,
-            migrationChanges,
-          ),
+          pendingChanges: mergePendingChanges(pendingChanges, migrationChanges),
         }
       : baseMeta;
   const customers = normalizeRecordCollection<AppData["customers"][number]>({
@@ -589,7 +589,8 @@ export function normalizeLoadedData(
       typeof value.id === "string" &&
       typeof value.text === "string" &&
       isRecord(value.link),
-    normalize: (value) => normalizeUserReminder(value as unknown as UserReminder),
+    normalize: (value) =>
+      normalizeUserReminder(value as unknown as UserReminder),
   });
   const products = normalizeRecordCollection<AppData["products"][number]>({
     rawValue: parsed.products,
@@ -727,16 +728,13 @@ function isRecoverableLegacyRectificationDraft(doc: Document): boolean {
     return false;
   }
   return (
-    !doc.documentSnapshot ||
-    doc.documentSnapshot.source === "legacy_backfill"
+    !doc.documentSnapshot || doc.documentSnapshot.source === "legacy_backfill"
   );
 }
 
 function normalizeDocumentIntegrityState(
   doc: Document,
-  requirements: Parameters<
-    typeof withDocumentSnapshotIntegritySignal
-  >[1] = {},
+  requirements: Parameters<typeof withDocumentSnapshotIntegritySignal>[1] = {},
 ): Document {
   const signaled = withDocumentSnapshotIntegritySignal(doc, requirements);
   if (
@@ -763,10 +761,10 @@ function canRevalidateLegacyAttestationSignal(document: Document): boolean {
   if (!signal) return true;
   return Boolean(
     signal.status === "blocked" &&
-      signal.issues.length > 0 &&
-      signal.issues.every((issue) =>
-        REVALIDATABLE_LEGACY_ATTESTATION_ISSUES.has(issue),
-      ),
+    signal.issues.length > 0 &&
+    signal.issues.every((issue) =>
+      REVALIDATABLE_LEGACY_ATTESTATION_ISSUES.has(issue),
+    ),
   );
 }
 
@@ -776,6 +774,31 @@ function normalizeHistoricalDocument(
   allowLegacySnapshotBackfill: boolean,
   allowLegacySealMigration: boolean,
 ): Document {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    const recovery = inspectAppIssuedDocumentRecovery(doc);
+    // `rolled_back` sigue siendo una atestación íntegra e inactiva. Se conserva
+    // tal cual para que el usuario pueda volver a previsualizar/aplicar; el
+    // validador de relaciones mantiene sus efectos financieros bloqueados.
+    if (recovery.ok) return doc;
+
+    // Preserve every persisted field byte-semantically. `snapshotIntegrity` is
+    // derived/replaceable and is the only slot amended to keep corrupt
+    // recovery claims fail-closed. In particular, load never
+    // backfills snapshots, PDF settings or seals for this branch.
+    return {
+      ...doc,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          ...new Set([
+            ...(doc.snapshotIntegrity?.issues ?? []),
+            "app_issued_recovery_invalid" as const,
+          ]),
+        ],
+      },
+    };
+  }
+
   if (
     allowLegacySnapshotBackfill &&
     allowLegacySealMigration &&
@@ -810,9 +833,8 @@ function normalizeHistoricalDocument(
         ? undefined
         : doc.snapshotIntegrity,
     };
-    const attestation = inspectUsableHistoricalDocumentEvidence(
-      attestationCandidate,
-    );
+    const attestation =
+      inspectUsableHistoricalDocumentEvidence(attestationCandidate);
     if (attestation.ok) {
       return projectLegacyImportSnapshotOntoDocument(attestationCandidate);
     }
@@ -1276,8 +1298,7 @@ export function nextDocumentNumber(
   year = new Date().getFullYear(),
 ): { number: string; counters: AppData["counters"] } {
   const next = counters[type] + 1;
-  const prefix =
-    type === "factura" ? "F" : type === "presupuesto" ? "P" : "R";
+  const prefix = type === "factura" ? "F" : type === "presupuesto" ? "P" : "R";
   return {
     number: `${prefix}-${year}-${String(next).padStart(4, "0")}`,
     counters: { ...counters, [type]: next },

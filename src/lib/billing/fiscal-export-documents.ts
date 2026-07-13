@@ -39,6 +39,7 @@ export interface FiscalExportDocumentSelection {
 interface CanonicalFiscalCandidate {
   stored: Document;
   canonical: Document;
+  snapshot: DocumentSnapshot;
 }
 
 function isFiscalType(
@@ -106,10 +107,8 @@ function hasMinimumFiscalSnapshotCompliance(
   );
 }
 
-function canonicalFiscalIdentity(
-  candidate: CanonicalFiscalCandidate,
-): string {
-  const snapshot = candidate.stored.documentSnapshot!;
+function canonicalFiscalIdentity(candidate: CanonicalFiscalCandidate): string {
+  const snapshot = candidate.snapshot;
   const identityKind =
     snapshot.documentKind === "factura_rectificativa"
       ? "factura"
@@ -144,23 +143,24 @@ function duplicateCanonicalFiscalIds(
 function hasHistoricalEvidence(doc: Document): boolean {
   return Boolean(
     doc.documentSnapshot ||
-      doc.pdfSnapshot ||
-      doc.snapshotSeal ||
-      doc.snapshotIntegrityRequired ||
-      doc.snapshotIntegrity ||
-      doc.issuedAt ||
-      doc.documentLifecycle === "issued" ||
-      doc.documentLifecycle === "canceled" ||
-      doc.integrityLock === "locked",
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired ||
+    doc.snapshotIntegrity ||
+    doc.issuedAt ||
+    doc.documentLifecycle === "issued" ||
+    doc.documentLifecycle === "canceled" ||
+    doc.integrityLock === "locked",
   );
 }
 
 function isPotentialFiscalDocument(doc: Document): boolean {
   const declaresFiscalType =
-    isFiscalType(doc.type) ||
-    isFiscalType(doc.documentSnapshot?.documentType);
+    isFiscalType(doc.type) || isFiscalType(doc.documentSnapshot?.documentType);
   if (declaresFiscalType) {
-    return hasHistoricalEvidence(doc) || deriveDocumentLifecycle(doc) !== "draft";
+    return (
+      hasHistoricalEvidence(doc) || deriveDocumentLifecycle(doc) !== "draft"
+    );
   }
 
   if (!hasHistoricalEvidence(doc)) return false;
@@ -197,10 +197,7 @@ function addBlockedDocument(
   const previous = blockedById.get(doc.id);
   blockedById.set(
     doc.id,
-    blockedReference(doc, [
-      ...(previous?.issues ?? []),
-      ...issues,
-    ]),
+    blockedReference(doc, [...(previous?.issues ?? []), ...issues]),
   );
 }
 
@@ -337,38 +334,36 @@ export function selectCanonicalFiscalDocumentsForExport(
       !acceptsStoredHistoricalContent &&
       !hasMinimumFiscalSnapshotCompliance(evidence.snapshot)
     ) {
-      addBlockedDocument(
-        blockedById,
-        document,
-        ["document_snapshot_semantic_invalid"],
-      );
+      addBlockedDocument(blockedById, document, [
+        "document_snapshot_semantic_invalid",
+      ]);
       continue;
     }
 
     try {
       const canonical = acceptsStoredHistoricalContent
         ? projectLegacyImportSnapshotOntoDocument(document)
-        : buildPdfViewModelFromDocumentSnapshot(
-            document,
-            profile,
-            evidence.snapshot,
-          ).doc;
+        : evidence.kind === "app_issued_pdf_recovered"
+          ? document
+          : buildPdfViewModelFromDocumentSnapshot(
+              document,
+              profile,
+              evidence.snapshot,
+            ).doc;
       if (!isFiscalType(canonical.type) || document.type !== canonical.type) {
-        addBlockedDocument(
-          blockedById,
-          document,
-          ["document_relationship_invalid"],
-        );
+        addBlockedDocument(blockedById, document, [
+          "document_relationship_invalid",
+        ]);
         continue;
       }
 
-      candidatesById.set(document.id, { stored: document, canonical });
+      candidatesById.set(document.id, {
+        stored: document,
+        canonical,
+        snapshot: evidence.snapshot,
+      });
     } catch {
-      addBlockedDocument(
-        blockedById,
-        document,
-        ["document_snapshot_invalid"],
-      );
+      addBlockedDocument(blockedById, document, ["document_snapshot_invalid"]);
     }
   }
 
@@ -380,15 +375,13 @@ export function selectCanonicalFiscalDocumentsForExport(
     const issues = [
       ...relationshipIssues(candidate, candidatesById),
       ...(duplicateFiscalIds.has(candidate.stored.id)
-        ? (["document_relationship_invalid"] satisfies DocumentSnapshotIntegrityIssue[])
+        ? ([
+            "document_relationship_invalid",
+          ] satisfies DocumentSnapshotIntegrityIssue[])
         : []),
     ];
     if (issues.length > 0) {
-      addBlockedDocument(
-        blockedById,
-        candidate.stored,
-        issues,
-      );
+      addBlockedDocument(blockedById, candidate.stored, issues);
       continue;
     }
 
@@ -404,9 +397,17 @@ export function selectCanonicalFiscalDocumentsForExport(
         ...candidate.canonical,
         // Proyección efímera ya verificada: obliga a los cálculos fiscales a
         // consumir taxSummary, también para snapshots legacy sin sello fuerte.
-        snapshotIntegrityRequired: candidate.stored.legacyImportAttestation
-          ? undefined
-          : true,
+        // En recovery solo se retira la señal derivada que la colección acaba
+        // de revalidar; el documento persistido y toda su evidencia quedan
+        // intactos y su fingerprint de dominio no incluye esta señal.
+        ...(candidate.stored.appIssuedRecoveryAttestation
+          ? { snapshotIntegrity: undefined }
+          : {}),
+        ...(candidate.stored.legacyImportAttestation
+          ? { snapshotIntegrityRequired: undefined }
+          : candidate.stored.appIssuedRecoveryAttestation
+            ? {}
+            : { snapshotIntegrityRequired: true }),
       });
     }
   }

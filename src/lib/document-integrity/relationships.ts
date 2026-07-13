@@ -13,6 +13,8 @@ import {
   inspectUsableHistoricalDocumentEvidence,
   isVerifiedLegacyImportRepairSnapshotCandidate,
 } from "./legacy-import-attestation";
+import { inspectAppIssuedDocumentRecoveryCollection } from "./app-issued-recovery";
+import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-protection";
 import { inspectDocumentSnapshotsIntegrity } from "./snapshots";
 
 function normalizedIdentityText(value: string | undefined): string {
@@ -187,8 +189,9 @@ function relationshipMatches(
   rectification: Document,
   relation: RectificationInfo,
 ): boolean {
-  const originalSnapshot = original.documentSnapshot!;
-  const rectificationSnapshot = rectification.documentSnapshot!;
+  const originalSnapshot = original.documentSnapshot;
+  const rectificationSnapshot = rectification.documentSnapshot;
+  if (!originalSnapshot || !rectificationSnapshot) return false;
   const expectedStatus =
     relation.type === "anulacion" ? "anulada" : "rectificada";
   const expectedOriginalLifecycle =
@@ -309,10 +312,14 @@ function clearRelationshipSignal(document: Document): Document {
   };
 }
 
-function blockRelationship(document: Document): Document {
+function blockRelationship(
+  document: Document,
+  additionalIssues: readonly DocumentSnapshotIntegrityIssue[] = [],
+): Document {
   const issue: DocumentSnapshotIntegrityIssue = "document_relationship_invalid";
   const issues = new Set(document.snapshotIntegrity?.issues ?? []);
   issues.add(issue);
+  additionalIssues.forEach((additionalIssue) => issues.add(additionalIssue));
   return {
     ...document,
     snapshotIntegrity: {
@@ -332,7 +339,11 @@ function duplicateDocumentIds(documents: Document[]): Set<string> {
   );
 }
 
-function verifiedDocumentIdentity(document: Document): string | null {
+function verifiedIdentitySnapshot(document: Document): DocumentSnapshot | null {
+  if (hasAppIssuedRecoveryProtectionClaim(document)) {
+    const evidence = inspectUsableHistoricalDocumentEvidence(document);
+    return evidence.ok ? evidence.snapshot : null;
+  }
   const snapshot = document.documentSnapshot;
   if (
     !snapshot ||
@@ -344,6 +355,12 @@ function verifiedDocumentIdentity(document: Document): string | null {
   ) {
     return null;
   }
+  return snapshot;
+}
+
+function verifiedDocumentIdentity(document: Document): string | null {
+  const snapshot = verifiedIdentitySnapshot(document);
+  if (!snapshot) return null;
   const issuerNif = normalizedIdentityText(snapshot.issuer.nif);
   if (!hasValidIssuerTaxId(snapshot.issuer.nif)) return null;
   const identityType =
@@ -359,17 +376,8 @@ function verifiedDocumentIdentity(document: Document): string | null {
 }
 
 function verifiedDocumentNumberIdentity(document: Document): string | null {
-  const snapshot = document.documentSnapshot;
-  if (
-    !snapshot ||
-    (snapshot.documentType !== "factura" &&
-      snapshot.documentType !== "recibo") ||
-    !inspectDocumentSnapshotsIntegrity(document, {
-      requireDocumentSnapshot: true,
-    }).ok
-  ) {
-    return null;
-  }
+  const snapshot = verifiedIdentitySnapshot(document);
+  if (!snapshot) return null;
   const identityType =
     snapshot.documentKind === "factura_rectificativa"
       ? "factura"
@@ -402,6 +410,29 @@ export function withDocumentRelationshipIntegritySignals(
   const isValidLegacyPair = (left: Document, right: Document) =>
     legacyRelationshipInspection.validDocumentIds.has(left.id) &&
     legacyRelationshipInspection.validDocumentIds.has(right.id);
+  const recoveryInspection =
+    inspectAppIssuedDocumentRecoveryCollection(documents);
+  const invalidRecoveryIds = new Set<string>();
+  for (const documentId of recoveryInspection.claimedDocumentIds) {
+    if (!recoveryInspection.validDocumentIds.has(documentId)) {
+      invalidIds.add(documentId);
+      if (recoveryInspection.issuesByDocumentId.has(documentId)) {
+        invalidRecoveryIds.add(documentId);
+      }
+    }
+  }
+  const isValidRecoveredPair = (left: Document, right: Document) =>
+    [left, right].some((document) => {
+      const attestation = document.appIssuedRecoveryAttestation;
+      return Boolean(
+        attestation?.status === "applied" &&
+        attestation.counterpartDocumentId ===
+          (document.id === left.id ? right.id : left.id) &&
+        recoveryInspection.validDocumentIds.has(document.id),
+      );
+    });
+  const isValidExceptionalPair = (left: Document, right: Document) =>
+    isValidLegacyPair(left, right) || isValidRecoveredPair(left, right);
   const issuedByOriginal = new Map<string, Document[]>();
   const identities = new Map<string, Document[]>();
   const numberIdentities = new Map<string, Document[]>();
@@ -485,7 +516,7 @@ export function withDocumentRelationshipIntegritySignals(
     const rectification = rectifications[0];
     const relation = verifiedRectification(rectification)!;
     if (
-      !isValidLegacyPair(original, rectification) &&
+      !isValidExceptionalPair(original, rectification) &&
       !relationshipMatches(original, rectification, relation)
     ) {
       invalidIds.add(rectification.id);
@@ -512,7 +543,7 @@ export function withDocumentRelationshipIntegritySignals(
       !rectification ||
       invalidIds.has(rectification.id) ||
       !relation ||
-      (!isValidLegacyPair(document, rectification) &&
+      (!isValidExceptionalPair(document, rectification) &&
         !relationshipMatches(document, rectification, relation))
     ) {
       invalidIds.add(document.id);
@@ -541,7 +572,7 @@ export function withDocumentRelationshipIntegritySignals(
     if (
       invalidIds.has(invoice.id) ||
       invalidIds.has(receipt.id) ||
-      (!isValidLegacyPair(invoice, receipt) &&
+      (!isValidExceptionalPair(invoice, receipt) &&
         !receiptRelationshipMatches(invoice, receipt))
     ) {
       invalidIds.add(receipt.id);
@@ -554,7 +585,7 @@ export function withDocumentRelationshipIntegritySignals(
     if (
       !receipt ||
       invalidIds.has(receipt.id) ||
-      (!isValidLegacyPair(invoice, receipt) &&
+      (!isValidExceptionalPair(invoice, receipt) &&
         !receiptRelationshipMatches(invoice, receipt))
     ) {
       if (receipt) invalidIds.add(receipt.id);
@@ -563,6 +594,13 @@ export function withDocumentRelationshipIntegritySignals(
 
   if (invalidIds.size === 0) return documents;
   return documents.map((document) =>
-    invalidIds.has(document.id) ? blockRelationship(document) : document,
+    invalidIds.has(document.id)
+      ? blockRelationship(
+          document,
+          invalidRecoveryIds.has(document.id)
+            ? ["app_issued_recovery_invalid"]
+            : [],
+        )
+      : document,
   );
 }

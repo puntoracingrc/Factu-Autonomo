@@ -96,6 +96,44 @@ function importedHistoricalQuote(): Document {
 }
 
 describe("shareDocumentWithIntegrity", () => {
+  it.each([
+    ["aplicada", { status: "applied", repairId: "repair-1" }],
+    ["malformada", null],
+  ])(
+    "bloquea una recuperación %s antes de emitir, compartir o cambiar estado",
+    async (_label, claim) => {
+      const recovered = {
+        ...draftInvoice(),
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+      let issueCalls = 0;
+      let shareCalls = 0;
+      let markSentCalls = 0;
+
+      expect(canShareDocumentFromList(recovered)).toBe(false);
+      await expect(
+        shareDocumentWithIntegrity({
+          doc: recovered,
+          issueDocument: () => {
+            issueCalls += 1;
+            return recovered;
+          },
+          share: async () => {
+            shareCalls += 1;
+          },
+          markDocumentSent: () => {
+            markSentCalls += 1;
+            return recovered;
+          },
+        }),
+      ).rejects.toMatchObject({ code: "DOCUMENT_LOCKED" });
+
+      expect(issueCalls).toBe(0);
+      expect(shareCalls).toBe(0);
+      expect(markSentCalls).toBe(0);
+    },
+  );
+
   it("comparte un histórico válido sin mutar su estado atestado", async () => {
     const historical = importedHistoricalQuote();
     let issueCalls = 0;
@@ -292,7 +330,9 @@ describe("shareDocumentWithIntegrity", () => {
         return stored;
       },
       share: async (doc) => {
-        order.push(`share:${doc.id}:${doc.documentLifecycle}:${doc.deliveryStatus}`);
+        order.push(
+          `share:${doc.id}:${doc.documentLifecycle}:${doc.deliveryStatus}`,
+        );
         expect(doc.number).toBe("F-2026-0001");
       },
       markDocumentSent: (id) => {
@@ -337,7 +377,9 @@ describe("shareDocumentWithIntegrity", () => {
     expect(stored.integrityLock).toBe("locked");
     expect(stored.deliveryStatus).toBe("not_sent");
     expect(stored.status).toBe("enviado");
-    expect(buildPdfViewModelForDocument(stored, profile).source).toBe("snapshot");
+    expect(buildPdfViewModelForDocument(stored, profile).source).toBe(
+      "snapshot",
+    );
     expect(markSentCalls).toBe(0);
   });
 

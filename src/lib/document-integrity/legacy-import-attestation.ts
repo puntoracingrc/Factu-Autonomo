@@ -24,6 +24,8 @@ import {
   inspectDocumentSnapshotsIntegrity,
   stableStringifySnapshot,
 } from "./snapshots";
+import { inspectAppIssuedDocumentRecovery } from "./app-issued-recovery";
+import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-protection";
 
 const ATTESTATION_KIND = "historical_import_user_accepted" as const;
 const MISSING_ROLLOUT_ISSUES = new Set([
@@ -134,6 +136,7 @@ export type UsableHistoricalDocumentEvidence =
       ok: true;
       kind:
         | "app_issued_sealed"
+        | "app_issued_pdf_recovered"
         | "legacy_import_user_attested"
         | "legacy_backfill_compatible";
       snapshot: DocumentSnapshot;
@@ -727,6 +730,32 @@ export function hasLegacyImportProtectionClaim(document: Document): boolean {
 export function inspectUsableHistoricalDocumentEvidence(
   document: Document,
 ): UsableHistoricalDocumentEvidence {
+  if (hasAppIssuedRecoveryProtectionClaim(document)) {
+    const recovery = inspectAppIssuedDocumentRecovery(document);
+    if (!recovery.ok || !recovery.active) {
+      return { ok: false, issues: ["app_issued_recovery_invalid"] };
+    }
+    const allowedIssues =
+      recovery.kind === "pre_canonical_rectification_v1"
+        ? new Set<DocumentSnapshotIntegrityIssue>([
+            "document_snapshot_missing",
+            "pdf_snapshot_missing",
+            "snapshot_seal_missing",
+          ])
+        : new Set<DocumentSnapshotIntegrityIssue>();
+    const unexpectedIssues = (document.snapshotIntegrity?.issues ?? []).filter(
+      (issue) => !allowedIssues.has(issue),
+    );
+    if (unexpectedIssues.length > 0) {
+      return { ok: false, issues: [...new Set(unexpectedIssues)] };
+    }
+    return {
+      ok: true,
+      kind: "app_issued_pdf_recovered",
+      snapshot: recovery.snapshot,
+    };
+  }
+
   if (document.legacyImportAttestation) {
     const legacy = inspectLegacyImportAttestation(document);
     if (!legacy.ok) {
@@ -750,6 +779,11 @@ export function inspectUsableHistoricalDocumentEvidence(
 
   if (document.documentSnapshot?.source === "legacy_import_attested") {
     return { ok: false, issues: ["legacy_import_attestation_invalid"] };
+  }
+  // A recovery snapshot is valid only inside its versioned attestation. It must
+  // never become a standalone substitute for the canonical sealed bundle.
+  if (document.documentSnapshot?.source === "app_issued_recovery") {
+    return { ok: false, issues: ["app_issued_recovery_invalid"] };
   }
 
   const snapshotSource = document.documentSnapshot?.source;
@@ -793,6 +827,9 @@ export function inspectUsableHistoricalDocumentEvidence(
 export function isDocumentUsableForFinancialCalculations(
   document: Document,
 ): boolean {
+  if (hasAppIssuedRecoveryProtectionClaim(document)) {
+    return inspectUsableHistoricalDocumentEvidence(document).ok;
+  }
   if (
     document.integrityQuarantine ||
     document.snapshotIntegrity?.status === "blocked"

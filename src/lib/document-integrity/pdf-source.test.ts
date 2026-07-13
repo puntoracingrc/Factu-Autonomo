@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument } from "@/lib/document-integrity";
 import {
+  buildCanonicalDocumentForProtectedEffect,
+  buildPdfViewModelFromDocumentSnapshot,
+  buildPdfViewModelFromLiveDocument,
   buildPdfViewModelForDocument,
   documentPdfViewAmounts,
   getDocumentPdfSource,
   isHistoricalPdfRenderRequired,
 } from "@/lib/document-integrity/pdf-source";
-import {
-  DEFAULT_DOCUMENT_TEMPLATE,
-} from "@/lib/document-templates";
+import { DEFAULT_DOCUMENT_TEMPLATE } from "@/lib/document-templates";
 import { buildDocumentPdf } from "@/lib/pdf";
 import type {
   BusinessProfile,
@@ -184,6 +185,37 @@ function mutatedIssuedDocument(issued: Document): Document {
 }
 
 describe("document PDF source", () => {
+  it.each([
+    ["aplicada", { status: "applied", repairId: "repair-1" }],
+    ["malformada", null],
+  ])(
+    "bloquea todas las fronteras de render y efectos para una recuperación %s",
+    (_label, claim) => {
+      const issued = issueDocument(invoice(), profile, NOW);
+      const recovered = {
+        ...issued,
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+      const actions = [
+        () => buildPdfViewModelFromLiveDocument(recovered, profile),
+        () =>
+          buildPdfViewModelFromDocumentSnapshot(
+            recovered,
+            profile,
+            recovered.documentSnapshot,
+          ),
+        () => buildPdfViewModelForDocument(recovered, profile),
+        () => buildCanonicalDocumentForProtectedEffect(recovered, profile),
+      ];
+
+      for (const action of actions) {
+        expect(action).toThrowError(
+          expect.objectContaining({ code: "DOCUMENT_LOCKED" }),
+        );
+      }
+    },
+  );
+
   it("usa documentSnapshot/pdfSnapshot para facturas emitidas aunque cambien datos vivos", () => {
     const issued = issueDocument(invoice(), profile, NOW);
     const mutated = mutatedIssuedDocument(issued);
@@ -222,10 +254,15 @@ describe("document PDF source", () => {
     const snapshotHash = issued.documentSnapshot?.snapshotHash;
     const contentHash = issued.pdfSnapshot?.contentHash;
 
-    const pdf = buildDocumentPdf(mutatedIssuedDocument(issued), changedProfile());
+    const pdf = buildDocumentPdf(
+      mutatedIssuedDocument(issued),
+      changedProfile(),
+    );
 
     expect(pdf.getNumberOfPages()).toBe(1);
-    expect(JSON.stringify(issued.documentSnapshot)).toBe(beforeDocumentSnapshot);
+    expect(JSON.stringify(issued.documentSnapshot)).toBe(
+      beforeDocumentSnapshot,
+    );
     expect(JSON.stringify(issued.pdfSnapshot)).toBe(beforePdfSnapshot);
     expect(issued.documentSnapshot?.snapshotHash).toBe(snapshotHash);
     expect(issued.pdfSnapshot?.contentHash).toBe(contentHash);

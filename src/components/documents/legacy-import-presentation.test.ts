@@ -26,16 +26,16 @@ describe("historical imported document presentation", () => {
     expect(actionsSource).toContain("Histórico importado · aceptado por ti");
   });
 
-  it("muestra en la tarjeta el total que resuelve la policy monetaria central", () => {
-    expect(listSource).toContain("const amounts = documentAmounts(doc, vatExempt)");
+  it("muestra el total central solo si la colección recuperada conserva su integridad", () => {
+    expect(listSource).toContain("const recoveryCollectionValid =");
+    expect(listSource).toContain("? documentAmounts(doc, vatExempt)");
+    expect(listSource).toContain(": { subtotal: 0, iva: 0, total: 0 };");
     expect(listSource).toContain("const total = amounts.total");
     expect(listSource).toContain("{formatMoney(total)}");
   });
 
   it("no ofrece mutaciones fiscales incompatibles con un histórico congelado", () => {
-    expect(listSource).toContain(
-      '!legacyImportAttested && type === "factura"',
-    );
+    expect(listSource).toContain('!legacyImportAttested && type === "factura"');
     expect(actionsSource).toContain(
       '!legacyImportAttested && doc.type === "presupuesto"',
     );

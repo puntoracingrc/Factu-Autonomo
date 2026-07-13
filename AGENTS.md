@@ -30,7 +30,15 @@ La decisión obligatoria y versionada está en
   huérfana, unilateral, duplicada, ambigua o con importes incompatibles sigue
   bloqueada; nunca se completa por número, título o fecha aproximada.
 - `app_issued` mantiene el fail-closed estricto de snapshots, PDF, sello, hash y
-  VeriFactu.
+  VeriFactu. La única excepción de lectura financiera es la recuperación
+  explícita, versionada y reversible descrita en
+  [`docs/architecture/ADR-0002-app-issued-document-recovery.md`](docs/architecture/ADR-0002-app-issued-document-recovery.md): nunca se ejecuta al cargar, nunca
+  reclasifica como legacy y nunca fabrica un sello de emisión.
+- Una recuperación `app_issued` solo puede aceptar contenido visible en un PDF
+  original preservado por el usuario cuando falta por completo el bundle, o el
+  gap de relación de recibos anterior a la congelación de `sourceDocumentId`.
+  Debe conservar snapshots, PDF snapshots, sellos, hashes y VeriFactu existentes
+  byte-semánticamente, exigir preview/confirmación y ser reversible.
 - Si existe evidencia moderna y su hash, snapshot o sello es inválido, el
   documento siempre queda bloqueado: nunca se degrada a legacy.
 - Está prohibido inferir que un documento es legacy solo por su fecha o por la
