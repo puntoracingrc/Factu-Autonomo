@@ -1,4 +1,4 @@
-import { isBillingEnforced } from "@/lib/billing/config";
+import { isBillingEnforcedForEnv } from "@/lib/billing/config";
 
 assertServerOnlyModule();
 
@@ -55,7 +55,7 @@ export function isAiRouteAuthenticationRequired(
   env: AiRouteAuthEnvironment = process.env,
 ): boolean {
   return (
-    isBillingEnforced(env) ||
+    isBillingEnforcedForEnv(env) ||
     !isExplicitLocalDevelopment(env) ||
     !isLocalRequest(request)
   );
