@@ -22,6 +22,9 @@ El código de monetización, sincronización fiscal con Stripe y recibos por ema
   - revisar que `legacy_review_required` no contenga eventos ambiguos antes de
     dar por cerrado el corte; contrastar primero Stripe y el saldo, porque el
     efecto anterior puede haberse aplicado aunque no conste el cierre
+  - reconciliar también cualquier pack v1 creado antes de
+    `2026-07-13T01:35:00Z`; el worker antiguo pudo acreditarlo antes de que el
+    ledger atómico quedara activo y el webhook lo aparca sin sumar de nuevo
 - [ ] **Desplegar en Vercel** con dominio propio.
 - [ ] **Variables de entorno** — ver `docs/DEPLOY.md`.
 - [ ] **Webhook Stripe** → `/api/webhooks/stripe` con eventos:

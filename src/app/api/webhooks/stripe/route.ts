@@ -7,6 +7,7 @@ import {
   sendPaymentReceiptEmail,
 } from "@/lib/billing/payment-receipt-email";
 import {
+  hasAtomicScanPackFulfillmentProvenance,
   SCAN_PACK_FULFILLMENT_CONTRACT,
   SCAN_PACK_SIZE,
 } from "@/lib/billing/scan-packs";
@@ -182,14 +183,17 @@ async function handleCheckoutCompleted(
 
   if (isScanPack) {
     if (
-      session.metadata?.fulfillment_contract !== SCAN_PACK_FULFILLMENT_CONTRACT
+      !hasAtomicScanPackFulfillmentProvenance({
+        fulfillmentContract: session.metadata?.fulfillment_contract,
+        checkoutCreatedAt: session.created,
+      })
     ) {
       throw new LegacyCheckoutUnresolvedError("legacy_checkout_unresolved");
     }
     if (
       session.mode !== "payment" ||
       !session.id ||
-      session.metadata.scan_credits !== String(SCAN_PACK_SIZE)
+      session.metadata?.scan_credits !== String(SCAN_PACK_SIZE)
     ) {
       throw new InvalidCheckoutStateError("pack_checkout_invalid");
     }

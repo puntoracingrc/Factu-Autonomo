@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const root = path.resolve(new URL("../../", import.meta.url).pathname);
 const prefix = `phase1_${randomUUID().replace(/-/g, "_")}`;
+const stripeAtomicLedgerCutoverUnix = 1_783_906_500;
 const monthKey = "2099-01";
 const password = `Phase1-${randomUUID()}!`;
 
@@ -1006,7 +1007,7 @@ async function testStripe(admin, userA) {
     customer: null,
     amount_total: 199,
     currency: "eur",
-    created: Math.floor(Date.now() / 1000),
+    created: stripeAtomicLedgerCutoverUnix,
   });
   const unpaidPack = {
     id: `${prefix}_evt_pack_unpaid`,
@@ -1150,6 +1151,50 @@ async function testStripe(admin, userA) {
     .single());
   expect(routeCredits.scan_credits === 10, "legacy pack changed scan credits");
   expect(routeCredits.ai_credit_units === 100, "legacy pack changed AI units");
+
+  const cutoverPack = {
+    id: `${prefix}_evt_pack_pre_atomic_cutover`,
+    type: "checkout.session.async_payment_succeeded",
+    data: {
+      object: {
+        ...checkoutObject("paid"),
+        id: `cs_test_${prefix}_pre_atomic_cutover`,
+        created: stripeAtomicLedgerCutoverUnix - 1,
+      },
+    },
+  };
+  const cutoverResponse = await postStripe(cutoverPack);
+  expect(
+    cutoverResponse.ok,
+    `pre-cutover pack was not parked: ${cutoverResponse.status}`,
+  );
+  const cutoverBody = await cutoverResponse.json();
+  expect(
+    cutoverBody.manualReview === true,
+    "pre-cutover pack did not report manual review",
+  );
+  const { data: cutoverRow } = await admin
+    .from("stripe_events")
+    .select("status,error_message,legacy_review_required,effect_key")
+    .eq("stripe_event_id", cutoverPack.id)
+    .single();
+  expect(
+    cutoverRow.status === "failed" &&
+      cutoverRow.error_message === "legacy_checkout_unresolved" &&
+      cutoverRow.legacy_review_required === true &&
+      cutoverRow.effect_key === null,
+    "pre-cutover pack was not durably parked without an effect",
+  );
+  ({ data: routeCredits } = await admin
+    .from("user_subscriptions")
+    .select("scan_credits,ai_credit_units")
+    .eq("user_id", userA.id)
+    .single());
+  expect(routeCredits.scan_credits === 10, "pre-cutover pack changed credits");
+  expect(
+    routeCredits.ai_credit_units === 100,
+    "pre-cutover pack changed AI units",
+  );
 }
 
 async function main() {
