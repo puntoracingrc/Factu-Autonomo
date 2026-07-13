@@ -95,16 +95,23 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(resolveFiscalNotificationFamilyCoverageV1(1)).toBeNull();
   });
 
-  it("keeps the Consultor manual aligned with the ephemeral amount reader", () => {
+  it("keeps the Consultor manual aligned with every ephemeral printed field", () => {
     const manual = readFileSync(
       new URL("../../manual/sections/consultor-fiscal.ts", import.meta.url),
       "utf8",
     );
     expect(manual).toContain(
-      "puede mostrar durante la revisión importes impresos detectados",
+      "puede mostrar durante la revisión importes, categorías de referencias con su valor oculto y fechas",
     );
-    expect(manual).toContain("esos importes no se guardan");
+    expect(manual).toContain("todo ello es efímero y no se guarda");
+    expect(manual).toContain(
+      "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
+    );
+    expect(manual).toContain(
+      "**Vto.** se mantiene como referencia opaca, nunca como fecha o cuota",
+    );
     expect(manual).not.toContain("El analizador no extrae ni guarda importes");
+    expect(manual).not.toContain("Todavía no extrae fechas");
   });
 
   it("contains no runtime network, AI, persistence, clocks or materialization", () => {
