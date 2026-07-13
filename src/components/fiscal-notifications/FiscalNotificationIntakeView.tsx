@@ -760,6 +760,10 @@ function ReviewHistory({ state }: { state: ReviewHistoryState }) {
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Solo existe en este navegador y está separado por cuenta.
           </p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+            Para volver a ver importes, referencias o fechas impresas,
+            selecciona otra vez el PDF original: esos datos no se conservan.
+          </p>
         </div>
         <span className="text-xs font-semibold text-slate-500">
           {reviews.length} {reviews.length === 1 ? "ficha" : "fichas"}
@@ -790,7 +794,7 @@ function ReviewHistoryItem({
     ? review.result.candidates
         .map((candidate) => FAMILY_LABELS[candidate.familyId])
         .join(" · ")
-    : "Sin familia reconocida";
+    : REASON_COPY[review.result.reason].detail;
   return (
     <li className="rounded-xl border border-slate-200 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -933,8 +937,8 @@ function ReviewResult({
           </div>
         ) : (
           <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-            No hay una familia confirmable. El documento queda como información
-            pendiente y no se crea ninguna entidad.
+            No hay una familia confirmable para esta revisión. No se crea
+            ninguna entidad ni se toma ninguna acción automática.
           </div>
         )}
 

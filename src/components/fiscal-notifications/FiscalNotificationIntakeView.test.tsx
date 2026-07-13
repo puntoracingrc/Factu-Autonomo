@@ -337,6 +337,22 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).toContain("key={review.reviewId}");
     expect(componentSource).not.toMatch(/\breview\.ownerScope\b/);
+    expect(componentSource).toContain(
+      ": REASON_COPY[review.result.reason].detail",
+    );
+    expect(componentSource).not.toContain("Sin familia reconocida");
+    expect(compact(componentSource)).toContain(
+      "Para volver a ver importes, referencias o fechas impresas, selecciona otra vez el PDF original: esos datos no se conservan.",
+    );
+  });
+
+  it("mantiene neutral el mensaje live cuando no hay candidatos", () => {
+    expect(compact(componentSource)).toContain(
+      "No hay una familia confirmable para esta revisión. No se crea ninguna entidad ni se toma ninguna acción automática.",
+    );
+    expect(compact(componentSource)).not.toContain(
+      "El documento queda como información pendiente y no se crea ninguna entidad.",
+    );
   });
 
   it("prohíbe red, API y acceso directo a persistencia fuera del adaptador", () => {
