@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/billing/config";
-import { SCAN_PACK_SIZE } from "@/lib/billing/scan-packs";
+import {
+  SCAN_PACK_FULFILLMENT_CONTRACT,
+  SCAN_PACK_SIZE,
+} from "@/lib/billing/scan-packs";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { isProPlan, type PlanId } from "@/lib/billing/plans";
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       checkout_type: "scan_pack",
       scan_credits: String(SCAN_PACK_SIZE),
+      fulfillment_contract: SCAN_PACK_FULFILLMENT_CONTRACT,
     },
     tax_id_collection: { enabled: true },
     billing_address_collection: "required",
