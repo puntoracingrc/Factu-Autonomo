@@ -137,6 +137,90 @@ describe("AeatPublicIcalendarProvider", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("inspecciona el feed completo sin confundir un rango vacío con una avería", async () => {
+    const fetchImpl = vi.fn(async () =>
+      calendarResponse(
+        feed({
+          uid: "historical-health-event@example.invalid",
+          start: "20240115",
+          end: "20240116",
+        }),
+      ),
+    );
+    const provider = new AeatPublicIcalendarProvider({
+      fetchImpl,
+      now: () => new Date("2026-07-13T08:00:00.000Z"),
+    });
+
+    const visible = await provider.listEvents(RANGE, ["iva"]);
+    const [inspection] = await provider.inspectSources(["iva"]);
+
+    expect(visible.events).toHaveLength(0);
+    expect(inspection).toEqual({
+      category: "iva",
+      ok: true,
+      fetchedAt: "2026-07-13T08:00:00.000Z",
+      eventCount: 1,
+      upcomingEventCount: 0,
+      truncated: false,
+      earliestEventDate: "2024-01-15",
+      latestEventDate: "2024-01-15",
+      latestSourceUpdatedAt: "2026-07-12T08:00:00.000Z",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("devuelve un diagnóstico por fuente aunque una de las cinco falle", async () => {
+    const fetchImpl = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      if (String(input) === getAeatCalendarSource("sociedades").icalUrl) {
+        return new Response("unavailable", { status: 503 });
+      }
+      return calendarResponse();
+    });
+    const provider = new AeatPublicIcalendarProvider({
+      fetchImpl,
+      maxAttempts: 1,
+    });
+
+    const inspections = await provider.inspectSources([
+      "renta",
+      "renta_sociedades",
+      "sociedades",
+      "iva",
+      "declaraciones_informativas",
+    ]);
+
+    expect(inspections).toHaveLength(5);
+    expect(
+      inspections.find((item) => item.category === "sociedades"),
+    ).toEqual({
+      category: "sociedades",
+      ok: false,
+      code: "SOURCE_UNAVAILABLE",
+      status: 503,
+      attempts: 1,
+      retryable: true,
+    });
+    expect(inspections.filter((item) => item.ok)).toHaveLength(4);
+  });
+
+  it("conserva como señal explícita un feed iCalendar válido pero vacío", async () => {
+    const provider = new AeatPublicIcalendarProvider({
+      fetchImpl: vi.fn(async () =>
+        calendarResponse("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR"),
+      ),
+    });
+
+    await expect(provider.inspectSources(["renta"])).resolves.toEqual([
+      expect.objectContaining({
+        category: "renta",
+        ok: true,
+        eventCount: 0,
+        upcomingEventCount: 0,
+      }),
+    ]);
+  });
+
   it("reproduce el contrato de 25 eventos y cinco filtros del rango oficial", async () => {
     const datesByCategory = {
       renta: ["20261105"],

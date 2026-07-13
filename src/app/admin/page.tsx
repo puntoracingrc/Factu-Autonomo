@@ -25,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHealthPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -43,6 +44,7 @@ import type {
   AdminHealthSnapshot,
 } from "@/lib/admin/health";
 import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
+import type { FiscalCalendarAdminHealth } from "@/lib/fiscal-calendar/admin-health";
 import {
   type AdminRestoreDataSummary,
   type AdminRestoreDiffSummary,
@@ -150,6 +152,11 @@ interface AdminHealthResponse {
   error?: string;
   message?: string;
   monitoringAvailable?: boolean;
+}
+
+interface AdminFiscalCalendarHealthResponse {
+  health?: FiscalCalendarAdminHealth | null;
+  error?: string;
 }
 
 interface AdminVercelUsageResource {
@@ -309,12 +316,41 @@ function highestAdminLevel(levels: AdminHealthLevel[]): AdminHealthLevel {
 
 function buildAdminSectionSignals(input: {
   health: AdminHealthSnapshot | null;
+  calendarHealth: FiscalCalendarAdminHealth | null;
+  calendarHealthProbeFailed?: boolean;
   operations: AdminOperationsStatus | null;
   vercel: AdminVercelUsageSnapshot | null;
   errors: AdminErrorRow[];
 }): AdminSectionSignals {
   const signals: AdminSectionSignals = {};
-  const { health, operations, vercel, errors } = input;
+  const {
+    health,
+    calendarHealth,
+    calendarHealthProbeFailed,
+    operations,
+    vercel,
+    errors,
+  } = input;
+
+  if (
+    calendarHealthProbeFailed ||
+    (calendarHealth !== null && calendarHealth.level !== "ok")
+  ) {
+    signals.sistema = {
+      level: calendarHealthProbeFailed
+        ? "action"
+        : (calendarHealth?.level ?? "action"),
+      id: calendarHealthProbeFailed
+        ? "fiscal-calendar-probe-failed"
+        : calendarHealth?.feeds
+            .filter((feed) => feed.level !== "ok")
+            .map(
+              (feed) =>
+                `${feed.category}:${feed.level}:${feed.code}:${feed.eventCount ?? "unknown"}:${feed.upcomingEventCount ?? "unknown"}`,
+            )
+            .join("|") || "fiscal-calendar-unavailable",
+    };
+  }
 
   if (health) {
     const securityLevel = highestAdminLevel([
@@ -524,6 +560,17 @@ async function readAdminJsonResponse<T>(response: Response): Promise<T> {
     return (await response.json()) as T;
   } catch {
     return {} as T;
+  }
+}
+
+async function fetchAdminResponse(
+  input: string,
+  init: RequestInit,
+): Promise<Response | null> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return null;
   }
 }
 
@@ -3029,12 +3076,17 @@ function OperationsPanel({
 }) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
+  const [calendarHealth, setCalendarHealth] =
+    useState<FiscalCalendarAdminHealth | null>(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
   const [operations, setOperations] = useState<AdminOperationsStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [healthNotice, setHealthNotice] = useState<string | null>(null);
+  const [calendarHealthNotice, setCalendarHealthNotice] = useState<
+    string | null
+  >(null);
   const [vercelNotice, setVercelNotice] = useState<string | null>(null);
   const [operationsNotice, setOperationsNotice] = useState<string | null>(null);
 
@@ -3043,6 +3095,7 @@ function OperationsPanel({
     setError(null);
     setNotice(null);
     setHealthNotice(null);
+    setCalendarHealthNotice(null);
     setVercelNotice(null);
     setOperationsNotice(null);
     const token = await getAccessToken();
@@ -3053,28 +3106,75 @@ function OperationsPanel({
     }
 
     const headers = { Authorization: `Bearer ${token}` };
-    const [errorsResponse, healthResponse, vercelResponse, operationsResponse] =
-      await Promise.all([
-        fetch("/api/admin/errors?limit=80", { headers }),
-        fetch("/api/admin/health", { headers }),
-        fetch("/api/admin/vercel-usage", { headers }),
-        fetch("/api/admin/operations-status", { headers }),
-      ]);
+    const [
+      errorsResponse,
+      healthResponse,
+      vercelResponse,
+      operationsResponse,
+      calendarHealthResponse,
+    ] = await Promise.all([
+      fetchAdminResponse("/api/admin/errors?limit=80", { headers }),
+      fetchAdminResponse("/api/admin/health", { headers }),
+      fetchAdminResponse("/api/admin/vercel-usage", { headers }),
+      fetchAdminResponse("/api/admin/operations-status", { headers }),
+      fetchAdminResponse("/api/admin/fiscal-calendar-health", { headers }),
+    ]);
 
-    const errorsBody = (await errorsResponse.json()) as AdminErrorsResponse;
-    if (!errorsResponse.ok) {
-      setError(errorsBody.error ?? "No se pudieron cargar errores.");
+    const calendarHealthBody = calendarHealthResponse
+      ? await readAdminJsonResponse<AdminFiscalCalendarHealthResponse>(
+          calendarHealthResponse,
+        )
+      : {};
+    let nextCalendarHealth: FiscalCalendarAdminHealth | null = null;
+    const calendarHealthProbeFailed = !calendarHealthResponse?.ok;
+    if (calendarHealthProbeFailed) {
+      setCalendarHealth(null);
+      setCalendarHealthNotice(
+        calendarHealthBody.error ??
+          "No se pudo comprobar el calendario fiscal de la AEAT.",
+      );
+    } else {
+      nextCalendarHealth = calendarHealthBody.health ?? null;
+      setCalendarHealth(nextCalendarHealth);
+      setCalendarHealthNotice(
+        nextCalendarHealth
+          ? null
+          : "La comprobación no devolvió un diagnóstico utilizable.",
+      );
+    }
+
+    const errorsBody = errorsResponse
+      ? await readAdminJsonResponse<AdminErrorsResponse>(errorsResponse)
+      : {};
+    if (!errorsResponse?.ok) {
+      setError(
+        errorsBody.error ??
+          "No se pudieron cargar todos los datos de administración.",
+      );
+      onSignalsLoaded?.(
+        buildAdminSectionSignals({
+          health: null,
+          calendarHealth: nextCalendarHealth,
+          calendarHealthProbeFailed:
+            calendarHealthProbeFailed || !nextCalendarHealth,
+          operations: null,
+          vercel: null,
+          errors: [],
+        }),
+      );
       setLoading(false);
       return;
     }
 
-    const healthBody = (await healthResponse.json()) as AdminHealthResponse;
+    const healthBody = healthResponse
+      ? await readAdminJsonResponse<AdminHealthResponse>(healthResponse)
+      : {};
     const nextErrors = errorsBody.errors ?? [];
     setErrors(nextErrors);
     setNotice(
       errorsBody.monitoringAvailable === false ? errorsBody.message ?? null : null,
     );
-    if (!healthResponse.ok) {
+    if (!healthResponse?.ok) {
       setHealth(null);
       setHealthNotice(healthBody.error ?? "No se pudo cargar salud del sistema.");
     } else {
@@ -3085,11 +3185,11 @@ function OperationsPanel({
       );
     }
 
-    const vercelBody = await readAdminJsonResponse<AdminVercelUsageResponse>(
-      vercelResponse,
-    );
+    const vercelBody = vercelResponse
+      ? await readAdminJsonResponse<AdminVercelUsageResponse>(vercelResponse)
+      : {};
     let nextVercel: AdminVercelUsageSnapshot | null = null;
-    if (!vercelResponse.ok) {
+    if (!vercelResponse?.ok) {
       setVercel(null);
       setVercelNotice(vercelBody.error ?? "No se pudo cargar Vercel.");
     } else {
@@ -3102,12 +3202,13 @@ function OperationsPanel({
       );
     }
 
-    const operationsBody =
-      await readAdminJsonResponse<AdminOperationsStatusResponse>(
-        operationsResponse,
-      );
+    const operationsBody = operationsResponse
+      ? await readAdminJsonResponse<AdminOperationsStatusResponse>(
+          operationsResponse,
+        )
+      : {};
     let nextOperations: AdminOperationsStatus | null = null;
-    if (!operationsResponse.ok) {
+    if (!operationsResponse?.ok) {
       setOperations(null);
       setOperationsNotice(
         operationsBody.error ?? "No se pudo comprobar GitHub, dominio y Firewall.",
@@ -3120,7 +3221,10 @@ function OperationsPanel({
 
     onSignalsLoaded?.(
       buildAdminSectionSignals({
-        health: healthResponse.ok ? healthBody.health ?? null : null,
+        health: healthResponse?.ok ? healthBody.health ?? null : null,
+        calendarHealth: nextCalendarHealth,
+        calendarHealthProbeFailed:
+          calendarHealthProbeFailed || !nextCalendarHealth,
         operations: nextOperations,
         vercel: nextVercel,
         errors: nextErrors,
@@ -3197,18 +3301,26 @@ function OperationsPanel({
           {error}
         </Card>
       )}
-      {!loading && !error && section === "sistema" && health && (
+      {!loading && section === "sistema" && (
         <>
-          <OperationsStatusDashboard
-            operations={operations}
-            notice={operationsNotice}
+          <FiscalCalendarHealthPanel
+            health={calendarHealth}
+            notice={calendarHealthNotice}
           />
-          <HealthDashboard health={health} />
-          <VercelUsageDashboard
-            vercel={vercel}
-            notice={vercelNotice}
-            operations={operations}
-          />
+          {!error && health && (
+            <>
+              <OperationsStatusDashboard
+                operations={operations}
+                notice={operationsNotice}
+              />
+              <HealthDashboard health={health} />
+              <VercelUsageDashboard
+                vercel={vercel}
+                notice={vercelNotice}
+                operations={operations}
+              />
+            </>
+          )}
         </>
       )}
       {!loading && !error && section === "supabase" && health && (
@@ -3843,13 +3955,15 @@ export default function AdminPage() {
   const loadSecurityAlert = useCallback(async () => {
     const token = await getAccessToken();
     if (!token) return;
-    const response = await fetch("/api/admin/health", {
+    const response = await fetchAdminResponse("/api/admin/health", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) return;
+    if (!response?.ok) return;
     const body = (await response.json().catch(() => ({}))) as AdminHealthResponse;
     const signals = buildAdminSectionSignals({
       health: body.health ?? null,
+      calendarHealth: null,
+      calendarHealthProbeFailed: false,
       operations: null,
       vercel: null,
       errors: [],
