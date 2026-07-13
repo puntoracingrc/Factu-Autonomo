@@ -1059,6 +1059,12 @@ describe("MVP usability polish", () => {
     expect(documentListSource).toContain("Mostrando");
     expect(documentListSource).toContain("TimelineMonthDivider");
     expect(documentListSource).toContain("formatTimelineMonthLabel");
+    expect(documentListSource.replace(/\s+/g, " ")).toContain(
+      'type === "factura" ? sortDocumentsByNewest(statusDocuments) : sortDocumentsByNumberDesc(statusDocuments)',
+    );
+    expect(documentListSource).toContain(
+      "Ordenadas por fecha del documento, más recientes primero",
+    );
   });
 
   it("carga gastos por bloques y muestra separadores por mes", () => {

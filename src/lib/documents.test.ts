@@ -447,6 +447,64 @@ describe("buscador de documentos", () => {
     ]);
     expect(compareDocumentsByNewest(dated[0], dated[1])).toBeGreaterThan(0);
   });
+
+  it("mantiene los meses contiguos al mezclar series históricas, nuevas y rectificativas", () => {
+    const mixedSeries: Document[] = [
+      {
+        ...doc("legacy-june", "factura", "Factura/2949/", "Histórica junio"),
+        date: "2026-06-27",
+        createdAt: "2026-06-27T10:00:00.000Z",
+      },
+      {
+        ...doc("app-july", "factura", "F-2026-2955", "Nueva julio"),
+        date: "2026-07-11",
+        createdAt: "2026-07-11T10:00:00.000Z",
+      },
+      {
+        ...doc("app-june-1", "factura", "F-2026-0001", "Nueva junio 1"),
+        date: "2026-06-10",
+        createdAt: "2026-06-10T09:00:00.000Z",
+      },
+      {
+        ...doc("rect-july", "factura", "FR-2026-0001", "Rectificativa julio"),
+        date: "2026-07-06",
+        createdAt: "2026-07-06T10:00:00.000Z",
+      },
+      {
+        ...doc("app-june-2", "factura", "F-2026-0002", "Nueva junio 2"),
+        date: "2026-06-10",
+        createdAt: "2026-06-10T08:00:00.000Z",
+      },
+      {
+        ...doc("legacy-january", "factura", "Factura/6401/", "Histórica enero"),
+        date: "2026-01-15",
+        createdAt: "2026-01-15T10:00:00.000Z",
+      },
+      {
+        ...doc("legacy-december", "factura", "Factura/6399/", "Histórica diciembre"),
+        date: "2025-12-31",
+        createdAt: "2025-12-31T10:00:00.000Z",
+      },
+    ];
+    const originalDocuments = structuredClone(mixedSeries);
+    const sorted = sortDocumentsByNewest(mixedSeries);
+
+    expect(sorted.map((item) => item.id)).toEqual([
+      "app-july",
+      "rect-july",
+      "legacy-june",
+      "app-june-2",
+      "app-june-1",
+      "legacy-january",
+      "legacy-december",
+    ]);
+    const months = sorted.map((item) => item.date.slice(0, 7));
+    const monthTransitions = months.filter(
+      (month, index) => index === 0 || month !== months[index - 1],
+    );
+    expect(monthTransitions).toEqual([...new Set(months)]);
+    expect(mixedSeries).toEqual(originalDocuments);
+  });
 });
 
 describe("flujo factura, presupuesto y recibo con clientes", () => {
