@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import {
   readFiscalNotificationPdfTextLayer,
   type FiscalNotificationPdfWorkerLike,
@@ -20,6 +23,7 @@ interface FakeWorkerOptions {
     | unknown
     | typeof NO_RESPONSE
     | ((postedMessage: unknown) => unknown);
+  readonly responseSequence?: readonly unknown[];
   readonly postThrows?: boolean;
   readonly terminateThrows?: boolean;
   readonly removeThrows?: boolean;
@@ -65,12 +69,20 @@ function workerDocument(
 }
 
 function resultMessage(documentInput: unknown = workerDocument()) {
+  const pages = (documentInput as { pages?: unknown }).pages;
   return {
     type: "RESULT",
     requestId: "parse",
-    documentInput,
+    pages,
   };
 }
+
+const PDFJS_READY_MESSAGE = Object.freeze({
+  sourceName: "worker",
+  targetName: "main",
+  action: "ready",
+  data: null,
+});
 
 function createFakeWorker(options: FakeWorkerOptions = {}) {
   const messageListeners = new Set<(event: MessageEvent<unknown>) => void>();
@@ -87,10 +99,15 @@ function createFakeWorker(options: FakeWorkerOptions = {}) {
   const postMessage = vi.fn((message: unknown, transfer: Transferable[]) => {
     void transfer;
     if (options.postThrows) throw new Error("PRIVATE_POST_SENTINEL");
-    const response = options.response ?? resultMessage();
-    if (response === NO_RESPONSE) return;
-    const resolved = typeof response === "function" ? response(message) : response;
-    queueMicrotask(() => emitMessage(resolved));
+    const responses = options.responseSequence ?? [
+      options.response ?? resultMessage(),
+    ];
+    for (const response of responses) {
+      if (response === NO_RESPONSE) continue;
+      const resolved =
+        typeof response === "function" ? response(message) : response;
+      queueMicrotask(() => emitMessage(resolved));
+    }
   });
   const addEventListener = vi.fn(
     (type: "message" | "error", listener: (event: never) => void) => {
@@ -186,7 +203,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
     expect(output).toMatchObject({
       schemaVersion: 1,
-      adapterVersion: "1.0.0",
+      adapterVersion: "1.0.1",
       status,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: {
@@ -215,7 +232,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.activeErrorListeners()).toBe(0);
   });
 
-  it("sends only bounded identifiers and transferable bytes to the worker", async () => {
+  it("sends only protocol metadata and transferable bytes to the worker", async () => {
     const worker = createFakeWorker();
     const deps = dependencies(worker);
     const file = pdfFile(pdfBytes("\nPRIVATE_FILE_CONTENT_SENTINEL"));
@@ -227,13 +244,13 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(message).toMatchObject({
       type: "PARSE",
       requestId: "parse",
-      ownerScope: "user:synthetic",
-      documentId: "document:synthetic-pdf",
       bytes: expect.any(ArrayBuffer),
     });
     expect(Reflect.ownKeys(message as object).sort()).toEqual(
-      ["bytes", "documentId", "ownerScope", "requestId", "type"].sort(),
+      ["bytes", "requestId", "type"].sort(),
     );
+    expect(message).not.toHaveProperty("ownerScope");
+    expect(message).not.toHaveProperty("documentId");
     expect(JSON.stringify({ ...(message as object), bytes: undefined })).not.toContain(
       PRIVATE_FILENAME,
     );
@@ -365,10 +382,14 @@ describe("fiscal notification PDF text-layer adapter", () => {
       ...resultMessage(),
       privateTaxId: "PRIVATE_MESSAGE_SENTINEL",
     },
-    resultMessage({
-      ...workerDocument(),
-      privateCsv: "PRIVATE_DOCUMENT_SENTINEL",
-    }),
+    {
+      type: "RESULT",
+      requestId: "parse",
+      pages: Object.assign(
+        [{ pageNumber: 1, text: "safe", isBlank: false }],
+        { privateCsv: "PRIVATE_PAGES_SENTINEL" },
+      ),
+    },
     resultMessage({
       ...workerDocument(),
       pages: [
@@ -417,12 +438,60 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.postMessage).not.toHaveBeenCalled();
   });
 
+  it("reattaches owner identifiers only in main and keeps signal non-enumerable", async () => {
+    const controller = new AbortController();
+    const worker = createFakeWorker();
+    const output = await readFiscalNotificationPdfTextLayer(
+      request({
+        ownerScope: "user:tenant-b",
+        documentId: "document:tenant-b",
+        signal: controller.signal,
+      }),
+      dependencies(worker),
+    );
+
+    expect(output.documentInput).toMatchObject({
+      ownerScope: "user:tenant-b",
+      documentId: "document:tenant-b",
+    });
+    expect(Object.getOwnPropertyDescriptor(output.documentInput, "signal")).toMatchObject({
+      value: controller.signal,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+    expect(JSON.stringify(output.documentInput)).not.toContain("signal");
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts the single exact PDF.js ready envelope before the result", async () => {
+    const worker = createFakeWorker({
+      responseSequence: [PDFJS_READY_MESSAGE, resultMessage()],
+    });
+
+    await expect(
+      readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
+    ).resolves.toMatchObject({ status: "TEXT_LAYER_AVAILABLE" });
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
-    ["ownerScope", "user:cross-tenant"],
-    ["documentId", "document:cross-owner"],
-  ] as const)("rejects crossed worker %s", async (key, value) => {
-    const crossed = { ...workerDocument(), [key]: value };
-    const worker = createFakeWorker({ response: resultMessage(crossed) });
+    { ...PDFJS_READY_MESSAGE, data: undefined },
+    { ...PDFJS_READY_MESSAGE, privateValue: "PRIVATE_READY_SENTINEL" },
+    { ...PDFJS_READY_MESSAGE, action: "Ready" },
+  ])("rejects any variant of the PDF.js ready envelope", async (response) => {
+    const worker = createFakeWorker({ response });
+
+    await expect(
+      readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
+    ).rejects.toMatchObject({ code: "INVALID_WORKER_RESPONSE" });
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a duplicate PDF.js ready envelope", async () => {
+    const worker = createFakeWorker({
+      responseSequence: [PDFJS_READY_MESSAGE, PDFJS_READY_MESSAGE],
+    });
 
     await expect(
       readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
@@ -556,6 +625,49 @@ describe("fiscal notification PDF text-layer adapter", () => {
       readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
     ).resolves.toMatchObject({ status: "TEXT_LAYER_AVAILABLE" });
     expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("locks the pinned PDF.js worker initialization envelope", () => {
+    const workerModuleUrl = pathToFileURL(
+      createRequire(import.meta.url).resolve(
+        "pdfjs-dist/legacy/build/pdf.worker.mjs",
+      ),
+    ).href;
+    const script = `
+      const messages = [];
+      const listeners = [];
+      globalThis.onmessage = null;
+      globalThis.postMessage = message => messages.push(message);
+      globalThis.addEventListener = (type, listener) => {
+        if (type === "message") listeners.push(listener);
+      };
+      globalThis.removeEventListener = () => {};
+      globalThis.self = globalThis;
+      globalThis.process = undefined;
+      const moduleUrl = ${JSON.stringify(workerModuleUrl)};
+      await import(moduleUrl);
+      await import(moduleUrl);
+      const expected = [{
+        sourceName: "worker",
+        targetName: "main",
+        action: "ready",
+        data: null,
+      }];
+      if (JSON.stringify(messages) !== JSON.stringify(expected)) {
+        throw new Error("Unexpected PDF.js initialization envelope");
+      }
+      if (listeners.length !== 1) {
+        throw new Error("Unexpected PDF.js message listener count");
+      }
+    `;
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        ["--input-type=module", "--eval", script],
+        { stdio: "pipe", timeout: 10_000 },
+      ),
+    ).not.toThrow();
   });
 
   it("keeps the intake browser-only and free of network, AI and persistence calls", () => {
