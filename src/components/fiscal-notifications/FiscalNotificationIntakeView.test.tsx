@@ -22,10 +22,17 @@ const workerSource = readSource(
 const workerContractSource = readSource(
   "../../lib/fiscal-notifications/pdf-worker-analysis-contract.ts",
 );
+const guidanceSource = readSource(
+  "../../lib/fiscal-notifications/review-guidance.v1.ts",
+);
+const reviewStepsSource = readSource("./FiscalNotificationReviewSteps.tsx");
+const manualSource = readSource(
+  "../../lib/manual/sections/consultor-fiscal.ts",
+);
 const browserRepositorySource = readSource(
   "../../lib/fiscal-notifications/browser-local-review-repository.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}`;
+const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -222,6 +229,51 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(appendPayload).not.toMatch(
       /\b(?:ownerScope|file|filename|documentId|text|bytes|raw|nif|csv|amount|deadline)\b/i,
     );
+    expect(appendPayload).not.toMatch(/guidance|reviewSteps|officialProcedure/i);
+  });
+
+  it("muestra una guía efímera antes del guardado sin registrar su progreso", () => {
+    expect(componentSource).toContain(
+      'import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps"',
+    );
+    expect(componentSource).toContain(
+      'import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1"',
+    );
+    expect(componentSource).toContain(
+      "projectFiscalNotificationReviewGuidanceV1({",
+    );
+    expect(componentSource).toContain("technicalReview: result");
+    expect(componentSource).toContain(
+      "ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts",
+    );
+    expect(componentSource).toContain(
+      "<FiscalNotificationReviewSteps guidance={reviewGuidance} />",
+    );
+
+    const resultIndex = componentSource.indexOf("<ReviewResult");
+    const stepsIndex = componentSource.indexOf(
+      "<FiscalNotificationReviewSteps guidance={reviewGuidance} />",
+    );
+    const persistenceIndex = componentSource.indexOf(
+      "<ReviewPersistencePanel",
+    );
+    expect(resultIndex).toBeGreaterThan(-1);
+    expect(stepsIndex).toBeGreaterThan(resultIndex);
+    expect(persistenceIndex).toBeGreaterThan(stepsIndex);
+
+    expect(guidanceSource).toContain('completionTracking: "DISABLED"');
+    expect(guidanceSource).toContain('userInputPolicy: "NONE"');
+    expect(guidanceSource).toContain('persistencePolicy: "DO_NOT_PERSIST"');
+    expect(reviewStepsSource).toContain("Antes de actuar");
+    expect(reviewStepsSource).not.toMatch(
+      /<(?:form|input|button|progress|select|textarea)\b/,
+    );
+    expect(compact(manualSource)).toContain(
+      "El panel **Antes de actuar** enumera comprobaciones manuales y no guarda su progreso.",
+    );
+    expect(compact(manualSource)).toContain(
+      "abrirlo es una decisión del usuario, no valida el PDF ni calcula plazos.",
+    );
   });
 
   it("solo presenta applied o existing como guardado y separa blocked de indeterminate", () => {
@@ -328,7 +380,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Reconoce únicamente indicios de providencia de apremio y concesión de aplazamiento o fraccionamiento de la AEAT.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
       "Los importes impresos se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
-      "No consulta sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
+      "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
       expect(copy).toContain(expected);
