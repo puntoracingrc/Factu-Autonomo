@@ -15,7 +15,7 @@ function officialContent(code: string) {
 }
 
 describe("FiscalModelOfficialVisual", () => {
-  it.each(["037", "145", "200", "206"])(
+  it.each(["037", "145", "200", "206", "220"])(
     "keeps the official PDF preview when Model %s has a verified thumbnail",
     (code) => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
@@ -51,6 +51,25 @@ describe("FiscalModelOfficialVisual", () => {
   );
 
   it.each([
+    ["217", "AEAT_BROWSER_FORM"],
+    ["221", "AEAT_BROWSER_FORM"],
+    ["222", "AEAT_FORM_AND_FILE"],
+    ["226", "AEAT_FORM_AND_FILE"],
+    ["228", "AEAT_FORM_AND_FILE"],
+    ["230", "AEAT_BROWSER_FORM"],
+    ["231", "AEAT_FORM_AND_WEB_SERVICE"],
+    ["232", "AEAT_FORM_AND_FILE"],
+    ["233", "AEAT_FORM_AND_FILE"],
+  ] as const)(
+    "uses the source-backed Batch 8 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     ["198", "AEAT_FORM_AND_FILE"],
     ["199", "AEAT_FILE_UPLOAD"],
     ["202", "AEAT_FORM_AND_FILE"],
@@ -77,6 +96,11 @@ describe("FiscalModelOfficialVisual", () => {
       "AEAT_ADMINISTRATIVE_TRANSFER",
     ],
     [["BROWSER_FORM", "FILE_UPLOAD"], "SOURCE_DESCRIBED", "AEAT_FORM_AND_FILE"],
+    [
+      ["BROWSER_FORM", "WEB_SERVICE"],
+      "SOURCE_DESCRIBED",
+      "AEAT_FORM_AND_WEB_SERVICE",
+    ],
     [["WEB_SERVICE"], "SOURCE_DESCRIBED_FUTURE", "AEAT_FUTURE_CHANNEL"],
     [
       ["ADMINISTRATIVE_TRANSFER"],
@@ -112,7 +136,7 @@ describe("FiscalModelOfficialVisual", () => {
       resolveFiscalModelOfficialVisualMode({
         ...content,
         accessMethods: {
-          methods: ["BROWSER_FORM", "WEB_SERVICE"],
+          methods: ["BROWSER_FORM", "ADMINISTRATIVE_TRANSFER"],
           status: "SOURCE_DESCRIBED",
           sourceIds: [content.sources[0].id],
           semantics: "OFFICIAL_INFORMATION_ONLY",

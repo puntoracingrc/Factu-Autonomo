@@ -70,6 +70,12 @@ export function FiscalModelOfficialVisual({
             "Formulario web y carga de fichero descritos por la AEAT",
           label: "Web y fichero",
         };
+      case "AEAT_FORM_AND_WEB_SERVICE":
+        return {
+          accessibleLabel:
+            "Formulario web y servicio web descritos por la AEAT",
+          label: "Web y servicio",
+        };
       case "AEAT_FUTURE_CHANNEL":
         return {
           accessibleLabel: "Canal futuro descrito por la AEAT",
@@ -139,6 +145,11 @@ export function FiscalModelOfficialVisual({
               <>
                 <Monitor className={iconClassName} />
                 <FileUp className={accentIconClassName} />
+              </>
+            ) : mode === "AEAT_FORM_AND_WEB_SERVICE" ? (
+              <>
+                <Monitor className={iconClassName} />
+                <Code2 className={accentIconClassName} />
               </>
             ) : mode === "AEAT_FUTURE_CHANNEL" ? (
               <CalendarClock className={iconClassName} />
