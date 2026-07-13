@@ -17,10 +17,16 @@ El código de monetización, sincronización fiscal con Stripe y recibos por ema
   - `supabase/billing-scan-credits.sql`
   - `supabase/billing-ai-units.sql`
   - `supabase/billing-profile.sql`
+  - `supabase db push` con todas las migraciones, incluida
+    `20260713001000_stripe_webhook_idempotency.sql`
+  - revisar que `legacy_review_required` no contenga eventos ambiguos antes de
+    dar por cerrado el corte; contrastar primero Stripe y el saldo, porque el
+    efecto anterior puede haberse aplicado aunque no conste el cierre
 - [ ] **Desplegar en Vercel** con dominio propio.
 - [ ] **Variables de entorno** — ver `docs/DEPLOY.md`.
 - [ ] **Webhook Stripe** → `/api/webhooks/stripe` con eventos:
   - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
   - `invoice.paid`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`

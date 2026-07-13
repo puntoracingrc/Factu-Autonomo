@@ -10,6 +10,12 @@
    - `supabase/billing-scan-credits.sql`
    - `supabase/billing-ai-units.sql`
    - `supabase/billing-profile.sql`
+   - las migraciones versionadas de `supabase/migrations/` mediante
+     `supabase db push`; no despliegues el webhook sin
+     `20260713001000_stripe_webhook_idempotency.sql`, que añade leases y la
+     concesión atómica de packs.
+   - La migración debe entrar **antes** que el código. Durante ese corte el
+     webhook anterior falla cerrado y Stripe reintenta; no inviertas el orden.
 3. Copia URL, anon key y **service role key** (solo servidor).
 
 ## 2. Stripe
@@ -22,8 +28,16 @@
 4. Copia los `price_...` IDs (mensual, anual y pack).
 5. Developers → Webhooks → endpoint:
    - URL: `https://TU-DOMINIO/api/webhooks/stripe`
-   - Eventos: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.updated`
+   - Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.updated`
 5. Copia el **webhook signing secret**.
+
+Las sesiones nuevas de packs llevan el contrato persistente
+`scan_pack_atomic_v1`. Una sesión anterior sin esa marca o un evento que ya
+estaba `processing/failed` al migrar queda en `legacy_review_required`. El
+contrato nuevo no añade créditos, pero el efecto del worker anterior es
+desconocido: debe reconciliarse con Stripe y el saldo antes de actuar. No
+reviertas la migración después de recibir tráfico; conserva el ledger y usa una
+corrección hacia delante.
 
 ## 3. Vercel
 

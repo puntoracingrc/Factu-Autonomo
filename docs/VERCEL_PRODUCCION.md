@@ -182,7 +182,27 @@ Endpoint:
 https://facturacion-autonomos.app/api/webhooks/stripe
 ```
 
-Eventos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`invoice.paid`, `customer.subscription.updated`,
+`customer.subscription.deleted` y `customer.updated`.
+
+Antes de publicar el código del webhook debe estar aplicada la migración
+`20260713001000_stripe_webhook_idempotency.sql`. Un evento ya procesado devuelve
+200; un lease todavía activo devuelve 503 para que Stripe reintente. Los packs
+solo se conceden con `payment_status=paid` y una única vez por Checkout Session.
+Cada Checkout nuevo de pack declara `scan_pack_atomic_v1`; los eventos
+anteriores o ambiguos quedan aparcados con `legacy_review_required`. El contrato
+nuevo no modifica el saldo, pero el posible efecto anterior es desconocido y se
+reconcilia antes de cualquier concesión manual. La migración se aplica antes que
+el despliegue web y, una vez exista tráfico nuevo, solo admite correcciones
+hacia delante para no perder el ledger de idempotencia.
+
+El recibo del pack se espera antes de responder 200. Ante un fallo reintentable,
+el webhook devuelve 503 y el siguiente intento reconcilia solo el email, sin
+volver a conceder créditos. Un rechazo permanente queda durablemente pendiente
+y se devuelve como `receiptManualReview`, sin bucle. Resend recibe una clave
+idempotente estable por Checkout Session y `payment_receipts` conserva el estado
+pendiente/enviado. La misma regla cubre los recibos de renovación `invoice.paid`.
 
 El `whsec_` del webhook local **no sirve** para Vercel: usa el secret del endpoint creado para esta URL.
 
