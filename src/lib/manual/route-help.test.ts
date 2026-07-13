@@ -57,4 +57,13 @@ describe("manual route help", () => {
       "/ayuda?from=%2Fconsultor-fiscal%2Fcalendario",
     );
   });
+
+  it("mantiene Notificaciones dentro de la ayuda protegida del Consultor", () => {
+    expect(resolveManualSlug("/consultor-fiscal/notificaciones")).toBe(
+      "consultor-fiscal",
+    );
+    expect(manualHelpHref("/consultor-fiscal/notificaciones")).toBe(
+      "/ayuda/consultor-fiscal?from=%2Fconsultor-fiscal%2Fnotificaciones",
+    );
+  });
 });
