@@ -109,7 +109,38 @@ const EXPECTED_CODES = [
   "291",
   "294",
   "295",
+  "296",
+  "303",
+  "308",
+  "309",
+  "318",
+  "319",
+  "322",
+  "341",
+  "345",
+  "346",
 ];
+
+const EXPECTED_BATCH_11_NAMES = {
+  "296":
+    "Declaración informativa. Retenciones e ingresos a cuenta del Impuesto sobre la Renta de no Residentes (sin establecimiento permanente). Resumen anual.",
+  "303": "IVA. Autoliquidación.",
+  "308":
+    "IVA. Régimen Especial del Recargo Equivalencia, artículo 30 bis del Reglamento del IVA y sujetos pasivos ocasionales. Solicitud de devolución.",
+  "309": "IVA. Declaración - Liquidación no periódica.",
+  "318":
+    "IVA. Regularización de las proporciones de tributación de los períodos de liquidación anteriores al inicio de la realización habitual de entregas de bienes o prestaciones de servicios.",
+  "319":
+    "Pago a cuenta del IVA correspondiente a las entregas de gasolinas, gasóleos y biocarburantes posteriores a la ultimación del régimen de depósito distinto del aduanero",
+  "322":
+    "IVA. Grupos de entidades. Modelo individual. Autoliquidación mensual.",
+  "341":
+    "Solicitud de reintegro compensaciones en el Régimen especial de agricultura, ganadería y pesca.",
+  "345":
+    "Declaración Informativa. Planes, fondos de pensiones y sistemas alternativos. Mutualidades de Previsión Social, Planes de Previsión Asegurados, Planes individuales de Ahorro Sistemático, Planes de Previsión Social Empresarial y Seguros de Dependencia. Declaración anual partícipes y aportaciones.",
+  "346":
+    "IRPF. Declaración Informativa de Subvenciones e indemnizaciones satisfechas por Entidades Públicas/privadas a agricultores o ganaderos.",
+} as const;
 
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
@@ -117,7 +148,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(101);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(111);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -161,7 +192,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "296" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "347" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -215,6 +246,21 @@ describe("public AEAT official model content v1", () => {
       const result = resolvePublicAeatOfficialModelContentV1({ code });
       expect(result.status, code).toBe("OFFICIAL_INFORMATION");
       if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+    }
+  });
+
+  it("keeps every Batch 11 page useful and source-backed without evaluating applicability", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_11_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
       expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
       expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
       expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
@@ -447,6 +493,31 @@ describe("public AEAT official model content v1", () => {
       "291": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
       "294": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
       "295": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "296": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "303": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "308": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "309": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "318": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "319": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "322": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "341": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "345": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "346": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -800,6 +871,86 @@ describe("public AEAT official model content v1", () => {
       kind: "AEAT_PERSONAL_AREA",
       policy: "EXTERNAL_INFORMATIONAL_NAVIGATION_ONLY",
     });
+  });
+
+  it("keeps Batch 11 informational, non-operational and tied to static official sources", () => {
+    const codes = [
+      "296",
+      "303",
+      "308",
+      "309",
+      "318",
+      "319",
+      "322",
+      "341",
+      "345",
+      "346",
+    ] as const;
+
+    for (const code of codes) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+
+      expect(result.data.thumbnail, code).toBeNull();
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(
+        result.data.links.some((link) =>
+          /firmar|pagar|enviar|presentar declaraci[oó]n|iniciar tr[aá]mite/i.test(
+            link.label,
+          ),
+        ),
+        code,
+      ).toBe(false);
+
+      for (const source of result.data.sources) {
+        const url = new URL(source.canonicalUrl);
+        expect(
+          ["sede.agenciatributaria.gob.es", "www.boe.es"],
+          `${code}:${source.id}`,
+        ).toContain(url.hostname);
+        expect(
+          [
+            "www1.agenciatributaria.gob.es",
+            "www2.agenciatributaria.gob.es",
+            "www12.agenciatributaria.gob.es",
+          ],
+          `${code}:${source.id}`,
+        ).not.toContain(url.hostname);
+        if (source.authority === "BOE") {
+          expect(url.pathname, `${code}:${source.id}`).toBe(
+            "/diario_boe/txt.php",
+          );
+          expect(url.searchParams.get("id"), `${code}:${source.id}`).toMatch(
+            /^BOE-A-\d{4}-\d+$/,
+          );
+        }
+      }
+    }
+
+    for (const code of ["296", "308", "345", "346"] as const) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.documents.length, code).toBeGreaterThan(0);
+      expect(
+        result.data.documents.every(
+          (document) => document.previewSuitability === "NONE",
+        ),
+        code,
+      ).toBe(true);
+    }
+
+    const model308 = resolvePublicAeatOfficialModelContentV1({ code: "308" });
+    expect(model308.status).toBe("OFFICIAL_INFORMATION");
+    if (model308.status === "OFFICIAL_INFORMATION") {
+      expect(
+        model308.data.documents.every(
+          (document) =>
+            document.freshnessStatus === "LEGACY_REFERENCES_DETECTED",
+        ),
+      ).toBe(true);
+    }
   });
 
   it("keeps the Model 180 certificate with active content external-only", () => {

@@ -184,8 +184,8 @@ export function FiscalModelCatalogBrowser({
             className="text-sm font-semibold text-red-700 dark:text-red-300"
             role="alert"
           >
-            Escribe hasta 80 caracteres y evita saltos de línea o espacios al
-            principio y al final.
+            Escribe hasta 80 caracteres, usa un solo código de modelo y evita
+            saltos de línea o espacios al principio y al final.
           </p>
         ) : (
           <p

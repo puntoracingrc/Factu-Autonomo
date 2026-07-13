@@ -5,6 +5,7 @@ import {
 } from "./public-review-catalog.v1";
 import {
   createPublicAeatModelSearchEntryV2,
+  createPublicAeatModelSearchEntryWithTermsV2,
   filterPublicAeatModelSearchEntriesV2,
   filterPublicAeatModelSearchEntriesInteractiveV2,
   normalizePublicAeatModelSearchTextV2,
@@ -189,6 +190,22 @@ describe("public AEAT model review search v2", () => {
       resultCodes("clientes perceptores beneficios distribuidos"),
     ).toContain("294");
     expect(resultCodes("posicion inversora 31 diciembre")).toContain("295");
+    expect(resultCodes("IRNR resumen anual")).toContain("296");
+    expect(resultCodes("IVA autoliquidacion")).toContain("303");
+    expect(resultCodes("recargo equivalencia solicitud devolucion")).toContain(
+      "308",
+    );
+    expect(resultCodes("liquidacion no periodica")).toContain("309");
+    expect(resultCodes("regularizacion proporciones")).toContain("318");
+    expect(resultCodes("gasolinas gasoleos biocarburantes")).toContain("319");
+    expect(resultCodes("grupos entidades individual")).toContain("322");
+    expect(resultCodes("reintegro compensaciones agricultura")).toContain(
+      "341",
+    );
+    expect(resultCodes("planes fondos pensiones")).toContain("345");
+    expect(
+      resultCodes("subvenciones indemnizaciones agricultores ganaderos"),
+    ).toContain("346");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
@@ -208,8 +225,10 @@ describe("public AEAT model review search v2", () => {
       ["349", "349"],
       ["036", "036"],
       ["303", "303"],
+      ["modelo 303", "303"],
       ["A22", "A22"],
       ["a22", "A22"],
+      ["Modelo A22", "A22"],
       ["01C", "01C"],
       ["01c", "01C"],
     ] as const) {
@@ -229,8 +248,18 @@ describe("public AEAT model review search v2", () => {
   it("combines code and title terms with AND semantics", () => {
     expect(resultCodes("modelo 303")).toEqual(["303"]);
     expect(resultCodes("303 IVA")).toEqual(["303"]);
+    expect(resultCodes("IVA 303")).toEqual(["303"]);
     expect(resultCodes("modelo A22 plastico")).toEqual(["A22"]);
     expect(resultCodes("303 intracomunitarias")).toEqual([]);
+  });
+
+  it("blocks ambiguous queries containing more than one exact model code", () => {
+    for (const query of ["303 308", "IVA 303 308", "modelo 303 308"]) {
+      expect(search(query), query).toEqual({
+        status: "BLOCKED",
+        reason: "INVALID_INPUT",
+      });
+    }
   });
 
   it("returns an explicit no-match result for unknown codes and concepts", () => {
@@ -380,5 +409,122 @@ describe("public AEAT model review search v2", () => {
     if (filtered.status === "REVIEW_ONLY") {
       expect(Object.isFrozen(filtered.data)).toBe(true);
     }
+  });
+
+  it("rejects malformed or duplicate consumer entries and copies valid entries defensively", () => {
+    const original = createPublicAeatModelSearchEntryV2(getPages()[0]!);
+    const mutable = {
+      code: original.code,
+      catalogCardId: original.catalogCardId,
+      normalizedText: original.normalizedText,
+      words: [...original.words],
+    };
+    const result = filterPublicAeatModelSearchEntriesV2([mutable], null);
+    expect(result.status).toBe("REVIEW_ONLY");
+    if (result.status === "REVIEW_ONLY") {
+      expect(result.data[0]).not.toBe(mutable);
+      expect(result.data[0]?.words).not.toBe(mutable.words);
+      expect(Object.isFrozen(result.data[0])).toBe(true);
+      expect(Object.isFrozen(result.data[0]?.words)).toBe(true);
+      const expectedCode = result.data[0]?.code;
+      const expectedWord = result.data[0]?.words[0];
+      mutable.code = "999";
+      mutable.words[0] = "corrupto";
+      expect(result.data[0]?.code).toBe(expectedCode);
+      expect(result.data[0]?.words[0]).toBe(expectedWord);
+    }
+
+    let getterCalls = 0;
+    const accessorEntry = {
+      catalogCardId: original.catalogCardId,
+      normalizedText: original.normalizedText,
+      words: [...original.words],
+    };
+    Object.defineProperty(accessorEntry, "code", {
+      enumerable: true,
+      get: () => {
+        getterCalls += 1;
+        return original.code;
+      },
+    });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+
+    for (const entries of [
+      [original, { ...original }],
+      [
+        { ...original, catalogCardId: "duplicada" },
+        { ...original, catalogCardId: "duplicada" },
+      ],
+      [{ ...original, code: null }],
+      [{ ...original, catalogCardId: "modelo-999" }],
+      [{ ...original, words: null }],
+      [{ ...original, words: [...original.words, "extra"] }],
+      [accessorEntry],
+      [revoked.proxy],
+    ]) {
+      expect(
+        filterPublicAeatModelSearchEntriesV2(
+          entries as unknown as readonly ReturnType<
+            typeof createPublicAeatModelSearchEntryV2
+          >[],
+          "IVA",
+        ),
+      ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
+    }
+    expect(
+      filterPublicAeatModelSearchEntriesV2(
+        null as unknown as readonly ReturnType<
+          typeof createPublicAeatModelSearchEntryV2
+        >[],
+        "IVA",
+      ),
+    ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
+    expect(getterCalls).toBe(0);
+  });
+
+  it("validates factory inputs before marking their entries as trusted", () => {
+    const page = getPages()[0]!;
+    const invalidPages = [
+      { ...page, code: null },
+      { ...page, code: "9999", catalogCardId: "modelo-9999" },
+      { ...page, catalogCardId: "modelo-999" },
+      { ...page, canonicalName: "x".repeat(20_001) },
+    ];
+
+    for (const invalidPage of invalidPages) {
+      expect(() =>
+        createPublicAeatModelSearchEntryV2(
+          invalidPage as unknown as Parameters<
+            typeof createPublicAeatModelSearchEntryV2
+          >[0],
+        ),
+      ).toThrow(TypeError);
+      expect(() =>
+        createPublicAeatModelSearchEntryWithTermsV2(
+          invalidPage as unknown as Parameters<
+            typeof createPublicAeatModelSearchEntryWithTermsV2
+          >[0],
+          [],
+        ),
+      ).toThrow(TypeError);
+    }
+
+    let getterCalls = 0;
+    const accessorPage = { ...page };
+    Object.defineProperty(accessorPage, "code", {
+      enumerable: true,
+      get: () => {
+        getterCalls += 1;
+        return page.code;
+      },
+    });
+    expect(() => createPublicAeatModelSearchEntryV2(accessorPage)).toThrow(
+      TypeError,
+    );
+    expect(getterCalls).toBe(0);
+    expect(() =>
+      createPublicAeatModelSearchEntryWithTermsV2(page, ["x".repeat(20_001)]),
+    ).toThrow(TypeError);
   });
 });
