@@ -47,6 +47,7 @@ import {
   isDocumentEditable,
   isDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
+  sortDocumentsByNewest,
 } from "@/lib/documents";
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
@@ -93,7 +94,7 @@ const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
 };
 
 const SEARCH_HINTS: Record<DocumentType, string> = {
-  factura: "Ordenadas por número, más recientes primero",
+  factura: "Ordenadas por fecha del documento, más recientes primero",
   presupuesto: "Ordenados por número, más recientes primero",
   recibo: "Ordenados por número, más recientes primero",
 };
@@ -190,9 +191,20 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     const statusDocuments = periodDocuments.filter((document) =>
       matchesDocumentStatusFilter(document, statusFilter, data.documents),
     );
-    const sorted = sortDocumentsByNumberDesc(statusDocuments);
+    const sorted =
+      type === "factura"
+        ? sortDocumentsByNewest(statusDocuments)
+        : sortDocumentsByNumberDesc(statusDocuments);
     return filterDocumentsByQuery(sorted, search, { vatExempt });
-  }, [allDocuments, data.documents, period, search, statusFilter, vatExempt]);
+  }, [
+    allDocuments,
+    data.documents,
+    period,
+    search,
+    statusFilter,
+    type,
+    vatExempt,
+  ]);
 
   const workExpenseSummaries = useMemo(() => {
     return summarizeWorkDocumentExpensesById(data.expenses);
