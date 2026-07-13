@@ -171,6 +171,24 @@ describe("public AEAT model review search v2", () => {
     expect(
       resultCodes("desplazamiento extranjero trabajadores cuenta ajena"),
     ).toContain("247");
+    expect(resultCodes("retenciones premios loterias apuestas")).toContain(
+      "270",
+    );
+    expect(resultCodes("planes ahorro largo plazo")).toContain("280");
+    expect(
+      resultCodes("comercio bienes corporales zona especial canaria"),
+    ).toContain("281");
+    expect(resultCodes("ayudas REF Canarias estado")).toContain("282");
+    expect(resultCodes("ayudas regimen fiscal Illes Balears")).toContain("283");
+    expect(resultCodes("cuentas financieras asistencia mutua")).toContain(
+      "289",
+    );
+    expect(resultCodes("FATCA cuentas financieras")).toContain("290");
+    expect(resultCodes("IRNR cuentas no residentes")).toContain("291");
+    expect(
+      resultCodes("clientes perceptores beneficios distribuidos"),
+    ).toContain("294");
+    expect(resultCodes("posicion inversora 31 diciembre")).toContain("295");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
