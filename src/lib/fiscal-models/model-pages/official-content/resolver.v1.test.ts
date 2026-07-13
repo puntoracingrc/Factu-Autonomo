@@ -139,6 +139,16 @@ const EXPECTED_CODES = [
   "490",
   "504",
   "505",
+  "506",
+  "507",
+  "508",
+  "510",
+  "512",
+  "515",
+  "517",
+  "518",
+  "519",
+  "520",
 ];
 
 const EXPECTED_BATCH_11_NAMES = {
@@ -198,13 +208,32 @@ const EXPECTED_BATCH_13_NAMES = {
     "Autorización de expedición o recepción de productos objeto de los impuestos especiales de fabricación con destino a o procedentes del resto de la Unión Europea",
 } as const;
 
+const EXPECTED_BATCH_14_NAMES = {
+  "506": "II. EE. Solicitud de devolución por introducción en depósito fiscal.",
+  "507":
+    "II. EE. Solicitud de devolución en el sistema de envíos garantizados.",
+  "508":
+    "II. EE. Solicitud de devolución por el sistema de ventas a distancia.",
+  "510": "II. EE. Declaración de operaciones de recepción del resto de la UE.",
+  "512": "II. EE. Destinatarios de productos de tarifa segunda.",
+  "515": "Solicitud de entrega de marcas fiscales para las labores del tabaco.",
+  "517":
+    "Solicitud de marcas fiscales del Impuesto sobre el Alcohol y Bebidas Derivadas.",
+  "518":
+    "Impuesto sobre el Alcohol y Bebidas Derivadas. Declaración de Trabajo.",
+  "519":
+    "Impuesto sobre el Alcohol y Bebidas Derivadas. Parte de incidencias en operaciones de trabajo.",
+  "520":
+    "Impuesto sobre el Alcohol y Bebidas Derivadas. Parte de resultado en operaciones de trabajo.",
+} as const;
+
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(131);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(141);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -248,7 +277,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "506" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "521" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -355,6 +384,22 @@ describe("public AEAT official model content v1", () => {
     }
   });
 
+  it("keeps every Batch 14 page useful and source-backed without evaluating applicability", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_14_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.externalNavigation, code).toBeNull();
+    }
+  });
+
   it("keeps source provenance complete and internally referenced", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     if (result.status !== "OFFICIAL_INFORMATION") throw new Error("blocked");
@@ -373,13 +418,34 @@ describe("public AEAT official model content v1", () => {
       for (const section of entry.sections) {
         for (const item of section.items) {
           expect(item.sourceIds.length).toBeGreaterThan(0);
+          expect(new Set(item.sourceIds).size).toBe(item.sourceIds.length);
           expect(item.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
         }
       }
       for (const item of entry.faq) {
         expect(item.question.length).toBeGreaterThan(0);
         expect(item.answer.length).toBeGreaterThan(0);
+        expect(new Set(item.sourceIds).size).toBe(item.sourceIds.length);
         expect(item.sourceIds.every((id) => sourceIds.has(id))).toBe(true);
+      }
+      for (const document of entry.documents) {
+        expect(sourceIds.has(document.sourceId), document.id).toBe(true);
+        if (document.landingPageSourceId !== null) {
+          expect(sourceIds.has(document.landingPageSourceId), document.id).toBe(
+            true,
+          );
+        }
+        expect(
+          entry.sources.find((source) => source.id === document.sourceId)
+            ?.sourceSha256,
+          document.id,
+        ).toBe(document.sha256);
+      }
+      for (const link of entry.links) {
+        expect(sourceIds.has(link.sourceId), link.id).toBe(true);
+      }
+      if (entry.thumbnail) {
+        expect(sourceIds.has(entry.thumbnail.sourceId), entry.code).toBe(true);
       }
       if (entry.accessMethods) {
         expect(entry.accessMethods.methods.length).toBeGreaterThan(0);
@@ -387,6 +453,9 @@ describe("public AEAT official model content v1", () => {
           entry.accessMethods.methods.length,
         );
         expect(entry.accessMethods.sourceIds.length).toBeGreaterThan(0);
+        expect(new Set(entry.accessMethods.sourceIds).size).toBe(
+          entry.accessMethods.sourceIds.length,
+        );
         expect(
           entry.accessMethods.sourceIds.every((id) => sourceIds.has(id)),
         ).toBe(true);
@@ -650,6 +719,22 @@ describe("public AEAT official model content v1", () => {
         status: "SOURCE_DESCRIBED",
       },
       "504": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "506": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "507": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "508": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "510": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "512": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "515": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "517": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "518": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "519": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "520": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -1279,6 +1364,212 @@ describe("public AEAT official model content v1", () => {
     expect(model505.data.accessMethods).toBeUndefined();
   });
 
+  it("keeps Batch 14 informational and separates current sources from legacy forms", () => {
+    const codes = [
+      "506",
+      "507",
+      "508",
+      "510",
+      "512",
+      "515",
+      "517",
+      "518",
+      "519",
+      "520",
+    ] as const;
+
+    const models = new Map<
+      (typeof codes)[number],
+      PublicAeatOfficialModelContentV1
+    >();
+    for (const code of codes) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      models.set(code, result.data);
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(
+        result.data.links.some((link) =>
+          /firmar|pagar|enviar|presentar declaraci[oó]n|iniciar tr[aá]mite/i.test(
+            link.label,
+          ),
+        ),
+        code,
+      ).toBe(false);
+      expect(
+        result.data.sources.every((source) =>
+          ["sede.agenciatributaria.gob.es", "www.boe.es"].includes(
+            new URL(source.canonicalUrl).hostname,
+          ),
+        ),
+        code,
+      ).toBe(true);
+      expect(
+        result.data.documents.every(
+          (document) =>
+            document.activeContentStatus === "NO_JAVASCRIPT_DETECTED" &&
+            document.usePolicy === "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+        ),
+        code,
+      ).toBe(true);
+    }
+
+    for (const code of ["506", "508", "512", "518"] as const) {
+      expect(models.get(code)?.documents.length, code).toBeGreaterThanOrEqual(
+        2,
+      );
+      expect(
+        models
+          .get(code)
+          ?.documents.some((document) => document.kind === "INSTRUCTIONS"),
+        code,
+      ).toBe(true);
+      expect(models.get(code)?.thumbnail, code).toMatchObject({
+        pageNumber: 1,
+        width: 640,
+        height: 640,
+        provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
+      });
+    }
+    for (const code of ["507", "510", "515", "517", "519", "520"] as const) {
+      expect(models.get(code)?.thumbnail, code).toBeNull();
+    }
+
+    for (const code of ["506", "508", "512", "518"] as const) {
+      const model = models.get(code);
+      const landingIds = new Set(
+        model?.sources
+          .filter((source) => source.kind === "DOWNLOAD_PAGE")
+          .map((source) => source.id),
+      );
+      expect(landingIds.size, code).toBe(1);
+      expect(
+        model?.documents.every(
+          (document) =>
+            document.landingPageSourceId !== null &&
+            landingIds.has(document.landingPageSourceId),
+        ),
+        code,
+      ).toBe(true);
+      if (code !== "518") {
+        expect(
+          model?.documents.find((document) => document.kind === "FORM")
+            ?.formStatus,
+          code,
+        ).toBe("ACROFORM_METADATA_ONLY");
+      }
+    }
+
+    expect(models.get("506")?.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "aeat.model-506.download.2026-06-09",
+          officialUpdatedOn: "2026-06-09",
+        }),
+      ]),
+    );
+    expect(models.get("508")?.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "aeat.model-508.download.2026-06-09",
+          officialUpdatedOn: "2026-06-09",
+        }),
+      ]),
+    );
+    expect(models.get("512")?.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "aeat.model-512.download.2026-03-10",
+          officialUpdatedOn: "2026-03-10",
+        }),
+      ]),
+    );
+
+    for (const code of ["507", "510"] as const) {
+      const legacyDocuments = models
+        .get(code)
+        ?.documents.filter(
+          (document) =>
+            document.freshnessStatus === "LEGACY_REFERENCES_DETECTED",
+        );
+      expect(legacyDocuments?.length, code).toBe(2);
+      expect(
+        legacyDocuments?.every(
+          (document) => document.previewSuitability === "NONE",
+        ),
+        code,
+      ).toBe(true);
+    }
+
+    const model510 = models.get("510");
+    expect(model510?.documents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "model-510-recipient-warning",
+          kind: "GUIDE",
+          freshnessStatus: "CURRENTNESS_UNDETERMINED",
+          landingPageSourceId: "aeat.model-510.procedure-home.2026-06-09",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(model510)).toMatch(
+      /desde febrero de 2023[\s\S]*destinatarios certificados[\s\S]*destinatarios registrados[\s\S]*representantes fiscales/i,
+    );
+
+    expect(models.get("515")?.documents).toEqual([
+      expect.objectContaining({
+        kind: "GUIDE",
+        pageCount: 4,
+        landingPageSourceId: "aeat.model-515.marks-information.2024-04-11",
+      }),
+    ]);
+    expect(models.get("517")?.documents).toEqual([
+      expect.objectContaining({
+        kind: "GUIDE",
+        pageCount: 2,
+        landingPageSourceId: "aeat.model-517.marks-information.2025-11-05",
+      }),
+      expect.objectContaining({
+        kind: "GUIDE",
+        pageCount: 2,
+        landingPageSourceId: "aeat.model-517.marks-information.2025-11-05",
+      }),
+    ]);
+
+    expect(JSON.stringify(models.get("507"))).not.toMatch(
+      /receptores autorizados/i,
+    );
+    expect(JSON.stringify(models.get("510"))).not.toMatch(
+      /operador registrado|operador no registrado|receptor autorizado/i,
+    );
+    expect(models.get("515")?.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalUrl:
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-1990",
+        }),
+      ]),
+    );
+    expect(models.get("517")?.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalUrl:
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2019-18747",
+        }),
+        expect.objectContaining({
+          canonicalUrl:
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2020-7507",
+        }),
+        expect.objectContaining({
+          canonicalUrl:
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-1990",
+        }),
+      ]),
+    );
+    expect(models.get("520")?.canonicalName).toContain("Parte de resultado");
+    expect(models.get("520")?.canonicalName).not.toContain("resultados");
+  });
+
   it("keeps the Model 180 certificate with active content external-only", () => {
     const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
     expect(result.status).toBe("OFFICIAL_INFORMATION");
@@ -1325,6 +1616,10 @@ describe("public AEAT official model content v1", () => {
       "390",
       "411",
       "490",
+      "506",
+      "508",
+      "512",
+      "518",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import { resolvePublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages";
 import {
@@ -30,6 +32,66 @@ describe("FiscalModelOfficialVisual", () => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
         "OFFICIAL_DOCUMENT_PREVIEW",
       );
+    },
+  );
+
+  it.each(["506", "508", "512", "518"])(
+    "keeps the official document preview when Batch 14 Model %s has a verified thumbnail",
+    (code) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        "OFFICIAL_DOCUMENT_PREVIEW",
+      );
+    },
+  );
+
+  it.each(["506", "508", "512", "518"])(
+    "keeps the Batch 14 Model %s preview readable without black padding",
+    (code) => {
+      const content = officialContent(code);
+      if (!content.thumbnail) throw new Error(`Missing thumbnail for ${code}`);
+      const png = PNG.sync.read(
+        readFileSync(
+          new URL(
+            `../../../public/${content.thumbnail.publicHref.slice(1)}`,
+            import.meta.url,
+          ),
+        ),
+      );
+      expect([png.width, png.height]).toEqual([640, 640]);
+
+      const pixelRatio = (
+        startY: number,
+        endY: number,
+        predicate: (red: number, green: number, blue: number) => boolean,
+      ) => {
+        let matches = 0;
+        let total = 0;
+        for (let y = startY; y < endY; y += 1) {
+          for (let x = 0; x < png.width; x += 1) {
+            const offset = (y * png.width + x) * 4;
+            total += 1;
+            if (
+              predicate(
+                png.data[offset],
+                png.data[offset + 1],
+                png.data[offset + 2],
+              )
+            ) {
+              matches += 1;
+            }
+          }
+        }
+        return matches / total;
+      };
+      const nearBlack = (red: number, green: number, blue: number) =>
+        red < 24 && green < 24 && blue < 24;
+      const visibleInk = (red: number, green: number, blue: number) =>
+        red < 245 || green < 245 || blue < 245;
+
+      expect(pixelRatio(0, 64, nearBlack), code).toBeLessThan(0.05);
+      expect(pixelRatio(576, 640, nearBlack), code).toBeLessThan(0.05);
+      expect(pixelRatio(0, 200, visibleInk), code).toBeGreaterThan(0.1);
+      expect(pixelRatio(0, 640, visibleInk), code).toBeGreaterThan(0.1);
     },
   );
 
@@ -89,6 +151,22 @@ describe("FiscalModelOfficialVisual", () => {
     ["505", "AEAT_ELECTRONIC_OFFICE"],
   ] as const)(
     "uses the source-backed Batch 13 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
+    ["507", "AEAT_BROWSER_FORM"],
+    ["510", "AEAT_FORM_AND_FILE"],
+    ["515", "AEAT_BROWSER_FORM"],
+    ["517", "AEAT_BROWSER_FORM"],
+    ["519", "AEAT_BROWSER_FORM"],
+    ["520", "AEAT_BROWSER_FORM"],
+  ] as const)(
+    "uses the source-backed Batch 14 visual for Model %s",
     (code, mode) => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
         mode,

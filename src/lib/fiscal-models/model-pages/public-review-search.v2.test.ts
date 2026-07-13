@@ -245,6 +245,22 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("autorizacion CARE productos union europea")).toContain(
       "505",
     );
+    expect(resultCodes("devolución introducción depósito fiscal")).toContain(
+      "506",
+    );
+    expect(resultCodes("devolución envíos garantizados")).toContain("507");
+    expect(resultCodes("devolución ventas distancia")).toContain("508");
+    expect(resultCodes("operaciones recepción resto UE")).toContain("510");
+    expect(resultCodes("destinatarios productos tarifa segunda")).toContain(
+      "512",
+    );
+    expect(resultCodes("marcas fiscales labores tabaco")).toContain("515");
+    expect(resultCodes("marcas fiscales alcohol bebidas derivadas")).toContain(
+      "517",
+    );
+    expect(resultCodes("declaración trabajo alcohol")).toContain("518");
+    expect(resultCodes("incidencias operaciones trabajo")).toContain("519");
+    expect(resultCodes("resultado operaciones trabajo")).toContain("520");
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
