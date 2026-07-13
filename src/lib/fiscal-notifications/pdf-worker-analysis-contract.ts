@@ -26,7 +26,7 @@ export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_VERSION =
   "2.0.0" as const;
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
-  maxCandidates: 2,
+  maxCandidates: 5,
   maxAnchorsPerCandidate: 15,
   maxFacts: 4,
   maxEvidencePerFact: 1,
@@ -47,6 +47,7 @@ export interface FiscalNotificationPdfWorkerAnchor {
 
 export interface FiscalNotificationPdfWorkerCandidate {
   readonly familyId: FiscalNotificationFamilyCandidate["familyId"];
+  readonly segmentationVersion?: "1.0.0" | "1.1.0";
   readonly documentType: FiscalNotificationFamilyCandidate["documentType"];
   readonly authoritySignal: "AEAT_UNVERIFIED";
   readonly handlerId: FiscalNotificationFamilyCandidate["handlerId"];
@@ -61,7 +62,7 @@ export interface FiscalNotificationPdfWorkerCandidate {
 export interface FiscalNotificationPdfWorkerFamilyAnalysis {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.1.0";
+  readonly engineVersion: "1.1.0" | "1.2.0";
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly reason: FiscalNotificationExtractionReason;
   readonly candidates: readonly FiscalNotificationPdfWorkerCandidate[];
@@ -125,7 +126,7 @@ const FAMILY_KEYS = new Set([
   "materializationPolicy",
   "retainedSourceContent",
 ]);
-const CANDIDATE_KEYS = new Set([
+const HISTORICAL_CANDIDATE_KEYS = new Set([
   "familyId",
   "documentType",
   "authoritySignal",
@@ -136,6 +137,10 @@ const CANDIDATE_KEYS = new Set([
   "missingRequiredAnchorIds",
   "conflictingAnchorIds",
   "requiresHumanReview",
+]);
+const TRACED_CANDIDATE_KEYS = new Set([
+  ...HISTORICAL_CANDIDATE_KEYS,
+  "segmentationVersion",
 ]);
 const ANCHOR_KEYS = new Set(["anchorId", "pageNumbers"]);
 const MONEY_KEYS = new Set([
@@ -241,6 +246,13 @@ const ANCHOR_IDS = new Set<FiscalNotificationAnchorId>([
   "DEFERRAL_GRANT_TITLE",
   "DEFERRAL_INSTALLMENT_ANNEX",
   "DEFERRAL_INTEREST_CALCULATION",
+  "REAL_ESTATE_SEIZURE_TITLE",
+  "FORMAL_FILING_REQUIREMENT_TITLE",
+  "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "ROI_REGISTRATION_AGREEMENT_TITLE",
+  "DOCUMENT_IDENTIFICATION_SECTION",
+  "FORMAL_FILING_TAX_PERIOD_SECTION",
+  "REGISTRY_IDENTIFICATION_SECTION",
   "CONFLICTING_AUTHORITY_TGSS",
   "CONFLICTING_TERRITORY_CANARY",
   "CONFLICTING_TERRITORY_FORAL",
@@ -342,6 +354,80 @@ const DEFERRAL_REQUIRED_ANCHORS = Object.freeze([
   "DEFERRAL_INTEREST_CALCULATION",
   "STRUCTURAL_FIRST_PAGE_HEADER",
 ] as const);
+const REAL_ESTATE_SEIZURE_REQUIRED_ANCHORS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "REAL_ESTATE_SEIZURE_TITLE",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
+const FORMAL_FILING_REQUIRED_ANCHORS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "FORMAL_FILING_REQUIREMENT_TITLE",
+  "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
+const ROI_REGISTRATION_REQUIRED_ANCHORS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "ROI_REGISTRATION_AGREEMENT_TITLE",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
+const CANDIDATE_DEFINITIONS = Object.freeze({
+  AEAT_ENFORCEMENT_ORDER_CANDIDATE: Object.freeze({
+    documentType: "AEAT_ENFORCEMENT_ORDER" as const,
+    handlerId: "aeat-enforcement-order-candidate" as const,
+    titleAnchorId: "ENFORCEMENT_ORDER_TITLE" as const,
+    requiredAnchors: ENFORCEMENT_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze([] as const),
+    minimumEngineVersion: "1.1.0" as const,
+  }),
+  AEAT_DEFERRAL_GRANT_CANDIDATE: Object.freeze({
+    documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT" as const,
+    handlerId: "aeat-deferral-grant-candidate" as const,
+    titleAnchorId: "DEFERRAL_GRANT_TITLE" as const,
+    requiredAnchors: DEFERRAL_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze([] as const),
+    minimumEngineVersion: "1.1.0" as const,
+  }),
+  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze({
+    documentType: "AEAT_SEIZURE_ORDER" as const,
+    handlerId: "aeat-real-estate-seizure-candidate" as const,
+    titleAnchorId: "REAL_ESTATE_SEIZURE_TITLE" as const,
+    requiredAnchors: REAL_ESTATE_SEIZURE_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
+    minimumEngineVersion: "1.2.0" as const,
+  }),
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze({
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-formal-filing-requirement-candidate" as const,
+    titleAnchorId: "FORMAL_FILING_REQUIREMENT_TITLE" as const,
+    requiredAnchors: FORMAL_FILING_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze([
+      "DOCUMENT_IDENTIFICATION_SECTION",
+      "FORMAL_FILING_TAX_PERIOD_SECTION",
+    ] as const),
+    minimumEngineVersion: "1.2.0" as const,
+  }),
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-roi-registration-agreement-candidate" as const,
+    titleAnchorId: "ROI_REGISTRATION_AGREEMENT_TITLE" as const,
+    requiredAnchors: ROI_REGISTRATION_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze([
+      "DOCUMENT_IDENTIFICATION_SECTION",
+      "REGISTRY_IDENTIFICATION_SECTION",
+    ] as const),
+    minimumEngineVersion: "1.2.0" as const,
+  }),
+} satisfies Record<
+  FiscalNotificationFamilyCandidate["familyId"],
+  {
+    readonly documentType: FiscalNotificationFamilyCandidate["documentType"];
+    readonly handlerId: FiscalNotificationFamilyCandidate["handlerId"];
+    readonly titleAnchorId: FiscalNotificationAnchorId;
+    readonly requiredAnchors: readonly FiscalNotificationAnchorId[];
+    readonly optionalAnchors: readonly FiscalNotificationAnchorId[];
+    readonly minimumEngineVersion: "1.1.0" | "1.2.0";
+  }
+>);
 const CONFLICTING_ANCHORS = new Set<FiscalNotificationAnchorId>([
   "CONFLICTING_AUTHORITY_TGSS",
   "CONFLICTING_TERRITORY_CANARY",
@@ -363,6 +449,9 @@ export function projectFiscalNotificationPdfWorkerAnalysis(
         reason: input.familyAnalysis.reason,
         candidates: input.familyAnalysis.candidates.map((candidate) => ({
           familyId: candidate.familyId,
+          ...(candidate.segmentationVersion === undefined
+            ? {}
+            : { segmentationVersion: candidate.segmentationVersion }),
           documentType: candidate.documentType,
           authoritySignal: candidate.authoritySignal,
           handlerId: candidate.handlerId,
@@ -504,7 +593,8 @@ function parseFamilyAnalysis(
   if (
     family.schemaVersion !== 1 ||
     family.engineId !== "fiscal-notification-family-candidate-engine" ||
-    family.engineVersion !== "1.1.0" ||
+    (family.engineVersion !== "1.1.0" &&
+      family.engineVersion !== "1.2.0") ||
     (family.status !== "REVIEW_REQUIRED" &&
       family.status !== "INFORMATION_PENDING") ||
     !REASONS.has(family.reason as FiscalNotificationExtractionReason) ||
@@ -521,7 +611,11 @@ function parseFamilyAnalysis(
   );
   const seenFamilies = new Set<string>();
   const candidates = candidateValues.map((candidateValue) => {
-    const candidate = parseCandidate(candidateValue, pageCount);
+    const candidate = parseCandidate(
+      candidateValue,
+      pageCount,
+      family.engineVersion as FiscalNotificationPdfWorkerFamilyAnalysis["engineVersion"],
+    );
     if (seenFamilies.has(candidate.familyId)) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
@@ -536,7 +630,8 @@ function parseFamilyAnalysis(
   return Object.freeze({
     schemaVersion: 1 as const,
     engineId: "fiscal-notification-family-candidate-engine" as const,
-    engineVersion: "1.1.0" as const,
+    engineVersion:
+      family.engineVersion as FiscalNotificationPdfWorkerFamilyAnalysis["engineVersion"],
     status: family.status as FiscalNotificationPdfWorkerFamilyAnalysis["status"],
     reason: family.reason as FiscalNotificationExtractionReason,
     candidates: Object.freeze(candidates),
@@ -550,23 +645,35 @@ function parseFamilyAnalysis(
 function parseCandidate(
   value: unknown,
   pageCount: number,
+  engineVersion: FiscalNotificationPdfWorkerFamilyAnalysis["engineVersion"],
 ): FiscalNotificationPdfWorkerCandidate {
   const candidate = snapshotRecord(value);
-  assertKnownKeys(candidate, CANDIDATE_KEYS);
-  const enforcement =
-    candidate.familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE";
-  const deferral = candidate.familyId === "AEAT_DEFERRAL_GRANT_CANDIDATE";
+  const hasSegmentationVersion = Object.prototype.hasOwnProperty.call(
+    candidate,
+    "segmentationVersion",
+  );
+  assertKnownKeys(
+    candidate,
+    hasSegmentationVersion
+      ? TRACED_CANDIDATE_KEYS
+      : HISTORICAL_CANDIDATE_KEYS,
+  );
+  const definition =
+    typeof candidate.familyId === "string"
+      ? CANDIDATE_DEFINITIONS[
+          candidate.familyId as FiscalNotificationFamilyCandidate["familyId"]
+        ]
+      : undefined;
   if (
-    (!enforcement && !deferral) ||
-    candidate.documentType !==
-      (enforcement
-        ? "AEAT_ENFORCEMENT_ORDER"
-        : "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT") ||
+    !definition ||
+    (engineVersion === "1.2.0"
+      ? candidate.segmentationVersion !== "1.1.0"
+      : hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0") ||
+    (definition.minimumEngineVersion === "1.2.0" &&
+      engineVersion !== "1.2.0") ||
+    candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
-    candidate.handlerId !==
-      (enforcement
-        ? "aeat-enforcement-order-candidate"
-        : "aeat-deferral-grant-candidate") ||
+    candidate.handlerId !== definition.handlerId ||
     candidate.handlerVersion !== "1.0.0" ||
     (candidate.signalStatus !== "COMPLETE_REQUIRED_ANCHORS" &&
       candidate.signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" &&
@@ -606,6 +713,7 @@ function parseCandidate(
   assertCandidateTrace(
     candidate.familyId as FiscalNotificationPdfWorkerCandidate["familyId"],
     candidate.signalStatus as FiscalNotificationPdfWorkerCandidate["signalStatus"],
+    engineVersion,
     matchedAnchors,
     missingRequiredAnchorIds,
     conflictingAnchorIds,
@@ -613,6 +721,12 @@ function parseCandidate(
   return Object.freeze({
     familyId:
       candidate.familyId as FiscalNotificationPdfWorkerCandidate["familyId"],
+    ...(hasSegmentationVersion
+      ? {
+          segmentationVersion:
+            candidate.segmentationVersion as "1.0.0" | "1.1.0",
+        }
+      : {}),
     documentType:
       candidate.documentType as FiscalNotificationPdfWorkerCandidate["documentType"],
     authoritySignal: "AEAT_UNVERIFIED" as const,
@@ -1162,7 +1276,7 @@ function assertFamilySemantics(
       candidates[0]?.signalStatus === "INCOMPLETE_REQUIRED_ANCHORS") ||
     (reason === "AMBIGUOUS_SUPPORTED_FAMILIES" &&
       status === "REVIEW_REQUIRED" &&
-      candidates.length === 2 &&
+      candidates.length > 1 &&
       candidates.every(
         (candidate) =>
           candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS" ||
@@ -1219,19 +1333,19 @@ function assertCandidateSemantics(
 function assertCandidateTrace(
   familyId: FiscalNotificationPdfWorkerCandidate["familyId"],
   signalStatus: FiscalNotificationPdfWorkerCandidate["signalStatus"],
+  engineVersion: FiscalNotificationPdfWorkerFamilyAnalysis["engineVersion"],
   matchedAnchors: readonly FiscalNotificationPdfWorkerAnchor[],
   missing: readonly FiscalNotificationAnchorId[],
   conflicting: readonly FiscalNotificationAnchorId[],
 ): void {
-  const required =
-    familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
-      ? ENFORCEMENT_REQUIRED_ANCHORS
-      : DEFERRAL_REQUIRED_ANCHORS;
+  const definition = CANDIDATE_DEFINITIONS[familyId];
+  const required = definition.requiredAnchors;
   const matchedIds = new Set(matchedAnchors.map((anchor) => anchor.anchorId));
   const missingSet = new Set(missing);
   const conflictingSet = new Set(conflicting);
   const allowedMatched = new Set<FiscalNotificationAnchorId>([
     ...required,
+    ...definition.optionalAnchors,
     "AEAT_AUTHORITY_LABEL",
     ...CONFLICTING_ANCHORS,
   ]);
@@ -1265,15 +1379,13 @@ function assertCandidateTrace(
     (anchor) => anchor.anchorId === "AEAT_OFFICIAL_DOMAIN_LABEL",
   );
   const familyTitle = matchedAnchors.find(
-    (anchor) =>
-      anchor.anchorId ===
-      (familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
-        ? "ENFORCEMENT_ORDER_TITLE"
-        : "DEFERRAL_GRANT_TITLE"),
+    (anchor) => anchor.anchorId === definition.titleAnchorId,
   );
   const titlePageNumber = familyTitle?.pageNumbers[0];
   if (
     !familyTitle ||
+    (definition.minimumEngineVersion === "1.2.0" &&
+      engineVersion !== "1.2.0") ||
     familyTitle.pageNumbers.length !== 1 ||
     titlePageNumber === undefined ||
     (officialDomain &&

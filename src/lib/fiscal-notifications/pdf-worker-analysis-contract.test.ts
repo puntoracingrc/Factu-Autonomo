@@ -71,6 +71,17 @@ function deferralAnalysis() {
   });
 }
 
+function reviewOnlyFamilyAnalysis(text: string) {
+  const input = documentInput(text);
+  return projectFiscalNotificationPdfWorkerAnalysis({
+    textLayerStatus: "TEXT_LAYER_AVAILABLE",
+    pageCount: 1,
+    familyAnalysis: extractFiscalNotificationCandidates(input),
+    enforcementMoneyFacts: null,
+    enforcementExplicitFields: null,
+  });
+}
+
 function conflictingAnalysis(conflict: string) {
   const input = documentInput(
     [
@@ -143,7 +154,10 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: {
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
-          { familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE" },
+          {
+            familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+            segmentationVersion: "1.1.0",
+          },
         ],
       },
       enforcementMoneyFacts: {
@@ -232,6 +246,119 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     });
     expect(analysis.enforcementMoneyFacts).toBeNull();
     expect(analysis.enforcementExplicitFields).toBeNull();
+  });
+
+  it.each([
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+      ].join("\n"),
+      "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+      "AEAT_SEIZURE_ORDER",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "REQUERIMIENTO DE PRESENTACION DE DECLARACIONES O AUTOLIQUIDACIONES",
+        "DECLARACIONES O AUTOLIQUIDACIONES NO PRESENTADAS",
+      ].join("\n"),
+      "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS",
+      ].join("\n"),
+      "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+  ])(
+    "projects the R1 review-only candidate %s without facts",
+    (text, familyId, documentType) => {
+      const analysis = reviewOnlyFamilyAnalysis(text);
+      expect(analysis).toMatchObject({
+        familyAnalysis: {
+          engineVersion: "1.2.0",
+          reason: "SUPPORTED_FAMILY_CANDIDATE",
+          candidates: [
+            { familyId, segmentationVersion: "1.1.0", documentType },
+          ],
+        },
+        enforcementMoneyFacts: null,
+        enforcementExplicitFields: null,
+        requiresHumanReview: true,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+        retainedSourceContent: "NONE",
+      });
+    },
+  );
+
+  it("rejects an R1 candidate forged into the historical 1.1 envelope", () => {
+    const value = mutableAnalysis(
+      reviewOnlyFamilyAnalysis(
+        [
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+        ].join("\n"),
+      ),
+    );
+    value.familyAnalysis!.engineVersion = "1.1.0";
+    expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+      FiscalNotificationPdfWorkerAnalysisError,
+    );
+  });
+
+  it("requires trace 1.1 for engine 1.2 and preserves historical 1.1 traces", () => {
+    const current = mutableAnalysis();
+    expect(current.familyAnalysis?.candidates[0]?.segmentationVersion).toBe(
+      "1.1.0",
+    );
+
+    const missingCurrentTrace = mutableAnalysis();
+    delete missingCurrentTrace.familyAnalysis!.candidates[0]!
+      .segmentationVersion;
+    expect(() =>
+      parseFiscalNotificationPdfWorkerAnalysis(missingCurrentTrace),
+    ).toThrow(FiscalNotificationPdfWorkerAnalysisError);
+
+    const wrongCurrentTrace = mutableAnalysis();
+    wrongCurrentTrace.familyAnalysis!.candidates[0]!.segmentationVersion =
+      "1.0.0";
+    expect(() =>
+      parseFiscalNotificationPdfWorkerAnalysis(wrongCurrentTrace),
+    ).toThrow(FiscalNotificationPdfWorkerAnalysisError);
+
+    const untracedHistorical = mutableAnalysis();
+    untracedHistorical.familyAnalysis!.engineVersion = "1.1.0";
+    delete untracedHistorical.familyAnalysis!.candidates[0]!
+      .segmentationVersion;
+    const parsedUntraced = parseFiscalNotificationPdfWorkerAnalysis(
+      untracedHistorical,
+    );
+    expect(parsedUntraced.familyAnalysis?.candidates[0]).not.toHaveProperty(
+      "segmentationVersion",
+    );
+
+    const tracedHistorical = mutableAnalysis();
+    tracedHistorical.familyAnalysis!.engineVersion = "1.1.0";
+    tracedHistorical.familyAnalysis!.candidates[0]!.segmentationVersion =
+      "1.0.0";
+    expect(
+      parseFiscalNotificationPdfWorkerAnalysis(tracedHistorical).familyAnalysis
+        ?.candidates[0]?.segmentationVersion,
+    ).toBe("1.0.0");
+
+    const relabelledHistorical = mutableAnalysis();
+    relabelledHistorical.familyAnalysis!.engineVersion = "1.1.0";
+    expect(() =>
+      parseFiscalNotificationPdfWorkerAnalysis(relabelledHistorical),
+    ).toThrow(FiscalNotificationPdfWorkerAnalysisError);
   });
 
   it.each([
@@ -772,7 +899,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       enforcementExplicitFields: null,
     });
     expect(analysis.familyAnalysis).toMatchObject({
-      engineVersion: "1.1.0",
+      engineVersion: "1.2.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [

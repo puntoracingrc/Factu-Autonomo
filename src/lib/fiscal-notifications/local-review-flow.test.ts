@@ -161,7 +161,7 @@ describe("fiscal notification local review flow", () => {
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       engineId: "fiscal-notification-family-candidate-engine",
-      engineVersion: "1.1.0",
+      engineVersion: "1.2.0",
       pageCount: 1,
       byteLength: 2_048,
       sha256: HASH,
@@ -173,6 +173,7 @@ describe("fiscal notification local review flow", () => {
       candidates: [
         {
           familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          segmentationVersion: "1.1.0",
           documentType: "AEAT_ENFORCEMENT_ORDER",
           authoritySignal: "AEAT_UNVERIFIED",
           handlerId: "aeat-enforcement-order-candidate",
@@ -190,6 +191,60 @@ describe("fiscal notification local review flow", () => {
     expect(result).not.toHaveProperty("ephemeralEnforcementMoneyFacts");
     expect(result).not.toHaveProperty("ephemeralEnforcementExplicitFields");
   });
+
+  it.each([
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+      ].join("\n"),
+      "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+      "AEAT_SEIZURE_ORDER",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "REQUERIMIENTO DE PRESENTACION DE DECLARACIONES O AUTOLIQUIDACIONES",
+        "DECLARACIONES O AUTOLIQUIDACIONES NO PRESENTADAS",
+      ].join("\n"),
+      "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS",
+      ].join("\n"),
+      "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+  ])(
+    "propagates the R1 review-only family %s without materialization",
+    async (text, familyId, documentType) => {
+      const analysis = await analyzeEphemeralForTest({}, dependencies(text));
+      expect(analysis).toMatchObject({
+        technicalReview: {
+          engineVersion: "1.2.0",
+          status: "REVIEW_REQUIRED",
+          reason: "SUPPORTED_FAMILY_CANDIDATE",
+          candidates: [
+            { familyId, segmentationVersion: "1.1.0", documentType },
+          ],
+          selectedFamilyId: null,
+          providerCalled: false,
+          requiresHumanReview: true,
+          materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+          retainedSourceContent: "NONE",
+        },
+        ephemeralEnforcementMoneyFacts: null,
+        ephemeralEnforcementExplicitFields: null,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      });
+    },
+  );
 
   it("returns explicit money facts in a separate ephemeral envelope", async () => {
     const text = [

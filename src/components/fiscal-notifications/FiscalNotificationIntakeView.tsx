@@ -54,6 +54,12 @@ const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Posible providencia de apremio AEAT",
   AEAT_DEFERRAL_GRANT_CANDIDATE:
     "Posible concesión de aplazamiento o fraccionamiento AEAT",
+  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
+    "Posible diligencia de embargo de bienes inmuebles AEAT",
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
+    "Posible requerimiento formal de presentación AEAT",
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE:
+    "Posible acuerdo de alta en el ROI AEAT",
 } as const;
 
 const SIGNAL_LABELS = {
@@ -96,7 +102,7 @@ const REASON_COPY: Readonly<
   CONFLICTING_AUTHORITY_OR_TERRITORY: {
     title: "Organismo o territorio no compatible",
     detail:
-      "El documento contiene señales incompatibles con las dos plantillas AEAT cubiertas por esta versión.",
+      "El documento contiene señales incompatibles con las familias AEAT cubiertas por esta versión.",
   },
   CONFLICTING_DOCUMENT_SIGNAL: {
     title: "Puede no ser una notificación",
@@ -254,8 +260,14 @@ export function FiscalNotificationIntakeView() {
         <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
           <li>
-            Reconoce únicamente indicios de providencia de apremio y concesión
-            de aplazamiento o fraccionamiento de la AEAT.
+            Reconoce únicamente indicios de providencia de apremio, concesión
+            de aplazamiento o fraccionamiento, diligencia de embargo de bienes
+            inmuebles, requerimiento formal de presentación y acuerdo de alta
+            en el ROI de la AEAT.
+          </li>
+          <li>
+            Un acuerdo de alta en el ROI describe el documento analizado: no
+            demuestra que el alta siga vigente ni valida el estado en VIES.
           </li>
           <li>
             La ficha técnica local no contiene importes, fechas jurídicas,

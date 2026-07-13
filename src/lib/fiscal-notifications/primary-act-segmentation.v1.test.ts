@@ -15,6 +15,7 @@ describe("fiscal notification primary-act segmentation v1", () => {
         page(1, "sede agenciatributaria gob es", "providencia de apremio"),
       ]),
     ).toMatchObject({
+      segmentationVersion: "1.1.0",
       outcome: "PRIMARY_TITLE",
       segments: [
         {
@@ -53,6 +54,60 @@ describe("fiscal notification primary-act segmentation v1", () => {
         },
       ],
     });
+  });
+
+  it.each([
+    [
+      "diligencia de embargo de bienes inmuebles",
+      "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+      "REAL_ESTATE_SEIZURE_TITLE",
+    ],
+    [
+      "requerimiento de presentacion de declaraciones o autoliquidaciones",
+      "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+      "FORMAL_FILING_REQUIREMENT_TITLE",
+    ],
+    [
+      "acuerdo de alta en el registro de operadores intracomunitarios",
+      "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+      "ROI_REGISTRATION_AGREEMENT_TITLE",
+    ],
+  ])("registers the closed R1 title %s", (title, familyId, titleAnchorId) => {
+    expect(segmentFiscalNotificationPrimaryActsV1([page(1, title)])).toMatchObject({
+      outcome: "PRIMARY_TITLE",
+      segments: [{ familyId, titleAnchorId, origin: "DOCUMENT_PRIMARY" }],
+    });
+  });
+
+  it("keeps a page-one real-estate seizure primary when an enforcement order starts on page two", () => {
+    expect(
+      segmentFiscalNotificationPrimaryActsV1([
+        page(1, "diligencia de embargo de bienes inmuebles"),
+        page(2, "providencia de apremio"),
+        page(3, "importe de la deuda"),
+      ]),
+    ).toMatchObject({
+      outcome: "PRIMARY_TITLE",
+      segments: [
+        {
+          familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+          pageNumbers: [1],
+          boundaryPageNumber: 2,
+        },
+      ],
+    });
+  });
+
+  it("does not register a broad requerimiento or a narrative mention", () => {
+    for (const title of [
+      "requerimiento",
+      "este texto explica un requerimiento de presentacion de declaraciones o autoliquidaciones",
+      "acuerdo relativo al registro de operadores intracomunitarios",
+    ]) {
+      expect(
+        segmentFiscalNotificationPrimaryActsV1([page(1, title)]),
+      ).toMatchObject({ outcome: "NO_REGISTERED_TITLE", segments: [] });
+    }
   });
 
   it("stops before the first later page headed by any registered title", () => {
@@ -135,6 +190,7 @@ describe("fiscal notification primary-act segmentation v1", () => {
     const first = segmentFiscalNotificationPrimaryActsV1(pages);
     const second = segmentFiscalNotificationPrimaryActsV1(pages);
     expect(first).toEqual(second);
+    expect(first.segmentationVersion).toBe("1.1.0");
     expect(first).not.toBe(second);
     expect(Object.isFrozen(first)).toBe(true);
     expect(Object.isFrozen(first.segments)).toBe(true);

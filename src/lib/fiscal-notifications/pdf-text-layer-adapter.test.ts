@@ -88,6 +88,42 @@ function workerAnalysis(
   };
 }
 
+function r1WorkerAnalysis() {
+  return {
+    ...workerAnalysis(),
+    familyAnalysis: {
+      schemaVersion: 1,
+      engineId: "fiscal-notification-family-candidate-engine",
+      engineVersion: "1.2.0",
+      status: "REVIEW_REQUIRED",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        {
+          familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+          segmentationVersion: "1.1.0",
+          documentType: "AEAT_SEIZURE_ORDER",
+          authoritySignal: "AEAT_UNVERIFIED",
+          handlerId: "aeat-real-estate-seizure-candidate",
+          handlerVersion: "1.0.0",
+          signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+          matchedAnchors: [
+            { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+            { anchorId: "REAL_ESTATE_SEIZURE_TITLE", pageNumbers: [1] },
+            { anchorId: "STRUCTURAL_FIRST_PAGE_HEADER", pageNumbers: [1] },
+          ],
+          missingRequiredAnchorIds: [],
+          conflictingAnchorIds: [],
+          requiresHumanReview: true,
+        },
+      ],
+      selectedFamilyId: null,
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      retainedSourceContent: "NONE",
+    },
+  };
+}
+
 function resultMessage(analysis: unknown = workerAnalysis()) {
   return {
     type: "RESULT",
@@ -259,6 +295,38 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.terminate).toHaveBeenCalledTimes(1);
     expect(worker.activeMessageListeners()).toBe(0);
     expect(worker.activeErrorListeners()).toBe(0);
+  });
+
+  it("accepts the current 1.2 R1 candidate without returning document content", async () => {
+    const sourceAnalysis = r1WorkerAnalysis();
+    const worker = createFakeWorker({ response: resultMessage(sourceAnalysis) });
+    const output = await readFiscalNotificationPdfTextLayer(
+      request(),
+      dependencies(worker),
+    );
+
+    expect(output.analysis).toMatchObject({
+      familyAnalysis: {
+        engineVersion: "1.2.0",
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [
+          {
+            familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+            segmentationVersion: "1.1.0",
+            documentType: "AEAT_SEIZURE_ORDER",
+            requiresHumanReview: true,
+          },
+        ],
+        selectedFamilyId: null,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+        retainedSourceContent: "NONE",
+      },
+      enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
+    });
+    expect(JSON.stringify(output.analysis)).not.toMatch(
+      /"(?:text|pages|rawValue|nif|csv|amount|deadline)"/iu,
+    );
   });
 
   it("sends only protocol metadata and transferable bytes to the worker", async () => {
