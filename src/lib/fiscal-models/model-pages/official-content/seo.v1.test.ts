@@ -16,6 +16,16 @@ const OFFICIAL_CODES = [
   "038",
   "039",
   "040",
+  "043",
+  "044",
+  "045",
+  "100",
+  "102",
+  "111",
+  "113",
+  "115",
+  "117",
+  "121",
 ];
 
 describe("AEAT model official-content SEO", () => {
