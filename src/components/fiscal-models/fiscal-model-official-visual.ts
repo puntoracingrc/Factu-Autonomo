@@ -7,6 +7,7 @@ export type FiscalModelOfficialVisualMode =
   | "AEAT_WEB_SERVICE"
   | "AEAT_ADMINISTRATIVE_TRANSFER"
   | "AEAT_FORM_AND_FILE"
+  | "AEAT_FILE_AND_WEB_SERVICE"
   | "AEAT_FORM_AND_WEB_SERVICE"
   | "AEAT_FORM_FILE_AND_WEB_SERVICE"
   | "AEAT_FUTURE_CHANNEL"
@@ -41,6 +42,13 @@ export function resolveFiscalModelOfficialVisualMode(
       methods.has("FILE_UPLOAD")
     ) {
       return "AEAT_FORM_AND_FILE";
+    }
+    if (
+      methods.size === 2 &&
+      methods.has("FILE_UPLOAD") &&
+      methods.has("WEB_SERVICE")
+    ) {
+      return "AEAT_FILE_AND_WEB_SERVICE";
     }
     if (
       methods.size === 2 &&

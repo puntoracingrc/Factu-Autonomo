@@ -206,7 +206,20 @@ describe("public AEAT model review search v2", () => {
     expect(
       resultCodes("subvenciones indemnizaciones agricultores ganaderos"),
     ).toContain("346");
-  });
+    expect(resultCodes("operaciones terceras personas")).toContain("347");
+    expect(resultCodes("operaciones intracomunitarias")).toContain("349");
+    expect(resultCodes("grupo entidades agregado")).toContain("353");
+    expect(resultCodes("devoluciones no establecidos")).toEqual(
+      expect.arrayContaining(["360", "361"]),
+    );
+    expect(resultCodes("OTAN reembolso")).toContain("364");
+    expect(resultCodes("OTAN reconocimiento exenciones")).toContain("365");
+    expect(
+      resultCodes("telecomunicaciones radiodifusion electronicos"),
+    ).toContain("368");
+    expect(resultCodes("one stop shop OSS")).toContain("369");
+    expect(resultCodes("pagos transfronterizos CESOP")).toContain("379");
+  }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
     expect(resultCodes("estim direc")).toContain("130");

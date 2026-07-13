@@ -37,6 +37,9 @@ import { PUBLIC_AEAT_BATCH_10_FINANCIAL_INFORMATION_289_295_CONTENT_V1 } from ".
 import { PUBLIC_AEAT_BATCH_11_INFORMATION_RETURNS_296_346_CONTENT_V1 } from "./batch-11-information-returns-296-346.release.v1";
 import { PUBLIC_AEAT_BATCH_11_VAT_303_309_CONTENT_V1 } from "./batch-11-vat-303-309.release.v1";
 import { PUBLIC_AEAT_BATCH_11_VAT_SPECIAL_318_341_CONTENT_V1 } from "./batch-11-vat-special-318-341.release.v1";
+import { PUBLIC_AEAT_BATCH_12_INFORMATION_RETURNS_347_349_CONTENT_V1 } from "./batch-12-information-returns-347-349.release.v1";
+import { PUBLIC_AEAT_BATCH_12_VAT_GROUPS_REFUNDS_EXEMPTIONS_353_365_CONTENT_V1 } from "./batch-12-vat-groups-refunds-exemptions-353-365.release.v1";
+import { PUBLIC_AEAT_BATCH_12_VAT_CROSS_BORDER_REGIMES_368_379_CONTENT_V1 } from "./batch-12-vat-cross-border-regimes-368-379.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -150,6 +153,16 @@ const EXPECTED_CODES = Object.freeze([
   "341",
   "345",
   "346",
+  "347",
+  "349",
+  "353",
+  "360",
+  "361",
+  "364",
+  "365",
+  "368",
+  "369",
+  "379",
 ] as const);
 const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
@@ -351,6 +364,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_11_INFORMATION_RETURNS_296_346_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_11_VAT_303_309_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_11_VAT_SPECIAL_318_341_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_12_INFORMATION_RETURNS_347_349_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_12_VAT_GROUPS_REFUNDS_EXEMPTIONS_353_365_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_12_VAT_CROSS_BORDER_REGIMES_368_379_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

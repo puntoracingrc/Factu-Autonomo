@@ -111,6 +111,16 @@ export const PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1 = Object.freeze([
   "/consultor-fiscal/modelos/341",
   "/consultor-fiscal/modelos/345",
   "/consultor-fiscal/modelos/346",
+  "/consultor-fiscal/modelos/347",
+  "/consultor-fiscal/modelos/349",
+  "/consultor-fiscal/modelos/353",
+  "/consultor-fiscal/modelos/360",
+  "/consultor-fiscal/modelos/361",
+  "/consultor-fiscal/modelos/364",
+  "/consultor-fiscal/modelos/365",
+  "/consultor-fiscal/modelos/368",
+  "/consultor-fiscal/modelos/369",
+  "/consultor-fiscal/modelos/379",
 ] as const);
 
 const indexablePathSet = new Set<string>(

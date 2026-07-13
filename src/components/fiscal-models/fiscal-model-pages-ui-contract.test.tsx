@@ -209,6 +209,10 @@ describe("fiscal model structural review pages UI contract", () => {
       "Formulario web y servicio web descritos por la AEAT",
     );
     expect(officialVisual).toContain(
+      "Carga de fichero y servicio web descritos por la AEAT",
+    );
+    expect(officialVisual).toContain("Fichero y servicio");
+    expect(officialVisual).toContain(
       "Formulario web, carga de fichero y servicio web descritos por la AEAT",
     );
     expect(officialVisual).toContain(
