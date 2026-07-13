@@ -974,6 +974,9 @@ export async function readGenericDocumentFiles(
   assertSingleCompatibleIssuer(parsedDocuments, current);
   const importAttestedAt = new Date().toISOString();
   const importedDocuments = parsedDocuments.map((item) => {
+    const issuerOrigin = item.document.issuer
+      ? "source_document"
+      : "current_profile_at_import";
     const document =
       item.document.status !== "borrador" && !item.document.issuer
         ? {
@@ -989,6 +992,7 @@ export async function readGenericDocumentFiles(
       current.profile,
       "generic_documents",
       importAttestedAt,
+      { issuerOrigin },
     );
   });
   const listedCustomers = extracted

@@ -7,6 +7,7 @@ import {
 } from "./pcfacturacion";
 import { applyBusinessProfileAutofillSuggestion } from "../business-profile-autofill";
 import { EMPTY_DATA, type Document } from "../types";
+import { inspectLegacyImportAttestation } from "../document-integrity/legacy-import-attestation";
 
 const TEST_DATA = {
   ...EMPTY_DATA,
@@ -194,6 +195,57 @@ describe("PC Facturacion importer", () => {
       result.data.documents.find((document) => document.type === "factura")
         ?.documentSnapshot?.issuer.nif,
     ).toBe("B-12.345.678");
+  });
+
+  it("persiste un histórico V2 aunque el software antiguo dejase campos incompletos", () => {
+    const tables = {
+      ...baseTables,
+      Client: [
+        {
+          ...baseTables.Client[0],
+          Street: "",
+          ZIP: "",
+          Town: "",
+        },
+      ],
+      Contacts: [
+        {
+          ...baseTables.Contacts[0],
+          Company: "Cliente histórico",
+          Name: "",
+          Surname: "",
+          Street: "",
+          ZIP: "",
+          Town: "",
+        },
+      ],
+      Positions: baseTables.Positions.map((position) =>
+        position.DocumentNumber === "Factura/1/"
+          ? { ...position, ShortText: "" }
+          : position,
+      ),
+    };
+
+    const result = buildPcFacturacionImport(EMPTY_DATA, tables, {
+      includeUnusedCustomers: false,
+    });
+    const invoice = result.data.documents.find(
+      (document) => document.type === "factura",
+    );
+
+    expect(invoice).toBeDefined();
+    expect(inspectLegacyImportAttestation(invoice!)).toMatchObject({ ok: true });
+    expect(
+      invoice?.legacyImportAttestation?.schemaVersion === 2
+        ? invoice.legacyImportAttestation.acceptedContentPolicy
+            .completenessExceptions
+        : [],
+    ).toEqual(
+      expect.arrayContaining([
+        "issuer_address_missing",
+        "customer_address_missing",
+      ]),
+    );
   });
 
   it.each(["", "fecha-imposible", "2026-02-30"])(

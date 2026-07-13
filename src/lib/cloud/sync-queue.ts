@@ -42,6 +42,22 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
   }));
 }
 
+/**
+ * Una restauración o entrega completa reemplaza el estado cloud. Todos los
+ * sobres comparten la fecha de esa operación para que ningún watermark de
+ * otro dispositivo oculte entidades cuyo payload conserva fechas históricas.
+ * El contenido fiscal y sus timestamps no se modifican.
+ */
+export function buildCloudReplacementChanges(
+  data: AppData,
+  queuedAt = new Date().toISOString(),
+): SyncChange[] {
+  return appDataToSyncChanges(data).map((change) => ({
+    ...change,
+    updatedAt: queuedAt,
+  }));
+}
+
 export function markSyncPending(): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(PENDING_KEY, new Date().toISOString());

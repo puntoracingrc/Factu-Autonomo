@@ -766,6 +766,7 @@ export function buildPcFacturacionImport(
         profileForImportedDocuments,
         "pcfacturacion",
         importAttestedAt,
+        { issuerOrigin: "current_profile_at_import" },
       ),
   );
   const replacesCustomers = customersToImport.length > 0;

@@ -28,6 +28,7 @@ import {
   pushSyncChanges,
 } from "@/lib/cloud/repository";
 import {
+  buildCloudReplacementChanges,
   clearSyncPending,
   buildCloudUploadChanges,
   hasUnsyncedChanges,
@@ -574,7 +575,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
       return;
     }
-    const changes = appDataToSyncChanges(dataRef.current);
+    const queuedAt = new Date().toISOString();
+    const changes = buildCloudReplacementChanges(dataRef.current, queuedAt);
     if (changes.length === 0) {
       rememberHandoffDecision(user.id, "synced");
       setLocalDataHandoffStatus("none");
@@ -586,7 +588,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       ...dataRef.current,
       meta: {
         ...dataRef.current.meta,
-        lastModified: new Date().toISOString(),
+        lastModified: queuedAt,
         pendingChanges: changes,
       },
     };
@@ -1187,12 +1189,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
       if (!confirmed) return null;
 
+      const queuedAt = new Date().toISOString();
       const withQueue = {
         ...parsed,
         meta: {
           ...parsed.meta,
-          lastModified: new Date().toISOString(),
-          pendingChanges: appDataToSyncChanges(parsed),
+          lastModified: queuedAt,
+          pendingChanges: buildCloudReplacementChanges(parsed, queuedAt),
         },
       };
       skipPush.current = true;

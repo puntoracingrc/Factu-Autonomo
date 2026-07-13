@@ -1,6 +1,11 @@
 import { documentAmounts } from "./vat-regime";
 import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
+import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
+import {
+  isDocumentUsableForFinancialCalculations,
+  isUsableLegacyImportedDocument,
+} from "./document-integrity/legacy-import-attestation";
 import { sortDocumentsByNewest } from "./documents";
 import {
   canMarkAsCollected,
@@ -55,7 +60,19 @@ function safeDifference(left: number, right: number): number {
 
 export function isIssuedBusinessInvoice(document: Document): boolean {
   if (document.type !== "factura") return false;
-  if (!canMarkAsCollected(document)) return false;
+  const userAttestedHistorical =
+    isUsableLegacyImportedDocument(document) &&
+    isDocumentUsableForFinancialCalculations(document);
+  if (!canMarkAsCollected(document) && !userAttestedHistorical) return false;
+  if (
+    userAttestedHistorical &&
+    (deriveDocumentLifecycle(document) !== "issued" ||
+      document.status === "borrador" ||
+      document.status === "anulada" ||
+      Boolean(document.rectifiedById))
+  ) {
+    return false;
+  }
   const rectification =
     document.documentSnapshot?.rectification ?? document.rectification;
   if (!rectification) return true;
@@ -69,11 +86,17 @@ export function isIssuedBusinessInvoice(document: Document): boolean {
 }
 
 function invoiceTotal(document: Document, vatExempt: boolean): number {
-  return safeMoney(documentAmounts(document, vatExempt).total);
+  const total = documentAmounts(document, vatExempt).total;
+  return isUsableLegacyImportedDocument(document)
+    ? signedMoney(total)
+    : safeMoney(total);
 }
 
 function invoiceIva(document: Document, vatExempt: boolean): number {
-  return safeMoney(documentAmounts(document, vatExempt).iva);
+  const iva = documentAmounts(document, vatExempt).iva;
+  return isUsableLegacyImportedDocument(document)
+    ? signedMoney(iva)
+    : safeMoney(iva);
 }
 
 function expenseTotal(expense: Expense, vatExempt: boolean): number {
@@ -115,7 +138,8 @@ export function buildProductBusinessSummary(
 ): ProductBusinessSummary {
   const recentLimit = options.recentLimit ?? 4;
   const vatExempt = Boolean(data.profile.vatExempt);
-  const invoices = data.documents.filter(
+  const documents = withDocumentFinancialIntegritySignals(data.documents);
+  const invoices = documents.filter(
     (document) => document.type === "factura",
   );
   const issuedInvoices = invoices.filter(isIssuedBusinessInvoice);
@@ -125,13 +149,13 @@ export function buildProductBusinessSummary(
   const collectedInvoices = issuedInvoices.filter(isCollectedDocument);
   const pendingInvoices = invoices.filter(isPendingInvoicePayment);
 
-  const totalBilledIssued = safeMoney(
+  const totalBilledIssued = signedMoney(
     issuedInvoices.reduce(
       (sum, document) => sum + invoiceTotal(document, vatExempt),
       0,
     ),
   );
-  const totalCollectedLocal = safeMoney(
+  const totalCollectedLocal = signedMoney(
     collectedInvoices.reduce(
       (sum, document) => sum + invoiceTotal(document, vatExempt),
       0,
@@ -172,7 +196,7 @@ export function buildProductBusinessSummary(
       totalPurchaseExpenses -
       totalTicketExpenses,
   );
-  const salesIvaEstimated = safeMoney(
+  const salesIvaEstimated = signedMoney(
     issuedInvoices.reduce(
       (sum, document) => sum + invoiceIva(document, vatExempt),
       0,
@@ -187,7 +211,7 @@ export function buildProductBusinessSummary(
 
   return {
     customersCount: data.customers.length,
-    quotesCount: data.documents.filter(
+    quotesCount: documents.filter(
       (document) => document.type === "presupuesto",
     ).length,
     invoicesCount: invoices.length,
@@ -207,7 +231,7 @@ export function buildProductBusinessSummary(
     expenseIvaEstimated,
     balanceEstimated: safeDifference(totalBilledIssued, totalExpenses),
     cashBalanceEstimated: safeDifference(totalCollectedLocal, totalExpenses),
-    recentDocuments: sortDocumentsByNewest(data.documents).slice(
+    recentDocuments: sortDocumentsByNewest(documents).slice(
       0,
       recentLimit,
     ),

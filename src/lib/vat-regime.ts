@@ -1,4 +1,5 @@
 import { documentTotals } from "./calculations";
+import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
 import { inspectUsableHistoricalDocumentEvidence } from "./document-integrity/legacy-import-attestation";
 import { detectLegacyImportSource } from "./document-integrity/legacy-import-attestation";
 import { expenseTotals } from "./expenses";
@@ -64,7 +65,7 @@ export function collectedSalesTotal(
   vatExempt: boolean,
   isCollected: (doc: Document) => boolean,
 ): number {
-  return documents
+  return withDocumentFinancialIntegritySignals(documents)
     .filter(isCollected)
     .reduce((sum, doc) => sum + documentAmounts(doc, vatExempt).total, 0);
 }

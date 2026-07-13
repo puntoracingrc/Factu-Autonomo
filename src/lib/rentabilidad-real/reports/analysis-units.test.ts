@@ -76,6 +76,19 @@ function appData(documents: Document[]): AppData {
 }
 
 describe("buildRentabilidadRealAnalysisUnits", () => {
+  it("no crea unidades para un documento fiscal repetido y no muta AppData", () => {
+    const invoice = document({
+      id: "duplicated-invoice",
+      type: "factura",
+      number: "F-1",
+    });
+    const data = appData([invoice, invoice]);
+    const before = JSON.parse(JSON.stringify(data));
+
+    expect(buildRentabilidadRealAnalysisUnits(data)).toEqual([]);
+    expect(data).toEqual(before);
+  });
+
   it("presupuesto sin factura crea unidad quote", () => {
     const data = appData([
       document({ id: "q1", type: "presupuesto", number: "P-1" }),

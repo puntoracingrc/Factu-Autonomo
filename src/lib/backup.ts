@@ -1,9 +1,11 @@
 import { APP_BRAND_NAME } from "./brand";
+import { sha256Hex } from "./document-integrity/snapshot-hash";
 import { normalizeLoadedData } from "./storage";
 import type { AppData } from "./types";
 
 export const BACKUP_FILE_PREFIX = "factu-autonomo-backup";
 export const BACKUP_VERSION = 1;
+export const PORTABLE_BACKUP_VERSION = 2;
 export const BACKUP_APP_ID = "factura-autonomo";
 export const BACKUP_SOURCE = "local";
 export const BACKUP_WARNING =
@@ -13,7 +15,7 @@ export const BACKUP_SCOPE_NOTICE =
 
 export interface BackupMetadata {
   app: typeof BACKUP_APP_ID;
-  exportVersion: typeof BACKUP_VERSION;
+  exportVersion: number;
   exportedAt: string;
   source: typeof BACKUP_SOURCE;
   warning: string;
@@ -22,6 +24,13 @@ export interface BackupMetadata {
 export interface BackupPayload {
   metadata: BackupMetadata;
   data: AppData;
+}
+
+interface PortableBackupPayloadV2 {
+  metadata: BackupMetadata & { exportVersion: typeof PORTABLE_BACKUP_VERSION };
+  format: typeof PORTABLE_BACKUP_FORMAT;
+  data: unknown;
+  assets: Record<string, string>;
 }
 
 export type BackupDownloadResult =
@@ -90,10 +99,134 @@ const FORBIDDEN_BACKUP_EXTENSIONS = new Set([
   "js",
   "csv",
 ]);
-const MAX_BACKUP_PREVIEW_BYTES = 5 * 1024 * 1024;
+export const MAX_BACKUP_PREVIEW_BYTES = 25 * 1024 * 1024;
+const PORTABLE_BACKUP_FORMAT = "factu-portable-assets-v1";
+const PORTABLE_ASSET_REFERENCE_KEY = "$factuAssetRef";
+const PORTABLE_BACKUP_ERROR =
+  "La copia portable contiene referencias de assets no válidas.";
+const DATA_URL_PATTERN = /^data:[^,]*,/i;
+const SHA256_ASSET_ID_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function portableAssetId(value: string): string {
+  return `sha256:${sha256Hex(value)}`;
+}
+
+function encodePortableBackupData(data: AppData): {
+  data: unknown;
+  assets: Record<string, string>;
+} {
+  const assets: Record<string, string> = Object.create(null) as Record<
+    string,
+    string
+  >;
+  const assetIdsByValue = new Map<string, string>();
+
+  function encode(value: unknown): unknown {
+    if (typeof value === "string" && DATA_URL_PATTERN.test(value)) {
+      const knownId = assetIdsByValue.get(value);
+      if (knownId) return { [PORTABLE_ASSET_REFERENCE_KEY]: knownId };
+
+      const assetId = portableAssetId(value);
+      const collidingValue = assets[assetId];
+      if (collidingValue !== undefined && collidingValue !== value) {
+        throw new Error("portable_asset_hash_collision");
+      }
+      assets[assetId] = value;
+      assetIdsByValue.set(value, assetId);
+      return { [PORTABLE_ASSET_REFERENCE_KEY]: assetId };
+    }
+
+    if (Array.isArray(value)) return value.map((entry) => encode(entry));
+    if (!isRecord(value)) return value;
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, encode(entry)]),
+    );
+  }
+
+  return { data: encode(createBackupData(data)), assets };
+}
+
+function decodePortableBackupData(
+  payload: Record<string, unknown>,
+): { ok: true; data: Record<string, unknown> } | { ok: false; error: string } {
+  if (
+    payload.format !== PORTABLE_BACKUP_FORMAT ||
+    !isRecord(payload.data) ||
+    !isRecord(payload.assets)
+  ) {
+    return { ok: false, error: PORTABLE_BACKUP_ERROR };
+  }
+
+  const assets = payload.assets;
+  for (const [assetId, value] of Object.entries(assets)) {
+    if (
+      !SHA256_ASSET_ID_PATTERN.test(assetId) ||
+      typeof value !== "string" ||
+      !DATA_URL_PATTERN.test(value) ||
+      portableAssetId(value) !== assetId
+    ) {
+      return { ok: false, error: PORTABLE_BACKUP_ERROR };
+    }
+  }
+
+  const referencedAssetIds = new Set<string>();
+  let invalidReference = false;
+
+  function decode(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map((entry) => decode(entry));
+    if (!isRecord(value)) return value;
+
+    if (Object.hasOwn(value, PORTABLE_ASSET_REFERENCE_KEY)) {
+      const keys = Object.keys(value);
+      const assetId = value[PORTABLE_ASSET_REFERENCE_KEY];
+      if (
+        keys.length !== 1 ||
+        typeof assetId !== "string" ||
+        !Object.hasOwn(assets, assetId)
+      ) {
+        invalidReference = true;
+        return null;
+      }
+      referencedAssetIds.add(assetId);
+      return assets[assetId];
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, decode(entry)]),
+    );
+  }
+
+  const decoded = decode(payload.data);
+  if (
+    invalidReference ||
+    !isRecord(decoded) ||
+    referencedAssetIds.size !== Object.keys(assets).length
+  ) {
+    return { ok: false, error: PORTABLE_BACKUP_ERROR };
+  }
+
+  return { ok: true, data: decoded };
+}
+
+function backupDataFromPayload(
+  payload: Record<string, unknown>,
+  metadata: Record<string, unknown>,
+): { ok: true; data: Record<string, unknown> } | { ok: false; error: string } {
+  const exportVersion = Number(metadata.exportVersion);
+  if (exportVersion === BACKUP_VERSION) {
+    return isRecord(payload.data)
+      ? { ok: true, data: payload.data }
+      : { ok: false, error: "La copia no incluye metadata y datos válidos." };
+  }
+  if (exportVersion === PORTABLE_BACKUP_VERSION) {
+    return decodePortableBackupData(payload);
+  }
+  return { ok: false, error: "La versión de la copia no es compatible." };
 }
 
 function sanitizeBackupValue(value: unknown): unknown {
@@ -208,8 +341,7 @@ function parseValidatedBackupPayload(
   }
 
   const metadata = parsed.metadata;
-  const data = parsed.data;
-  if (!isRecord(metadata) || !isRecord(data)) {
+  if (!isRecord(metadata)) {
     return { ok: false, error: "La copia no incluye metadata y datos válidos." };
   }
 
@@ -217,7 +349,10 @@ function parseValidatedBackupPayload(
     return { ok: false, error: `La copia no parece ser de ${APP_BRAND_NAME}.` };
   }
 
-  return { ok: true, fileName, metadata, data };
+  const decoded = backupDataFromPayload(parsed, metadata);
+  if (!decoded.ok) return decoded;
+
+  return { ok: true, fileName, metadata, data: decoded.data };
 }
 
 function normalizeBackupDataForImport(
@@ -229,7 +364,11 @@ function normalizeBackupDataForImport(
     typeof metadata.exportedAt === "string" ? metadata.exportedAt : "";
   const source = typeof metadata.source === "string" ? metadata.source : "";
 
-  if (!Number.isFinite(exportVersion) || exportVersion < 1 || !exportedAt) {
+  if (
+    (exportVersion !== BACKUP_VERSION &&
+      exportVersion !== PORTABLE_BACKUP_VERSION) ||
+    !exportedAt
+  ) {
     return { ok: false, error: "La metadata de la copia no es válida." };
   }
 
@@ -321,6 +460,25 @@ export function createBackupPayload(
   };
 }
 
+function createPortableBackupPayload(
+  data: AppData,
+  exportedAt: string,
+): PortableBackupPayloadV2 {
+  const encoded = encodePortableBackupData(data);
+  return {
+    metadata: {
+      app: BACKUP_APP_ID,
+      exportVersion: PORTABLE_BACKUP_VERSION,
+      exportedAt,
+      source: BACKUP_SOURCE,
+      warning: BACKUP_WARNING,
+    },
+    format: PORTABLE_BACKUP_FORMAT,
+    data: encoded.data,
+    assets: encoded.assets,
+  };
+}
+
 export function createBackupFilename(
   exportedAt = new Date().toISOString(),
 ): string {
@@ -386,17 +544,21 @@ export function getBackupRestoreBlocker(
 }
 
 export function parseBackupJson(raw: unknown): AppData | { error: string } {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     return { error: "El archivo no es válido" };
   }
 
-  const payload = raw as Partial<AppData> & {
-    data?: Partial<AppData>;
-    metadata?: Partial<BackupMetadata>;
-    version?: number;
-  };
-  const backupData =
-    payload.data && typeof payload.data === "object" ? payload.data : payload;
+  let backupData: Record<string, unknown>;
+  if (isRecord(raw.metadata)) {
+    if (raw.metadata.app !== BACKUP_APP_ID) {
+      return { error: `No parece una copia de ${APP_BRAND_NAME}` };
+    }
+    const decoded = backupDataFromPayload(raw, raw.metadata);
+    if (!decoded.ok) return { error: decoded.error };
+    backupData = decoded.data;
+  } else {
+    backupData = isRecord(raw.data) ? raw.data : raw;
+  }
 
   if (!backupData.profile && !backupData.documents && !backupData.customers) {
     return { error: `No parece una copia de ${APP_BRAND_NAME}` };
@@ -409,10 +571,14 @@ export function createBackupBlob(
   data: AppData,
   exportedAt = new Date().toISOString(),
 ): Blob {
-  const payload = createBackupPayload(data, exportedAt);
-  return new Blob([JSON.stringify(payload, null, 2)], {
+  const payload = createPortableBackupPayload(data, exportedAt);
+  const blob = new Blob([JSON.stringify(payload)], {
     type: "application/json",
   });
+  if (blob.size > MAX_BACKUP_PREVIEW_BYTES) {
+    throw new Error("portable_backup_too_large");
+  }
+  return blob;
 }
 
 export function downloadBackup(

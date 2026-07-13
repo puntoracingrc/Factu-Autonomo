@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { AppData, BusinessProfile, Document } from "@/lib/types";
+import type {
+  AppData,
+  BusinessProfile,
+  Document,
+  DocumentSnapshot,
+} from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { deriveLegacySnapshotForReadOnly } from "./snapshots";
 import { documentAmounts } from "@/lib/vat-regime";
-import { sha256Hex } from "./snapshot-hash";
+import { legacyFnv1a32, sha256Hex } from "./snapshot-hash";
 import { stableStringifySnapshot } from "./snapshots";
 import { isDocumentEditable } from "@/lib/documents";
 import { issueDocument } from "./index";
@@ -22,7 +27,9 @@ import {
   hasLegacyImportProtectionClaim,
   inspectLegacyImportAttestation,
   isDocumentUsableForFinancialCalculations,
+  projectLegacyImportSnapshotOntoDocument,
 } from "./legacy-import-attestation";
+import { withDocumentRelationshipIntegritySignals } from "./relationships";
 
 const PROFILE: BusinessProfile = {
   ...EMPTY_DATA.profile,
@@ -97,12 +104,18 @@ function appData(documents: Document[]): AppData {
 }
 
 describe("legacy imported document attestation", () => {
-  it("repara de forma explícita un histórico PCF v1 sin fabricar PDF ni sello", () => {
+  it("repara de forma explícita un histórico PCF v2 sin fabricar PDF ni sello", () => {
     const before = appData([importedDocument()]);
     const preview = buildLegacyImportRepairPreview(before);
 
     expect(preview.affectedCount).toBe(1);
     expect(preview.manualReview).toEqual([]);
+    expect(preview.schemaVersion).toBe(2);
+    expect(preview.candidates[0]).toMatchObject({
+      issuerOrigin: "current_profile_at_import",
+      completenessExceptions: [],
+      amounts: { subtotal: 100, iva: 21, total: 121 },
+    });
 
     const result = applyLegacyImportRepair(
       before,
@@ -120,10 +133,30 @@ describe("legacy imported document attestation", () => {
       total: 121,
     });
     expect(repaired.legacyImportAttestation).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: "historical_import_user_accepted",
       importer: "pcfacturacion",
       documentId: repaired.id,
+      acceptanceBasis: "amounts_as_filed_user_attested",
+      amountOrigin: "persisted_lines_user_confirmed",
+      importProvenance: {
+        schemaVersion: 2,
+        kind: "external_import",
+        importer: "pcfacturacion",
+        importedAt: null,
+        provenanceRecordedAt: "2026-07-12T22:00:00.000Z",
+        issuerOrigin: "current_profile_at_import",
+        documentStateAtImport: "unknown_legacy_import",
+      },
+      acceptedContentPolicy: {
+        kind: "stored_fiscal_content_user_authoritative",
+        completenessExceptions: [],
+      },
+      acceptedTaxSummary: {
+        subtotal: 100,
+        iva: 21,
+        total: 121,
+      },
       originalEvidence: {
         kind: "source_files_not_stored",
         preservation: "user_managed",
@@ -139,6 +172,10 @@ describe("legacy imported document attestation", () => {
         },
       },
     });
+    expect(repaired.legacyImportAttestation).toHaveProperty(
+      "sourceRecordHash",
+      expect.stringMatching(/^sha256:/),
+    );
     expect(repaired.pdfSnapshot).toBeUndefined();
     expect(repaired.snapshotSeal).toBeUndefined();
     expect(repaired.snapshotIntegrityRequired).toBeUndefined();
@@ -151,14 +188,168 @@ describe("legacy imported document attestation", () => {
     expect(replay.alreadyAttestedDocumentIds).toEqual([repaired.id]);
   });
 
+  it("la proyección fiscal nunca borra un bloqueo relacional posterior", () => {
+    const before = appData([importedDocument()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const blocked: Document = {
+      ...result.data.documents[0],
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["document_relationship_invalid"],
+      },
+    };
+
+    const projected = projectLegacyImportSnapshotOntoDocument(blocked);
+
+    expect(projected.snapshotIntegrity).toEqual(blocked.snapshotIntegrity);
+    expect(isDocumentUsableForFinancialCalculations(projected)).toBe(false);
+    expect(documentAmounts(projected, false).total).toBe(0);
+  });
+
+  it("no presenta dos copias de la misma atestación como históricos utilizables", () => {
+    const before = appData([importedDocument()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const attested = result.data.documents[0];
+
+    const preview = buildLegacyImportRepairPreview(
+      appData([attested, { ...attested }]),
+    );
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.alreadyAttestedDocumentIds).toEqual([]);
+    expect(preview.manualReview).toEqual([
+      expect.objectContaining({
+        documentId: attested.id,
+        reasons: ["duplicate_document_id"],
+      }),
+    ]);
+  });
+
+  it("manda a revisión dos atestaciones con mismo número si una no conserva NIF", () => {
+    const attestedAt = "2026-07-12T22:00:00.000Z";
+    const weak = attestNewImportedDocument(
+      {
+        ...importedDocument("pcfacturacion:factura:F-2024-0001"),
+        issuer: { ...importedDocument().issuer!, nif: "" },
+      },
+      PROFILE,
+      "pcfacturacion",
+      attestedAt,
+      { issuerOrigin: "current_profile_at_import" },
+    );
+    const strong = attestNewImportedDocument(
+      importedDocument("holded:factura:F-2024-0001"),
+      PROFILE,
+      "holded",
+      attestedAt,
+      { issuerOrigin: "current_profile_at_import" },
+    );
+
+    const preview = buildLegacyImportRepairPreview(appData([weak, strong]));
+
+    expect(preview.alreadyAttestedDocumentIds).toEqual([]);
+    expect(preview.manualReview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          documentId: weak.id,
+          reasons: ["duplicate_fiscal_identity"],
+        }),
+        expect.objectContaining({
+          documentId: strong.id,
+          reasons: ["duplicate_fiscal_identity"],
+        }),
+      ]),
+    );
+  });
+
+  it.each([
+    ["dos NIF no estándar", "SIN-NIF", "NO-CONSTA"],
+    ["uno no estándar y uno válido", "SIN-NIF", PROFILE.nif],
+  ])("bloquea la identidad duplicada con %s", (_label, firstNif, secondNif) => {
+    const makeAttested = (
+      id: string,
+      importer: "pcfacturacion" | "holded",
+      nif: string,
+    ) =>
+      attestNewImportedDocument(
+        {
+          ...importedDocument(id),
+          issuer: { ...importedDocument().issuer!, nif },
+        },
+        PROFILE,
+        importer,
+        "2026-07-12T22:00:00.000Z",
+        { issuerOrigin: "current_profile_at_import" },
+      );
+    const first = makeAttested(
+      "pcfacturacion:factura:F-2024-0001",
+      "pcfacturacion",
+      firstNif,
+    );
+    const second = makeAttested(
+      "holded:factura:F-2024-0001",
+      "holded",
+      secondNif,
+    );
+
+    const preview = buildLegacyImportRepairPreview(appData([first, second]));
+
+    expect(preview.alreadyAttestedDocumentIds).toEqual([]);
+    expect(preview.manualReview).toHaveLength(2);
+    expect(
+      preview.manualReview.every((item) =>
+        item.reasons.includes("duplicate_fiscal_identity"),
+      ),
+    ).toBe(true);
+  });
+
   it.each([
     ["pcfacturacion:factura:F-1", "pcfacturacion"],
     ["holded:factura:F-1", "holded"],
     ["facturadirecta:factura:F-1", "facturadirecta"],
     ["generic-documents:factura:F-1", "generic_documents"],
   ] as const)("reconoce el namespace %s", (id, importer) => {
+    const base = importedDocument(id);
+    const historical: Document =
+      importer === "pcfacturacion"
+        ? base
+        : importer === "generic_documents"
+          ? {
+              ...base,
+              legacyImportProvenance: {
+                schemaVersion: 2,
+                kind: "external_import",
+                importer,
+                importedAt: "2026-07-01T10:00:00.000Z",
+                provenanceRecordedAt: "2026-07-01T10:00:00.000Z",
+                issuerOrigin: "unknown_legacy_import",
+                documentStateAtImport: "issued",
+              },
+            }
+          : {
+              ...base,
+              issuedAt: base.createdAt,
+              legacyImportProvenance: {
+                schemaVersion: 1,
+                kind: "external_import",
+                importer,
+                importedAt: "2026-07-01T10:00:00.000Z",
+              },
+            };
     const preview = buildLegacyImportRepairPreview(
-      appData([importedDocument(id)]),
+      appData([historical]),
     );
     expect(preview.candidates[0]?.importer).toBe(importer);
   });
@@ -168,6 +359,283 @@ describe("legacy imported document attestation", () => {
     const preview = buildLegacyImportRepairPreview(appData([modern]));
     expect(preview.affectedCount).toBe(0);
     expect(preview.manualReview).toEqual([]);
+  });
+
+  it("no degrada a legacy un documento PCF con señal de emisión de la app", () => {
+    const appIssuedClaim: Document = {
+      ...importedDocument(),
+      issuedAt: "2024-04-01T12:00:00.000Z",
+    };
+
+    const preview = buildLegacyImportRepairPreview(appData([appIssuedClaim]));
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "existing_integrity_evidence",
+    );
+  });
+
+  it("no degrada un borrador externo emitido por Factu aunque conserve procedencia", () => {
+    const importedAt = "2026-07-01T10:00:00.000Z";
+    const externalDraft: Document = {
+      ...importedDocument("holded:factura:F-2026-0001"),
+      status: "borrador",
+      issuer: undefined,
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+      issuedAt: undefined,
+      legacyImportProvenance: {
+        schemaVersion: 2,
+        kind: "external_import",
+        importer: "holded",
+        importedAt,
+        provenanceRecordedAt: importedAt,
+        issuerOrigin: "current_profile_at_import",
+        documentStateAtImport: "draft",
+      },
+    };
+    const issued = issueDocument(
+      externalDraft,
+      PROFILE,
+      "2026-07-02T10:00:00.000Z",
+    );
+    const lostModernEvidence: Document = {
+      ...issued,
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      issuedAt: undefined,
+      sentAt: undefined,
+      paidAt: undefined,
+      acceptedAt: undefined,
+      deliveryStatus: undefined,
+      paymentStatus: undefined,
+      acceptanceStatus: undefined,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+    };
+
+    const preview = buildLegacyImportRepairPreview(
+      appData([lostModernEvidence]),
+    );
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "existing_integrity_evidence",
+    );
+
+    const directRetry = attestNewImportedDocument(
+      lostModernEvidence,
+      PROFILE,
+      "holded",
+      "2026-07-03T10:00:00.000Z",
+      { issuerOrigin: "current_profile_at_import" },
+    );
+    expect(directRetry).toBe(lostModernEvidence);
+    expect(directRetry.legacyImportAttestation).toBeUndefined();
+  });
+
+  it("no convierte por el atajo directo una procedencia V1 ya persistida", () => {
+    const historical: Document = {
+      ...importedDocument(),
+      legacyImportProvenance: {
+        schemaVersion: 1,
+        kind: "external_import",
+        importer: "pcfacturacion",
+        importedAt: "2024-04-01T10:00:00.000Z",
+      },
+    };
+
+    const retried = attestNewImportedDocument(
+      historical,
+      PROFILE,
+      "pcfacturacion",
+      "2026-07-13T08:00:00.000Z",
+    );
+
+    expect(retried).toBe(historical);
+    expect(retried.legacyImportAttestation).toBeUndefined();
+  });
+
+  it("reconoce issuedAt histórico de Holded solo con una importación anterior persistida", () => {
+    const issuedAt = "2024-04-01T10:00:00.000Z";
+    const holdedHistorical: Document = {
+      ...importedDocument("holded:factura:F-2024-0001"),
+      issuedAt,
+      createdAt: issuedAt,
+      updatedAt: issuedAt,
+      deliveryStatus: "not_sent",
+      paymentStatus: "pending",
+      acceptanceStatus: "not_applicable",
+      legacyImportProvenance: {
+        schemaVersion: 1,
+        kind: "external_import",
+        importer: "holded",
+        importedAt: "2026-07-01T10:00:00.000Z",
+      },
+    };
+
+    const preview = buildLegacyImportRepairPreview(
+      appData([holdedHistorical]),
+    );
+
+    expect(preview.affectedCount).toBe(1);
+    expect(preview.candidates[0]).toMatchObject({
+      importer: "holded",
+      issuerOrigin: "current_profile_at_import",
+    });
+  });
+
+  it.each([
+    ["holded:factura:F-2024-0001", "holded"],
+    ["facturadirecta:factura:F-2024-0001", "facturadirecta"],
+  ] as const)(
+    "recupera el histórico pre-V2 %s con huella estructural del importador",
+    (id, importer) => {
+      const issuedAt = "2024-04-01T10:00:00.000Z";
+      const historical: Document = {
+        ...importedDocument(id),
+        issuedAt,
+        createdAt: issuedAt,
+        updatedAt: issuedAt,
+        deliveryStatus: "not_sent",
+        paymentStatus: "pending",
+        acceptanceStatus: "not_applicable",
+        legacyImportProvenance: undefined,
+      };
+
+      const preview = buildLegacyImportRepairPreview(appData([historical]));
+
+      expect(preview.affectedCount).toBe(1);
+      expect(preview.candidates[0]?.importer).toBe(importer);
+      expect(preview.candidates[0]?.issuerOrigin).toBe(
+        "current_profile_at_import",
+      );
+    },
+  );
+
+  it("recupera un Word/Excel pre-V2 solo cuando conserva snapshot legacy íntegro", () => {
+    const historical: Document = {
+      ...importedDocument("generic-documents:factura:F-2024-0001"),
+      legacyImportProvenance: undefined,
+    };
+    const snapshot = deriveLegacySnapshotForReadOnly(historical, PROFILE);
+    const residue: Document = {
+      ...historical,
+      documentSnapshot: snapshot,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["pdf_snapshot_missing", "snapshot_seal_missing"],
+      },
+    };
+
+    expect(buildLegacyImportRepairPreview(appData([residue])).affectedCount).toBe(
+      1,
+    );
+    expect(
+      buildLegacyImportRepairPreview(appData([historical])).affectedCount,
+    ).toBe(0);
+  });
+
+  it("atesta directamente un emitido histórico de Holded sin confundirlo con emisión posterior", () => {
+    const issuedAt = "2024-04-01T10:00:00.000Z";
+    const imported = attestNewImportedDocument(
+      {
+        ...importedDocument("holded:factura:F-2024-0001"),
+        issuedAt,
+        createdAt: issuedAt,
+        updatedAt: issuedAt,
+        deliveryStatus: "not_sent",
+        paymentStatus: "pending",
+        acceptanceStatus: "not_applicable",
+      },
+      PROFILE,
+      "holded",
+      "2026-07-01T10:00:00.000Z",
+      { issuerOrigin: "current_profile_at_import" },
+    );
+
+    expect(imported.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      importer: "holded",
+    });
+    expect(inspectLegacyImportAttestation(imported).ok).toBe(true);
+  });
+
+  it("preserva una procedencia persistente aunque el ID antiguo no tenga namespace", () => {
+    const historical: Document = {
+      ...importedDocument("legacy-stable-id"),
+      legacyImportProvenance: {
+        schemaVersion: 1,
+        kind: "external_import",
+        importer: "pcfacturacion",
+        importedAt: "2024-04-01T10:00:00.000Z",
+      },
+    };
+    const before = appData([historical]);
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(preview).toMatchObject({
+      affectedCount: 1,
+      candidates: [{ documentId: "legacy-stable-id", importer: "pcfacturacion" }],
+    });
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T08:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.documents[0].legacyImportProvenance?.importedAt).toBe(
+      "2024-04-01T10:00:00.000Z",
+    );
+    expect(result.data.documents[0].legacyImportProvenance).toMatchObject({
+      schemaVersion: 2,
+      provenanceRecordedAt: "2026-07-13T08:00:00.000Z",
+      issuerOrigin: "current_profile_at_import",
+    });
+    expect(
+      result.data.documents[0].legacyImportAttestation,
+    ).toMatchObject({
+      schemaVersion: 2,
+      attestedAt: "2026-07-13T08:00:00.000Z",
+      importProvenance: {
+        importer: "pcfacturacion",
+        importedAt: "2024-04-01T10:00:00.000Z",
+      },
+    });
+    expect(inspectLegacyImportAttestation(result.data.documents[0]).ok).toBe(
+      true,
+    );
+  });
+
+  it("manda a revisión un namespace que contradice su procedencia persistida", () => {
+    const conflicting: Document = {
+      ...importedDocument("holded:factura:F-2024-0001"),
+      legacyImportProvenance: {
+        schemaVersion: 1,
+        kind: "external_import",
+        importer: "pcfacturacion",
+        importedAt: "2024-04-01T10:00:00.000Z",
+      },
+    };
+
+    const preview = buildLegacyImportRepairPreview(appData([conflicting]));
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "namespace_type_mismatch",
+    );
   });
 
   it("no degrada evidencia moderna parcial o corrupta a legacy", () => {
@@ -182,6 +650,53 @@ describe("legacy imported document attestation", () => {
     expect(preview.affectedCount).toBe(0);
     expect(preview.manualReview[0]?.reasons).toContain(
       "existing_integrity_evidence",
+    );
+  });
+
+  it("no borra una señal de bloqueo vacía como si fuera residuo del rollout", () => {
+    const malformedSignal: Document = {
+      ...importedDocument(),
+      snapshotIntegrity: { status: "blocked", issues: [] },
+    };
+
+    const preview = buildLegacyImportRepairPreview(
+      appData([malformedSignal]),
+    );
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toContain(
+      "unexpected_integrity_issue",
+    );
+  });
+
+  it("nunca reclasifica como legacy un snapshot que conserva contexto VeriFactu", () => {
+    const historical = importedDocument();
+    const legacySnapshotWithVerifactu = deriveLegacySnapshotForReadOnly(
+      historical,
+      {
+        ...PROFILE,
+        verifactu: { enabled: true, environment: "test" },
+      },
+    );
+    const residue: Document = {
+      ...historical,
+      documentSnapshot: legacySnapshotWithVerifactu,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["pdf_snapshot_missing", "snapshot_seal_missing"],
+      },
+    };
+
+    const preview = buildLegacyImportRepairPreview(appData([residue]));
+
+    expect(legacySnapshotWithVerifactu.fiscalContext.verifactu).toBeDefined();
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview[0]?.reasons).toEqual(
+      expect.arrayContaining([
+        "existing_integrity_evidence",
+        "verifactu_evidence",
+      ]),
     );
   });
 
@@ -218,7 +733,31 @@ describe("legacy imported document attestation", () => {
 
   it("manda a revisión candidatos con la misma identidad fiscal", () => {
     const first = importedDocument("pcfacturacion:factura:F-2024-0001");
-    const second = importedDocument("holded:factura:F-2024-0001");
+    const second = importedDocument("pcfacturacion:factura:row-2");
+
+    const preview = buildLegacyImportRepairPreview(appData([first, second]));
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.manualReview).toHaveLength(2);
+    expect(
+      preview.manualReview.every((item) =>
+        item.reasons.includes("duplicate_fiscal_identity"),
+      ),
+    ).toBe(true);
+  });
+
+  it("no acepta duplicados con el mismo número aunque falte el NIF del emisor", () => {
+    const withoutIssuerNif = (id: string): Document => {
+      const historical = importedDocument(id);
+      return {
+        ...historical,
+        issuer: { ...historical.issuer!, nif: "" },
+      };
+    };
+    const first = withoutIssuerNif(
+      "pcfacturacion:factura:F-2024-0001",
+    );
+    const second = withoutIssuerNif("pcfacturacion:factura:row-2");
 
     const preview = buildLegacyImportRepairPreview(appData([first, second]));
 
@@ -316,6 +855,159 @@ describe("legacy imported document attestation", () => {
     expect(result.data.documents[0].snapshotSeal).toBeUndefined();
   });
 
+  it("permite previsualizar un snapshot legacy íntegro con emisor incompleto", () => {
+    const historical: Document = {
+      ...importedDocument(),
+      issuer: { ...importedDocument().issuer!, nif: "" },
+    };
+    const frozen = deriveLegacySnapshotForReadOnly(historical, PROFILE);
+    const residue: Document = {
+      ...historical,
+      documentSnapshot: frozen,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["pdf_snapshot_missing", "snapshot_seal_missing"],
+      },
+    };
+    const [relationshipChecked] = withDocumentRelationshipIntegritySignals([
+      residue,
+    ]);
+
+    expect(relationshipChecked.snapshotIntegrity?.issues).not.toContain(
+      "document_relationship_invalid",
+    );
+    const preview = buildLegacyImportRepairPreview(
+      appData([relationshipChecked]),
+    );
+    expect(preview.affectedCount).toBe(1);
+    expect(preview.candidates[0].completenessExceptions).toContain(
+      "issuer_nif_missing_or_nonstandard",
+    );
+
+    const corrupt: Document = {
+      ...residue,
+      documentSnapshot: { ...frozen, snapshotHash: "sha256:corrupt" },
+    };
+    expect(buildLegacyImportRepairPreview(appData([corrupt])).affectedCount).toBe(
+      0,
+    );
+
+    const liveRectification: Document = {
+      ...residue,
+      rectification: {
+        originalDocumentId: "original-id",
+        originalNumber: "F-2024-0000",
+        originalDate: "2024-03-01",
+        reason: "Relación añadida fuera del snapshot",
+        type: "correccion",
+      },
+    };
+    const rectificationPreview = buildLegacyImportRepairPreview(
+      appData([liveRectification]),
+    );
+    expect(rectificationPreview.affectedCount).toBe(0);
+    expect(rectificationPreview.manualReview[0]?.reasons).toContain(
+      "unsupported_historical_relation",
+    );
+  });
+
+  it("previsualiza exactamente el resumen congelado para importes negativos con medios céntimos", () => {
+    const historical: Document = {
+      ...importedDocument(),
+      items: [
+        {
+          ...importedDocument().items[0],
+          quantity: 0.5,
+          unitPrice: -0.05,
+          ivaPercent: 21,
+        },
+      ],
+    };
+    const current = deriveLegacySnapshotForReadOnly(historical, PROFILE);
+    const legacyContent: DocumentSnapshot = {
+      ...current,
+      items: [
+        {
+          ...current.items[0],
+          subtotal: -0.02,
+          ivaAmount: -0.01,
+          total: -0.03,
+        },
+      ],
+      taxSummary: {
+        subtotal: -0.02,
+        iva: -0.01,
+        total: -0.03,
+        vatExempt: false,
+        byRate: [
+          {
+            ivaPercent: 21,
+            taxableBase: -0.02,
+            ivaAmount: -0.01,
+            total: -0.03,
+          },
+        ],
+      },
+    };
+    const hashPayload = { ...legacyContent } as Record<string, unknown>;
+    delete hashPayload.capturedAt;
+    delete hashPayload.source;
+    delete hashPayload.snapshotHash;
+    const issuer = { ...legacyContent.issuer } as Record<string, unknown>;
+    delete issuer.capturedAt;
+    const frozen: DocumentSnapshot = {
+      ...legacyContent,
+      snapshotHash: `fnv1a32:${legacyFnv1a32(
+        stableStringifySnapshot({
+          ...hashPayload,
+          issuer,
+          items: legacyContent.items.map((item) => {
+            const line = { ...item } as Record<string, unknown>;
+            delete line.id;
+            return line;
+          }),
+        }),
+      )}`,
+    };
+    const residue: Document = {
+      ...historical,
+      documentSnapshot: frozen,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["pdf_snapshot_missing", "snapshot_seal_missing"],
+      },
+    };
+    const before = appData([residue]);
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(preview.candidates[0]).toMatchObject({
+      documentNumber: frozen.number,
+      amounts: {
+        subtotal: frozen.taxSummary.subtotal,
+        iva: frozen.taxSummary.iva,
+        total: frozen.taxSummary.total,
+      },
+    });
+    expect(preview.candidates[0]?.amounts).toEqual({
+      subtotal: -0.02,
+      iva: -0.01,
+      total: -0.03,
+    });
+
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T08:30:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(documentAmounts(result.data.documents[0], false)).toMatchObject(
+      preview.candidates[0].amounts,
+    );
+  });
+
   it("ignora exención y VeriFactu actuales al congelar el contenido histórico", () => {
     const before = {
       ...appData([importedDocument()]),
@@ -361,10 +1053,13 @@ describe("legacy imported document attestation", () => {
     );
 
     expect(imported.legacyImportProvenance).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: "external_import",
       importer: "pcfacturacion",
       importedAt: "2026-07-12T22:00:00.000Z",
+      provenanceRecordedAt: "2026-07-12T22:00:00.000Z",
+      issuerOrigin: "current_profile_at_import",
+      documentStateAtImport: "draft",
     });
     expect(imported.legacyImportAttestation).toBeUndefined();
     expect(imported.documentSnapshot).toBeUndefined();
@@ -460,32 +1155,116 @@ describe("legacy imported document attestation", () => {
     ).toBe(false);
   });
 
-  it.each([
-    { client: { name: "Cliente sin datos" } },
-    {
+  it("convierte las carencias formales históricas en avisos sin perder importes", () => {
+    const historical: Document = {
+      ...importedDocument(),
+      client: { name: "" },
+      issuer: {
+        name: "",
+        nif: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        capturedAt: "2024-04-01T10:00:00.000Z",
+      },
       items: [
         {
-          id: "bad-vat",
-          description: "IVA imposible",
+          id: "line-without-description",
+          description: "",
           quantity: 1,
           unitPrice: 100,
-          ivaPercent: 101,
+          ivaPercent: 21,
         },
       ],
-    },
+    };
+    const before = appData([historical]);
+    const preview = buildLegacyImportRepairPreview(before);
+
+    expect(preview.affectedCount).toBe(1);
+    expect(preview.manualReview).toEqual([]);
+    expect(preview.candidates[0]).toMatchObject({
+      amounts: { subtotal: 100, iva: 21, total: 121 },
+      completenessExceptions: expect.arrayContaining([
+        "issuer_name_missing",
+        "issuer_nif_missing_or_nonstandard",
+        "issuer_address_missing",
+        "issuer_city_missing",
+        "issuer_postal_code_missing",
+        "customer_name_missing",
+        "customer_nif_missing_or_nonstandard",
+        "customer_address_missing",
+        "customer_city_missing",
+        "customer_postal_code_missing",
+        "line_description_missing",
+      ]),
+    });
+
+    const result = applyLegacyImportRepair(
+      before,
+      preview,
+      "2026-07-13T06:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(documentAmounts(result.data.documents[0], false)).toEqual({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
+    expect(inspectLegacyImportAttestation(result.data.documents[0])).toMatchObject(
+      { ok: true },
+    );
+  });
+
+  it.each([
+    ["IVA histórico inusual", 100, 101, 201],
+    ["importe histórico negativo", -100, 21, -121],
+  ])("acepta %s si el usuario confirma las cifras almacenadas", (
+    _label,
+    unitPrice,
+    ivaPercent,
+    expectedTotal,
+  ) => {
+    const historical = {
+      ...importedDocument(),
+      items: [
+        {
+          id: "historical-line",
+          description: "Importe presentado históricamente",
+          quantity: 1,
+          unitPrice,
+          ivaPercent,
+        },
+      ],
+    };
+    const before = appData([historical]);
+    const preview = buildLegacyImportRepairPreview(before);
+    expect(preview.affectedCount).toBe(1);
+    const result = applyLegacyImportRepair(before, preview);
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(documentAmounts(result.data.documents[0], false).total).toBe(
+      expectedTotal,
+    );
+  });
+
+  it.each([
+    { items: [] },
     {
       items: [
         {
-          id: "negative",
-          description: "Factura ordinaria negativa",
-          quantity: 1,
-          unitPrice: -100,
+          id: "not-finite",
+          description: "No finito",
+          quantity: Number.NaN,
+          unitPrice: 100,
           ivaPercent: 21,
         },
       ],
     },
+    { number: "" },
+    { issuer: { ...importedDocument().issuer!, capturedAt: "no-es-fecha" } },
   ] as Array<Partial<Document>>)(
-    "excluye de confirmación contenido que el exportador fiscal rechazaría %#",
+    "mantiene en revisión contenido que no puede congelar de forma finita %#",
     (change) => {
       const preview = buildLegacyImportRepairPreview(
         appData([{ ...importedDocument(), ...change }]),
@@ -563,6 +1342,30 @@ describe("legacy imported document attestation", () => {
     expect(inspectLegacyImportAttestation(invalidEvidence).ok).toBe(false);
   });
 
+  it("falla cerrado ante cualquier señal de integridad runtime no canónica", () => {
+    const before = appData([importedDocument()]);
+    const result = applyLegacyImportRepair(
+      before,
+      buildLegacyImportRepairPreview(before),
+      "2026-07-12T22:00:00.000Z",
+    );
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const malformedSignal: Document = {
+      ...result.data.documents[0],
+      snapshotIntegrity: {
+        status: "ok" as never,
+        issues: ["document_hash_mismatch"],
+      },
+    };
+
+    expect(inspectLegacyImportAttestation(malformedSignal).ok).toBe(false);
+    expect(isDocumentUsableForFinancialCalculations(malformedSignal)).toBe(
+      false,
+    );
+    expect(documentAmounts(malformedSignal, false).total).toBe(0);
+  });
+
   it.each([
     ["estado pagado", { status: "pagado" as const }],
     ["vuelta a borrador", { status: "borrador" as const }],
@@ -570,6 +1373,18 @@ describe("legacy imported document attestation", () => {
     ["pago", { paymentStatus: "paid" as const }],
     ["rectificativa asociada", { rectifiedById: "rectification-id" }],
     ["recibo asociado", { receiptDocumentId: "receipt-id" }],
+    [
+      "rectificación viva añadida",
+      {
+        rectification: {
+          originalDocumentId: "original-id",
+          originalNumber: "F-2024-0000",
+          originalDate: "2024-03-01",
+          reason: "Manipulación posterior",
+          type: "correccion" as const,
+        },
+      },
+    ],
     [
       "presupuesto de origen",
       {

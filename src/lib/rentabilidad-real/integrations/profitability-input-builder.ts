@@ -1,5 +1,5 @@
 import { isFixedExpense } from "@/lib/expense-classification";
-import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
+import { financiallyUsableDocuments } from "@/lib/document-integrity/financial-documents";
 import { todayISO } from "@/lib/calculations";
 import { calculateTaxSummary } from "@/lib/taxes";
 import type { AppData, Document } from "@/lib/types";
@@ -52,9 +52,7 @@ export function buildProfitabilityInputDraftFromExistingData(
   data: AppData,
   referenceDate = todayISO(),
 ): ProfitabilityInputDraft {
-  const usableDocuments = data.documents.filter(
-    isDocumentUsableForFinancialCalculations,
-  );
+  const usableDocuments = financiallyUsableDocuments(data.documents);
   const invoices = usableDocuments
     .filter((doc) => doc.type === "factura")
     .map(mapExistingInvoiceToProfitabilityIncome);

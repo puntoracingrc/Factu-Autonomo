@@ -968,6 +968,7 @@ export function buildHoldedImport(current: AppData, sheets: HoldedInputSheet[]):
         current.profile,
         "holded",
         importAttestedAt,
+        { issuerOrigin: "current_profile_at_import" },
       ),
   );
   const replacesInvoices = importedInvoices.length > 0;

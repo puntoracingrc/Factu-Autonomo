@@ -30,6 +30,16 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
     expect(cardSource).not.toContain("replaceDataIfCurrent");
     expect(cardSource).toContain("preview.candidates.map");
     expect(cardSource).toContain("candidate.documentNumber");
+    expect(cardSource).toContain("candidate.amounts.subtotal");
+    expect(cardSource).toContain("candidate.amounts.iva");
+    expect(cardSource).toContain("candidate.amounts.total");
+    expect(cardSource).toContain("candidate.completenessExceptions");
+    expect(cardSource).toContain(
+      "ISSUER_ORIGIN_LABELS[candidate.issuerOrigin]",
+    );
+    expect(cardSource).toContain("perfil activo durante la importación");
+    expect(cardSource).toContain("campos antiguos incompletos");
+    expect(cardSource).toContain("cuentas generales");
     expect(cardSource).toContain("ID interno:");
   });
 

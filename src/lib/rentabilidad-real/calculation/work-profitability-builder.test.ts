@@ -121,6 +121,22 @@ function recurringExpenseFixture(
 }
 
 describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
+  it("bloquea el cálculo de trabajo para una identidad fiscal repetida", () => {
+    const invoice = documentFixture({
+      id: "duplicated-invoice",
+      type: "factura",
+    });
+    const before = deepClone(invoice);
+
+    const input = buildRentabilidadRealWorkProfitabilityInputFromExistingData(
+      baseAppData({ documents: [invoice, invoice] }),
+      { sourceDocumentId: invoice.id },
+    );
+
+    expect(input).toBeNull();
+    expect(invoice).toEqual(before);
+  });
+
   it("factura con sourceQuoteDocumentId encuentra presupuesto", () => {
     const quote = documentFixture({
       id: "quote_1",
@@ -279,8 +295,16 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
   });
 
   it("usa el reparto persistente distinto para cada trabajo", () => {
-    const firstInvoice = documentFixture({ id: "invoice_1", type: "factura" });
-    const secondInvoice = documentFixture({ id: "invoice_2", type: "factura" });
+    const firstInvoice = documentFixture({
+      id: "invoice_1",
+      type: "factura",
+      number: "F-2026-0001",
+    });
+    const secondInvoice = documentFixture({
+      id: "invoice_2",
+      type: "factura",
+      number: "F-2026-0002",
+    });
     const sharedExpense = expenseFixture({
       id: "expense_shared",
       amount: 200,
@@ -676,10 +700,12 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
   it("conserva una ocurrencia histórica aunque la plantilla esté pausada hoy", () => {
     const aprilInvoice = documentFixture({
       id: "invoice_april",
+      number: "F-2026-0001",
       date: "2026-04-15",
     });
     const julyInvoice = documentFixture({
       id: "invoice_july",
+      number: "F-2026-0002",
       date: "2026-07-15",
     });
     const paused = recurringExpenseFixture({
@@ -730,10 +756,12 @@ describe("buildRentabilidadRealWorkProfitabilityInputFromExistingData", () => {
   it("usa solo el tramo recurrente aplicable a la fecha del documento", () => {
     const oldInvoice = documentFixture({
       id: "invoice_old",
+      number: "F-2026-0001",
       date: "2026-04-15",
     });
     const currentInvoice = documentFixture({
       id: "invoice_current",
+      number: "F-2026-0002",
       date: "2026-07-15",
     });
     const oldTranche = recurringExpenseFixture({

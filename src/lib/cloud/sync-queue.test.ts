@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildCloudReplacementChanges,
   buildCloudUploadChanges,
   clearSyncPending,
   hasUnsyncedChanges,
@@ -7,6 +8,7 @@ import {
   markSyncPending,
 } from "./sync-queue";
 import { EMPTY_DATA, type Document } from "../types";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 
 const NOW = "2026-06-28T06:55:00.000Z";
 
@@ -109,6 +111,59 @@ describe("sync queue", () => {
       "workspace_metadata",
     ]);
     expect(changes.every((change) => change.updatedAt === NOW)).toBe(true);
+  });
+
+  it("refecha solo los sobres de una restauración completa", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice,
+        id: "pcfacturacion:factura:Factura_2F2941_2F",
+        status: "enviado",
+        issuer: {
+          name: "Negocio histórico",
+          nif: "12345678Z",
+          address: "Calle Mayor 1",
+          city: "Madrid",
+          postalCode: "28001",
+          capturedAt: "2024-06-12T08:00:00.000Z",
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: "2024-06-12T08:00:00.000Z",
+        updatedAt: "2024-06-12T08:00:00.000Z",
+      },
+      {
+        ...EMPTY_DATA.profile,
+        name: "Negocio histórico",
+        nif: "12345678Z",
+        address: "Calle Mayor 1",
+        city: "Madrid",
+        postalCode: "28001",
+      },
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+    const data = { ...EMPTY_DATA, documents: [historical] };
+
+    const replacement = buildCloudReplacementChanges(data, NOW);
+    const documentChange = replacement.find(
+      (change) => change.entityType === "document",
+    );
+
+    expect(replacement.every((change) => change.updatedAt === NOW)).toBe(true);
+    expect(documentChange?.payload).toEqual(historical);
+    expect((documentChange?.payload as Document).updatedAt).toBe(
+      "2024-06-12T08:00:00.000Z",
+    );
+    expect(
+      buildCloudUploadChanges({
+        ...data,
+        meta: {
+          lastModified: NOW,
+          pendingChanges: replacement,
+        },
+      }),
+    ).toBe(replacement);
   });
 
   it("no genera cambios cuando los datos ya están sincronizados", () => {

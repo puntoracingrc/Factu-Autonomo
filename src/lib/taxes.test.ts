@@ -10,6 +10,7 @@ import {
 import { issueDocument } from "./document-integrity";
 import {
   applyLegacyImportRepair,
+  attestNewImportedDocument,
   buildLegacyImportRepairPreview,
 } from "./document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "./issuer-snapshot";
@@ -931,6 +932,10 @@ describe("calculateTaxSummary", () => {
     ).toMatchObject({
       salesBase: 100,
       salesIva: 21,
+      grossProfit: 100,
+      estimatedIrpfBase: 100,
+      irpfEstimate: 20,
+      profitAfterIrpfReserve: 80,
       integrityBlockedDocuments: 0,
     });
 
@@ -948,6 +953,59 @@ describe("calculateTaxSummary", () => {
       salesBase: 0,
       salesIva: 0,
       integrityBlockedDocuments: 1,
+    });
+  });
+
+  it("incluye base e IVA de un PCF histórico v2 aceptado aunque falten datos formales", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice("enviado", 100, {
+          id: "pcfacturacion:factura:F-2024-0002",
+          number: "F-2024-0002",
+          date: "2024-04-02",
+          client: {
+            name: "Cliente histórico",
+          },
+          issuer: {
+            ...captureIssuerSnapshot(
+              TEST_PROFILE,
+              "2024-04-02T10:00:00.000Z",
+            ),
+            name: "",
+            nif: "",
+            commercialName: "",
+            website: "",
+            address: "",
+            postalCode: "",
+            city: "",
+          },
+          items: [
+            {
+              id: "legacy-line-1",
+              description: "",
+              quantity: 1,
+              unitPrice: 100,
+              ivaPercent: 21,
+            },
+          ],
+        }),
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      TEST_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T07:30:00.000Z",
+    );
+
+    expect(historical.legacyImportAttestation?.schemaVersion).toBe(2);
+    expect(
+      calculateTaxSummary([historical], [], {
+        profile: TEST_PROFILE,
+      }),
+    ).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
     });
   });
 

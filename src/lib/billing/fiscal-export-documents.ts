@@ -9,7 +9,10 @@ import {
 import { roundMoney } from "../calculations";
 import { clientAddressToFormFields } from "../customer-address";
 import { buildPdfViewModelFromDocumentSnapshot } from "../document-integrity/pdf-source";
-import { inspectUsableHistoricalDocumentEvidence } from "../document-integrity/legacy-import-attestation";
+import {
+  inspectUsableHistoricalDocumentEvidence,
+  projectLegacyImportSnapshotOntoDocument,
+} from "../document-integrity/legacy-import-attestation";
 import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
 import { invoiceClientMissingDocumentLabels } from "../invoice-compliance";
 import { originalStatusAfterRectification } from "../rectificativas";
@@ -327,7 +330,13 @@ export function selectCanonicalFiscalDocumentsForExport(
       continue;
     }
 
-    if (!hasMinimumFiscalSnapshotCompliance(evidence.snapshot)) {
+    const acceptsStoredHistoricalContent =
+      evidence.acceptedContentPolicy ===
+      "stored_fiscal_content_user_authoritative";
+    if (
+      !acceptsStoredHistoricalContent &&
+      !hasMinimumFiscalSnapshotCompliance(evidence.snapshot)
+    ) {
       addBlockedDocument(
         blockedById,
         document,
@@ -337,11 +346,13 @@ export function selectCanonicalFiscalDocumentsForExport(
     }
 
     try {
-      const canonical = buildPdfViewModelFromDocumentSnapshot(
-        document,
-        profile,
-        evidence.snapshot,
-      ).doc;
+      const canonical = acceptsStoredHistoricalContent
+        ? projectLegacyImportSnapshotOntoDocument(document)
+        : buildPdfViewModelFromDocumentSnapshot(
+            document,
+            profile,
+            evidence.snapshot,
+          ).doc;
       if (!isFiscalType(canonical.type) || document.type !== canonical.type) {
         addBlockedDocument(
           blockedById,

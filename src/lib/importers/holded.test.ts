@@ -259,9 +259,11 @@ describe("Holded importer", () => {
 
     expect(draft?.status).toBe("borrador");
     expect(draft?.legacyImportProvenance).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: "external_import",
       importer: "holded",
+      issuerOrigin: "current_profile_at_import",
+      documentStateAtImport: "draft",
     });
     expect(draft?.legacyImportAttestation).toBeUndefined();
     expect(draft?.documentSnapshot).toBeUndefined();

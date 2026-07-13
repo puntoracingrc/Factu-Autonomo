@@ -91,6 +91,19 @@ function baseExpense(overrides: Partial<Expense> = {}): Expense {
 }
 
 describe("buildProfitabilityInputDraftFromExistingData", () => {
+  it("excluye una identidad fiscal repetida sin mutar los documentos", () => {
+    const issued = baseDocument({ id: "duplicated-invoice" });
+    const before = deepClone(issued);
+
+    const draft = buildProfitabilityInputDraftFromExistingData(
+      baseAppData({ documents: [issued, issued] }),
+    );
+
+    expect(draft.incomes).toEqual([]);
+    expect(draft.missingData).toContain("facturas emitidas");
+    expect(issued).toEqual(before);
+  });
+
   it("excluye de los ingresos una emisión de la app cuyo sello ha desaparecido", () => {
     const issued = baseDocument({ id: "app-issued-without-seal" });
     const withoutSeal: Document = {

@@ -266,8 +266,17 @@ describe("export annual pdf", () => {
       {
         ...draftDoc,
         id: "pcfacturacion:factura:F-2026-0001",
+        client: { name: "" },
+        items: [{ ...draftDoc.items[0], description: "" }],
         status: "pagado",
-        issuer: captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+        issuer: {
+          ...captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+        },
         documentLifecycle: "issued",
         integrityLock: "locked",
         paymentStatus: "paid",
@@ -282,6 +291,18 @@ describe("export annual pdf", () => {
 
     expect(commands).toContain("F-2026-0001");
     expect(commands).toContain("100,00");
+    expect(commands).toContain("21,00");
+    expect(commands).toContain("121,00");
+    expect(historical.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptedContentPolicy: {
+        completenessExceptions: expect.arrayContaining([
+          "issuer_nif_missing_or_nonstandard",
+          "customer_nif_missing_or_nonstandard",
+          "line_description_missing",
+        ]),
+      },
+    });
     expect(historical.snapshotSeal).toBeUndefined();
   });
 

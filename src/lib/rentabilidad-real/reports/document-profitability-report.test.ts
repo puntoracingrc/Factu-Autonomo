@@ -160,17 +160,11 @@ describe("buildDocumentProfitabilityReport", () => {
       type: "factura",
       number: "F-2024-0001",
       status: "borrador",
-      client: {
-        name: "Cliente histórico",
-        nif: "B12345678",
-        address: "Calle Cliente 2",
-        city: "Madrid",
-        postalCode: "28002",
-      },
+      client: { name: "Cliente histórico" },
       items: [
         {
           id: "legacy-line",
-          description: "Trabajo histórico",
+          description: "",
           quantity: 1,
           unitPrice: 250,
           ivaPercent: 21,
@@ -183,25 +177,22 @@ describe("buildDocumentProfitabilityReport", () => {
         status: "enviado",
         documentLifecycle: "issued",
         integrityLock: "locked",
-        issuer: captureIssuerSnapshot(TEST_PROFILE, "2024-07-01T10:00:00.000Z"),
+        issuer: {
+          ...captureIssuerSnapshot(
+            TEST_PROFILE,
+            "2024-07-01T10:00:00.000Z",
+          ),
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+        },
       },
       TEST_PROFILE,
       "pcfacturacion",
       "2026-07-13T00:00:00.000Z",
     );
-    const importedWithChangedLiveItems: Document = {
-      ...imported,
-      items: [
-        {
-          id: "changed-live-line",
-          description: "Contenido vivo no canónico",
-          quantity: 1,
-          unitPrice: 999,
-          ivaPercent: 21,
-        },
-      ],
-    };
-
     const sealedModern = document({
       id: "app-issued-equivalent",
       type: "factura",
@@ -219,12 +210,21 @@ describe("buildDocumentProfitabilityReport", () => {
 
     const report = buildDocumentProfitabilityReport(
       data({
-        documents: [importedWithChangedLiveItems, appIssuedWithoutSeal],
+        documents: [imported, appIssuedWithoutSeal],
       }),
       settings(),
     );
 
-    expect(imported.legacyImportAttestation).toBeDefined();
+    expect(imported.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptedContentPolicy: {
+        completenessExceptions: expect.arrayContaining([
+          "issuer_nif_missing_or_nonstandard",
+          "customer_nif_missing_or_nonstandard",
+          "line_description_missing",
+        ]),
+      },
+    });
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0]).toMatchObject({
       primaryDocumentId: imported.id,
@@ -234,6 +234,39 @@ describe("buildDocumentProfitabilityReport", () => {
     expect(
       report.rows.some((row) => row.primaryDocumentId === sealedModern.id),
     ).toBe(false);
+
+    const duplicatedReport = buildDocumentProfitabilityReport(
+      data({ documents: [imported, imported] }),
+      settings(),
+    );
+    expect(duplicatedReport.rows).toEqual([]);
+    expect(duplicatedReport.summary).toMatchObject({
+      rowCount: 0,
+      incomeWithoutIndirectTax: 0,
+      operatingProfit: 0,
+    });
+    expect(imported.snapshotIntegrity).toBeUndefined();
+
+    const tamperedReport = buildDocumentProfitabilityReport(
+      data({
+        documents: [
+          {
+            ...imported,
+            items: [
+              {
+                id: "changed-live-line",
+                description: "Contenido vivo no canónico",
+                quantity: 1,
+                unitPrice: 999,
+                ivaPercent: 21,
+              },
+            ],
+          },
+        ],
+      }),
+      settings(),
+    );
+    expect(tamperedReport.rows).toEqual([]);
   });
 
   it("usa el modo guardado del documento", () => {

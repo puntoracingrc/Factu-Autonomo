@@ -1,4 +1,4 @@
-import { documentTotals } from "./calculations";
+import { documentAmounts } from "./vat-regime";
 import {
   customerStreetSortKey,
   formatAddressBlock,
@@ -9,6 +9,8 @@ import {
   normalizeResidenceType,
 } from "./customer-address";
 import { isTaxableSaleDocument } from "./taxes";
+import { isDocumentUsableForFinancialCalculations } from "./document-integrity/legacy-import-attestation";
+import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
 import {
   isValidContactEmail,
   normalizeContactEmail,
@@ -292,18 +294,38 @@ export function countDocumentsForCustomer(
     .length;
 }
 
+function invoicedDocumentAmount(document: Document): number {
+  const claimsProtectedEvidence = Boolean(
+    document.documentLifecycle === "issued" ||
+      document.documentLifecycle === "canceled" ||
+      document.integrityLock === "locked" ||
+      document.issuedAt ||
+      document.documentSnapshot ||
+      document.pdfSnapshot ||
+      document.snapshotSeal ||
+      document.legacyImportAttestation,
+  );
+  if (
+    claimsProtectedEvidence &&
+    !isDocumentUsableForFinancialCalculations(document)
+  ) {
+    return 0;
+  }
+  return documentAmounts(document, false).total;
+}
+
 /** Total facturado (facturas y recibos emitidos) vinculado al cliente. */
 export function customerInvoicedTotal(
   documents: Document[],
   customer: Customer,
 ): number {
-  return documents
+  return withDocumentFinancialIntegritySignals(documents)
     .filter(
       (doc) =>
         isTaxableSaleDocument(doc) &&
         documentBelongsToCustomer(doc, customer),
     )
-    .reduce((sum, doc) => sum + documentTotals(doc).total, 0);
+    .reduce((sum, doc) => sum + invoicedDocumentAmount(doc), 0);
 }
 
 export type CustomerInvoicedTotals = ReadonlyMap<string, number>;
@@ -313,6 +335,8 @@ export function buildCustomerInvoicedTotals(
   customers: Customer[],
   documents: Document[],
 ): CustomerInvoicedTotals {
+  const integrityCheckedDocuments =
+    withDocumentFinancialIntegritySignals(documents);
   const byCustomerId = new Map<string, string>();
   const byNif = new Map<string, string[]>();
   const byIdentity = new Map<string, string[]>();
@@ -345,7 +369,7 @@ export function buildCustomerInvoicedTotals(
     );
   }
 
-  for (const doc of documents) {
+  for (const doc of integrityCheckedDocuments) {
     if (!isTaxableSaleDocument(doc)) continue;
 
     const matchedIds = new Set<string>();
@@ -377,7 +401,7 @@ export function buildCustomerInvoicedTotals(
     }
 
     if (matchedIds.size === 0) continue;
-    const total = documentTotals(doc).total;
+    const total = invoicedDocumentAmount(doc);
     matchedIds.forEach((id) => {
       totals.set(id, (totals.get(id) ?? 0) + total);
     });

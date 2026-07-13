@@ -4,6 +4,7 @@ import {
   explicitExpenseWorkAllocations,
 } from "@/lib/expense-work-allocations";
 import { roundMoney } from "@/lib/calculations";
+import { withDocumentFinancialIntegritySignals } from "@/lib/document-integrity/financial-documents";
 import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
 import {
   getAlreadyLinkedExpensesForWork,
@@ -224,7 +225,14 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   data: AppData,
   params: BuildRentabilidadRealWorkProfitabilityInputParams,
 ): RentabilidadRealWorkProfitabilityInput | null {
-  const selectedDocument = data.documents.find(
+  const financialDocuments = withDocumentFinancialIntegritySignals(
+    data.documents,
+  );
+  const integrityCheckedData: AppData = {
+    ...data,
+    documents: financialDocuments,
+  };
+  const selectedDocument = financialDocuments.find(
     (doc) =>
       doc.id === params.sourceDocumentId &&
       (doc.type === "factura" || doc.type === "presupuesto"),
@@ -238,14 +246,14 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
     selectedDocument.type === "factura"
       ? sourceQuoteDocumentIdForRentabilidadInvoice(
           selectedDocument,
-          data.documents,
+          financialDocuments,
         )
       : undefined;
   const quote =
     selectedDocument.type === "presupuesto"
       ? selectedDocument
       : selectedSourceQuoteDocumentId
-        ? data.documents.find(
+        ? financialDocuments.find(
             (doc) =>
               doc.type === "presupuesto" &&
               isDocumentUsableForFinancialCalculations(doc) &&
@@ -255,11 +263,13 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   const invoice =
     selectedDocument.type === "factura"
       ? selectedDocument
-      : findLinkedInvoice(data.documents, selectedDocument);
+      : findLinkedInvoice(financialDocuments, selectedDocument);
   const relatedDocumentIds = new Set(
     [
-      ...rectificationChainDocumentIds(selectedDocument, data.documents),
-      ...(invoice ? rectificationChainDocumentIds(invoice, data.documents) : []),
+      ...rectificationChainDocumentIds(selectedDocument, financialDocuments),
+      ...(invoice
+        ? rectificationChainDocumentIds(invoice, financialDocuments)
+        : []),
       quote?.id,
     ].filter(
       (id): id is string => Boolean(id),
@@ -301,15 +311,15 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   }
 
   const linkedExpenses = getAlreadyLinkedExpensesForWork(
-    data,
+    integrityCheckedData,
     relatedDocumentIdList,
   );
   const candidateUnlinkedExpenses = getExpenseLinkCandidatesForWork(
-    data,
+    integrityCheckedData,
     relatedDocumentIdList,
   );
   const ignoredExpensesWithReasons = getIgnoredExpensesForWork(
-    data,
+    integrityCheckedData,
     relatedDocumentIdList,
   );
   const directCosts = data.expenses
@@ -411,7 +421,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   }
 
   const fixedCostCandidates = mapExistingDataToProfitabilityFixedCosts(
-    data,
+    integrityCheckedData,
     selectedDocument.date,
   ).map(workCostFromFixedCost);
   const selectedFixedCosts = selectedFixedCostTotals(
@@ -420,7 +430,7 @@ export function buildRentabilidadRealWorkProfitabilityInputFromExistingData(
   );
   const quoteSummary = quote
     ? workIncomeFromQuote(
-        mapExistingQuoteToProfitabilityQuote(quote, data.documents),
+        mapExistingQuoteToProfitabilityQuote(quote, financialDocuments),
       )
     : undefined;
   const invoiceSummary = invoice

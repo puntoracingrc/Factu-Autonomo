@@ -1,6 +1,7 @@
 import { resolveIssuerNif } from "../issuer-snapshot";
 import type { BusinessProfile, Document } from "../types";
 import { documentAmounts, isVatExempt } from "../vat-regime";
+import { hasLegacyImportProtectionClaim } from "../document-integrity/legacy-import-attestation";
 import { normalizeIssuerNif } from "./qr";
 import { documentRecordType } from "./record-input";
 import type { VerifactuRecordType, VerifactuSettings } from "./types";
@@ -52,12 +53,16 @@ export function getVerifactuEnvironment(
   return normalizeVerifactuSettings(profile.verifactu).environment;
 }
 
-/** Solo facturas emitidas (no borrador, presupuesto ni recibo). */
-export function needsVerifactuRegistration(
+/**
+ * Elegibilidad documental permanente, separada del interruptor temporal del
+ * servicio. Un histórico importado nunca se convierte en un alta Veri*Factu
+ * de esta aplicación, aunque su atestación sea válida para cálculos fiscales.
+ */
+export function isDocumentEligibleForVerifactuRegistration(
   doc: Document,
   profile: BusinessProfile,
 ): boolean {
-  if (!isVerifactuEnabled(profile)) return false;
+  if (hasLegacyImportProtectionClaim(doc)) return false;
   if (doc.type !== "factura") return false;
   if (doc.status === "borrador") return false;
   if (!resolveIssuerNif(doc, profile)) return false;
@@ -70,6 +75,17 @@ export function needsVerifactuRegistration(
     return false;
   }
   return true;
+}
+
+/** Solo facturas emitidas (no borrador, presupuesto ni recibo). */
+export function needsVerifactuRegistration(
+  doc: Document,
+  profile: BusinessProfile,
+): boolean {
+  return (
+    isVerifactuEnabled(profile) &&
+    isDocumentEligibleForVerifactuRegistration(doc, profile)
+  );
 }
 
 /** Tipo de registro para huella/XML. Rectificativas van como alta (F1/R1/R4). */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument } from "@/lib/document-integrity";
+import { attestNewImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
 import { normalizeLoadedData } from "@/lib/storage";
 import { EMPTY_DATA, type Document } from "@/lib/types";
 import {
@@ -246,6 +247,69 @@ describe("protected importer documents", () => {
         acceptedImported: [imported],
       }),
     ).toThrow("datos mínimos de emisión del cliente");
+  });
+
+  it("acepta solo las carencias explícitamente atestadas por la policy V2", () => {
+    const imported: Document = {
+      ...draft("pcfacturacion:factura:F-2024-0001", 100),
+      number: "F-2024-0001",
+      date: "2024-04-01",
+      client: { name: "", nif: "", address: "", city: "", postalCode: "" },
+      items: [{ ...draft("unused", 100).items[0], description: "" }],
+      status: "enviado",
+      issuer: {
+        name: "",
+        nif: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        capturedAt: "2024-04-01T10:00:00.000Z",
+      },
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      createdAt: "2024-04-01T10:00:00.000Z",
+      updatedAt: "2024-04-01T10:00:00.000Z",
+    };
+    const attested = attestNewImportedDocument(
+      imported,
+      {
+        ...EMPTY_DATA.profile,
+        name: "Negocio actual",
+        nif: "12345678Z",
+        address: "Calle Mayor 1",
+        postalCode: "28001",
+        city: "Madrid",
+      },
+      "pcfacturacion",
+      "2026-07-13T08:00:00.000Z",
+      { issuerOrigin: "current_profile_at_import" },
+    );
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      documents: [attested],
+      snapshotIntegrityVersion: 1,
+    });
+
+    expect(() =>
+      assertAcceptedImportedDocumentsNormalized({
+        normalized: normalized.documents,
+        acceptedImported: [attested],
+      }),
+    ).not.toThrow();
+
+    const corrupt: Document = {
+      ...attested,
+      legacyImportAttestation: {
+        ...attested.legacyImportAttestation!,
+        attestationHash: "sha256:corrupt",
+      },
+    };
+    expect(() =>
+      assertAcceptedImportedDocumentsNormalized({
+        normalized: [corrupt],
+        acceptedImported: [corrupt],
+      }),
+    ).toThrow("completa nombre fiscal");
   });
 
   it("conserva bloqueada una anulación legacy sin rectificativa enlazada", () => {

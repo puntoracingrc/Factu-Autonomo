@@ -8,7 +8,10 @@ import type {
 import { hasUsualSpanishTaxIdShape } from "../business-profile";
 import { roundMoney } from "../calculations";
 import { deriveDocumentLifecycle } from "./index";
-import { inspectUsableHistoricalDocumentEvidence } from "./legacy-import-attestation";
+import {
+  inspectUsableHistoricalDocumentEvidence,
+  isVerifiedLegacyImportRepairSnapshotCandidate,
+} from "./legacy-import-attestation";
 import { inspectDocumentSnapshotsIntegrity } from "./snapshots";
 
 function normalizedIdentityText(value: string | undefined): string {
@@ -339,7 +342,8 @@ function verifiedDocumentIdentity(document: Document): string | null {
   ) {
     return null;
   }
-  const issuerNif = normalizedIdentityText(snapshot.issuer.nif) || "?";
+  const issuerNif = normalizedIdentityText(snapshot.issuer.nif);
+  if (!hasValidIssuerTaxId(snapshot.issuer.nif)) return null;
   const identityType =
     snapshot.documentKind === "factura_rectificativa"
       ? "factura"
@@ -347,6 +351,29 @@ function verifiedDocumentIdentity(document: Document): string | null {
   return [
     identityType,
     issuerNif,
+    snapshot.date.slice(0, 4),
+    snapshot.number.trim().toUpperCase(),
+  ].join("|");
+}
+
+function verifiedDocumentNumberIdentity(document: Document): string | null {
+  const snapshot = document.documentSnapshot;
+  if (
+    !snapshot ||
+    (snapshot.documentType !== "factura" &&
+      snapshot.documentType !== "recibo") ||
+    !inspectDocumentSnapshotsIntegrity(document, {
+      requireDocumentSnapshot: true,
+    }).ok
+  ) {
+    return null;
+  }
+  const identityType =
+    snapshot.documentKind === "factura_rectificativa"
+      ? "factura"
+      : snapshot.documentKind;
+  return [
+    identityType,
     snapshot.date.slice(0, 4),
     snapshot.number.trim().toUpperCase(),
   ].join("|");
@@ -365,9 +392,17 @@ export function withDocumentRelationshipIntegritySignals(
   const invalidIds = duplicateDocumentIds(documents);
   const issuedByOriginal = new Map<string, Document[]>();
   const identities = new Map<string, Document[]>();
+  const numberIdentities = new Map<string, Document[]>();
 
   for (const document of documents) {
     const snapshot = document.documentSnapshot;
+    const historicalEvidence = inspectUsableHistoricalDocumentEvidence(document);
+    const acceptsStoredHistoricalContent =
+      historicalEvidence.ok &&
+      historicalEvidence.acceptedContentPolicy ===
+        "stored_fiscal_content_user_authoritative";
+    const canPreviewVerifiedLegacyImport =
+      isVerifiedLegacyImportRepairSnapshotCandidate(document);
     if (
       snapshot &&
       (snapshot.documentType === "factura" ||
@@ -375,6 +410,8 @@ export function withDocumentRelationshipIntegritySignals(
       inspectDocumentSnapshotsIntegrity(document, {
         requireDocumentSnapshot: true,
       }).ok &&
+      !acceptsStoredHistoricalContent &&
+      !canPreviewVerifiedLegacyImport &&
       !hasValidIssuerTaxId(snapshot.issuer.nif)
     ) {
       invalidIds.add(document.id);
@@ -384,6 +421,12 @@ export function withDocumentRelationshipIntegritySignals(
       const matching = identities.get(identity);
       if (matching) matching.push(document);
       else identities.set(identity, [document]);
+    }
+    const numberIdentity = verifiedDocumentNumberIdentity(document);
+    if (numberIdentity) {
+      const matching = numberIdentities.get(numberIdentity);
+      if (matching) matching.push(document);
+      else numberIdentities.set(numberIdentity, [document]);
     }
     if (!isIssuedRectification(document)) continue;
     const relation = verifiedRectification(document);
@@ -398,6 +441,19 @@ export function withDocumentRelationshipIntegritySignals(
 
   for (const related of identities.values()) {
     if (related.length > 1) {
+      related.forEach((document) => invalidIds.add(document.id));
+    }
+  }
+
+  // Si el número/año coincide y al menos uno de los documentos no conserva un
+  // NIF fuerte, no existe forma inequívoca de demostrar que son dos emisores
+  // distintos. Todo el grupo queda bloqueado; cuando todos conservan NIF solo
+  // colisionan los subgrupos fuertes idénticos comprobados arriba.
+  for (const related of numberIdentities.values()) {
+    if (
+      related.length > 1 &&
+      related.some((document) => !verifiedDocumentIdentity(document))
+    ) {
       related.forEach((document) => invalidIds.add(document.id));
     }
   }

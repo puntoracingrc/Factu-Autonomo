@@ -179,9 +179,9 @@ export interface Document {
    * Atestación explícita de un documento histórico importado. No es un sello
    * de emisión de esta app ni acredita Veri*Factu.
    */
-  legacyImportAttestation?: LegacyImportAttestationV1;
+  legacyImportAttestation?: LegacyImportAttestation;
   /** Procedencia persistente también para borradores externos todavía editables. */
-  legacyImportProvenance?: LegacyImportProvenanceV1;
+  legacyImportProvenance?: LegacyImportProvenance;
   /** Snapshot mínimo de configuración PDF congelado al emitir. */
   pdfSnapshot?: DocumentPdfSnapshot;
   /**
@@ -763,44 +763,101 @@ export type LegacyImportSource =
   | "facturadirecta"
   | "generic_documents";
 
-export interface LegacyImportAttestationV1 {
-  schemaVersion: 1;
+export type LegacyImportCompletenessException =
+  | "issuer_name_missing"
+  | "issuer_nif_missing_or_nonstandard"
+  | "issuer_address_missing"
+  | "issuer_city_missing"
+  | "issuer_postal_code_missing"
+  | "customer_name_missing"
+  | "customer_nif_missing_or_nonstandard"
+  | "customer_address_missing"
+  | "customer_city_missing"
+  | "customer_postal_code_missing"
+  | "line_description_missing";
+
+interface LegacyImportAcceptedStateV1 {
+  status: DocumentStatus;
+  documentLifecycle: "issued";
+  integrityLock: "locked";
+  deliveryStatus: DocumentDeliveryStatus | null;
+  paymentStatus: DocumentPaymentStatus | null;
+  acceptanceStatus: DocumentAcceptanceStatus | null;
+  issuedAt: string | null;
+  sentAt: string | null;
+  paidAt: string | null;
+  acceptedAt: string | null;
+  updatedAt: string;
+  relationships: {
+    sourceQuoteDocumentId: string | null;
+    sourceQuoteNumber: string | null;
+    rectifiedById: null;
+    receiptDocumentId: null;
+    sourceDocumentId: null;
+  };
+}
+
+interface LegacyImportOriginalEvidenceV1 {
+  /**
+   * Los importadores actuales no conservan el binario original. El usuario
+   * debe guardarlo fuera de la app hasta que exista almacenamiento de adjuntos.
+   */
+  kind: "source_files_not_stored";
+  preservation: "user_managed";
+}
+
+interface LegacyImportAttestationBaseV1 {
   kind: "historical_import_user_accepted";
   importer: LegacyImportSource;
   documentId: string;
   attestedAt: string;
   snapshotContentHash: string;
-  /**
-   * Los importadores actuales no conservan el binario original. El usuario
-   * debe guardarlo fuera de la app hasta que exista almacenamiento de adjuntos.
-   */
-  originalEvidence: {
-    kind: "source_files_not_stored";
-    preservation: "user_managed";
-  };
+  originalEvidence: LegacyImportOriginalEvidenceV1;
   /** Estado operativo y relaciones congelados al aceptar el histórico. */
-  acceptedState: {
-    status: DocumentStatus;
-    documentLifecycle: "issued";
-    integrityLock: "locked";
-    deliveryStatus: DocumentDeliveryStatus | null;
-    paymentStatus: DocumentPaymentStatus | null;
-    acceptanceStatus: DocumentAcceptanceStatus | null;
-    issuedAt: string | null;
-    sentAt: string | null;
-    paidAt: string | null;
-    acceptedAt: string | null;
-    updatedAt: string;
-    relationships: {
-      sourceQuoteDocumentId: string | null;
-      sourceQuoteNumber: string | null;
-      rectifiedById: null;
-      receiptDocumentId: null;
-      sourceDocumentId: null;
-    };
-  };
+  acceptedState: LegacyImportAcceptedStateV1;
   attestationHash: string;
 }
+
+export interface LegacyImportAttestationV1
+  extends LegacyImportAttestationBaseV1 {
+  schemaVersion: 1;
+}
+
+/**
+ * V2 hace explícita la decisión del usuario de conservar el contenido fiscal
+ * histórico tal como fue importado, aunque no cumpla campos exigidos hoy.
+ */
+export interface LegacyImportAttestationV2
+  extends LegacyImportAttestationBaseV1 {
+  schemaVersion: 2;
+  acceptanceBasis: "amounts_as_filed_user_attested";
+  amountOrigin:
+    | "verified_legacy_snapshot"
+    | "persisted_lines_user_confirmed";
+  /** Procedencia original preservada; `attestedAt` es una fecha distinta. */
+  importProvenance: LegacyImportProvenanceV2;
+  sourceRecord: {
+    type: DocumentType;
+    number: string;
+    date: string;
+    dueDate?: string;
+    client: Client;
+    items: LineItem[];
+    issuer: IssuerSnapshot;
+    notes?: string;
+    paymentTerms?: string;
+  };
+  sourceRecordHash: string;
+  acceptedTaxSummary: TaxSummarySnapshot;
+  acceptedContentPolicy: {
+    kind: "stored_fiscal_content_user_authoritative";
+    completenessExceptions: LegacyImportCompletenessException[];
+  };
+}
+
+export type LegacyImportAttestation =
+  | LegacyImportAttestationV1
+  | LegacyImportAttestationV2;
 
 export interface LegacyImportProvenanceV1 {
   schemaVersion: 1;
@@ -808,6 +865,30 @@ export interface LegacyImportProvenanceV1 {
   importer: LegacyImportSource;
   importedAt: string;
 }
+
+export type LegacyImportIssuerOrigin =
+  | "source_document"
+  | "current_profile_at_import"
+  | "unknown_legacy_import";
+
+/**
+ * V2 separa una fecha de importación realmente conocida de la fecha en la que
+ * se registró la procedencia. También declara si el encabezado del emisor vino
+ * del archivo histórico o del perfil activo usado por el importador.
+ */
+export interface LegacyImportProvenanceV2 {
+  schemaVersion: 2;
+  kind: "external_import";
+  importer: LegacyImportSource;
+  importedAt: string | null;
+  provenanceRecordedAt: string;
+  issuerOrigin: LegacyImportIssuerOrigin;
+  documentStateAtImport: "draft" | "issued" | "unknown_legacy_import";
+}
+
+export type LegacyImportProvenance =
+  | LegacyImportProvenanceV1
+  | LegacyImportProvenanceV2;
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;

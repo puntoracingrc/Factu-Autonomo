@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
+import { issueDocument } from "../document-integrity";
+import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
 import {
+  isDocumentEligibleForVerifactuRegistration,
   isVerifactuEnabled,
   isVerifactuSubmissionAvailable,
   normalizeVerifactuSettings,
@@ -66,6 +69,77 @@ describe("verifactu eligibility", () => {
     expect(isVerifactuSubmissionAvailable()).toBe(false);
     expect(isVerifactuEnabled(profile)).toBe(false);
     expect(needsVerifactuRegistration(factura, profile)).toBe(false);
+  });
+
+  it("excluye permanentemente un histórico importado v2 sin cambiar la elegibilidad de una factura emitida por la app", () => {
+    const issuedByApp = issueDocument(
+      {
+        ...factura,
+        status: "borrador",
+        items: [
+          {
+            id: "line-1",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+      },
+      profile,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const imported = attestNewImportedDocument(
+      {
+        ...factura,
+        id: "pcfacturacion:factura:F-2024-0001",
+        number: "F-2024-0001",
+        date: "2024-02-12",
+        items: [
+          {
+            id: "legacy-line-1",
+            description: "Servicio histórico",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        issuer: {
+          name: "Emisor histórico",
+          nif: "12345678Z",
+          address: "Calle Uno 1",
+          city: "Madrid",
+          postalCode: "28001",
+          capturedAt: "2024-02-12T10:00:00.000Z",
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-13T08:00:00.000Z",
+    );
+
+    expect(imported.legacyImportAttestation?.schemaVersion).toBe(2);
+    expect(
+      isDocumentEligibleForVerifactuRegistration(imported, profile),
+    ).toBe(false);
+    expect(
+      isDocumentEligibleForVerifactuRegistration(
+        {
+          ...imported,
+          legacyImportAttestation: {
+            ...imported.legacyImportAttestation!,
+            attestationHash: "claim-corrupto",
+          },
+        },
+        profile,
+      ),
+    ).toBe(false);
+    expect(
+      isDocumentEligibleForVerifactuRegistration(issuedByApp, profile),
+    ).toBe(true);
+    expect(needsVerifactuRegistration(imported, profile)).toBe(false);
   });
 
   it("no requiere registro si falta NIF de emisor", () => {

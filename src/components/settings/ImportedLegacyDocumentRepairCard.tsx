@@ -5,11 +5,16 @@ import { ArchiveRestore, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { formatMoney } from "@/lib/calculations";
 import {
   buildLegacyImportRepairPreview,
   type LegacyImportRepairReviewReason,
 } from "@/lib/document-integrity/legacy-import-attestation";
-import type { LegacyImportSource } from "@/lib/types";
+import type {
+  LegacyImportCompletenessException,
+  LegacyImportIssuerOrigin,
+  LegacyImportSource,
+} from "@/lib/types";
 
 type Feedback = { tone: "success" | "error"; message: string } | null;
 
@@ -18,6 +23,13 @@ const IMPORTER_LABELS: Record<LegacyImportSource, string> = {
   holded: "Holded",
   facturadirecta: "FacturaDirecta",
   generic_documents: "Word, Excel o importación genérica",
+};
+
+const ISSUER_ORIGIN_LABELS: Record<LegacyImportIssuerOrigin, string> = {
+  source_document: "emisor leído del documento de origen",
+  current_profile_at_import:
+    "emisor tomado del perfil activo durante la importación",
+  unknown_legacy_import: "origen del encabezado de emisor no acreditado",
 };
 
 const REVIEW_LABELS: Record<LegacyImportRepairReviewReason, string> = {
@@ -31,9 +43,26 @@ const REVIEW_LABELS: Record<LegacyImportRepairReviewReason, string> = {
   verifactu_evidence: "evidencia Veri*Factu presente",
   integrity_quarantine: "documento en cuarentena",
   unexpected_integrity_issue: "incidencia de integridad no compatible",
-  issuer_incomplete: "emisor histórico incompleto",
-  fiscal_content_invalid: "contenido fiscal incompleto",
+  issuer_incomplete: "no conserva un encabezado de emisor representable",
+  fiscal_content_invalid: "no conserva líneas e importes finitos",
   attestation_invalid: "atestación anterior incoherente",
+};
+
+const COMPLETENESS_LABELS: Record<
+  LegacyImportCompletenessException,
+  string
+> = {
+  issuer_name_missing: "nombre del emisor",
+  issuer_nif_missing_or_nonstandard: "NIF del emisor",
+  issuer_address_missing: "dirección del emisor",
+  issuer_city_missing: "localidad del emisor",
+  issuer_postal_code_missing: "código postal del emisor",
+  customer_name_missing: "nombre del cliente",
+  customer_nif_missing_or_nonstandard: "NIF del cliente",
+  customer_address_missing: "dirección del cliente",
+  customer_city_missing: "localidad del cliente",
+  customer_postal_code_missing: "código postal del cliente",
+  line_description_missing: "descripción de alguna línea",
 };
 
 function blockedMessage(reason: string): string {
@@ -98,9 +127,9 @@ export function ImportedLegacyDocumentRepairCard() {
       tone: "success",
       message: `${result.value.appliedDocumentIds.length} ${
         result.value.appliedDocumentIds.length === 1
-          ? "documento histórico identificado"
-          : "documentos históricos identificados"
-      } y guardado de forma segura. Ya pueden alimentar impuestos y rentabilidad sin atribuirles un sello moderno.`,
+          ? "documento histórico aceptado"
+          : "documentos históricos aceptados"
+      } y guardado de forma segura. Ya pueden alimentar las cuentas generales, impuestos y rentabilidad sin atribuirles un sello moderno.`,
     });
   }
 
@@ -112,13 +141,14 @@ export function ImportedLegacyDocumentRepairCard() {
         </div>
         <div>
           <h3 className="font-bold text-slate-950">
-            Históricos importados pendientes de identificar
+            Históricos importados pendientes de aceptar
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-700">
             La reparación conserva estos documentos como históricos importados,
-            aceptados por ti y de solo lectura. Podrán usarse en impuestos y
-            rentabilidad, pero no se les atribuye un sello moderno ni registro
-            Veri*Factu de Factu.
+            aceptados por ti y de solo lectura. La base, el IVA y el total que
+            confirmes podrán usarse en el Panel, impuestos, ingresos,
+            rentabilidad e informes aunque falten campos que Factu exige hoy.
+            No se les atribuye un sello moderno ni registro Veri*Factu de Factu.
           </p>
         </div>
       </div>
@@ -129,14 +159,16 @@ export function ImportedLegacyDocumentRepairCard() {
             <p className="font-semibold text-slate-900">
               {preview.affectedCount}{" "}
               {preview.affectedCount === 1
-                ? "documento seguro"
-                : "documentos seguros"}{" "}
-              para identificar
+                ? "documento histórico"
+                : "documentos históricos"}{" "}
+              para aceptar
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              Solo se incluyen IDs de importadores conocidos y casos sin
-              evidencia moderna previa. No se infiere por fecha ni por ausencia
-              de emisión.
+              Solo se incluyen IDs de importadores conocidos, cifras finitas y
+              casos sin evidencia moderna previa. Las carencias antiguas se
+              muestran como avisos; esta reparación no las rellena ni corrige.
+              Si un importador antiguo tomó el emisor del perfil activo, se
+              indica expresamente y no se presenta como dato del archivo fuente.
             </p>
           </div>
           <ul className="grid gap-2 sm:grid-cols-2">
@@ -165,8 +197,24 @@ export function ImportedLegacyDocumentRepairCard() {
                   <span className="block font-semibold text-slate-900">
                     {candidate.documentNumber}
                   </span>
+                  <span className="block text-slate-700">
+                    Base {formatMoney(candidate.amounts.subtotal)} · IVA{" "}
+                    {formatMoney(candidate.amounts.iva)} · Total{" "}
+                    {formatMoney(candidate.amounts.total)}
+                  </span>
+                  {candidate.completenessExceptions.length > 0 && (
+                    <span className="block text-amber-700">
+                      Datos antiguos ausentes o no normalizados:{" "}
+                      {candidate.completenessExceptions
+                        .map((exception) => COMPLETENESS_LABELS[exception])
+                        .join(", ")}
+                    </span>
+                  )}
                   <span className="block break-all">
                     {IMPORTER_LABELS[candidate.importer]} · ID interno: {candidate.documentId}
+                  </span>
+                  <span className="block text-slate-500">
+                    {ISSUER_ORIGIN_LABELS[candidate.issuerOrigin]}
                   </span>
                 </li>
               ))}
@@ -190,13 +238,14 @@ export function ImportedLegacyDocumentRepairCard() {
             />
             <span>
               He descargado y guardado una copia JSON, he revisado la vista
-              previa y confirmo que estos documentos proceden de una importación
-              histórica aceptada por mí.
+              previa y confirmo que la base, el IVA y el total coinciden con mis
+              documentos históricos declarados. Acepto conservarlos tal como
+              fueron importados, incluidos los campos antiguos incompletos.
             </span>
           </label>
           <Button type="button" onClick={handleApply} disabled={!confirmed}>
             <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-            Identificar {preview.affectedCount}
+            Aceptar {preview.affectedCount}
           </Button>
         </div>
       )}
@@ -244,8 +293,8 @@ export function ImportedLegacyDocumentRepairCard() {
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
             {preview.alreadyAttestedDocumentIds.length}{" "}
             {preview.alreadyAttestedDocumentIds.length === 1
-              ? "histórico ya está identificado"
-              : "históricos ya están identificados"}
+              ? "histórico ya está aceptado"
+              : "históricos ya están aceptados"}
             . No hay cambios seguros pendientes.
           </p>
         )}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
 import {
   buildCustomerInvoicedTotals,
   clientInputToSnapshot,
@@ -23,7 +24,7 @@ import {
   validateCustomerInput,
   validateUniqueCustomer,
 } from "./customers";
-import type { Customer } from "./types";
+import { EMPTY_DATA, type BusinessProfile, type Customer, type Document } from "./types";
 
 const sample: Customer[] = [
   {
@@ -818,6 +819,93 @@ describe("findDuplicateCustomerGroups", () => {
 });
 
 describe("customerInvoicedTotal", () => {
+  it("usa el importe congelado de un histórico V2 y deja a cero cualquier manipulación", () => {
+    const customer = sample[1];
+    const profile: BusinessProfile = {
+      ...EMPTY_DATA.profile,
+      name: "Negocio",
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const historical = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:Factura_2F2940_2F",
+        type: "factura",
+        number: "Factura/2940/",
+        date: "2026-06-12",
+        customerId: customer.id,
+        client: { name: customer.name },
+        items: [
+          {
+            id: "legacy-line",
+            description: "",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "pagado",
+        issuer: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: "2026-06-12T10:00:00.000Z",
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: "2026-06-12T10:00:00.000Z",
+        updatedAt: "2026-06-12T10:00:00.000Z",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-13T08:00:00.000Z",
+    );
+
+    expect(customerInvoicedTotal([historical], customer)).toBe(121);
+    expect(buildCustomerInvoicedTotals([customer], [historical]).get(customer.id)).toBe(
+      121,
+    );
+    expect(customerInvoicedTotal([historical, historical], customer)).toBe(0);
+    expect(
+      buildCustomerInvoicedTotals(
+        [customer],
+        [historical, historical],
+      ).get(customer.id),
+    ).toBe(0);
+    expect(historical.snapshotIntegrity).toBeUndefined();
+
+    const tampered: Document = {
+      ...historical,
+      items: [{ ...historical.items[0], unitPrice: 999 }],
+    };
+    expect(customerInvoicedTotal([tampered], customer)).toBe(0);
+    expect(buildCustomerInvoicedTotals([customer], [tampered]).get(customer.id)).toBe(
+      0,
+    );
+
+    const appIssuedWithoutEvidence: Document = {
+      ...historical,
+      id: "app-issued-without-evidence",
+      items: [{ ...historical.items[0], unitPrice: 999 }],
+      documentSnapshot: undefined,
+      legacyImportAttestation: undefined,
+      legacyImportProvenance: undefined,
+      snapshotIntegrity: undefined,
+    };
+    expect(customerInvoicedTotal([appIssuedWithoutEvidence], customer)).toBe(
+      0,
+    );
+    expect(
+      buildCustomerInvoicedTotals([customer], [appIssuedWithoutEvidence]).get(
+        customer.id,
+      ),
+    ).toBe(0);
+  });
+
   it("suma facturas y recibos emitidos del cliente", () => {
     const customer = sample[1];
     const documents = [
