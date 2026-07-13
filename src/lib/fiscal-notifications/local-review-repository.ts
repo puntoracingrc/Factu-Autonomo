@@ -131,7 +131,8 @@ export interface FiscalNotificationLocalReviewRepositoryDependencies {
   readonly ownerScope: unknown;
 }
 
-const STORAGE_KEY_PREFIX = "factu:fiscal-notifications:safe-reviews:v1:";
+export const FISCAL_NOTIFICATION_SAFE_REVIEW_STORAGE_KEY_PREFIX =
+  "factu:fiscal-notifications:safe-reviews:v1:" as const;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const CANONICAL_OWNER_SCOPE = /^user:[A-Za-z0-9_-]{1,128}$/u;
 const CANONICAL_REVIEW_ID =
@@ -1103,7 +1104,7 @@ function canonicalJson(value: unknown): string {
 }
 
 function storageKey(ownerScope: string): string {
-  return `${STORAGE_KEY_PREFIX}${ownerScope}`;
+  return `${FISCAL_NOTIFICATION_SAFE_REVIEW_STORAGE_KEY_PREFIX}${ownerScope}`;
 }
 
 function storageWriteFailureReason(
