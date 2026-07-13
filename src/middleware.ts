@@ -44,6 +44,27 @@ function isConsultorFiscalReleasePath(pathname: string): boolean {
   );
 }
 
+function safelyDecodePathname(pathname: string): string | null {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+}
+
+function isNonCanonicalEncodedConsultorFiscalPath(pathname: string): boolean {
+  let current = pathname;
+
+  for (let pass = 0; pass < 4; pass += 1) {
+    const decoded = safelyDecodePathname(current);
+    if (decoded === null || decoded === current) return false;
+    if (isConsultorFiscalReleasePath(decoded)) return true;
+    current = decoded;
+  }
+
+  return false;
+}
+
 function isFiscalModelReviewNamespacePath(pathname: string): boolean {
   return pathname.toLowerCase().startsWith("/consultor-fiscal/modelos");
 }
@@ -94,6 +115,13 @@ export function middleware(request?: NextRequest) {
       response.headers.set(key, value);
     }
     return response;
+  }
+
+  if (
+    request &&
+    isNonCanonicalEncodedConsultorFiscalPath(request.nextUrl.pathname)
+  ) {
+    return privateNotFoundResponse();
   }
 
   if (
