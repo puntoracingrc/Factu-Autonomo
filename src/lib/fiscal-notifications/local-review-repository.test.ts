@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { extractAeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM } from "./local-review-flow";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
@@ -240,8 +241,8 @@ describe("fiscal notification safe local review repository", () => {
       {
         readPdf: async () =>
           Object.freeze({
-            schemaVersion: 2 as const,
-            adapterVersion: "2.0.0" as const,
+            schemaVersion: 3 as const,
+            adapterVersion: "3.0.0" as const,
             status: "TEXT_LAYER_AVAILABLE" as const,
             sourceContentPolicy:
               "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
@@ -359,6 +360,25 @@ describe("fiscal notification safe local review repository", () => {
                   "PROHIBITED_UNTIL_REVIEW" as const,
                 retainedSourceContent: "NONE" as const,
               }),
+              enforcementExplicitFields:
+                extractAeatEnforcementExplicitFieldsV1(Object.freeze({
+                  ownerScope: OWNER_A,
+                  documentId: "document:synthetic-round-trip",
+                  pages: Object.freeze([
+                    Object.freeze({
+                      pageNumber: 1,
+                      text: [
+                        "AGENCIA TRIBUTARIA",
+                        "sede.agenciatributaria.gob.es",
+                        "PROVIDENCIA DE APREMIO",
+                        "IDENTIFICACION DEL DOCUMENTO",
+                        "IMPORTE DE LA DEUDA",
+                        "Clave de liquidación: PRIVATE_REFERENCE_SENTINEL",
+                      ].join("\n"),
+                      isBlank: false,
+                    }),
+                  ]),
+                })),
             }),
             reviewContext: Object.freeze({
               ownerScope: OWNER_A,
@@ -371,6 +391,9 @@ describe("fiscal notification safe local review repository", () => {
       },
     );
     const actual = analysis.technicalReview;
+    expect(JSON.stringify(analysis)).not.toContain(
+      "PRIVATE_REFERENCE_SENTINEL",
+    );
 
     const storage = new MemoryStorage();
     await expect(
