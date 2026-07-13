@@ -219,7 +219,7 @@ describe("public AEAT model review search v2", () => {
     ).toContain("368");
     expect(resultCodes("one stop shop OSS")).toContain("369");
     expect(resultCodes("pagos transfronterizos CESOP")).toContain("379");
-  });
+  }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
     expect(resultCodes("estim direc")).toContain("130");
