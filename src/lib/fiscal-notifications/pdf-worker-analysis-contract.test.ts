@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractAeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
   FiscalNotificationPdfWorkerAnalysisError,
@@ -20,6 +21,8 @@ const ENFORCEMENT_TEXT = [
   "Ingreso a cuenta: 0,00 EUR",
   "Importe total: 120,00 EUR",
   "PLAZOS DE PAGO",
+  `Clave de liquidación: ${PRIVATE_SENTINEL}`,
+  "Fecha de emisión: 10/07/2026",
   PRIVATE_SENTINEL,
 ].join("\n");
 
@@ -44,6 +47,8 @@ function enforcementAnalysis() {
     pageCount: input.pages.length,
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
+    enforcementExplicitFields:
+      extractAeatEnforcementExplicitFieldsV1(input),
   });
 }
 
@@ -62,6 +67,7 @@ function deferralAnalysis() {
     pageCount: 1,
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: null,
+    enforcementExplicitFields: null,
   });
 }
 
@@ -84,11 +90,12 @@ function conflictingAnalysis(conflict: string) {
     pageCount: 1,
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: null,
+    enforcementExplicitFields: null,
   });
 }
 
 function mutableAnalysis(
-  value = enforcementAnalysis(),
+  value: unknown = enforcementAnalysis(),
 ): MutableAnalysis {
   return JSON.parse(JSON.stringify(value)) as MutableAnalysis;
 }
@@ -97,13 +104,40 @@ function mutableMoneyFacts(value: unknown): MutableMoneyFacts {
   return JSON.parse(JSON.stringify(value)) as MutableMoneyFacts;
 }
 
+function mutableExplicitFields(value: unknown): MutableExplicitFields {
+  return JSON.parse(JSON.stringify(value)) as MutableExplicitFields;
+}
+
+function completeExplicitFields(): MutableExplicitFields {
+  const input = documentInput(
+    [
+      "AGENCIA TRIBUTARIA",
+      "sede.agenciatributaria.gob.es",
+      "PROVIDENCIA DE APREMIO",
+      "IDENTIFICACION DEL DOCUMENTO",
+      "IMPORTE DE LA DEUDA",
+      "Clave de liquidación: SYNTHETIC-LIQUIDATION",
+      "Referencia del documento: SYNTHETIC-DOCUMENT",
+      "Número de justificante: SYNTHETIC-JUSTIFICANTE",
+      "CSV: SYNTHETIC-CSV",
+      "Vto.: 001",
+      "Fecha de emisión: 10/07/2026",
+      "Fecha de firma: 11/07/2026",
+      "Fecha de finalización del período voluntario: 12/07/2026",
+    ].join("\n"),
+  );
+  return mutableExplicitFields(
+    extractAeatEnforcementExplicitFieldsV1(input),
+  );
+}
+
 describe("fiscal notification PDF Worker safe analysis contract", () => {
   it("projects only closed family metadata and ephemeral money facts", () => {
     const analysis = enforcementAnalysis();
 
     expect(analysis).toMatchObject({
-      schemaVersion: 1,
-      analysisVersion: "1.0.0",
+      schemaVersion: 2,
+      analysisVersion: "2.0.0",
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: 1,
       familyAnalysis: {
@@ -121,6 +155,28 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
           { kind: "DOCUMENT_TOTAL", amountCents: 12_000 },
         ],
       },
+      enforcementExplicitFields: {
+        engineId: "aeat-enforcement-explicit-fields",
+        outcome: "FACTS_AVAILABLE",
+        referenceDetections: [
+          {
+            kind: "LIQUIDATION_KEY",
+            occurrenceCount: 1,
+            valueDisclosure: "REDACTED_IN_WORKER",
+          },
+        ],
+        printedDateFacts: [
+          {
+            kind: "PRINTED_ISSUE_DATE",
+            calendarDate: "2026-07-10",
+            dateMeaning: "PRINTED_LABEL_ONLY",
+            legalEffect: "NOT_DETERMINED",
+          },
+        ],
+        deadlinePolicy: "NOT_CALCULATED",
+        calculatedDeadline: null,
+        retainedReferenceValues: "NONE",
+      },
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       retainedSourceContent: "NONE",
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -128,7 +184,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const serialized = JSON.stringify(analysis);
     expect(serialized).not.toContain(PRIVATE_SENTINEL);
     expect(serialized).not.toMatch(
-      /"(?:ownerScope|documentId|filename|bytes|pages|text|rawValue|textSnippet|nif|csv)"/i,
+      /"(?:ownerScope|documentId|filename|bytes|pages|text|rawValue|textSnippet|nif|csv)"\s*:/i,
     );
     expect(Object.isFrozen(analysis)).toBe(true);
     expect(Object.isFrozen(analysis.familyAnalysis)).toBe(true);
@@ -138,6 +194,17 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     expect(
       Object.isFrozen(analysis.enforcementMoneyFacts?.facts[0]?.evidence[0]),
     ).toBe(true);
+    expect(Object.isFrozen(analysis.enforcementExplicitFields)).toBe(true);
+    expect(
+      Object.isFrozen(
+        analysis.enforcementExplicitFields?.referenceDetections,
+      ),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(
+        analysis.enforcementExplicitFields?.printedDateFacts[0]?.pageNumbers,
+      ),
+    ).toBe(true);
   });
 
   it("represents a textless PDF without fabricating analysis", () => {
@@ -146,12 +213,14 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       pageCount: 2,
       familyAnalysis: null,
       enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
     });
     expect(analysis).toMatchObject({
       textLayerStatus: "NO_EXTRACTABLE_TEXT",
       pageCount: 2,
       familyAnalysis: null,
       enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
     });
   });
 
@@ -162,6 +231,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       candidates: [{ familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE" }],
     });
     expect(analysis.enforcementMoneyFacts).toBeNull();
+    expect(analysis.enforcementExplicitFields).toBeNull();
   });
 
   it.each([
@@ -192,6 +262,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       pageCount: 1,
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
     });
     expect(analysis.familyAnalysis?.reason).toBe(reason);
     expect(analysis.enforcementMoneyFacts).toBeNull();
@@ -203,12 +274,17 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     source.pageCount = 80;
     source.familyAnalysis!.reason = "PRIVATE_MUTATION" as never;
     source.enforcementMoneyFacts!.facts[0]!.amountCents = 99_999;
+    source.enforcementExplicitFields!.printedDateFacts[0]!.calendarDate =
+      "2025-01-01";
 
     expect(parsed.pageCount).toBe(1);
     expect(parsed.familyAnalysis?.reason).toBe(
       "SUPPORTED_FAMILY_CANDIDATE",
     );
     expect(parsed.enforcementMoneyFacts?.facts[0]?.amountCents).toBe(10_000);
+    expect(
+      parsed.enforcementExplicitFields?.printedDateFacts[0]?.calendarDate,
+    ).toBe("2026-07-10");
     expect(JSON.stringify(parsed)).not.toContain("PRIVATE_MUTATION");
   });
 
@@ -243,6 +319,21 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
         privateValue: PRIVATE_SENTINEL,
       });
     },
+    (value: MutableAnalysis) => {
+      value.enforcementExplicitFields!.rawIdentifier = PRIVATE_SENTINEL;
+    },
+    (value: MutableAnalysis) => {
+      value.enforcementExplicitFields!.referenceDetections[0]!.rawValue =
+        PRIVATE_SENTINEL;
+    },
+    (value: MutableAnalysis) => {
+      value.enforcementExplicitFields!.printedDateFacts[0]!.textSnippet =
+        PRIVATE_SENTINEL;
+    },
+    (value: MutableAnalysis) => {
+      value.enforcementExplicitFields!.issues[0]!.privateValue =
+        PRIVATE_SENTINEL;
+    },
   ])("rejects unknown keys at every response level", (mutate) => {
     const value = mutableAnalysis();
     mutate(value);
@@ -266,7 +357,223 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const sparse = mutableAnalysis();
     sparse.familyAnalysis!.candidates.length = 2;
 
-    for (const value of [accessor, symbol, exotic, sparse]) {
+    const sparseExplicitFields = mutableAnalysis();
+    sparseExplicitFields.enforcementExplicitFields!.issues.length = 8;
+
+    for (const value of [
+      accessor,
+      symbol,
+      exotic,
+      sparse,
+      sparseExplicitFields,
+    ]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("requires the closed v2 envelope and rejects a v1 downgrade", () => {
+    const versionOne = mutableAnalysis();
+    versionOne.schemaVersion = 1;
+    versionOne.analysisVersion = "1.0.0";
+
+    const missingField: Record<string | symbol, unknown> = mutableAnalysis();
+    delete missingField.enforcementExplicitFields;
+
+    for (const value of [versionOne, missingField]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("binds explicit fields to the same complete enforcement gate", () => {
+    const enforcementWithoutFields = mutableAnalysis();
+    enforcementWithoutFields.enforcementExplicitFields = null;
+
+    const deferralWithFields = mutableAnalysis(deferralAnalysis());
+    deferralWithFields.enforcementExplicitFields = completeExplicitFields();
+
+    for (const value of [enforcementWithoutFields, deferralWithFields]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("accepts all eight redacted explicit fields at the aggregate limit", () => {
+    const value = mutableAnalysis();
+    value.enforcementExplicitFields = completeExplicitFields();
+    for (const item of [
+      ...value.enforcementExplicitFields.referenceDetections,
+      ...value.enforcementExplicitFields.printedDateFacts,
+    ]) {
+      item.occurrenceCount = 16;
+    }
+
+    const parsed = parseFiscalNotificationPdfWorkerAnalysis(value);
+    expect(parsed.enforcementExplicitFields).toMatchObject({
+      outcome: "FACTS_AVAILABLE",
+      referenceDetections: expect.arrayContaining([
+        expect.objectContaining({
+          kind: "VTO_RAW",
+          valueDisclosure: "REDACTED_IN_WORKER",
+        }),
+      ]),
+      printedDateFacts: expect.arrayContaining([
+        expect.objectContaining({
+          kind: "PRINTED_VOLUNTARY_PERIOD_END_DATE",
+          legalEffect: "NOT_DETERMINED",
+        }),
+      ]),
+      issues: [],
+      calculatedDeadline: null,
+    });
+
+    value.enforcementExplicitFields.printedDateFacts[2]!.occurrenceCount = 17;
+    expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+      FiscalNotificationPdfWorkerAnalysisError,
+    );
+  });
+
+  it.each([
+    "2026-02-29",
+    "2026-07-10T00:00:00Z",
+    "10/07/2026",
+  ])("rejects the non-calendar printed date %s", (calendarDate) => {
+    const value = mutableAnalysis();
+    value.enforcementExplicitFields = completeExplicitFields();
+    value.enforcementExplicitFields.printedDateFacts[0]!.calendarDate =
+      calendarDate;
+    expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+      FiscalNotificationPdfWorkerAnalysisError,
+    );
+  });
+
+  it("rejects forged explicit-field provenance, counts and ordering", () => {
+    const wrongReferenceLabel = mutableAnalysis();
+    wrongReferenceLabel.enforcementExplicitFields = completeExplicitFields();
+    wrongReferenceLabel.enforcementExplicitFields.referenceDetections[0]!
+      .evidenceLabel = "CSV_LABEL";
+
+    const impossibleCount = mutableAnalysis();
+    impossibleCount.enforcementExplicitFields = completeExplicitFields();
+    impossibleCount.enforcementExplicitFields.referenceDetections[0]!
+      .occurrenceCount = 0;
+
+    const morePagesThanOccurrences = mutableAnalysis();
+    morePagesThanOccurrences.pageCount = 2;
+    morePagesThanOccurrences.enforcementExplicitFields =
+      completeExplicitFields();
+    morePagesThanOccurrences.enforcementExplicitFields.referenceDetections[0]!
+      .pageNumbers = [1, 2];
+
+    const unsortedKinds = mutableAnalysis();
+    unsortedKinds.enforcementExplicitFields = completeExplicitFields();
+    unsortedKinds.enforcementExplicitFields.referenceDetections.reverse();
+
+    for (const value of [
+      wrongReferenceLabel,
+      impossibleCount,
+      morePagesThanOccurrences,
+      unsortedKinds,
+    ]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("rejects missing field coverage and a pending issue beside a fact", () => {
+    const missingCoverage = mutableAnalysis();
+    missingCoverage.enforcementExplicitFields!.issues.pop();
+
+    const factAndPending = mutableAnalysis();
+    factAndPending.enforcementExplicitFields!.issues.unshift({
+      code: "LABEL_WITHOUT_VALUE",
+      fieldKind: "LIQUIDATION_KEY",
+      pageNumbers: [1],
+    });
+
+    for (const value of [missingCoverage, factAndPending]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("accepts only coherent ambiguous and blocked explicit-field states", () => {
+    const ambiguous = mutableAnalysis();
+    ambiguous.enforcementExplicitFields = completeExplicitFields();
+    ambiguous.enforcementExplicitFields.status = "REVIEW_REQUIRED";
+    ambiguous.enforcementExplicitFields.outcome = "AMBIGUOUS";
+    ambiguous.enforcementExplicitFields.referenceDetections = [];
+    ambiguous.enforcementExplicitFields.printedDateFacts = [];
+    ambiguous.enforcementExplicitFields.issues = [
+      {
+        code: "MULTIPLE_DISTINCT_REFERENCE_VALUES",
+        fieldKind: "LIQUIDATION_KEY",
+        pageNumbers: [1],
+      },
+    ];
+    expect(parseFiscalNotificationPdfWorkerAnalysis(ambiguous)
+      .enforcementExplicitFields?.outcome).toBe("AMBIGUOUS");
+
+    const blocked = mutableAnalysis();
+    blocked.enforcementExplicitFields = completeExplicitFields();
+    blocked.enforcementExplicitFields.status = "REVIEW_REQUIRED";
+    blocked.enforcementExplicitFields.outcome = "PROCESSING_BLOCKED";
+    blocked.enforcementExplicitFields.referenceDetections = [];
+    blocked.enforcementExplicitFields.printedDateFacts = [];
+    blocked.enforcementExplicitFields.issues = [
+      {
+        code: "INVALID_PRINTED_DATE",
+        fieldKind: "PRINTED_ISSUE_DATE",
+        pageNumbers: [1],
+      },
+    ];
+    expect(parseFiscalNotificationPdfWorkerAnalysis(blocked)
+      .enforcementExplicitFields?.outcome).toBe("PROCESSING_BLOCKED");
+
+    const crossedIssue = mutableAnalysis(blocked);
+    crossedIssue.enforcementExplicitFields!.issues[0]!.fieldKind =
+      "LIQUIDATION_KEY";
+    const impossibleGateFailure = mutableAnalysis(blocked);
+    impossibleGateFailure.enforcementExplicitFields!.issues = [
+      {
+        code: "FAMILY_GATE_NOT_SATISFIED",
+        fieldKind: null,
+        pageNumbers: [],
+      },
+    ];
+    const reversedPending = mutableAnalysis();
+    reversedPending.enforcementExplicitFields!.issues.reverse();
+
+    for (const value of [
+      crossedIssue,
+      impossibleGateFailure,
+      reversedPending,
+    ]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("rejects policy changes and any calculated deadline", () => {
+    const retained = mutableAnalysis();
+    retained.enforcementExplicitFields!.retainedReferenceValues =
+      "PRIVATE_REFERENCE";
+
+    const calculated = mutableAnalysis();
+    calculated.enforcementExplicitFields!.calculatedDeadline = "2026-07-31";
+
+    const legalEffect = mutableAnalysis();
+    legalEffect.enforcementExplicitFields!.printedDateFacts[0]!.legalEffect =
+      "DEADLINE_START";
+
+    for (const value of [retained, calculated, legalEffect]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -358,6 +665,8 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       pageCount: 1,
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
+      enforcementExplicitFields:
+        extractAeatEnforcementExplicitFieldsV1(input),
     });
 
     expect(analysis.enforcementMoneyFacts).toMatchObject({
@@ -505,6 +814,7 @@ interface MutableAnalysis extends Record<string | symbol, unknown> {
   pageCount: number;
   familyAnalysis: MutableFamilyAnalysis | null;
   enforcementMoneyFacts: MutableMoneyFacts | null;
+  enforcementExplicitFields: MutableExplicitFields | null;
 }
 
 interface MutableFamilyAnalysis extends Record<string, unknown> {
@@ -532,4 +842,35 @@ interface MutableMoneyFact extends Record<string, unknown> {
   kind: string;
   amountCents: number;
   evidence: Array<Record<string, unknown>>;
+}
+
+interface MutableExplicitFields extends Record<string, unknown> {
+  status: string;
+  outcome: string;
+  referenceDetections: Array<
+    Record<string, unknown> & {
+      kind: string;
+      occurrenceCount: number;
+      pageNumbers: number[];
+      evidenceLabel: string;
+      valueDisclosure: string;
+    }
+  >;
+  printedDateFacts: Array<
+    Record<string, unknown> & {
+      kind: string;
+      calendarDate: string;
+      occurrenceCount: number;
+      pageNumbers: number[];
+      evidenceLabel: string;
+      legalEffect: string;
+    }
+  >;
+  issues: Array<
+    Record<string, unknown> & {
+      code: string;
+      fieldKind: string | null;
+      pageNumbers: number[];
+    }
+  >;
 }

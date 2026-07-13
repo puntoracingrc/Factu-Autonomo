@@ -60,8 +60,8 @@ function workerAnalysis(
     "TEXT_LAYER_AVAILABLE",
 ) {
   return {
-    schemaVersion: 1,
-    analysisVersion: "1.0.0",
+    schemaVersion: 2,
+    analysisVersion: "2.0.0",
     textLayerStatus: status,
     pageCount: 1,
     familyAnalysis:
@@ -80,6 +80,7 @@ function workerAnalysis(
           }
         : null,
     enforcementMoneyFacts: null,
+    enforcementExplicitFields: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -217,8 +218,8 @@ describe("fiscal notification PDF text-layer adapter", () => {
     const output = await readFiscalNotificationPdfTextLayer(input, deps);
 
     expect(output).toMatchObject({
-      schemaVersion: 2,
-      adapterVersion: "2.0.0",
+      schemaVersion: 3,
+      adapterVersion: "3.0.0",
       status,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: {
@@ -240,6 +241,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
               })
             : null,
         enforcementMoneyFacts: null,
+        enforcementExplicitFields: null,
         retainedSourceContent: "NONE",
       },
       requiresHumanReview: true,
@@ -805,6 +807,101 @@ describe("fiscal notification PDF text-layer adapter", () => {
           analysisIsShorthand: true,
         },
       ]);
+  });
+
+  it("gates the explicit-field extractor inside the Worker before projecting a redacted result", () => {
+    const source = readFileSync(
+      new URL("./pdf-text-layer.worker.ts", import.meta.url),
+      "utf8",
+    );
+    const sourceFile = ts.createSourceFile(
+      "pdf-text-layer.worker.ts",
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const extractorImport = sourceFile.statements.find(
+      (statement) =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text ===
+          "./aeat-enforcement-explicit-fields.v1",
+    );
+    expect(extractorImport && ts.isImportDeclaration(extractorImport)).toBe(
+      true,
+    );
+    if (!extractorImport || !ts.isImportDeclaration(extractorImport)) return;
+    const namedBindings = extractorImport.importClause?.namedBindings;
+    expect(namedBindings && ts.isNamedImports(namedBindings)).toBe(true);
+    if (!namedBindings || !ts.isNamedImports(namedBindings)) return;
+    expect(namedBindings.elements.map((item) => item.name.text)).toEqual([
+      "extractAeatEnforcementExplicitFieldsV1",
+    ]);
+
+    const extractorCalls: ts.CallExpression[] = [];
+    let explicitDeclaration: ts.VariableDeclaration | null = null;
+    let projectorCall: ts.CallExpression | null = null;
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.getText(sourceFile) ===
+          "extractAeatEnforcementExplicitFieldsV1"
+      ) {
+        extractorCalls.push(node);
+      }
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === "enforcementExplicitFields"
+      ) {
+        explicitDeclaration = node;
+      }
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.getText(sourceFile) ===
+          "projectFiscalNotificationPdfWorkerAnalysis"
+      ) {
+        projectorCall = node;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+
+    expect(extractorCalls).toHaveLength(1);
+    expect(extractorCalls[0]?.arguments.map((item) => item.getText(sourceFile)))
+      .toEqual(["documentInput"]);
+    const capturedExplicitDeclaration =
+      explicitDeclaration as ts.VariableDeclaration | null;
+    expect(capturedExplicitDeclaration).not.toBeNull();
+    const initializer = capturedExplicitDeclaration?.initializer;
+    expect(initializer && ts.isConditionalExpression(initializer)).toBe(true);
+    if (!initializer || !ts.isConditionalExpression(initializer)) return;
+    expect(initializer.condition.getText(sourceFile)).toBe(
+      "enforcementCandidate",
+    );
+    expect(initializer.whenTrue).toBe(extractorCalls[0]);
+    expect(initializer.whenFalse.kind).toBe(ts.SyntaxKind.NullKeyword);
+
+    const capturedProjectorCall = projectorCall as ts.CallExpression | null;
+    expect(capturedProjectorCall).not.toBeNull();
+    const projection = capturedProjectorCall?.arguments[0];
+    expect(projection && ts.isObjectLiteralExpression(projection)).toBe(true);
+    if (!projection || !ts.isObjectLiteralExpression(projection)) return;
+    expect(
+      projection.properties.map((property) => property.name?.getText(sourceFile)),
+    ).toEqual([
+      "textLayerStatus",
+      "pageCount",
+      "familyAnalysis",
+      "enforcementMoneyFacts",
+      "enforcementExplicitFields",
+    ]);
+    const explicitProjection = projection.properties.at(-1);
+    expect(
+      explicitProjection &&
+        ts.isShorthandPropertyAssignment(explicitProjection),
+    ).toBe(true);
   });
 
   it("keeps the intake browser-only and free of network, AI and persistence calls", () => {
