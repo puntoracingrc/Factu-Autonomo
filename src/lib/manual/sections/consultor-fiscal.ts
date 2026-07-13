@@ -68,7 +68,7 @@ export const consultorFiscalSection: ManualSection = {
         "Abre **Notificaciones y expedientes** dentro de Asesoría fiscal con una cuenta confirmada y selecciona un PDF. El archivo se lee de forma local y aislada: no se conserva ni el PDF, ni su texto, ni el nombre del archivo.",
         "Tras el análisis puedes pulsar **Guardar ficha técnica local**. Es una acción opcional: solo conserva en este navegador, y separada por cuenta, la traza técnica necesaria para volver a ver el resultado. No se sincroniza con la nube ni guarda NIF, CSV, importes, plazos o contenido del documento.",
         "Esta primera versión solo detecta indicios estructurales de una providencia de apremio o de una concesión de aplazamiento o fraccionamiento de la AEAT. Un documento escaneado sin texto seleccionable queda como **OCR pendiente** y no se envía a un proveedor ni a una IA.",
-        "Toda coincidencia permanece como **Revisión humana obligatoria**. El analizador no extrae ni guarda importes, fechas, obligado, expediente u obligaciones, y nunca crea deudas, plazos, pagos, gastos o asientos.",
+        "Toda coincidencia permanece como **Revisión humana obligatoria**. En una providencia candidata puede mostrar durante la revisión importes impresos detectados; esos importes no se guardan. Todavía no extrae fechas, obligado, expediente u obligaciones, y nunca crea deudas, plazos, pagos, gastos o asientos.",
       ],
       tip: "El resultado solo orienta la revisión del documento; no confirma su autenticidad ni sus efectos jurídicos.",
     },
