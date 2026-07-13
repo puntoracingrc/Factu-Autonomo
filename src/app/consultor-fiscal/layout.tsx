@@ -9,7 +9,7 @@ export default function ConsultorFiscalLayout({
     <>
       <AdvisorAreaNavigation
         expenseAnalysisEnabled={consultorFiscalEnabled}
-        notificationsEnabled={consultorFiscalEnabled}
+        notificationsEnabled
       />
       {children}
     </>
