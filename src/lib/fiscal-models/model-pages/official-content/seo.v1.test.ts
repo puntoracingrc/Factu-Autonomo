@@ -116,6 +116,16 @@ const OFFICIAL_CODES = [
   "341",
   "345",
   "346",
+  "347",
+  "349",
+  "353",
+  "360",
+  "361",
+  "364",
+  "365",
+  "368",
+  "369",
+  "379",
 ];
 
 describe("AEAT model official-content SEO", () => {
@@ -132,7 +142,7 @@ describe("AEAT model official-content SEO", () => {
       ),
     );
     expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/191`);
-    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/347`);
+    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/380`);
   });
 
   it("allows the public Modelos prefix while retaining the Consultor block", () => {
