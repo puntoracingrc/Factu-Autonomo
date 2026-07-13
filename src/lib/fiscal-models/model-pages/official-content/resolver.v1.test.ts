@@ -38,6 +38,16 @@ const EXPECTED_CODES = [
   "136",
   "140",
   "143",
+  "145",
+  "146",
+  "147",
+  "149",
+  "150",
+  "151",
+  "156",
+  "159",
+  "165",
+  "170",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -46,13 +56,14 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(31);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(41);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
         sourceVerificationStatus: "VERIFIED",
         applicabilityStatus: "NOT_EVALUATED",
-        lifecycleStatus: "UNDETERMINED",
+        lifecycleStatus:
+          entry.code === "150" ? "HISTORICAL" : "UNDETERMINED",
         reviewedOn: "2026-07-13",
       });
       expect(entry.faq.length).toBeGreaterThanOrEqual(3);
@@ -164,6 +175,10 @@ describe("public AEAT official model content v1", () => {
       "044",
       "045",
       "102",
+      "145",
+      "146",
+      "147",
+      "150",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,

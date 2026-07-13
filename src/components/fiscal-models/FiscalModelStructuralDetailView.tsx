@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowLeft,
   ExternalLink,
@@ -11,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import type { PublicAeatModelReviewPageV1 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
 import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
 import { FiscalModelOfficialContentView } from "./FiscalModelOfficialContentView";
+import { FiscalModelOfficialVisual } from "./FiscalModelOfficialVisual";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -24,7 +24,9 @@ export function FiscalModelStructuralDetailView({
   calendarReturnHref: "/consultor-fiscal/calendario" | null;
   enrichedContent: PublicAeatOfficialModelContentV1 | null;
 }) {
-  const historical = page.lifecycleStatus === "HISTORICAL";
+  const historical =
+    page.lifecycleStatus === "HISTORICAL" ||
+    enrichedContent?.lifecycleStatus === "HISTORICAL";
   const historicalDate = page.effectiveTo
     ? page.effectiveTo.split("-").reverse().join("/")
     : null;
@@ -58,18 +60,11 @@ export function FiscalModelStructuralDetailView({
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          {enrichedContent?.thumbnail && (
-            <div className="w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-40 dark:border-slate-700">
-              <Image
-                src={enrichedContent.thumbnail.publicHref}
-                alt={enrichedContent.thumbnail.alt}
-                width={enrichedContent.thumbnail.width}
-                height={enrichedContent.thumbnail.height}
-                className="aspect-square h-auto w-full object-cover object-top"
-                priority
-                sizes="(min-width: 640px) 160px, 96px"
-              />
-            </div>
+          {enrichedContent && (
+            <FiscalModelOfficialVisual
+              content={enrichedContent}
+              variant="detail"
+            />
           )}
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-950 sm:text-3xl dark:text-slate-100">
@@ -80,12 +75,17 @@ export function FiscalModelStructuralDetailView({
             </p>
           </div>
         </div>
-        {!enrichedContent && (
+        {historical ? (
+          <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-900 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100">
+            <History className="h-4 w-4" aria-hidden="true" />
+            Histórico · no vigente
+          </span>
+        ) : !enrichedContent ? (
           <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
             <ShieldAlert className="h-4 w-4" aria-hidden="true" />
             {page.reviewBadge}
           </span>
-        )}
+        ) : null}
       </header>
 
       {!enrichedContent && (
