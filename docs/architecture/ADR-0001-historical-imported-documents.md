@@ -1,7 +1,7 @@
 # ADR-0001: documentos históricos importados y atestados por el usuario
 
 - Estado: Aceptado
-- Versión de la decisión: 2
+- Versión de la decisión: 3
 - Fecha: 2026-07-13
 - Responsables: Producto e Integridad fiscal
 
@@ -40,7 +40,8 @@ atestación: un ID PCFacturación, Holded, FacturaDirecta o genérico con esa fu
 queda bloqueado hasta confirmación. Tampoco puede aplicarse a un documento con
 señales de emisión moderna, evidencia parcial o hashes incoherentes.
 
-`LegacyImportAttestationV1 | LegacyImportAttestationV2` y la política central de
+`LegacyImportAttestationV1 | LegacyImportAttestationV2 |
+LegacyImportAttestationV3` y la política central de
 `src/lib/document-integrity/legacy-import-attestation.ts` son el único contrato
 para identificar y validar el primer caso. Los importadores soportados deben
 pasar cada documento nuevo aceptado por `attestNewImportedDocument`; no se
@@ -98,22 +99,34 @@ exportadores.
   bloqueado, aunque por forma se parezca a un histórico.
 - Está prohibido inferir procedencia legacy por fecha, antigüedad, ausencia de
   `issuedAt` o ausencia de evidencia moderna.
-- Rectificativas y recibos históricos solo pueden entrar cuando su relación
-  fiscal sea inequívoca y esté cubierta expresamente por el contrato; los casos
-  ambiguos quedan en revisión manual. La primera versión no los repara
-  automáticamente; requieren una ampliación versionada del contrato y pruebas
-  positivas de la relación completa.
+- V3 admite rectificativas y recibos históricos solo cuando la pareja completa
+  es inequívoca, recíproca y queda cubierta por un fingerprint de grupo común.
+  La rectificativa debe enlazar un original único por ID, número y fecha, y el
+  original debe señalar esa misma rectificativa. Una anulación debe cancelar
+  algebraicamente el resumen fiscal; una corrección conserva su importe
+  histórico confirmado. El recibo y su factura deben enlazarse en ambos
+  sentidos y conservar fecha, líneas y resumen fiscal compatibles.
+- La confirmación V3 es atómica: o se atestan todos los miembros de la relación
+  con el mismo contrato, o ninguno. Relaciones huérfanas, unilaterales,
+  duplicadas, ambiguas, con fechas o importes incompatibles permanecen en
+  revisión manual. Nunca se infiere ni completa un vínculo por título, número
+  parecido, proveedor o proximidad temporal.
+- V1 y V2 conservan exactamente su semántica anterior de relaciones nulas. V3
+  no reinterpreta sus hashes ni convierte documentos `app_issued` dañados en
+  históricos.
 
 ## Migración y reparación
 
-La reparación V2 es explícita, previsualizable e idempotente. La detección
+La reparación V2/V3 es explícita, previsualizable e idempotente. La detección
 automática solo propone candidatos con procedencia inequívoca de namespaces o
 metadatos conocidos de PC Facturación, Holded, FacturaDirecta o documentos
 genéricos. No muta al cargar.
 
-La previsualización muestra recuento, origen, base, IVA, total, carencias y
-motivos de exclusión. El usuario confirma que las cifras coinciden con lo ya
-declarado y acepta conservar los campos históricos incompletos. Cualquier
+La previsualización muestra recuento, origen, base, IVA, total, carencias,
+grupos de relaciones V3 y motivos de exclusión. En V3 muestra además todos los
+miembros, su papel y la relación recíproca que se congelará. El usuario confirma
+que las cifras y relaciones coinciden con lo ya declarado y acepta conservar
+los campos históricos incompletos. Cualquier
 ambigüedad de procedencia o identidad requiere revisión manual. La aplicación comprueba una
 precondición contra cambios posteriores antes de aplicar. La cuenta real se
 reparará únicamente después del despliegue y QA, con backup previo, preview de

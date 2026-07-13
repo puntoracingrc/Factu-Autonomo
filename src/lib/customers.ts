@@ -8,7 +8,7 @@ import {
   normalizeCustomerStreetFields,
   normalizeResidenceType,
 } from "./customer-address";
-import { isTaxableSaleDocument } from "./taxes";
+import { taxableSaleDocumentsForPeriod } from "./taxes";
 import { isDocumentUsableForFinancialCalculations } from "./document-integrity/legacy-import-attestation";
 import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
 import {
@@ -319,11 +319,12 @@ export function customerInvoicedTotal(
   documents: Document[],
   customer: Customer,
 ): number {
-  return withDocumentFinancialIntegritySignals(documents)
+  const integrityCheckedDocuments =
+    withDocumentFinancialIntegritySignals(documents);
+  return taxableSaleDocumentsForPeriod(integrityCheckedDocuments)
+    .documents
     .filter(
-      (doc) =>
-        isTaxableSaleDocument(doc) &&
-        documentBelongsToCustomer(doc, customer),
+      (doc) => documentBelongsToCustomer(doc, customer),
     )
     .reduce((sum, doc) => sum + invoicedDocumentAmount(doc), 0);
 }
@@ -337,6 +338,9 @@ export function buildCustomerInvoicedTotals(
 ): CustomerInvoicedTotals {
   const integrityCheckedDocuments =
     withDocumentFinancialIntegritySignals(documents);
+  const canonicalInvoicedDocuments = taxableSaleDocumentsForPeriod(
+    integrityCheckedDocuments,
+  ).documents;
   const byCustomerId = new Map<string, string>();
   const byNif = new Map<string, string[]>();
   const byIdentity = new Map<string, string[]>();
@@ -369,9 +373,7 @@ export function buildCustomerInvoicedTotals(
     );
   }
 
-  for (const doc of integrityCheckedDocuments) {
-    if (!isTaxableSaleDocument(doc)) continue;
-
+  for (const doc of canonicalInvoicedDocuments) {
     const matchedIds = new Set<string>();
     const customerIdMatch = doc.customerId
       ? byCustomerId.get(doc.customerId)

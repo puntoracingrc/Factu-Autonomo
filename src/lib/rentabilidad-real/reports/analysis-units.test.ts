@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument } from "@/lib/document-integrity";
 import {
+  applyLegacyImportRepair,
+  buildLegacyImportRepairPreview,
+} from "@/lib/document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import {
   DEFAULT_PROFILE,
   EMPTY_DATA,
   type AppData,
@@ -73,6 +78,86 @@ function appData(documents: Document[]): AppData {
     expenses: [],
     recurringExpenses: [],
   };
+}
+
+function attestedHistoricalCorrectionData(): AppData {
+  const profile = {
+    ...DEFAULT_PROFILE,
+    name: "Negocio historico",
+    nif: "12345678Z",
+    address: "Calle Mayor 1",
+    city: "Madrid",
+    postalCode: "28001",
+  };
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const historical = (id: string, number: string, date: string): Document => ({
+    id,
+    type: "factura",
+    number,
+    date,
+    client: { name: "Cliente historico" },
+    customerId: "legacy-client",
+    items: [
+      {
+        id: `${id}:line:1`,
+        description: "Servicio historico",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "enviado",
+    issuer: captureIssuerSnapshot(profile, `${date}T10:00:00.000Z`),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    ...rolloutResidue,
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T10:00:00.000Z`,
+  });
+  const original: Document = {
+    ...historical(originalId, "F-2024-0001", "2024-04-01"),
+    status: "rectificada",
+    rectifiedById: rectificationId,
+  };
+  const rectification: Document = {
+    ...historical(rectificationId, "FR-2024-0001", "2024-04-02"),
+    rectification: {
+      originalDocumentId: originalId,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Correccion historica",
+      type: "correccion",
+    },
+  };
+  const data: AppData = {
+    ...EMPTY_DATA,
+    profile,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la correccion historica: ${result.reason}`,
+    );
+  }
+  return result.data;
 }
 
 describe("buildRentabilidadRealAnalysisUnits", () => {
@@ -225,6 +310,23 @@ describe("buildRentabilidadRealAnalysisUnits", () => {
     expect(units[0]).toMatchObject({
       invoiceDocumentId: "r1",
       relatedDocumentIds: ["r1", "i1"],
+    });
+  });
+
+  it("crea una sola unidad para la rectificativa vigente de una relación histórica V3", () => {
+    const units = buildRentabilidadRealAnalysisUnits(
+      attestedHistoricalCorrectionData(),
+    );
+
+    expect(units).toHaveLength(1);
+    expect(units[0]).toMatchObject({
+      primaryDocumentId: "pcfacturacion:factura:FR-2024-0001",
+      invoiceDocumentId: "pcfacturacion:factura:FR-2024-0001",
+      documentNumber: "FR-2024-0001",
+      relatedDocumentIds: [
+        "pcfacturacion:factura:FR-2024-0001",
+        "pcfacturacion:factura:F-2024-0001",
+      ],
     });
   });
 });

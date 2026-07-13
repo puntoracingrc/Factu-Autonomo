@@ -170,9 +170,7 @@ export interface Document {
   verifactu?: VerifactuInfo;
   /** Origen operativo de la confirmación; no forma parte del snapshot fiscal. */
   verifactuPersistence?:
-    | "server_confirmed"
-    | "legacy_unverified"
-    | "simulation";
+    "server_confirmed" | "legacy_unverified" | "simulation";
   /** Snapshot fiscal/documental congelado al emitir. */
   documentSnapshot?: DocumentSnapshot;
   /**
@@ -295,8 +293,7 @@ export interface RecurringOccurrenceExclusion {
   excludedAt: string;
 }
 
-export interface RecurringOccurrenceExclusionSyncPayload
-  extends RecurringOccurrenceExclusion {
+export interface RecurringOccurrenceExclusionSyncPayload extends RecurringOccurrenceExclusion {
   /** Plantilla a la que pertenece la exclusión estable. */
   templateId: string;
 }
@@ -339,13 +336,7 @@ export type ExpenseBusinessKind =
 export type ExpenseDeductibility = "deductible" | "non_deductible";
 
 export type ExpenseLineCalculationBasis =
-  | "m2"
-  | "ml"
-  | "unit"
-  | "kg"
-  | "hour"
-  | "fixed"
-  | "unknown";
+  "m2" | "ml" | "unit" | "kg" | "hour" | "fixed" | "unknown";
 
 export type ExpenseLineCalculationFormula =
   | "m2*netPrice"
@@ -414,8 +405,7 @@ export interface ExpensePurchaseDocument {
 }
 
 export type ProviderSummaryExpenseStatus =
-  | "pending_original"
-  | "completed_with_original";
+  "pending_original" | "completed_with_original";
 
 export interface ExpenseProviderSummaryInfo {
   status: ProviderSummaryExpenseStatus;
@@ -729,17 +719,8 @@ export interface ProductFamilyMarkupSettings {
 export type AppThemePreference = "system" | "light" | "dark";
 export type AppDensityPreference = "comfortable" | "compact";
 export type AppStartPagePreference =
-  | "panel"
-  | "customers"
-  | "invoices"
-  | "expenses"
-  | "taxes"
-  | "settings";
-export type DocumentEmailSendPreference =
-  | "ask"
-  | "gmail"
-  | "mailto"
-  | "native";
+  "panel" | "customers" | "invoices" | "expenses" | "taxes" | "settings";
+export type DocumentEmailSendPreference = "ask" | "gmail" | "mailto" | "native";
 export type DocumentWhatsAppSendPreference = "ask" | "direct" | "native";
 
 export interface AppPreferences {
@@ -752,16 +733,10 @@ export interface AppPreferences {
 }
 
 export type DocumentSnapshotSource =
-  | "issue"
-  | "legacy_backfill"
-  | "legacy_import_attested"
-  | "customer_repair";
+  "issue" | "legacy_backfill" | "legacy_import_attested" | "customer_repair";
 
 export type LegacyImportSource =
-  | "pcfacturacion"
-  | "holded"
-  | "facturadirecta"
-  | "generic_documents";
+  "pcfacturacion" | "holded" | "facturadirecta" | "generic_documents";
 
 export type LegacyImportCompletenessException =
   | "issuer_name_missing"
@@ -797,6 +772,26 @@ interface LegacyImportAcceptedStateV1 {
   };
 }
 
+export type LegacyImportRelationshipKind =
+  "rectification_correction" | "rectification_cancellation" | "invoice_receipt";
+
+export type LegacyImportRelationshipRole =
+  "original_invoice" | "rectification" | "invoice" | "receipt";
+
+interface LegacyImportAcceptedStateV3 extends Omit<
+  LegacyImportAcceptedStateV1,
+  "documentLifecycle" | "relationships"
+> {
+  documentLifecycle: "issued" | "canceled";
+  relationships: {
+    sourceQuoteDocumentId: string | null;
+    sourceQuoteNumber: string | null;
+    rectifiedById: string | null;
+    receiptDocumentId: string | null;
+    sourceDocumentId: string | null;
+  };
+}
+
 interface LegacyImportOriginalEvidenceV1 {
   /**
    * Los importadores actuales no conservan el binario original. El usuario
@@ -818,8 +813,7 @@ interface LegacyImportAttestationBaseV1 {
   attestationHash: string;
 }
 
-export interface LegacyImportAttestationV1
-  extends LegacyImportAttestationBaseV1 {
+export interface LegacyImportAttestationV1 extends LegacyImportAttestationBaseV1 {
   schemaVersion: 1;
 }
 
@@ -827,13 +821,10 @@ export interface LegacyImportAttestationV1
  * V2 hace explícita la decisión del usuario de conservar el contenido fiscal
  * histórico tal como fue importado, aunque no cumpla campos exigidos hoy.
  */
-export interface LegacyImportAttestationV2
-  extends LegacyImportAttestationBaseV1 {
+export interface LegacyImportAttestationV2 extends LegacyImportAttestationBaseV1 {
   schemaVersion: 2;
   acceptanceBasis: "amounts_as_filed_user_attested";
-  amountOrigin:
-    | "verified_legacy_snapshot"
-    | "persisted_lines_user_confirmed";
+  amountOrigin: "verified_legacy_snapshot" | "persisted_lines_user_confirmed";
   /** Procedencia original preservada; `attestedAt` es una fecha distinta. */
   importProvenance: LegacyImportProvenanceV2;
   sourceRecord: {
@@ -855,9 +846,33 @@ export interface LegacyImportAttestationV2
   };
 }
 
+/**
+ * V3 conserva una relación histórica inequívoca como un grupo atómico. No
+ * convierte la pareja en documentos emitidos por Factu ni fabrica evidencia
+ * moderna: ambos extremos siguen siendo históricos importados atestados.
+ */
+export interface LegacyImportAttestationV3 extends Omit<
+  LegacyImportAttestationV2,
+  "schemaVersion" | "acceptedState" | "attestationHash"
+> {
+  schemaVersion: 3;
+  acceptedState: LegacyImportAcceptedStateV3;
+  relationshipGroup: {
+    kind: LegacyImportRelationshipKind;
+    role: LegacyImportRelationshipRole;
+    counterpartDocumentId: string;
+    /** Huella canónica y recalculable del grupo mostrado y confirmado. */
+    groupFingerprint: string;
+    /** Hash del vínculo y del contenido fiscal congelado de ambos extremos. */
+    relationshipHash: string;
+  };
+  attestationHash: string;
+}
+
 export type LegacyImportAttestation =
   | LegacyImportAttestationV1
-  | LegacyImportAttestationV2;
+  | LegacyImportAttestationV2
+  | LegacyImportAttestationV3;
 
 export interface LegacyImportProvenanceV1 {
   schemaVersion: 1;
@@ -867,9 +882,7 @@ export interface LegacyImportProvenanceV1 {
 }
 
 export type LegacyImportIssuerOrigin =
-  | "source_document"
-  | "current_profile_at_import"
-  | "unknown_legacy_import";
+  "source_document" | "current_profile_at_import" | "unknown_legacy_import";
 
 /**
  * V2 separa una fecha de importación realmente conocida de la fecha en la que
@@ -887,8 +900,7 @@ export interface LegacyImportProvenanceV2 {
 }
 
 export type LegacyImportProvenance =
-  | LegacyImportProvenanceV1
-  | LegacyImportProvenanceV2;
+  LegacyImportProvenanceV1 | LegacyImportProvenanceV2;
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;

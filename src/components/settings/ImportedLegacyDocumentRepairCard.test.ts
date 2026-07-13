@@ -29,6 +29,11 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
     expect(cardSource).toContain('result.status === "blocked"');
     expect(cardSource).not.toContain("replaceDataIfCurrent");
     expect(cardSource).toContain("preview.candidates.map");
+    expect(cardSource).toContain("preview.relationshipGroups.map");
+    expect(cardSource).toContain("group.groupFingerprint");
+    expect(cardSource).toContain("RELATION_LABELS[group.relation]");
+    expect(cardSource).toContain("RELATION_ROLE_LABELS[member.role]");
+    expect(cardSource).toContain("una sola relación atómica");
     expect(cardSource).toContain("candidate.documentNumber");
     expect(cardSource).toContain("candidate.amounts.subtotal");
     expect(cardSource).toContain("candidate.amounts.iva");
@@ -38,7 +43,11 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
       "ISSUER_ORIGIN_LABELS[candidate.issuerOrigin]",
     );
     expect(cardSource).toContain("perfil activo durante la importación");
-    expect(cardSource).toContain("campos antiguos incompletos");
+    expect(cardSource).toContain("antiguos incompletos");
+    expect(cardSource).toContain("sus miembros y vínculos son correctos");
+    expect(cardSource).toContain(
+      "result.value.appliedRelationshipGroupFingerprints.length",
+    );
     expect(cardSource).toContain("cuentas generales");
     expect(cardSource).toContain("ID interno:");
   });

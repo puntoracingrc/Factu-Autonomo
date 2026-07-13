@@ -24,6 +24,11 @@ La decisión obligatoria y versionada está en
   `current_profile_at_import` o `unknown_legacy_import`). También conserva
   `documentStateAtImport`: un borrador externo emitido después por Factu nunca
   puede reclasificarse como histórico si pierde su evidencia moderna.
+- V3 cubre únicamente relaciones históricas inequívocas y recíprocas:
+  factura–rectificativa o factura–recibo. La pareja completa se previsualiza,
+  confirma y atesta de forma atómica con un fingerprint común. Una relación
+  huérfana, unilateral, duplicada, ambigua o con importes incompatibles sigue
+  bloqueada; nunca se completa por número, título o fecha aproximada.
 - `app_issued` mantiene el fail-closed estricto de snapshots, PDF, sello, hash y
   VeriFactu.
 - Si existe evidencia moderna y su hash, snapshot o sello es inválido, el

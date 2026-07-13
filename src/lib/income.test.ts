@@ -7,11 +7,25 @@ import {
   pendingCollection,
   statusAfterUnmarkingCollection,
 } from "./income";
+import {
+  buildCustomerInvoicedTotals,
+  customerInvoicedTotal,
+} from "./customers";
 import { issueDocument } from "./document-integrity";
 import { materializeRectificationDocument } from "./document-integrity/rectification-issuance";
-import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "./document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "./issuer-snapshot";
-import { DEFAULT_PROFILE, type BusinessProfile, type Document } from "./types";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type BusinessProfile,
+  type Customer,
+  type Document,
+} from "./types";
 import { collectedSalesTotal } from "./vat-regime";
 
 const IMPORT_PROFILE: BusinessProfile = {
@@ -73,6 +87,137 @@ function invoice(
   };
 }
 
+function attestedHistoricalReceiptPair(): Document[] {
+  const invoiceId = "pcfacturacion:factura:F-2024-0001";
+  const receiptId = "pcfacturacion:recibo:R-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const historicalInvoice: Document = {
+    ...invoice("borrador", 121, {
+      id: invoiceId,
+      number: "F-2024-0001",
+      date: "2024-04-01",
+    }),
+    status: "pagado",
+    issuer: captureIssuerSnapshot(IMPORT_PROFILE, "2024-04-01T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    receiptDocumentId: receiptId,
+    ...rolloutResidue,
+  };
+  const historicalReceipt: Document = {
+    ...invoice("borrador", 121, {
+      id: receiptId,
+      type: "recibo",
+      number: "R-2024-0001",
+      date: "2024-04-02",
+    }),
+    status: "pagado",
+    issuer: captureIssuerSnapshot(IMPORT_PROFILE, "2024-04-02T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    sourceDocumentId: invoiceId,
+    ...rolloutResidue,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile: IMPORT_PROFILE,
+    documents: [historicalInvoice, historicalReceipt],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar el recibo historico: ${result.reason}`);
+  }
+  return result.data.documents;
+}
+
+function attestedHistoricalCancellationPair(customerId: string): Document[] {
+  const originalId = "pcfacturacion:factura:F-2024-0002";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const originalDate = "2024-04-01";
+  const rectificationDate = "2024-04-02";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const original: Document = {
+    ...invoice("borrador", 121, {
+      id: originalId,
+      number: "F-2024-0002",
+      date: originalDate,
+      customerId,
+    }),
+    status: "anulada",
+    issuer: captureIssuerSnapshot(
+      IMPORT_PROFILE,
+      `${originalDate}T10:00:00.000Z`,
+    ),
+    documentLifecycle: "canceled",
+    integrityLock: "locked",
+    rectifiedById: rectificationId,
+    ...rolloutResidue,
+  };
+  const rectification: Document = {
+    ...invoice("borrador", -121, {
+      id: rectificationId,
+      number: "FR-2024-0001",
+      date: rectificationDate,
+      customerId,
+      rectification: {
+        originalDocumentId: originalId,
+        originalNumber: original.number,
+        originalDate,
+        reason: "Anulación histórica",
+        type: "anulacion",
+      },
+    }),
+    status: "pagado",
+    issuer: captureIssuerSnapshot(
+      IMPORT_PROFILE,
+      `${rectificationDate}T10:00:00.000Z`,
+    ),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    ...rolloutResidue,
+  };
+  const data = {
+    ...EMPTY_DATA,
+    profile: IMPORT_PROFILE,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const result = applyLegacyImportRepair(
+    data,
+    buildLegacyImportRepairPreview(data),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(`No se pudo atestar la anulación histórica: ${result.reason}`);
+  }
+  return result.data.documents;
+}
+
 describe("income helpers", () => {
   it("cuenta facturas y recibos manuales cobrados", () => {
     const docs: Document[] = [
@@ -117,23 +262,64 @@ describe("income helpers", () => {
     expect(isCollectedDocument(legacyReceipt)).toBe(false);
   });
 
+  it("no duplica ingresos al confirmar una pareja histórica V3 factura-recibo", () => {
+    const documents = attestedHistoricalReceiptPair();
+    const [historicalInvoice, historicalReceipt] = documents;
+
+    expect(
+      documents.map((document) => document.legacyImportAttestation),
+    ).toEqual([
+      expect.objectContaining({ schemaVersion: 3 }),
+      expect.objectContaining({ schemaVersion: 3 }),
+    ]);
+    expect(collectedIncome(documents)).toBeCloseTo(121, 2);
+    expect(pendingCollection(documents)).toBe(0);
+    expect(isCollectedDocument(historicalInvoice)).toBe(true);
+    expect(isCollectedDocument(historicalReceipt)).toBe(false);
+  });
+
+  it("neta a cero una anulación histórica V3 pagada en ingresos y cliente", () => {
+    const customer: Customer = {
+      id: "legacy-customer",
+      firstName: "Ana",
+      lastName: "",
+      name: "Ana",
+      createdAt: "2024-04-01T00:00:00.000Z",
+      updatedAt: "2024-04-01T00:00:00.000Z",
+    };
+    const documents = attestedHistoricalCancellationPair(customer.id);
+
+    expect(
+      documents.map((document) => document.legacyImportAttestation),
+    ).toEqual([
+      expect.objectContaining({ schemaVersion: 3 }),
+      expect.objectContaining({ schemaVersion: 3 }),
+    ]);
+    expect(collectedIncome(documents)).toBe(0);
+    expect(isCollectedDocument(documents[1])).toBe(false);
+    expect(customerInvoicedTotal(documents, customer)).toBe(0);
+    expect(
+      buildCustomerInvoicedTotals([customer], documents).get(customer.id),
+    ).toBe(0);
+  });
+
   it("cuenta el cobro de un histórico importado atestado desde su snapshot", () => {
     const historical = attestNewImportedDocument(
       {
         ...invoice("borrador", 121, {
-        id: "pcfacturacion:factura:F-2024-0001",
-        number: "F-2024-0001",
-        issuer: captureIssuerSnapshot(
-          IMPORT_PROFILE,
-          "2024-04-01T10:00:00.000Z",
-        ),
-        client: {
-          name: "Cliente histórico",
-          nif: "B12345678",
-          address: "Calle Cliente 2",
-          city: "Madrid",
-          postalCode: "28002",
-        },
+          id: "pcfacturacion:factura:F-2024-0001",
+          number: "F-2024-0001",
+          issuer: captureIssuerSnapshot(
+            IMPORT_PROFILE,
+            "2024-04-01T10:00:00.000Z",
+          ),
+          client: {
+            name: "Cliente histórico",
+            nif: "B12345678",
+            address: "Calle Cliente 2",
+            city: "Madrid",
+            postalCode: "28002",
+          },
         }),
         status: "pagado",
         documentLifecycle: "issued",
@@ -158,7 +344,9 @@ describe("income helpers", () => {
       snapshotIntegrity: undefined,
     };
     expect(collectedIncome([appIssuedWithoutEvidence])).toBe(0);
-    expect(pendingCollection([{ ...appIssuedWithoutEvidence, status: "enviado" }])).toBe(0);
+    expect(
+      pendingCollection([{ ...appIssuedWithoutEvidence, status: "enviado" }]),
+    ).toBe(0);
     expect(canMarkAsCollected(historical)).toBe(false);
 
     const rawIssuedWithoutAnySignal: Document = {
@@ -217,11 +405,7 @@ describe("income helpers", () => {
     expect(canMarkAsCollected(historical)).toBe(false);
     expect(collectedIncome([historical, historical])).toBe(0);
     expect(
-      collectedSalesTotal(
-        [historical, historical],
-        false,
-        isCollectedDocument,
-      ),
+      collectedSalesTotal([historical, historical], false, isCollectedDocument),
     ).toBe(0);
     expect(historical.snapshotIntegrity).toBeUndefined();
   });
@@ -264,10 +448,7 @@ describe("income helpers", () => {
         "pcfacturacion",
         "2026-07-13T07:30:00.000Z",
       );
-    const pending = historical(
-      "pcfacturacion:factura:F-2024-0003",
-      100,
-    );
+    const pending = historical("pcfacturacion:factura:F-2024-0003", 100);
     const historicalCredit = historical(
       "pcfacturacion:factura:A-2024-0001",
       -100,
@@ -282,9 +463,9 @@ describe("income helpers", () => {
   });
 
   it("excluye anuladas y rectificadas del cobro", () => {
-    expect(canMarkAsCollected(invoice("enviado", 100, { rectifiedById: "fr1" }))).toBe(
-      false,
-    );
+    expect(
+      canMarkAsCollected(invoice("enviado", 100, { rectifiedById: "fr1" })),
+    ).toBe(false);
     expect(canMarkAsCollected(invoice("anulada"))).toBe(false);
   });
 

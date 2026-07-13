@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { issueDocument } from "@/lib/document-integrity";
-import { attestNewImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
+import {
+  applyLegacyImportRepair,
+  attestNewImportedDocument,
+  buildLegacyImportRepairPreview,
+} from "@/lib/document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import {
   DEFAULT_PROFILE,
@@ -118,6 +122,78 @@ function data(input: { documents: Document[]; expenses?: Expense[] }): AppData {
   };
 }
 
+function attestedHistoricalCorrectionData(): AppData {
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const rolloutResidue = {
+    snapshotIntegrityRequired: true as const,
+    snapshotIntegrity: {
+      status: "blocked" as const,
+      issues: [
+        "document_snapshot_missing" as const,
+        "pdf_snapshot_missing" as const,
+        "snapshot_seal_missing" as const,
+      ],
+    },
+  };
+  const original: Document = {
+    ...document({
+      id: originalId,
+      type: "factura",
+      number: "F-2024-0001",
+      date: "2024-04-01",
+      status: "borrador",
+    }),
+    status: "rectificada",
+    issuer: captureIssuerSnapshot(TEST_PROFILE, "2024-04-01T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    rectifiedById: rectificationId,
+    ...rolloutResidue,
+  };
+  const rectification: Document = {
+    ...document({
+      id: rectificationId,
+      type: "factura",
+      number: "FR-2024-0001",
+      date: "2024-04-02",
+      status: "borrador",
+      rectification: {
+        originalDocumentId: originalId,
+        originalNumber: original.number,
+        originalDate: original.date,
+        reason: "Correccion historica",
+        type: "correccion",
+      },
+    }),
+    status: "enviado",
+    issuer: captureIssuerSnapshot(TEST_PROFILE, "2024-04-02T10:00:00.000Z"),
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    ...rolloutResidue,
+  };
+  const input: AppData = {
+    ...EMPTY_DATA,
+    profile: TEST_PROFILE,
+    documents: [original, rectification],
+    expenses: [
+      expense({ id: "legacy-expense", amount: 20, workDocumentId: originalId }),
+    ],
+    snapshotIntegrityVersion: 1,
+  };
+  const result = applyLegacyImportRepair(
+    input,
+    buildLegacyImportRepairPreview(input),
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la correccion historica: ${result.reason}`,
+    );
+  }
+  return result.data;
+}
+
 function settings(
   overrides: Partial<RentabilidadRealReportSettings> = {},
 ): RentabilidadRealReportSettings {
@@ -178,10 +254,7 @@ describe("buildDocumentProfitabilityReport", () => {
         documentLifecycle: "issued",
         integrityLock: "locked",
         issuer: {
-          ...captureIssuerSnapshot(
-            TEST_PROFILE,
-            "2024-07-01T10:00:00.000Z",
-          ),
+          ...captureIssuerSnapshot(TEST_PROFILE, "2024-07-01T10:00:00.000Z"),
           name: "",
           nif: "",
           address: "",
@@ -571,6 +644,26 @@ describe("buildDocumentProfitabilityReport", () => {
       rowCount: 1,
       incomeWithoutIndirectTax: 80,
       operatingProfit: 60,
+    });
+  });
+
+  it("usa la rectificativa histórica V3 como ingreso vigente y conserva los costes de la cadena", () => {
+    const report = buildDocumentProfitabilityReport(
+      attestedHistoricalCorrectionData(),
+      settings(),
+    );
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      primaryDocumentId: "pcfacturacion:factura:FR-2024-0001",
+      incomeWithoutIndirectTax: 100,
+      totalDirectCosts: 20,
+      operatingProfit: 80,
+    });
+    expect(report.summary).toMatchObject({
+      rowCount: 1,
+      incomeWithoutIndirectTax: 100,
+      operatingProfit: 80,
     });
   });
 });

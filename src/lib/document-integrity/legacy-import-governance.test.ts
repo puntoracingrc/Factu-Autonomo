@@ -38,10 +38,12 @@ describe("historical imported document governance", () => {
     expect(agents).toContain("importedAt: null");
     expect(agents).toContain("issuerOrigin");
     expect(agents).toContain("documentStateAtImport");
+    expect(agents).toContain("V3 cubre únicamente relaciones históricas inequívocas");
 
     expect(adr).toContain("Estado: Aceptado");
     expect(adr).toContain("LegacyImportAttestationV1");
     expect(adr).toContain("LegacyImportAttestationV2");
+    expect(adr).toContain("LegacyImportAttestationV3");
     expect(adr).toContain("`importProvenance`");
     expect(adr).toContain("`importedAt: null`");
     expect(adr).toContain("`issuerOrigin: current_profile_at_import`");
@@ -50,6 +52,8 @@ describe("historical imported document governance", () => {
     expect(adr).toContain("base, IVA, total");
     expect(adr).toContain("`acceptedState`");
     expect(adr).toContain("Cambiar después su estado o relaciones");
+    expect(adr).toContain("fingerprint de grupo común");
+    expect(adr).toContain("La confirmación V3 es atómica");
     expect(adr).toContain("attestNewImportedDocument");
     expect(adr).toContain("Una auditoría de seguridad");
     expect(adr).toContain("migración versionada");

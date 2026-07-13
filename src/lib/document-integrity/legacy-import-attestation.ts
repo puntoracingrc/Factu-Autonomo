@@ -9,10 +9,13 @@ import type {
   DocumentSnapshot,
   DocumentSnapshotIntegrityIssue,
   LegacyImportAttestationV2,
+  LegacyImportAttestationV3,
   LegacyImportCompletenessException,
   LegacyImportIssuerOrigin,
   LegacyImportProvenance,
   LegacyImportProvenanceV2,
+  LegacyImportRelationshipKind,
+  LegacyImportRelationshipRole,
   LegacyImportSource,
 } from "@/lib/types";
 import {
@@ -35,9 +38,9 @@ export function hasOnlyLegacyImportRolloutResidue(
   const issues = document.snapshotIntegrity?.issues;
   return Boolean(
     document.snapshotIntegrity?.status === "blocked" &&
-      issues &&
-      issues.length > 0 &&
-      issues.every((issue) => MISSING_ROLLOUT_ISSUES.has(issue)),
+    issues &&
+    issues.length > 0 &&
+    issues.every((issue) => MISSING_ROLLOUT_ISSUES.has(issue)),
   );
 }
 
@@ -76,6 +79,25 @@ export interface LegacyImportRepairCandidate {
   beforeFingerprint: string;
 }
 
+export interface LegacyImportRepairRelationshipMember {
+  role: LegacyImportRelationshipRole;
+  documentId: string;
+  documentNumber: string;
+  amounts: {
+    subtotal: number;
+    iva: number;
+    total: number;
+  };
+}
+
+export interface LegacyImportRepairRelationshipGroup {
+  relation: LegacyImportRelationshipKind;
+  groupFingerprint: string;
+  documentIds: string[];
+  documentNumbers: string[];
+  members: LegacyImportRepairRelationshipMember[];
+}
+
 export interface LegacyImportRepairReviewItem {
   documentId: string;
   documentNumber: string;
@@ -83,10 +105,11 @@ export interface LegacyImportRepairReviewItem {
 }
 
 export interface LegacyImportRepairPreview {
-  schemaVersion: 2;
+  schemaVersion: 2 | 3;
   precondition: string;
   affectedCount: number;
   candidates: LegacyImportRepairCandidate[];
+  relationshipGroups: LegacyImportRepairRelationshipGroup[];
   manualReview: LegacyImportRepairReviewItem[];
   alreadyAttestedDocumentIds: string[];
 }
@@ -96,6 +119,7 @@ export type LegacyImportRepairApplyResult =
       status: "applied";
       data: AppData;
       appliedDocumentIds: string[];
+      appliedRelationshipGroupFingerprints: string[];
     }
   | {
       status: "blocked";
@@ -103,8 +127,7 @@ export type LegacyImportRepairApplyResult =
     };
 
 export type LegacyImportAttestationInspection =
-  | { ok: true; snapshot: DocumentSnapshot }
-  | { ok: false; reason: string };
+  { ok: true; snapshot: DocumentSnapshot } | { ok: false; reason: string };
 
 export type UsableHistoricalDocumentEvidence =
   | {
@@ -136,10 +159,10 @@ function previewPrecondition(data: AppData): string {
 
 function sourceForPrefix(prefix: string): LegacyImportSource | null {
   return (
-    Object.entries(SOURCE_PREFIXES).find(([, value]) => value === prefix)?.[0] as
-      | LegacyImportSource
-      | undefined
-  ) ?? null;
+    (Object.entries(SOURCE_PREFIXES).find(
+      ([, value]) => value === prefix,
+    )?.[0] as LegacyImportSource | undefined) ?? null
+  );
 }
 
 function isValidLegacyImportProvenance(
@@ -157,44 +180,81 @@ function isValidLegacyImportProvenance(
   }
   return Boolean(
     provenance.schemaVersion === 2 &&
-      (provenance.importedAt === null ||
-        isIsoDateTime(provenance.importedAt)) &&
-      isIsoDateTime(provenance.provenanceRecordedAt) &&
-      (provenance.issuerOrigin === "source_document" ||
-        provenance.issuerOrigin === "current_profile_at_import" ||
-        provenance.issuerOrigin === "unknown_legacy_import") &&
-      (provenance.documentStateAtImport === "draft" ||
-        provenance.documentStateAtImport === "issued" ||
-        provenance.documentStateAtImport === "unknown_legacy_import"),
+    (provenance.importedAt === null || isIsoDateTime(provenance.importedAt)) &&
+    isIsoDateTime(provenance.provenanceRecordedAt) &&
+    (provenance.issuerOrigin === "source_document" ||
+      provenance.issuerOrigin === "current_profile_at_import" ||
+      provenance.issuerOrigin === "unknown_legacy_import") &&
+    (provenance.documentStateAtImport === "draft" ||
+      provenance.documentStateAtImport === "issued" ||
+      provenance.documentStateAtImport === "unknown_legacy_import"),
   );
 }
 
 export function detectLegacyImportSource(
   document: Pick<Document, "id" | "type"> &
-    Partial<Pick<Document, "legacyImportProvenance">>,
+    Partial<
+      Pick<Document, "legacyImportProvenance" | "legacyImportAttestation">
+    >,
 ): LegacyImportSource | null {
   const [prefix, kind, suffix, ...extra] = document.id.split(":");
   const namespaceSource = prefix ? sourceForPrefix(prefix) : null;
   const provenance = document.legacyImportProvenance;
   const provenanceValid = isValidLegacyImportProvenance(provenance);
-  const provenanceSource = provenanceValid
-    ? provenance.importer
-    : null;
+  const provenanceSource = provenanceValid ? provenance.importer : null;
 
   if (namespaceSource) {
+    const safeV3Receipt = Boolean(
+      kind === "recibo" &&
+      provenanceValid &&
+      document.legacyImportAttestation?.schemaVersion === 3 &&
+      document.legacyImportAttestation.relationshipGroup.role === "receipt" &&
+      document.legacyImportAttestation.importer === namespaceSource,
+    );
     if (
       (provenance && !provenanceValid) ||
       !kind ||
       !suffix ||
       extra.length > 0 ||
       kind !== document.type ||
-      (kind !== "factura" && kind !== "presupuesto") ||
+      (kind !== "factura" && kind !== "presupuesto" && !safeV3Receipt) ||
       (provenanceSource && provenanceSource !== namespaceSource)
     ) {
       return null;
     }
     return namespaceSource;
   }
+  return provenanceSource;
+}
+
+/**
+ * El namespace de recibo solo se abre dentro del detector atómico V3. La API
+ * pública anterior continúa rechazándolo hasta que ya existe una atestación
+ * V3 válida, evitando que un recibo aislado se cuele por la ruta V2.
+ */
+function detectLegacyImportSourceForRelationshipRepair(
+  document: Document,
+): LegacyImportSource | null {
+  const [prefix, kind, suffix, ...extra] = document.id.split(":");
+  const namespaceSource = prefix ? sourceForPrefix(prefix) : null;
+  const provenance = document.legacyImportProvenance;
+  const provenanceValid = isValidLegacyImportProvenance(provenance);
+  const provenanceSource = provenanceValid ? provenance.importer : null;
+  if (namespaceSource) {
+    if (
+      !kind ||
+      !suffix ||
+      extra.length > 0 ||
+      kind !== document.type ||
+      (kind !== "factura" && kind !== "recibo") ||
+      (provenance && !provenanceValid) ||
+      (provenanceSource && provenanceSource !== namespaceSource)
+    ) {
+      return null;
+    }
+    return namespaceSource;
+  }
+  if (document.type !== "factura" && document.type !== "recibo") return null;
   return provenanceSource;
 }
 
@@ -207,12 +267,13 @@ function attestationHashPayload(attestation: unknown): unknown {
   return attestation;
 }
 
-function acceptedStateFromDocument(
+function acceptedStateBaseFromDocument(
   document: Document,
-): LegacyImportAttestationV2["acceptedState"] {
+): Omit<LegacyImportAttestationV3["acceptedState"], "relationships"> {
   return {
     status: document.status,
-    documentLifecycle: "issued",
+    documentLifecycle:
+      document.documentLifecycle === "canceled" ? "canceled" : "issued",
     integrityLock: "locked",
     deliveryStatus: document.deliveryStatus ?? null,
     paymentStatus: document.paymentStatus ?? null,
@@ -222,12 +283,36 @@ function acceptedStateFromDocument(
     paidAt: document.paidAt ?? null,
     acceptedAt: document.acceptedAt ?? null,
     updatedAt: document.updatedAt,
+  };
+}
+
+function acceptedStateFromDocument(
+  document: Document,
+): LegacyImportAttestationV2["acceptedState"] {
+  return {
+    ...acceptedStateBaseFromDocument(document),
+    documentLifecycle: "issued",
     relationships: {
       sourceQuoteDocumentId: document.sourceQuoteDocumentId ?? null,
       sourceQuoteNumber: document.sourceQuoteNumber ?? null,
       rectifiedById: null,
       receiptDocumentId: null,
       sourceDocumentId: null,
+    },
+  };
+}
+
+function acceptedRelationshipStateFromDocument(
+  document: Document,
+): LegacyImportAttestationV3["acceptedState"] {
+  return {
+    ...acceptedStateBaseFromDocument(document),
+    relationships: {
+      sourceQuoteDocumentId: document.sourceQuoteDocumentId ?? null,
+      sourceQuoteNumber: document.sourceQuoteNumber ?? null,
+      rectifiedById: document.rectifiedById ?? null,
+      receiptDocumentId: document.receiptDocumentId ?? null,
+      sourceDocumentId: document.sourceDocumentId ?? null,
     },
   };
 }
@@ -335,6 +420,47 @@ function buildAttestation(
   };
 }
 
+function buildRelationshipAttestation(
+  document: Document,
+  importer: LegacyImportSource,
+  snapshot: DocumentSnapshot,
+  fiscalSource: Document & { issuer: NonNullable<Document["issuer"]> },
+  importProvenance: LegacyImportProvenanceV2,
+  amountOrigin: LegacyImportAttestationV2["amountOrigin"],
+  attestedAt: string,
+  relationshipGroup: LegacyImportAttestationV3["relationshipGroup"],
+): LegacyImportAttestationV3 {
+  const sourceRecord = sourceRecordFromDocument(fiscalSource);
+  const withoutHash: Omit<LegacyImportAttestationV3, "attestationHash"> = {
+    schemaVersion: 3,
+    kind: ATTESTATION_KIND,
+    importer,
+    documentId: document.id,
+    attestedAt,
+    snapshotContentHash: hashStrongDocumentSnapshotContent(snapshot),
+    originalEvidence: {
+      kind: "source_files_not_stored",
+      preservation: "user_managed",
+    },
+    acceptedState: acceptedRelationshipStateFromDocument(document),
+    acceptanceBasis: "amounts_as_filed_user_attested",
+    amountOrigin,
+    importProvenance,
+    sourceRecord,
+    sourceRecordHash: sha256Stable(sourceRecord),
+    acceptedTaxSummary: snapshot.taxSummary,
+    acceptedContentPolicy: {
+      kind: "stored_fiscal_content_user_authoritative",
+      completenessExceptions: completenessExceptionsFromDocument(fiscalSource),
+    },
+    relationshipGroup,
+  };
+  return {
+    ...withoutHash,
+    attestationHash: sha256Stable(attestationHashPayload(withoutHash)),
+  };
+}
+
 function isIsoDateTime(value: string): boolean {
   return Boolean(value) && Number.isFinite(Date.parse(value));
 }
@@ -353,7 +479,10 @@ function provenanceForRepair(
   recordedAt: string,
 ): LegacyImportProvenanceV2 {
   const existing = document.legacyImportProvenance;
-  if (isValidLegacyImportProvenance(existing) && existing.importer === importer) {
+  if (
+    isValidLegacyImportProvenance(existing) &&
+    existing.importer === importer
+  ) {
     if (existing.schemaVersion === 2) return { ...existing };
     return {
       schemaVersion: 2,
@@ -397,8 +526,7 @@ function provenanceForNewImport(
     importedAt,
     provenanceRecordedAt: importedAt,
     issuerOrigin,
-    documentStateAtImport:
-      document.status === "borrador" ? "draft" : "issued",
+    documentStateAtImport: document.status === "borrador" ? "draft" : "issued",
   };
 }
 
@@ -421,8 +549,11 @@ export function inspectLegacyImportAttestation(
   if (!attestation || !snapshot) {
     return { ok: false, reason: "missing_attestation_or_snapshot" };
   }
+  const isV3 = attestation.schemaVersion === 3;
   if (
-    (attestation.schemaVersion !== 1 && attestation.schemaVersion !== 2) ||
+    (attestation.schemaVersion !== 1 &&
+      attestation.schemaVersion !== 2 &&
+      attestation.schemaVersion !== 3) ||
     attestation.kind !== ATTESTATION_KIND ||
     attestation.documentId !== document.id ||
     !attestation.originalEvidence ||
@@ -436,17 +567,8 @@ export function inspectLegacyImportAttestation(
     document.legacyImportProvenance.importer !== attestation.importer ||
     !attestation.acceptedState ||
     !attestation.acceptedState.relationships ||
-    attestation.acceptedState.documentLifecycle !== "issued" ||
     attestation.acceptedState.integrityLock !== "locked" ||
-    attestation.acceptedState.relationships.rectifiedById !== null ||
-    attestation.acceptedState.relationships.receiptDocumentId !== null ||
-    attestation.acceptedState.relationships.sourceDocumentId !== null ||
-    document.documentLifecycle !== "issued" ||
     document.integrityLock !== "locked" ||
-    Boolean(document.rectifiedById) ||
-    Boolean(document.receiptDocumentId) ||
-    Boolean(document.sourceDocumentId) ||
-    Boolean(document.rectification) ||
     snapshot.documentType !== document.type ||
     document.pdfSnapshot ||
     document.snapshotSeal ||
@@ -461,8 +583,49 @@ export function inspectLegacyImportAttestation(
     return { ok: false, reason: "attestation_contract_invalid" };
   }
   if (
+    !isV3 &&
+    (attestation.acceptedState.documentLifecycle !== "issued" ||
+      attestation.acceptedState.relationships.rectifiedById !== null ||
+      attestation.acceptedState.relationships.receiptDocumentId !== null ||
+      attestation.acceptedState.relationships.sourceDocumentId !== null ||
+      document.documentLifecycle !== "issued" ||
+      Boolean(document.rectifiedById) ||
+      Boolean(document.receiptDocumentId) ||
+      Boolean(document.sourceDocumentId) ||
+      Boolean(document.rectification))
+  ) {
+    return { ok: false, reason: "attestation_contract_invalid" };
+  }
+  if (
+    isV3 &&
+    (!attestation.relationshipGroup ||
+      !attestation.relationshipGroup.counterpartDocumentId ||
+      attestation.relationshipGroup.counterpartDocumentId === document.id ||
+      !attestation.relationshipGroup.groupFingerprint.startsWith("sha256:") ||
+      !attestation.relationshipGroup.relationshipHash.startsWith("sha256:") ||
+      (attestation.relationshipGroup.kind === "invoice_receipt") !==
+        (attestation.relationshipGroup.role === "invoice" ||
+          attestation.relationshipGroup.role === "receipt") ||
+      (attestation.relationshipGroup.kind !== "invoice_receipt") !==
+        (attestation.relationshipGroup.role === "original_invoice" ||
+          attestation.relationshipGroup.role === "rectification"))
+  ) {
+    return { ok: false, reason: "attestation_relationship_invalid" };
+  }
+  if (
     stableStringifySnapshot(attestation.acceptedState) !==
-    stableStringifySnapshot(acceptedStateFromDocument(document))
+    stableStringifySnapshot(
+      isV3
+        ? acceptedRelationshipStateFromDocument(document)
+        : acceptedStateFromDocument(document),
+    )
+  ) {
+    return { ok: false, reason: "attested_state_mismatch" };
+  }
+  if (
+    isV3 &&
+    stableStringifySnapshot(document.rectification ?? null) !==
+      stableStringifySnapshot(snapshot.rectification ?? null)
   ) {
     return { ok: false, reason: "attested_state_mismatch" };
   }
@@ -479,7 +642,7 @@ export function inspectLegacyImportAttestation(
   ) {
     return { ok: false, reason: "snapshot_content_mismatch" };
   }
-  if (attestation.schemaVersion === 2) {
+  if (attestation.schemaVersion === 2 || attestation.schemaVersion === 3) {
     if (
       document.legacyImportProvenance.schemaVersion !== 2 ||
       document.legacyImportProvenance.documentStateAtImport === "draft" ||
@@ -494,8 +657,7 @@ export function inspectLegacyImportAttestation(
         stableStringifySnapshot(document.legacyImportProvenance) ||
       snapshot.items.length === 0 ||
       !document.issuer ||
-      attestation.sourceRecordHash !==
-        sha256Stable(attestation.sourceRecord) ||
+      attestation.sourceRecordHash !== sha256Stable(attestation.sourceRecord) ||
       stableStringifySnapshot(attestation.sourceRecord) !==
         stableStringifySnapshot(
           sourceRecordFromDocument({
@@ -543,17 +705,17 @@ export function hasLegacyImportProtectionClaim(document: Document): boolean {
   const snapshotSource = document.documentSnapshot?.source;
   const provisionalHistoricalImport = Boolean(
     (document.legacyImportProvenance || hasKnownImportPrefix(document)) &&
-      document.status !== "borrador" &&
-      document.documentLifecycle === "issued" &&
-      document.integrityLock === "locked" &&
-      snapshotSource !== "issue" &&
-      snapshotSource !== "customer_repair",
+    document.status !== "borrador" &&
+    document.documentLifecycle === "issued" &&
+    document.integrityLock === "locked" &&
+    snapshotSource !== "issue" &&
+    snapshotSource !== "customer_repair",
   );
   return Boolean(
     document.legacyImportAttestation ||
-      snapshotSource === "legacy_import_attested" ||
-      snapshotSource === "legacy_backfill" ||
-      provisionalHistoricalImport,
+    snapshotSource === "legacy_import_attested" ||
+    snapshotSource === "legacy_backfill" ||
+    provisionalHistoricalImport,
   );
 }
 
@@ -577,7 +739,7 @@ export function inspectUsableHistoricalDocumentEvidence(
       ok: true,
       kind: "legacy_import_user_attested",
       snapshot: legacy.snapshot,
-      ...(document.legacyImportAttestation.schemaVersion === 2
+      ...(document.legacyImportAttestation.schemaVersion >= 2
         ? {
             acceptedContentPolicy:
               "stored_fiscal_content_user_authoritative" as const,
@@ -599,13 +761,13 @@ export function inspectUsableHistoricalDocumentEvidence(
   }
   const modernEvidence = Boolean(
     snapshotSource === "issue" ||
-      snapshotSource === "customer_repair" ||
-      document.pdfSnapshot ||
-      document.snapshotSeal ||
-      document.snapshotIntegrityRequired ||
-      document.issuedAt ||
-      document.verifactu ||
-      document.verifactuPersistence,
+    snapshotSource === "customer_repair" ||
+    document.pdfSnapshot ||
+    document.snapshotSeal ||
+    document.snapshotIntegrityRequired ||
+    document.issuedAt ||
+    document.verifactu ||
+    document.verifactuPersistence,
   );
   const integrity = inspectDocumentSnapshotsIntegrity(document, {
     requireDocumentSnapshot: true,
@@ -623,9 +785,7 @@ export function inspectUsableHistoricalDocumentEvidence(
   }
   return {
     ok: true,
-    kind: modernEvidence
-      ? "app_issued_sealed"
-      : "legacy_backfill_compatible",
+    kind: modernEvidence ? "app_issued_sealed" : "legacy_backfill_compatible",
     snapshot: document.documentSnapshot,
   };
 }
@@ -641,14 +801,14 @@ export function isDocumentUsableForFinancialCalculations(
   }
   const hasHistoricalEvidence = Boolean(
     document.documentSnapshot ||
-      document.pdfSnapshot ||
-      document.snapshotSeal ||
-      document.snapshotIntegrityRequired ||
-      document.legacyImportAttestation ||
-      document.issuedAt ||
-      document.documentLifecycle === "issued" ||
-      document.documentLifecycle === "canceled" ||
-      document.integrityLock === "locked",
+    document.pdfSnapshot ||
+    document.snapshotSeal ||
+    document.snapshotIntegrityRequired ||
+    document.legacyImportAttestation ||
+    document.issuedAt ||
+    document.documentLifecycle === "issued" ||
+    document.documentLifecycle === "canceled" ||
+    document.integrityLock === "locked",
   );
   if (hasHistoricalEvidence) {
     return inspectUsableHistoricalDocumentEvidence(document).ok;
@@ -700,18 +860,18 @@ function hasSafeStoredFiscalContent(document: Document): boolean {
   const totals = documentTotals(document, false);
   return Boolean(
     document.number.trim() &&
-      /^\d{4}-\d{2}-\d{2}$/.test(document.date) &&
-      (!document.issuer || isIsoDateTime(document.issuer.capturedAt)) &&
-      document.items.length > 0 &&
-      document.items.every(
-        (item) =>
-          Number.isFinite(item.quantity) &&
-          Number.isFinite(item.unitPrice) &&
-          Number.isFinite(item.ivaPercent),
-      ) &&
-      Number.isFinite(roundMoney(totals.subtotal)) &&
-      Number.isFinite(roundMoney(totals.iva)) &&
-      Number.isFinite(roundMoney(totals.total)),
+    /^\d{4}-\d{2}-\d{2}$/.test(document.date) &&
+    (!document.issuer || isIsoDateTime(document.issuer.capturedAt)) &&
+    document.items.length > 0 &&
+    document.items.every(
+      (item) =>
+        Number.isFinite(item.quantity) &&
+        Number.isFinite(item.unitPrice) &&
+        Number.isFinite(item.ivaPercent),
+    ) &&
+    Number.isFinite(roundMoney(totals.subtotal)) &&
+    Number.isFinite(roundMoney(totals.iva)) &&
+    Number.isFinite(roundMoney(totals.total)),
   );
 }
 
@@ -759,6 +919,189 @@ function verifiedLegacyBackfillProjection(document: Document): Document | null {
   return projected;
 }
 
+interface PreparedLegacyImportDocument {
+  document: Document;
+  fiscalSource: Document & { issuer: NonNullable<Document["issuer"]> };
+  snapshot: DocumentSnapshot;
+  amountOrigin: LegacyImportAttestationV2["amountOrigin"];
+}
+
+function prepareLegacyImportDocument(
+  document: Document,
+  profile: BusinessProfile,
+): PreparedLegacyImportDocument | null {
+  const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
+  const fiscalSource = legacySnapshotProjection ?? document;
+  if (!fiscalSource.issuer) return null;
+  const historicalProfile: BusinessProfile = {
+    ...profile,
+    iva: {
+      rates: [
+        ...new Set(fiscalSource.items.map((item) => item.ivaPercent)),
+      ].sort((left, right) => left - right),
+      defaultRate: fiscalSource.items[0]?.ivaPercent ?? 0,
+    },
+    vatExempt: false,
+    verifactu: undefined,
+  };
+  const snapshot = legacySnapshotProjection
+    ? document.documentSnapshot!
+    : buildDocumentSnapshot(fiscalSource, historicalProfile, {
+        source: "legacy_import_attested",
+        capturedAt: fiscalSource.issuer.capturedAt,
+        issuer: fiscalSource.issuer,
+      });
+  return {
+    document,
+    fiscalSource: { ...fiscalSource, issuer: fiscalSource.issuer },
+    snapshot,
+    amountOrigin: legacySnapshotProjection
+      ? "verified_legacy_snapshot"
+      : "persisted_lines_user_confirmed",
+  };
+}
+
+function protectedLegacyImportDocument(
+  prepared: PreparedLegacyImportDocument,
+): Document {
+  const { document, fiscalSource } = prepared;
+  const protectedDocument: Document = {
+    ...document,
+    type: fiscalSource.type,
+    number: fiscalSource.number,
+    date: fiscalSource.date,
+    dueDate: fiscalSource.dueDate,
+    client: { ...fiscalSource.client },
+    items: fiscalSource.items.map((item) => ({ ...item })),
+    issuer: { ...fiscalSource.issuer },
+    notes: fiscalSource.notes,
+    paymentTerms: fiscalSource.paymentTerms,
+    documentLifecycle:
+      document.documentLifecycle === "canceled" || document.status === "anulada"
+        ? "canceled"
+        : "issued",
+    integrityLock: "locked",
+  };
+  if (fiscalSource.rectification) {
+    protectedDocument.rectification = { ...fiscalSource.rectification };
+  } else {
+    delete protectedDocument.rectification;
+  }
+  return protectedDocument;
+}
+
+function roundedSnapshotAmounts(snapshot: DocumentSnapshot) {
+  return {
+    subtotal: roundMoney(snapshot.taxSummary.subtotal),
+    iva: roundMoney(snapshot.taxSummary.iva),
+    total: roundMoney(snapshot.taxSummary.total),
+  };
+}
+
+function comparableLegacyLines(snapshot: DocumentSnapshot): string {
+  return stableStringifySnapshot(
+    snapshot.items.map((item) => ({
+      description: item.description.trim(),
+      quantity: item.quantity,
+      unit: item.unit?.trim() ?? "",
+      unitPrice: item.unitPrice,
+      ivaPercent: item.ivaPercent,
+      subtotal: item.subtotal,
+      ivaAmount: item.ivaAmount,
+      total: item.total,
+    })),
+  );
+}
+
+function taxSummariesEqual(
+  left: DocumentSnapshot,
+  right: DocumentSnapshot,
+): boolean {
+  return (
+    stableStringifySnapshot(left.taxSummary) ===
+    stableStringifySnapshot(right.taxSummary)
+  );
+}
+
+function taxSummariesCancel(
+  original: DocumentSnapshot,
+  cancellation: DocumentSnapshot,
+): boolean {
+  const originalRows = new Map(
+    original.taxSummary.byRate.map((row) => [row.ivaPercent, row]),
+  );
+  const cancellationRows = new Map(
+    cancellation.taxSummary.byRate.map((row) => [row.ivaPercent, row]),
+  );
+  if (
+    original.taxSummary.vatExempt !== cancellation.taxSummary.vatExempt ||
+    originalRows.size !== cancellationRows.size ||
+    roundMoney(
+      original.taxSummary.subtotal + cancellation.taxSummary.subtotal,
+    ) !== 0 ||
+    roundMoney(original.taxSummary.iva + cancellation.taxSummary.iva) !== 0 ||
+    roundMoney(original.taxSummary.total + cancellation.taxSummary.total) !== 0
+  ) {
+    return false;
+  }
+  for (const [rate, originalRow] of originalRows) {
+    const cancellationRow = cancellationRows.get(rate);
+    if (
+      !cancellationRow ||
+      roundMoney(originalRow.taxableBase + cancellationRow.taxableBase) !== 0 ||
+      roundMoney(originalRow.ivaAmount + cancellationRow.ivaAmount) !== 0 ||
+      roundMoney(originalRow.total + cancellationRow.total) !== 0
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function relationshipContentHash(
+  relation: LegacyImportRelationshipKind,
+  members: Array<{
+    role: LegacyImportRelationshipRole;
+    document: Document;
+    snapshot: DocumentSnapshot;
+  }>,
+): string {
+  return sha256Stable({
+    schemaVersion: 3,
+    relation,
+    members: members.map(({ role, document, snapshot }) => ({
+      role,
+      documentId: document.id,
+      documentNumber: snapshot.number,
+      documentDate: snapshot.date,
+      status: document.status,
+      documentLifecycle: document.documentLifecycle,
+      relationships:
+        acceptedRelationshipStateFromDocument(document).relationships,
+      rectification: snapshot.rectification ?? null,
+      sourceDocumentId: snapshot.sourceDocumentId ?? null,
+      snapshotContentHash: hashStrongDocumentSnapshotContent(snapshot),
+      taxSummary: snapshot.taxSummary,
+    })),
+  });
+}
+
+function relationshipFingerprint(
+  relation: LegacyImportRelationshipKind,
+  relationshipHash: string,
+  members: Array<{
+    role: LegacyImportRelationshipRole;
+    documentId: string;
+  }>,
+): string {
+  return sha256Stable({
+    schemaVersion: 3,
+    relation,
+    relationshipHash,
+    members,
+  });
+}
+
 function rolloutIssuesAreOnlyMissing(document: Document): boolean {
   if (!document.snapshotIntegrity) return true;
   return hasOnlyLegacyImportRolloutResidue(document);
@@ -780,22 +1123,22 @@ function hasHistoricalImporterIssuedAtProof(
   // por Factu tiene issuedAt igual o posterior y nunca puede degradarse a V2.
   return Boolean(
     (importer === "holded" || importer === "facturadirecta") &&
-      document.issuedAt &&
-      document.issuedAt === document.createdAt &&
-      document.updatedAt === document.createdAt &&
-      (!importedAt || Date.parse(document.issuedAt) < Date.parse(importedAt)) &&
-      !document.sentAt &&
-      !document.paidAt &&
-      !document.acceptedAt,
+    document.issuedAt &&
+    document.issuedAt === document.createdAt &&
+    document.updatedAt === document.createdAt &&
+    (!importedAt || Date.parse(document.issuedAt) < Date.parse(importedAt)) &&
+    !document.sentAt &&
+    !document.paidAt &&
+    !document.acceptedAt,
   );
 }
 
 function hasNoAppActionTimestamps(document: Document): boolean {
   return Boolean(
     !document.issuedAt &&
-      !document.sentAt &&
-      !document.paidAt &&
-      !document.acceptedAt,
+    !document.sentAt &&
+    !document.paidAt &&
+    !document.acceptedAt,
   );
 }
 
@@ -821,21 +1164,21 @@ function hasUnambiguousHistoricalRepairFingerprint(
   if (importer === "pcfacturacion") {
     return Boolean(
       hasNoAppActionTimestamps(document) &&
-        document.updatedAt === document.createdAt &&
-        document.deliveryStatus === undefined &&
-        document.paymentStatus === undefined &&
-        document.acceptanceStatus === undefined,
+      document.updatedAt === document.createdAt &&
+      document.deliveryStatus === undefined &&
+      document.paymentStatus === undefined &&
+      document.acceptanceStatus === undefined,
     );
   }
 
   if (importer === "generic_documents") {
     return Boolean(
       provenance?.schemaVersion === 2 &&
-        provenance.documentStateAtImport === "issued" &&
-        hasNoAppActionTimestamps(document) &&
-        document.deliveryStatus === undefined &&
-        document.paymentStatus === undefined &&
-        document.acceptanceStatus === undefined,
+      provenance.documentStateAtImport === "issued" &&
+      hasNoAppActionTimestamps(document) &&
+      document.deliveryStatus === undefined &&
+      document.paymentStatus === undefined &&
+      document.acceptanceStatus === undefined,
     );
   }
 
@@ -854,20 +1197,258 @@ export function isVerifiedLegacyImportRepairSnapshotCandidate(
   const importer = detectLegacyImportSource(document);
   return Boolean(
     importer &&
-      verifiedLegacyBackfillProjection(document) &&
-      hasUnambiguousHistoricalRepairFingerprint(document, importer) &&
-      !document.verifactu &&
-      !document.verifactuPersistence &&
-      !document.integrityQuarantine &&
-      document.status !== "borrador" &&
-      document.status !== "anulada" &&
-      document.status !== "rectificada" &&
-      document.documentLifecycle === "issued" &&
-      document.integrityLock === "locked" &&
-      !document.rectification &&
-      !document.rectifiedById &&
-      !document.receiptDocumentId &&
-      !document.sourceDocumentId,
+    verifiedLegacyBackfillProjection(document) &&
+    hasUnambiguousHistoricalRepairFingerprint(document, importer) &&
+    !document.verifactu &&
+    !document.verifactuPersistence &&
+    !document.integrityQuarantine &&
+    document.status !== "borrador" &&
+    document.status !== "anulada" &&
+    document.status !== "rectificada" &&
+    document.documentLifecycle === "issued" &&
+    document.integrityLock === "locked" &&
+    !document.rectification &&
+    !document.rectifiedById &&
+    !document.receiptDocumentId &&
+    !document.sourceDocumentId,
+  );
+}
+
+function isSafeHistoricalRelationshipCandidate(
+  document: Document,
+  duplicateIds: ReadonlySet<string>,
+  snapshotIntegrityVersion: AppData["snapshotIntegrityVersion"],
+): boolean {
+  const importer = detectLegacyImportSourceForRelationshipRepair(document);
+  const projection = verifiedLegacyBackfillProjection(document);
+  return Boolean(
+    importer &&
+    !duplicateIds.has(document.id) &&
+    !document.legacyImportAttestation &&
+    document.status !== "borrador" &&
+    document.integrityLock === "locked" &&
+    (document.documentLifecycle === "issued" ||
+      document.documentLifecycle === "canceled") &&
+    snapshotIntegrityVersion === 1 &&
+    hasUnambiguousHistoricalRepairFingerprint(document, importer) &&
+    hasSafeStoredFiscalContent(projection ?? document) &&
+    (!document.documentSnapshot || Boolean(projection)) &&
+    !document.pdfSnapshot &&
+    !document.snapshotSeal &&
+    !document.verifactu &&
+    !document.verifactuPersistence &&
+    !document.documentSnapshot?.verifactu &&
+    !document.documentSnapshot?.fiscalContext.verifactu?.enabled &&
+    !document.integrityQuarantine &&
+    rolloutIssuesAreOnlyMissing(document),
+  );
+}
+
+function relationshipSemanticsMatch(
+  relation: LegacyImportRelationshipKind,
+  first: PreparedLegacyImportDocument,
+  second: PreparedLegacyImportDocument,
+): boolean {
+  const left = protectedLegacyImportDocument(first);
+  const right = protectedLegacyImportDocument(second);
+  const leftIssuerNif = normalizedFiscalIdentityText(first.snapshot.issuer.nif);
+  const rightIssuerNif = normalizedFiscalIdentityText(
+    second.snapshot.issuer.nif,
+  );
+  const issuerIdentityCompatible = Boolean(
+    !leftIssuerNif || !rightIssuerNif || leftIssuerNif === rightIssuerNif,
+  );
+  if (!issuerIdentityCompatible) return false;
+  if (relation === "invoice_receipt") {
+    return Boolean(
+      left.type === "factura" &&
+      right.type === "recibo" &&
+      !left.rectification &&
+      !left.rectifiedById &&
+      !left.sourceDocumentId &&
+      left.receiptDocumentId === right.id &&
+      !right.rectification &&
+      !right.rectifiedById &&
+      !right.receiptDocumentId &&
+      right.sourceDocumentId === left.id &&
+      second.snapshot.sourceDocumentId === left.id &&
+      left.status === "pagado" &&
+      right.status === "pagado" &&
+      left.documentLifecycle === "issued" &&
+      right.documentLifecycle === "issued" &&
+      right.date >= left.date &&
+      stableStringifySnapshot(left.client) ===
+        stableStringifySnapshot(right.client) &&
+      comparableLegacyLines(first.snapshot) ===
+        comparableLegacyLines(second.snapshot) &&
+      taxSummariesEqual(first.snapshot, second.snapshot),
+    );
+  }
+
+  const rectification = second.snapshot.rectification;
+  const correction = relation === "rectification_correction";
+  return Boolean(
+    left.type === "factura" &&
+    right.type === "factura" &&
+    !first.snapshot.rectification &&
+    !left.receiptDocumentId &&
+    !left.sourceDocumentId &&
+    rectification &&
+    rectification.type === (correction ? "correccion" : "anulacion") &&
+    rectification.originalDocumentId === left.id &&
+    rectification.originalNumber === first.snapshot.number &&
+    rectification.originalDate === first.snapshot.date &&
+    left.rectifiedById === right.id &&
+    !right.rectifiedById &&
+    !right.receiptDocumentId &&
+    !right.sourceDocumentId &&
+    right.date >= left.date &&
+    right.documentLifecycle === "issued" &&
+    (right.status === "enviado" ||
+      right.status === "pagado" ||
+      right.status === "vencido") &&
+    (correction
+      ? left.status === "rectificada" &&
+        left.documentLifecycle === "issued" &&
+        first.snapshot.taxSummary.total > 0 &&
+        second.snapshot.taxSummary.total > 0 &&
+        comparableLegacyLines(first.snapshot) ===
+          comparableLegacyLines(second.snapshot) &&
+        taxSummariesEqual(first.snapshot, second.snapshot)
+      : left.status === "anulada" &&
+        left.documentLifecycle === "canceled" &&
+        stableStringifySnapshot(first.snapshot.customer) ===
+          stableStringifySnapshot(second.snapshot.customer) &&
+        taxSummariesCancel(first.snapshot, second.snapshot)),
+  );
+}
+
+interface DetectedLegacyRelationshipGroup {
+  preview: LegacyImportRepairRelationshipGroup;
+  preparedById: Map<string, PreparedLegacyImportDocument>;
+}
+
+function detectLegacyRelationshipGroups(
+  data: AppData,
+  duplicateIds: ReadonlySet<string>,
+): DetectedLegacyRelationshipGroup[] {
+  const byId = new Map(
+    data.documents.map((document) => [document.id, document]),
+  );
+  const rectificationsByOriginal = new Map<string, Document[]>();
+  const receiptsByInvoice = new Map<string, Document[]>();
+  for (const document of data.documents) {
+    const projected = verifiedLegacyBackfillProjection(document) ?? document;
+    const rectification = projected.rectification;
+    if (rectification) {
+      const existing =
+        rectificationsByOriginal.get(rectification.originalDocumentId) ?? [];
+      existing.push(document);
+      rectificationsByOriginal.set(rectification.originalDocumentId, existing);
+    }
+    if (projected.type === "recibo" && projected.sourceDocumentId) {
+      const existing = receiptsByInvoice.get(projected.sourceDocumentId) ?? [];
+      existing.push(document);
+      receiptsByInvoice.set(projected.sourceDocumentId, existing);
+    }
+  }
+
+  const detected: DetectedLegacyRelationshipGroup[] = [];
+  const claimedIds = new Set<string>();
+  const addGroup = (
+    relation: LegacyImportRelationshipKind,
+    specs: Array<{ role: LegacyImportRelationshipRole; document: Document }>,
+  ) => {
+    if (specs.some(({ document }) => claimedIds.has(document.id))) return;
+    if (
+      specs.some(
+        ({ document }) =>
+          !isSafeHistoricalRelationshipCandidate(
+            document,
+            duplicateIds,
+            data.snapshotIntegrityVersion,
+          ),
+      )
+    ) {
+      return;
+    }
+    const prepared = specs.map(({ role, document }) => ({
+      role,
+      prepared: prepareLegacyImportDocument(document, data.profile),
+    }));
+    if (prepared.some(({ prepared: value }) => !value)) return;
+    const first = prepared[0].prepared!;
+    const second = prepared[1].prepared!;
+    if (!relationshipSemanticsMatch(relation, first, second)) return;
+    const relationshipHash = relationshipContentHash(
+      relation,
+      prepared.map(({ role, prepared: value }) => ({
+        role,
+        document: protectedLegacyImportDocument(value!),
+        snapshot: value!.snapshot,
+      })),
+    );
+    const groupFingerprint = relationshipFingerprint(
+      relation,
+      relationshipHash,
+      specs.map(({ role, document }) => ({
+        role,
+        documentId: document.id,
+      })),
+    );
+    const members = prepared.map(({ role, prepared: value }) => ({
+      role,
+      documentId: value!.document.id,
+      documentNumber: value!.snapshot.number,
+      amounts: roundedSnapshotAmounts(value!.snapshot),
+    }));
+    const preview: LegacyImportRepairRelationshipGroup = {
+      relation,
+      groupFingerprint,
+      documentIds: members.map((member) => member.documentId),
+      documentNumbers: members.map((member) => member.documentNumber),
+      members,
+    };
+    detected.push({
+      preview,
+      preparedById: new Map(
+        prepared.map(({ prepared: value }) => [value!.document.id, value!]),
+      ),
+    });
+    specs.forEach(({ document }) => claimedIds.add(document.id));
+  };
+
+  for (const [originalId, rectifications] of rectificationsByOriginal) {
+    if (rectifications.length !== 1) continue;
+    const original = byId.get(originalId);
+    const rectification = rectifications[0];
+    const projected =
+      verifiedLegacyBackfillProjection(rectification) ?? rectification;
+    if (!original || original.rectifiedById !== rectification.id) continue;
+    addGroup(
+      projected.rectification?.type === "anulacion"
+        ? "rectification_cancellation"
+        : "rectification_correction",
+      [
+        { role: "original_invoice", document: original },
+        { role: "rectification", document: rectification },
+      ],
+    );
+  }
+
+  for (const [invoiceId, receipts] of receiptsByInvoice) {
+    if (receipts.length !== 1) continue;
+    const invoice = byId.get(invoiceId);
+    const receipt = receipts[0];
+    if (!invoice || invoice.receiptDocumentId !== receipt.id) continue;
+    addGroup("invoice_receipt", [
+      { role: "invoice", document: invoice },
+      { role: "receipt", document: receipt },
+    ]);
+  }
+
+  return detected.sort((left, right) =>
+    left.preview.groupFingerprint.localeCompare(right.preview.groupFingerprint),
   );
 }
 
@@ -941,8 +1522,10 @@ function normalizedFiscalIdentityText(value: string | undefined): string {
 }
 
 function hasStrongIssuerIdentity(value: string | undefined): boolean {
-  return Boolean(normalizedFiscalIdentityText(value)) &&
-    hasUsualSpanishTaxIdShape(value);
+  return (
+    Boolean(normalizedFiscalIdentityText(value)) &&
+    hasUsualSpanishTaxIdShape(value)
+  );
 }
 
 function fiscalIdentityFromDocument(document: Document): string | null {
@@ -1005,6 +1588,35 @@ export function buildLegacyImportRepairPreview(
   const alreadyAttestedDocumentIds: string[] = [];
   const duplicateIds = duplicateDocumentIds(data.documents);
   const reportedDuplicateIds = new Set<string>();
+  const detectedRelationshipGroups = detectLegacyRelationshipGroups(
+    data,
+    duplicateIds,
+  );
+  const existingRelationshipInspection =
+    inspectLegacyImportRelationshipCollection(data.documents);
+  const relationshipCandidateIds = new Set(
+    detectedRelationshipGroups.flatMap(({ preview }) => preview.documentIds),
+  );
+
+  for (const detected of detectedRelationshipGroups) {
+    for (const member of detected.preview.members) {
+      const prepared = detected.preparedById.get(member.documentId)!;
+      const importer = detectLegacyImportSourceForRelationshipRepair(
+        prepared.document,
+      )!;
+      candidates.push({
+        documentId: member.documentId,
+        documentNumber: member.documentNumber,
+        importer,
+        issuerOrigin: issuerOriginForPreview(prepared.document, importer),
+        completenessExceptions: completenessExceptionsFromDocument(
+          prepared.fiscalSource,
+        ),
+        amounts: member.amounts,
+        beforeFingerprint: documentFingerprint(prepared.document),
+      });
+    }
+  }
 
   for (const document of data.documents) {
     if (duplicateIds.has(document.id)) {
@@ -1018,8 +1630,13 @@ export function buildLegacyImportRepairPreview(
       }
       continue;
     }
+    if (relationshipCandidateIds.has(document.id)) continue;
     if (document.legacyImportAttestation) {
-      if (inspectLegacyImportAttestation(document).ok) {
+      const locallyValid = inspectLegacyImportAttestation(document).ok;
+      const collectionValid =
+        document.legacyImportAttestation.schemaVersion !== 3 ||
+        existingRelationshipInspection.validDocumentIds.has(document.id);
+      if (locallyValid && collectionValid) {
         alreadyAttestedDocumentIds.push(document.id);
       } else {
         manualReview.push({
@@ -1083,7 +1700,9 @@ export function buildLegacyImportRepairPreview(
     });
   }
 
-  const candidateIds = new Set(candidates.map((candidate) => candidate.documentId));
+  const candidateIds = new Set(
+    candidates.map((candidate) => candidate.documentId),
+  );
   const claims = new Map<string, Set<string>>();
   for (const document of data.documents) {
     const identity =
@@ -1129,7 +1748,7 @@ export function buildLegacyImportRepairPreview(
       documentId: document.id,
       hasStrongIdentity: Boolean(
         storedFiscalIdentityClaim(document) ??
-          fiscalIdentityFromDocument(document),
+        fiscalIdentityFromDocument(document),
       ),
     });
     numberClaims.set(identity, entries);
@@ -1141,7 +1760,7 @@ export function buildLegacyImportRepairPreview(
     const identity = document
       ? fiscalNumberIdentityFromDocument(document)
       : null;
-    const entries = identity ? numberClaims.get(identity) ?? [] : [];
+    const entries = identity ? (numberClaims.get(identity) ?? []) : [];
     if (
       entries.length > 1 &&
       entries.some((entry) => !entry.hasStrongIdentity) &&
@@ -1162,7 +1781,7 @@ export function buildLegacyImportRepairPreview(
     const strongIdentity = storedFiscalIdentityClaim(document);
     const numberIdentity = fiscalNumberIdentityFromDocument(document);
     const numberEntries = numberIdentity
-      ? numberClaims.get(numberIdentity) ?? []
+      ? (numberClaims.get(numberIdentity) ?? [])
       : [];
     const hasStrongCollision = Boolean(
       strongIdentity && (claims.get(strongIdentity)?.size ?? 0) > 1,
@@ -1181,12 +1800,53 @@ export function buildLegacyImportRepairPreview(
   const safeCandidates = candidates.filter(
     (candidate) => !collidingCandidateIds.has(candidate.documentId),
   );
+  const safeCandidateIds = new Set(
+    safeCandidates.map((candidate) => candidate.documentId),
+  );
+  const relationshipGroups = detectedRelationshipGroups
+    .map(({ preview }) => preview)
+    .filter((group) =>
+      group.documentIds.every((documentId) => safeCandidateIds.has(documentId)),
+    );
+  const acceptedRelationshipFingerprints = new Set(
+    relationshipGroups.map((group) => group.groupFingerprint),
+  );
+  for (const { preview: rejectedGroup } of detectedRelationshipGroups) {
+    if (acceptedRelationshipFingerprints.has(rejectedGroup.groupFingerprint)) {
+      continue;
+    }
+    for (const member of rejectedGroup.members) {
+      const existing = manualReview.find(
+        (item) => item.documentId === member.documentId,
+      );
+      if (existing) {
+        if (!existing.reasons.includes("unsupported_historical_relation")) {
+          existing.reasons.push("unsupported_historical_relation");
+        }
+      } else {
+        manualReview.push({
+          documentId: member.documentId,
+          documentNumber: member.documentNumber,
+          reasons: ["unsupported_historical_relation"],
+        });
+      }
+    }
+  }
+  const safeRelationshipIds = new Set(
+    relationshipGroups.flatMap((group) => group.documentIds),
+  );
+  const finalCandidates = safeCandidates.filter(
+    (candidate) =>
+      !relationshipCandidateIds.has(candidate.documentId) ||
+      safeRelationshipIds.has(candidate.documentId),
+  );
 
   return {
-    schemaVersion: 2,
+    schemaVersion: relationshipGroups.length > 0 ? 3 : 2,
     precondition: previewPrecondition(data),
-    affectedCount: safeCandidates.length,
-    candidates: safeCandidates,
+    affectedCount: finalCandidates.length,
+    candidates: finalCandidates,
+    relationshipGroups,
     manualReview,
     alreadyAttestedDocumentIds: alreadyAttestedDocumentIds.filter(
       (documentId) => !collidingAttestedIds.has(documentId),
@@ -1201,55 +1861,24 @@ function buildAttestedDocument(
   attestedAt: string,
   importProvenance: LegacyImportProvenanceV2,
 ): Document {
-  const legacySnapshotProjection = verifiedLegacyBackfillProjection(document);
-  const fiscalSource = legacySnapshotProjection ?? document;
-  if (!fiscalSource.issuer) throw new Error("legacy_import_issuer_missing");
-  const historicalProfile: BusinessProfile = {
-    ...profile,
-    iva: {
-      rates: [...new Set(fiscalSource.items.map((item) => item.ivaPercent))].sort(
-        (left, right) => left - right,
-      ),
-      defaultRate: fiscalSource.items[0]?.ivaPercent ?? 0,
-    },
-    vatExempt: false,
-    verifactu: undefined,
-  };
-  const snapshot = legacySnapshotProjection
-    ? document.documentSnapshot!
-    : buildDocumentSnapshot(fiscalSource, historicalProfile, {
-        source: "legacy_import_attested",
-        capturedAt: fiscalSource.issuer.capturedAt,
-        issuer: fiscalSource.issuer,
-      });
+  const prepared = prepareLegacyImportDocument(document, profile);
+  if (!prepared) throw new Error("legacy_import_issuer_missing");
   const protectedDocument: Document = {
-    ...document,
-    type: fiscalSource.type,
-    number: fiscalSource.number,
-    date: fiscalSource.date,
-    dueDate: fiscalSource.dueDate,
-    client: { ...fiscalSource.client },
-    items: fiscalSource.items.map((item) => ({ ...item })),
-    issuer: { ...fiscalSource.issuer },
-    notes: fiscalSource.notes,
-    paymentTerms: fiscalSource.paymentTerms,
+    ...protectedLegacyImportDocument(prepared),
     documentLifecycle: "issued",
-    integrityLock: "locked",
   };
   const attestation = buildAttestation(
     protectedDocument,
     importer,
-    snapshot,
-    { ...fiscalSource, issuer: fiscalSource.issuer },
+    prepared.snapshot,
+    prepared.fiscalSource,
     importProvenance,
-    legacySnapshotProjection
-      ? "verified_legacy_snapshot"
-      : "persisted_lines_user_confirmed",
+    prepared.amountOrigin,
     attestedAt,
   );
   const next: Document = {
     ...protectedDocument,
-    documentSnapshot: snapshot,
+    documentSnapshot: prepared.snapshot,
     legacyImportAttestation: attestation,
     legacyImportProvenance: importProvenance,
   };
@@ -1260,6 +1889,223 @@ function buildAttestedDocument(
   const inspected = inspectLegacyImportAttestation(next);
   if (!inspected.ok) throw new Error(inspected.reason);
   return projectLegacyImportSnapshotOntoDocument(next);
+}
+
+function rolesForRelationship(
+  kind: LegacyImportRelationshipKind,
+): [LegacyImportRelationshipRole, LegacyImportRelationshipRole] {
+  return kind === "invoice_receipt"
+    ? ["invoice", "receipt"]
+    : ["original_invoice", "rectification"];
+}
+
+function buildAttestedRelationshipGroup(
+  group: LegacyImportRepairRelationshipGroup,
+  documentsById: ReadonlyMap<string, Document>,
+  candidatesById: ReadonlyMap<string, LegacyImportRepairCandidate>,
+  profile: BusinessProfile,
+  attestedAt: string,
+): Document[] {
+  const expectedRoles = rolesForRelationship(group.relation);
+  if (
+    group.members.length !== 2 ||
+    stableStringifySnapshot(group.members.map((member) => member.role)) !==
+      stableStringifySnapshot(expectedRoles)
+  ) {
+    throw new Error("legacy_relationship_roles_invalid");
+  }
+  const rawSpecs = group.members.map((member) => {
+    const document = documentsById.get(member.documentId);
+    const candidate = candidatesById.get(member.documentId);
+    if (!document || !candidate) {
+      throw new Error("legacy_relationship_member_missing");
+    }
+    return { role: member.role, document, candidate };
+  });
+  const preparedSpecs = rawSpecs.map(({ role, document, candidate }) => {
+    const prepared = prepareLegacyImportDocument(document, profile);
+    if (!prepared) throw new Error("legacy_import_issuer_missing");
+    return {
+      role,
+      candidate,
+      prepared,
+      protectedDocument: protectedLegacyImportDocument(prepared),
+    };
+  });
+  if (
+    !relationshipSemanticsMatch(
+      group.relation,
+      preparedSpecs[0].prepared,
+      preparedSpecs[1].prepared,
+    )
+  ) {
+    throw new Error("legacy_relationship_semantics_mismatch");
+  }
+  const relationshipHash = relationshipContentHash(
+    group.relation,
+    preparedSpecs.map(({ role, protectedDocument, prepared }) => ({
+      role,
+      document: protectedDocument,
+      snapshot: prepared.snapshot,
+    })),
+  );
+  if (
+    relationshipFingerprint(
+      group.relation,
+      relationshipHash,
+      rawSpecs.map(({ role, document }) => ({
+        role,
+        documentId: document.id,
+      })),
+    ) !== group.groupFingerprint
+  ) {
+    throw new Error("legacy_relationship_fingerprint_mismatch");
+  }
+  return preparedSpecs.map(
+    ({ role, candidate, prepared, protectedDocument }, index) => {
+      const counterpart = preparedSpecs[index === 0 ? 1 : 0];
+      const provenance = provenanceForRepair(
+        prepared.document,
+        candidate.importer,
+        attestedAt,
+      );
+      const attestation = buildRelationshipAttestation(
+        protectedDocument,
+        candidate.importer,
+        prepared.snapshot,
+        prepared.fiscalSource,
+        provenance,
+        prepared.amountOrigin,
+        attestedAt,
+        {
+          kind: group.relation,
+          role,
+          counterpartDocumentId: counterpart.prepared.document.id,
+          groupFingerprint: group.groupFingerprint,
+          relationshipHash,
+        },
+      );
+      const next: Document = {
+        ...protectedDocument,
+        documentSnapshot: prepared.snapshot,
+        legacyImportAttestation: attestation,
+        legacyImportProvenance: provenance,
+      };
+      delete next.pdfSnapshot;
+      delete next.snapshotSeal;
+      delete next.snapshotIntegrityRequired;
+      delete next.snapshotIntegrity;
+      const inspected = inspectLegacyImportAttestation(next);
+      if (!inspected.ok) throw new Error(inspected.reason);
+      return projectLegacyImportSnapshotOntoDocument(next);
+    },
+  );
+}
+
+export interface LegacyImportRelationshipCollectionInspection {
+  claimedDocumentIds: Set<string>;
+  validDocumentIds: Set<string>;
+}
+
+/** Revalida el hash y ambos extremos; ningún V3 huérfano es utilizable. */
+export function inspectLegacyImportRelationshipCollection(
+  documents: Document[],
+): LegacyImportRelationshipCollectionInspection {
+  const claimedDocumentIds = new Set<string>();
+  const validDocumentIds = new Set<string>();
+  const groups = new Map<string, Document[]>();
+  for (const document of documents) {
+    const attestation = document.legacyImportAttestation;
+    if (attestation?.schemaVersion !== 3) continue;
+    claimedDocumentIds.add(document.id);
+    const members =
+      groups.get(attestation.relationshipGroup.groupFingerprint) ?? [];
+    members.push(document);
+    groups.set(attestation.relationshipGroup.groupFingerprint, members);
+  }
+  for (const members of groups.values()) {
+    if (members.length !== 2) continue;
+    if (
+      members.some((document) => !inspectLegacyImportAttestation(document).ok)
+    ) {
+      continue;
+    }
+    const firstAttestation = members[0]
+      .legacyImportAttestation as LegacyImportAttestationV3;
+    const kind = firstAttestation.relationshipGroup.kind;
+    const expectedRoles = rolesForRelationship(kind);
+    const ordered = expectedRoles.map((role) =>
+      members.find(
+        (document) =>
+          (document.legacyImportAttestation as LegacyImportAttestationV3)
+            .relationshipGroup.role === role,
+      ),
+    );
+    if (ordered.some((document) => !document)) continue;
+    const [first, second] = ordered as [Document, Document];
+    const firstGroup = (
+      first.legacyImportAttestation as LegacyImportAttestationV3
+    ).relationshipGroup;
+    const secondGroup = (
+      second.legacyImportAttestation as LegacyImportAttestationV3
+    ).relationshipGroup;
+    if (
+      secondGroup.kind !== kind ||
+      firstGroup.relationshipHash !== secondGroup.relationshipHash ||
+      firstGroup.counterpartDocumentId !== second.id ||
+      secondGroup.counterpartDocumentId !== first.id ||
+      firstGroup.groupFingerprint !== secondGroup.groupFingerprint ||
+      !first.documentSnapshot ||
+      !second.documentSnapshot ||
+      !first.issuer ||
+      !second.issuer
+    ) {
+      continue;
+    }
+    const preparedFirst: PreparedLegacyImportDocument = {
+      document: first,
+      fiscalSource: { ...first, issuer: first.issuer },
+      snapshot: first.documentSnapshot,
+      amountOrigin: (first.legacyImportAttestation as LegacyImportAttestationV3)
+        .amountOrigin,
+    };
+    const preparedSecond: PreparedLegacyImportDocument = {
+      document: second,
+      fiscalSource: { ...second, issuer: second.issuer },
+      snapshot: second.documentSnapshot,
+      amountOrigin: (
+        second.legacyImportAttestation as LegacyImportAttestationV3
+      ).amountOrigin,
+    };
+    if (!relationshipSemanticsMatch(kind, preparedFirst, preparedSecond)) {
+      continue;
+    }
+    const recomputed = relationshipContentHash(kind, [
+      {
+        role: expectedRoles[0],
+        document: first,
+        snapshot: first.documentSnapshot,
+      },
+      {
+        role: expectedRoles[1],
+        document: second,
+        snapshot: second.documentSnapshot,
+      },
+    ]);
+    if (recomputed !== firstGroup.relationshipHash) continue;
+    const recomputedGroupFingerprint = relationshipFingerprint(
+      kind,
+      recomputed,
+      [
+        { role: expectedRoles[0], documentId: first.id },
+        { role: expectedRoles[1], documentId: second.id },
+      ],
+    );
+    if (recomputedGroupFingerprint !== firstGroup.groupFingerprint) continue;
+    validDocumentIds.add(first.id);
+    validDocumentIds.add(second.id);
+  }
+  return { claimedDocumentIds, validDocumentIds };
 }
 
 export function attestNewImportedDocument(
@@ -1309,10 +2155,12 @@ export function applyLegacyImportRepair(
 ): LegacyImportRepairApplyResult {
   const current = buildLegacyImportRepairPreview(data);
   if (
-    preview.schemaVersion !== 2 ||
+    preview.schemaVersion !== current.schemaVersion ||
     preview.precondition !== current.precondition ||
     stableStringifySnapshot(preview.candidates) !==
-      stableStringifySnapshot(current.candidates)
+      stableStringifySnapshot(current.candidates) ||
+    stableStringifySnapshot(preview.relationshipGroups) !==
+      stableStringifySnapshot(current.relationshipGroups)
   ) {
     return { status: "blocked", reason: "stale_preview" };
   }
@@ -1323,12 +2171,30 @@ export function applyLegacyImportRepair(
     current.candidates.map((candidate) => [candidate.documentId, candidate]),
   );
   try {
+    const documentsById = new Map(
+      data.documents.map((document) => [document.id, document]),
+    );
+    const relationshipReplacements = new Map<string, Document>();
+    for (const group of current.relationshipGroups) {
+      const replacements = buildAttestedRelationshipGroup(
+        group,
+        documentsById,
+        byId,
+        data.profile,
+        attestedAt,
+      );
+      replacements.forEach((document) =>
+        relationshipReplacements.set(document.id, document),
+      );
+    }
     const documents = data.documents.map((document) => {
       const candidate = byId.get(document.id);
       if (!candidate) return document;
       if (documentFingerprint(document) !== candidate.beforeFingerprint) {
         throw new Error("stale_candidate");
       }
+      const relationshipReplacement = relationshipReplacements.get(document.id);
+      if (relationshipReplacement) return relationshipReplacement;
       return buildAttestedDocument(
         document,
         data.profile,
@@ -1337,11 +2203,24 @@ export function applyLegacyImportRepair(
         provenanceForRepair(document, candidate.importer, attestedAt),
       );
     });
+    const relationshipInspection =
+      inspectLegacyImportRelationshipCollection(documents);
+    if (
+      [...relationshipInspection.claimedDocumentIds].some(
+        (documentId) =>
+          !relationshipInspection.validDocumentIds.has(documentId),
+      )
+    ) {
+      throw new Error("legacy_relationship_collection_invalid");
+    }
     return {
       status: "applied",
       data: { ...data, documents },
       appliedDocumentIds: current.candidates.map(
         (candidate) => candidate.documentId,
+      ),
+      appliedRelationshipGroupFingerprints: current.relationshipGroups.map(
+        (group) => group.groupFingerprint,
       ),
     };
   } catch {

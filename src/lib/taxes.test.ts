@@ -136,6 +136,105 @@ function issuedRectificationPair({
   };
 }
 
+function attestedHistoricalRelation(
+  relation: "correccion" | "anulacion" | "recibo",
+): Document[] {
+  const originalId = "pcfacturacion:factura:F-2024-0001";
+  const relatedId =
+    relation === "recibo"
+      ? "pcfacturacion:recibo:R-2024-0001"
+      : "pcfacturacion:factura:FR-2024-0001";
+  const originalDate = "2024-04-01";
+  const relatedDate = "2024-04-02";
+  const original = invoice(
+    relation === "recibo"
+      ? "pagado"
+      : relation === "anulacion"
+        ? "anulada"
+        : "rectificada",
+    100,
+    {
+      id: originalId,
+      number: "F-2024-0001",
+      date: originalDate,
+      issuer: captureIssuerSnapshot(
+        TEST_PROFILE,
+        `${originalDate}T10:00:00.000Z`,
+      ),
+      documentLifecycle: relation === "anulacion" ? "canceled" : "issued",
+      integrityLock: "locked",
+      rectifiedById: relation === "recibo" ? undefined : relatedId,
+      receiptDocumentId: relation === "recibo" ? relatedId : undefined,
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+    },
+  );
+  const related = invoice(
+    relation === "recibo" ? "pagado" : "enviado",
+    relation === "anulacion" ? -100 : 100,
+    {
+      id: relatedId,
+      type: relation === "recibo" ? "recibo" : "factura",
+      number: relation === "recibo" ? "R-2024-0001" : "FR-2024-0001",
+      date: relatedDate,
+      issuer: captureIssuerSnapshot(
+        TEST_PROFILE,
+        `${relatedDate}T10:00:00.000Z`,
+      ),
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      sourceDocumentId: relation === "recibo" ? originalId : undefined,
+      rectification:
+        relation === "recibo"
+          ? undefined
+          : {
+              originalDocumentId: originalId,
+              originalNumber: original.number,
+              originalDate,
+              reason:
+                relation === "anulacion"
+                  ? "Anulacion historica"
+                  : "Correccion historica",
+              type: relation,
+            },
+      snapshotIntegrityRequired: true,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+    },
+  );
+  const data = {
+    ...EMPTY_DATA,
+    profile: TEST_PROFILE,
+    documents: [original, related],
+    snapshotIntegrityVersion: 1 as const,
+  };
+  const preview = buildLegacyImportRepairPreview(data);
+  const result = applyLegacyImportRepair(
+    data,
+    preview,
+    "2026-07-13T08:00:00.000Z",
+  );
+  if (result.status !== "applied") {
+    throw new Error(
+      `No se pudo atestar la relacion historica: ${result.reason}`,
+    );
+  }
+  return result.data.documents;
+}
+
 const expense: Expense = {
   id: "e1",
   date: "2026-06-09",
@@ -218,9 +317,13 @@ describe("isTaxableSaleDocument", () => {
 
 describe("calculateTaxSummary", () => {
   it("mantiene el IVA separado del resultado tras reservar el IRPF", () => {
-    const summary = calculateTaxSummary([issuedInvoice("pagado", 1000)], [expense], {
-      irpfPercent: 20,
-    });
+    const summary = calculateTaxSummary(
+      [issuedInvoice("pagado", 1000)],
+      [expense],
+      {
+        irpfPercent: 20,
+      },
+    );
     expect(summary.salesBase).toBe(1000);
     expect(summary.salesIva).toBe(210);
     expect(summary.expenseBase).toBe(50);
@@ -440,10 +543,7 @@ describe("calculateTaxSummary", () => {
       deductibility: "non_deductible",
       purchaseLines: fixedLines,
     });
-    const nonDeductibleSummary = calculateTaxSummary(
-      [],
-      [fixedNonDeductible],
-    );
+    const nonDeductibleSummary = calculateTaxSummary([], [fixedNonDeductible]);
 
     expect(nonDeductibleSummary).toMatchObject({
       expenseBase: 0,
@@ -582,11 +682,9 @@ describe("calculateTaxSummary", () => {
     });
     const highBaseExpense: Expense = { ...expense, amount: 900 };
 
-    const summary = calculateTaxSummary(
-      [lowVatSale],
-      [highBaseExpense],
-      { irpfPercent: 20 },
-    );
+    const summary = calculateTaxSummary([lowVatSale], [highBaseExpense], {
+      irpfPercent: 20,
+    });
 
     expect(summary.grossProfit).toBe(100);
     expect(summary.irpfEstimate).toBe(20);
@@ -715,6 +813,56 @@ describe("calculateTaxSummary", () => {
     });
   });
 
+  it("usa una corrección histórica V3 como documento vigente sin duplicar base ni IVA", () => {
+    const documents = attestedHistoricalRelation("correccion");
+
+    expect(
+      documents.map((document) => document.legacyImportAttestation),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ schemaVersion: 3 }),
+        expect.objectContaining({ schemaVersion: 3 }),
+      ]),
+    );
+    expect(
+      calculateTaxSummary(documents, [], { profile: TEST_PROFILE }),
+    ).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+  });
+
+  it("compensa una anulación histórica V3 sin contar dos veces sus extremos", () => {
+    const documents = attestedHistoricalRelation("anulacion");
+
+    expect(
+      calculateTaxSummary(documents, [], {
+        profile: TEST_PROFILE,
+        isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2024, 2),
+      }),
+    ).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+  });
+
+  it("un recibo histórico V3 no vuelve a repercutir el IVA de su factura", () => {
+    const documents = attestedHistoricalRelation("recibo");
+
+    expect(
+      calculateTaxSummary(documents, [], { profile: TEST_PROFILE }),
+    ).toMatchObject({
+      salesBase: 100,
+      salesIva: 21,
+      integrityBlockedDocuments: 0,
+      unsupportedRectificationDocuments: 0,
+    });
+  });
+
   it("conserva el original en Q1 e imputa el abono en Q2", () => {
     const { original, rectification } = issuedRectificationPair({
       type: "anulacion",
@@ -776,9 +924,7 @@ describe("calculateTaxSummary", () => {
       integrityBlockedDocuments: 0,
       unsupportedRectificationDocuments: 1,
     });
-    expect(() => assertTaxSummaryExportable(q2)).toThrow(
-      TaxExportBlockedError,
-    );
+    expect(() => assertTaxSummaryExportable(q2)).toThrow(TaxExportBlockedError);
   });
 
   it("mantiene el régimen y los importes congelados frente al perfil vivo", () => {
@@ -895,10 +1041,7 @@ describe("calculateTaxSummary", () => {
         number: "F-2024-0001",
         date: "2024-04-01",
       }),
-      issuer: captureIssuerSnapshot(
-        TEST_PROFILE,
-        "2024-04-01T10:00:00.000Z",
-      ),
+      issuer: captureIssuerSnapshot(TEST_PROFILE, "2024-04-01T10:00:00.000Z"),
       documentLifecycle: "issued",
       integrityLock: "locked",
       snapshotIntegrityRequired: true,
@@ -967,10 +1110,7 @@ describe("calculateTaxSummary", () => {
             name: "Cliente histórico",
           },
           issuer: {
-            ...captureIssuerSnapshot(
-              TEST_PROFILE,
-              "2024-04-02T10:00:00.000Z",
-            ),
+            ...captureIssuerSnapshot(TEST_PROFILE, "2024-04-02T10:00:00.000Z"),
             name: "",
             nif: "",
             commercialName: "",
@@ -1066,11 +1206,7 @@ describe("calculateTaxSummary", () => {
     });
     expect(selection.documents).toEqual([]);
     expect(
-      collectedSalesTotal(
-        selection.documents,
-        false,
-        isCollectedDocument,
-      ),
+      collectedSalesTotal(selection.documents, false, isCollectedDocument),
     ).toBe(0);
   });
 });

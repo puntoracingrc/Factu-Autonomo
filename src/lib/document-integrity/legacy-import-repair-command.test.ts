@@ -13,12 +13,15 @@ const PROFILE: BusinessProfile = {
   postalCode: "28001",
 };
 
-function importedDocument(): Document {
+function importedDocument(
+  id = "pcfacturacion:factura:F-2024-0001",
+  number = "F-2024-0001",
+): Document {
   const capturedAt = "2024-04-01T10:00:00.000Z";
   return {
-    id: "pcfacturacion:factura:F-2024-0001",
+    id,
     type: "factura",
-    number: "F-2024-0001",
+    number,
     date: "2024-04-01",
     client: {
       name: "Cliente histórico",
@@ -29,7 +32,7 @@ function importedDocument(): Document {
     },
     items: [
       {
-        id: "line-1",
+        id: `${id}:line-1`,
         description: "Trabajo importado",
         quantity: 1,
         unitPrice: 100,
@@ -58,6 +61,33 @@ function importedDocument(): Document {
     },
     createdAt: capturedAt,
     updatedAt: capturedAt,
+  };
+}
+
+function relatedData(): AppData {
+  const rectificationId = "pcfacturacion:factura:FR-2024-0001";
+  const original: Document = {
+    ...importedDocument(),
+    status: "rectificada",
+    rectifiedById: rectificationId,
+  };
+  const rectification: Document = {
+    ...importedDocument(rectificationId, "FR-2024-0001"),
+    date: "2024-04-02",
+    client: { ...original.client, name: "Cliente histórico corregido" },
+    rectification: {
+      originalDocumentId: original.id,
+      originalNumber: original.number,
+      originalDate: original.date,
+      reason: "Corrección de datos del cliente",
+      type: "correccion",
+    },
+  };
+  return {
+    ...EMPTY_DATA,
+    profile: PROFILE,
+    documents: [original, rectification],
+    snapshotIntegrityVersion: 1,
   };
 }
 
@@ -99,7 +129,51 @@ describe("runLegacyImportRepairCommand", () => {
     expect(result.value.appliedDocumentIds).toEqual([
       "pcfacturacion:factura:F-2024-0001",
     ]);
+    expect(result.value.appliedRelationshipGroupFingerprints).toEqual([]);
     expect(result.data.documents[0].legacyImportAttestation).toBeDefined();
+  });
+
+  it("persiste una relación V3 completa en un único commit durable", () => {
+    const expected = relatedData();
+    const preview = buildLegacyImportRepairPreview(expected);
+    expect(preview.relationshipGroups).toHaveLength(1);
+    const commit = vi.fn((baseline, build) => {
+      const transition = build(baseline);
+      expect(expected.documents).toHaveLength(2);
+      expect(
+        expected.documents.every(
+          (document) => document.legacyImportAttestation === undefined,
+        ),
+      ).toBe(true);
+      return {
+        status: "applied" as const,
+        data: transition.data,
+        value: transition.value,
+        replayed: false,
+      };
+    });
+
+    const result = runLegacyImportRepairCommand({
+      expected,
+      preview,
+      now: "2026-07-13T10:00:00.000Z",
+      commit,
+    });
+
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.value.appliedDocumentIds).toEqual(
+      expected.documents.map((document) => document.id),
+    );
+    expect(result.value.appliedRelationshipGroupFingerprints).toEqual([
+      preview.relationshipGroups[0].groupFingerprint,
+    ]);
+    expect(
+      result.data.documents.every(
+        (document) => document.legacyImportAttestation?.schemaVersion === 3,
+      ),
+    ).toBe(true);
   });
 
   it.each([

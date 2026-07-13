@@ -38,7 +38,7 @@ const REVIEW_LABELS: Record<LegacyImportRepairReviewReason, string> = {
   duplicate_fiscal_identity: "identidad fiscal duplicada",
   draft_document: "documento todavía en borrador",
   unsupported_historical_relation:
-    "rectificativa o recibo que requiere revisión",
+    "relación histórica huérfana, unilateral o ambigua",
   existing_integrity_evidence: "evidencia de integridad ya presente",
   verifactu_evidence: "evidencia Veri*Factu presente",
   integrity_quarantine: "documento en cuarentena",
@@ -47,6 +47,19 @@ const REVIEW_LABELS: Record<LegacyImportRepairReviewReason, string> = {
   fiscal_content_invalid: "no conserva líneas e importes finitos",
   attestation_invalid: "atestación anterior incoherente",
 };
+
+const RELATION_LABELS = {
+  rectification_correction: "Factura y rectificativa de corrección",
+  rectification_cancellation: "Factura y rectificativa de anulación",
+  invoice_receipt: "Factura y recibo",
+} as const;
+
+const RELATION_ROLE_LABELS = {
+  original_invoice: "Factura original",
+  rectification: "Rectificativa",
+  invoice: "Factura",
+  receipt: "Recibo",
+} as const;
 
 const COMPLETENESS_LABELS: Record<
   LegacyImportCompletenessException,
@@ -84,7 +97,9 @@ export function ImportedLegacyDocumentRepairCard() {
   const [confirmed, setConfirmed] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const feedbackRef = useRef<HTMLParagraphElement>(null);
-  const previewKey = `${preview.precondition}:${preview.affectedCount}`;
+  const previewKey = `${preview.precondition}:${preview.affectedCount}:${preview.relationshipGroups
+    .map((group) => group.groupFingerprint)
+    .join(",")}`;
 
   useEffect(() => {
     setConfirmed(false);
@@ -123,13 +138,22 @@ export function ImportedLegacyDocumentRepairCard() {
       setFeedback({ tone: "error", message: blockedMessage(result.reason) });
       return;
     }
+    const relationshipCount =
+      result.value.appliedRelationshipGroupFingerprints.length;
+    const relationshipMessage = relationshipCount
+      ? ` y ${relationshipCount} ${
+          relationshipCount === 1
+            ? "relación histórica confirmada"
+            : "relaciones históricas confirmadas"
+        }`
+      : "";
     setFeedback({
       tone: "success",
       message: `${result.value.appliedDocumentIds.length} ${
         result.value.appliedDocumentIds.length === 1
           ? "documento histórico aceptado"
           : "documentos históricos aceptados"
-      } y guardado de forma segura. Ya pueden alimentar las cuentas generales, impuestos y rentabilidad sin atribuirles un sello moderno.`,
+      }${relationshipMessage} y guardado de forma segura. Ya pueden alimentar las cuentas generales, impuestos y rentabilidad sin atribuirles un sello moderno.`,
     });
   }
 
@@ -149,6 +173,8 @@ export function ImportedLegacyDocumentRepairCard() {
             confirmes podrán usarse en el Panel, impuestos, ingresos,
             rentabilidad e informes aunque falten campos que Factu exige hoy.
             No se les atribuye un sello moderno ni registro Veri*Factu de Factu.
+            Las relaciones históricas inequívocas se aceptan siempre con todos
+            sus miembros; nunca se inventa ni completa un vínculo ausente.
           </p>
         </div>
       </div>
@@ -220,6 +246,53 @@ export function ImportedLegacyDocumentRepairCard() {
               ))}
             </ul>
           </details>
+          {preview.relationshipGroups.length > 0 && (
+            <details className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-violet-950">
+                Revisar {preview.relationshipGroups.length}{" "}
+                {preview.relationshipGroups.length === 1
+                  ? "relación histórica incluida"
+                  : "relaciones históricas incluidas"}
+              </summary>
+              <ul className="mt-3 space-y-3 text-xs text-slate-700">
+                {preview.relationshipGroups.map((group) => (
+                  <li
+                    key={group.groupFingerprint}
+                    className="rounded-xl border border-violet-200 bg-white p-3"
+                  >
+                    <span className="block font-semibold text-violet-950">
+                      {RELATION_LABELS[group.relation]}
+                    </span>
+                    <span className="mt-1 block text-slate-600">
+                      Se guardará como una sola relación atómica. Si cualquiera
+                      de sus miembros cambia, no se aplicará nada.
+                    </span>
+                    <ul className="mt-2 space-y-2">
+                      {group.members.map((member) => (
+                        <li
+                          key={`${group.groupFingerprint}:${member.documentId}`}
+                          className="rounded-lg bg-slate-50 px-3 py-2"
+                        >
+                          <span className="font-semibold text-slate-900">
+                            {RELATION_ROLE_LABELS[member.role]} ·{" "}
+                            {member.documentNumber}
+                          </span>
+                          <span className="block">
+                            Base {formatMoney(member.amounts.subtotal)} · IVA{" "}
+                            {formatMoney(member.amounts.iva)} · Total{" "}
+                            {formatMoney(member.amounts.total)}
+                          </span>
+                          <span className="block break-all text-slate-500">
+                            ID interno: {member.documentId}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <p className="text-sm text-slate-700">
             Factu no conserva el archivo de origen de estas importaciones.
             Guarda tus Word, Excel, PDF o exportaciones originales junto a una
@@ -239,8 +312,10 @@ export function ImportedLegacyDocumentRepairCard() {
             <span>
               He descargado y guardado una copia JSON, he revisado la vista
               previa y confirmo que la base, el IVA y el total coinciden con mis
-              documentos históricos declarados. Acepto conservarlos tal como
-              fueron importados, incluidos los campos antiguos incompletos.
+              documentos históricos declarados. Cuando se muestra una relación,
+              confirmo también que sus miembros y vínculos son correctos. Acepto
+              conservarlos tal como fueron importados, incluidos los campos
+              antiguos incompletos.
             </span>
           </label>
           <Button type="button" onClick={handleApply} disabled={!confirmed}>
