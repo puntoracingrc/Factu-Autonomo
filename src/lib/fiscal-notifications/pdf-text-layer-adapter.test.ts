@@ -69,7 +69,7 @@ function workerAnalysis(
         ? {
             schemaVersion: 1,
             engineId: "fiscal-notification-family-candidate-engine",
-            engineVersion: "1.0.0",
+            engineVersion: "1.1.0",
             status: "INFORMATION_PENDING",
             reason: "NO_SUPPORTED_FAMILY_SIGNAL",
             candidates: [],

@@ -716,11 +716,90 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     if (!titleAnchor) throw new Error("Synthetic title anchor missing");
     titleAnchor.pageNumbers = [2];
 
-    for (const value of [domainOffFirstPage, titleOffFirstPage]) {
+    const repeatedTitle = mutableAnalysis();
+    repeatedTitle.pageCount = 2;
+    const repeatedTitleAnchor = repeatedTitle.familyAnalysis!.candidates[0]!
+      .matchedAnchors.find(
+        (anchor) => anchor.anchorId === "ENFORCEMENT_ORDER_TITLE",
+      );
+    if (!repeatedTitleAnchor) throw new Error("Synthetic title anchor missing");
+    repeatedTitleAnchor.pageNumbers = [1, 2];
+
+    for (const value of [
+      domainOffFirstPage,
+      titleOffFirstPage,
+      repeatedTitle,
+    ]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
     }
+  });
+
+  it("accepts a later attached title only as an incomplete candidate", () => {
+    const input = Object.freeze({
+      ownerScope: "worker:ephemeral",
+      documentId: "document:attached-ephemeral",
+      pages: Object.freeze([
+        Object.freeze({ pageNumber: 1, text: "Wrapper", isBlank: false }),
+        Object.freeze({
+          pageNumber: 2,
+          text: "Wrapper continuation",
+          isBlank: false,
+        }),
+        Object.freeze({
+          pageNumber: 3,
+          text: [
+            "AGENCIA TRIBUTARIA",
+            "sede.agenciatributaria.gob.es",
+            "PROVIDENCIA DE APREMIO",
+            "IDENTIFICACION DEL DOCUMENTO",
+          ].join("\n"),
+          isBlank: false,
+        }),
+        Object.freeze({
+          pageNumber: 4,
+          text: "IMPORTE DE LA DEUDA",
+          isBlank: false,
+        }),
+      ]),
+    });
+    const analysis = projectFiscalNotificationPdfWorkerAnalysis({
+      textLayerStatus: "TEXT_LAYER_AVAILABLE",
+      pageCount: 4,
+      familyAnalysis: extractFiscalNotificationCandidates(input),
+      enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
+    });
+    expect(analysis.familyAnalysis).toMatchObject({
+      engineVersion: "1.1.0",
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        {
+          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: ["STRUCTURAL_FIRST_PAGE_HEADER"],
+          matchedAnchors: expect.arrayContaining([
+            { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [3] },
+            { anchorId: "ENFORCEMENT_ORDER_TITLE", pageNumbers: [3] },
+          ]),
+        },
+      ],
+    });
+
+    const forgedComplete = mutableAnalysis(analysis);
+    forgedComplete.familyAnalysis!.status = "REVIEW_REQUIRED";
+    forgedComplete.familyAnalysis!.reason = "SUPPORTED_FAMILY_CANDIDATE";
+    const candidate = forgedComplete.familyAnalysis!.candidates[0]!;
+    candidate.signalStatus = "COMPLETE_REQUIRED_ANCHORS";
+    candidate.missingRequiredAnchorIds = [];
+    candidate.matchedAnchors.push({
+      anchorId: "STRUCTURAL_FIRST_PAGE_HEADER",
+      pageNumbers: [1],
+    });
+    expect(() => parseFiscalNotificationPdfWorkerAnalysis(forgedComplete)).toThrow(
+      FiscalNotificationPdfWorkerAnalysisError,
+    );
   });
 
   it.each([

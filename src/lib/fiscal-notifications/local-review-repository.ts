@@ -51,7 +51,7 @@ export interface PersistedFiscalNotificationReviewResult {
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly reason: FiscalNotificationLocalReviewReason;
   readonly engineId: "fiscal-notification-family-candidate-engine" | null;
-  readonly engineVersion: "1.0.0" | null;
+  readonly engineVersion: "1.0.0" | "1.1.0" | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -615,6 +615,7 @@ function validateResult(
     const candidate = validateCandidate(
       candidateValue,
       result.pageCount as number,
+      result.engineVersion,
       errorCode,
     );
     if (seenFamilies.has(candidate.familyId)) {
@@ -632,7 +633,8 @@ function validateResult(
         result.engineVersion !== null ||
         projectedCandidates.length !== 0
       : result.engineId !== "fiscal-notification-family-candidate-engine" ||
-        result.engineVersion !== "1.0.0"
+        (result.engineVersion !== "1.0.0" &&
+          result.engineVersion !== "1.1.0")
   ) {
     throw new RepositoryDataError(errorCode);
   }
@@ -666,6 +668,7 @@ function validateResult(
 function validateCandidate(
   value: unknown,
   pageCount: number,
+  engineVersion: unknown,
   errorCode: "INVALID_INPUT" | "CORRUPT_STORED_DATA",
 ): PersistedFiscalNotificationReviewCandidate {
   const candidate = snapshotRecord(value, "candidate", errorCode);
@@ -720,11 +723,40 @@ function validateCandidate(
   assertCandidateTrace(
     familyId as PersistedFiscalNotificationReviewCandidate["familyId"],
     candidate.signalStatus as PersistedFiscalNotificationReviewCandidate["signalStatus"],
+    engineVersion,
     matchedAnchors,
     missingRequiredAnchorIds,
     conflictingAnchorIds,
     errorCode,
   );
+  const titleAnchor = enforcement
+    ? "ENFORCEMENT_ORDER_TITLE"
+    : "DEFERRAL_GRANT_TITLE";
+  const titlePages = matchedAnchors.find(
+    (anchor) => anchor.anchorId === titleAnchor,
+  )?.pageNumbers;
+  const domainPages = matchedAnchors.find(
+    (anchor) => anchor.anchorId === "AEAT_OFFICIAL_DOMAIN_LABEL",
+  )?.pageNumbers;
+  const structuralHeader = matchedAnchors.find(
+    (anchor) => anchor.anchorId === "STRUCTURAL_FIRST_PAGE_HEADER",
+  );
+  const titlePageNumber = titlePages?.[0];
+  if (
+    engineVersion === "1.1.0" &&
+    (!titlePages ||
+      titlePages.length !== 1 ||
+      titlePageNumber === undefined ||
+      (domainPages !== undefined &&
+        !sameNumberList(domainPages, [titlePageNumber])) ||
+      (titlePageNumber > 1 &&
+        (candidate.signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" ||
+          structuralHeader !== undefined)) ||
+      (candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
+        titlePageNumber !== 1))
+  ) {
+    throw new RepositoryDataError(errorCode);
+  }
 
   return Object.freeze({
     familyId: familyId as PersistedFiscalNotificationReviewCandidate["familyId"],
@@ -746,6 +778,7 @@ function validateCandidate(
 function assertCandidateTrace(
   familyId: PersistedFiscalNotificationReviewCandidate["familyId"],
   signalStatus: PersistedFiscalNotificationReviewCandidate["signalStatus"],
+  engineVersion: unknown,
   matchedAnchors: readonly PersistedFiscalNotificationReviewAnchor[],
   missingRequiredAnchorIds: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][],
   conflictingAnchorIds: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][],
@@ -770,7 +803,14 @@ function assertCandidateTrace(
       : "DEFERRAL_GRANT_TITLE";
   if (!matchedIds.has(titleAnchor)) throw new RepositoryDataError(errorCode);
   const domainPages = pagesByAnchor.get("AEAT_OFFICIAL_DOMAIN_LABEL");
-  if (domainPages && !sameNumberList(domainPages, [1])) {
+  const titlePages = pagesByAnchor.get(titleAnchor);
+  if (
+    (engineVersion !== "1.0.0" && engineVersion !== "1.1.0") ||
+    (domainPages !== undefined &&
+      (engineVersion === "1.0.0"
+        ? !sameNumberList(domainPages, [1])
+        : titlePages?.length !== 1 || !sameNumberList(domainPages, titlePages)))
+  ) {
     throw new RepositoryDataError(errorCode);
   }
   const structuralPages = pagesByAnchor.get("STRUCTURAL_FIRST_PAGE_HEADER");

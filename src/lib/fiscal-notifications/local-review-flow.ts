@@ -63,7 +63,7 @@ export interface FiscalNotificationLocalReviewResult {
   readonly engineId:
     | "fiscal-notification-family-candidate-engine"
     | null;
-  readonly engineVersion: "1.0.0" | null;
+  readonly engineVersion: "1.0.0" | "1.1.0" | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -234,7 +234,7 @@ function freezeResult(input: {
   status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   reason: FiscalNotificationLocalReviewReason;
   engineId: "fiscal-notification-family-candidate-engine" | null;
-  engineVersion: "1.0.0" | null;
+  engineVersion: "1.0.0" | "1.1.0" | null;
   pageCount: number;
   byteLength: number;
   sha256: string;
