@@ -68,6 +68,13 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("operaciones intracomunitarias")).toContain("349");
     expect(resultCodes("declaracion censal")).toContain("036");
     expect(resultCodes("retenciones arrendamiento")).toContain("115");
+    expect(resultCodes("pensionistas dos pagadores")).toContain("146");
+    expect(resultCodes("opcion regimen desplazados")).toContain("149");
+    expect(resultCodes("anterior 1 enero 2015")).toContain("150");
+    expect(resultCodes("deduccion maternidad mutualidades")).toContain("156");
+    expect(resultCodes("consumo energia electrica")).toContain("159");
+    expect(resultCodes("entidades nueva creacion")).toContain("165");
+    expect(resultCodes("pagos asociados telefono movil")).toContain("170");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {

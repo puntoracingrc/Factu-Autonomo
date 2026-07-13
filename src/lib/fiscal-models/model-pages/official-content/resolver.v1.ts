@@ -13,6 +13,9 @@ import { PUBLIC_AEAT_BATCH_02_WITHHOLDING_CONTENT_V1 } from "./batch-02-withhold
 import { PUBLIC_AEAT_BATCH_03_CAPITAL_WITHHOLDING_CONTENT_V1 } from "./batch-03-capital-withholding.release.v1";
 import { PUBLIC_AEAT_BATCH_03_IRPF_BENEFITS_CONTENT_V1 } from "./batch-03-irpf-benefits.release.v1";
 import { PUBLIC_AEAT_BATCH_03_IRPF_DECLARATIONS_CONTENT_V1 } from "./batch-03-irpf-declarations.release.v1";
+import { PUBLIC_AEAT_BATCH_04_DISPLACED_WORKERS_CONTENT_V1 } from "./batch-04-displaced-workers.release.v1";
+import { PUBLIC_AEAT_BATCH_04_INFORMATION_RETURNS_CONTENT_V1 } from "./batch-04-information-returns.release.v1";
+import { PUBLIC_AEAT_BATCH_04_WORK_RETENTIONS_CONTENT_V1 } from "./batch-04-work-retentions.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -46,7 +49,18 @@ const EXPECTED_CODES = Object.freeze([
   "136",
   "140",
   "143",
+  "145",
+  "146",
+  "147",
+  "149",
+  "150",
+  "151",
+  "156",
+  "159",
+  "165",
+  "170",
 ] as const);
+const EXPECTED_HISTORICAL_CODES = new Set(["150"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -147,7 +161,10 @@ function contentIsCoherent(
     content.contentStatus === "OFFICIAL_INFORMATION" &&
     content.sourceVerificationStatus === "VERIFIED" &&
     content.applicabilityStatus === "NOT_EVALUATED" &&
-    content.lifecycleStatus === "UNDETERMINED" &&
+    content.lifecycleStatus ===
+      (EXPECTED_HISTORICAL_CODES.has(content.code)
+        ? "HISTORICAL"
+        : "UNDETERMINED") &&
     ISO_DATE.test(content.reviewedOn) &&
     content.canonicalName.length > 0 &&
     content.summary.length > 0 &&
@@ -187,6 +204,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_03_IRPF_DECLARATIONS_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_03_CAPITAL_WITHHOLDING_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_03_IRPF_BENEFITS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_04_WORK_RETENTIONS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_04_DISPLACED_WORKERS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_04_INFORMATION_RETURNS_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

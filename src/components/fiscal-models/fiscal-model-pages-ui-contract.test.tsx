@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   listPublicAeatModelReviewPagesV1,
+  resolvePublicAeatOfficialModelContentV1,
   resolvePublicAeatModelReviewPageV1,
   searchPublicAeatModelReviewPagesV2,
 } from "@/lib/fiscal-models/model-pages";
@@ -104,6 +105,9 @@ describe("fiscal model structural review pages UI contract", () => {
   it("renders 037 as historical and every other structural page as undetermined", () => {
     const historical = resolvePublicAeatModelReviewPageV1({ code: "037" });
     const structural = resolvePublicAeatModelReviewPageV1({ code: "130" });
+    const officialHistorical = resolvePublicAeatOfficialModelContentV1({
+      code: "150",
+    });
     expect(historical.status).toBe("REVIEW_ONLY");
     expect(structural.status).toBe("REVIEW_ONLY");
     if (
@@ -112,6 +116,7 @@ describe("fiscal model structural review pages UI contract", () => {
     ) {
       return;
     }
+    const catalog = source("./FiscalModelCatalogView.tsx");
     const detail = source("./FiscalModelStructuralDetailView.tsx");
 
     expect(historical.data.historicalNotice).toContain("no vigente");
@@ -120,6 +125,16 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(historical.data.reviewMessage).not.toContain("vigencia");
     expect(structural.data.lifecycleStatus).toBe("UNDETERMINED");
     expect(structural.data.validityStatus).toBe("SOURCE_PENDING");
+    expect(officialHistorical).toMatchObject({
+      status: "OFFICIAL_INFORMATION",
+      data: { code: "150", lifecycleStatus: "HISTORICAL" },
+    });
+    expect(catalog).toContain(
+      'officialContent?.lifecycleStatus === "HISTORICAL"',
+    );
+    expect(detail).toContain(
+      'enrichedContent?.lifecycleStatus === "HISTORICAL"',
+    );
     expect(detail).toContain("Histórico · no vigente");
     expect(detail).toContain(
       'page.effectiveTo.split("-").reverse().join("/")',
@@ -140,19 +155,36 @@ describe("fiscal model structural review pages UI contract", () => {
     const catalog = source("./FiscalModelCatalogView.tsx");
     const detail = source("./FiscalModelStructuralDetailView.tsx");
     const official = source("./FiscalModelOfficialContentView.tsx");
+    const officialVisual = source("./FiscalModelOfficialVisual.tsx");
+    const officialVisualPolicy = source("./fiscal-model-official-visual.ts");
     const model01 = source(
       "../../lib/fiscal-models/model-pages/official-content/model-01.release.v1.ts",
     );
 
     expect(catalog).toContain("officialContentByCode");
-    expect(catalog).toContain("officialContent?.thumbnail");
+    expect(catalog).toContain("FiscalModelOfficialVisual");
     expect(catalog).toContain("content.searchTerms");
     expect(catalog).toContain("content.summary");
     expect(catalog).toContain("content.faq.flatMap");
     expect(catalog).toContain("createPublicAeatModelSearchEntryWithTermsV2");
-    expect(catalog).toContain('alt=""');
-    expect(detail).toContain("enrichedContent.thumbnail.publicHref");
-    expect(detail).toContain("enrichedContent.thumbnail.alt");
+    expect(officialVisual).toContain('alt={compact ? ""');
+    expect(detail).toContain("FiscalModelOfficialVisual");
+    expect(officialVisual).toContain("content.thumbnail.publicHref");
+    expect(officialVisual).toContain("content.thumbnail.alt");
+    expect(officialVisualPolicy).toContain('link.category !== "PROCEDURE"');
+    expect(officialVisualPolicy).toContain('source.kind === "PROCEDURE_HOME"');
+    expect(officialVisualPolicy).toContain(
+      'source.kind === "PROCEDURE_RECORD"',
+    );
+    expect(officialVisual).toContain(
+      "Información del procedimiento en la sede electrónica de la AEAT",
+    );
+    expect(officialVisual).toContain("Procedimiento AEAT");
+    expect(officialVisual).toContain("Información oficial de la AEAT");
+    expect(officialVisual).toContain('role="img"');
+    expect(officialVisual).toContain("aria-label={accessibleLabel}");
+    expect(officialVisual).not.toContain("href=");
+    expect(officialVisual).not.toMatch(/\bfetch\s*\(/);
     expect(detail).toContain("FiscalModelOfficialContentView");
     expect(detail).toContain("!enrichedContent");
     expect(official).toContain("Documentos oficiales");

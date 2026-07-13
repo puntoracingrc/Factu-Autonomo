@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,6 +17,7 @@ import type {
   PublicAeatModelReviewPageV1,
 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
 import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
+import { FiscalModelOfficialVisual } from "./FiscalModelOfficialVisual";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -134,13 +134,14 @@ export function FiscalModelCatalogView({
 
         <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {pages.map((page) => {
-            const historical = page.lifecycleStatus === "HISTORICAL";
             const fromCalendar = page.catalogCardId === focusedCardId;
             const detailHref = fromCalendar
               ? calendarNavigation!.detailHref
               : page.href;
             const officialContent = officialContentByCode.get(page.code) ?? null;
-            const thumbnail = officialContent?.thumbnail ?? null;
+            const historical =
+              page.lifecycleStatus === "HISTORICAL" ||
+              officialContent?.lifecycleStatus === "HISTORICAL";
             return (
               <Card
                 key={page.code}
@@ -176,19 +177,13 @@ export function FiscalModelCatalogView({
                   )}
                 </div>
                 <div
-                  className={`mt-4 min-w-0 ${thumbnail ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
+                  className={`mt-4 min-w-0 ${officialContent ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
                 >
-                  {thumbnail && (
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700">
-                      <Image
-                        src={thumbnail.publicHref}
-                        alt=""
-                        width={thumbnail.width}
-                        height={thumbnail.height}
-                        className="aspect-square h-auto w-full object-cover object-top"
-                        sizes="88px"
-                      />
-                    </div>
+                  {officialContent && (
+                    <FiscalModelOfficialVisual
+                      content={officialContent}
+                      variant="catalog"
+                    />
                   )}
                   <div className="min-w-0">
                     <h3 className="break-words text-lg font-bold text-slate-950 dark:text-slate-100">
