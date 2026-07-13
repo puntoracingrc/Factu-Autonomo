@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { addScanCredits } from "@/lib/billing/add-scan-credits";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import {
   findUserIdByStripeCustomer,
   receiptFromCheckoutSession,
   sendPaymentReceiptEmail,
 } from "@/lib/billing/payment-receipt-email";
-import { SCAN_PACK_SIZE } from "@/lib/billing/scan-packs";
+import {
+  SCAN_PACK_FULFILLMENT_CONTRACT,
+  SCAN_PACK_SIZE,
+} from "@/lib/billing/scan-packs";
 import {
   syncBillingProfileFromCheckoutSession,
   syncBillingProfileFromCustomerId,
 } from "@/lib/billing/sync-billing-profile";
 import {
+  completeStripeScanPackEvent,
   markStripeEventFailed,
   markStripeEventProcessed,
   reserveStripeEvent,
@@ -24,7 +27,13 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-function subscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+class InvalidCheckoutStateError extends Error {}
+class LegacyCheckoutUnresolvedError extends Error {}
+class ReceiptDeliveryRetryError extends Error {}
+
+function subscriptionPeriodEnd(
+  subscription: Stripe.Subscription,
+): number | null {
   const firstItem = subscription.items?.data?.[0];
   return firstItem?.current_period_end ?? null;
 }
@@ -108,25 +117,125 @@ async function markPastDue(userId: string) {
   if (error) throw new Error(error.message);
 }
 
+async function deliverCheckoutReceipt(
+  session: Stripe.Checkout.Session,
+  eventId: string,
+  userId: string,
+  billingProfile: Awaited<
+    ReturnType<typeof syncBillingProfileFromCheckoutSession>
+  >,
+): Promise<boolean> {
+  const receiptInput = receiptFromCheckoutSession(session, eventId);
+  if (!receiptInput) return false;
+
+  return deliverPaymentReceipt({
+    userId,
+    customerProfile: billingProfile,
+    ...receiptInput,
+  });
+}
+
+async function deliverPaymentReceipt(
+  input: Parameters<typeof sendPaymentReceiptEmail>[0],
+): Promise<boolean> {
+  const delivery = await sendPaymentReceiptEmail(input).catch(() => {
+    throw new ReceiptDeliveryRetryError("receipt_delivery_failed");
+  });
+  if (delivery.sent || delivery.reason === "already_sent") return false;
+  if (delivery.retryable === false) return true;
+  if (!delivery.sent) {
+    throw new ReceiptDeliveryRetryError(
+      delivery.reason || "receipt_delivery_pending",
+    );
+  }
+  return false;
+}
+
+async function reconcileProcessedCheckoutReceipt(
+  event: Stripe.Event,
+): Promise<boolean> {
+  if (
+    event.type !== "checkout.session.completed" &&
+    event.type !== "checkout.session.async_payment_succeeded"
+  ) {
+    return false;
+  }
+  const session = event.data.object as Stripe.Checkout.Session;
+  const userId = session.metadata?.user_id;
+  if (session.payment_status !== "paid" || !userId) return false;
+
+  const billingProfile = await syncBillingProfileFromCheckoutSession(
+    userId,
+    session,
+  );
+  return deliverCheckoutReceipt(session, event.id, userId, billingProfile);
+}
+
 async function handleCheckoutCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   eventId: string,
-) {
+  attemptToken: string,
+): Promise<{ completedAtomically: boolean; receiptManualReview: boolean }> {
   const userId = session.metadata?.user_id;
-  if (!userId) return;
+  const isScanPack = session.metadata?.checkout_type === "scan_pack";
+
+  if (isScanPack) {
+    if (
+      session.metadata?.fulfillment_contract !== SCAN_PACK_FULFILLMENT_CONTRACT
+    ) {
+      throw new LegacyCheckoutUnresolvedError("legacy_checkout_unresolved");
+    }
+    if (
+      session.mode !== "payment" ||
+      !session.id ||
+      session.metadata.scan_credits !== String(SCAN_PACK_SIZE)
+    ) {
+      throw new InvalidCheckoutStateError("pack_checkout_invalid");
+    }
+    if (!userId) {
+      throw new InvalidCheckoutStateError("pack_user_missing");
+    }
+  }
+
+  if (session.payment_status === "unpaid") {
+    return { completedAtomically: false, receiptManualReview: false };
+  }
+  if (
+    session.payment_status !== "paid" &&
+    session.payment_status !== "no_payment_required"
+  ) {
+    throw new InvalidCheckoutStateError("payment_status_invalid");
+  }
+  if (!userId) {
+    return { completedAtomically: false, receiptManualReview: false };
+  }
+
+  if (session.mode === "payment" && !isScanPack) {
+    throw new InvalidCheckoutStateError("payment_checkout_type_unknown");
+  }
+
+  if (isScanPack && session.payment_status !== "paid") {
+    throw new InvalidCheckoutStateError("pack_checkout_invalid");
+  }
 
   const billingProfile = await syncBillingProfileFromCheckoutSession(
     userId,
     session,
   );
 
-  if (session.metadata?.checkout_type === "scan_pack") {
-    const credits = Number(session.metadata.scan_credits ?? SCAN_PACK_SIZE);
-    if (Number.isFinite(credits) && credits > 0) {
-      const credited = await addScanCredits(userId, credits);
-      if (!credited) throw new Error("No se pudieron añadir créditos IA");
-    }
+  let completedAtomically = false;
+  if (isScanPack) {
+    await completeStripeScanPackEvent({
+      eventId,
+      attemptToken,
+      userId,
+      checkoutSessionId: session.id,
+      scanCredits: SCAN_PACK_SIZE,
+      paymentStatus: "paid",
+      fulfillmentContract: SCAN_PACK_FULFILLMENT_CONTRACT,
+    });
+    completedAtomically = true;
   } else {
     const subscriptionId = session.subscription as string | null;
     const customerId = session.customer as string | null;
@@ -144,31 +253,35 @@ async function handleCheckoutCompleted(
         status: subscription.status,
         currentPeriodEnd: subscriptionPeriodEnd(subscription),
       });
-
     }
   }
 
-  const receiptInput = receiptFromCheckoutSession(session, eventId);
-  if (receiptInput) {
-    void sendPaymentReceiptEmail({
-      userId,
-      customerProfile: billingProfile,
-      ...receiptInput,
-    }).catch(() => undefined);
-  }
+  const receiptManualReview =
+    session.payment_status === "paid"
+      ? await deliverCheckoutReceipt(
+          session,
+          eventId,
+          userId,
+          billingProfile,
+        )
+      : false;
+  return { completedAtomically, receiptManualReview };
 }
 
-async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string) {
-  if (invoice.billing_reason === "subscription_create") return;
+async function handleInvoicePaid(
+  invoice: Stripe.Invoice,
+  eventId: string,
+): Promise<boolean> {
+  if (invoice.billing_reason === "subscription_create") return false;
 
   const customerId =
     typeof invoice.customer === "string"
       ? invoice.customer
       : invoice.customer?.id;
-  if (!customerId) return;
+  if (!customerId) return false;
 
   const userId = await findUserIdByStripeCustomer(customerId);
-  if (!userId) return;
+  if (!userId) return false;
 
   const billingProfile = await syncBillingProfileFromCustomerId(
     userId,
@@ -177,12 +290,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string) {
 
   const customerEmail =
     invoice.customer_email?.trim() || billingProfile?.email?.trim() || "";
-  if (!customerEmail || invoice.amount_paid == null) return;
+  if (!customerEmail || invoice.amount_paid == null) return false;
 
   const description =
     invoice.lines?.data?.[0]?.description?.trim() || `${APP_BRAND_NAME} Pro`;
 
-  void sendPaymentReceiptEmail({
+  return deliverPaymentReceipt({
     userId,
     stripeEventId: eventId,
     stripeInvoiceId: invoice.id,
@@ -193,15 +306,29 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string) {
     customerProfile: billingProfile,
     invoiceUrl: invoice.hosted_invoice_url,
     isRenewal: true,
-    paidAt: new Date((invoice.status_transitions?.paid_at ?? invoice.created) * 1000),
-  }).catch(() => undefined);
+    paidAt: new Date(
+      (invoice.status_transitions?.paid_at ?? invoice.created) * 1000,
+    ),
+  });
+}
+
+async function reconcileProcessedPaymentReceipt(
+  event: Stripe.Event,
+): Promise<boolean> {
+  if (event.type === "invoice.paid") {
+    return handleInvoicePaid(event.data.object as Stripe.Invoice, event.id);
+  }
+  return reconcileProcessedCheckoutReceipt(event);
 }
 
 export async function POST(request: Request) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripe || !webhookSecret) {
-    return NextResponse.json({ error: "Webhook no configurado" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Webhook no configurado" },
+      { status: 503 },
+    );
   }
 
   const signature = request.headers.get("stripe-signature");
@@ -235,23 +362,88 @@ export async function POST(request: Request) {
   }
 
   if (!reservation.reserved) {
+    if (reservation.manualReview) {
+      return NextResponse.json({
+        received: true,
+        manualReview: true,
+        status: reservation.status,
+      });
+    }
+    if (reservation.busy) {
+      return NextResponse.json(
+        {
+          received: false,
+          retryable: true,
+          status: reservation.status,
+        },
+        {
+          status: 503,
+          headers: { "Retry-After": "10" },
+        },
+      );
+    }
+    let receiptManualReview = false;
+    try {
+      receiptManualReview =
+        reservation.attemptCount > 0
+          ? await reconcileProcessedPaymentReceipt(event)
+          : false;
+    } catch {
+      return NextResponse.json(
+        { received: false, retryable: true, receiptPending: true },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
     return NextResponse.json({
       received: true,
       duplicate: true,
       status: reservation.status,
+      ...(receiptManualReview ? { receiptManualReview: true } : {}),
     });
   }
 
+  const attemptToken = reservation.attemptToken;
+  if (!attemptToken) {
+    return NextResponse.json(
+      { error: "La reserva Stripe no devolvió un lease válido" },
+      { status: 503 },
+    );
+  }
+
   try {
+    let completedAtomically = false;
+    let receiptManualReview = false;
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(stripe, session, event.id);
+        const result = await handleCheckoutCompleted(
+          stripe,
+          session,
+          event.id,
+          attemptToken,
+        );
+        completedAtomically = result.completedAtomically;
+        receiptManualReview = result.receiptManualReview;
+        break;
+      }
+      case "checkout.session.async_payment_succeeded": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.payment_status !== "paid") {
+          throw new InvalidCheckoutStateError("async_payment_not_paid");
+        }
+        const result = await handleCheckoutCompleted(
+          stripe,
+          session,
+          event.id,
+          attemptToken,
+        );
+        completedAtomically = result.completedAtomically;
+        receiptManualReview = result.receiptManualReview;
         break;
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaid(invoice, event.id);
+        receiptManualReview = await handleInvoicePaid(invoice, event.id);
         break;
       }
       case "customer.subscription.updated": {
@@ -302,14 +494,47 @@ export async function POST(request: Request) {
         break;
     }
 
-    await markStripeEventProcessed(event.id);
+    if (!completedAtomically) {
+      await markStripeEventProcessed(event.id, attemptToken);
+    }
+    return NextResponse.json({
+      received: true,
+      ...(receiptManualReview ? { receiptManualReview: true } : {}),
+    });
   } catch (error) {
-    await markStripeEventFailed(event.id, error).catch(() => undefined);
+    if (error instanceof ReceiptDeliveryRetryError) {
+      return NextResponse.json(
+        { received: false, retryable: true, receiptPending: true },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
+    const failureCode =
+      error instanceof LegacyCheckoutUnresolvedError
+        ? "legacy_checkout_unresolved"
+        : error instanceof InvalidCheckoutStateError
+          ? "invalid_checkout_state"
+          : error instanceof Error && error.message.includes("Conflicto")
+            ? "scan_pack_conflict"
+            : "handler_failed";
+    const failureResult = await markStripeEventFailed(
+      event.id,
+      attemptToken,
+      failureCode,
+    ).catch(() => "stale_attempt" as const);
+    if (
+      error instanceof LegacyCheckoutUnresolvedError &&
+      failureResult === "manual_review"
+    ) {
+      return NextResponse.json({
+        received: true,
+        manualReview: true,
+        status: "failed",
+      });
+    }
     return NextResponse.json(
       { error: "No se pudo procesar el evento Stripe" },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ received: true });
 }

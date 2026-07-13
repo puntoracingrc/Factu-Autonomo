@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { createHash } from "node:crypto";
 import { APP_BRAND_NAME } from "../brand";
 import { sendEmail } from "../email/send";
 import { buildPaymentReceiptEmail } from "../email/templates/payment-receipt";
@@ -38,23 +39,86 @@ function formatPaidAt(date: Date): string {
   });
 }
 
-async function receiptAlreadySent(stripeEventId: string): Promise<boolean> {
+interface StoredPaymentReceipt {
+  id: string;
+  emailed_at: string | null;
+}
+
+export interface PaymentReceiptDeliveryResult {
+  sent: boolean;
+  skipped?: boolean;
+  reason?: string;
+  retryable?: boolean;
+}
+
+async function findStoredReceipt(
+  input: PaymentReceiptRecordInput,
+): Promise<StoredPaymentReceipt | null> {
   const admin = getSupabaseAdmin();
-  if (!admin) return false;
+  if (!admin) return null;
 
-  const { data } = await admin
-    .from("payment_receipts")
-    .select("id")
-    .eq("stripe_event_id", stripeEventId)
-    .maybeSingle();
+  const identities: Array<[string, string | null | undefined]> = [
+    ["stripe_event_id", input.stripeEventId],
+    ["stripe_checkout_session_id", input.stripeCheckoutSessionId],
+    ["stripe_invoice_id", input.stripeInvoiceId],
+  ];
+  for (const [column, value] of identities) {
+    if (!value) continue;
+    const { data, error } = await admin
+      .from("payment_receipts")
+      .select("id,emailed_at")
+      .eq(column, value)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error("No se pudo consultar el recibo de pago");
+    if (data) return data as StoredPaymentReceipt;
+  }
+  return null;
+}
 
-  return Boolean(data);
+function paymentReceiptIdempotencyKey(
+  input: PaymentReceiptRecordInput,
+): string {
+  const logicalIdentity =
+    input.stripeCheckoutSessionId ||
+    input.stripeInvoiceId ||
+    input.stripeEventId;
+  const digest = createHash("sha256").update(logicalIdentity).digest("hex");
+  return `payment-receipt-v1/${digest}`;
+}
+
+function paymentReceiptRow(
+  input: PaymentReceiptRecordInput,
+  emailedAt: string | null,
+) {
+  return {
+    user_id: input.userId,
+    stripe_event_id: input.stripeEventId,
+    stripe_invoice_id: input.stripeInvoiceId ?? null,
+    stripe_checkout_session_id: input.stripeCheckoutSessionId ?? null,
+    amount_cents: input.amountCents,
+    currency: input.currency,
+    description: input.description,
+    customer_email: input.customerEmail,
+    emailed_at: emailedAt,
+  };
 }
 
 export async function sendPaymentReceiptEmail(
   input: PaymentReceiptRecordInput,
-): Promise<{ sent: boolean; skipped?: boolean; reason?: string }> {
-  if (await receiptAlreadySent(input.stripeEventId)) {
+): Promise<PaymentReceiptDeliveryResult> {
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    return {
+      sent: false,
+      reason: "receipt_store_unavailable",
+      retryable: true,
+    };
+  }
+
+  const storedReceipt = await findStoredReceipt(input);
+  if (storedReceipt?.emailed_at) {
     return { sent: false, skipped: true, reason: "already_sent" };
   }
 
@@ -74,29 +138,41 @@ export async function sendPaymentReceiptEmail(
     subject: content.subject,
     html: content.html,
     text: content.text,
+    idempotencyKey: paymentReceiptIdempotencyKey(input),
   });
 
-  const admin = getSupabaseAdmin();
-  if (admin) {
-    await admin.from("payment_receipts").insert({
-      user_id: input.userId,
-      stripe_event_id: input.stripeEventId,
-      stripe_invoice_id: input.stripeInvoiceId ?? null,
-      stripe_checkout_session_id: input.stripeCheckoutSessionId ?? null,
-      amount_cents: input.amountCents,
-      currency: input.currency,
-      description: input.description,
-      customer_email: input.customerEmail,
-      emailed_at: emailResult.ok ? new Date().toISOString() : null,
-    });
+  const emailedAt = emailResult.ok ? new Date().toISOString() : null;
+  const persistence = storedReceipt
+    ? await admin
+        .from("payment_receipts")
+        .update({ emailed_at: emailedAt })
+        .eq("id", storedReceipt.id)
+    : await admin
+        .from("payment_receipts")
+        .insert(paymentReceiptRow(input, emailedAt));
+  if (persistence.error) {
+    return {
+      sent: false,
+      reason: "receipt_persistence_failed",
+      retryable: true,
+    };
   }
 
   if (emailResult.skipped) {
-    return { sent: false, skipped: true, reason: emailResult.error };
+    return {
+      sent: false,
+      skipped: true,
+      reason: emailResult.error,
+      retryable: emailResult.retryable ?? false,
+    };
   }
 
   if (!emailResult.ok) {
-    return { sent: false, reason: emailResult.error };
+    return {
+      sent: false,
+      reason: emailResult.error,
+      retryable: emailResult.retryable ?? true,
+    };
   }
 
   return { sent: true };
