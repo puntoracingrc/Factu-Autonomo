@@ -71,7 +71,7 @@ export function FiscalModelStructuralDetailView({
               Modelo {page.code}
             </h1>
             <p className="mt-2 break-words text-base leading-7 text-slate-700 dark:text-slate-300">
-              {page.canonicalName}
+              {enrichedContent?.canonicalName ?? page.canonicalName}
             </p>
           </div>
         </div>

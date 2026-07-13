@@ -85,6 +85,20 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("donativos aportaciones recibidas")).toContain("182");
     expect(resultCodes("atribucion rentas anual")).toContain("184");
     expect(resultCodes("cotizaciones afiliados mutualistas")).toContain("185");
+    expect(resultCodes("nacimientos defunciones")).toContain("186");
+    expect(
+      resultCodes("acciones participaciones inversion colectiva"),
+    ).toContain("187");
+    expect(resultCodes("seguro vida invalidez")).toContain("188");
+    expect(resultCodes("valores seguros rentas")).toContain("189");
+    expect(
+      resultCodes("rendimientos trabajo actividades economicas"),
+    ).toContain("190");
+    expect(resultCodes("Letras del Tesoro")).toContain("192");
+    expect(resultCodes("capital mobiliario")).toContain("193");
+    expect(resultCodes("captacion capitales ajenos")).toContain("194");
+    expect(resultCodes("titulares no han facilitado NIF")).toContain("195");
+    expect(resultCodes("personas autorizadas saldos cuentas")).toContain("196");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
@@ -174,9 +188,9 @@ describe("public AEAT model review search v2", () => {
 
     const nullPrototype = Object.create(null) as Record<string, unknown>;
     nullPrototype.modelo = "IVA";
-    expect(
-      searchPublicAeatModelReviewPagesV2(nullPrototype).status,
-    ).toBe("REVIEW_ONLY");
+    expect(searchPublicAeatModelReviewPagesV2(nullPrototype).status).toBe(
+      "REVIEW_ONLY",
+    );
     expect(
       searchPublicAeatModelReviewPagesV2({
         modelo: "IVA",
@@ -188,8 +202,9 @@ describe("public AEAT model review search v2", () => {
 
   it("enforces exact query boundaries and rejects unsafe characters", () => {
     const eightyCharacters = "z".repeat(80);
-    const tooManyTokens = Array.from({ length: 13 }, (_, index) =>
-      `palabra${index}`,
+    const tooManyTokens = Array.from(
+      { length: 13 },
+      (_, index) => `palabra${index}`,
     ).join(" ");
 
     expect(search(eightyCharacters).status).toBe("REVIEW_ONLY");

@@ -56,6 +56,16 @@ const OFFICIAL_CODES = [
   "182",
   "184",
   "185",
+  "186",
+  "187",
+  "188",
+  "189",
+  "190",
+  "192",
+  "193",
+  "194",
+  "195",
+  "196",
 ];
 
 describe("AEAT model official-content SEO", () => {
@@ -72,7 +82,8 @@ describe("AEAT model official-content SEO", () => {
       ),
     );
     expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/037`);
-    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/186`);
+    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/191`);
+    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/198`);
   });
 
   it("allows the public Modelos prefix while retaining the Consultor block", () => {
@@ -90,7 +101,10 @@ describe("AEAT model official-content SEO", () => {
 
   it("indexes completed pages and keeps structural-only pages noindex", () => {
     const catalogPage = readFileSync(
-      new URL("../../../../app/consultor-fiscal/modelos/page.tsx", import.meta.url),
+      new URL(
+        "../../../../app/consultor-fiscal/modelos/page.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const detailPage = readFileSync(

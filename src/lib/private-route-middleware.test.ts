@@ -37,9 +37,7 @@ describe("private route middleware", () => {
       );
 
       expect(response.status).toBe(404);
-      expect(response.headers.get("Cache-Control")).toBe(
-        "no-store, max-age=0",
-      );
+      expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
       expect(response.headers.get("X-Robots-Tag")).toBe(
         "noindex, nofollow, noarchive",
       );
@@ -97,8 +95,8 @@ describe("private route middleware", () => {
     }
   });
 
-  it("retira noindex únicamente del índice y las cincuenta y una fichas contrastadas", () => {
-    expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(52);
+  it("retira noindex únicamente del índice y las sesenta y una fichas contrastadas", () => {
+    expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(62);
     for (const pathname of PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1) {
       const response = middleware(
         new NextRequest("https://facturacion-autonomos.app" + pathname),
@@ -111,8 +109,8 @@ describe("private route middleware", () => {
     }
     for (const pathname of [
       "/consultor-fiscal/modelos/037",
-      "/consultor-fiscal/modelos/186",
-      "/consultor-fiscal/modelos/187",
+      "/consultor-fiscal/modelos/198",
+      "/consultor-fiscal/modelos/199",
       "/consultor-fiscal/modelos/303",
     ]) {
       expect(
@@ -134,9 +132,7 @@ describe("private route middleware", () => {
     );
     expect(calendar.status).toBe(200);
     expect(calendar.headers.get("x-middleware-next")).toBe("1");
-    expect(calendar.headers.get("Cache-Control")).toBe(
-      "no-store, max-age=0",
-    );
+    expect(calendar.headers.get("Cache-Control")).toBe("no-store, max-age=0");
     expect(calendar.headers.get("X-Robots-Tag")).toBe(
       "noindex, nofollow, noarchive",
     );
@@ -160,6 +156,7 @@ describe("private route middleware", () => {
 
     for (const pathname of [
       "/consultor-fiscal/modelos/000",
+      "/consultor-fiscal/modelos/191",
       "/consultor-fiscal/modelos/601",
       "/consultor-fiscal/modelos/999",
       "/consultor-fiscal/modelos/A25",

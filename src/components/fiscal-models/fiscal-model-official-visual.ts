@@ -5,8 +5,9 @@ export type FiscalModelOfficialVisualMode =
   | "AEAT_BROWSER_FORM"
   | "AEAT_FILE_UPLOAD"
   | "AEAT_WEB_SERVICE"
+  | "AEAT_ADMINISTRATIVE_TRANSFER"
   | "AEAT_FORM_AND_FILE"
-  | "AEAT_FUTURE_SERVICE"
+  | "AEAT_FUTURE_CHANNEL"
   | "AEAT_HISTORICAL_PROCEDURE"
   | "AEAT_ELECTRONIC_OFFICE"
   | "AEAT_OFFICIAL_INFORMATION";
@@ -22,7 +23,7 @@ export function resolveFiscalModelOfficialVisualMode(
       return "AEAT_HISTORICAL_PROCEDURE";
     }
     if (content.accessMethods.status === "SOURCE_DESCRIBED_FUTURE") {
-      return "AEAT_FUTURE_SERVICE";
+      return "AEAT_FUTURE_CHANNEL";
     }
     if (
       methods.size === 2 &&
@@ -40,6 +41,9 @@ export function resolveFiscalModelOfficialVisualMode(
     if (methods.size === 1 && methods.has("WEB_SERVICE")) {
       return "AEAT_WEB_SERVICE";
     }
+    if (methods.size === 1 && methods.has("ADMINISTRATIVE_TRANSFER")) {
+      return "AEAT_ADMINISTRATIVE_TRANSFER";
+    }
   }
 
   const sourceById = new Map(
@@ -50,8 +54,7 @@ export function resolveFiscalModelOfficialVisualMode(
     const source = sourceById.get(link.sourceId);
     return (
       source?.authority === "AEAT" &&
-      (source.kind === "PROCEDURE_HOME" ||
-        source.kind === "PROCEDURE_RECORD")
+      (source.kind === "PROCEDURE_HOME" || source.kind === "PROCEDURE_RECORD")
     );
   });
 

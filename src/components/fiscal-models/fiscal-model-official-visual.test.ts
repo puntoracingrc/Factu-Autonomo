@@ -28,15 +28,41 @@ describe("FiscalModelOfficialVisual", () => {
   });
 
   it.each([
+    ["186", "AEAT_ADMINISTRATIVE_TRANSFER"],
+    ["187", "AEAT_FORM_AND_FILE"],
+    ["188", "AEAT_FORM_AND_FILE"],
+    ["189", "AEAT_FILE_UPLOAD"],
+    ["190", "AEAT_FORM_AND_FILE"],
+    ["192", "AEAT_FILE_UPLOAD"],
+    ["193", "AEAT_FORM_AND_FILE"],
+    ["194", "AEAT_FILE_UPLOAD"],
+    ["195", "AEAT_FILE_UPLOAD"],
+    ["196", "AEAT_WEB_SERVICE"],
+  ] as const)(
+    "uses the source-backed Batch 6 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     [["BROWSER_FORM"], "SOURCE_DESCRIBED", "AEAT_BROWSER_FORM"],
     [["FILE_UPLOAD"], "SOURCE_DESCRIBED", "AEAT_FILE_UPLOAD"],
     [["WEB_SERVICE"], "SOURCE_DESCRIBED", "AEAT_WEB_SERVICE"],
     [
-      ["BROWSER_FORM", "FILE_UPLOAD"],
+      ["ADMINISTRATIVE_TRANSFER"],
       "SOURCE_DESCRIBED",
-      "AEAT_FORM_AND_FILE",
+      "AEAT_ADMINISTRATIVE_TRANSFER",
     ],
-    [["WEB_SERVICE"], "SOURCE_DESCRIBED_FUTURE", "AEAT_FUTURE_SERVICE"],
+    [["BROWSER_FORM", "FILE_UPLOAD"], "SOURCE_DESCRIBED", "AEAT_FORM_AND_FILE"],
+    [["WEB_SERVICE"], "SOURCE_DESCRIBED_FUTURE", "AEAT_FUTURE_CHANNEL"],
+    [
+      ["ADMINISTRATIVE_TRANSFER"],
+      "SOURCE_DESCRIBED_FUTURE",
+      "AEAT_FUTURE_CHANNEL",
+    ],
     [
       ["BROWSER_FORM", "WEB_SERVICE"],
       "SOURCE_DESCRIBED_HISTORICAL",

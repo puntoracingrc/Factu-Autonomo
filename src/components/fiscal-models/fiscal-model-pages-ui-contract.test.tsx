@@ -21,11 +21,19 @@ describe("fiscal model structural review pages UI contract", () => {
     if (result.status === "REVIEW_ONLY") {
       expect(result.data).toHaveLength(229);
       expect(result.data.map((page) => page.code)).toEqual(
-        expect.arrayContaining(["01", "01C", "036", "037", "130", "349", "A22"]),
+        expect.arrayContaining([
+          "01",
+          "01C",
+          "036",
+          "037",
+          "130",
+          "349",
+          "A22",
+        ]),
       );
-      expect(result.data.every((page) => page.href === page.reviewPagePath)).toBe(
-        true,
-      );
+      expect(
+        result.data.every((page) => page.href === page.reviewPagePath),
+      ).toBe(true);
     }
     const catalog = source("./FiscalModelCatalogView.tsx");
     const browser = source("./FiscalModelCatalogBrowser.tsx");
@@ -50,9 +58,7 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(catalog).toContain("href={detailHref}");
     expect(catalog).toContain("Ver ficha");
     expect(catalog).toContain("del modelo {page.code}");
-    expect(catalog + browser).not.toMatch(
-      /\b(?:AVAILABLE|CURRENT|APPROVED)\b/,
-    );
+    expect(catalog + browser).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
 
   it("renders helpful no-match and bounded invalid-search states", () => {
@@ -136,15 +142,15 @@ describe("fiscal model structural review pages UI contract", () => {
       'enrichedContent?.lifecycleStatus === "HISTORICAL"',
     );
     expect(detail).toContain("Histórico · no vigente");
-    expect(detail).toContain(
-      'page.effectiveTo.split("-").reverse().join("/")',
-    );
+    expect(detail).toContain('page.effectiveTo.split("-").reverse().join("/")');
     expect(detail).toContain("Fuentes oficiales registradas");
     expect(detail).toContain("Trazabilidad y límites");
     expect(detail).not.toContain("Ficha estructural");
     expect(detail).not.toContain("Estado registrado");
     expect(detail).not.toContain("Revisión fiscal pendiente");
-    expect(detail).not.toContain("Aplicabilidad detallada: pendiente de revisión");
+    expect(detail).not.toContain(
+      "Aplicabilidad detallada: pendiente de revisión",
+    );
     expect(historical.data.limitations).toContain(
       "No contiene casillas, importes, plazos ni recomendaciones",
     );
@@ -184,16 +190,20 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(officialVisual).toContain("Formulario web descrito por la AEAT");
     expect(officialVisual).toContain("Carga de fichero descrita por la AEAT");
     expect(officialVisual).toContain("Servicio web descrito por la AEAT");
-    expect(officialVisual).toContain("Servicio web previsto por la AEAT");
+    expect(officialVisual).toContain(
+      "Transferencia administrativa descrita por la AEAT",
+    );
+    expect(officialVisual).toContain("Canal futuro descrito por la AEAT");
     expect(officialVisual).toContain("Procedimiento histórico de la AEAT");
     expect(officialVisual).toContain('role="img"');
-    expect(officialVisual).toContain(
-      "aria-label={visualCopy.accessibleLabel}",
-    );
+    expect(officialVisual).toContain("aria-label={visualCopy.accessibleLabel}");
     expect(officialVisual).not.toContain("href=");
     expect(officialVisual).not.toMatch(/\bfetch\s*\(/);
     expect(detail).toContain("FiscalModelOfficialContentView");
     expect(detail).toContain("!enrichedContent");
+    expect(detail).toContain(
+      "enrichedContent?.canonicalName ?? page.canonicalName",
+    );
     expect(official).toContain("Documentos oficiales");
     expect(official).toContain("Información, ayuda y procedimiento");
     expect(official).toContain("Preguntas frecuentes");
@@ -274,7 +284,8 @@ describe("fiscal model structural review pages UI contract", () => {
   it("uses Next 15 static params and exact fail-closed routing", () => {
     const catalog = listPublicAeatModelReviewPagesV1();
     expect(catalog.status).toBe("REVIEW_ONLY");
-    if (catalog.status === "REVIEW_ONLY") expect(catalog.data).toHaveLength(229);
+    if (catalog.status === "REVIEW_ONLY")
+      expect(catalog.data).toHaveLength(229);
 
     const indexPage = source("../../app/consultor-fiscal/modelos/page.tsx");
     const detailPage = source(
@@ -283,7 +294,9 @@ describe("fiscal model structural review pages UI contract", () => {
 
     expect(indexPage).toContain("await searchParams");
     expect(indexPage).toContain("searchPublicAeatModelReviewPagesV2");
-    expect(indexPage).toContain("resolvePublicAeatModelCalendarCatalogContextV1");
+    expect(indexPage).toContain(
+      "resolvePublicAeatModelCalendarCatalogContextV1",
+    );
     expect(indexPage).toContain("notFound()");
     expect(indexPage).toContain("index: true");
 
@@ -292,7 +305,9 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(detailPage).toContain("generateStaticParams");
     expect(detailPage).toContain("listPublicAeatModelReviewPagesV1");
     expect(detailPage).toContain("resolvePublicAeatModelReviewPageV1");
-    expect(detailPage).toContain("resolvePublicAeatModelCalendarDetailContextV1");
+    expect(detailPage).toContain(
+      "resolvePublicAeatModelCalendarDetailContextV1",
+    );
     expect(detailPage).toContain("catalog.data.length !== 229");
     expect(detailPage).toContain('if (result.status === "BLOCKED") notFound()');
     expect(detailPage).not.toMatch(/\/modelos\/\$\{/);
@@ -300,10 +315,14 @@ describe("fiscal model structural review pages UI contract", () => {
 
   it("keeps the production surface isolated from data, engines, and runtime network", () => {
     const production = [
-      source("../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts"),
+      source(
+        "../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts",
+      ),
       source("../../lib/fiscal-models/model-pages/public-review-catalog.v1.ts"),
       source("../../lib/fiscal-models/model-pages/public-review-search.v2.ts"),
-      source("../../lib/fiscal-models/model-pages/official-content/resolver.v1.ts"),
+      source(
+        "../../lib/fiscal-models/model-pages/official-content/resolver.v1.ts",
+      ),
       source("./FiscalModelCatalogView.tsx"),
       source("./FiscalModelCatalogBrowser.tsx"),
       source("./FiscalModelStructuralDetailView.tsx"),

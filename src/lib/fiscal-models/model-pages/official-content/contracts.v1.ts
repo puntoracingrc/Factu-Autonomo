@@ -65,16 +65,11 @@ export interface PublicAeatOfficialContentDocumentV1 {
   readonly byteLength: number;
   readonly pageCount: number;
   readonly sha256: string;
-  readonly activeContentStatus:
-    | "JAVASCRIPT_PRESENT"
-    | "NO_JAVASCRIPT_DETECTED";
+  readonly activeContentStatus: "JAVASCRIPT_PRESENT" | "NO_JAVASCRIPT_DETECTED";
   readonly formStatus:
-    | "ACROFORM_PRESENT"
-    | "NO_ACROFORM_DETECTED"
-    | "ACROFORM_METADATA_ONLY";
+    "ACROFORM_PRESENT" | "NO_ACROFORM_DETECTED" | "ACROFORM_METADATA_ONLY";
   readonly freshnessStatus:
-    | "CURRENTNESS_UNDETERMINED"
-    | "LEGACY_REFERENCES_DETECTED";
+    "CURRENTNESS_UNDETERMINED" | "LEGACY_REFERENCES_DETECTED";
   readonly previewSuitability: "FORM_PREVIEW" | "DOCUMENT_PREVIEW" | "NONE";
   readonly usePolicy: "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY";
 }
@@ -91,8 +86,7 @@ export interface PublicAeatOfficialContentThumbnailV1 {
   readonly sha256: string;
   readonly alt: string;
   readonly provenanceStatus:
-    | "DERIVED_FROM_HASHED_OFFICIAL_PDF"
-    | "DERIVED_FROM_HASHED_OFFICIAL_IMAGE";
+    "DERIVED_FROM_HASHED_OFFICIAL_PDF" | "DERIVED_FROM_HASHED_OFFICIAL_IMAGE";
 }
 
 export interface PublicAeatOfficialContentExternalNavigationV1 {
@@ -103,9 +97,7 @@ export interface PublicAeatOfficialContentExternalNavigationV1 {
 }
 
 export type PublicAeatOfficialAccessMethodV1 =
-  | "BROWSER_FORM"
-  | "FILE_UPLOAD"
-  | "WEB_SERVICE";
+  "BROWSER_FORM" | "FILE_UPLOAD" | "WEB_SERVICE" | "ADMINISTRATIVE_TRANSFER";
 
 export interface PublicAeatOfficialAccessMethodsV1 {
   readonly methods: readonly [
@@ -128,7 +120,9 @@ export interface PublicAeatOfficialContentFaqItemV1 {
   readonly semantics: "OFFICIAL_INFORMATION_ONLY";
 }
 
-export interface PublicAeatOfficialModelContentV1<Code extends string = string> {
+export interface PublicAeatOfficialModelContentV1<
+  Code extends string = string,
+> {
   readonly schemaVersion: typeof PUBLIC_AEAT_OFFICIAL_CONTENT_SCHEMA_VERSION_V1;
   readonly releaseId: string;
   readonly code: Code;
@@ -156,17 +150,12 @@ export interface PublicAeatOfficialModelContentV1<Code extends string = string> 
     ...PublicAeatOfficialContentFaqItemV1[],
   ];
   readonly accessMethods?: PublicAeatOfficialAccessMethodsV1;
-  readonly externalNavigation:
-    | PublicAeatOfficialContentExternalNavigationV1
-    | null;
-  readonly limitations:
-    "Información general procedente de fuentes oficiales. No determina la aplicabilidad a un caso concreto y no permite presentar, firmar, pagar ni enviar declaraciones.";
+  readonly externalNavigation: PublicAeatOfficialContentExternalNavigationV1 | null;
+  readonly limitations: "Información general procedente de fuentes oficiales. No determina la aplicabilidad a un caso concreto y no permite presentar, firmar, pagar ni enviar declaraciones.";
 }
 
 export type PublicAeatOfficialContentBlockReasonV1 =
-  | "INVALID_INPUT"
-  | "MODEL_CONTENT_NOT_FOUND"
-  | "INCONSISTENT_CONTENT";
+  "INVALID_INPUT" | "MODEL_CONTENT_NOT_FOUND" | "INCONSISTENT_CONTENT";
 
 export type PublicAeatOfficialContentResolveResultV1 =
   | Readonly<{

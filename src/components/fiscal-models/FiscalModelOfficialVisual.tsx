@@ -1,5 +1,6 @@
 import Image from "next/image";
 import {
+  ArrowRightLeft,
   CalendarClock,
   Code2,
   FileUp,
@@ -58,16 +59,21 @@ export function FiscalModelOfficialVisual({
           accessibleLabel: "Servicio web descrito por la AEAT",
           label: "Servicio web",
         };
+      case "AEAT_ADMINISTRATIVE_TRANSFER":
+        return {
+          accessibleLabel: "Transferencia administrativa descrita por la AEAT",
+          label: "Transferencia administrativa",
+        };
       case "AEAT_FORM_AND_FILE":
         return {
           accessibleLabel:
             "Formulario web y carga de fichero descritos por la AEAT",
           label: "Web y fichero",
         };
-      case "AEAT_FUTURE_SERVICE":
+      case "AEAT_FUTURE_CHANNEL":
         return {
-          accessibleLabel: "Servicio web previsto por la AEAT",
-          label: "Servicio previsto",
+          accessibleLabel: "Canal futuro descrito por la AEAT",
+          label: "Canal previsto",
         };
       case "AEAT_HISTORICAL_PROCEDURE":
         return {
@@ -88,14 +94,12 @@ export function FiscalModelOfficialVisual({
     }
   })();
 
-  const iconClassName = compact
-    ? "h-7 w-7"
-    : "h-7 w-7 sm:h-12 sm:w-12";
+  const iconClassName = compact ? "h-7 w-7" : "h-7 w-7 sm:h-12 sm:w-12";
   const accentIconClassName = `absolute -bottom-1 -right-2 fill-white text-blue-700 dark:fill-slate-900 dark:text-blue-200 ${compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 sm:h-5 sm:w-5"}`;
   const surfaceClassName =
     mode === "AEAT_HISTORICAL_PROCEDURE"
       ? "from-slate-100 via-white to-slate-200 text-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-800 dark:text-slate-100"
-      : mode === "AEAT_FUTURE_SERVICE"
+      : mode === "AEAT_FUTURE_CHANNEL"
         ? "from-amber-50 via-white to-orange-100 text-amber-950 dark:from-amber-950 dark:via-slate-950 dark:to-orange-950 dark:text-amber-100"
         : "from-blue-50 via-white to-sky-100 text-blue-950 dark:from-blue-950 dark:via-slate-900 dark:to-sky-950 dark:text-blue-100";
 
@@ -126,12 +130,17 @@ export function FiscalModelOfficialVisual({
               <FileUp className={iconClassName} />
             ) : mode === "AEAT_WEB_SERVICE" ? (
               <Code2 className={iconClassName} />
+            ) : mode === "AEAT_ADMINISTRATIVE_TRANSFER" ? (
+              <>
+                <Landmark className={iconClassName} />
+                <ArrowRightLeft className={accentIconClassName} />
+              </>
             ) : mode === "AEAT_FORM_AND_FILE" ? (
               <>
                 <Monitor className={iconClassName} />
                 <FileUp className={accentIconClassName} />
               </>
-            ) : mode === "AEAT_FUTURE_SERVICE" ? (
+            ) : mode === "AEAT_FUTURE_CHANNEL" ? (
               <CalendarClock className={iconClassName} />
             ) : mode === "AEAT_HISTORICAL_PROCEDURE" ? (
               <History className={iconClassName} />
