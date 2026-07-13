@@ -19,6 +19,9 @@ import { PUBLIC_AEAT_BATCH_04_WORK_RETENTIONS_CONTENT_V1 } from "./batch-04-work
 import { PUBLIC_AEAT_BATCH_05_FINANCIAL_CHANNELS_CONTENT_V1 } from "./batch-05-financial-channels.release.v1";
 import { PUBLIC_AEAT_BATCH_05_ANNUAL_INFORMATION_CONTENT_V1 } from "./batch-05-annual-information.release.v1";
 import { PUBLIC_AEAT_BATCH_05_PROPERTY_INFORMATION_CONTENT_V1 } from "./batch-05-property-information.release.v1";
+import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_186_189_CONTENT_V1 } from "./batch-06-declarations-186-189.release.v1";
+import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_190_193_CONTENT_V1 } from "./batch-06-declarations-190-193.release.v1";
+import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_194_196_CONTENT_V1 } from "./batch-06-declarations-194-196.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -72,6 +75,16 @@ const EXPECTED_CODES = Object.freeze([
   "182",
   "184",
   "185",
+  "186",
+  "187",
+  "188",
+  "189",
+  "190",
+  "192",
+  "193",
+  "194",
+  "195",
+  "196",
 ] as const);
 const EXPECTED_HISTORICAL_CODES = new Set(["150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
@@ -81,16 +94,14 @@ const ACCESS_METHODS = new Set([
   "BROWSER_FORM",
   "FILE_UPLOAD",
   "WEB_SERVICE",
+  "ADMINISTRATIVE_TRANSFER",
 ]);
 const ACCESS_METHOD_STATUSES = new Set([
   "SOURCE_DESCRIBED",
   "SOURCE_DESCRIBED_FUTURE",
   "SOURCE_DESCRIBED_HISTORICAL",
 ]);
-const ALLOWED_HOSTS = new Set([
-  "sede.agenciatributaria.gob.es",
-  "www.boe.es",
-]);
+const ALLOWED_HOSTS = new Set(["sede.agenciatributaria.gob.es", "www.boe.es"]);
 
 type ParsedObject = Record<string, unknown>;
 
@@ -189,9 +200,7 @@ function referencesAreKnown(
   );
 }
 
-function contentIsCoherent(
-  content: PublicAeatOfficialModelContentV1,
-): boolean {
+function contentIsCoherent(content: PublicAeatOfficialModelContentV1): boolean {
   const sourceIds = new Set(content.sources.map((source) => source.id));
   const sourceById = new Map(
     content.sources.map((source) => [source.id, source] as const),
@@ -259,6 +268,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_05_FINANCIAL_CHANNELS_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_05_PROPERTY_INFORMATION_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_05_ANNUAL_INFORMATION_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_186_189_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_190_193_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_194_196_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (
@@ -272,8 +284,8 @@ function buildContentSnapshot():
       reason: "INCONSISTENT_CONTENT",
     });
   }
-  const content = EXPECTED_CODES.map(
-    (code) => candidates.find((entry) => entry.code === code)!,
+  const content = EXPECTED_CODES.map((code) =>
+    candidates.find((entry) => entry.code === code)!,
   );
   return Object.freeze({
     status: "OFFICIAL_INFORMATION",
@@ -284,7 +296,9 @@ function buildContentSnapshot():
 const CONTENT_SNAPSHOT = buildContentSnapshot();
 const contentByCode =
   CONTENT_SNAPSHOT.status === "OFFICIAL_INFORMATION"
-    ? new Map(CONTENT_SNAPSHOT.data.map((entry) => [entry.code, entry] as const))
+    ? new Map(
+        CONTENT_SNAPSHOT.data.map((entry) => [entry.code, entry] as const),
+      )
     : new Map<string, PublicAeatOfficialModelContentV1>();
 
 export function resolvePublicAeatOfficialModelContentV1(

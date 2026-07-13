@@ -51,14 +51,22 @@ export const PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1 = Object.freeze([
   "/consultor-fiscal/modelos/182",
   "/consultor-fiscal/modelos/184",
   "/consultor-fiscal/modelos/185",
+  "/consultor-fiscal/modelos/186",
+  "/consultor-fiscal/modelos/187",
+  "/consultor-fiscal/modelos/188",
+  "/consultor-fiscal/modelos/189",
+  "/consultor-fiscal/modelos/190",
+  "/consultor-fiscal/modelos/192",
+  "/consultor-fiscal/modelos/193",
+  "/consultor-fiscal/modelos/194",
+  "/consultor-fiscal/modelos/195",
+  "/consultor-fiscal/modelos/196",
 ] as const);
 
 const indexablePathSet = new Set<string>(
   PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1,
 );
 
-export function isPublicAeatOfficialIndexablePathV1(
-  input: unknown,
-): boolean {
+export function isPublicAeatOfficialIndexablePathV1(input: unknown): boolean {
   return typeof input === "string" && indexablePathSet.has(input);
 }

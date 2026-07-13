@@ -58,6 +58,16 @@ const EXPECTED_CODES = [
   "182",
   "184",
   "185",
+  "186",
+  "187",
+  "188",
+  "189",
+  "190",
+  "192",
+  "193",
+  "194",
+  "195",
+  "196",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -66,7 +76,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(51);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(61);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -114,6 +124,10 @@ describe("public AEAT official model content v1", () => {
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "191" })).toEqual({
+      status: "BLOCKED",
+      reason: "MODEL_CONTENT_NOT_FOUND",
+    });
     expect(resolvePublicAeatOfficialModelContentV1({ code: "999" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
@@ -129,10 +143,9 @@ describe("public AEAT official model content v1", () => {
       for (const source of entry.sources) {
         const url = new URL(source.canonicalUrl);
         expect(url.protocol).toBe("https:");
-        expect([
-          "sede.agenciatributaria.gob.es",
-          "www.boe.es",
-        ]).toContain(url.hostname);
+        expect(["sede.agenciatributaria.gob.es", "www.boe.es"]).toContain(
+          url.hostname,
+        );
         expect(source.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
         expect(source.verificationStatus).toBe("SOURCE_HASH_CAPTURED");
       }
@@ -156,9 +169,7 @@ describe("public AEAT official model content v1", () => {
         expect(
           entry.accessMethods.sourceIds.every((id) => sourceIds.has(id)),
         ).toBe(true);
-        expect(entry.accessMethods.semantics).toBe(
-          "OFFICIAL_INFORMATION_ONLY",
-        );
+        expect(entry.accessMethods.semantics).toBe("OFFICIAL_INFORMATION_ONLY");
       }
     }
   });
@@ -208,6 +219,31 @@ describe("public AEAT official model content v1", () => {
         status: "SOURCE_DESCRIBED",
       },
       "185": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "186": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "187": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "188": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "189": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "190": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "192": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "193": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "194": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "195": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "196": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -219,6 +255,44 @@ describe("public AEAT official model content v1", () => {
       expect(Object.isFrozen(result.data.accessMethods?.methods)).toBe(true);
       expect(Object.isFrozen(result.data.accessMethods?.sourceIds)).toBe(true);
     }
+  });
+
+  it("preserves the source-backed Batch 6 distinctions", () => {
+    const model187 = resolvePublicAeatOfficialModelContentV1({ code: "187" });
+    const model194 = resolvePublicAeatOfficialModelContentV1({ code: "194" });
+    const model196 = resolvePublicAeatOfficialModelContentV1({ code: "196" });
+    expect(model187.status).toBe("OFFICIAL_INFORMATION");
+    expect(model194.status).toBe("OFFICIAL_INFORMATION");
+    expect(model196.status).toBe("OFFICIAL_INFORMATION");
+    if (
+      model187.status !== "OFFICIAL_INFORMATION" ||
+      model194.status !== "OFFICIAL_INFORMATION" ||
+      model196.status !== "OFFICIAL_INFORMATION"
+    ) {
+      return;
+    }
+
+    expect(model187.data.canonicalName).toContain("derechos de suscripción");
+    expect(
+      model194.data.sources.map((source) => source.canonicalUrl),
+    ).toContain("https://www.boe.es/buscar/act.php?id=BOE-A-1999-22309");
+    expect(
+      model194.data.sources.map((source) => source.canonicalUrl),
+    ).not.toContain("https://www.boe.es/buscar/act.php?id=BOE-A-1999-22896");
+    expect(model196.data.canonicalName).toContain(
+      "Declaración Informativa mensual de cuentas",
+    );
+    expect(model196.data.sections.flatMap((section) => section.items)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          text: expect.stringContaining("2026 y siguientes"),
+        }),
+      ]),
+    );
+    expect(model196.data.accessMethods).toMatchObject({
+      methods: ["WEB_SERVICE"],
+      status: "SOURCE_DESCRIBED",
+    });
   });
 
   it("keeps the Model 180 certificate with active content external-only", () => {
