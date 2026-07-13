@@ -127,6 +127,73 @@ function deferralCandidate() {
   };
 }
 
+function r1Candidate(
+  familyId:
+    | "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"
+    | "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE"
+    | "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+) {
+  if (familyId === "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE") {
+    return {
+      familyId,
+      segmentationVersion: "1.1.0",
+      documentType: "AEAT_SEIZURE_ORDER",
+      authoritySignal: "AEAT_UNVERIFIED",
+      handlerId: "aeat-real-estate-seizure-candidate",
+      handlerVersion: "1.0.0",
+      signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+      matchedAnchors: [
+        { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+        { anchorId: "REAL_ESTATE_SEIZURE_TITLE", pageNumbers: [1] },
+        { anchorId: "STRUCTURAL_FIRST_PAGE_HEADER", pageNumbers: [1] },
+      ],
+      missingRequiredAnchorIds: [],
+      conflictingAnchorIds: [],
+      requiresHumanReview: true,
+    };
+  }
+  if (familyId === "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE") {
+    return {
+      familyId,
+      segmentationVersion: "1.1.0",
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      authoritySignal: "AEAT_UNVERIFIED",
+      handlerId: "aeat-formal-filing-requirement-candidate",
+      handlerVersion: "1.0.0",
+      signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+      matchedAnchors: [
+        { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+        { anchorId: "FORMAL_FILING_REQUIREMENT_TITLE", pageNumbers: [1] },
+        {
+          anchorId: "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+          pageNumbers: [1],
+        },
+        { anchorId: "STRUCTURAL_FIRST_PAGE_HEADER", pageNumbers: [1] },
+      ],
+      missingRequiredAnchorIds: [],
+      conflictingAnchorIds: [],
+      requiresHumanReview: true,
+    };
+  }
+  return {
+    familyId,
+    segmentationVersion: "1.1.0",
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+    authoritySignal: "AEAT_UNVERIFIED",
+    handlerId: "aeat-roi-registration-agreement-candidate",
+    handlerVersion: "1.0.0",
+    signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+    matchedAnchors: [
+      { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+      { anchorId: "ROI_REGISTRATION_AGREEMENT_TITLE", pageNumbers: [1] },
+      { anchorId: "STRUCTURAL_FIRST_PAGE_HEADER", pageNumbers: [1] },
+    ],
+    missingRequiredAnchorIds: [],
+    conflictingAnchorIds: [],
+    requiresHumanReview: true,
+  };
+}
+
 function clonedResult(): ReturnType<typeof reviewResult> {
   return JSON.parse(JSON.stringify(reviewResult())) as ReturnType<
     typeof reviewResult
@@ -467,6 +534,123 @@ describe("fiscal notification safe local review repository", () => {
       ),
     ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
     expect([...storage.values.values()][0]).toBe(rawBefore);
+  });
+
+  it.each([
+    "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+    "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+    "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+  ] as const)("persists the R1 candidate %s only under engine 1.2", async (familyId) => {
+    const storage = new MemoryStorage();
+    const reviews = repository(storage);
+    const current = reviewResult({
+      engineVersion: "1.2.0",
+      candidates: [r1Candidate(familyId)],
+    });
+
+    await expect(
+      reviews.append(
+        appendInput(`review-r1-${familyId}`, { result: current }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(reviews.load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          {
+            result: {
+              engineVersion: "1.2.0",
+              candidates: [{ familyId }],
+              selectedFamilyId: null,
+              materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+              retainedSourceContent: "NONE",
+            },
+          },
+        ],
+      },
+    });
+
+    const downgraded = structuredClone(current);
+    downgraded.engineVersion = "1.1.0";
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput(`review-r1-downgraded-${familyId}`, {
+          result: downgraded,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+  });
+
+  it("binds engine 1.2 to segmentation 1.1 without rewriting engine 1.1 history", async () => {
+    const historicalUntraced = clonedResult();
+    historicalUntraced.engineVersion = "1.1.0";
+    historicalUntraced.candidates[0]!.matchedAnchors.find(
+      (anchor) => anchor.anchorId === "ENFORCEMENT_ORDER_TITLE",
+    )!.pageNumbers = [1];
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-history-untraced-110", {
+          result: historicalUntraced,
+        }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+
+    const historicalStorage = new MemoryStorage();
+    const historicalTraced = structuredClone(historicalUntraced);
+    (historicalTraced.candidates[0]! as Record<string, unknown>)
+      .segmentationVersion = "1.0.0";
+    await expect(
+      repository(historicalStorage).append(
+        appendInput("review-history-traced-110", {
+          result: historicalTraced,
+        }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(repository(historicalStorage).load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          {
+            result: {
+              engineVersion: "1.1.0",
+              candidates: [{ segmentationVersion: "1.0.0" }],
+            },
+          },
+        ],
+      },
+    });
+
+    const relabelledHistorical = structuredClone(historicalTraced);
+    (relabelledHistorical.candidates[0]! as Record<string, unknown>)
+      .segmentationVersion = "1.1.0";
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-history-relabelled-110", {
+          result: relabelledHistorical,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+
+    const current = reviewResult({
+      engineVersion: "1.2.0",
+      candidates: [r1Candidate("AEAT_REAL_ESTATE_SEIZURE_CANDIDATE")],
+    });
+    const missingCurrentTrace = structuredClone(current);
+    delete (missingCurrentTrace.candidates[0]! as Record<string, unknown>)
+      .segmentationVersion;
+    const wrongCurrentTrace = structuredClone(current);
+    (wrongCurrentTrace.candidates[0]! as Record<string, unknown>)
+      .segmentationVersion = "1.0.0";
+    for (const [label, result] of [
+      ["missing", missingCurrentTrace],
+      ["wrong", wrongCurrentTrace],
+    ] as const) {
+      await expect(
+        repository(new MemoryStorage()).append(
+          appendInput(`review-current-${label}-trace-120`, { result }),
+        ),
+      ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+    }
   });
 
   it("accepts a current incomplete attached act but rejects it as complete", async () => {

@@ -355,6 +355,22 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
+  it("presenta las tres familias R1 como propuestas y limita expresamente ROI", () => {
+    for (const expected of [
+      "Posible diligencia de embargo de bienes inmuebles AEAT",
+      "Posible requerimiento formal de presentación AEAT",
+      "Posible acuerdo de alta en el ROI AEAT",
+      "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
+    ]) {
+      expect(compact(componentSource)).toContain(expected);
+    }
+    expect(componentSource).toContain("Revisión humana obligatoria");
+    expect(guidanceSource).toContain(
+      'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
+    );
+    expect(componentSource).not.toMatch(/alta actual confirmada|VIES válido/iu);
+  });
+
   it("prohíbe red, API y acceso directo a persistencia fuera del adaptador", () => {
     for (const forbidden of [
       /\bfetch\s*\(/,
@@ -414,7 +430,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
       "Solo incluye la traza técnica de revisión; nunca el PDF, su texto, su nombre, NIF, CSV, referencias, importes, fechas impresas ni plazos.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
-      "Reconoce únicamente indicios de providencia de apremio y concesión de aplazamiento o fraccionamiento de la AEAT.",
+      "Reconoce únicamente indicios de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI de la AEAT.",
+      "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
       "Los importes, las categorías de referencia con valor oculto y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",

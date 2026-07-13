@@ -10,18 +10,18 @@ import type {
   FiscalNotificationLocalReviewResult,
 } from "./local-review-flow";
 import {
-  resolveFiscalNotificationDocumentFamilyV1,
-  type FiscalNotificationDocumentFamilyIdV1,
-} from "./knowledge/document-families.v1";
+  resolveFiscalNotificationDocumentFamilyV2,
+  type FiscalNotificationDocumentFamilyIdV2,
+} from "./knowledge/document-families.v2";
 import {
-  resolveFiscalNotificationOfficialSourceV1,
-  type FiscalNotificationOfficialSourceIdV1,
-} from "./knowledge/official-sources.v1";
+  resolveFiscalNotificationOfficialSourceV2,
+  type FiscalNotificationOfficialSourceIdV2,
+} from "./knowledge/official-sources.v2";
 
 export const FISCAL_NOTIFICATION_REVIEW_GUIDANCE_SCHEMA_VERSION_V1 =
   1 as const;
 export const FISCAL_NOTIFICATION_REVIEW_GUIDANCE_VERSION_V1 =
-  "1.0.0" as const;
+  "1.1.0" as const;
 
 export type FiscalNotificationReviewStepIdV1 =
   | "VERIFY_DOCUMENT_RECIPIENT_AND_AUTHORITY"
@@ -57,8 +57,12 @@ export interface FiscalNotificationReviewStepV1 {
 }
 
 type SupportedGuidanceFamilyId = Extract<
-  FiscalNotificationDocumentFamilyIdV1,
-  "collection.enforcement_order" | "collection.deferral_grant"
+  FiscalNotificationDocumentFamilyIdV2,
+  | "collection.enforcement_order"
+  | "collection.deferral_grant"
+  | "seizure.real_estate"
+  | "compliance.formal_filing_requirement"
+  | "registry.tax_registration_resolution"
 >;
 
 export interface FiscalNotificationReviewCandidateContextV1 {
@@ -67,7 +71,7 @@ export interface FiscalNotificationReviewCandidateContextV1 {
 }
 
 export interface FiscalNotificationOfficialProcedureContextV1 {
-  readonly sourceId: FiscalNotificationOfficialSourceIdV1;
+  readonly sourceId: FiscalNotificationOfficialSourceIdV2;
   readonly title: string;
   readonly canonicalUrl: string;
   readonly authority: "AEAT";
@@ -85,7 +89,7 @@ export interface FiscalNotificationReviewGuidanceInputV1 {
 
 export interface FiscalNotificationReviewGuidanceV1 {
   readonly schemaVersion: 1;
-  readonly guidanceVersion: "1.0.0";
+  readonly guidanceVersion: "1.1.0";
   readonly projectionStatus: "GUIDANCE_AVAILABLE" | "GUIDANCE_BLOCKED";
   readonly candidateContext: FiscalNotificationReviewCandidateContextV1 | null;
   readonly officialProcedureContexts: readonly FiscalNotificationOfficialProcedureContextV1[];
@@ -120,7 +124,7 @@ const REVIEW_KEYS = new Set([
   "materializationPolicy",
   "retainedSourceContent",
 ]);
-const CANDIDATE_KEYS = new Set([
+const HISTORICAL_CANDIDATE_KEYS = new Set([
   "familyId",
   "documentType",
   "authoritySignal",
@@ -131,6 +135,10 @@ const CANDIDATE_KEYS = new Set([
   "missingRequiredAnchorIds",
   "conflictingAnchorIds",
   "requiresHumanReview",
+]);
+const TRACED_CANDIDATE_KEYS = new Set([
+  ...HISTORICAL_CANDIDATE_KEYS,
+  "segmentationVersion",
 ]);
 const ANCHOR_KEYS = new Set(["anchorId", "pageNumbers"]);
 const MONEY_KEYS = new Set([
@@ -203,6 +211,13 @@ const ANCHOR_IDS = new Set([
   "DEFERRAL_GRANT_TITLE",
   "DEFERRAL_INSTALLMENT_ANNEX",
   "DEFERRAL_INTEREST_CALCULATION",
+  "REAL_ESTATE_SEIZURE_TITLE",
+  "FORMAL_FILING_REQUIREMENT_TITLE",
+  "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "ROI_REGISTRATION_AGREEMENT_TITLE",
+  "DOCUMENT_IDENTIFICATION_SECTION",
+  "FORMAL_FILING_TAX_PERIOD_SECTION",
+  "REGISTRY_IDENTIFICATION_SECTION",
   "CONFLICTING_AUTHORITY_TGSS",
   "CONFLICTING_TERRITORY_CANARY",
   "CONFLICTING_TERRITORY_FORAL",
@@ -229,6 +244,22 @@ const REQUIRED_ANCHORS_BY_FAMILY = Object.freeze({
     "DEFERRAL_GRANT_TITLE",
     "DEFERRAL_INSTALLMENT_ANNEX",
     "DEFERRAL_INTEREST_CALCULATION",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+  ] as const),
+  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze([
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "REAL_ESTATE_SEIZURE_TITLE",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+  ] as const),
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze([
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "FORMAL_FILING_REQUIREMENT_TITLE",
+    "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+  ] as const),
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze([
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "ROI_REGISTRATION_AGREEMENT_TITLE",
     "STRUCTURAL_FIRST_PAGE_HEADER",
   ] as const),
 });
@@ -272,11 +303,52 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "collection.enforcement_order" as const,
     documentType: "AEAT_ENFORCEMENT_ORDER" as const,
     handlerId: "aeat-enforcement-order-candidate" as const,
+    titleAnchorId: "ENFORCEMENT_ORDER_TITLE" as const,
+    optionalAnchorIds: Object.freeze([] as const),
+    minimumEngineVersion: "1.0.0" as const,
+    sourceIds: Object.freeze(["aeat.collection.enforcement"] as const),
   }),
   AEAT_DEFERRAL_GRANT_CANDIDATE: Object.freeze({
     familyId: "collection.deferral_grant" as const,
     documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT" as const,
     handlerId: "aeat-deferral-grant-candidate" as const,
+    titleAnchorId: "DEFERRAL_GRANT_TITLE" as const,
+    optionalAnchorIds: Object.freeze([] as const),
+    minimumEngineVersion: "1.0.0" as const,
+    sourceIds: Object.freeze(["aeat.collection.deferral"] as const),
+  }),
+  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze({
+    familyId: "seizure.real_estate" as const,
+    documentType: "AEAT_SEIZURE_ORDER" as const,
+    handlerId: "aeat-real-estate-seizure-candidate" as const,
+    titleAnchorId: "REAL_ESTATE_SEIZURE_TITLE" as const,
+    optionalAnchorIds: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
+    minimumEngineVersion: "1.2.0" as const,
+    sourceIds: Object.freeze(["aeat.collection.seizure_types"] as const),
+  }),
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze({
+    familyId: "compliance.formal_filing_requirement" as const,
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-formal-filing-requirement-candidate" as const,
+    titleAnchorId: "FORMAL_FILING_REQUIREMENT_TITLE" as const,
+    optionalAnchorIds: Object.freeze([
+      "DOCUMENT_IDENTIFICATION_SECTION",
+      "FORMAL_FILING_TAX_PERIOD_SECTION",
+    ] as const),
+    minimumEngineVersion: "1.2.0" as const,
+    sourceIds: Object.freeze(["aeat.compliance.omitted_return"] as const),
+  }),
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
+    familyId: "registry.tax_registration_resolution" as const,
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-roi-registration-agreement-candidate" as const,
+    titleAnchorId: "ROI_REGISTRATION_AGREEMENT_TITLE" as const,
+    optionalAnchorIds: Object.freeze([
+      "DOCUMENT_IDENTIFICATION_SECTION",
+      "REGISTRY_IDENTIFICATION_SECTION",
+    ] as const),
+    minimumEngineVersion: "1.2.0" as const,
+    sourceIds: Object.freeze([] as const),
   }),
 });
 
@@ -331,7 +403,7 @@ function projectValidatedGuidance(
       "NO_DATE_OR_RESPONSE_RULE_APPLIED",
     ),
   );
-  if (resolvedContext) {
+  if (resolvedContext && resolvedContext.sources.length > 0) {
     steps.push(
       step(
         "CONSULT_OFFICIAL_PROCEDURE_CONTEXT",
@@ -397,7 +469,7 @@ function validateTechnicalReview(
 ): FiscalNotificationLocalReviewResult | null {
   const review = snapshotRecord(value, REVIEW_KEYS);
   if (!review) return null;
-  const candidates = snapshotArray(review.candidates, 2);
+  const candidates = snapshotArray(review.candidates, 5);
   if (!candidates) return null;
   const validatedCandidates: FiscalNotificationLocalReviewCandidate[] = [];
   for (const candidate of candidates) {
@@ -473,22 +545,40 @@ function validateCandidate(
   engineVersionValue: unknown,
 ): FiscalNotificationLocalReviewCandidate | null {
   if (!Number.isSafeInteger(pageCountValue)) return null;
-  const candidate = snapshotRecord(value, CANDIDATE_KEYS);
+  const tracedCandidate = snapshotRecord(value, TRACED_CANDIDATE_KEYS);
+  const candidate =
+    tracedCandidate ?? snapshotRecord(value, HISTORICAL_CANDIDATE_KEYS);
   if (!candidate) return null;
+  const hasSegmentationVersion = tracedCandidate !== null;
+  const definition =
+    typeof candidate.familyId === "string"
+      ? FAMILY_CONTEXT[
+          candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"]
+        ]
+      : undefined;
   if (
-    candidate.familyId !== "AEAT_ENFORCEMENT_ORDER_CANDIDATE" &&
-    candidate.familyId !== "AEAT_DEFERRAL_GRANT_CANDIDATE"
+    !definition ||
+    (engineVersionValue === "1.2.0"
+      ? candidate.segmentationVersion !== "1.1.0"
+      : engineVersionValue === "1.1.0"
+        ? hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0"
+        : hasSegmentationVersion) ||
+    (definition.minimumEngineVersion === "1.2.0" &&
+      engineVersionValue !== "1.2.0")
   ) {
     return null;
   }
-  const definition = FAMILY_CONTEXT[candidate.familyId];
   const matched = snapshotArray(candidate.matchedAnchors, 15);
   const missing = snapshotArray(candidate.missingRequiredAnchorIds, 15);
   const conflicting = snapshotArray(candidate.conflictingAnchorIds, 15);
   if (!matched || !missing || !conflicting) return null;
-  const requiredAnchors = REQUIRED_ANCHORS_BY_FAMILY[candidate.familyId];
+  const requiredAnchors =
+    REQUIRED_ANCHORS_BY_FAMILY[
+      candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"]
+    ];
   const allowedMatchedAnchors = new Set<string>([
     ...requiredAnchors,
+    ...definition.optionalAnchorIds,
     "AEAT_AUTHORITY_LABEL",
     ...CONFLICTING_ANCHOR_IDS,
   ]);
@@ -527,10 +617,7 @@ function validateCandidate(
   const pagesByAnchor = new Map(
     validatedAnchors.map((anchor) => [anchor.anchorId, anchor.pageNumbers]),
   );
-  const titleAnchor =
-    candidate.familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
-      ? "ENFORCEMENT_ORDER_TITLE"
-      : "DEFERRAL_GRANT_TITLE";
+  const titleAnchor = definition.titleAnchorId;
   const domainPages = pagesByAnchor.get("AEAT_OFFICIAL_DOMAIN_LABEL");
   const structuralPages = pagesByAnchor.get("STRUCTURAL_FIRST_PAGE_HEADER");
   const titlePages = pagesByAnchor.get(titleAnchor);
@@ -541,14 +628,14 @@ function validateCandidate(
     (domainPages !== undefined &&
       (engineVersionValue === "1.0.0"
         ? !sameNumberList(domainPages, [1])
-        : engineVersionValue === "1.1.0"
+        : engineVersionValue === "1.1.0" || engineVersionValue === "1.2.0"
           ? titlePages.length !== 1 || !sameNumberList(domainPages, titlePages)
           : true)) ||
     (structuralPages !== undefined &&
       (!sameNumberList(structuralPages, [1]) ||
         !domainPages?.includes(1) ||
         !titlePages.includes(1))) ||
-    (engineVersionValue === "1.1.0" &&
+    ((engineVersionValue === "1.1.0" || engineVersionValue === "1.2.0") &&
       (titlePages.length !== 1 ||
         titlePageNumber === undefined ||
         (domainPages !== undefined &&
@@ -562,7 +649,7 @@ function validateCandidate(
     return null;
   }
   const expectedMissing = requiredAnchors.filter(
-    (id) => !matchedAnchorIds.has(id),
+    (id: string) => !matchedAnchorIds.has(id),
   );
   const expectedConflicting = validatedAnchors
     .map((anchor) => anchor.anchorId)
@@ -597,7 +684,14 @@ function validateCandidate(
     return null;
   }
   return Object.freeze({
-    familyId: candidate.familyId,
+    familyId:
+      candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"],
+    ...(hasSegmentationVersion
+      ? {
+          segmentationVersion:
+            candidate.segmentationVersion as "1.0.0" | "1.1.0",
+        }
+      : {}),
     documentType: definition.documentType,
     authoritySignal: "AEAT_UNVERIFIED",
     handlerId: definition.handlerId,
@@ -822,7 +916,9 @@ function validEngineForReason(
   return reason === "OCR_DISABLED"
     ? engineId === null && engineVersion === null
     : engineId === "fiscal-notification-family-candidate-engine" &&
-        (engineVersion === "1.0.0" || engineVersion === "1.1.0");
+        (engineVersion === "1.0.0" ||
+          engineVersion === "1.1.0" ||
+          engineVersion === "1.2.0");
 }
 
 function validReviewSemantics(
@@ -846,7 +942,7 @@ function validReviewSemantics(
     case "AMBIGUOUS_SUPPORTED_FAMILIES":
       return (
         status === "REVIEW_REQUIRED" &&
-        candidates.length === 2 &&
+        candidates.length > 1 &&
         candidates.every(
           (candidate) => !candidate.signalStatus.startsWith("CONFLICTING_"),
         )
@@ -899,41 +995,53 @@ function resolveCandidateContext(candidate: FiscalNotificationLocalReviewCandida
   readonly sources: readonly FiscalNotificationOfficialProcedureContextV1[];
 } | null {
   const definition = FAMILY_CONTEXT[candidate.familyId];
-  const family = resolveFiscalNotificationDocumentFamilyV1(definition.familyId);
+  const family = resolveFiscalNotificationDocumentFamilyV2(definition.familyId);
+  const recognitionContractIsValid =
+    definition.minimumEngineVersion === "1.0.0"
+      ? family?.recognition?.candidateHandlerId === candidate.handlerId &&
+        family.recognition.candidateHandlerVersion === candidate.handlerVersion &&
+        family.recognition.outputPolicy === "CANDIDATE_ONLY_REVIEW_REQUIRED"
+      : family?.recognition === null;
   if (
     !family ||
-    family.recognition?.candidateHandlerId !== candidate.handlerId ||
-    family.recognition.candidateHandlerVersion !== candidate.handlerVersion ||
-    family.recognition.outputPolicy !== "CANDIDATE_ONLY_REVIEW_REQUIRED" ||
+    !recognitionContractIsValid ||
+    candidate.documentType !== definition.documentType ||
+    candidate.handlerId !== definition.handlerId ||
+    candidate.handlerVersion !== "1.0.0" ||
+    definition.sourceIds.some((sourceId) => !family.sourceIds.includes(sourceId)) ||
+    family.knowledgeUsage !== "CONTEXT_ONLY" ||
+    family.printedDocumentPolicy !== "EXTRACT_EXACTLY_THEN_REQUIRE_REVIEW" ||
+    family.officialContextPolicy !==
+      "INTERPRET_ONLY_NEVER_OVERRIDE_DOCUMENT" ||
     family.legalReviewStatus !== "LEGAL_REVIEW_PENDING" ||
     family.operationalPolicy !== "PROHIBITED_UNTIL_HUMAN_REVIEW" ||
+    family.requiresHumanReview !== true ||
     family.permitsDebtCreation ||
     family.permitsDeadlineCreation ||
     family.permitsPaymentAction ||
     family.permitsAccountingAction ||
-    family.sourceIds.length !== 1
+    family.permitsAutomaticRelationConfirmation
   ) {
     return null;
   }
-  const source = resolveFiscalNotificationOfficialSourceV1(family.sourceIds[0]);
-  if (
-    !source ||
-    source.authority !== "AEAT" ||
-    source.authorityLevel !== "OFFICIAL_PRIMARY" ||
-    source.verificationStatus !== "OFFICIAL_URL_VERIFIED" ||
-    source.usagePolicy !== "PROCEDURE_CONTEXT_ONLY" ||
-    source.legalReviewStatus !== "LEGAL_REVIEW_PENDING" ||
-    source.permitsLegalRuleActivation ||
-    source.retainedSourceContent !== "NONE"
-  ) {
-    return null;
-  }
-  return Object.freeze({
-    candidateContext: Object.freeze({
-      familyId: definition.familyId,
-      classificationPolicy: "CANDIDATE_CONTEXT_ONLY" as const,
-    }),
-    sources: Object.freeze([
+  const sources: FiscalNotificationOfficialProcedureContextV1[] = [];
+  for (const sourceId of definition.sourceIds) {
+    const source = resolveFiscalNotificationOfficialSourceV2(sourceId);
+    if (
+      !source ||
+      source.authority !== "AEAT" ||
+      source.authorityLevel !== "OFFICIAL_PRIMARY" ||
+      source.sourceKind !== "PROCEDURE_INFORMATION" ||
+      source.verificationStatus !== "OFFICIAL_URL_VERIFIED" ||
+      source.usagePolicy !== "CONTEXT_ONLY" ||
+      source.legalReviewStatus !== "LEGAL_REVIEW_PENDING" ||
+      source.permitsLegalRuleActivation ||
+      source.permitsTemplateActivation ||
+      source.retainedSourceContent !== "NONE"
+    ) {
+      return null;
+    }
+    sources.push(
       Object.freeze({
         sourceId: source.id,
         title: source.title,
@@ -943,7 +1051,14 @@ function resolveCandidateContext(candidate: FiscalNotificationLocalReviewCandida
         legalReviewStatus: "LEGAL_REVIEW_PENDING" as const,
         permitsLegalRuleActivation: false as const,
       }),
-    ]),
+    );
+  }
+  return Object.freeze({
+    candidateContext: Object.freeze({
+      familyId: definition.familyId,
+      classificationPolicy: "CANDIDATE_CONTEXT_ONLY" as const,
+    }),
+    sources: Object.freeze(sources),
   });
 }
 

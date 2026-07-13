@@ -85,12 +85,21 @@ describe("review guidance v1", () => {
   });
 
   it("accepts historical and current candidate-engine versions but rejects unknown versions", () => {
-    for (const engineVersion of ["1.0.0", "1.1.0"] as const) {
+    for (const engineVersion of ["1.0.0", "1.1.0", "1.2.0"] as const) {
+      const candidate = completeDeferralCandidate();
       expect(
         projectFiscalNotificationReviewGuidanceV1(
           analysisInput({
             engineVersion,
-            candidates: [completeDeferralCandidate()],
+            candidates: [
+              engineVersion === "1.0.0"
+                ? candidate
+                : {
+                    ...candidate,
+                    segmentationVersion:
+                      engineVersion === "1.1.0" ? "1.0.0" : "1.1.0",
+                  },
+            ],
           }),
         ),
       ).toMatchObject({
@@ -108,7 +117,7 @@ describe("review guidance v1", () => {
         ...current,
         technicalReview: {
           ...current.technicalReview,
-          engineVersion: "1.2.0",
+          engineVersion: "1.3.0",
         },
       }),
     ).toMatchObject({
@@ -116,6 +125,68 @@ describe("review guidance v1", () => {
       candidateContext: null,
       officialProcedureContexts: [],
     });
+  });
+
+  it("fails closed on cross-version segmentation traces", () => {
+    const historicalUntraced = analysisInput({
+      engineVersion: "1.1.0",
+      candidates: [completeDeferralCandidate()],
+    });
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(historicalUntraced),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_AVAILABLE" });
+
+    const historicalTraced = analysisInput({
+      engineVersion: "1.1.0",
+      candidates: [
+        {
+          ...completeDeferralCandidate(),
+          segmentationVersion: "1.0.0",
+        },
+      ],
+    });
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(historicalTraced),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_AVAILABLE" });
+
+    const relabelledHistorical = analysisInput({
+      engineVersion: "1.1.0",
+      candidates: [
+        {
+          ...completeDeferralCandidate(),
+          segmentationVersion: "1.1.0",
+        },
+      ],
+    });
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(relabelledHistorical),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_BLOCKED" });
+
+    const currentMissingTrace = {
+      ...completeRealEstateSeizureCandidate(),
+    };
+    delete currentMissingTrace.segmentationVersion;
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(
+        analysisInput({
+          engineVersion: "1.2.0",
+          candidates: [currentMissingTrace],
+        }),
+      ),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_BLOCKED" });
+
+    const currentWrongTrace = {
+      ...completeRealEstateSeizureCandidate(),
+      segmentationVersion: "1.0.0" as const,
+    };
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(
+        analysisInput({
+          engineVersion: "1.2.0",
+          candidates: [currentWrongTrace],
+        }),
+      ),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_BLOCKED" });
   });
 
   it("keeps a current attached act as incomplete review guidance", () => {
@@ -141,6 +212,86 @@ describe("review guidance v1", () => {
     expect(result.steps[1]).toMatchObject({
       state: "INFORMATION_PENDING",
       reason: "CANDIDATE_INFORMATION_INCOMPLETE",
+    });
+  });
+
+  it.each([
+    [
+      completeRealEstateSeizureCandidate,
+      "seizure.real_estate",
+      ["aeat.collection.seizure_types"],
+    ],
+    [
+      completeFormalFilingCandidate,
+      "compliance.formal_filing_requirement",
+      ["aeat.compliance.omitted_return"],
+    ],
+  ])(
+    "projects verified context for the R1 family %s without activating a rule",
+    (createCandidate, familyId, sourceIds) => {
+      const result = projectFiscalNotificationReviewGuidanceV1(
+        analysisInput({
+          engineVersion: "1.2.0",
+          candidates: [createCandidate()],
+        }),
+      );
+      expect(result).toMatchObject({
+        guidanceVersion: "1.1.0",
+        projectionStatus: "GUIDANCE_AVAILABLE",
+        candidateContext: {
+          familyId,
+          classificationPolicy: "CANDIDATE_CONTEXT_ONLY",
+        },
+        legalRuleStatus: "NOT_APPLIED",
+        requiresHumanReview: true,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      });
+      expect(result.officialProcedureContexts.map((source) => source.sourceId)).toEqual(
+        sourceIds,
+      );
+      expect(result.officialProcedureContexts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            usagePolicy: "PROCEDURE_CONTEXT_ONLY",
+            legalReviewStatus: "LEGAL_REVIEW_PENDING",
+            permitsLegalRuleActivation: false,
+          }),
+        ]),
+      );
+    },
+  );
+
+  it("classifies the ROI agreement without claiming current registration or VIES status", () => {
+    const result = projectFiscalNotificationReviewGuidanceV1(
+      analysisInput({
+        engineVersion: "1.2.0",
+        candidates: [completeRoiRegistrationCandidate()],
+      }),
+    );
+    expect(result).toMatchObject({
+      guidanceVersion: "1.1.0",
+      projectionStatus: "GUIDANCE_AVAILABLE",
+      candidateContext: {
+        familyId: "registry.tax_registration_resolution",
+        classificationPolicy: "CANDIDATE_CONTEXT_ONLY",
+      },
+      officialProcedureContexts: [],
+      legalRuleStatus: "NOT_APPLIED",
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    });
+    expect(result.steps.map((step) => step.id)).not.toContain(
+      "CONSULT_OFFICIAL_PROCEDURE_CONTEXT",
+    );
+    expect(JSON.stringify(result)).not.toMatch(/VIES|vigente|alta actual/iu);
+
+    const forgedHistorical = analysisInput({
+      engineVersion: "1.1.0",
+      candidates: [completeRoiRegistrationCandidate()],
+    });
+    expect(projectFiscalNotificationReviewGuidanceV1(forgedHistorical)).toMatchObject({
+      projectionStatus: "GUIDANCE_BLOCKED",
+      candidateContext: null,
+      officialProcedureContexts: [],
     });
   });
 
@@ -595,6 +746,52 @@ function completeDeferralCandidate(): FiscalNotificationLocalReviewCandidate {
   );
 }
 
+function completeRealEstateSeizureCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+    "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+    [
+      "AEAT_OFFICIAL_DOMAIN_LABEL",
+      "REAL_ESTATE_SEIZURE_TITLE",
+      "STRUCTURAL_FIRST_PAGE_HEADER",
+    ],
+      [],
+    ),
+    segmentationVersion: "1.1.0",
+  };
+}
+
+function completeFormalFilingCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+    "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+    [
+      "AEAT_OFFICIAL_DOMAIN_LABEL",
+      "FORMAL_FILING_REQUIREMENT_TITLE",
+      "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+      "STRUCTURAL_FIRST_PAGE_HEADER",
+    ],
+      [],
+    ),
+    segmentationVersion: "1.1.0",
+  };
+}
+
+function completeRoiRegistrationCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+    "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+    [
+      "AEAT_OFFICIAL_DOMAIN_LABEL",
+      "ROI_REGISTRATION_AGREEMENT_TITLE",
+      "STRUCTURAL_FIRST_PAGE_HEADER",
+    ],
+      [],
+    ),
+    segmentationVersion: "1.1.0",
+  };
+}
+
 function partialEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {
   return candidate(
     "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
@@ -708,16 +905,33 @@ function candidate(
   matchedIds: readonly FiscalNotificationLocalReviewCandidate["matchedAnchors"][number]["anchorId"][],
   missingRequiredAnchorIds: readonly FiscalNotificationLocalReviewCandidate["missingRequiredAnchorIds"][number][],
 ): FiscalNotificationLocalReviewCandidate {
-  const enforcement = familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE";
+  const definition = {
+    AEAT_ENFORCEMENT_ORDER_CANDIDATE: {
+      documentType: "AEAT_ENFORCEMENT_ORDER",
+      handlerId: "aeat-enforcement-order-candidate",
+    },
+    AEAT_DEFERRAL_GRANT_CANDIDATE: {
+      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+      handlerId: "aeat-deferral-grant-candidate",
+    },
+    AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: {
+      documentType: "AEAT_SEIZURE_ORDER",
+      handlerId: "aeat-real-estate-seizure-candidate",
+    },
+    AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: {
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      handlerId: "aeat-formal-filing-requirement-candidate",
+    },
+    AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: {
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      handlerId: "aeat-roi-registration-agreement-candidate",
+    },
+  } as const;
   return {
     familyId,
-    documentType: enforcement
-      ? "AEAT_ENFORCEMENT_ORDER"
-      : "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+    documentType: definition[familyId].documentType,
     authoritySignal: "AEAT_UNVERIFIED",
-    handlerId: enforcement
-      ? "aeat-enforcement-order-candidate"
-      : "aeat-deferral-grant-candidate",
+    handlerId: definition[familyId].handlerId,
     handlerVersion: "1.0.0",
     signalStatus:
       missingRequiredAnchorIds.length === 0

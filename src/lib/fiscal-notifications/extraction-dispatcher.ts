@@ -16,15 +16,20 @@ import {
 import {
   AEAT_DEFERRAL_PRIMARY_TITLE_V1,
   AEAT_ENFORCEMENT_PRIMARY_TITLE_V1,
+  AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1,
+  AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1,
+  AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1,
   segmentFiscalNotificationPrimaryActsV1,
   type FiscalNotificationPrimaryActSegmentV1,
+  type FiscalNotificationPrimaryActTitleAnchorId,
 } from "./primary-act-segmentation.v1";
 
 type AnchorMatchMode =
   | "LINE_EXACT"
   | "LINE_PREFIX"
   | "TOKEN_SEQUENCE"
-  | "PAGE_ONE_TOKEN_SEQUENCE"
+  | "TITLE_PAGE_LINE_EXACT"
+  | "TITLE_PAGE_TOKEN_SEQUENCE"
   | "HEADER_TOKEN_SEQUENCE"
   | "HEADER_LINE_PREFIX";
 
@@ -65,13 +70,16 @@ const MAX_DECOMPOSED_CODE_POINT_CHARS = 8;
 const MAX_NORMALIZED_EXPANSION_RATIO = 2;
 const NORMALIZED_EXPANSION_SLACK_CHARS = 256;
 const HEADER_LINE_LIMIT = 40;
-const GUIDE_HEADER_LINE_LIMIT = 12;
+const GUIDE_HEADER_LINE_LIMIT = HEADER_LINE_LIMIT;
 
 const COMMON_REQUIRED_AUTHORITY_ANCHORS = Object.freeze([
   {
     anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL",
-    matchMode: "PAGE_ONE_TOKEN_SEQUENCE",
-    literals: ["sede agenciatributaria gob es"],
+    matchMode: "TITLE_PAGE_LINE_EXACT",
+    literals: [
+      "sede.agenciatributaria.gob.es",
+      "https://sede.agenciatributaria.gob.es",
+    ],
   },
 ] satisfies readonly ClosedTextAnchorDefinition[]);
 
@@ -179,6 +187,66 @@ const DEFERRAL_REQUIRED_ANCHORS = Object.freeze([
   },
 ] satisfies readonly ClosedTextAnchorDefinition[]);
 
+const REAL_ESTATE_SEIZURE_REQUIRED_ANCHORS = Object.freeze([
+  ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
+  {
+    anchorId: AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1.literals,
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const FORMAL_FILING_REQUIRED_ANCHORS = Object.freeze([
+  ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
+  {
+    anchorId: AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1.literals,
+  },
+  {
+    anchorId: "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+    matchMode: "TITLE_PAGE_TOKEN_SEQUENCE",
+    literals: ["declaraciones o autoliquidaciones no presentadas"],
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const ROI_REGISTRATION_REQUIRED_ANCHORS = Object.freeze([
+  ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
+  {
+    anchorId: AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1.literals,
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR = Object.freeze({
+  anchorId: "DOCUMENT_IDENTIFICATION_SECTION",
+  matchMode: "LINE_EXACT",
+  literals: Object.freeze(["identificacion del documento"]),
+} satisfies ClosedTextAnchorDefinition);
+
+const FORMAL_FILING_OPTIONAL_ANCHORS = Object.freeze([
+  DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR,
+  {
+    anchorId: "FORMAL_FILING_TAX_PERIOD_SECTION",
+    matchMode: "LINE_EXACT",
+    literals: ["modelo ejercicio periodo", "modelo periodo ejercicio"],
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const REAL_ESTATE_SEIZURE_OPTIONAL_ANCHORS = Object.freeze([
+  DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR,
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const ROI_REGISTRATION_OPTIONAL_ANCHORS = Object.freeze([
+  DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR,
+  {
+    anchorId: "REGISTRY_IDENTIFICATION_SECTION",
+    matchMode: "LINE_PREFIX",
+    literals: ["datos identificativos"],
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
 export function extractFiscalNotificationCandidates(
   value: unknown,
 ): FiscalNotificationExtractionResult {
@@ -198,7 +266,12 @@ export function extractFiscalNotificationCandidates(
   );
   const candidates = segmentation.segments
     .map((segment) =>
-      evaluateSegmentCandidate(textIndexResult.index, segment, input.signal),
+      evaluateSegmentCandidate(
+        textIndexResult.index,
+        segment,
+        segmentation.segmentationVersion,
+        input.signal,
+      ),
     )
     .filter((candidate) => candidate !== null);
   assertNotAborted(input.signal);
@@ -257,6 +330,7 @@ export function extractFiscalNotificationCandidates(
 function evaluateSegmentCandidate(
   index: PrivateTextIndex,
   segment: FiscalNotificationPrimaryActSegmentV1,
+  segmentationVersion: "1.1.0",
   signal?: AbortSignal,
 ): FiscalNotificationFamilyCandidate | null {
   const pageNumbers = new Set(segment.pageNumbers);
@@ -278,18 +352,67 @@ function evaluateSegmentCandidate(
         documentType: "AEAT_ENFORCEMENT_ORDER",
         handlerId: "aeat-enforcement-order-candidate",
       },
+      [],
+      segmentationVersion,
+    );
+  }
+  if (segment.familyId === "AEAT_DEFERRAL_GRANT_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      DEFERRAL_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
+        documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+        handlerId: "aeat-deferral-grant-candidate",
+      },
+      [],
+      segmentationVersion,
+    );
+  }
+  if (segment.familyId === "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      REAL_ESTATE_SEIZURE_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+        documentType: "AEAT_SEIZURE_ORDER",
+        handlerId: "aeat-real-estate-seizure-candidate",
+      },
+      REAL_ESTATE_SEIZURE_OPTIONAL_ANCHORS,
+      segmentationVersion,
+    );
+  }
+  if (segment.familyId === "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      FORMAL_FILING_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+        documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+        handlerId: "aeat-formal-filing-requirement-candidate",
+      },
+      FORMAL_FILING_OPTIONAL_ANCHORS,
+      segmentationVersion,
     );
   }
   return evaluateFamilyCandidate(
     segmentIndex,
     signal,
-    DEFERRAL_REQUIRED_ANCHORS,
+    ROI_REGISTRATION_REQUIRED_ANCHORS,
     segment.titleAnchorId,
     {
-      familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
-      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
-      handlerId: "aeat-deferral-grant-candidate",
+      familyId: "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      handlerId: "aeat-roi-registration-agreement-candidate",
     },
+    ROI_REGISTRATION_OPTIONAL_ANCHORS,
+    segmentationVersion,
   );
 }
 
@@ -297,13 +420,13 @@ function evaluateFamilyCandidate(
   index: PrivateTextIndex,
   signal: AbortSignal | undefined,
   requiredAnchors: readonly ClosedTextAnchorDefinition[],
-  uniqueTitleAnchorId:
-    | "ENFORCEMENT_ORDER_TITLE"
-    | "DEFERRAL_GRANT_TITLE",
+  uniqueTitleAnchorId: FiscalNotificationPrimaryActTitleAnchorId,
   identity: Pick<
     FiscalNotificationFamilyCandidate,
     "familyId" | "documentType" | "handlerId"
   >,
+  familyOptionalAnchors: readonly ClosedTextAnchorDefinition[],
+  segmentationVersion: "1.1.0",
 ): FiscalNotificationFamilyCandidate | null {
   const matchedRequired = dedupeAnchorEvidence(
     requiredAnchors
@@ -326,7 +449,7 @@ function evaluateFamilyCandidate(
     ).filter((item) => item !== null),
   );
   const matchedOptional = dedupeAnchorEvidence(
-    COMMON_OPTIONAL_AUTHORITY_ANCHORS.map((definition) =>
+    [...COMMON_OPTIONAL_AUTHORITY_ANCHORS, ...familyOptionalAnchors].map((definition) =>
       collectClosedAnchorEvidence(index, definition, signal),
     ).filter((item) => item !== null),
   );
@@ -349,6 +472,7 @@ function evaluateFamilyCandidate(
 
   return Object.freeze({
     ...identity,
+    segmentationVersion,
     authoritySignal: "AEAT_UNVERIFIED",
     handlerVersion: "1.0.0",
     signalStatus:
@@ -374,7 +498,7 @@ function evaluateFamilyCandidate(
 function collectStructuralHeaderEvidence(
   index: PrivateTextIndex,
   requiredAnchors: readonly ClosedTextAnchorDefinition[],
-  titleAnchorId: "ENFORCEMENT_ORDER_TITLE" | "DEFERRAL_GRANT_TITLE",
+  titleAnchorId: FiscalNotificationPrimaryActTitleAnchorId,
   signal?: AbortSignal,
 ): FiscalNotificationAnchorEvidence | null {
   const firstPage = index.pages.find((page) => page.pageNumber === 1);
@@ -621,7 +745,7 @@ function collectClosedAnchorEvidence(
     assertNotAborted(signal);
     if (
       (definition.matchMode.startsWith("HEADER_") ||
-        definition.matchMode === "PAGE_ONE_TOKEN_SEQUENCE") &&
+        definition.matchMode.startsWith("TITLE_PAGE_")) &&
       page.pageNumber !== index.headerPageNumber
     ) {
       continue;
@@ -666,12 +790,14 @@ function matchesClosedDefinition(
     for (const literal of literals) {
       if (literal.length === 0) continue;
       if (
-        (definition.matchMode === "LINE_EXACT" && line === literal) ||
+        ((definition.matchMode === "LINE_EXACT" ||
+          definition.matchMode === "TITLE_PAGE_LINE_EXACT") &&
+          line === literal) ||
         ((definition.matchMode === "LINE_PREFIX" ||
           definition.matchMode === "HEADER_LINE_PREFIX") &&
           (line === literal || line.startsWith(`${literal} `))) ||
         ((definition.matchMode === "TOKEN_SEQUENCE" ||
-          definition.matchMode === "PAGE_ONE_TOKEN_SEQUENCE" ||
+          definition.matchMode === "TITLE_PAGE_TOKEN_SEQUENCE" ||
           definition.matchMode === "HEADER_TOKEN_SEQUENCE") &&
           ` ${line} `.includes(` ${literal} `))
       ) {

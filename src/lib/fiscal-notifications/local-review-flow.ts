@@ -41,9 +41,13 @@ export interface FiscalNotificationLocalReviewAnchor {
 
 export interface FiscalNotificationLocalReviewCandidate {
   readonly familyId: FiscalNotificationSupportedFamilyId;
+  readonly segmentationVersion?: "1.0.0" | "1.1.0";
   readonly documentType: Extract<
     AdministrativeDocumentType,
-    "AEAT_ENFORCEMENT_ORDER" | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+    | "AEAT_ENFORCEMENT_ORDER"
+    | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+    | "AEAT_SEIZURE_ORDER"
+    | "GENERIC_ADMINISTRATIVE_NOTICE"
   >;
   readonly authoritySignal: FiscalNotificationFamilyCandidate["authoritySignal"];
   readonly handlerId: FiscalNotificationFamilyCandidate["handlerId"];
@@ -63,7 +67,7 @@ export interface FiscalNotificationLocalReviewResult {
   readonly engineId:
     | "fiscal-notification-family-candidate-engine"
     | null;
-  readonly engineVersion: "1.0.0" | "1.1.0" | null;
+  readonly engineVersion: "1.0.0" | "1.1.0" | "1.2.0" | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -176,6 +180,9 @@ async function analyzeFiscalNotificationWithDependencies(
       sha256: intake.fileIntegrity.sha256,
       candidates: extraction.candidates.map((candidate) => ({
         familyId: candidate.familyId,
+        ...(candidate.segmentationVersion === undefined
+          ? {}
+          : { segmentationVersion: candidate.segmentationVersion }),
         documentType: candidate.documentType,
         authoritySignal: candidate.authoritySignal,
         handlerId: candidate.handlerId,
@@ -234,15 +241,19 @@ function freezeResult(input: {
   status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   reason: FiscalNotificationLocalReviewReason;
   engineId: "fiscal-notification-family-candidate-engine" | null;
-  engineVersion: "1.0.0" | "1.1.0" | null;
+  engineVersion: "1.0.0" | "1.1.0" | "1.2.0" | null;
   pageCount: number;
   byteLength: number;
   sha256: string;
   candidates: readonly {
     familyId: FiscalNotificationSupportedFamilyId;
+    segmentationVersion?: "1.0.0" | "1.1.0";
     documentType: Extract<
       AdministrativeDocumentType,
-      "AEAT_ENFORCEMENT_ORDER" | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+      | "AEAT_ENFORCEMENT_ORDER"
+      | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+      | "AEAT_SEIZURE_ORDER"
+      | "GENERIC_ADMINISTRATIVE_NOTICE"
     >;
     authoritySignal: FiscalNotificationFamilyCandidate["authoritySignal"];
     handlerId: FiscalNotificationFamilyCandidate["handlerId"];
