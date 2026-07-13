@@ -97,6 +97,10 @@ describe("fiscal model structural review pages UI contract", () => {
       ["operadores de plataforma", ["040"]],
       ["grupo de entidades", ["039"]],
       ["domicilio fiscal", ["030"]],
+      ["activos financieros valores mobiliarios", ["198"]],
+      ["pago fraccionado sociedades", ["202"]],
+      ["retencion adquisicion inmuebles", ["211"]],
+      ["gravamen especial bienes inmuebles", ["213"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
@@ -113,6 +117,9 @@ describe("fiscal model structural review pages UI contract", () => {
     const structural = resolvePublicAeatModelReviewPageV1({ code: "130" });
     const officialHistorical = resolvePublicAeatOfficialModelContentV1({
       code: "150",
+    });
+    const officialModel037 = resolvePublicAeatOfficialModelContentV1({
+      code: "037",
     });
     expect(historical.status).toBe("REVIEW_ONLY");
     expect(structural.status).toBe("REVIEW_ONLY");
@@ -134,6 +141,10 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(officialHistorical).toMatchObject({
       status: "OFFICIAL_INFORMATION",
       data: { code: "150", lifecycleStatus: "HISTORICAL" },
+    });
+    expect(officialModel037).toMatchObject({
+      status: "OFFICIAL_INFORMATION",
+      data: { code: "037", lifecycleStatus: "HISTORICAL" },
     });
     expect(catalog).toContain(
       'officialContent?.lifecycleStatus === "HISTORICAL"',

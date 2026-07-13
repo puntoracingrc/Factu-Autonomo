@@ -22,6 +22,9 @@ import { PUBLIC_AEAT_BATCH_05_PROPERTY_INFORMATION_CONTENT_V1 } from "./batch-05
 import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_186_189_CONTENT_V1 } from "./batch-06-declarations-186-189.release.v1";
 import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_190_193_CONTENT_V1 } from "./batch-06-declarations-190-193.release.v1";
 import { PUBLIC_AEAT_BATCH_06_DECLARATIONS_194_196_CONTENT_V1 } from "./batch-06-declarations-194-196.release.v1";
+import { PUBLIC_AEAT_BATCH_07_DECLARATIONS_037_199_CONTENT_V1 } from "./batch-07-declarations-037-199.release.v1";
+import { PUBLIC_AEAT_BATCH_07_CORPORATE_TAX_200_206_CONTENT_V1 } from "./batch-07-corporate-tax-200-206.release.v1";
+import { PUBLIC_AEAT_BATCH_07_NON_RESIDENT_TAX_210_216_CONTENT_V1 } from "./batch-07-non-resident-tax-210-216.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -32,6 +35,7 @@ const EXPECTED_CODES = Object.freeze([
   "030",
   "035",
   "036",
+  "037",
   "038",
   "039",
   "040",
@@ -85,8 +89,17 @@ const EXPECTED_CODES = Object.freeze([
   "194",
   "195",
   "196",
+  "198",
+  "199",
+  "200",
+  "202",
+  "206",
+  "210",
+  "211",
+  "213",
+  "216",
 ] as const);
-const EXPECTED_HISTORICAL_CODES = new Set(["150", "179"]);
+const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -271,6 +284,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_186_189_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_190_193_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_06_DECLARATIONS_194_196_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_07_DECLARATIONS_037_199_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_07_CORPORATE_TAX_200_206_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_07_NON_RESIDENT_TAX_210_216_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (
