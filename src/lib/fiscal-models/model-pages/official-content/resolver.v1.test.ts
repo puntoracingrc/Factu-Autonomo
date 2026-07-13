@@ -129,6 +129,16 @@ const EXPECTED_CODES = [
   "368",
   "369",
   "379",
+  "380",
+  "381",
+  "390",
+  "410",
+  "411",
+  "430",
+  "480",
+  "490",
+  "504",
+  "505",
 ];
 
 const EXPECTED_BATCH_11_NAMES = {
@@ -170,13 +180,31 @@ const EXPECTED_BATCH_12_NAMES = {
   "379": "Declaración informativa sobre pagos transfronterizos",
 } as const;
 
+const EXPECTED_BATCH_13_NAMES = {
+  "380": "IVA. Operaciones asimiladas a las importaciones",
+  "381":
+    "IVA. Solicitud de reembolso de las cuotas tributarias relativas a las Fuerzas Armadas de cualquier Estado miembro distinto de España",
+  "390": "IVA. Declaración Resumen Anual",
+  "410":
+    "Pago a cuenta del Impuesto sobre los Depósitos de las Entidades de Crédito",
+  "411":
+    "Impuesto sobre los Depósitos de las Entidades de Crédito. Autoliquidación",
+  "430": "Primas de seguros. Declaración-liquidación.",
+  "480": "Primas de seguros. Declaración Resumen anual.",
+  "490": "Impuesto sobre Determinados Servicios Digitales. Autoliquidación",
+  "504":
+    "Solicitud de autorización de expedición o recepción de productos objeto de los impuestos especiales de fabricación con destino a o procedentes del resto de la Unión Europea",
+  "505":
+    "Autorización de expedición o recepción de productos objeto de los impuestos especiales de fabricación con destino a o procedentes del resto de la Unión Europea",
+} as const;
+
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(121);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(131);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -220,7 +248,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "380" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "506" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -308,6 +336,22 @@ describe("public AEAT official model content v1", () => {
       expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
       expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
       expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+    }
+  });
+
+  it("keeps every Batch 13 page useful and source-backed without evaluating applicability", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_13_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.externalNavigation, code).toBeNull();
     }
   });
 
@@ -591,6 +635,21 @@ describe("public AEAT official model content v1", () => {
         methods: ["WEB_SERVICE", "FILE_UPLOAD"],
         status: "SOURCE_DESCRIBED",
       },
+      "380": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "381": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "390": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "410": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "411": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "430": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "480": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "490": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "504": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -607,6 +666,11 @@ describe("public AEAT official model content v1", () => {
     expect(model368.status).toBe("OFFICIAL_INFORMATION");
     if (model368.status === "OFFICIAL_INFORMATION") {
       expect(model368.data.accessMethods).toBeUndefined();
+    }
+    const model505 = resolvePublicAeatOfficialModelContentV1({ code: "505" });
+    expect(model505.status).toBe("OFFICIAL_INFORMATION");
+    if (model505.status === "OFFICIAL_INFORMATION") {
+      expect(model505.data.accessMethods).toBeUndefined();
     }
   });
 
@@ -1106,6 +1170,115 @@ describe("public AEAT official model content v1", () => {
     }
   });
 
+  it("keeps Batch 13 informational, non-operational and tied to coherent current sources", () => {
+    const codes = [
+      "380",
+      "381",
+      "390",
+      "410",
+      "411",
+      "430",
+      "480",
+      "490",
+      "504",
+      "505",
+    ] as const;
+
+    for (const code of codes) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(
+        result.data.links.some((link) =>
+          /firmar|pagar|enviar|presentar declaraci[oó]n|iniciar tr[aá]mite/i.test(
+            link.label,
+          ),
+        ),
+        code,
+      ).toBe(false);
+
+      for (const source of result.data.sources) {
+        const url = new URL(source.canonicalUrl);
+        expect(
+          ["sede.agenciatributaria.gob.es", "www.boe.es"],
+          `${code}:${source.id}`,
+        ).toContain(url.hostname);
+        if (source.authority === "BOE") {
+          expect(url.pathname, `${code}:${source.id}`).toBe(
+            source.id.endsWith(".consolidated")
+              ? "/buscar/act.php"
+              : "/diario_boe/txt.php",
+          );
+          expect(url.searchParams.get("id"), `${code}:${source.id}`).toMatch(
+            /^BOE-A-\d{4}-\d+$/,
+          );
+        }
+      }
+
+      expect(
+        result.data.documents.every(
+          (document) =>
+            document.activeContentStatus === "NO_JAVASCRIPT_DETECTED" &&
+            document.usePolicy === "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+        ),
+        code,
+      ).toBe(true);
+    }
+
+    for (const code of ["390", "411", "490"] as const) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      if (result.status !== "OFFICIAL_INFORMATION") throw new Error("blocked");
+      expect(result.data.documents.length, code).toBeGreaterThan(0);
+      expect(result.data.thumbnail, code).toMatchObject({
+        pageNumber: 1,
+        width: 640,
+        height: 640,
+        provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
+      });
+    }
+
+    const model381 = resolvePublicAeatOfficialModelContentV1({ code: "381" });
+    const model411 = resolvePublicAeatOfficialModelContentV1({ code: "411" });
+    const model430 = resolvePublicAeatOfficialModelContentV1({ code: "430" });
+    const model504 = resolvePublicAeatOfficialModelContentV1({ code: "504" });
+    const model505 = resolvePublicAeatOfficialModelContentV1({ code: "505" });
+    for (const result of [model381, model411, model430, model504, model505]) {
+      expect(result.status).toBe("OFFICIAL_INFORMATION");
+    }
+    if (
+      model381.status !== "OFFICIAL_INFORMATION" ||
+      model411.status !== "OFFICIAL_INFORMATION" ||
+      model430.status !== "OFFICIAL_INFORMATION" ||
+      model504.status !== "OFFICIAL_INFORMATION" ||
+      model505.status !== "OFFICIAL_INFORMATION"
+    ) {
+      return;
+    }
+    expect(
+      model381.data.sources.some(
+        (source) => source.kind === "PROCEDURE_RECORD",
+      ),
+    ).toBe(false);
+    expect(
+      model411.data.sources.some(
+        (source) => source.kind === "PROCEDURE_RECORD",
+      ),
+    ).toBe(false);
+    expect(
+      model430.data.sources.some((source) =>
+        source.canonicalUrl.toLowerCase().endsWith(".xlsx"),
+      ),
+    ).toBe(false);
+    expect(
+      [...model504.data.sources, ...model505.data.sources].some((source) =>
+        /(?:504|instr504)\.pdf$/i.test(source.canonicalUrl),
+      ),
+    ).toBe(false);
+    expect(model505.data.accessMethods).toBeUndefined();
+  });
+
   it("keeps the Model 180 certificate with active content external-only", () => {
     const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
     expect(result.status).toBe("OFFICIAL_INFORMATION");
@@ -1149,6 +1322,9 @@ describe("public AEAT official model content v1", () => {
       "206",
       "220",
       "247",
+      "390",
+      "411",
+      "490",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,

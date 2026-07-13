@@ -219,6 +219,32 @@ describe("public AEAT model review search v2", () => {
     ).toContain("368");
     expect(resultCodes("one stop shop OSS")).toContain("369");
     expect(resultCodes("pagos transfronterizos CESOP")).toContain("379");
+    expect(resultCodes("operaciones asimiladas importaciones")).toContain(
+      "380",
+    );
+    expect(resultCodes("fuerzas armadas estados miembros reembolso")).toContain(
+      "381",
+    );
+    expect(resultCodes("resumen anual IVA")).toContain("390");
+    expect(resultCodes("pago a cuenta depositos entidades credito")).toContain(
+      "410",
+    );
+    expect(resultCodes("depositos entidades credito autoliquidacion")).toContain(
+      "411",
+    );
+    expect(resultCodes("primas seguros declaracion liquidacion")).toContain(
+      "430",
+    );
+    expect(resultCodes("primas seguros resumen anual")).toContain("480");
+    expect(resultCodes("servicios digitales interfaz digital")).toContain(
+      "490",
+    );
+    expect(resultCodes("solicitud autorizacion productos union europea")).toContain(
+      "504",
+    );
+    expect(resultCodes("autorizacion CARE productos union europea")).toContain(
+      "505",
+    );
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
