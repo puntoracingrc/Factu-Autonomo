@@ -154,6 +154,24 @@ function hasHistoricalEvidence(doc: Document): boolean {
   );
 }
 
+function hasPersistedFiscalClassificationEvidence(doc: Document): boolean {
+  return Boolean(
+    doc.documentSnapshot ||
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired ||
+    doc.issuedAt ||
+    doc.verifactu ||
+    doc.verifactuPersistence ||
+    doc.legacyImportAttestation ||
+    doc.appIssuedRecoveryAttestation ||
+    doc.rectification ||
+    doc.rectifiedById ||
+    doc.sourceDocumentId ||
+    doc.receiptDocumentId,
+  );
+}
+
 function isPotentialFiscalDocument(doc: Document): boolean {
   const declaresFiscalType =
     isFiscalType(doc.type) || isFiscalType(doc.documentSnapshot?.documentType);
@@ -164,6 +182,13 @@ function isPotentialFiscalDocument(doc: Document): boolean {
   }
 
   if (!hasHistoricalEvidence(doc)) return false;
+
+  // Un presupuesto puede quedar congelado por su propio ciclo operativo y la
+  // normalización puede añadirle una señal `blocked` al no tener snapshots.
+  // Ninguna de esas señales demuestra que fuese una factura o un recibo. Solo
+  // una evidencia fiscal persistida permite tratar un tipo no fiscal como
+  // ambiguo; así no inflamos el contador de impuestos con presupuestos reales.
+  if (!hasPersistedFiscalClassificationEvidence(doc)) return false;
 
   // Si los dos tipos se han disfrazado como presupuesto, solo la evidencia
   // puede aclarar si era fiscal. Una pareja ausente o corrupta es ambigua y

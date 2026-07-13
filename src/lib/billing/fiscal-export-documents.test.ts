@@ -258,6 +258,69 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     });
   });
 
+  it("ignora un presupuesto congelado sin evidencia fiscal persistida", () => {
+    const historicalQuote = invoiceDraft({
+      id: "historical-quote-without-fiscal-evidence",
+      type: "presupuesto",
+      number: "P-2024-0001",
+      status: "aceptado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+    });
+
+    expect(select([historicalQuote])).toEqual({
+      documents: [],
+      blockedDocuments: [],
+    });
+  });
+
+  it("mantiene bloqueada una afirmación VeriFactu parcial disfrazada de presupuesto", () => {
+    const ambiguousQuote = invoiceDraft({
+      id: "quote-with-verifactu-persistence",
+      type: "presupuesto",
+      number: "P-2024-0002",
+      status: "aceptado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      verifactuPersistence: "server_confirmed",
+    });
+
+    const result = select([ambiguousQuote]);
+
+    expect(result.documents).toEqual([]);
+    expect(result.blockedDocuments).toEqual([
+      expect.objectContaining({
+        id: ambiguousQuote.id,
+        issues: expect.arrayContaining(["document_snapshot_missing"]),
+      }),
+    ]);
+  });
+
+  it("ignora fiscalmente un presupuesto emitido con su evidencia íntegra", () => {
+    const issuedQuote = issueDocument(
+      invoiceDraft({
+        id: "sealed-quote",
+        type: "presupuesto",
+        number: "P-2026-0001",
+      }),
+      profile,
+      NOW,
+    );
+
+    expect(select([issuedQuote])).toEqual({
+      documents: [],
+      blockedDocuments: [],
+    });
+  });
+
   it.each([0, 21])(
     "conserva un snapshot legacy completo con IVA %s aunque no tenga PDF ni sello",
     (ivaPercent) => {
