@@ -1,6 +1,7 @@
 import { documentTotals } from "./calculations";
 import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
 import { inspectUsableHistoricalDocumentEvidence } from "./document-integrity/legacy-import-attestation";
+import { hasAppIssuedRecoveryProtectionClaim } from "./document-integrity/app-issued-recovery-protection";
 import { detectLegacyImportSource } from "./document-integrity/legacy-import-attestation";
 import { expenseTotals } from "./expenses";
 import type { BusinessProfile, Document, Expense, LineItem } from "./types";
@@ -23,6 +24,18 @@ export function documentAmounts(
   doc: Pick<Document, "items"> & Partial<Document>,
   vatExempt: boolean,
 ): { subtotal: number; iva: number; total: number } {
+  if (hasAppIssuedRecoveryProtectionClaim(doc as Document)) {
+    const evidence = inspectUsableHistoricalDocumentEvidence(doc as Document);
+    if (!evidence.ok) return { subtotal: 0, iva: 0, total: 0 };
+    return {
+      subtotal: evidence.snapshot.taxSummary.subtotal,
+      iva: evidence.snapshot.taxSummary.iva,
+      total: evidence.snapshot.taxSummary.total,
+    };
+  }
+  if (doc.documentSnapshot?.source === "app_issued_recovery") {
+    return { subtotal: 0, iva: 0, total: 0 };
+  }
   if (doc.snapshotIntegrity?.status === "blocked") {
     return { subtotal: 0, iva: 0, total: 0 };
   }

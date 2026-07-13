@@ -31,6 +31,11 @@ import {
   isDocumentUsableForFinancialCalculations,
   isUsableLegacyImportedDocument,
 } from "@/lib/document-integrity/legacy-import-attestation";
+import {
+  inspectAppIssuedDocumentRecovery,
+  inspectAppIssuedDocumentRecoveryCollection,
+} from "@/lib/document-integrity/app-issued-recovery";
+import { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import {
   documentHasLinkedCustomerNameMismatch,
@@ -58,10 +63,7 @@ import {
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
-import {
-  formatTimelineMonthLabel,
-  timelineMonthKey,
-} from "@/lib/timeline";
+import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
 import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import {
   PRODUCT_MONTH_NAMES,
@@ -154,10 +156,7 @@ interface DocumentListProps {
   basePath: string;
 }
 
-export function DocumentList({
-  type,
-  basePath,
-}: DocumentListProps) {
+export function DocumentList({ type, basePath }: DocumentListProps) {
   const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
   const vatExempt = isVatExempt(data.profile);
@@ -169,9 +168,9 @@ export function DocumentList({
   }));
   const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>("all");
   const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
-  const [previewingDocumentId, setPreviewingDocumentId] = useState<string | null>(
-    null,
-  );
+  const [previewingDocumentId, setPreviewingDocumentId] = useState<
+    string | null
+  >(null);
   const [expandedRelationshipDocumentId, setExpandedRelationshipDocumentId] =
     useState<string | null>(null);
   const [expenseAllocationsByDocumentId, setExpenseAllocationsByDocumentId] =
@@ -184,7 +183,10 @@ export function DocumentList({
   );
 
   const documents = useMemo(() => {
-    const periodDocuments = filterDocumentsByProductPeriod(allDocuments, period);
+    const periodDocuments = filterDocumentsByProductPeriod(
+      allDocuments,
+      period,
+    );
     const statusDocuments = periodDocuments.filter((document) =>
       matchesDocumentStatusFilter(document, statusFilter, data.documents),
     );
@@ -195,13 +197,15 @@ export function DocumentList({
   const workExpenseSummaries = useMemo(() => {
     return summarizeWorkDocumentExpensesById(data.expenses);
   }, [data.expenses]);
+  const appIssuedRecoveryCollection = useMemo(
+    () => inspectAppIssuedDocumentRecoveryCollection(data.documents),
+    [data.documents],
+  );
 
   useEffect(() => {
     if (type !== "factura") return;
-    const nextAllocations: Record<
-      string,
-      ExpenseCostAllocationsByExpenseId
-    > = {};
+    const nextAllocations: Record<string, ExpenseCostAllocationsByExpenseId> =
+      {};
     for (const document of data.documents) {
       if (document.type !== "factura") continue;
       nextAllocations[document.id] = getExpenseCostAllocationsForWork(
@@ -389,7 +393,12 @@ export function DocumentList({
               !previousDocument ||
               timelineMonthKey(previousDocument.date) !==
                 timelineMonthKey(doc.date);
-            const amounts = documentAmounts(doc, vatExempt);
+            const recoveryCollectionValid =
+              !hasAppIssuedRecoveryProtectionClaim(doc) ||
+              appIssuedRecoveryCollection.validDocumentIds.has(doc.id);
+            const amounts = recoveryCollectionValid
+              ? documentAmounts(doc, vatExempt)
+              : { subtotal: 0, iva: 0, total: 0 };
             const total = amounts.total;
             const canonicalDocumentChain = getDocumentChainItems(
               doc,
@@ -412,8 +421,8 @@ export function DocumentList({
                     allocations: expenseAllocationsByDocumentId[doc.id] ?? {},
                   })
                 : type === "presupuesto"
-                ? workExpenseSummaries.get(doc.id)
-                : undefined;
+                  ? workExpenseSummaries.get(doc.id)
+                  : undefined;
             const workMargin =
               workExpenseSummary && workExpenseSummary.count > 0
                 ? amounts.subtotal - workExpenseSummary.cost
@@ -439,7 +448,19 @@ export function DocumentList({
             const legacyImportedAccepted =
               legacyImportAttested &&
               isDocumentUsableForFinancialCalculations(doc);
-            const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+            const recoveryInspection = hasAppIssuedRecoveryProtectionClaim(doc)
+              ? inspectAppIssuedDocumentRecovery(doc)
+              : null;
+            const appIssuedRecovered = Boolean(
+              recoveryInspection?.ok &&
+              recoveryInspection.active &&
+              recoveryCollectionValid &&
+              isDocumentUsableForFinancialCalculations(doc),
+            );
+            const integrityBlocked =
+              !appIssuedRecovered &&
+              (doc.snapshotIntegrity?.status === "blocked" ||
+                hasAppIssuedRecoveryProtectionClaim(doc));
             const integrityFeedback = getDocumentIntegrityBlockedFeedback(
               doc.snapshotIntegrity?.issues,
             );
@@ -486,189 +507,204 @@ export function DocumentList({
                   }`}
                 >
                   <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-slate-900">
-                          {displayNumber}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900">
+                        {displayNumber}
+                      </span>
+                      {rect && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                          Rectificativa
                         </span>
-                        {rect && (
-                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                            Rectificativa
-                          </span>
-                        )}
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            (isCollectedDocument(doc) ||
-                              isAcceptedQuote(doc)) &&
-                            !doc.rectifiedById
-                              ? "bg-green-100 text-green-700"
-                              : documentStatusColor(doc)
-                          }`}
-                        >
-                          {documentStatusLabel(doc, type)}
-                        </span>
-                        {type === "factura" &&
-                          hasPublicVerifactuAccreditation(doc) && (
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          (isCollectedDocument(doc) || isAcceptedQuote(doc)) &&
+                          !doc.rectifiedById
+                            ? "bg-green-100 text-green-700"
+                            : documentStatusColor(doc)
+                        }`}
+                      >
+                        {documentStatusLabel(doc, type)}
+                      </span>
+                      {type === "factura" &&
+                        hasPublicVerifactuAccreditation(doc) && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                             Veri*Factu
                           </span>
                         )}
-                        {legacyImportedAccepted && (
-                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                            Histórico importado · aceptado por ti
-                          </span>
-                        )}
-                        {integrityBlocked && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
-                            Integridad bloqueada
-                          </span>
-                        )}
-                        {linkedInvoice && (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                            Convertido a factura
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {clientHref ? (
-                          <Link
-                            href={clientHref}
-                            className="inline-flex max-w-full rounded-md text-slate-700 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                          >
-                            <span className="truncate">{doc.client.name}</span>
-                          </Link>
-                        ) : (
-                          <p className="text-slate-700">{doc.client.name}</p>
-                        )}
-                        {hasLinkedCustomerNameMismatch && (
-                          <>
-                            <span
-                              className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
-                              title="La factura conserva un nombre distinto al de la ficha actual. Revisa si la unificación fue correcta."
-                            >
-                              Revisar cliente
-                            </span>
-                            {linkedCustomer && !customerRepairRequiresAudit && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const ok = window.confirm(
-                                    `¿Cambiar el titular congelado de ${doc.number} a ${linkedCustomerName}? No cambia importe, fecha, número ni líneas.`,
-                                  );
-                                  if (!ok) return;
-                                  repairDocumentCustomer(
-                                    doc.id,
-                                    linkedCustomer.id,
-                                  );
-                                }}
-                                className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-800 transition-colors hover:bg-amber-50"
-                              >
-                                Usar ficha actual
-                              </button>
-                            )}
-                            {linkedCustomer && customerRepairRequiresAudit && (
-                              <span
-                                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
-                                title="El destinatario histórico no se puede reescribir sin un historial auditable. Usa el flujo de rectificación cuando corresponda."
-                              >
-                                Protegido tras emisión
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-500">
-                        {formatShortDate(doc.date)} · {formatMoney(total)}
-                      </p>
-                      {type !== "factura" &&
-                        workExpenseSummary &&
-                        workMargin !== undefined && (
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
-                              Costes vinculados:{" "}
-                              {formatMoney(workExpenseSummary.cost)}
-                            </span>
-                            <span
-                              className={`rounded-full px-2.5 py-1 ${
-                                workMargin >= 0
-                                  ? "bg-emerald-50 text-emerald-800"
-                                  : "bg-red-50 text-red-700"
-                              }`}
-                            >
-                              Margen estimado: {formatMoney(workMargin)}
-                            </span>
-                          </div>
-                        )}
-                      {invoiceProfitability && (
-                        <div className="mt-2 grid gap-2 text-xs font-bold sm:max-w-xl sm:grid-cols-2">
+                      {legacyImportedAccepted && (
+                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                          Histórico importado · aceptado por ti
+                        </span>
+                      )}
+                      {appIssuedRecovered && (
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
+                          Documento de Factu · recuperado y revisado
+                        </span>
+                      )}
+                      {integrityBlocked && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+                          Integridad bloqueada
+                        </span>
+                      )}
+                      {linkedInvoice && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          Convertido a factura
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {clientHref ? (
+                        <Link
+                          href={clientHref}
+                          className="inline-flex max-w-full rounded-md text-slate-700 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                        >
+                          <span className="truncate">{doc.client.name}</span>
+                        </Link>
+                      ) : (
+                        <p className="text-slate-700">{doc.client.name}</p>
+                      )}
+                      {hasLinkedCustomerNameMismatch && (
+                        <>
                           <span
-                            className={`rounded-xl px-3 py-2 ${
-                              invoiceProfitability.profitAfterIrpfReserve >= 0
+                            className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
+                            title="La factura conserva un nombre distinto al de la ficha actual. Revisa si la unificación fue correcta."
+                          >
+                            Revisar cliente
+                          </span>
+                          {linkedCustomer && !customerRepairRequiresAudit && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const ok = window.confirm(
+                                  `¿Cambiar el titular congelado de ${doc.number} a ${linkedCustomerName}? No cambia importe, fecha, número ni líneas.`,
+                                );
+                                if (!ok) return;
+                                repairDocumentCustomer(
+                                  doc.id,
+                                  linkedCustomer.id,
+                                );
+                              }}
+                              className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-800 transition-colors hover:bg-amber-50"
+                            >
+                              Usar ficha actual
+                            </button>
+                          )}
+                          {linkedCustomer && customerRepairRequiresAudit && (
+                            <span
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
+                              title="El destinatario histórico no se puede reescribir sin un historial auditable. Usa el flujo de rectificación cuando corresponda."
+                            >
+                              Protegido tras emisión
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      {formatShortDate(doc.date)} · {formatMoney(total)}
+                    </p>
+                    {type !== "factura" &&
+                      workExpenseSummary &&
+                      workMargin !== undefined && (
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+                            Costes vinculados:{" "}
+                            {formatMoney(workExpenseSummary.cost)}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 ${
+                              workMargin >= 0
                                 ? "bg-emerald-50 text-emerald-800"
                                 : "bg-red-50 text-red-700"
                             }`}
                           >
-                            Beneficio tras IRPF:{" "}
-                            {formatMoney(
-                              invoiceProfitability.profitAfterIrpfReserve,
-                            )}
-                          </span>
-                          <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">
-                            Reserva impuestos:{" "}
-                            {formatMoney(invoiceProfitability.taxReserve)}
+                            Margen estimado: {formatMoney(workMargin)}
                           </span>
                         </div>
                       )}
-                      {statusHint &&
-                        !(type === "factura" && doc.status === "pagado") && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            {statusHint}
-                          </p>
-                        )}
-                      {doc.rectification && (
-                        <p className="text-xs text-orange-700">
-                          Rectifica: {doc.rectification.originalNumber}
-                        </p>
-                      )}
-                      {doc.rectifiedById && (
-                        <p className="text-xs text-slate-400">
-                          La original queda sin efecto en los cálculos mientras
-                          exista la rectificativa.
-                        </p>
-                      )}
-                      {missingShareContact && type !== "factura" && (
-                        <p className="text-xs text-slate-500">
-                          Sin email ni teléfono para enviar desde aquí.
-                        </p>
-                      )}
-                    </div>
-                    {relationshipItems.length > 0 && (
-                      <div className="min-w-0 xl:row-span-2">
-                        <DocumentRelationshipFlow
-                          items={relationshipItems}
-                          vatExempt={vatExempt}
-                          compact
-                          onExpensesClick={
-                            type === "factura"
-                              ? () => setExpandedRelationshipDocumentId(doc.id)
-                              : undefined
-                          }
-                          removableRoles={
-                            type === "factura" ? ["gastos"] : []
-                          }
-                          onRemoveItem={
-                            type === "factura"
-                              ? (item) => {
-                                  if (item.role === "gastos") {
-                                    setExpandedRelationshipDocumentId(doc.id);
-                                    return;
-                                  }
-                                }
-                              : undefined
-                          }
-                        />
+                    {invoiceProfitability && (
+                      <div className="mt-2 grid gap-2 text-xs font-bold sm:max-w-xl sm:grid-cols-2">
+                        <span
+                          className={`rounded-xl px-3 py-2 ${
+                            invoiceProfitability.profitAfterIrpfReserve >= 0
+                              ? "bg-emerald-50 text-emerald-800"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          Beneficio tras IRPF:{" "}
+                          {formatMoney(
+                            invoiceProfitability.profitAfterIrpfReserve,
+                          )}
+                        </span>
+                        <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">
+                          Reserva impuestos:{" "}
+                          {formatMoney(invoiceProfitability.taxReserve)}
+                        </span>
                       </div>
                     )}
-                  {integrityBlocked ? (
+                    {statusHint &&
+                      !(type === "factura" && doc.status === "pagado") && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {statusHint}
+                        </p>
+                      )}
+                    {doc.rectification && (
+                      <p className="text-xs text-orange-700">
+                        Rectifica: {doc.rectification.originalNumber}
+                      </p>
+                    )}
+                    {doc.rectifiedById && (
+                      <p className="text-xs text-slate-400">
+                        La original queda sin efecto en los cálculos mientras
+                        exista la rectificativa.
+                      </p>
+                    )}
+                    {missingShareContact && type !== "factura" && (
+                      <p className="text-xs text-slate-500">
+                        Sin email ni teléfono para enviar desde aquí.
+                      </p>
+                    )}
+                  </div>
+                  {relationshipItems.length > 0 && (
+                    <div className="min-w-0 xl:row-span-2">
+                      <DocumentRelationshipFlow
+                        items={relationshipItems}
+                        vatExempt={vatExempt}
+                        compact
+                        onExpensesClick={
+                          type === "factura"
+                            ? () => setExpandedRelationshipDocumentId(doc.id)
+                            : undefined
+                        }
+                        removableRoles={type === "factura" ? ["gastos"] : []}
+                        onRemoveItem={
+                          type === "factura"
+                            ? (item) => {
+                                if (item.role === "gastos") {
+                                  setExpandedRelationshipDocumentId(doc.id);
+                                  return;
+                                }
+                              }
+                            : undefined
+                        }
+                      />
+                    </div>
+                  )}
+                  {appIssuedRecovered ? (
+                    <div className="md:col-start-1 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950">
+                      <p className="font-semibold">
+                        Importes recuperados para cuentas
+                      </p>
+                      <p className="mt-1">
+                        El documento permanece congelado. Conserva el PDF
+                        original: Factu no ha fabricado el sello de emisión y
+                        mantiene bloqueadas la edición, reemisión, envío y
+                        nuevas acciones fiscales. Impuestos y exportaciones
+                        siguen aplicando sus validaciones habituales.
+                      </p>
+                    </div>
+                  ) : integrityBlocked ? (
                     <div
                       role="alert"
                       className="md:col-start-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
@@ -689,103 +725,108 @@ export function DocumentList({
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
-                    {!legacyImportAttested && type === "presupuesto" && (
-                      <MarkAsAcceptedButton doc={doc} />
-                    )}
-                    {!legacyImportAttested && type === "presupuesto" && (
-                      <ConvertQuoteToInvoiceButton doc={doc} />
-                    )}
-                    {type === "presupuesto" && (
-                      <DuplicateDocumentButton doc={doc} basePath={basePath} />
-                    )}
-                    {!legacyImportAttested &&
-                      (type === "factura" || type === "recibo") && (
-                      <MarkAsPaidButton doc={doc} />
-                    )}
-                    {!legacyImportAttested && type === "factura" && (
-                      <GenerateReceiptButton doc={doc} />
-                    )}
-                    {type === "factura" && (
-                      <PaymentReminderButton
-                        doc={contactDoc}
-                        profile={data.profile}
-                      />
-                    )}
-                    <DocumentLinkManagerButton
-                      doc={doc}
-                      expanded={expandedRelationshipDocumentId === doc.id}
-                      onToggle={
-                        type === "factura"
-                          ? () =>
-                              setExpandedRelationshipDocumentId((current) =>
-                                current === doc.id ? null : doc.id,
-                              )
-                          : undefined
-                      }
-                    />
-                    <DocumentPdfShareActions
-                      doc={doc}
-                      profile={data.profile}
-                      showPreview={editable}
-                    />
-                    {rectifiable && (
-                      <IconActionLink
-                        href={`${basePath}/${doc.id}/rectificar`}
-                        label={RECTIFICATION_ACTION_COPY.label}
-                        tooltip={RECTIFICATION_ACTION_COPY.tooltip}
-                        className="bg-orange-50 text-orange-700 hover:bg-orange-100"
-                      >
-                        <FileWarning className="h-5 w-5" />
-                      </IconActionLink>
-                    )}
-                    {editable ? (
-                      <IconActionLink
-                        href={`${basePath}/${doc.id}`}
-                        label="Editar"
-                        tooltip="Editar"
-                        className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </IconActionLink>
-                    ) : (
-                      <IconActionButton
-                        label={legacyImportAttested ? "Ver copia PDF" : "Ver PDF"}
-                        tooltip={
-                          legacyImportAttested
-                            ? "Abrir una reconstrucción desde los datos importados; conserva el original"
-                            : "Ver PDF"
+                      {!legacyImportAttested && type === "presupuesto" && (
+                        <MarkAsAcceptedButton doc={doc} />
+                      )}
+                      {!legacyImportAttested && type === "presupuesto" && (
+                        <ConvertQuoteToInvoiceButton doc={doc} />
+                      )}
+                      {type === "presupuesto" && (
+                        <DuplicateDocumentButton
+                          doc={doc}
+                          basePath={basePath}
+                        />
+                      )}
+                      {!legacyImportAttested &&
+                        (type === "factura" || type === "recibo") && (
+                          <MarkAsPaidButton doc={doc} />
+                        )}
+                      {!legacyImportAttested && type === "factura" && (
+                        <GenerateReceiptButton doc={doc} />
+                      )}
+                      {type === "factura" && (
+                        <PaymentReminderButton
+                          doc={contactDoc}
+                          profile={data.profile}
+                        />
+                      )}
+                      <DocumentLinkManagerButton
+                        doc={doc}
+                        expanded={expandedRelationshipDocumentId === doc.id}
+                        onToggle={
+                          type === "factura"
+                            ? () =>
+                                setExpandedRelationshipDocumentId((current) =>
+                                  current === doc.id ? null : doc.id,
+                                )
+                            : undefined
                         }
-                        onClick={() => void handlePdfPreview(doc)}
-                        disabled={previewingDocumentId === doc.id}
-                        className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      >
-                        <Eye className="h-5 w-5" />
-                      </IconActionButton>
-                    )}
-                    <DeleteDocumentButton doc={doc} />
+                      />
+                      <DocumentPdfShareActions
+                        doc={doc}
+                        profile={data.profile}
+                        showPreview={editable}
+                      />
+                      {rectifiable && (
+                        <IconActionLink
+                          href={`${basePath}/${doc.id}/rectificar`}
+                          label={RECTIFICATION_ACTION_COPY.label}
+                          tooltip={RECTIFICATION_ACTION_COPY.tooltip}
+                          className="bg-orange-50 text-orange-700 hover:bg-orange-100"
+                        >
+                          <FileWarning className="h-5 w-5" />
+                        </IconActionLink>
+                      )}
+                      {editable ? (
+                        <IconActionLink
+                          href={`${basePath}/${doc.id}`}
+                          label="Editar"
+                          tooltip="Editar"
+                          className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        >
+                          <Pencil className="h-5 w-5" />
+                        </IconActionLink>
+                      ) : (
+                        <IconActionButton
+                          label={
+                            legacyImportAttested ? "Ver copia PDF" : "Ver PDF"
+                          }
+                          tooltip={
+                            legacyImportAttested
+                              ? "Abrir una reconstrucción desde los datos importados; conserva el original"
+                              : "Ver PDF"
+                          }
+                          onClick={() => void handlePdfPreview(doc)}
+                          disabled={previewingDocumentId === doc.id}
+                          className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        >
+                          <Eye className="h-5 w-5" />
+                        </IconActionButton>
+                      )}
+                      <DeleteDocumentButton doc={doc} />
                     </div>
                   )}
                   {type === "factura" &&
-                    expandedRelationshipDocumentId === doc.id ? (
-                      <div className="min-w-0 xl:col-span-2">
-                        <InvoiceRelationshipWorkspace
-                          doc={doc}
-                          quoteLinkEditable={
-                            editable &&
-                            !canonicalDocumentChain.some(
-                              (item) => item.role === "presupuesto",
-                            )
-                          }
-                          onClose={() => setExpandedRelationshipDocumentId(null)}
-                          onExpenseAllocationsChange={(allocations) =>
-                            setExpenseAllocationsByDocumentId((current) => ({
-                              ...current,
-                              [doc.id]: allocations,
-                            }))
-                          }
-                        />
-                      </div>
-                    ) : null}
+                  expandedRelationshipDocumentId === doc.id ? (
+                    <div className="min-w-0 xl:col-span-2">
+                      <InvoiceRelationshipWorkspace
+                        doc={doc}
+                        quoteLinkEditable={
+                          editable &&
+                          !canonicalDocumentChain.some(
+                            (item) => item.role === "presupuesto",
+                          )
+                        }
+                        onClose={() => setExpandedRelationshipDocumentId(null)}
+                        onExpenseAllocationsChange={(allocations) =>
+                          setExpenseAllocationsByDocumentId((current) => ({
+                            ...current,
+                            [doc.id]: allocations,
+                          }))
+                        }
+                      />
+                    </div>
+                  ) : null}
                 </Card>
               </Fragment>
             );
@@ -830,7 +871,8 @@ function matchesDocumentStatusFilter(
       : deriveDocumentLifecycle(document) === "draft";
   }
   if (filter === "accepted") return isAcceptedQuote(document);
-  if (filter === "expired") return isQuoteExpired(document) || document.status === "vencido";
+  if (filter === "expired")
+    return isQuoteExpired(document) || document.status === "vencido";
   if (filter === "converted") {
     return Boolean(findInvoiceCreatedFromQuote(allDocuments, document.id));
   }

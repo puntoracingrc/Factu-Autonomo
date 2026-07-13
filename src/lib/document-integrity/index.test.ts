@@ -127,6 +127,33 @@ function expectIntegrityError(
 }
 
 describe("document integrity domain", () => {
+  it.each([
+    ["aplicada", { status: "applied", repairId: "repair-1" }],
+    ["revertida", { status: "rolled_back", repairId: "repair-1" }],
+    ["malformada", null],
+  ])(
+    "congela edición y emisión por presencia de una recuperación %s",
+    (_label, claim) => {
+      const claimedDraft = {
+        ...doc(),
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+
+      expectIntegrityError(
+        () => assertDocumentEditable(claimedDraft),
+        "DOCUMENT_LOCKED",
+      );
+      expectIntegrityError(
+        () => issueDocument(claimedDraft, profile, NOW),
+        "DOCUMENT_LOCKED",
+      );
+      expectIntegrityError(
+        () => applyGenericDocumentUpdate(doc(), claimedDraft),
+        "DOCUMENT_LOCKED",
+      );
+    },
+  );
+
   it("permite editar un borrador desbloqueado", () => {
     const draft = doc();
     expect(() => assertDocumentEditable(draft)).not.toThrow();
@@ -471,6 +498,30 @@ describe("document integrity domain", () => {
     expect(sent.sentAt).toBe("2026-06-24T10:05:00.000Z");
   });
 
+  it.each([
+    ["aplicada", { status: "applied", repairId: "repair-1" }],
+    ["revertida", { status: "rolled_back", repairId: "repair-1" }],
+    ["malformada", null],
+  ])(
+    "rechaza envío y cobro directos cuando la recuperación está %s",
+    (_label, claim) => {
+      const issued = issueDocument(doc(), profile, NOW);
+      const recovered = {
+        ...issued,
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+
+      expectIntegrityError(
+        () => markDocumentSent(recovered, "2026-06-24T10:05:00.000Z"),
+        "DOCUMENT_LOCKED",
+      );
+      expectIntegrityError(
+        () => markDocumentPaid(recovered, "2026-06-24T10:10:00.000Z"),
+        "DOCUMENT_LOCKED",
+      );
+    },
+  );
+
   it("marcar enviado dos veces es estable e idempotente", () => {
     const issued = issueDocument(doc(), profile, NOW);
     const first = markDocumentSent(issued, "2026-06-24T10:05:00.000Z");
@@ -519,6 +570,39 @@ describe("document integrity domain", () => {
     expect(accepted.acceptanceStatus).toBe("accepted");
     expect(accepted.acceptedAt).toBe("2026-06-24T10:15:00.000Z");
   });
+
+  it.each([
+    ["activa", { status: "applied", repairId: "repair-1" }],
+    ["revertida", { status: "rolled_back", repairId: "repair-1" }],
+    ["corrupta", { status: "unexpected", repairId: 7 }],
+    ["nula", null],
+  ])(
+    "bloquea aceptar y rechazar por presencia de una recuperación %s",
+    (_label, claim) => {
+      const issuedQuote = issueDocument(
+        doc({
+          type: "presupuesto",
+          number: "P-2026-0002",
+          verifactu: undefined,
+        }),
+        profile,
+        NOW,
+      );
+      const claimedQuote = {
+        ...issuedQuote,
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+
+      expectIntegrityError(
+        () => acceptQuote(claimedQuote, "2026-06-24T10:15:00.000Z"),
+        "DOCUMENT_LOCKED",
+      );
+      expectIntegrityError(
+        () => rejectQuote(claimedQuote, "2026-06-24T10:15:00.000Z"),
+        "DOCUMENT_LOCKED",
+      );
+    },
+  );
 
   it("aceptar presupuesto dos veces es estable e idempotente", () => {
     const issuedQuote = issueDocument(

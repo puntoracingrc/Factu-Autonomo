@@ -13,6 +13,7 @@ import {
   type SyncChange,
 } from "./diff";
 import { applyRecurringOccurrenceExclusionToData } from "../recurring-expenses";
+import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
 
 export function trackDataDiff(prev: AppData, next: AppData): AppData {
   const incoming = diffAppData(prev, next);
@@ -39,18 +40,23 @@ export function applyRemoteChanges(
   remoteChanges: SyncChange[],
 ): AppData {
   const merged = applySyncChanges(local, remoteChanges);
+  const integrityChecked: AppData = {
+    ...merged,
+    documents: withDocumentRelationshipIntegritySignals(merged.documents),
+  };
   const newestRemote = remoteChanges.reduce(
     (max, change) => (change.updatedAt > max ? change.updatedAt : max),
     local.meta?.lastSyncedAt ?? "1970-01-01T00:00:00.000Z",
   );
 
   return {
-    ...merged,
+    ...integrityChecked,
     meta: {
-      ...merged.meta,
-      lastModified: merged.meta?.lastModified ?? new Date().toISOString(),
+      ...integrityChecked.meta,
+      lastModified:
+        integrityChecked.meta?.lastModified ?? new Date().toISOString(),
       lastSyncedAt: newestRemote,
-      pendingChanges: merged.meta?.pendingChanges,
+      pendingChanges: integrityChecked.meta?.pendingChanges,
     },
   };
 }
@@ -66,7 +72,10 @@ export function markChangesSynced(
       ...data.meta,
       lastModified: data.meta?.lastModified ?? syncedAt,
       lastSyncedAt: syncedAt,
-      pendingChanges: clearSyncedChanges(data.meta?.pendingChanges, syncedChanges),
+      pendingChanges: clearSyncedChanges(
+        data.meta?.pendingChanges,
+        syncedChanges,
+      ),
     },
   };
   return markFullySynced(next, syncedAt);
@@ -163,13 +172,11 @@ export function mergeRemoteOntoLocal(
  * repone antes de normalizar; si no, normalizeLoadedData ejecuta la migración
  * legacy y deja sus sellos en cola para devolverlos a la nube.
  */
-export function rebuildCloudSnapshot(
-  remoteChanges: SyncChange[],
-): { data: AppData; applied: number } {
-  const merged = mergeRemoteOntoLocal(
-    emptyCloudBootstrapData(),
-    remoteChanges,
-  );
+export function rebuildCloudSnapshot(remoteChanges: SyncChange[]): {
+  data: AppData;
+  applied: number;
+} {
+  const merged = mergeRemoteOntoLocal(emptyCloudBootstrapData(), remoteChanges);
   return {
     data: normalizeImportedCloudData(merged.data),
     applied: merged.applied,

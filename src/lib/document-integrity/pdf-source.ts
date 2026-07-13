@@ -1,14 +1,19 @@
 import { documentAmounts } from "@/lib/vat-regime";
 import {
   deriveDocumentLifecycle,
+  DocumentIntegrityError,
   isDocumentIntegrityLocked,
 } from "@/lib/document-integrity";
+import { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
 import {
   assertDocumentSnapshotsIntegrity,
   deriveLegacySnapshotForReadOnly,
 } from "@/lib/document-integrity/snapshots";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
-import { resolveIssuerForDocument, type IssuerProfile } from "@/lib/issuer-snapshot";
+import {
+  resolveIssuerForDocument,
+  type IssuerProfile,
+} from "@/lib/issuer-snapshot";
 import type {
   BusinessProfile,
   Document,
@@ -21,10 +26,7 @@ import type {
 } from "@/lib/types";
 
 export type DocumentPdfSourceKind =
-  | "live"
-  | "snapshot"
-  | "snapshot_without_pdf_settings"
-  | "legacy_read_only";
+  "live" | "snapshot" | "snapshot_without_pdf_settings" | "legacy_read_only";
 
 export interface DocumentPdfLineView extends LineItem {
   subtotal?: number;
@@ -45,6 +47,15 @@ export interface DocumentPdfViewModel {
   pdfSnapshot?: DocumentPdfSnapshot;
   hasOriginalDocumentSnapshot: boolean;
   hasOriginalPdfSnapshot: boolean;
+}
+
+function assertProtectedPdfActionAllowed(doc: Document): void {
+  if (!hasAppIssuedRecoveryProtectionClaim(doc)) return;
+
+  throw new DocumentIntegrityError(
+    "DOCUMENT_LOCKED",
+    "Un documento recuperado conserva su PDF original y no se puede renderizar ni reemitir desde datos reconstruidos.",
+  );
 }
 
 function cloneTaxSummary(summary: TaxSummarySnapshot): TaxSummarySnapshot {
@@ -96,9 +107,7 @@ function docFromSnapshot(
   };
 }
 
-function issuerFromSnapshot(
-  snapshot: DocumentSnapshot,
-): IssuerProfile {
+function issuerFromSnapshot(snapshot: DocumentSnapshot): IssuerProfile {
   return {
     commercialName: snapshot.issuer.commercialName?.trim() || undefined,
     name: snapshot.issuer.name,
@@ -121,7 +130,10 @@ function logoUrlFromIssuer(issuer: IssuerProfile): string | undefined {
   return issuer.logoUrl?.startsWith("data:image/") ? issuer.logoUrl : undefined;
 }
 
-function liveViewModel(doc: Document, profile: BusinessProfile): DocumentPdfViewModel {
+function liveViewModel(
+  doc: Document,
+  profile: BusinessProfile,
+): DocumentPdfViewModel {
   if (doc.documentSnapshot || doc.pdfSnapshot) {
     assertDocumentSnapshotsIntegrity(doc);
   }
@@ -177,23 +189,20 @@ function snapshotViewModel(
 export function isHistoricalPdfRenderRequired(doc: Document): boolean {
   const hasHistoricalEvidence = Boolean(
     doc.documentSnapshot ||
-      doc.pdfSnapshot ||
-      doc.snapshotSeal ||
-      doc.snapshotIntegrityRequired ||
-      doc.snapshotIntegrity,
+    doc.pdfSnapshot ||
+    doc.snapshotSeal ||
+    doc.snapshotIntegrityRequired ||
+    doc.snapshotIntegrity,
   );
   if (hasHistoricalEvidence) return true;
   if (doc.type === "presupuesto") return false;
 
   return (
-    deriveDocumentLifecycle(doc) !== "draft" ||
-    isDocumentIntegrityLocked(doc)
+    deriveDocumentLifecycle(doc) !== "draft" || isDocumentIntegrityLocked(doc)
   );
 }
 
-export function getDocumentPdfSource(
-  doc: Document,
-): DocumentPdfSourceKind {
+export function getDocumentPdfSource(doc: Document): DocumentPdfSourceKind {
   if (!isHistoricalPdfRenderRequired(doc)) return "live";
   if (doc.documentSnapshot && doc.pdfSnapshot) return "snapshot";
   if (doc.documentSnapshot) return "snapshot_without_pdf_settings";
@@ -204,6 +213,7 @@ export function buildPdfViewModelFromLiveDocument(
   doc: Document,
   profile: BusinessProfile,
 ): DocumentPdfViewModel {
+  assertProtectedPdfActionAllowed(doc);
   return liveViewModel(doc, profile);
 }
 
@@ -212,6 +222,8 @@ export function buildPdfViewModelFromDocumentSnapshot(
   profile: BusinessProfile,
   snapshot = doc.documentSnapshot,
 ): DocumentPdfViewModel {
+  assertProtectedPdfActionAllowed(doc);
+
   if (!snapshot) {
     assertDocumentSnapshotsIntegrity(doc);
     return snapshotViewModel(
@@ -249,6 +261,8 @@ export function buildPdfViewModelForDocument(
   doc: Document,
   profile: BusinessProfile,
 ): DocumentPdfViewModel {
+  assertProtectedPdfActionAllowed(doc);
+
   if (!isHistoricalPdfRenderRequired(doc)) {
     return buildPdfViewModelFromLiveDocument(doc, profile);
   }
@@ -260,6 +274,8 @@ export function buildCanonicalDocumentForProtectedEffect(
   doc: Document,
   profile: BusinessProfile,
 ): Document {
+  assertProtectedPdfActionAllowed(doc);
+
   if (
     doc.documentSnapshot ||
     doc.pdfSnapshot ||

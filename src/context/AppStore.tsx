@@ -30,10 +30,7 @@ import {
   type RecurringExpenseChangeApplyResult,
   type RecurringExpenseDraft,
 } from "@/lib/recurring-expenses";
-import {
-  ensureCustomerForDocument,
-  type ClientInput,
-} from "@/lib/customers";
+import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { normalizeBusinessFiscalProfile } from "@/lib/fiscal-profile";
@@ -63,6 +60,7 @@ import {
 import type { DocumentKind } from "@/lib/types";
 import {
   canMarkAsCollected,
+  canUnmarkAsCollected,
   statusAfterUnmarkingCollection,
 } from "@/lib/income";
 import {
@@ -81,9 +79,7 @@ import {
   findInvoiceCreatedFromQuote,
 } from "@/lib/quote-to-invoice";
 import { trackDataDiff } from "@/lib/cloud/incremental";
-import {
-  unmarkInvoiceCollection,
-} from "@/lib/receipts";
+import { unmarkInvoiceCollection } from "@/lib/receipts";
 import {
   runReceiptGenerationCommand,
   type ReceiptGenerationCommandResult,
@@ -149,7 +145,10 @@ import {
   type DocumentLinkUpdate,
 } from "@/lib/document-links";
 import { repairDocumentCustomerSnapshot } from "@/lib/document-customer-repair";
-import { normalizeProductCatalogItem, purchaseProductKey } from "@/lib/purchase-products";
+import {
+  normalizeProductCatalogItem,
+  purchaseProductKey,
+} from "@/lib/purchase-products";
 import {
   renameProductFamilyInAppData,
   type ProductFamilyRenameResult,
@@ -163,6 +162,14 @@ import {
   type DurableLegacyImportRepairResult,
 } from "@/lib/document-integrity/legacy-import-repair-command";
 import type { LegacyImportRepairPreview } from "@/lib/document-integrity/legacy-import-attestation";
+import {
+  runAppIssuedDocumentRecoveryCommand,
+  runAppIssuedDocumentRecoveryRollbackCommand,
+  type AppIssuedDocumentRecoveryPreview,
+  type AppIssuedDocumentRecoveryRollbackPreview,
+  type DurableAppIssuedDocumentRecoveryResult,
+  type DurableAppIssuedDocumentRecoveryRollbackResult,
+} from "@/lib/document-integrity/app-issued-recovery-command";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -191,8 +198,18 @@ interface AppStoreValue {
     preview: LegacyImportRepairPreview,
     expected: AppData,
   ) => DurableLegacyImportRepairResult;
+  applyAppIssuedDocumentRecovery: (
+    preview: AppIssuedDocumentRecoveryPreview,
+    expected: AppData,
+  ) => DurableAppIssuedDocumentRecoveryResult;
+  rollbackAppIssuedDocumentRecovery: (
+    preview: AppIssuedDocumentRecoveryRollbackPreview,
+    expected: AppData,
+  ) => DurableAppIssuedDocumentRecoveryRollbackResult;
   updateProfile: (profile: BusinessProfile) => void;
-  addDocument: (doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">) => Document;
+  addDocument: (
+    doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
+  ) => Document;
   issueDocument: (id: string) => Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
   addRectificativa: (
@@ -223,9 +240,7 @@ interface AppStoreValue {
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
   saveFixedExpenseWithRecurringTemplate: (
-    expense:
-      | Omit<Expense, "id" | "createdAt">
-      | Expense,
+    expense: Omit<Expense, "id" | "createdAt"> | Expense,
     item: RecurringExpenseDraft,
     options: {
       expected: AppData;
@@ -233,7 +248,9 @@ interface AppStoreValue {
       supplier?: Omit<Supplier, "id" | "createdAt">;
     },
   ) => AppDataDurabilityResult<FixedExpenseBundleValue>;
-  addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Product;
+  addProduct: (
+    product: Omit<Product, "id" | "createdAt" | "updatedAt">,
+  ) => Product;
   updateProduct: (product: Product) => void;
   renameProductFamily: (
     sourceFamily: string,
@@ -285,7 +302,9 @@ interface AppStoreValue {
     removeIds: string[],
     options?: MergeCustomersOptions,
   ) => void;
-  addCustomer: (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Customer;
+  addCustomer: (
+    customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
+  ) => Customer;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
   upsertCustomerForDocument: (
@@ -404,7 +423,10 @@ function saveEditableDocument(
     return editableQuoteWithLocalStatus(next, updatedAt);
   }
 
-  if (deriveDocumentLifecycle(current) !== "draft" || next.status === "borrador") {
+  if (
+    deriveDocumentLifecycle(current) !== "draft" ||
+    next.status === "borrador"
+  ) {
     return applyGenericDocumentUpdate(current, next, updatedAt);
   }
 
@@ -577,24 +599,55 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [commitDurableAppData],
   );
 
-  const updateProfile = useCallback((profile: BusinessProfile) => {
-    setAppData((prev) => ({
-      ...prev,
-      profile: {
-        ...profile,
-        iva: normalizeIvaSettings(profile.iva),
-        numbering: normalizeNumbering(profile.numbering),
-        documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
-        documentPaymentMethods: normalizeDocumentPaymentMethods(
-          profile.documentPaymentMethods,
-        ),
-        documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
-        documentUnits: normalizeDocumentUnits(profile.documentUnits),
-        appPreferences: normalizeAppPreferences(profile.appPreferences),
-        fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
-      },
-    }));
-  }, [setAppData]);
+  const applyAppIssuedDocumentRecovery = useCallback(
+    (
+      preview: AppIssuedDocumentRecoveryPreview,
+      expected: AppData,
+    ): DurableAppIssuedDocumentRecoveryResult =>
+      runAppIssuedDocumentRecoveryCommand({
+        expected,
+        preview,
+        now: new Date().toISOString(),
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const rollbackAppIssuedDocumentRecovery = useCallback(
+    (
+      preview: AppIssuedDocumentRecoveryRollbackPreview,
+      expected: AppData,
+    ): DurableAppIssuedDocumentRecoveryRollbackResult =>
+      runAppIssuedDocumentRecoveryRollbackCommand({
+        expected,
+        preview,
+        now: new Date().toISOString(),
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const updateProfile = useCallback(
+    (profile: BusinessProfile) => {
+      setAppData((prev) => ({
+        ...prev,
+        profile: {
+          ...profile,
+          iva: normalizeIvaSettings(profile.iva),
+          numbering: normalizeNumbering(profile.numbering),
+          documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
+          documentPaymentMethods: normalizeDocumentPaymentMethods(
+            profile.documentPaymentMethods,
+          ),
+          documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
+          documentUnits: normalizeDocumentUnits(profile.documentUnits),
+          appPreferences: normalizeAppPreferences(profile.appPreferences),
+          fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
+        },
+      }));
+    },
+    [setAppData],
+  );
 
   const addDocument = useCallback(
     (
@@ -658,69 +711,70 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const updateDocument = useCallback(async (doc: Document): Promise<Document> => {
-    let saved: Document | null = null;
-    const now = new Date().toISOString();
-    setAppData((prev) => {
-      const current = findUniqueDocumentById(prev.documents, doc.id);
-      if (!current) throw new Error("Documento no encontrado o ID duplicado");
+  const updateDocument = useCallback(
+    async (doc: Document): Promise<Document> => {
+      let saved: Document | null = null;
+      const now = new Date().toISOString();
+      setAppData((prev) => {
+        const current = findUniqueDocumentById(prev.documents, doc.id);
+        if (!current) throw new Error("Documento no encontrado o ID duplicado");
 
-      const canonicalDocument = preserveRectificationOriginalReference(
-        current,
-        doc,
-        prev.documents,
-        prev.profile,
-      );
-      const emissionProfile = profileForRectificationSource(
-        canonicalDocument,
-        prev.documents,
-        prev.profile,
-      );
-      const shouldIssue =
-        deriveDocumentLifecycle(current) === "draft" &&
-        canonicalDocument.status !== "borrador";
-      const prepared = shouldIssue
-        ? assignFinalInvoiceIdentityIfNeeded(
-            canonicalDocument,
-            prev.documents,
-            prev.profile.numbering,
-          )
-        : { doc: canonicalDocument };
-      if (shouldIssue) {
-        assertRectificationEmissionAllowed(prepared.doc, prev.documents);
-      }
-      saved = saveEditableDocument(
-        current,
-        prepared.doc,
-        emissionProfile,
-        now,
-      );
-      const nextDocuments = applyEmittedRectificationToOriginal(
-        prev.documents.map((item) =>
-          item.id === doc.id ? saved! : item,
-        ),
-        saved,
-        now,
-      );
-      return {
-        ...prev,
-        profile: prepared.assignment
-          ? {
-              ...prev.profile,
-              numbering: bumpNumberingAfterAssign(
-                prev.profile.numbering,
-                prepared.assignment.kind,
-                prepared.assignment.year,
-                prepared.assignment.sequence,
-              ),
-            }
-          : prev.profile,
-        documents: nextDocuments,
-      };
-    });
-    if (!saved) throw new Error("Documento no encontrado");
-    return saved;
-  }, [setAppData]);
+        const canonicalDocument = preserveRectificationOriginalReference(
+          current,
+          doc,
+          prev.documents,
+          prev.profile,
+        );
+        const emissionProfile = profileForRectificationSource(
+          canonicalDocument,
+          prev.documents,
+          prev.profile,
+        );
+        const shouldIssue =
+          deriveDocumentLifecycle(current) === "draft" &&
+          canonicalDocument.status !== "borrador";
+        const prepared = shouldIssue
+          ? assignFinalInvoiceIdentityIfNeeded(
+              canonicalDocument,
+              prev.documents,
+              prev.profile.numbering,
+            )
+          : { doc: canonicalDocument };
+        if (shouldIssue) {
+          assertRectificationEmissionAllowed(prepared.doc, prev.documents);
+        }
+        saved = saveEditableDocument(
+          current,
+          prepared.doc,
+          emissionProfile,
+          now,
+        );
+        const nextDocuments = applyEmittedRectificationToOriginal(
+          prev.documents.map((item) => (item.id === doc.id ? saved! : item)),
+          saved,
+          now,
+        );
+        return {
+          ...prev,
+          profile: prepared.assignment
+            ? {
+                ...prev.profile,
+                numbering: bumpNumberingAfterAssign(
+                  prev.profile.numbering,
+                  prepared.assignment.kind,
+                  prepared.assignment.year,
+                  prepared.assignment.sequence,
+                ),
+              }
+            : prev.profile,
+          documents: nextDocuments,
+        };
+      });
+      if (!saved) throw new Error("Documento no encontrado");
+      return saved;
+    },
+    [setAppData],
+  );
 
   const repairDocumentCustomer = useCallback(
     (documentId: string, customerId: string): Document | null => {
@@ -787,11 +841,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
         assertRectificationEmissionAllowed(prepared.doc, prev.documents);
         assertDocumentEmissionValid(prepared.doc, emissionProfile);
-        issued = issueDocumentWithIntegrity(
-          prepared.doc,
-          emissionProfile,
-          now,
-        );
+        issued = issueDocumentWithIntegrity(prepared.doc, emissionProfile, now);
         const nextDocuments = applyEmittedRectificationToOriginal(
           prev.documents.map((doc) => (doc.id === id ? issued! : doc)),
           issued,
@@ -879,8 +929,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         invoiceId,
         now: new Date().toISOString(),
         createId: newId,
-        commit: (baseline, build) =>
-          commitDurableAppData(baseline, build),
+        commit: (baseline, build) => commitDurableAppData(baseline, build),
       });
     },
     [commitDurableAppData],
@@ -890,7 +939,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || doc.status !== "pagado") return prev;
+        if (!doc || !canUnmarkAsCollected(doc)) return prev;
 
         const now = new Date().toISOString();
         const newStatus = statusAfterUnmarkingCollection(doc);
@@ -934,7 +983,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               ? {
                   ...d,
                   status: newStatus,
-                  paymentStatus: newStatus === "vencido" ? "overdue" : "pending",
+                  paymentStatus:
+                    newStatus === "vencido" ? "overdue" : "pending",
                   paidAt: undefined,
                   updatedAt: now,
                 }
@@ -966,9 +1016,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
         return {
           ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === id ? accepted : d,
-          ),
+          documents: prev.documents.map((d) => (d.id === id ? accepted : d)),
         };
       });
     },
@@ -993,9 +1041,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
         return {
           ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === id ? next : d,
-          ),
+          documents: prev.documents.map((d) => (d.id === id ? next : d)),
         };
       });
     },
@@ -1022,9 +1068,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
         return {
           ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === id ? rejected : d,
-          ),
+          documents: prev.documents.map((d) => (d.id === id ? rejected : d)),
         };
       });
     },
@@ -1048,62 +1092,63 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
         return {
           ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === id ? next : d,
-          ),
+          documents: prev.documents.map((d) => (d.id === id ? next : d)),
         };
       });
     },
     [setAppData],
   );
 
-  const convertQuoteToInvoice = useCallback((id: string): Document | null => {
-    let result: Document | null = null;
+  const convertQuoteToInvoice = useCallback(
+    (id: string): Document | null => {
+      let result: Document | null = null;
 
-    setAppData((prev) => {
-      const existing = findInvoiceCreatedFromQuote(prev.documents, id);
-      if (existing) {
-        result = existing;
-        return prev;
-      }
+      setAppData((prev) => {
+        const existing = findInvoiceCreatedFromQuote(prev.documents, id);
+        if (existing) {
+          result = existing;
+          return prev;
+        }
 
-      const quote = findUniqueDocumentById(prev.documents, id);
-      if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
+        const quote = findUniqueDocumentById(prev.documents, id);
+        if (!quote || !canConvertQuoteToInvoice(quote)) return prev;
 
-      let canonicalQuote: Document;
-      try {
-        canonicalQuote = buildCanonicalDocumentForProtectedEffect(
-          quote,
-          prev.profile,
-        );
-      } catch {
-        return prev;
-      }
-      if (canonicalQuote.type !== "presupuesto") return prev;
+        let canonicalQuote: Document;
+        try {
+          canonicalQuote = buildCanonicalDocumentForProtectedEffect(
+            quote,
+            prev.profile,
+          );
+        } catch {
+          return prev;
+        }
+        if (canonicalQuote.type !== "presupuesto") return prev;
 
-      const draft = buildInvoiceDraftFromQuote(canonicalQuote);
-      const year = new Date(draft.date).getFullYear();
-      const numbering = prev.profile.numbering;
-      const now = new Date().toISOString();
-      const created: Document = {
-        ...draft,
-        id: newId(),
-        number: DRAFT_INVOICE_NUMBER,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const nextDocuments = [...prev.documents, created];
-      result = created;
+        const draft = buildInvoiceDraftFromQuote(canonicalQuote);
+        const year = new Date(draft.date).getFullYear();
+        const numbering = prev.profile.numbering;
+        const now = new Date().toISOString();
+        const created: Document = {
+          ...draft,
+          id: newId(),
+          number: DRAFT_INVOICE_NUMBER,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const nextDocuments = [...prev.documents, created];
+        result = created;
 
-      return {
-        ...prev,
-        documents: nextDocuments,
-        counters: countersFromDocuments(nextDocuments, year, numbering),
-      };
-    });
+        return {
+          ...prev,
+          documents: nextDocuments,
+          counters: countersFromDocuments(nextDocuments, year, numbering),
+        };
+      });
 
-    return result;
-  }, [setAppData]);
+      return result;
+    },
+    [setAppData],
+  );
 
   const addRectificativa = useCallback(
     async (
@@ -1151,18 +1196,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 prev.documents,
                 "factura_rectificativa",
                 year,
-                configuredLastForKind(
-                  numbering,
-                  "factura_rectificativa",
-                  year,
-                ),
+                configuredLastForKind(numbering, "factura_rectificativa", year),
                 numbering,
               ),
             };
-        const rectification: RectificationInfo = canonicalRectificationReference(
-          original,
-          doc.rectification,
-        );
+        const rectification: RectificationInfo =
+          canonicalRectificationReference(original, doc.rectification);
         const source: Document = {
           ...doc,
           type: "factura",
@@ -1217,42 +1256,45 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const deleteDocument = useCallback((id: string): boolean => {
-    let deleted = false;
-    setAppData((prev) => {
-      const target = findUniqueDocumentById(prev.documents, id);
-      if (!target || !getDeletePolicy(target).allowed) return prev;
+  const deleteDocument = useCallback(
+    (id: string): boolean => {
+      let deleted = false;
+      setAppData((prev) => {
+        const target = findUniqueDocumentById(prev.documents, id);
+        if (!target || !getDeletePolicy(target).allowed) return prev;
 
-      deleted = true;
-      const numbering = prev.profile.numbering;
-      const year = getDocumentYear(target, numbering);
-      const kind = target.rectification
-        ? "factura_rectificativa"
-        : target.type === "factura"
-          ? "factura"
-          : target.type === "presupuesto"
-            ? "presupuesto"
-            : "recibo";
-      const remaining = prev.documents.filter((d) => d.id !== id);
-      const renumbered = renumberDocumentsForKindYear(
-        remaining,
-        kind,
-        year,
-        numbering,
-      );
+        deleted = true;
+        const numbering = prev.profile.numbering;
+        const year = getDocumentYear(target, numbering);
+        const kind = target.rectification
+          ? "factura_rectificativa"
+          : target.type === "factura"
+            ? "factura"
+            : target.type === "presupuesto"
+              ? "presupuesto"
+              : "recibo";
+        const remaining = prev.documents.filter((d) => d.id !== id);
+        const renumbered = renumberDocumentsForKindYear(
+          remaining,
+          kind,
+          year,
+          numbering,
+        );
 
-      return {
-        ...prev,
-        profile: {
-          ...prev.profile,
-          numbering: syncNumberingToDocuments(numbering, renumbered),
-        },
-        documents: renumbered,
-        counters: countersFromDocuments(renumbered, year, numbering),
-      };
-    });
-    return deleted;
-  }, [setAppData]);
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            numbering: syncNumberingToDocuments(numbering, renumbered),
+          },
+          documents: renumbered,
+          counters: countersFromDocuments(renumbered, year, numbering),
+        };
+      });
+      return deleted;
+    },
+    [setAppData],
+  );
 
   const addExpense = useCallback(
     (expense: Omit<Expense, "id" | "createdAt">) => {
@@ -1267,19 +1309,25 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const deleteExpense = useCallback((id: string) => {
-    const excludedAt = new Date().toISOString();
-    setAppData((prev) => deleteExpenseFromData(prev, id, excludedAt));
-  }, [setAppData]);
+  const deleteExpense = useCallback(
+    (id: string) => {
+      const excludedAt = new Date().toISOString();
+      setAppData((prev) => deleteExpenseFromData(prev, id, excludedAt));
+    },
+    [setAppData],
+  );
 
-  const updateExpense = useCallback((expense: Expense) => {
-    setAppData((prev) => ({
-      ...prev,
-      expenses: prev.expenses.map((entry) =>
-        entry.id === expense.id ? expense : entry,
-      ),
-    }));
-  }, [setAppData]);
+  const updateExpense = useCallback(
+    (expense: Expense) => {
+      setAppData((prev) => ({
+        ...prev,
+        expenses: prev.expenses.map((entry) =>
+          entry.id === expense.id ? expense : entry,
+        ),
+      }));
+    },
+    [setAppData],
+  );
 
   const saveFixedExpenseWithRecurringTemplate = useCallback(
     (
@@ -1311,11 +1359,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const baseline = durableStorageBaselineRef.current;
         if (baseline.status !== "known") return baseline;
         if (
-          !durableBaselineContainsFixedExpenseBundle(
-            baseline.data,
-            command,
-            { now },
-          )
+          !durableBaselineContainsFixedExpenseBundle(baseline.data, command, {
+            now,
+          })
         ) {
           return { status: "blocked", reason: "stale_precondition" };
         }
@@ -1331,10 +1377,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       if (inspected.status === "blocked") return inspected;
 
-      return commitDurableAppData(
-        options.expected,
-        () => inspected.transition,
-      );
+      return commitDurableAppData(options.expected, () => inspected.transition);
     },
     [commitDurableAppData],
   );
@@ -1358,18 +1401,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const updateProduct = useCallback((product: Product) => {
-    const updated = normalizeProductCatalogItem({
-      ...product,
-      updatedAt: new Date().toISOString(),
-    });
-    setAppData((prev) => ({
-      ...prev,
-      products: prev.products.map((entry) =>
-        entry.id === product.id ? updated : entry,
-      ),
-    }));
-  }, [setAppData]);
+  const updateProduct = useCallback(
+    (product: Product) => {
+      const updated = normalizeProductCatalogItem({
+        ...product,
+        updatedAt: new Date().toISOString(),
+      });
+      setAppData((prev) => ({
+        ...prev,
+        products: prev.products.map((entry) =>
+          entry.id === product.id ? updated : entry,
+        ),
+      }));
+    },
+    [setAppData],
+  );
 
   const renameProductFamily = useCallback(
     (sourceFamily: string, targetFamily: string): ProductFamilyRenameResult => {
@@ -1384,68 +1430,86 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const deleteProduct = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      products: prev.products.filter((product) => product.id !== id),
-    }));
-  }, [setAppData]);
-
-  const mergeProducts = useCallback((keepId: string, removeIds: string[]) => {
-    const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
-    if (uniqueRemoveIds.length === 0) return;
-
-    setAppData((prev) => {
-      const keep = prev.products.find((product) => product.id === keepId);
-      if (!keep) return prev;
-
-      const removed = prev.products.filter((product) =>
-        uniqueRemoveIds.includes(product.id),
-      );
-      if (removed.length === 0) return prev;
-
-      const aliases = [
-        ...(keep.aliases ?? []),
-        ...removed.flatMap((product) => [product.key, ...(product.aliases ?? [])]),
-      ];
-      const merged = normalizeProductCatalogItem({
-        ...keep,
-        aliases,
-        sku: keep.sku ?? removed.find((product) => product.sku)?.sku,
-        externalId:
-          keep.externalId ?? removed.find((product) => product.externalId)?.externalId,
-        unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
-        supplierId:
-          keep.supplierId ?? removed.find((product) => product.supplierId)?.supplierId,
-        supplierName:
-          keep.supplierName ??
-          removed.find((product) => product.supplierName)?.supplierName,
-        pvp: keep.pvp ?? removed.find((product) => product.pvp !== undefined)?.pvp,
-        cost:
-          keep.cost ?? removed.find((product) => product.cost !== undefined)?.cost,
-        ivaPercent:
-          keep.ivaPercent ??
-          removed.find((product) => product.ivaPercent !== undefined)?.ivaPercent,
-        sales: keep.sales ?? removed.find((product) => product.sales)?.sales,
-        purchase:
-          keep.purchase ?? removed.find((product) => product.purchase)?.purchase,
-        calculation:
-          keep.calculation ??
-          removed.find((product) => product.calculation)?.calculation,
-        attributes:
-          keep.attributes ??
-          removed.find((product) => product.attributes?.length)?.attributes,
-        updatedAt: new Date().toISOString(),
-      });
-
-      return {
+  const deleteProduct = useCallback(
+    (id: string) => {
+      setAppData((prev) => ({
         ...prev,
-        products: prev.products
-          .filter((product) => !uniqueRemoveIds.includes(product.id))
-          .map((product) => (product.id === keepId ? merged : product)),
-      };
-    });
-  }, [setAppData]);
+        products: prev.products.filter((product) => product.id !== id),
+      }));
+    },
+    [setAppData],
+  );
+
+  const mergeProducts = useCallback(
+    (keepId: string, removeIds: string[]) => {
+      const uniqueRemoveIds = [...new Set(removeIds)].filter(
+        (id) => id !== keepId,
+      );
+      if (uniqueRemoveIds.length === 0) return;
+
+      setAppData((prev) => {
+        const keep = prev.products.find((product) => product.id === keepId);
+        if (!keep) return prev;
+
+        const removed = prev.products.filter((product) =>
+          uniqueRemoveIds.includes(product.id),
+        );
+        if (removed.length === 0) return prev;
+
+        const aliases = [
+          ...(keep.aliases ?? []),
+          ...removed.flatMap((product) => [
+            product.key,
+            ...(product.aliases ?? []),
+          ]),
+        ];
+        const merged = normalizeProductCatalogItem({
+          ...keep,
+          aliases,
+          sku: keep.sku ?? removed.find((product) => product.sku)?.sku,
+          externalId:
+            keep.externalId ??
+            removed.find((product) => product.externalId)?.externalId,
+          unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
+          supplierId:
+            keep.supplierId ??
+            removed.find((product) => product.supplierId)?.supplierId,
+          supplierName:
+            keep.supplierName ??
+            removed.find((product) => product.supplierName)?.supplierName,
+          pvp:
+            keep.pvp ??
+            removed.find((product) => product.pvp !== undefined)?.pvp,
+          cost:
+            keep.cost ??
+            removed.find((product) => product.cost !== undefined)?.cost,
+          ivaPercent:
+            keep.ivaPercent ??
+            removed.find((product) => product.ivaPercent !== undefined)
+              ?.ivaPercent,
+          sales: keep.sales ?? removed.find((product) => product.sales)?.sales,
+          purchase:
+            keep.purchase ??
+            removed.find((product) => product.purchase)?.purchase,
+          calculation:
+            keep.calculation ??
+            removed.find((product) => product.calculation)?.calculation,
+          attributes:
+            keep.attributes ??
+            removed.find((product) => product.attributes?.length)?.attributes,
+          updatedAt: new Date().toISOString(),
+        });
+
+        return {
+          ...prev,
+          products: prev.products
+            .filter((product) => !uniqueRemoveIds.includes(product.id))
+            .map((product) => (product.id === keepId ? merged : product)),
+        };
+      });
+    },
+    [setAppData],
+  );
 
   const addRecurringExpense = useCallback(
     (
@@ -1543,10 +1607,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteRecurringExpense = useCallback(
-    (
-      id: string,
-      expected: AppData,
-    ): AppDataDurabilityResult<string> => {
+    (id: string, expected: AppData): AppDataDurabilityResult<string> => {
       const matches = expected.recurringExpenses.filter(
         (entry) => entry.id === id,
       );
@@ -1566,7 +1627,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const addUserReminder = useCallback(
     (
-      item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
+      item: Omit<
+        UserReminder,
+        "id" | "completed" | "createdAt" | "updatedAt"
+      > & {
         completed?: boolean;
       },
     ): UserReminder => {
@@ -1637,12 +1701,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const deleteUserReminder = useCallback((id: string) => {
-    setAppData((prev) => ({
-      ...prev,
-      userReminders: prev.userReminders.filter((entry) => entry.id !== id),
-    }));
-  }, [setAppData]);
+  const deleteUserReminder = useCallback(
+    (id: string) => {
+      setAppData((prev) => ({
+        ...prev,
+        userReminders: prev.userReminders.filter((entry) => entry.id !== id),
+      }));
+    },
+    [setAppData],
+  );
 
   const addSupplier = useCallback(
     (supplier: Omit<Supplier, "id" | "createdAt">): Supplier => {
@@ -1688,90 +1755,112 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const deleteSupplier = useCallback((id: string) => {
-    setAppData((prev) => deleteSupplierMasterFromData(prev, id));
-  }, [setAppData]);
+  const deleteSupplier = useCallback(
+    (id: string) => {
+      setAppData((prev) => deleteSupplierMasterFromData(prev, id));
+    },
+    [setAppData],
+  );
 
-  const updateSupplier = useCallback((supplier: Supplier) => {
-    setAppData((prev) => ({
-      ...prev,
-      suppliers: prev.suppliers.map((entry) =>
-        entry.id === supplier.id ? supplier : entry,
-      ),
-      expenses: prev.expenses.map((expense) =>
-        expense.supplierId === supplier.id
-          ? { ...expense, supplierName: supplier.name }
-          : expense,
-      ),
-    }));
-  }, [setAppData]);
-
-  const mergeSuppliers = useCallback((keepId: string, removeIds: string[]) => {
-    const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
-    if (uniqueRemoveIds.length === 0) return;
-
-    setAppData((prev) => {
-      const keep = prev.suppliers.find((supplier) => supplier.id === keepId);
-      if (!keep) return prev;
-
-      const removed = prev.suppliers.filter((supplier) =>
-        uniqueRemoveIds.includes(supplier.id),
-      );
-      const removedNames = removed.map((supplier) => supplier.name);
-      const enrichedKeep: Supplier = {
-        ...keep,
-        nif: keep.nif ?? removed.find((supplier) => supplier.nif)?.nif,
-        email: keep.email ?? removed.find((supplier) => supplier.email)?.email,
-        phone: keep.phone ?? removed.find((supplier) => supplier.phone)?.phone,
-        website:
-          keep.website ?? removed.find((supplier) => supplier.website)?.website,
-        streetType:
-          keep.streetType ??
-          removed.find((supplier) => supplier.streetType)?.streetType,
-        address:
-          keep.address ?? removed.find((supplier) => supplier.address)?.address,
-        city: keep.city ?? removed.find((supplier) => supplier.city)?.city,
-        postalCode:
-          keep.postalCode ??
-          removed.find((supplier) => supplier.postalCode)?.postalCode,
-        notes: keep.notes ?? removed.find((supplier) => supplier.notes)?.notes,
-        category:
-          keep.category ?? removed.find((supplier) => supplier.category)?.category,
-      };
-
-      return {
+  const updateSupplier = useCallback(
+    (supplier: Supplier) => {
+      setAppData((prev) => ({
         ...prev,
-        suppliers: prev.suppliers
-          .filter((supplier) => !uniqueRemoveIds.includes(supplier.id))
-          .map((supplier) => (supplier.id === keepId ? enrichedKeep : supplier)),
-        expenses: prev.expenses.map((expense) => {
-          if (expense.supplierId && uniqueRemoveIds.includes(expense.supplierId)) {
-            return {
-              ...expense,
-              supplierId: keepId,
-              supplierName: enrichedKeep.name,
-            };
-          }
+        suppliers: prev.suppliers.map((entry) =>
+          entry.id === supplier.id ? supplier : entry,
+        ),
+        expenses: prev.expenses.map((expense) =>
+          expense.supplierId === supplier.id
+            ? { ...expense, supplierName: supplier.name }
+            : expense,
+        ),
+      }));
+    },
+    [setAppData],
+  );
 
-          if (
-            removedNames.some(
-              (name) =>
-                supplierSimilarityScore(expense.supplierName, name) >=
-                SUPPLIER_AUTO_LINK_SCORE,
-            )
-          ) {
-            return {
-              ...expense,
-              supplierId: keepId,
-              supplierName: enrichedKeep.name,
-            };
-          }
+  const mergeSuppliers = useCallback(
+    (keepId: string, removeIds: string[]) => {
+      const uniqueRemoveIds = [...new Set(removeIds)].filter(
+        (id) => id !== keepId,
+      );
+      if (uniqueRemoveIds.length === 0) return;
 
-          return expense;
-        }),
-      };
-    });
-  }, [setAppData]);
+      setAppData((prev) => {
+        const keep = prev.suppliers.find((supplier) => supplier.id === keepId);
+        if (!keep) return prev;
+
+        const removed = prev.suppliers.filter((supplier) =>
+          uniqueRemoveIds.includes(supplier.id),
+        );
+        const removedNames = removed.map((supplier) => supplier.name);
+        const enrichedKeep: Supplier = {
+          ...keep,
+          nif: keep.nif ?? removed.find((supplier) => supplier.nif)?.nif,
+          email:
+            keep.email ?? removed.find((supplier) => supplier.email)?.email,
+          phone:
+            keep.phone ?? removed.find((supplier) => supplier.phone)?.phone,
+          website:
+            keep.website ??
+            removed.find((supplier) => supplier.website)?.website,
+          streetType:
+            keep.streetType ??
+            removed.find((supplier) => supplier.streetType)?.streetType,
+          address:
+            keep.address ??
+            removed.find((supplier) => supplier.address)?.address,
+          city: keep.city ?? removed.find((supplier) => supplier.city)?.city,
+          postalCode:
+            keep.postalCode ??
+            removed.find((supplier) => supplier.postalCode)?.postalCode,
+          notes:
+            keep.notes ?? removed.find((supplier) => supplier.notes)?.notes,
+          category:
+            keep.category ??
+            removed.find((supplier) => supplier.category)?.category,
+        };
+
+        return {
+          ...prev,
+          suppliers: prev.suppliers
+            .filter((supplier) => !uniqueRemoveIds.includes(supplier.id))
+            .map((supplier) =>
+              supplier.id === keepId ? enrichedKeep : supplier,
+            ),
+          expenses: prev.expenses.map((expense) => {
+            if (
+              expense.supplierId &&
+              uniqueRemoveIds.includes(expense.supplierId)
+            ) {
+              return {
+                ...expense,
+                supplierId: keepId,
+                supplierName: enrichedKeep.name,
+              };
+            }
+
+            if (
+              removedNames.some(
+                (name) =>
+                  supplierSimilarityScore(expense.supplierName, name) >=
+                  SUPPLIER_AUTO_LINK_SCORE,
+              )
+            ) {
+              return {
+                ...expense,
+                supplierId: keepId,
+                supplierName: enrichedKeep.name,
+              };
+            }
+
+            return expense;
+          }),
+        };
+      });
+    },
+    [setAppData],
+  );
 
   const addCustomer = useCallback(
     (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">): Customer => {
@@ -1791,51 +1880,58 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const updateCustomer = useCallback((customer: Customer) => {
-    setAppData((prev) => ({
-      ...prev,
-      customers: prev.customers.map((c) =>
-        c.id === customer.id
-          ? { ...customer, updatedAt: new Date().toISOString() }
-          : c,
-      ),
-    }));
-  }, [setAppData]);
-
-  const deleteCustomer = useCallback((id: string) => {
-    setAppData((prev) => deleteCustomerMasterFromData(prev, id));
-  }, [setAppData]);
-
-  const mergeCustomers = useCallback((
-    keepId: string,
-    removeIds: string[],
-    options?: MergeCustomersOptions,
-  ) => {
-    const uniqueRemoveIds = [...new Set(removeIds)].filter((id) => id !== keepId);
-    if (uniqueRemoveIds.length === 0) return;
-
-    setAppData((prev) => {
-      const merge = mergeCustomerRecords(
-        prev.customers,
-        keepId,
-        uniqueRemoveIds,
-      );
-      if (!merge) return prev;
-
-      return {
+  const updateCustomer = useCallback(
+    (customer: Customer) => {
+      setAppData((prev) => ({
         ...prev,
-        customers: merge.customers,
-        documents: prev.documents.map((document) =>
-          applyCustomerMergeToDocument(
-            document,
-            merge.keep,
-            merge.removed,
-            options,
-          ),
+        customers: prev.customers.map((c) =>
+          c.id === customer.id
+            ? { ...customer, updatedAt: new Date().toISOString() }
+            : c,
         ),
-      };
-    });
-  }, [setAppData]);
+      }));
+    },
+    [setAppData],
+  );
+
+  const deleteCustomer = useCallback(
+    (id: string) => {
+      setAppData((prev) => deleteCustomerMasterFromData(prev, id));
+    },
+    [setAppData],
+  );
+
+  const mergeCustomers = useCallback(
+    (keepId: string, removeIds: string[], options?: MergeCustomersOptions) => {
+      const uniqueRemoveIds = [...new Set(removeIds)].filter(
+        (id) => id !== keepId,
+      );
+      if (uniqueRemoveIds.length === 0) return;
+
+      setAppData((prev) => {
+        const merge = mergeCustomerRecords(
+          prev.customers,
+          keepId,
+          uniqueRemoveIds,
+        );
+        if (!merge) return prev;
+
+        return {
+          ...prev,
+          customers: merge.customers,
+          documents: prev.documents.map((document) =>
+            applyCustomerMergeToDocument(
+              document,
+              merge.keep,
+              merge.removed,
+              options,
+            ),
+          ),
+        };
+      });
+    },
+    [setAppData],
+  );
 
   const upsertCustomerForDocument = useCallback(
     (
@@ -1913,9 +2009,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         verifactuChain:
           chainOverride === undefined ? prev.verifactuChain : chainOverride,
-        documents: prev.documents.map((d) =>
-          d.id === sealed.id ? sealed : d,
-        ),
+        documents: prev.documents.map((d) => (d.id === sealed.id ? sealed : d)),
       }));
 
       return sealed;
@@ -1931,6 +2025,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       getCurrentData,
       replaceDataIfCurrent,
       applyImportedLegacyDocumentRepair,
+      applyAppIssuedDocumentRecovery,
+      rollbackAppIssuedDocumentRecovery,
       updateProfile,
       addDocument,
       issueDocument,
@@ -1986,6 +2082,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       getCurrentData,
       replaceDataIfCurrent,
       applyImportedLegacyDocumentRepair,
+      applyAppIssuedDocumentRecovery,
+      rollbackAppIssuedDocumentRecovery,
       updateProfile,
       addDocument,
       issueDocument,
@@ -2045,6 +2143,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
 export function useAppStore(): AppStoreValue {
   const ctx = useContext(AppStoreContext);
-  if (!ctx) throw new Error("useAppStore debe usarse dentro de AppStoreProvider");
+  if (!ctx)
+    throw new Error("useAppStore debe usarse dentro de AppStoreProvider");
   return ctx;
 }

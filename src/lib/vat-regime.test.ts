@@ -5,7 +5,7 @@ import {
   isVatExempt,
   zeroIvaItems,
 } from "./vat-regime";
-import { issueDocument } from "./document-integrity";
+import { buildDocumentSnapshot, issueDocument } from "./document-integrity";
 import { DEFAULT_PROFILE, type Document, type Expense } from "./types";
 
 describe("vat-regime", () => {
@@ -73,6 +73,49 @@ describe("vat-regime", () => {
       iva: 21,
       total: 121,
     });
+  });
+
+  it("bloquea un snapshot recovery colocado fuera de su atestación", () => {
+    const document: Document = {
+      id: "synthetic-misplaced-recovery",
+      type: "factura",
+      number: "F-TEST-RECOVERY-INVALID",
+      date: "2026-07-13",
+      client: { name: "Cliente sintético" },
+      items: [
+        {
+          id: "synthetic-line",
+          description: "Servicio sintético",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      createdAt: "2026-07-13T10:00:00.000Z",
+      updatedAt: "2026-07-13T10:00:00.000Z",
+    };
+    const snapshot = buildDocumentSnapshot(
+      document,
+      { ...DEFAULT_PROFILE, name: "Negocio sintético", nif: "B12345678" },
+      {
+        capturedAt: "2026-07-13T10:00:00.000Z",
+        source: "app_issued_recovery",
+      },
+    );
+
+    expect(
+      documentAmounts(
+        {
+          ...document,
+          documentSnapshot: snapshot,
+          snapshotIntegrityRequired: true,
+        },
+        false,
+      ),
+    ).toEqual({ subtotal: 0, iva: 0, total: 0 });
   });
 
   it("usa importe base en gastos exentos", () => {
@@ -226,6 +269,16 @@ describe("vat-regime", () => {
   });
 
   it("pone IVA a cero en líneas", () => {
-    expect(zeroIvaItems([{ id: "1", description: "A", quantity: 1, unitPrice: 1, ivaPercent: 21 }])[0].ivaPercent).toBe(0);
+    expect(
+      zeroIvaItems([
+        {
+          id: "1",
+          description: "A",
+          quantity: 1,
+          unitPrice: 1,
+          ivaPercent: 21,
+        },
+      ])[0].ivaPercent,
+    ).toBe(0);
   });
 });

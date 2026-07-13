@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canMarkAsCollected,
+  canUnmarkAsCollected,
   collectedIncome,
   isCollectedDocument,
   isPendingInvoicePayment,
@@ -213,12 +214,35 @@ function attestedHistoricalCancellationPair(customerId: string): Document[] {
     "2026-07-13T08:00:00.000Z",
   );
   if (result.status !== "applied") {
-    throw new Error(`No se pudo atestar la anulación histórica: ${result.reason}`);
+    throw new Error(
+      `No se pudo atestar la anulación histórica: ${result.reason}`,
+    );
   }
   return result.data.documents;
 }
 
 describe("income helpers", () => {
+  it.each([
+    ["aplicada", { status: "applied", repairId: "repair-1" }],
+    ["malformada", null],
+  ])(
+    "impide transiciones de cobro para una recuperación %s",
+    (_label, claim) => {
+      const pendingRecovered = {
+        ...invoice("enviado"),
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+      const paidRecovered = {
+        ...invoice("pagado"),
+        appIssuedRecoveryAttestation: claim,
+      } as unknown as Document;
+
+      expect(canMarkAsCollected(pendingRecovered)).toBe(false);
+      expect(canUnmarkAsCollected(paidRecovered)).toBe(false);
+      expect(statusAfterUnmarkingCollection(paidRecovered)).toBe("pagado");
+    },
+  );
+
   it("cuenta facturas y recibos manuales cobrados", () => {
     const docs: Document[] = [
       invoice("pagado", 121, { id: "1", number: "F-2026-0001" }),

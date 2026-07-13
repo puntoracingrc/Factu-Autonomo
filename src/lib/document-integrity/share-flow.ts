@@ -8,6 +8,7 @@ import {
   hasLegacyImportProtectionClaim,
   inspectUsableHistoricalDocumentEvidence,
 } from "./legacy-import-attestation";
+import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-protection";
 
 export interface ShareDocumentFlowInput {
   doc: Document;
@@ -26,12 +27,13 @@ function needsIssueBeforeShare(doc: Document): boolean {
   if (doc.type === "presupuesto") return false;
 
   return (
-    deriveDocumentLifecycle(doc) === "draft" &&
-    !isDocumentIntegrityLocked(doc)
+    deriveDocumentLifecycle(doc) === "draft" && !isDocumentIntegrityLocked(doc)
   );
 }
 
 export function canShareDocumentFromList(doc: Document): boolean {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) return false;
+
   if (hasLegacyImportProtectionClaim(doc)) {
     const inspected = inspectUsableHistoricalDocumentEvidence(doc);
     return (
@@ -50,6 +52,13 @@ export async function shareDocumentWithIntegrity({
   share,
   markSentOnShare = true,
 }: ShareDocumentFlowInput): Promise<ShareDocumentFlowResult> {
+  if (hasAppIssuedRecoveryProtectionClaim(doc)) {
+    throw new DocumentIntegrityError(
+      "DOCUMENT_LOCKED",
+      "Un documento recuperado solo puede consultarse y no se puede compartir ni reemitir.",
+    );
+  }
+
   if (hasLegacyImportProtectionClaim(doc)) {
     const inspected = inspectUsableHistoricalDocumentEvidence(doc);
     if (

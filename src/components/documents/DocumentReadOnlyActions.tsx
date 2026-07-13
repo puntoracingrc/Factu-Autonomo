@@ -13,6 +13,11 @@ import { useAppStore } from "@/context/AppStore";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
 import {
+  inspectAppIssuedDocumentRecovery,
+  inspectAppIssuedDocumentRecoveryCollection,
+} from "@/lib/document-integrity/app-issued-recovery";
+import { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
+import {
   isDocumentUsableForFinancialCalculations,
   isUsableLegacyImportedDocument,
 } from "@/lib/document-integrity/legacy-import-attestation";
@@ -47,7 +52,22 @@ export function DocumentReadOnlyActions({
     doc.type === "presupuesto"
       ? findInvoiceCreatedFromQuote(data.documents, doc.id)
       : undefined;
-  const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
+  const recoveryInspection = hasAppIssuedRecoveryProtectionClaim(doc)
+    ? inspectAppIssuedDocumentRecovery(doc)
+    : null;
+  const recoveryCollection = inspectAppIssuedDocumentRecoveryCollection(
+    data.documents,
+  );
+  const appIssuedRecovered = Boolean(
+    recoveryInspection?.ok &&
+    recoveryInspection.active &&
+    recoveryCollection.validDocumentIds.has(doc.id) &&
+    isDocumentUsableForFinancialCalculations(doc),
+  );
+  const integrityBlocked =
+    !appIssuedRecovered &&
+    (doc.snapshotIntegrity?.status === "blocked" ||
+      hasAppIssuedRecoveryProtectionClaim(doc));
   const integrityFeedback = getDocumentIntegrityBlockedFeedback(
     doc.snapshotIntegrity?.issues,
   );
@@ -70,6 +90,20 @@ export function DocumentReadOnlyActions({
             Está congelado y puede usarse en impuestos y rentabilidad. No tiene
             un sello moderno ni un registro Veri*Factu de Factu. Cualquier PDF
             generado aquí es una reconstrucción: conserva el archivo original.
+          </span>
+        </div>
+      )}
+      {appIssuedRecovered && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950">
+          <span className="block font-bold">
+            Documento de Factu · recuperado y revisado
+          </span>
+          <span className="mt-1 block">
+            Sus importes vuelven a estar disponibles para cuentas y
+            rentabilidad. Impuestos y exportaciones conservan sus validaciones
+            fiscales anteriores. Permanece congelado y las acciones de emisión
+            siguen bloqueadas porque la recuperación no fabrica el sello
+            original. Conserva el PDF aportado.
           </span>
         </div>
       )}
@@ -104,7 +138,7 @@ export function DocumentReadOnlyActions({
           .
         </p>
       )}
-      {!integrityBlocked && (
+      {!integrityBlocked && !appIssuedRecovered && (
         <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
           {!legacyImportAttested && doc.type === "presupuesto" && (
             <MarkAsAcceptedButton doc={doc} />
@@ -128,7 +162,7 @@ export function DocumentReadOnlyActions({
         </div>
       )}
 
-      {!integrityBlocked && missingContact && (
+      {!integrityBlocked && !appIssuedRecovered && missingContact && (
         <p className="text-sm text-slate-500">
           Para enviar por email o WhatsApp, añade el contacto del cliente en{" "}
           <Link

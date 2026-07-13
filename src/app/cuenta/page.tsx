@@ -22,6 +22,7 @@ import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard"
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
+import { AppIssuedDocumentRecoveryCard } from "@/components/settings/AppIssuedDocumentRecoveryCard";
 import { ImportedLegacyDocumentRepairCard } from "@/components/settings/ImportedLegacyDocumentRepairCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -188,6 +189,9 @@ export default function CuentaPage() {
         </div>
         <div id="reparacion-repartos-gastos" className="scroll-mt-24">
           <ExpenseWorkAllocationRepairCard />
+        </div>
+        <div id="recuperacion-documentos-factu" className="scroll-mt-24">
+          <AppIssuedDocumentRecoveryCard />
         </div>
       </AccountSection>
 

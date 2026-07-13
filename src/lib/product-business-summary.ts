@@ -2,6 +2,7 @@ import { documentAmounts } from "./vat-regime";
 import { roundMoney, roundMoneySymmetric } from "./calculations";
 import { deriveDocumentLifecycle } from "./document-integrity";
 import { withDocumentFinancialIntegritySignals } from "./document-integrity/financial-documents";
+import { hasAppIssuedRecoveryProtectionClaim } from "./document-integrity/app-issued-recovery-protection";
 import {
   isDocumentUsableForFinancialCalculations,
   isUsableLegacyImportedDocument,
@@ -64,15 +65,22 @@ export function isIssuedBusinessInvoice(document: Document): boolean {
     isUsableLegacyImportedDocument(document) &&
     isDocumentUsableForFinancialCalculations(document);
   if (!canMarkAsCollected(document) && !userAttestedHistorical) return false;
-  if (
-    userAttestedHistorical &&
-    (deriveDocumentLifecycle(document) !== "issued" ||
-      document.status === "borrador" ||
-      document.status === "anulada" ||
-      Boolean(document.rectifiedById))
-  ) {
+  if (userAttestedHistorical && !isReadOnlyIssuedInvoice(document)) {
     return false;
   }
+  return isSupportedIssuedInvoiceMovement(document);
+}
+
+function isReadOnlyIssuedInvoice(document: Document): boolean {
+  return Boolean(
+    deriveDocumentLifecycle(document) === "issued" &&
+    document.status !== "borrador" &&
+    document.status !== "anulada" &&
+    !document.rectifiedById,
+  );
+}
+
+function isSupportedIssuedInvoiceMovement(document: Document): boolean {
   const rectification =
     document.documentSnapshot?.rectification ?? document.rectification;
   if (!rectification) return true;
@@ -82,6 +90,25 @@ export function isIssuedBusinessInvoice(document: Document): boolean {
   return (
     rectification.type === "correccion" &&
     documentAmounts(document, false).total > 0
+  );
+}
+
+/**
+ * El resumen ya ha validado la colección completa. Solo en esa frontera una
+ * recuperación app-issued congelada puede contarse sin reutilizar el permiso
+ * operativo de marcar/desmarcar cobro.
+ */
+function isIssuedBusinessInvoiceInCheckedCollection(
+  document: Document,
+): boolean {
+  if (!hasAppIssuedRecoveryProtectionClaim(document)) {
+    return isIssuedBusinessInvoice(document);
+  }
+  return Boolean(
+    document.type === "factura" &&
+    isDocumentUsableForFinancialCalculations(document) &&
+    isReadOnlyIssuedInvoice(document) &&
+    isSupportedIssuedInvoiceMovement(document),
   );
 }
 
@@ -104,9 +131,7 @@ function expenseTotal(expense: Expense, vatExempt: boolean): number {
 }
 
 function expenseIva(expense: Expense, vatExempt: boolean): number {
-  return signedMoney(
-    expenseFiscalAmounts(expense, vatExempt).deductibleIva,
-  );
+  return signedMoney(expenseFiscalAmounts(expense, vatExempt).deductibleIva);
 }
 
 function isFixedExpense(expense: Expense): boolean {
@@ -139,10 +164,10 @@ export function buildProductBusinessSummary(
   const recentLimit = options.recentLimit ?? 4;
   const vatExempt = Boolean(data.profile.vatExempt);
   const documents = withDocumentFinancialIntegritySignals(data.documents);
-  const invoices = documents.filter(
-    (document) => document.type === "factura",
+  const invoices = documents.filter((document) => document.type === "factura");
+  const issuedInvoices = invoices.filter(
+    isIssuedBusinessInvoiceInCheckedCollection,
   );
-  const issuedInvoices = invoices.filter(isIssuedBusinessInvoice);
   const draftInvoices = invoices.filter(
     (document) => deriveDocumentLifecycle(document) === "draft",
   );
@@ -211,9 +236,8 @@ export function buildProductBusinessSummary(
 
   return {
     customersCount: data.customers.length,
-    quotesCount: documents.filter(
-      (document) => document.type === "presupuesto",
-    ).length,
+    quotesCount: documents.filter((document) => document.type === "presupuesto")
+      .length,
     invoicesCount: invoices.length,
     issuedInvoicesCount: issuedInvoices.length,
     draftInvoicesCount: draftInvoices.length,
@@ -231,10 +255,7 @@ export function buildProductBusinessSummary(
     expenseIvaEstimated,
     balanceEstimated: safeDifference(totalBilledIssued, totalExpenses),
     cashBalanceEstimated: safeDifference(totalCollectedLocal, totalExpenses),
-    recentDocuments: sortDocumentsByNewest(documents).slice(
-      0,
-      recentLimit,
-    ),
+    recentDocuments: sortDocumentsByNewest(documents).slice(0, recentLimit),
     recentExpenses: [...data.expenses]
       .sort(compareExpensesByNewest)
       .slice(0, recentLimit),
