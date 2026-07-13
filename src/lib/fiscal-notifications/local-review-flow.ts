@@ -6,6 +6,7 @@ import {
   type FiscalNotificationOcrUnavailableOutcome,
 } from "./disabled-ocr-port";
 import type { AeatEnforcementMoneyFactsResult } from "./aeat-enforcement-money-facts";
+import type { AeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationCandidateSignalStatus,
@@ -26,6 +27,8 @@ import type { AdministrativeDocumentType } from "./types";
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_FLOW_VERSION = "1.0.0" as const;
+export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION = 2 as const;
+export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_VERSION = "2.0.0" as const;
 
 export type FiscalNotificationLocalReviewReason =
   | FiscalNotificationExtractionReason
@@ -73,11 +76,14 @@ export interface FiscalNotificationLocalReviewResult {
 }
 
 export interface FiscalNotificationLocalAnalysisResult {
-  readonly schemaVersion: 1;
-  readonly analysisVersion: "1.0.0";
+  readonly schemaVersion: 2;
+  readonly analysisVersion: "2.0.0";
   readonly technicalReview: FiscalNotificationLocalReviewResult;
   readonly ephemeralEnforcementMoneyFacts:
     | AeatEnforcementMoneyFactsResult
+    | null;
+  readonly ephemeralEnforcementExplicitFields:
+    | AeatEnforcementExplicitFieldsV1
     | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
@@ -150,6 +156,7 @@ async function analyzeFiscalNotificationWithDependencies(
         candidates: [],
       }),
       null,
+      null,
     );
   }
 
@@ -184,6 +191,7 @@ async function analyzeFiscalNotificationWithDependencies(
       })),
     }),
     intake.analysis.enforcementMoneyFacts,
+    intake.analysis.enforcementExplicitFields,
   );
 }
 
@@ -208,12 +216,14 @@ export const FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM =
 function freezeAnalysisResult(
   technicalReview: FiscalNotificationLocalReviewResult,
   ephemeralEnforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null,
+  ephemeralEnforcementExplicitFields: AeatEnforcementExplicitFieldsV1 | null,
 ): FiscalNotificationLocalAnalysisResult {
   return Object.freeze({
-    schemaVersion: 1 as const,
-    analysisVersion: "1.0.0" as const,
+    schemaVersion: FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION,
+    analysisVersion: FISCAL_NOTIFICATION_LOCAL_ANALYSIS_VERSION,
     technicalReview,
     ephemeralEnforcementMoneyFacts,
+    ephemeralEnforcementExplicitFields,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
     requiresHumanReview: true as const,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
