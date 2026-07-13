@@ -15,6 +15,7 @@ const EXPECTED_CODES = [
   "030",
   "035",
   "036",
+  "037",
   "038",
   "039",
   "040",
@@ -68,6 +69,15 @@ const EXPECTED_CODES = [
   "194",
   "195",
   "196",
+  "198",
+  "199",
+  "200",
+  "202",
+  "206",
+  "210",
+  "211",
+  "213",
+  "216",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -76,14 +86,14 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(61);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(71);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
         sourceVerificationStatus: "VERIFIED",
         applicabilityStatus: "NOT_EVALUATED",
         lifecycleStatus:
-          entry.code === "150" || entry.code === "179"
+          entry.code === "037" || entry.code === "150" || entry.code === "179"
             ? "HISTORICAL"
             : "UNDETERMINED",
         reviewedOn: "2026-07-13",
@@ -120,7 +130,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "037" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "217" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -194,6 +204,10 @@ describe("public AEAT official model content v1", () => {
 
   it("keeps the source-backed access channels exact and immutable", () => {
     const expected = {
+      "037": {
+        methods: ["BROWSER_FORM"],
+        status: "SOURCE_DESCRIBED_HISTORICAL",
+      },
       "171": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
       "172": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
       "173": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
@@ -244,6 +258,36 @@ describe("public AEAT official model content v1", () => {
       "194": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
       "195": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
       "196": { methods: ["WEB_SERVICE"], status: "SOURCE_DESCRIBED" },
+      "198": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "199": { methods: ["FILE_UPLOAD"], status: "SOURCE_DESCRIBED" },
+      "200": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "202": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "206": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "210": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "211": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "213": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "216": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -295,6 +339,51 @@ describe("public AEAT official model content v1", () => {
     });
   });
 
+  it("preserves the source-backed Batch 7 lifecycle and document distinctions", () => {
+    const model037 = resolvePublicAeatOfficialModelContentV1({ code: "037" });
+    const model200 = resolvePublicAeatOfficialModelContentV1({ code: "200" });
+    const model202 = resolvePublicAeatOfficialModelContentV1({ code: "202" });
+    const model206 = resolvePublicAeatOfficialModelContentV1({ code: "206" });
+    expect(model037.status).toBe("OFFICIAL_INFORMATION");
+    expect(model200.status).toBe("OFFICIAL_INFORMATION");
+    expect(model202.status).toBe("OFFICIAL_INFORMATION");
+    expect(model206.status).toBe("OFFICIAL_INFORMATION");
+    if (
+      model037.status !== "OFFICIAL_INFORMATION" ||
+      model200.status !== "OFFICIAL_INFORMATION" ||
+      model202.status !== "OFFICIAL_INFORMATION" ||
+      model206.status !== "OFFICIAL_INFORMATION"
+    ) {
+      return;
+    }
+
+    expect(model037.data.lifecycleStatus).toBe("HISTORICAL");
+    expect(model037.data.accessMethods?.status).toBe(
+      "SOURCE_DESCRIBED_HISTORICAL",
+    );
+    expect(JSON.stringify(model037.data)).not.toContain("036");
+    expect(model037.data.documents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "FORM",
+          pageCount: 19,
+          freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+        }),
+      ]),
+    );
+    expect(model037.data.thumbnail).toMatchObject({ pageNumber: 17 });
+
+    expect(model200.data.thumbnail).toMatchObject({ pageNumber: 1 });
+    expect(model200.data.documents).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "FORM" })]),
+    );
+    expect(model202.data.thumbnail).toBeNull();
+    expect(model206.data.thumbnail).toMatchObject({ pageNumber: 1 });
+    expect(model206.data.documents).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "FORM" })]),
+    );
+  });
+
   it("keeps the Model 180 certificate with active content external-only", () => {
     const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
     expect(result.status).toBe("OFFICIAL_INFORMATION");
@@ -324,6 +413,7 @@ describe("public AEAT official model content v1", () => {
       "030",
       "035",
       "036",
+      "037",
       "039",
       "043",
       "044",
@@ -333,6 +423,8 @@ describe("public AEAT official model content v1", () => {
       "146",
       "147",
       "150",
+      "200",
+      "206",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,

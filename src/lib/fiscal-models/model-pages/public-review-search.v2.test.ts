@@ -99,6 +99,28 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("captacion capitales ajenos")).toContain("194");
     expect(resultCodes("titulares no han facilitado NIF")).toContain("195");
     expect(resultCodes("personas autorizadas saldos cuentas")).toContain("196");
+    expect(resultCodes("declaracion censal simplificada")).toContain("037");
+    expect(resultCodes("activos financieros valores mobiliarios")).toContain(
+      "198",
+    );
+    expect(resultCodes("operaciones cheques entidades credito")).toContain(
+      "199",
+    );
+    expect(resultCodes("impuesto sociedades 2025")).toContain("200");
+    expect(resultCodes("pago fraccionado sociedades")).toContain("202");
+    expect(resultCodes("no residentes establecimientos permanentes")).toContain(
+      "206",
+    );
+    expect(
+      resultCodes("no residentes sin establecimiento permanente"),
+    ).toContain("210");
+    expect(resultCodes("retencion adquisicion inmuebles")).toContain("211");
+    expect(
+      resultCodes("gravamen especial bienes inmuebles entidades"),
+    ).toContain("213");
+    expect(resultCodes("retenciones no residentes ingresos cuenta")).toContain(
+      "216",
+    );
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {

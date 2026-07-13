@@ -15,11 +15,14 @@ function officialContent(code: string) {
 }
 
 describe("FiscalModelOfficialVisual", () => {
-  it("keeps the official PDF preview when a verified thumbnail exists", () => {
-    expect(resolveFiscalModelOfficialVisualMode(officialContent("145"))).toBe(
-      "OFFICIAL_DOCUMENT_PREVIEW",
-    );
-  });
+  it.each(["037", "145", "200", "206"])(
+    "keeps the official PDF preview when Model %s has a verified thumbnail",
+    (code) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        "OFFICIAL_DOCUMENT_PREVIEW",
+      );
+    },
+  );
 
   it("uses the electronic-office visual only for an explicit AEAT procedure source", () => {
     expect(resolveFiscalModelOfficialVisualMode(officialContent("149"))).toBe(
@@ -40,6 +43,23 @@ describe("FiscalModelOfficialVisual", () => {
     ["196", "AEAT_WEB_SERVICE"],
   ] as const)(
     "uses the source-backed Batch 6 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
+    ["198", "AEAT_FORM_AND_FILE"],
+    ["199", "AEAT_FILE_UPLOAD"],
+    ["202", "AEAT_FORM_AND_FILE"],
+    ["210", "AEAT_FORM_AND_FILE"],
+    ["211", "AEAT_FORM_AND_FILE"],
+    ["213", "AEAT_FORM_AND_FILE"],
+    ["216", "AEAT_FORM_AND_FILE"],
+  ] as const)(
+    "uses the source-backed Batch 7 visual for Model %s",
     (code, mode) => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
         mode,
