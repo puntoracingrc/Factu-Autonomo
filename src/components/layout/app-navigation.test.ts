@@ -76,5 +76,11 @@ describe("app navigation", () => {
         APP_NAV_ITEMS,
       )?.href,
     ).toBe("/consultor-fiscal/modelos");
+    expect(
+      findActiveAppNavItem(
+        "/consultor-fiscal/notificaciones",
+        APP_NAV_ITEMS,
+      )?.href,
+    ).toBe("/consultor-fiscal/modelos");
   });
 });
