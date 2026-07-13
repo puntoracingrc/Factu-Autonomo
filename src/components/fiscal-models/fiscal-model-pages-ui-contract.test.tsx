@@ -101,6 +101,9 @@ describe("fiscal model structural review pages UI contract", () => {
       ["pago fraccionado sociedades", ["202"]],
       ["retencion adquisicion inmuebles", ["211"]],
       ["gravamen especial bienes inmuebles", ["213"]],
+      ["consolidacion fiscal ingreso devolucion", ["220"]],
+      ["informacion pais por pais CBC DAC4", ["231"]],
+      ["gastos guarderias educacion infantil", ["233"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
@@ -201,6 +204,9 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(officialVisual).toContain("Formulario web descrito por la AEAT");
     expect(officialVisual).toContain("Carga de fichero descrita por la AEAT");
     expect(officialVisual).toContain("Servicio web descrito por la AEAT");
+    expect(officialVisual).toContain(
+      "Formulario web y servicio web descritos por la AEAT",
+    );
     expect(officialVisual).toContain(
       "Transferencia administrativa descrita por la AEAT",
     );

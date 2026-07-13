@@ -121,6 +121,32 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("retenciones no residentes ingresos cuenta")).toContain(
       "216",
     );
+    expect(resultCodes("gravamen especial SOCIMI")).toContain("217");
+    expect(resultCodes("consolidacion fiscal ingreso devolucion")).toContain(
+      "220",
+    );
+    expect(resultCodes("activos impuesto diferido credito exigible")).toContain(
+      "221",
+    );
+    expect(resultCodes("consolidacion fiscal pago fraccionado")).toContain(
+      "222",
+    );
+    expect(resultCodes("regimen opcional residentes union europea")).toContain(
+      "226",
+    );
+    expect(
+      resultCodes("reinversion vivienda habitual no residentes"),
+    ).toContain("228");
+    expect(resultCodes("retenciones premios loterias apuestas")).toContain(
+      "230",
+    );
+    expect(resultCodes("informacion pais por pais CBC DAC4")).toContain("231");
+    expect(resultCodes("operaciones vinculadas paraisos fiscales")).toContain(
+      "232",
+    );
+    expect(resultCodes("gastos guarderias educacion infantil")).toContain(
+      "233",
+    );
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {

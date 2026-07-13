@@ -78,6 +78,16 @@ const EXPECTED_CODES = [
   "211",
   "213",
   "216",
+  "217",
+  "220",
+  "221",
+  "222",
+  "226",
+  "228",
+  "230",
+  "231",
+  "232",
+  "233",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -86,7 +96,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(71);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(81);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -130,7 +140,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "217" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "234" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -288,6 +298,34 @@ describe("public AEAT official model content v1", () => {
         methods: ["BROWSER_FORM", "FILE_UPLOAD"],
         status: "SOURCE_DESCRIBED",
       },
+      "217": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "220": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "221": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "222": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "226": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "228": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "230": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "231": {
+        methods: ["WEB_SERVICE", "BROWSER_FORM"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "232": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "233": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -384,6 +422,52 @@ describe("public AEAT official model content v1", () => {
     );
   });
 
+  it("preserves the source-backed Batch 8 document, channel and version distinctions", () => {
+    const model220 = resolvePublicAeatOfficialModelContentV1({ code: "220" });
+    const model222 = resolvePublicAeatOfficialModelContentV1({ code: "222" });
+    const model226 = resolvePublicAeatOfficialModelContentV1({ code: "226" });
+    const model231 = resolvePublicAeatOfficialModelContentV1({ code: "231" });
+    expect(model220.status).toBe("OFFICIAL_INFORMATION");
+    expect(model222.status).toBe("OFFICIAL_INFORMATION");
+    expect(model226.status).toBe("OFFICIAL_INFORMATION");
+    expect(model231.status).toBe("OFFICIAL_INFORMATION");
+    if (
+      model220.status !== "OFFICIAL_INFORMATION" ||
+      model222.status !== "OFFICIAL_INFORMATION" ||
+      model226.status !== "OFFICIAL_INFORMATION" ||
+      model231.status !== "OFFICIAL_INFORMATION"
+    ) {
+      return;
+    }
+
+    expect(model220.data.thumbnail).toMatchObject({ pageNumber: 1 });
+    expect(model220.data.documents).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "FORM" })]),
+    );
+    const model222Text = model222.data.sections
+      .flatMap((section) => section.items)
+      .map((item) => item.text)
+      .join(" ");
+    expect(model222Text).toContain("gestiones y la ayuda técnica");
+    expect(model222Text).toContain("2026 y siguientes");
+    expect(model222Text).toContain("instrucciones");
+    expect(model222Text).toContain("2025 y siguientes");
+    expect(model226.data.documents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "INSTRUCTIONS",
+          freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+        }),
+      ]),
+    );
+    expect(model226.data.thumbnail).toBeNull();
+    expect(model231.data.accessMethods).toMatchObject({
+      methods: ["WEB_SERVICE", "BROWSER_FORM"],
+      status: "SOURCE_DESCRIBED",
+    });
+    expect(model231.data.thumbnail).toBeNull();
+  });
+
   it("keeps the Model 180 certificate with active content external-only", () => {
     const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
     expect(result.status).toBe("OFFICIAL_INFORMATION");
@@ -425,6 +509,7 @@ describe("public AEAT official model content v1", () => {
       "150",
       "200",
       "206",
+      "220",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,
