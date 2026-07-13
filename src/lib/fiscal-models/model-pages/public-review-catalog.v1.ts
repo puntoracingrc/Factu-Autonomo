@@ -16,6 +16,7 @@ import { listPublicAeatOfficialModelContentsV1 } from "./official-content";
 import {
   createPublicAeatModelSearchEntryWithTermsV2,
   filterPublicAeatModelSearchEntriesV2,
+  type PublicAeatModelSearchEntryV2,
   type PublicAeatModelReviewSearchResultV2,
 } from "./public-review-search.v2";
 
@@ -509,6 +510,47 @@ const calendarNavigationByCode =
         PublicAeatModelCalendarNavigationV1
       >();
 
+function buildSearchEntrySnapshot():
+  | readonly PublicAeatModelSearchEntryV2[]
+  | null {
+  if (CATALOG_SNAPSHOT.status === "BLOCKED") return null;
+  const officialContents = listPublicAeatOfficialModelContentsV1();
+  if (officialContents.status === "BLOCKED") return null;
+  const contentByCode = new Map(
+    officialContents.data.map((content) => [content.code, content] as const),
+  );
+
+  try {
+    return Object.freeze(
+      CATALOG_SNAPSHOT.data.map((page) => {
+        const content = contentByCode.get(page.code);
+        return createPublicAeatModelSearchEntryWithTermsV2(
+          page,
+          content
+            ? [
+                ...content.searchTerms,
+                content.canonicalName,
+                content.summary,
+                ...content.sections.flatMap((section) => [
+                  section.title,
+                  ...section.items.flatMap((item) => [item.heading, item.text]),
+                ]),
+                ...content.faq.flatMap((item) => [
+                  item.question,
+                  item.answer,
+                ]),
+              ]
+            : [],
+        );
+      }),
+    );
+  } catch {
+    return null;
+  }
+}
+
+const SEARCH_ENTRY_SNAPSHOT = buildSearchEntrySnapshot();
+
 export function resolvePublicAeatModelReviewPageV1(
   input: unknown,
 ): PublicAeatModelReviewResolveResultV1 {
@@ -557,36 +599,16 @@ export function searchPublicAeatModelReviewPagesV2(
   }
   const catalog = listPublicAeatModelReviewPagesV1();
   if (catalog.status === "BLOCKED") return catalog;
-  const officialContents = listPublicAeatOfficialModelContentsV1();
-  if (officialContents.status === "BLOCKED") {
+  if (SEARCH_ENTRY_SNAPSHOT === null) {
     return Object.freeze({
       status: "BLOCKED",
       reason: "INCONSISTENT_CATALOG",
     });
   }
-  const contentByCode = new Map(
-    officialContents.data.map((content) => [content.code, content] as const),
+  const result = filterPublicAeatModelSearchEntriesV2(
+    SEARCH_ENTRY_SNAPSHOT,
+    query,
   );
-
-  const entries = catalog.data.map((page) => {
-    const content = contentByCode.get(page.code);
-    return createPublicAeatModelSearchEntryWithTermsV2(
-      page,
-      content
-        ? [
-            ...content.searchTerms,
-            content.canonicalName,
-            content.summary,
-            ...content.sections.flatMap((section) => [
-              section.title,
-              ...section.items.flatMap((item) => [item.heading, item.text]),
-            ]),
-            ...content.faq.flatMap((item) => [item.question, item.answer]),
-          ]
-        : [],
-    );
-  });
-  const result = filterPublicAeatModelSearchEntriesV2(entries, query);
   if (result.status === "BLOCKED") return result;
   const matchingIds = new Set(result.data.map((entry) => entry.catalogCardId));
   const data = catalog.data.filter((page) =>

@@ -105,6 +105,10 @@ describe("fiscal model structural review pages UI contract", () => {
       ["consolidacion fiscal ingreso devolucion", ["220"]],
       ["informacion pais por pais CBC DAC4", ["231"]],
       ["gastos guarderias educacion infantil", ["233"]],
+      ["operaciones asimiladas importaciones", ["380"]],
+      ["resumen anual IVA", ["390"]],
+      ["servicios digitales interfaz digital", ["490"]],
+      ["solicitud autorizacion productos union europea", ["504"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
