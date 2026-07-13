@@ -27,6 +27,14 @@ import {
   type FiscalNotificationLocalReviewResult,
 } from "@/lib/fiscal-notifications/local-review-flow";
 import {
+  createBrowserFiscalNotificationLocalReviewStore,
+  type FiscalNotificationBrowserLocalReviewStore,
+} from "@/lib/fiscal-notifications/browser-local-review-repository";
+import type {
+  FiscalNotificationReviewSnapshot,
+  PersistedFiscalNotificationReview,
+} from "@/lib/fiscal-notifications/local-review-repository";
+import {
   FiscalNotificationPdfError,
   type FiscalNotificationPdfErrorCode,
 } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
@@ -134,6 +142,28 @@ interface SelectedFileSummary {
   readonly mimeType: string;
 }
 
+interface PendingSafeReview {
+  readonly reviewId: string;
+  readonly createdAt: string;
+  readonly result: FiscalNotificationLocalReviewResult;
+}
+
+type ReviewPersistenceState =
+  | "idle"
+  | "pending"
+  | "saving"
+  | "saved"
+  | "blocked"
+  | "indeterminate";
+
+type ReviewHistoryState =
+  | { readonly status: "loading" }
+  | {
+      readonly status: "ready";
+      readonly snapshot: FiscalNotificationReviewSnapshot;
+    }
+  | { readonly status: "blocked" };
+
 export function FiscalNotificationIntakeView() {
   const { authReady, user, emailConfirmed } = useCloudSync();
   const ownerScope =
@@ -150,7 +180,7 @@ export function FiscalNotificationIntakeView() {
         <InfoTile
           icon={ShieldCheck}
           title="Lectura local"
-          detail="El PDF y su texto no se suben ni se guardan."
+          detail="El PDF, su texto y su nombre no se suben ni se guardan."
         />
         <InfoTile
           icon={FileSearch}
@@ -208,8 +238,8 @@ export function FiscalNotificationIntakeView() {
             de aplazamiento o fraccionamiento de la AEAT.
           </li>
           <li>
-            Todavía no extrae ni guarda importes, fechas, obligado, expediente,
-            cuotas u obligaciones.
+            La ficha técnica local no contiene importes, fechas jurídicas,
+            obligado, expediente, cuotas u obligaciones.
           </li>
           <li>
             No consulta sedes oficiales, no ejecuta OCR remoto y no utiliza IA.
@@ -231,22 +261,56 @@ function FiscalNotificationReviewWorkspace({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  const processingRef = useRef(false);
+  const saveOperationRef = useRef<symbol | null>(null);
+  const storeRef = useRef<FiscalNotificationBrowserLocalReviewStore | null>(
+    null,
+  );
   const [selectedFile, setSelectedFile] =
     useState<SelectedFileSummary | null>(null);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] =
     useState<FiscalNotificationLocalReviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] =
+    useState<PendingSafeReview | null>(null);
+  const [persistenceState, setPersistenceState] =
+    useState<ReviewPersistenceState>("idle");
+  const [historyState, setHistoryState] = useState<ReviewHistoryState>({
+    status: "loading",
+  });
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    let active = true;
+    const store = createBrowserFiscalNotificationLocalReviewStore(ownerScope);
+    storeRef.current = store;
+
+    const refreshHistory = () => {
+      if (!active || storeRef.current !== store) return;
+      const loaded = store.repository.load();
+      setHistoryState(
+        loaded.status === "blocked"
+          ? { status: "blocked" }
+          : { status: "ready", snapshot: loaded.snapshot },
+      );
+    };
+
+    refreshHistory();
+    const unsubscribe = store.subscribeToExternalChanges(refreshHistory);
+    const fileInput = fileInputRef.current;
+
+    return () => {
+      active = false;
+      unsubscribe();
+      if (storeRef.current === store) storeRef.current = null;
+      saveOperationRef.current = null;
+      processingRef.current = false;
       const controller = controllerRef.current;
       controllerRef.current = null;
       controller?.abort();
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
-    [],
-  );
+      if (fileInput) fileInput.value = "";
+    };
+  }, [ownerScope]);
 
   function clearFileSelection(): void {
     setSelectedFile(null);
@@ -254,10 +318,14 @@ function FiscalNotificationReviewWorkspace({
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    if (saveOperationRef.current) return;
     controllerRef.current?.abort();
     controllerRef.current = null;
+    processingRef.current = false;
     setProcessing(false);
     setResult(null);
+    setPendingReview(null);
+    setPersistenceState("idle");
     setError(null);
     const file = event.currentTarget.files?.item(0) ?? null;
     setSelectedFile(
@@ -268,6 +336,7 @@ function FiscalNotificationReviewWorkspace({
   function cancelAnalysis(): void {
     controllerRef.current?.abort();
     controllerRef.current = null;
+    processingRef.current = false;
     setProcessing(false);
     setError(null);
     clearFileSelection();
@@ -275,6 +344,7 @@ function FiscalNotificationReviewWorkspace({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (processingRef.current || saveOperationRef.current) return;
     const file = fileInputRef.current?.files?.item(0) ?? null;
     if (!file) {
       setError("Selecciona un PDF para analizar.");
@@ -286,16 +356,20 @@ function FiscalNotificationReviewWorkspace({
       return;
     }
 
+    const reviewUuid = randomUUID.call(globalThis.crypto);
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    processingRef.current = true;
     setProcessing(true);
     setResult(null);
+    setPendingReview(null);
+    setPersistenceState("idle");
     setError(null);
     try {
       const nextResult = await analyzeFiscalNotificationLocally({
         ownerScope,
-        documentId: `notification-review:${randomUUID.call(globalThis.crypto)}`,
+        documentId: `notification-review:${reviewUuid}`,
         file,
         signal: controller.signal,
       });
@@ -306,6 +380,12 @@ function FiscalNotificationReviewWorkspace({
         return;
       }
       setResult(nextResult);
+      setPendingReview({
+        reviewId: `review:${reviewUuid}`,
+        createdAt: new Date().toISOString(),
+        result: nextResult,
+      });
+      setPersistenceState("pending");
     } catch (caught) {
       if (
         controller.signal.aborted ||
@@ -317,11 +397,67 @@ function FiscalNotificationReviewWorkspace({
     } finally {
       if (controllerRef.current === controller) {
         controllerRef.current = null;
+        processingRef.current = false;
         setProcessing(false);
         clearFileSelection();
       }
     }
   }
+
+  async function saveTechnicalReview(): Promise<void> {
+    const store = storeRef.current;
+    if (!store || !pendingReview || saveOperationRef.current) return;
+
+    const loaded = store.repository.load();
+    if (loaded.status === "blocked") {
+      setHistoryState({ status: "blocked" });
+      setPersistenceState("blocked");
+      return;
+    }
+    setHistoryState({ status: "ready", snapshot: loaded.snapshot });
+
+    const operation = Symbol("safe-review-save");
+    saveOperationRef.current = operation;
+    setPersistenceState("saving");
+    try {
+      const write = await store.repository.append({
+        expectedRevision: loaded.snapshot.revision,
+        reviewId: pendingReview.reviewId,
+        createdAt: pendingReview.createdAt,
+        result: pendingReview.result,
+      });
+      if (
+        saveOperationRef.current !== operation ||
+        storeRef.current !== store
+      ) {
+        return;
+      }
+
+      if (write.status === "applied" || write.status === "existing") {
+        setHistoryState({ status: "ready", snapshot: write.snapshot });
+        setPendingReview(null);
+        setPersistenceState("saved");
+        return;
+      }
+
+      const refreshed = store.repository.load();
+      setHistoryState(
+        refreshed.status === "blocked"
+          ? { status: "blocked" }
+          : { status: "ready", snapshot: refreshed.snapshot },
+      );
+      setPersistenceState(
+        write.status === "indeterminate" ? "indeterminate" : "blocked",
+      );
+    } finally {
+      if (saveOperationRef.current === operation) {
+        saveOperationRef.current = null;
+      }
+    }
+  }
+
+  const saving = persistenceState === "saving";
+  const busy = processing || saving;
 
   return (
     <>
@@ -349,7 +485,7 @@ function FiscalNotificationReviewWorkspace({
             name="fiscal-notification-file"
             type="file"
             accept="application/pdf,.pdf"
-            disabled={processing}
+            disabled={busy}
             onChange={handleFileChange}
             className="hidden"
             tabIndex={-1}
@@ -359,7 +495,7 @@ function FiscalNotificationReviewWorkspace({
             <Button
               type="button"
               variant="secondary"
-              disabled={processing}
+              disabled={busy}
               aria-describedby="fiscal-notification-file-help"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -370,8 +506,9 @@ function FiscalNotificationReviewWorkspace({
               id="fiscal-notification-file-help"
               className="text-sm text-slate-500"
             >
-              No mostramos ni conservamos el nombre del archivo. Al recargar,
-              el análisis desaparece.
+              No mostramos ni conservamos el nombre del archivo. El PDF y el
+              texto desaparecen; solo guardamos la ficha técnica si tú lo
+              eliges.
             </p>
           </div>
 
@@ -412,7 +549,7 @@ function FiscalNotificationReviewWorkspace({
           ) : null}
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <Button type="submit" disabled={!selectedFile || processing}>
+            <Button type="submit" disabled={!selectedFile || busy}>
               {processing ? (
                 <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
               ) : (
@@ -431,7 +568,189 @@ function FiscalNotificationReviewWorkspace({
       </Card>
 
       {result ? <ReviewResult result={result} /> : null}
+      {result ? (
+        <ReviewPersistencePanel
+          state={persistenceState}
+          canSave={pendingReview !== null}
+          onSave={saveTechnicalReview}
+        />
+      ) : null}
+      <ReviewHistory state={historyState} />
     </>
+  );
+}
+
+function ReviewPersistencePanel({
+  state,
+  canSave,
+  onSave,
+}: {
+  state: ReviewPersistenceState;
+  canSave: boolean;
+  onSave: () => Promise<void>;
+}) {
+  const copy: Readonly<Record<ReviewPersistenceState, string>> = {
+    idle: "La ficha técnica todavía no se ha guardado.",
+    pending:
+      "El análisis está disponible, pero la ficha técnica aún no se ha guardado.",
+    saving: "Guardando la ficha técnica segura en este navegador…",
+    saved:
+      "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
+    blocked:
+      "El análisis sigue disponible, pero la ficha técnica no se ha guardado. El historial existente no se ha sustituido ni borrado.",
+    indeterminate:
+      "No se puede confirmar si se guardó. Comprueba de nuevo con el mismo botón.",
+  };
+  const successful = state === "saved";
+
+  return (
+    <Card
+      className={`mt-4 ${
+        successful
+          ? "border-emerald-200 bg-emerald-50"
+          : "border-slate-200 bg-slate-50"
+      }`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-bold text-slate-950">Ficha técnica local</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            {copy[state]}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Solo incluye la traza técnica de revisión; nunca el PDF, su texto,
+            su nombre, NIF, CSV, importes ni plazos.
+          </p>
+        </div>
+        {canSave ? (
+          <Button
+            type="button"
+            variant={state === "indeterminate" ? "secondary" : "primary"}
+            disabled={state === "saving"}
+            onClick={() => void onSave()}
+          >
+            {state === "saving" ? (
+              <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+            ) : (
+              <ShieldCheck aria-hidden="true" className="h-5 w-5" />
+            )}
+            {state === "indeterminate"
+              ? "Comprobar y guardar de nuevo"
+              : state === "saving"
+                ? "Guardando ficha técnica…"
+                : "Guardar ficha técnica local"}
+          </Button>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function ReviewHistory({ state }: { state: ReviewHistoryState }) {
+  if (state.status === "loading") {
+    return (
+      <Card className="mt-6" role="status" aria-live="polite">
+        <div className="flex items-center gap-3 text-sm text-slate-700">
+          <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+          Cargando historial técnico local…
+        </div>
+      </Card>
+    );
+  }
+
+  if (state.status === "blocked") {
+    return (
+      <Card className="mt-6 border-amber-200 bg-amber-50" role="alert">
+        <div className="flex items-start gap-3">
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
+          />
+          <div>
+            <h2 className="font-bold text-amber-950">
+              Historial local no disponible
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-amber-900">
+              No se ha sustituido ni borrado ningún historial. Puedes seguir
+              analizando documentos sin guardar la ficha técnica.
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const reviews = [...state.snapshot.reviews].reverse();
+  return (
+    <Card className="mt-6" aria-labelledby="notification-review-history">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2
+            id="notification-review-history"
+            className="text-lg font-bold text-slate-950"
+          >
+            Historial técnico local
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Solo existe en este navegador y está separado por cuenta.
+          </p>
+        </div>
+        <span className="text-xs font-semibold text-slate-500">
+          {reviews.length} {reviews.length === 1 ? "ficha" : "fichas"}
+        </span>
+      </div>
+
+      {reviews.length === 0 ? (
+        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+          Aún no hay fichas técnicas guardadas para esta cuenta.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-3">
+          {reviews.map((review) => (
+            <ReviewHistoryItem key={review.reviewId} review={review} />
+          ))}
+        </ol>
+      )}
+    </Card>
+  );
+}
+
+function ReviewHistoryItem({
+  review,
+}: {
+  review: PersistedFiscalNotificationReview;
+}) {
+  const familySummary = review.result.candidates.length
+    ? review.result.candidates
+        .map((candidate) => FAMILY_LABELS[candidate.familyId])
+        .join(" · ")
+    : "Sin familia reconocida";
+  return (
+    <li className="rounded-xl border border-slate-200 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            Analizado {formatReviewTimestamp(review.createdAt)}
+          </p>
+          <h3 className="mt-1 font-bold text-slate-950">
+            {REASON_COPY[review.result.reason].title}
+          </h3>
+        </div>
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+          {review.result.status === "REVIEW_REQUIRED"
+            ? "Revisión obligatoria"
+            : "Información pendiente"}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        {familySummary}
+      </p>
+      <p className="mt-2 text-xs font-semibold text-slate-500">
+        {review.result.pageCount} páginas · {formatBytes(review.result.byteLength)}
+      </p>
+    </li>
   );
 }
 
@@ -494,13 +813,9 @@ function ReviewResult({
           </span>
         </div>
 
-        <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <ResultFact label="Páginas" value={String(result.pageCount)} />
           <ResultFact label="Tamaño" value={formatBytes(result.byteLength)} />
-          <ResultFact
-            label="Huella local"
-            value={`${result.sha256.slice(0, 12)}…`}
-          />
           <ResultFact
             label="Motor"
             value={
@@ -562,7 +877,8 @@ function ReviewResult({
           />
           <p>
             El análisis se ha realizado en este navegador. No se ha llamado a
-            un proveedor, el texto no se conserva y no existe ninguna acción
+            un proveedor y el texto no se conserva. Solo se mantiene una ficha
+            técnica segura si eliges guardarla; no existe ninguna acción
             automática pendiente.
           </p>
         </div>
@@ -593,4 +909,11 @@ function formatBytes(value: number): string {
   if (value < 1_024) return `${value} B`;
   if (value < 1_024 * 1_024) return `${Math.ceil(value / 1_024)} KB`;
   return `${(value / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
+function formatReviewTimestamp(value: string): string {
+  return new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
