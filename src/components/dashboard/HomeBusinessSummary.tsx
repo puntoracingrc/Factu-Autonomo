@@ -446,7 +446,7 @@ function RecentDocumentsCard({
             <DocumentRow
               key={document.id}
               document={document}
-              amount={safeDisplayAmount(
+              amount={safeSignedDisplayAmount(
                 documentAmounts(document, vatExempt).total,
               )}
             />

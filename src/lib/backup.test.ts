@@ -8,7 +8,9 @@ import {
   buildBackupRestoreDraft,
   downloadBackup,
   getBackupRestoreBlocker,
+  MAX_BACKUP_PREVIEW_BYTES,
   parseBackupJson,
+  PORTABLE_BACKUP_VERSION,
 } from "./backup";
 import {
   hasDocumentSnapshot,
@@ -50,7 +52,9 @@ function snapshotDocument(): Document {
   );
 }
 
-function attestedHistoricalDocument(): Document {
+function attestedHistoricalDocuments(
+  options: { count?: number; notes?: string; logoUrl?: string } = {},
+): Document[] {
   const capturedAt = "2024-04-01T10:00:00.000Z";
   const profile = {
     ...EMPTY_DATA.profile,
@@ -61,55 +65,63 @@ function attestedHistoricalDocument(): Document {
     postalCode: "28001",
     email: "negocio@example.test",
   };
-  const imported: Document = {
-    id: "pcfacturacion:factura:F-2024-0001",
-    type: "factura",
-    number: "F-2024-0001",
-    date: "2024-04-01",
-    client: {
-      name: "Cliente histórico",
-      nif: "B12345678",
-      address: "Calle Cliente 2",
-      city: "Madrid",
-      postalCode: "28002",
+  const imported = Array.from(
+    { length: options.count ?? 1 },
+    (_, index): Document => {
+      const sequence = String(index + 1).padStart(4, "0");
+      return {
+        id: `pcfacturacion:factura:F-2024-${sequence}`,
+        type: "factura",
+        number: `F-2024-${sequence}`,
+        date: "2024-04-01",
+        client: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+        },
+        items: [
+          {
+            id: `line-${sequence}`,
+            description: "",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        notes: options.notes,
+        status: "enviado",
+        issuer: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          email: "",
+          logoUrl: options.logoUrl,
+          capturedAt,
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        snapshotIntegrityRequired: true,
+        snapshotIntegrity: {
+          status: "blocked",
+          issues: [
+            "document_snapshot_missing",
+            "pdf_snapshot_missing",
+            "snapshot_seal_missing",
+          ],
+        },
+        createdAt: capturedAt,
+        updatedAt: capturedAt,
+      };
     },
-    items: [
-      {
-        id: "line-1",
-        description: "Trabajo importado",
-        quantity: 1,
-        unitPrice: 100,
-        ivaPercent: 21,
-      },
-    ],
-    status: "enviado",
-    issuer: {
-      name: profile.name,
-      nif: profile.nif,
-      address: profile.address,
-      city: profile.city,
-      postalCode: profile.postalCode,
-      email: profile.email,
-      capturedAt,
-    },
-    documentLifecycle: "issued",
-    integrityLock: "locked",
-    snapshotIntegrityRequired: true,
-    snapshotIntegrity: {
-      status: "blocked",
-      issues: [
-        "document_snapshot_missing",
-        "pdf_snapshot_missing",
-        "snapshot_seal_missing",
-      ],
-    },
-    createdAt: capturedAt,
-    updatedAt: capturedAt,
-  };
+  );
   const data = {
     ...EMPTY_DATA,
     profile,
-    documents: [imported],
+    documents: imported,
     snapshotIntegrityVersion: 1 as const,
   };
   const result = applyLegacyImportRepair(
@@ -120,7 +132,13 @@ function attestedHistoricalDocument(): Document {
   if (result.status !== "applied") {
     throw new Error("No se pudo construir el fixture histórico atestado.");
   }
-  return result.data.documents[0]!;
+  return result.data.documents;
+}
+
+function attestedHistoricalDocument(
+  options: { notes?: string; logoUrl?: string } = {},
+): Document {
+  return attestedHistoricalDocuments(options)[0]!;
 }
 
 describe("backup", () => {
@@ -1079,6 +1097,35 @@ describe("backup", () => {
 
   it("exportar e importar conserva exactamente la atestación histórica", () => {
     const document = attestedHistoricalDocument();
+    const expectedAttestation = document.legacyImportAttestation;
+    expect(expectedAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptanceBasis: "amounts_as_filed_user_attested",
+      amountOrigin: "persisted_lines_user_confirmed",
+      sourceRecord: {
+        client: { name: "", nif: "" },
+        issuer: { name: "", nif: "" },
+        items: [{ description: "" }],
+      },
+      sourceRecordHash: expect.stringMatching(/^sha256:/),
+      acceptedTaxSummary: { subtotal: 100, iva: 21, total: 121 },
+      acceptedContentPolicy: {
+        kind: "stored_fiscal_content_user_authoritative",
+        completenessExceptions: [
+          "issuer_name_missing",
+          "issuer_nif_missing_or_nonstandard",
+          "issuer_address_missing",
+          "issuer_city_missing",
+          "issuer_postal_code_missing",
+          "customer_name_missing",
+          "customer_nif_missing_or_nonstandard",
+          "customer_address_missing",
+          "customer_city_missing",
+          "customer_postal_code_missing",
+          "line_description_missing",
+        ],
+      },
+    });
     const payload = createBackupPayload(
       {
         ...EMPTY_DATA,
@@ -1093,7 +1140,7 @@ describe("backup", () => {
     expect("error" in restored).toBe(false);
     if ("error" in restored) return;
     expect(restored.documents[0]?.legacyImportAttestation).toEqual(
-      document.legacyImportAttestation,
+      expectedAttestation,
     );
     expect(restored.documents[0]?.documentSnapshot).toEqual(
       document.documentSnapshot,
@@ -1104,6 +1151,185 @@ describe("backup", () => {
       true,
     );
   });
+
+  it("restaura una copia V2 válida mayor de 5 MiB sin perder su atestación", () => {
+    const document = attestedHistoricalDocument({
+      notes: "evidencia-historica-".repeat(100_000),
+    });
+    const expectedAttestation = document.legacyImportAttestation;
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        documents: [document],
+        snapshotIntegrityVersion: 1,
+      },
+      NOW,
+    );
+    const rawText = JSON.stringify(payload);
+    const byteLength = new TextEncoder().encode(rawText).byteLength;
+
+    expect(byteLength).toBeGreaterThan(5 * 1024 * 1024);
+    expect(byteLength).toBeLessThan(MAX_BACKUP_PREVIEW_BYTES);
+
+    const restored = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-historico-grande.json",
+      mimeType: "application/json",
+      byteLength,
+      rawText,
+    });
+
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    const restoredDocument = restored.draft.data.documents[0]!;
+    expect(restoredDocument.legacyImportAttestation).toEqual(
+      expectedAttestation,
+    );
+    expect(inspectLegacyImportAttestation(restoredDocument).ok).toBe(true);
+  }, 15_000);
+
+  it("rechaza una copia mayor del límite antes de intentar leer el JSON", () => {
+    const result = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-demasiado-grande.json",
+      mimeType: "application/json",
+      byteLength: MAX_BACKUP_PREVIEW_BYTES + 1,
+      rawText: "JSON deliberadamente inválido",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "El archivo es demasiado grande para revisarlo.",
+    });
+  });
+
+  it("deduplica el logo repetido de 748 históricos V2 y lo restaura exactamente", async () => {
+    const logoUrl = `data:image/png;base64,${"A".repeat(20 * 1024)}`;
+    const template = attestedHistoricalDocument({ logoUrl });
+    // El objetivo de este corpus es el tamaño/rehidratación del formato
+    // portable. Las 748 entradas repiten deliberadamente el mismo ID para no
+    // gastar el timeout recalculando atestaciones; el restore debe conservar
+    // los assets y, por separado, bloquear correctamente esos duplicados.
+    const documents = Array.from({ length: 748 }, () => template);
+    const data = {
+      ...EMPTY_DATA,
+      documents,
+      snapshotIntegrityVersion: 1 as const,
+    };
+    const legacyRawText = JSON.stringify(createBackupPayload(data, NOW));
+
+    expect(new TextEncoder().encode(legacyRawText).byteLength).toBeGreaterThan(
+      MAX_BACKUP_PREVIEW_BYTES,
+    );
+
+    const blob = createBackupBlob(data, NOW);
+    const portableRawText = await blob.text();
+    const portable = JSON.parse(portableRawText) as {
+      metadata: { exportVersion: number };
+      assets: Record<string, string>;
+    };
+
+    expect(portable.metadata.exportVersion).toBe(PORTABLE_BACKUP_VERSION);
+    expect(Object.values(portable.assets)).toEqual([logoUrl]);
+    expect(blob.size).toBeLessThan(MAX_BACKUP_PREVIEW_BYTES);
+
+    const restored = buildBackupRestoreDraft({
+      fileName: "factu-autonomo-backup-748-historicos.json",
+      mimeType: "application/json",
+      byteLength: blob.size,
+      rawText: portableRawText,
+    });
+
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    expect(restored.draft.data.documents).toHaveLength(748);
+    expect(
+      restored.draft.data.documents.every(
+        (document) =>
+          document.issuer?.logoUrl === logoUrl &&
+          document.documentSnapshot?.issuer.logoUrl === logoUrl &&
+          document.legacyImportAttestation?.schemaVersion === 2 &&
+          document.legacyImportAttestation.sourceRecord.issuer.logoUrl ===
+            logoUrl,
+      ),
+    ).toBe(true);
+    expect(
+      restored.draft.data.documents.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+  }, 20_000);
+
+  it("rehidrata assets V2 en preview, restore y lectura directa", async () => {
+    const logoUrl = "data:image/png;base64,QUJDRA==";
+    const blob = createBackupBlob(
+      {
+        ...EMPTY_DATA,
+        profile: { ...EMPTY_DATA.profile, logoUrl },
+      },
+      NOW,
+    );
+    const rawText = await blob.text();
+    const candidate = {
+      fileName: "factu-autonomo-backup-portable.json",
+      mimeType: "application/json",
+      byteLength: blob.size,
+      rawText,
+    };
+
+    expect(buildBackupImportPreview(candidate).ok).toBe(true);
+    const draft = buildBackupRestoreDraft(candidate);
+    expect(draft.ok && draft.draft.data.profile.logoUrl).toBe(logoUrl);
+
+    const parsed = parseBackupJson(JSON.parse(rawText));
+    expect("error" in parsed).toBe(false);
+    if ("error" in parsed) return;
+    expect(parsed.profile.logoUrl).toBe(logoUrl);
+  });
+
+  it.each(["missing", "corrupt"] as const)(
+    "bloquea una referencia portable %s antes de normalizar",
+    async (failure) => {
+      const blob = createBackupBlob(
+        {
+          ...EMPTY_DATA,
+          profile: {
+            ...EMPTY_DATA.profile,
+            logoUrl: "data:image/png;base64,QUJDRA==",
+          },
+        },
+        NOW,
+      );
+      const portable = JSON.parse(await blob.text()) as {
+        assets: Record<string, string>;
+      };
+      const assetId = Object.keys(portable.assets)[0]!;
+      if (failure === "missing") {
+        delete portable.assets[assetId];
+      } else {
+        portable.assets[assetId] = `${portable.assets[assetId]}A`;
+      }
+      const rawText = JSON.stringify(portable);
+      const candidate = {
+        fileName: "factu-autonomo-backup-portable-corrupto.json",
+        mimeType: "application/json",
+        byteLength: new TextEncoder().encode(rawText).byteLength,
+        rawText,
+      };
+
+      expect(buildBackupImportPreview(candidate)).toEqual({
+        ok: false,
+        error: "La copia portable contiene referencias de assets no válidas.",
+      });
+      expect(buildBackupRestoreDraft(candidate)).toEqual({
+        ok: false,
+        error: "La copia portable contiene referencias de assets no válidas.",
+      });
+      expect(parseBackupJson(portable)).toEqual({
+        error: "La copia portable contiene referencias de assets no válidas.",
+      });
+    },
+  );
 
   it("no convierte en válida una atestación corrupta al restaurar", () => {
     const valid = attestedHistoricalDocument();

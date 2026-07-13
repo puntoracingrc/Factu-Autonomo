@@ -2,6 +2,7 @@ import type { AppData, Document } from "@/lib/types";
 import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
 import { expenseFiscalAmounts } from "@/lib/expenses";
 import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
+import { withDocumentFinancialIntegritySignals } from "@/lib/document-integrity/financial-documents";
 import {
   rentabilidadRealDocumentClientId,
   rentabilidadRealDocumentClientName,
@@ -193,27 +194,31 @@ export function dedupeQuoteInvoicePairs(appData: AppData): {
 export function buildRentabilidadRealAnalysisUnits(
   appData: AppData,
 ): RentabilidadRealAnalysisUnit[] {
+  const integrityCheckedData: AppData = {
+    ...appData,
+    documents: withDocumentFinancialIntegritySignals(appData.documents),
+  };
   const { units, pairedQuoteIds, pairedInvoiceIds } =
-    dedupeQuoteInvoicePairs(appData);
+    dedupeQuoteInvoicePairs(integrityCheckedData);
   const result = [...units];
 
-  for (const invoice of appData.documents.filter(
+  for (const invoice of integrityCheckedData.documents.filter(
     (document) =>
       document.type === "factura" &&
       isDocumentUsableForFinancialCalculations(document) &&
       !isSupersededRentabilidadRealDocument(document) &&
       !pairedInvoiceIds.has(document.id),
   )) {
-    result.push(invoiceUnit(appData, invoice));
+    result.push(invoiceUnit(integrityCheckedData, invoice));
   }
 
-  for (const quote of appData.documents.filter(
+  for (const quote of integrityCheckedData.documents.filter(
     (document) =>
       document.type === "presupuesto" &&
       !pairedQuoteIds.has(document.id) &&
       isDocumentUsableForFinancialCalculations(document),
   )) {
-    result.push(quoteUnit(appData, quote));
+    result.push(quoteUnit(integrityCheckedData, quote));
   }
 
   return result.sort((a, b) => b.date.localeCompare(a.date));

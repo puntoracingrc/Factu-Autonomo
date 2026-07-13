@@ -27,7 +27,10 @@ import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
-import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
+import {
+  isDocumentUsableForFinancialCalculations,
+  isUsableLegacyImportedDocument,
+} from "@/lib/document-integrity/legacy-import-attestation";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import {
   documentHasLinkedCustomerNameMismatch,
@@ -432,8 +435,10 @@ export function DocumentList({
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc);
+            const legacyImportAttested = isUsableLegacyImportedDocument(doc);
             const legacyImportedAccepted =
-              isUsableLegacyImportedDocument(doc);
+              legacyImportAttested &&
+              isDocumentUsableForFinancialCalculations(doc);
             const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
             const integrityFeedback = getDocumentIntegrityBlockedFeedback(
               doc.snapshotIntegrity?.issues,
@@ -684,20 +689,20 @@ export function DocumentList({
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
-                    {!legacyImportedAccepted && type === "presupuesto" && (
+                    {!legacyImportAttested && type === "presupuesto" && (
                       <MarkAsAcceptedButton doc={doc} />
                     )}
-                    {!legacyImportedAccepted && type === "presupuesto" && (
+                    {!legacyImportAttested && type === "presupuesto" && (
                       <ConvertQuoteToInvoiceButton doc={doc} />
                     )}
                     {type === "presupuesto" && (
                       <DuplicateDocumentButton doc={doc} basePath={basePath} />
                     )}
-                    {!legacyImportedAccepted &&
+                    {!legacyImportAttested &&
                       (type === "factura" || type === "recibo") && (
                       <MarkAsPaidButton doc={doc} />
                     )}
-                    {!legacyImportedAccepted && type === "factura" && (
+                    {!legacyImportAttested && type === "factura" && (
                       <GenerateReceiptButton doc={doc} />
                     )}
                     {type === "factura" && (
@@ -744,9 +749,9 @@ export function DocumentList({
                       </IconActionLink>
                     ) : (
                       <IconActionButton
-                        label={legacyImportedAccepted ? "Ver copia PDF" : "Ver PDF"}
+                        label={legacyImportAttested ? "Ver copia PDF" : "Ver PDF"}
                         tooltip={
-                          legacyImportedAccepted
+                          legacyImportAttested
                             ? "Abrir una reconstrucción desde los datos importados; conserva el original"
                             : "Ver PDF"
                         }

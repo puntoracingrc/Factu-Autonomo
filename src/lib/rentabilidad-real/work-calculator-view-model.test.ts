@@ -63,6 +63,22 @@ function expenseFixture(overrides: Partial<Expense>): Expense {
 }
 
 describe("work calculator view model", () => {
+  it("no ofrece un documento fiscal repetido como trabajo calculable", () => {
+    const invoice = documentFixture({
+      id: "duplicated-invoice",
+      status: "enviado",
+    });
+
+    const options = buildRentabilidadRealWorkDocumentOptions({
+      documents: [invoice, invoice],
+      allDocuments: [invoice, invoice],
+      expenses: [],
+    });
+
+    expect(options).toEqual([]);
+    expect(invoice.snapshotIntegrity).toBeUndefined();
+  });
+
   it("muestra gastos fijos detectados pero aplicados a cero con metodo none", () => {
     const display = buildRentabilidadRealFixedCostDisplay({
       method: "none",

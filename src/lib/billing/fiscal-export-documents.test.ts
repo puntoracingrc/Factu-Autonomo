@@ -98,6 +98,59 @@ describe("selectCanonicalFiscalDocumentsForExport", () => {
     expect(imported.snapshotSeal).toBeUndefined();
   });
 
+  it("exporta un V2 aceptado aunque conserve campos históricos incompletos", () => {
+    const imported = attestNewImportedDocument(
+      {
+        ...invoiceDraft({
+          id: "pcfacturacion:factura:Factura_2F2940_2F",
+          number: "Factura/2940/",
+          date: "2026-06-12",
+          client: { name: "Jordi Vinardell" },
+          items: [
+            {
+              id: "legacy-line",
+              description: "",
+              quantity: 1,
+              unitPrice: 100,
+              ivaPercent: 21,
+            },
+          ],
+          status: "pagado",
+        }),
+        issuer: {
+          name: "Negocio histórico",
+          nif: "",
+          commercialName: "",
+          website: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: NOW,
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-13T06:00:00.000Z",
+    );
+
+    expect(imported.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptedContentPolicy: {
+        kind: "stored_fiscal_content_user_authoritative",
+      },
+    });
+    const result = select([imported]);
+    expect(result.blockedDocuments).toEqual([]);
+    expect(result.documents).toHaveLength(1);
+    expect(result.documents[0].documentSnapshot?.taxSummary).toMatchObject({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
+  });
+
   it("ignora un borrador legítimo aunque una vista previa adjuntase emisor", () => {
     const previewDraft = invoiceDraft({
       issuer: captureIssuerSnapshot(profile, NOW),

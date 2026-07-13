@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueDocument, markDocumentPaid } from ".";
+import { attestNewImportedDocument } from "./legacy-import-attestation";
 import { buildReceiptFromInvoice } from "../receipts";
 import {
   DEFAULT_PROFILE,
@@ -111,6 +112,55 @@ function issuedRectification(
 }
 
 describe("document relationship integrity", () => {
+  it("no bloquea un histórico V2 aceptado solo porque su NIF antiguo falte", () => {
+    const historical = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:F-2024-0001",
+        type: "factura",
+        number: "F-2024-0001",
+        date: "2024-04-01",
+        client: { name: "Cliente histórico" },
+        items: [
+          {
+            id: "legacy-line",
+            description: "",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "enviado",
+        issuer: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: "2024-04-01T10:00:00.000Z",
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: "2024-04-01T10:00:00.000Z",
+        updatedAt: "2024-04-01T10:00:00.000Z",
+      },
+      PROFILE,
+      "pcfacturacion",
+      "2026-07-13T08:00:00.000Z",
+    );
+
+    const [checked] = withDocumentRelationshipIntegritySignals([historical]);
+
+    expect(historical.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptedContentPolicy: {
+        completenessExceptions: expect.arrayContaining([
+          "issuer_nif_missing_or_nonstandard",
+        ]),
+      },
+    });
+    expect(checked.snapshotIntegrity).toBeUndefined();
+  });
+
   it("acepta una anulación bidireccional que invierte exactamente -100", () => {
     const original = issuedInvoice();
     const rectification = issuedRectification(original);
@@ -816,6 +866,72 @@ describe("document relationship integrity", () => {
       ),
     ).toBe(true);
   });
+
+  it.each([
+    ["otro NIF no estándar", "NO-CONSTA"],
+    ["un NIF válido", PROFILE.nif],
+  ])(
+    "bloquea el mismo número y año con un NIF no estándar frente a %s",
+    (_label, secondNif) => {
+    const importedAt = "2026-07-11T09:00:00.000Z";
+    const historical = (id: string, nif: string, importer: "pcfacturacion" | "holded") =>
+      attestNewImportedDocument(
+        {
+          id,
+          type: "factura",
+          number: "F-2024-0001",
+          date: "2024-04-01",
+          client: { name: "Cliente histórico" },
+          items: [
+            {
+              id: `${id}-line`,
+              description: "Servicio",
+              quantity: 1,
+              unitPrice: 100,
+              ivaPercent: 21,
+            },
+          ],
+          status: "enviado",
+          issuer: {
+            name: "Negocio histórico",
+            nif,
+            address: "",
+            city: "",
+            postalCode: "",
+            capturedAt: "2024-04-01T10:00:00.000Z",
+          },
+          documentLifecycle: "issued",
+          integrityLock: "locked",
+          createdAt: "2024-04-01T10:00:00.000Z",
+          updatedAt: "2024-04-01T10:00:00.000Z",
+        },
+        PROFILE,
+        importer,
+        importedAt,
+        { issuerOrigin: "current_profile_at_import" },
+      );
+    const weak = historical(
+      "pcfacturacion:factura:F-2024-0001-a",
+      "SIN-NIF",
+      "pcfacturacion",
+    );
+    const strong = historical(
+      "holded:factura:F-2024-0001-b",
+      secondNif,
+      "holded",
+    );
+
+    const result = withDocumentRelationshipIntegritySignals([weak, strong]);
+
+    expect(
+      result.every((document) =>
+        document.snapshotIntegrity?.issues.includes(
+          "document_relationship_invalid",
+        ),
+      ),
+    ).toBe(true);
+    },
+  );
 
   it("no trata dos presupuestos iguales como una identidad fiscal duplicada", () => {
     const quote = (id: string) =>

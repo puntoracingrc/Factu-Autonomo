@@ -1,4 +1,5 @@
 import { isDocumentUsableForFinancialCalculations } from "@/lib/document-integrity/legacy-import-attestation";
+import { withDocumentFinancialIntegritySignals } from "@/lib/document-integrity/financial-documents";
 import { isFixedExpense } from "@/lib/expense-classification";
 import { expenseAllocatedAmountForWorkIds } from "@/lib/expense-work-allocations";
 import { expenseFiscalAmounts } from "@/lib/expenses";
@@ -135,7 +136,13 @@ export function buildRentabilidadRealWorkDocumentOptions({
   allDocuments,
   expenses,
 }: BuildRentabilidadRealWorkDocumentOptionsInput): RentabilidadRealWorkDocumentOption[] {
-  return documents
+  const selectedIds = new Set(documents.map((document) => document.id));
+  const integrityCheckedDocuments =
+    withDocumentFinancialIntegritySignals(allDocuments).filter((document) =>
+      selectedIds.has(document.id),
+    );
+
+  return integrityCheckedDocuments
     .filter(
       (document) =>
         !isSupersededRentabilidadRealDocument(document) &&

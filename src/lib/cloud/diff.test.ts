@@ -62,16 +62,16 @@ function attestedHistoricalData(): AppData {
     number: "F-2024-0001",
     date: "2024-04-01",
     client: {
-      name: "Cliente histórico",
-      nif: "B12345678",
-      address: "Calle Cliente 2",
-      city: "Madrid",
-      postalCode: "28002",
+      name: "",
+      nif: "",
+      address: "",
+      city: "",
+      postalCode: "",
     },
     items: [
       {
         id: "line-1",
-        description: "Trabajo importado",
+        description: "",
         quantity: 1,
         unitPrice: 100,
         ivaPercent: 21,
@@ -79,12 +79,12 @@ function attestedHistoricalData(): AppData {
     ],
     status: "enviado",
     issuer: {
-      name: profile.name,
-      nif: profile.nif,
-      address: profile.address,
-      city: profile.city,
-      postalCode: profile.postalCode,
-      email: profile.email,
+      name: "",
+      nif: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      email: "",
       capturedAt,
     },
     documentLifecycle: "issued",
@@ -350,6 +350,35 @@ describe("sync por cambios", () => {
 
   it("conserva exactamente la atestación al generar el diff y reconstruir cloud", () => {
     const source = attestedHistoricalData();
+    const expectedAttestation = source.documents[0]?.legacyImportAttestation;
+    expect(expectedAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptanceBasis: "amounts_as_filed_user_attested",
+      amountOrigin: "persisted_lines_user_confirmed",
+      sourceRecord: {
+        client: { name: "", nif: "" },
+        issuer: { name: "", nif: "" },
+        items: [{ description: "" }],
+      },
+      sourceRecordHash: expect.stringMatching(/^sha256:/),
+      acceptedTaxSummary: { subtotal: 100, iva: 21, total: 121 },
+      acceptedContentPolicy: {
+        kind: "stored_fiscal_content_user_authoritative",
+        completenessExceptions: [
+          "issuer_name_missing",
+          "issuer_nif_missing_or_nonstandard",
+          "issuer_address_missing",
+          "issuer_city_missing",
+          "issuer_postal_code_missing",
+          "customer_name_missing",
+          "customer_nif_missing_or_nonstandard",
+          "customer_address_missing",
+          "customer_city_missing",
+          "customer_postal_code_missing",
+          "line_description_missing",
+        ],
+      },
+    });
     const changes = diffAppData(emptyCloudBootstrapData(), source);
     const documentChange = changes.find(
       (change) => change.entityType === "document",
@@ -358,12 +387,12 @@ describe("sync por cambios", () => {
     expect(
       (documentChange?.payload as Document | undefined)
         ?.legacyImportAttestation,
-    ).toEqual(source.documents[0]?.legacyImportAttestation);
+    ).toEqual(expectedAttestation);
 
     const rebuilt = rebuildCloudSnapshot(changes).data;
 
     expect(rebuilt.documents[0]?.legacyImportAttestation).toEqual(
-      source.documents[0]?.legacyImportAttestation,
+      expectedAttestation,
     );
     expect(rebuilt.documents[0]?.documentSnapshot).toEqual(
       source.documents[0]?.documentSnapshot,

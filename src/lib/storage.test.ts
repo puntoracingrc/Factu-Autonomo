@@ -15,10 +15,12 @@ import { loadData, normalizeLoadedData, saveData } from "./storage";
 import {
   applyLegacyImportRepair,
   buildLegacyImportRepairPreview,
+  inspectLegacyImportAttestation,
 } from "./document-integrity/legacy-import-attestation";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
 import { hasWorkspaceContent } from "./workspace-state";
+import { documentAmounts } from "./vat-regime";
 
 const STORAGE_KEY = "factura-autonomo-data";
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -1674,43 +1676,46 @@ describe("storage", () => {
     expect(imported.documents[0].snapshotIntegrity).toBeUndefined();
   });
 
-  it("mantiene tras reload la reparación explícita de un PCF histórico v1 sin fabricar sello", () => {
-    const capturedAt = "2024-04-01T10:00:00.000Z";
+  it("mantiene tras reload la atestación V2 exacta de un PCF incompleto sin fabricar sello", () => {
+    const capturedAt = "2026-06-12T00:00:00.000Z";
     const profile = {
       ...sampleData().profile,
-      nif: "12345678Z",
-      address: "Calle Mayor 1",
-      city: "Madrid",
-      postalCode: "28001",
+      name: "",
+      nif: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      phone: "",
+      email: "",
     };
     const historical: Document = {
-      id: "pcfacturacion:factura:F-2024-0001",
+      id: "pcfacturacion:factura:Factura_2F2940_2F",
       type: "factura",
-      number: "F-2024-0001",
-      date: "2024-04-01",
+      number: "Factura/2940/",
+      date: "2026-06-12",
       client: {
-        name: "Cliente histórico",
-        nif: "B12345678",
-        address: "Calle Cliente 2",
-        city: "Madrid",
-        postalCode: "28002",
+        name: "",
+        nif: "",
+        address: "",
+        city: "",
+        postalCode: "",
       },
       items: [
         {
-          id: "line-historical",
-          description: "Trabajo importado",
+          id: "pcfacturacion:line:Factura_2F2940_2F-1",
+          description: "",
           quantity: 1,
           unitPrice: 100,
           ivaPercent: 21,
         },
       ],
-      status: "enviado",
+      status: "pagado",
       issuer: {
-        name: profile.name,
-        nif: profile.nif,
-        address: profile.address,
-        city: profile.city,
-        postalCode: profile.postalCode,
+        name: "",
+        nif: "",
+        address: "",
+        city: "",
+        postalCode: "",
         capturedAt,
       },
       documentLifecycle: "issued",
@@ -1725,9 +1730,19 @@ describe("storage", () => {
       documents: [historical],
     });
     expect(blocked.documents[0].snapshotIntegrity?.status).toBe("blocked");
+    expect(documentAmounts(blocked.documents[0], false)).toEqual({
+      subtotal: 0,
+      iva: 0,
+      total: 0,
+    });
 
     const preview = buildLegacyImportRepairPreview(blocked);
     expect(preview.affectedCount).toBe(1);
+    expect(preview.candidates[0]).toMatchObject({
+      documentNumber: "Factura/2940/",
+      importer: "pcfacturacion",
+      amounts: { subtotal: 100, iva: 21, total: 121 },
+    });
     const repaired = applyLegacyImportRepair(
       blocked,
       preview,
@@ -1735,6 +1750,98 @@ describe("storage", () => {
     );
     expect(repaired.status).toBe("applied");
     if (repaired.status !== "applied") return;
+    const expectedAttestation =
+      repaired.data.documents[0]?.legacyImportAttestation;
+    expect(expectedAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptanceBasis: "amounts_as_filed_user_attested",
+      amountOrigin: "persisted_lines_user_confirmed",
+      sourceRecord: {
+        client: { name: "", nif: "" },
+        issuer: { name: "", nif: "" },
+        items: [{ description: "" }],
+      },
+      sourceRecordHash: expect.stringMatching(/^sha256:/),
+      acceptedTaxSummary: { subtotal: 100, iva: 21, total: 121 },
+      acceptedContentPolicy: {
+        kind: "stored_fiscal_content_user_authoritative",
+        completenessExceptions: [
+          "issuer_name_missing",
+          "issuer_nif_missing_or_nonstandard",
+          "issuer_address_missing",
+          "issuer_city_missing",
+          "issuer_postal_code_missing",
+          "customer_name_missing",
+          "customer_nif_missing_or_nonstandard",
+          "customer_address_missing",
+          "customer_city_missing",
+          "customer_postal_code_missing",
+          "line_description_missing",
+        ],
+      },
+    });
+
+    const rolloutResidueReload = normalizeLoadedData({
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["pdf_snapshot_missing", "snapshot_seal_missing"],
+          },
+        },
+      ],
+    });
+    expect(rolloutResidueReload.documents[0].snapshotIntegrity).toBeUndefined();
+    expect(
+      rolloutResidueReload.documents[0].legacyImportAttestation,
+    ).toEqual(expectedAttestation);
+    expect(
+      inspectLegacyImportAttestation(rolloutResidueReload.documents[0]!),
+    ).toMatchObject({ ok: true });
+    expect(documentAmounts(rolloutResidueReload.documents[0], false).total).toBe(
+      121,
+    );
+
+    const oldClientSignalReload = normalizeLoadedData({
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["legacy_import_attestation_invalid"],
+          },
+        },
+      ],
+    });
+    expect(oldClientSignalReload.documents[0].snapshotIntegrity).toBeUndefined();
+    expect(documentAmounts(oldClientSignalReload.documents[0], false).total).toBe(
+      121,
+    );
+
+    const actuallyCorrupt = normalizeLoadedData({
+      ...repaired.data,
+      documents: [
+        {
+          ...repaired.data.documents[0],
+          legacyImportAttestation: {
+            ...repaired.data.documents[0].legacyImportAttestation!,
+            attestationHash: "sha256:corrupt",
+          },
+          snapshotIntegrity: {
+            status: "blocked",
+            issues: ["legacy_import_attestation_invalid"],
+          },
+        },
+      ],
+    });
+    expect(actuallyCorrupt.documents[0].snapshotIntegrity).toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),
+    });
+    expect(documentAmounts(actuallyCorrupt.documents[0], false).total).toBe(0);
 
     expect(saveData(repaired.data)).toEqual({ status: "applied" });
     const reloaded = loadData();
@@ -1746,23 +1853,37 @@ describe("storage", () => {
       },
       integrityLock: "locked",
     });
+    expect(reloaded.documents[0]?.legacyImportAttestation).toEqual(
+      expectedAttestation,
+    );
+    expect(
+      inspectLegacyImportAttestation(reloaded.documents[0]!),
+    ).toMatchObject({
+      ok: true,
+    });
     expect(reloaded.documents[0].pdfSnapshot).toBeUndefined();
     expect(reloaded.documents[0].snapshotSeal).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrityRequired).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrity).toBeUndefined();
+    expect(documentAmounts(reloaded.documents[0], false)).toEqual({
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+    });
+    expect(buildLegacyImportRepairPreview(reloaded).affectedCount).toBe(0);
 
     const tampered = {
       ...repaired.data,
       documents: [
         {
           ...repaired.data.documents[0],
-          status: "pagado" as const,
+          status: "enviado" as const,
         },
       ],
     };
     expect(saveData(tampered)).toEqual({ status: "applied" });
     const blockedReload = loadData();
-    expect(blockedReload.documents[0].status).toBe("pagado");
+    expect(blockedReload.documents[0].status).toBe("enviado");
     expect(blockedReload.documents[0].snapshotIntegrity).toMatchObject({
       status: "blocked",
       issues: expect.arrayContaining(["legacy_import_attestation_invalid"]),

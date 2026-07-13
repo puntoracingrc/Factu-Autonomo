@@ -32,6 +32,9 @@ describe("product dashboard home", () => {
     expect(flowChartIndex).toBeGreaterThan(-1);
     expect(periodSelectorIndex).toBeLessThan(flowChartIndex);
     expect(component).toContain("compactPeriodSelectClass");
+    expect(component).toContain(
+      "amount={safeSignedDisplayAmount(\n                documentAmounts(document, vatExempt).total",
+    );
     expect(component).toContain('<option value="month">Mes</option>');
     expect(component).toContain('<option value="quarter">Trimestre</option>');
     expect(component).toContain('<option value="year">Año</option>');

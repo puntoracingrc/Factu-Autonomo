@@ -335,8 +335,17 @@ describe("export quarterly csv", () => {
       {
         ...draftDoc,
         id: "pcfacturacion:factura:F-2026-0001",
+        client: { name: "" },
+        items: [{ ...draftDoc.items[0], description: "" }],
         status: "enviado",
-        issuer: captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+        issuer: {
+          ...captureIssuerSnapshot(profile, "2026-05-10T10:00:00.000Z"),
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+        },
         documentLifecycle: "issued",
         integrityLock: "locked",
       },
@@ -354,6 +363,17 @@ describe("export quarterly csv", () => {
     );
     expect(csv).toContain("Base imponible ventas;100,00");
     expect(csv).toContain("IVA repercutido;21,00");
+    expect(csv).toContain("100,00;21,00;121,00");
+    expect(historical.legacyImportAttestation).toMatchObject({
+      schemaVersion: 2,
+      acceptedContentPolicy: {
+        completenessExceptions: expect.arrayContaining([
+          "issuer_nif_missing_or_nonstandard",
+          "customer_nif_missing_or_nonstandard",
+          "line_description_missing",
+        ]),
+      },
+    });
     expect(historical.pdfSnapshot).toBeUndefined();
     expect(historical.snapshotSeal).toBeUndefined();
   });

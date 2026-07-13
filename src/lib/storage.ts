@@ -38,7 +38,6 @@ import {
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
 import {
   detectLegacyImportSource,
-  hasOnlyLegacyImportRolloutResidue,
   inspectUsableHistoricalDocumentEvidence,
   projectLegacyImportSnapshotOntoDocument,
 } from "./document-integrity/legacy-import-attestation";
@@ -751,6 +750,26 @@ function normalizeDocumentIntegrityState(
   return signaled;
 }
 
+const REVALIDATABLE_LEGACY_ATTESTATION_ISSUES = new Set([
+  "document_snapshot_missing",
+  "pdf_snapshot_missing",
+  "snapshot_seal_missing",
+  "legacy_import_attestation_invalid",
+  "document_relationship_invalid",
+]);
+
+function canRevalidateLegacyAttestationSignal(document: Document): boolean {
+  const signal = document.snapshotIntegrity;
+  if (!signal) return true;
+  return Boolean(
+    signal.status === "blocked" &&
+      signal.issues.length > 0 &&
+      signal.issues.every((issue) =>
+        REVALIDATABLE_LEGACY_ATTESTATION_ISSUES.has(issue),
+      ),
+  );
+}
+
 function normalizeHistoricalDocument(
   doc: Document,
   profile: BusinessProfile,
@@ -784,16 +803,18 @@ function normalizeHistoricalDocument(
   }
 
   if (doc.legacyImportAttestation) {
-    const mayClearRolloutSignal =
-      !doc.snapshotIntegrity || hasOnlyLegacyImportRolloutResidue(doc);
-    const attestation = inspectUsableHistoricalDocumentEvidence({
+    const mayClearRolloutSignal = canRevalidateLegacyAttestationSignal(doc);
+    const attestationCandidate: Document = {
       ...doc,
       snapshotIntegrity: mayClearRolloutSignal
         ? undefined
         : doc.snapshotIntegrity,
-    });
+    };
+    const attestation = inspectUsableHistoricalDocumentEvidence(
+      attestationCandidate,
+    );
     if (attestation.ok) {
-      return projectLegacyImportSnapshotOntoDocument(doc);
+      return projectLegacyImportSnapshotOntoDocument(attestationCandidate);
     }
     const signaled = normalizeDocumentIntegrityState({
       ...doc,

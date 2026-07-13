@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pullSyncChanges, pushSyncChanges } from "./repository";
 import type { SyncChange } from "./diff";
+import { buildCloudReplacementChanges } from "./sync-queue";
+import { rebuildCloudSnapshot } from "./incremental";
+import { attestNewImportedDocument, inspectLegacyImportAttestation } from "../document-integrity/legacy-import-attestation";
+import { EMPTY_DATA, type Document } from "../types";
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
@@ -165,5 +169,88 @@ describe("cloud repository", () => {
     expect(calls[0][0]).toHaveLength(500);
     expect(calls[1][0]).toHaveLength(500);
     expect(calls[2][0]).toHaveLength(201);
+  });
+
+  it("hace visible una atestación restaurada tras un watermark posterior", async () => {
+    const historical = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:Factura_2F2940_2F",
+        type: "factura",
+        number: "Factura/2940/",
+        date: "2024-06-12",
+        client: { name: "Cliente histórico" },
+        items: [
+          {
+            id: "line-historical",
+            description: "Servicio",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "enviado",
+        issuer: {
+          name: "Negocio histórico",
+          nif: "12345678Z",
+          address: "Calle Mayor 1",
+          city: "Madrid",
+          postalCode: "28001",
+          capturedAt: "2024-06-12T08:00:00.000Z",
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: "2024-06-12T08:00:00.000Z",
+        updatedAt: "2024-06-12T08:00:00.000Z",
+      },
+      {
+        ...EMPTY_DATA.profile,
+        name: "Negocio histórico",
+        nif: "12345678Z",
+        address: "Calle Mayor 1",
+        city: "Madrid",
+        postalCode: "28001",
+      },
+      "pcfacturacion",
+      "2026-07-12T22:00:00.000Z",
+    );
+    const changes = buildCloudReplacementChanges(
+      {
+        ...EMPTY_DATA,
+        documents: [historical],
+        snapshotIntegrityVersion: 1,
+      },
+      "2026-07-13T08:00:00.000Z",
+    );
+    const uploadedRows: Row[] = [];
+    const upsert = vi.fn(async (rows: Row[]) => {
+      uploadedRows.push(...rows);
+      return { error: null };
+    });
+    supabaseMock.from.mockReturnValue({ upsert });
+
+    await pushSyncChanges("user-1", changes);
+    installPullMock(uploadedRows);
+    const pulled = await pullSyncChanges(
+      "user-1",
+      "2026-07-13T07:59:59.000Z",
+    );
+    const restored = rebuildCloudSnapshot(pulled).data;
+    const restoredDocument = restored.documents.find(
+      (document) => document.id === historical.id,
+    );
+
+    expect(restoredDocument).toBeDefined();
+    expect((restoredDocument as Document).updatedAt).toBe(
+      "2024-06-12T08:00:00.000Z",
+    );
+    expect(inspectLegacyImportAttestation(restoredDocument!)).toMatchObject({
+      ok: true,
+    });
+    expect(restoredDocument?.legacyImportProvenance).toEqual(
+      historical.legacyImportProvenance,
+    );
+    expect(restoredDocument?.legacyImportAttestation).toEqual(
+      historical.legacyImportAttestation,
+    );
   });
 });

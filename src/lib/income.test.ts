@@ -3,6 +3,7 @@ import {
   canMarkAsCollected,
   collectedIncome,
   isCollectedDocument,
+  isPendingInvoicePayment,
   pendingCollection,
   statusAfterUnmarkingCollection,
 } from "./income";
@@ -11,6 +12,7 @@ import { materializeRectificationDocument } from "./document-integrity/rectifica
 import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "./issuer-snapshot";
 import { DEFAULT_PROFILE, type BusinessProfile, type Document } from "./types";
+import { collectedSalesTotal } from "./vat-regime";
 
 const IMPORT_PROFILE: BusinessProfile = {
   ...DEFAULT_PROFILE,
@@ -74,9 +76,9 @@ function invoice(
 describe("income helpers", () => {
   it("cuenta facturas y recibos manuales cobrados", () => {
     const docs: Document[] = [
-      invoice("pagado", 121),
+      invoice("pagado", 121, { id: "1", number: "F-2026-0001" }),
       invoice("pagado", 60, { id: "2", type: "recibo", number: "R-1" }),
-      invoice("enviado", 200),
+      invoice("enviado", 200, { id: "3", number: "F-2026-0003" }),
     ];
     expect(collectedIncome(docs)).toBeCloseTo(181, 0);
     expect(isCollectedDocument(docs[1])).toBe(true);
@@ -169,6 +171,116 @@ describe("income helpers", () => {
     expect(pendingCollection([rawIssuedWithoutAnySignal])).toBe(0);
   });
 
+  it("cuenta 121 euros de un PCF histórico v2 aceptado aunque falten datos formales", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice("borrador", 121, {
+          id: "pcfacturacion:factura:F-2024-0002",
+          number: "F-2024-0002",
+          date: "2024-04-02",
+          client: {
+            name: "Cliente histórico",
+          },
+          issuer: {
+            ...captureIssuerSnapshot(
+              IMPORT_PROFILE,
+              "2024-04-02T10:00:00.000Z",
+            ),
+            name: "",
+            nif: "",
+            address: "",
+            postalCode: "",
+            city: "",
+          },
+          items: [
+            {
+              id: "legacy-line-1",
+              description: "",
+              quantity: 1,
+              unitPrice: 100,
+              ivaPercent: 21,
+            },
+          ],
+        }),
+        status: "pagado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      IMPORT_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T07:30:00.000Z",
+    );
+
+    expect(historical.legacyImportAttestation?.schemaVersion).toBe(2);
+    expect(collectedIncome([historical])).toBeCloseTo(121, 2);
+    expect(isCollectedDocument(historical)).toBe(true);
+    expect(canMarkAsCollected(historical)).toBe(false);
+    expect(collectedIncome([historical, historical])).toBe(0);
+    expect(
+      collectedSalesTotal(
+        [historical, historical],
+        false,
+        isCollectedDocument,
+      ),
+    ).toBe(0);
+    expect(historical.snapshotIntegrity).toBeUndefined();
+  });
+
+  it("mantiene pendiente un PCF V2 incompleto positivo y no convierte un abono en deuda", () => {
+    const historical = (id: string, unitPrice: number) =>
+      attestNewImportedDocument(
+        {
+          ...invoice("borrador", 121, {
+            id,
+            number: id.endsWith("3") ? "F-2024-0003" : "A-2024-0001",
+            date: "2024-04-03",
+            client: { name: "Cliente histórico" },
+            issuer: {
+              ...captureIssuerSnapshot(
+                IMPORT_PROFILE,
+                "2024-04-03T10:00:00.000Z",
+              ),
+              name: "",
+              nif: "",
+              address: "",
+              postalCode: "",
+              city: "",
+            },
+            items: [
+              {
+                id: "legacy-pending-line",
+                description: "",
+                quantity: 1,
+                unitPrice,
+                ivaPercent: 21,
+              },
+            ],
+          }),
+          status: "enviado" as const,
+          documentLifecycle: "issued" as const,
+          integrityLock: "locked" as const,
+        },
+        IMPORT_PROFILE,
+        "pcfacturacion",
+        "2026-07-13T07:30:00.000Z",
+      );
+    const pending = historical(
+      "pcfacturacion:factura:F-2024-0003",
+      100,
+    );
+    const historicalCredit = historical(
+      "pcfacturacion:factura:A-2024-0001",
+      -100,
+    );
+
+    expect(isPendingInvoicePayment(pending)).toBe(true);
+    expect(pendingCollection([pending])).toBe(121);
+    expect(pendingCollection([pending, pending])).toBe(0);
+    expect(collectedIncome([pending])).toBe(0);
+    expect(isPendingInvoicePayment(historicalCredit)).toBe(false);
+    expect(pendingCollection([historicalCredit])).toBe(0);
+  });
+
   it("excluye anuladas y rectificadas del cobro", () => {
     expect(canMarkAsCollected(invoice("enviado", 100, { rectifiedById: "fr1" }))).toBe(
       false,
@@ -178,9 +290,9 @@ describe("income helpers", () => {
 
   it("calcula pendiente solo con facturas emitidas", () => {
     const docs = [
-      invoice("enviado", 100),
-      invoice("borrador", 50),
-      invoice("pagado", 30),
+      invoice("enviado", 100, { id: "pending", number: "F-2026-0001" }),
+      invoice("borrador", 50, { id: "draft", number: "F-2026-0002" }),
+      invoice("pagado", 30, { id: "paid", number: "F-2026-0003" }),
     ];
     expect(pendingCollection(docs)).toBeCloseTo(100, 0);
   });
@@ -228,7 +340,7 @@ describe("income helpers", () => {
   it("usa el total histórico sellado para cobrado y pendiente", () => {
     const issued = issueDocument(
       invoice("borrador", 121),
-      DEFAULT_PROFILE,
+      IMPORT_PROFILE,
       "2026-06-09T10:00:00.000Z",
     );
     const drifted = {

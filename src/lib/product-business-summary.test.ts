@@ -5,6 +5,8 @@ import {
 } from "./product-business-summary";
 import { issueDocument, markDocumentPaid } from "./document-integrity";
 import { withDocumentRelationshipIntegritySignals } from "./document-integrity/relationships";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import { canMarkAsCollected } from "./income";
 import {
   DEFAULT_PROFILE,
   EMPTY_DATA,
@@ -579,9 +581,17 @@ describe("buildProductBusinessSummary", () => {
   });
 
   it("excluye rectificadas y anuladas del resumen de negocio", () => {
-    const active = invoice({ id: "active" });
-    const rectified = invoice({ id: "rectified", rectifiedById: "rect" });
-    const canceled = invoice({ id: "canceled", status: "anulada" });
+    const active = invoice({ id: "active", number: "F-2026-0001" });
+    const rectified = invoice({
+      id: "rectified",
+      number: "F-2026-0002",
+      rectifiedById: "rect",
+    });
+    const canceled = invoice({
+      id: "canceled",
+      number: "F-2026-0003",
+      status: "anulada",
+    });
 
     const summary = buildProductBusinessSummary({
       ...EMPTY_DATA,
@@ -593,5 +603,140 @@ describe("buildProductBusinessSummary", () => {
     expect(isIssuedBusinessInvoice(canceled)).toBe(false);
     expect(summary.issuedInvoicesCount).toBe(1);
     expect(summary.totalBilledIssued).toBe(121);
+  });
+
+  it("incluye en todas las cuentas de negocio un histórico V2 aunque sea read-only", () => {
+    const historical = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:Factura_2F2940_2F",
+        type: "factura",
+        number: "Factura/2940/",
+        date: "2026-06-12",
+        client: { name: "Jordi Vinardell" },
+        items: [
+          {
+            id: "historical-line",
+            description: "Servicio histórico",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "pagado",
+        issuer: {
+          name: TEST_PROFILE.name,
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: NOW,
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      TEST_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T06:00:00.000Z",
+    );
+
+    expect(canMarkAsCollected(historical)).toBe(false);
+    expect(isIssuedBusinessInvoice(historical)).toBe(true);
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [historical],
+    });
+    expect(summary).toMatchObject({
+      invoicesCount: 1,
+      issuedInvoicesCount: 1,
+      collectedInvoicesCount: 1,
+      totalBilledIssued: 121,
+      totalCollectedLocal: 121,
+      totalPendingCollection: 0,
+      salesIvaEstimated: 21,
+      balanceEstimated: 121,
+      cashBalanceEstimated: 121,
+    });
+
+    const duplicatedSummary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [historical, historical],
+    });
+    expect(duplicatedSummary).toMatchObject({
+      issuedInvoicesCount: 0,
+      collectedInvoicesCount: 0,
+      pendingInvoicesCount: 0,
+      totalBilledIssued: 0,
+      totalCollectedLocal: 0,
+      totalPendingCollection: 0,
+      salesIvaEstimated: 0,
+    });
+    expect(historical.snapshotIntegrity).toBeUndefined();
+
+    const blockedHistorical: Document = {
+      ...historical,
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: ["legacy_import_attestation_invalid"],
+      },
+    };
+    expect(isIssuedBusinessInvoice(blockedHistorical)).toBe(false);
+    expect(
+      buildProductBusinessSummary({
+        ...EMPTY_DATA,
+        documents: [blockedHistorical],
+      }).totalBilledIssued,
+    ).toBe(0);
+  });
+
+  it("conserva el signo de una cifra histórica V2 confirmada", () => {
+    const historicalCredit = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:Abono_2F1_2F",
+        type: "factura",
+        number: "Abono/1/",
+        date: "2026-06-12",
+        client: { name: "Cliente histórico" },
+        items: [
+          {
+            id: "historical-credit-line",
+            description: "Abono histórico almacenado",
+            quantity: 1,
+            unitPrice: -100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "pagado",
+        issuer: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: NOW,
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      TEST_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T06:00:00.000Z",
+    );
+
+    const summary = buildProductBusinessSummary({
+      ...EMPTY_DATA,
+      documents: [historicalCredit],
+    });
+
+    expect(summary).toMatchObject({
+      totalBilledIssued: -121,
+      totalCollectedLocal: -121,
+      salesIvaEstimated: -21,
+      balanceEstimated: -121,
+      cashBalanceEstimated: -121,
+    });
   });
 });

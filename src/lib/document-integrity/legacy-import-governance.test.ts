@@ -33,9 +33,21 @@ describe("historical imported document governance", () => {
     expect(agents).toContain("app_issued");
     expect(agents).toContain("nunca se degrada a legacy");
     expect(agents).toContain("ausencia de `issuedAt`");
+    expect(agents).toContain("base, IVA y total");
+    expect(agents).toContain("Rentabilidad Real");
+    expect(agents).toContain("importedAt: null");
+    expect(agents).toContain("issuerOrigin");
+    expect(agents).toContain("documentStateAtImport");
 
     expect(adr).toContain("Estado: Aceptado");
     expect(adr).toContain("LegacyImportAttestationV1");
+    expect(adr).toContain("LegacyImportAttestationV2");
+    expect(adr).toContain("`importProvenance`");
+    expect(adr).toContain("`importedAt: null`");
+    expect(adr).toContain("`issuerOrigin: current_profile_at_import`");
+    expect(adr).toContain("`documentStateAtImport`");
+    expect(adr).toContain("sourceRecord");
+    expect(adr).toContain("base, IVA, total");
     expect(adr).toContain("`acceptedState`");
     expect(adr).toContain("Cambiar después su estado o relaciones");
     expect(adr).toContain("attestNewImportedDocument");
@@ -51,11 +63,13 @@ describe("historical imported document governance", () => {
     expect(policy).toContain("export function attestNewImportedDocument");
     expect(policy).toContain("legacyImportAttestation: attestation");
     expect(policy).toContain("legacyImportProvenance: provenance");
+    expect(policy).toContain("importedAt: null");
 
     importerContracts.forEach(({ path, provenance }) => {
       const importer = readRepositoryFile(path);
       expect(importer, path).toContain("attestNewImportedDocument");
       expect(importer, path).toContain(`"${provenance}"`);
+      expect(importer, path).toContain("issuerOrigin");
     });
   });
 

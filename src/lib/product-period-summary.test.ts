@@ -7,6 +7,7 @@ import {
   type ProductPeriodSelection,
 } from "./product-period-summary";
 import { issueDocument, markDocumentPaid } from "./document-integrity";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
 import {
   DEFAULT_PROFILE,
   EMPTY_DATA,
@@ -253,6 +254,7 @@ describe("product period summary", () => {
           }),
           invoice({
             id: "pending",
+            number: "F-2026-0002",
             items: [
               {
                 id: "line-2",
@@ -265,6 +267,7 @@ describe("product period summary", () => {
           }),
           invoice({
             id: "draft",
+            number: "F-2026-0003",
             status: "borrador",
             documentLifecycle: "draft",
           }),
@@ -281,6 +284,63 @@ describe("product period summary", () => {
     expect(summary.salesIvaEstimated).toBe(63);
     expect(summary.expenseIvaEstimated).toBe(10.5);
     expect(summary.balanceEstimated).toBe(302.5);
+  });
+
+  it("incluye en las cuentas del periodo un histórico PCF V2 con datos incompletos", () => {
+    const historical = attestNewImportedDocument(
+      {
+        id: "pcfacturacion:factura:Factura_2F2940_2F",
+        type: "factura",
+        number: "Factura/2940/",
+        date: "2026-06-12",
+        client: { name: "Cliente histórico" },
+        items: [
+          {
+            id: "historical-line",
+            description: "",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "pagado",
+        issuer: {
+          name: "",
+          nif: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          capturedAt: NOW,
+        },
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      TEST_PROFILE,
+      "pcfacturacion",
+      "2026-07-13T06:00:00.000Z",
+    );
+
+    expect(historical.legacyImportAttestation?.schemaVersion).toBe(2);
+
+    const summary = buildProductPeriodSummary(
+      {
+        ...EMPTY_DATA,
+        documents: [historical],
+      },
+      june2026,
+    );
+
+    expect(summary).toMatchObject({
+      invoicesCount: 1,
+      totalBilledIssued: 121,
+      totalCollectedLocal: 121,
+      totalPendingCollection: 0,
+      salesIvaEstimated: 21,
+      balanceEstimated: 121,
+      cashBalanceEstimated: 121,
+    });
   });
 
   it("imputa compra y abono por su propia fecha y los compensa en el año", () => {

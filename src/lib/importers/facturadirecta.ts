@@ -1279,6 +1279,7 @@ export function buildFacturaDirectaImport(
         profileForImportedDocuments,
         "facturadirecta",
         importAttestedAt,
+        { issuerOrigin: "current_profile_at_import" },
       );
     });
   const importedExpenses = uniqueById(purchases

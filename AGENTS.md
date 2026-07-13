@@ -14,6 +14,16 @@ La decisión obligatoria y versionada está en
   permanece congelado/read-only —incluidos estado operativo y relaciones— y
   conserva su procedencia y evidencia original preservable; no se le fabrica ni
   exige un sello moderno o VeriFactu de esta app.
+- En V2, base, IVA y total almacenados y confirmados por el usuario son la
+  referencia histórica aunque falten NIF, dirección u otros campos exigidos hoy;
+  esas carencias se conservan como avisos y el documento participa en Panel,
+  ingresos, cobros, beneficio, periodos, Rentabilidad Real y exportaciones.
+- No se inventa una fecha de importación ni se presenta el perfil activo como
+  emisor extraído del original: V2 conserva `importedAt: null` cuando no se
+  conoce y declara `issuerOrigin` (`source_document`,
+  `current_profile_at_import` o `unknown_legacy_import`). También conserva
+  `documentStateAtImport`: un borrador externo emitido después por Factu nunca
+  puede reclasificarse como histórico si pierde su evidencia moderna.
 - `app_issued` mantiene el fail-closed estricto de snapshots, PDF, sello, hash y
   VeriFactu.
 - Si existe evidencia moderna y su hash, snapshot o sello es inválido, el

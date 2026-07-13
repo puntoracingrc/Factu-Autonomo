@@ -12,7 +12,10 @@ import { PaymentReminderButton } from "@/components/documents/PaymentReminderBut
 import { useAppStore } from "@/context/AppStore";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
-import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
+import {
+  isDocumentUsableForFinancialCalculations,
+  isUsableLegacyImportedDocument,
+} from "@/lib/document-integrity/legacy-import-attestation";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
@@ -48,7 +51,9 @@ export function DocumentReadOnlyActions({
   const integrityFeedback = getDocumentIntegrityBlockedFeedback(
     doc.snapshotIntegrity?.issues,
   );
-  const legacyImportedAccepted = isUsableLegacyImportedDocument(doc);
+  const legacyImportAttested = isUsableLegacyImportedDocument(doc);
+  const legacyImportedAccepted =
+    legacyImportAttested && isDocumentUsableForFinancialCalculations(doc);
 
   return (
     <div className="mt-6 space-y-4">
@@ -101,13 +106,13 @@ export function DocumentReadOnlyActions({
       )}
       {!integrityBlocked && (
         <div className="action-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:pb-0">
-          {!legacyImportedAccepted && doc.type === "presupuesto" && (
+          {!legacyImportAttested && doc.type === "presupuesto" && (
             <MarkAsAcceptedButton doc={doc} />
           )}
-          {!legacyImportedAccepted && doc.type === "presupuesto" && (
+          {!legacyImportAttested && doc.type === "presupuesto" && (
             <ConvertQuoteToInvoiceButton doc={doc} />
           )}
-          {!legacyImportedAccepted &&
+          {!legacyImportAttested &&
             (doc.type === "factura" || doc.type === "recibo") && (
               <MarkAsPaidButton doc={doc} />
             )}

@@ -5,6 +5,7 @@ import {
 } from "@/lib/business-profile";
 import { isDraftInvoiceNumber } from "@/lib/documents";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
+import { inspectLegacyImportAttestation } from "@/lib/document-integrity/legacy-import-attestation";
 import type { Document } from "@/lib/types";
 import { DEFAULT_PROFILE } from "@/lib/types";
 
@@ -409,6 +410,13 @@ export function assertAcceptedImportedDocumentsNormalized(input: {
     }
     const normalized = matching[0];
     const issues = normalized.snapshotIntegrity?.issues ?? [];
+    const legacyInspection = inspectLegacyImportAttestation(normalized);
+    const acceptsAttestedHistoricalCompleteness = Boolean(
+      legacyInspection.ok &&
+        normalized.legacyImportAttestation?.schemaVersion === 2 &&
+        normalized.legacyImportAttestation.acceptedContentPolicy.kind ===
+          "stored_fiscal_content_user_authoritative",
+    );
     const isExpectedUnpairedLegacyCancellation =
       normalized.type === "factura" &&
       normalized.status === "anulada" &&
@@ -430,13 +438,18 @@ export function assertAcceptedImportedDocumentsNormalized(input: {
     if (isExpectedUnpairedLegacyCancellation) {
       unpairedLegacyCancellationIds.push(normalized.id);
     }
-    if (hasInvalidIssuer && !isExpectedUnpairedLegacyCancellation) {
+    if (
+      hasInvalidIssuer &&
+      !acceptsAttestedHistoricalCompleteness &&
+      !isExpectedUnpairedLegacyCancellation
+    ) {
       invalidIssuerIds.add(normalized.id);
     }
     if (
       normalized.type === "factura" &&
       (normalized.documentSnapshot?.source === "legacy_backfill" ||
         normalized.documentSnapshot?.source === "legacy_import_attested") &&
+      !acceptsAttestedHistoricalCompleteness &&
       !isExpectedUnpairedLegacyCancellation
     ) {
       const compliance = validateDocumentEmission(

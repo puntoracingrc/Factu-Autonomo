@@ -1,8 +1,8 @@
 # ADR-0001: documentos históricos importados y atestados por el usuario
 
 - Estado: Aceptado
-- Versión de la decisión: 1
-- Fecha: 2026-07-12
+- Versión de la decisión: 2
+- Fecha: 2026-07-13
 - Responsables: Producto e Integridad fiscal
 
 ## Contexto
@@ -40,7 +40,7 @@ atestación: un ID PCFacturación, Holded, FacturaDirecta o genérico con esa fu
 queda bloqueado hasta confirmación. Tampoco puede aplicarse a un documento con
 señales de emisión moderna, evidencia parcial o hashes incoherentes.
 
-`LegacyImportAttestationV1` y la política central de
+`LegacyImportAttestationV1 | LegacyImportAttestationV2` y la política central de
 `src/lib/document-integrity/legacy-import-attestation.ts` son el único contrato
 para identificar y validar el primer caso. Los importadores soportados deben
 pasar cada documento nuevo aceptado por `attestNewImportedDocument`; no se
@@ -67,6 +67,30 @@ exportadores.
   nunca se corrige ni reproyecta silenciosamente al cargar.
 - No se fabrica `pdfSnapshot`, `snapshotSeal`, hash moderno ni estado VeriFactu,
   ni se presenta al usuario que tales garantías existen.
+- V2 conserva `importProvenance` con el origen y, solo cuando existe evidencia
+  persistida, la fecha real de importación. Si el rollout antiguo no la guardó,
+  usa `importedAt: null` y separa `provenanceRecordedAt` de `attestedAt`; nunca
+  convierte la fecha de reparación, `createdAt` o la fecha fiscal en una fecha
+  de importación inventada. Conserva además un `sourceRecord` fiscal, su hash, el
+  `taxSummary` aceptado y las carencias formales observadas. Base, IVA y total proceden de un snapshot legacy
+  verificable o de las líneas persistidas que el usuario confirma contra sus
+  documentos declarados; nunca se afirma que procedan de una cabecera externa
+  que la aplicación no almacena.
+- La ausencia o formato antiguo de nombre, NIF, dirección, localidad, código
+  postal o descripción de línea se registra como aviso y no convierte el importe
+  en cero. La reparación nunca rellena esos campos desde el perfil actual. Los
+  importadores históricos que ya capturaban el perfil activo como encabezado
+  deben declararlo como `issuerOrigin: current_profile_at_import`; un emisor
+  leído del archivo se marca `source_document` y un origen antiguo imposible de
+  demostrar, `unknown_legacy_import`. Ninguno se presenta como dato original sin
+  esa procedencia explícita. `documentStateAtImport` distingue además un
+  histórico que ya entró emitido de un borrador externo: si este último se emite
+  después en Factu, nunca puede repararse como legacy aunque se pierdan también
+  sus timestamps junto a snapshots/sello. Las procedencias V1 sin ese marcador
+  solo se aceptan con el fingerprint inequívoco del importador; los casos
+  ambiguos quedan en revisión. Siguen siendo obligatorios una
+  procedencia conocida, número y fecha representables, al menos una línea y
+  cantidades/precios/tipos de IVA finitos y reconciliables con el resumen.
 - Si el documento ya contiene evidencia moderna y algún snapshot, PDF, sello o
   hash no verifica, permanece bloqueado. Nunca se elimina esa evidencia ni se
   reclasifica como legacy para desbloquearlo.
@@ -82,13 +106,15 @@ exportadores.
 
 ## Migración y reparación
 
-La reparación es explícita, previsualizable e idempotente. La detección
+La reparación V2 es explícita, previsualizable e idempotente. La detección
 automática solo propone candidatos con procedencia inequívoca de namespaces o
 metadatos conocidos de PC Facturación, Holded, FacturaDirecta o documentos
 genéricos. No muta al cargar.
 
-La previsualización muestra recuento, origen y motivos de exclusión. Cualquier
-ambigüedad requiere confirmación o revisión manual. La aplicación comprueba una
+La previsualización muestra recuento, origen, base, IVA, total, carencias y
+motivos de exclusión. El usuario confirma que las cifras coinciden con lo ya
+declarado y acepta conservar los campos históricos incompletos. Cualquier
+ambigüedad de procedencia o identidad requiere revisión manual. La aplicación comprueba una
 precondición contra cambios posteriores antes de aplicar. La cuenta real se
 reparará únicamente después del despliegue y QA, con backup previo, preview de
 los afectados, confirmación del usuario, aplicación idempotente, registro
@@ -101,16 +127,21 @@ fixtures.
 ## Experiencia de usuario
 
 La UI identifica el estado como «Histórico importado · aceptado por el usuario»
-y explica que está congelado y disponible para cálculos, pero que no posee un
-sello moderno ni una certificación VeriFactu creada por esta app. Un fallo de
-evidencia moderna se presenta como bloqueo de integridad, no como histórico.
+y explica que está congelado y disponible para Panel, facturación, cobros,
+impuestos, ingresos, beneficio, periodos, Rentabilidad Real e informes. Las
+carencias antiguas son visibles y no equivalen a una validación formal nueva. El
+documento no posee un sello moderno ni una certificación VeriFactu creada por
+esta app. Un fallo de evidencia moderna se presenta como bloqueo de integridad,
+no como histórico.
 
 ## Alcance fiscal
 
 Tras validar la atestación, el contenido congelado participa en IVA, ingresos,
-rentabilidad y exportaciones fiscales con las mismas reglas de cálculo del tipo
-documental correspondiente. La atestación no corrige datos fiscales ni concede
-una garantía legal nueva: preserva el documento que el usuario decidió aceptar.
+cobros, facturación, beneficio, periodos, rentabilidad y exportaciones fiscales.
+V2 permite exportar el contenido tal como fue almacenado aunque no cumpla la
+completitud moderna; no inventa los campos ausentes ni garantiza que un tercero
+acepte el formato. La atestación no corrige datos fiscales ni concede una
+garantía legal nueva: preserva el documento que el usuario decidió aceptar.
 
 ## Auditoría y evolución
 
