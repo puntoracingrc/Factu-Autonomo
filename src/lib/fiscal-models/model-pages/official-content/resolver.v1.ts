@@ -7,6 +7,9 @@ import { PUBLIC_AEAT_MODEL_01_OFFICIAL_CONTENT_V1 } from "./model-01.release.v1"
 import { PUBLIC_AEAT_BATCH_01_EARLY_CONTENT_V1 } from "./batch-01-early.release.v1";
 import { PUBLIC_AEAT_BATCH_01_CENSUS_CONTENT_V1 } from "./batch-01-census.release.v1";
 import { PUBLIC_AEAT_BATCH_01_LATE_CONTENT_V1 } from "./batch-01-late.release.v1";
+import { PUBLIC_AEAT_BATCH_02_GAMES_CONTENT_V1 } from "./batch-02-games.release.v1";
+import { PUBLIC_AEAT_BATCH_02_IRPF_CONTENT_V1 } from "./batch-02-irpf.release.v1";
+import { PUBLIC_AEAT_BATCH_02_WITHHOLDING_CONTENT_V1 } from "./batch-02-withholding.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -20,6 +23,16 @@ const EXPECTED_CODES = Object.freeze([
   "038",
   "039",
   "040",
+  "043",
+  "044",
+  "045",
+  "100",
+  "102",
+  "111",
+  "113",
+  "115",
+  "117",
+  "121",
 ] as const);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -150,24 +163,30 @@ function buildContentSnapshot():
       data: readonly PublicAeatOfficialModelContentV1[];
     }>
   | Readonly<{ status: "BLOCKED"; reason: "INCONSISTENT_CONTENT" }> {
-  const content = [
+  const candidates = [
     PUBLIC_AEAT_MODEL_01_OFFICIAL_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_01_EARLY_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_01_CENSUS_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_01_LATE_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_02_GAMES_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_02_IRPF_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_02_WITHHOLDING_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
-  const codes = content.map((entry) => entry.code);
+  const codes = candidates.map((entry) => entry.code);
   if (
-    content.length !== EXPECTED_CODES.length ||
-    new Set(codes).size !== content.length ||
+    candidates.length !== EXPECTED_CODES.length ||
+    new Set(codes).size !== candidates.length ||
     !EXPECTED_CODES.every((code) => codes.includes(code)) ||
-    !content.every(contentIsCoherent)
+    !candidates.every(contentIsCoherent)
   ) {
     return Object.freeze({
       status: "BLOCKED",
       reason: "INCONSISTENT_CONTENT",
     });
   }
+  const content = EXPECTED_CODES.map(
+    (code) => candidates.find((entry) => entry.code === code)!,
+  );
   return Object.freeze({
     status: "OFFICIAL_INFORMATION",
     data: deepFreeze([...content]),

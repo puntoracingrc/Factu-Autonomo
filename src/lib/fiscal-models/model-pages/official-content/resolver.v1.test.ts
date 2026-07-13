@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   listPublicAeatOfficialModelContentsV1,
@@ -16,15 +18,25 @@ const EXPECTED_CODES = [
   "038",
   "039",
   "040",
+  "043",
+  "044",
+  "045",
+  "100",
+  "102",
+  "111",
+  "113",
+  "115",
+  "117",
+  "121",
 ];
 
 describe("public AEAT official model content v1", () => {
-  it("publishes exactly the first reviewed batch", () => {
+  it("publishes exactly the reviewed official-content catalog", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(11);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(21);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -138,6 +150,10 @@ describe("public AEAT official model content v1", () => {
       "035",
       "036",
       "039",
+      "043",
+      "044",
+      "045",
+      "102",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,
@@ -145,5 +161,18 @@ describe("public AEAT official model content v1", () => {
     expect(
       result.data.find((entry) => entry.code === "040")?.thumbnail,
     ).toBeNull();
+
+    for (const entry of result.data) {
+      if (!entry.thumbnail) continue;
+      const file = readFileSync(
+        new URL(
+          `../../../../../public/${entry.thumbnail.publicHref.slice(1)}`,
+          import.meta.url,
+        ),
+      );
+      expect(createHash("sha256").update(file).digest("hex")).toBe(
+        entry.thumbnail.sha256,
+      );
+    }
   });
 });
