@@ -10,6 +10,9 @@ import { PUBLIC_AEAT_BATCH_01_LATE_CONTENT_V1 } from "./batch-01-late.release.v1
 import { PUBLIC_AEAT_BATCH_02_GAMES_CONTENT_V1 } from "./batch-02-games.release.v1";
 import { PUBLIC_AEAT_BATCH_02_IRPF_CONTENT_V1 } from "./batch-02-irpf.release.v1";
 import { PUBLIC_AEAT_BATCH_02_WITHHOLDING_CONTENT_V1 } from "./batch-02-withholding.release.v1";
+import { PUBLIC_AEAT_BATCH_03_CAPITAL_WITHHOLDING_CONTENT_V1 } from "./batch-03-capital-withholding.release.v1";
+import { PUBLIC_AEAT_BATCH_03_IRPF_BENEFITS_CONTENT_V1 } from "./batch-03-irpf-benefits.release.v1";
+import { PUBLIC_AEAT_BATCH_03_IRPF_DECLARATIONS_CONTENT_V1 } from "./batch-03-irpf-declarations.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -33,6 +36,16 @@ const EXPECTED_CODES = Object.freeze([
   "115",
   "117",
   "121",
+  "122",
+  "123",
+  "124",
+  "126",
+  "128",
+  "130",
+  "131",
+  "136",
+  "140",
+  "143",
 ] as const);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -171,6 +184,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_02_GAMES_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_02_IRPF_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_02_WITHHOLDING_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_03_IRPF_DECLARATIONS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_03_CAPITAL_WITHHOLDING_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_03_IRPF_BENEFITS_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

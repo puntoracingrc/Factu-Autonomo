@@ -28,6 +28,16 @@ const EXPECTED_CODES = [
   "115",
   "117",
   "121",
+  "122",
+  "123",
+  "124",
+  "126",
+  "128",
+  "130",
+  "131",
+  "136",
+  "140",
+  "143",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -36,7 +46,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(21);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(31);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
