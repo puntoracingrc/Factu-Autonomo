@@ -147,6 +147,30 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("gastos guarderias educacion infantil")).toContain(
       "233",
     );
+    expect(resultCodes("mecanismos transfronterizos")).toContain("234");
+    expect(
+      resultCodes("actualizacion mecanismos transfronterizos comercializables"),
+    ).toContain("235");
+    expect(resultCodes("utilizacion mecanismos transfronterizos")).toContain(
+      "236",
+    );
+    expect(resultCodes("beneficios no distribuidos SOCIMI")).toContain("237");
+    expect(resultCodes("operadores plataformas")).toContain("238");
+    expect(
+      resultCodes("elusion estandar comun estructuras extraterritoriales"),
+    ).toContain("239");
+    expect(
+      resultCodes("entidad constitutiva declarante impuesto complementario"),
+    ).toContain("240");
+    expect(resultCodes("grupos multinacionales gran magnitud")).toContain(
+      "241",
+    );
+    expect(resultCodes("autoliquidacion impuesto complementario")).toContain(
+      "242",
+    );
+    expect(
+      resultCodes("desplazamiento extranjero trabajadores cuenta ajena"),
+    ).toContain("247");
   });
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
