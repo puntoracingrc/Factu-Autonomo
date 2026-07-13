@@ -775,7 +775,11 @@ export function inspectUsableHistoricalDocumentEvidence(
             "pdf_snapshot_missing",
             "snapshot_seal_missing",
           ])
-        : new Set<DocumentSnapshotIntegrityIssue>();
+        : recovery.kind === "pre_seal_snapshot_pdf_gap_v1"
+          ? new Set<DocumentSnapshotIntegrityIssue>([
+              "document_snapshot_semantic_invalid",
+            ])
+          : new Set<DocumentSnapshotIntegrityIssue>();
     const unexpectedIssues = (document.snapshotIntegrity?.issues ?? []).filter(
       (issue) => !allowedIssues.has(issue),
     );

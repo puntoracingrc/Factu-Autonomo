@@ -420,14 +420,10 @@ export function selectCanonicalFiscalDocumentsForExport(
     if (isDateInPeriod(candidate.canonical.date)) {
       selected.push({
         ...candidate.canonical,
-        // Proyección efímera ya verificada: obliga a los cálculos fiscales a
-        // consumir taxSummary, también para snapshots legacy sin sello fuerte.
-        // En recovery solo se retira la señal derivada que la colección acaba
-        // de revalidar; el documento persistido y toda su evidencia quedan
-        // intactos y su fingerprint de dominio no incluye esta señal.
-        ...(candidate.stored.appIssuedRecoveryAttestation
-          ? { snapshotIntegrity: undefined }
-          : {}),
+        // Una atestación app-issued revalida su evidencia byte-semánticamente,
+        // incluida la señal original del standalone pre-sello. La proyección
+        // fiscal debe conservarla: retirarla convertiría el propio contrato en
+        // inválido y haría que los exportadores mostrasen importes a cero.
         ...(candidate.stored.legacyImportAttestation
           ? { snapshotIntegrityRequired: undefined }
           : candidate.stored.appIssuedRecoveryAttestation

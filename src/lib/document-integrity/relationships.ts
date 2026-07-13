@@ -13,7 +13,10 @@ import {
   inspectUsableHistoricalDocumentEvidence,
   isVerifiedLegacyImportRepairSnapshotCandidate,
 } from "./legacy-import-attestation";
-import { inspectAppIssuedDocumentRecoveryCollection } from "./app-issued-recovery";
+import {
+  inspectAppIssuedDocumentRecovery,
+  inspectAppIssuedDocumentRecoveryCollection,
+} from "./app-issued-recovery";
 import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-protection";
 import { inspectDocumentSnapshotsIntegrity } from "./snapshots";
 
@@ -415,6 +418,21 @@ export function withDocumentRelationshipIntegritySignals(
   const invalidRecoveryIds = new Set<string>();
   for (const documentId of recoveryInspection.claimedDocumentIds) {
     if (!recoveryInspection.validDocumentIds.has(documentId)) {
+      const document = byId.get(documentId);
+      const localRecovery = document
+        ? inspectAppIssuedDocumentRecovery(document)
+        : null;
+      // Un standalone revertido conserva deliberadamente su señal original
+      // de snapshot semántico. No forma una relación y, si su atestación V2
+      // sigue siendo válida pero inactiva, no debe adquirir un falso issue de
+      // relación. Claims malformados continúan fail-closed abajo.
+      if (
+        localRecovery?.ok &&
+        !localRecovery.active &&
+        localRecovery.kind === "pre_seal_snapshot_pdf_gap_v1"
+      ) {
+        continue;
+      }
       invalidIds.add(documentId);
       if (recoveryInspection.issuesByDocumentId.has(documentId)) {
         invalidRecoveryIds.add(documentId);

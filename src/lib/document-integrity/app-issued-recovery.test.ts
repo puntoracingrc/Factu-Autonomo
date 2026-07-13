@@ -3,8 +3,10 @@ import {
   buildDocumentPdfSnapshot,
   buildDocumentSnapshot,
   buildDocumentSnapshotSeal,
+  inspectDocumentSnapshotsIntegrity,
   issueDocument,
   markDocumentPaid,
+  stableStringifySnapshot,
 } from "@/lib/document-integrity";
 import type {
   AppData,
@@ -22,6 +24,8 @@ import {
   rollbackAppIssuedDocumentRecovery,
 } from "./app-issued-recovery";
 import { inspectUsableHistoricalDocumentEvidence } from "./legacy-import-attestation";
+import { withDocumentRelationshipIntegritySignals } from "./relationships";
+import { hashDocumentSnapshotWithAlgorithm } from "./snapshots";
 
 const NOW = "2026-07-06T10:00:00.000Z";
 const REPAIR_NOW = "2026-07-13T10:00:00.000Z";
@@ -34,7 +38,38 @@ const PROFILE: BusinessProfile = {
   postalCode: "28001",
   email: "test@example.invalid",
   phone: "600000000",
+  verifactu: {
+    enabled: false,
+    environment: "test",
+    optInVersion: 1,
+  },
 };
+
+function legacyFnv1a32(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function legacyHashStableValue(value: unknown): string {
+  return `fnv1a32:${legacyFnv1a32(stableStringifySnapshot(value))}`;
+}
+
+function legacyPdfHash(
+  pdfSnapshot: NonNullable<Document["pdfSnapshot"]>,
+  documentSnapshotHash: string,
+): string {
+  const content: Record<string, unknown> = {
+    ...pdfSnapshot,
+    documentSnapshotHash,
+  };
+  delete content.renderedAt;
+  delete content.contentHash;
+  return legacyHashStableValue(content);
+}
 
 function draftInvoice(id: string, number: string): Document {
   return {
@@ -225,6 +260,188 @@ function receiptWorkspace(): {
   };
 }
 
+function standalonePreSealWorkspace(): {
+  data: AppData;
+  document: Document;
+} {
+  const id = "11111111-2222-4333-8444-555555555555";
+  const issued = markDocumentPaid(
+    issueDocument(draftInvoice(id, "F-TEST-0002"), PROFILE, NOW),
+    NOW,
+  );
+  const verifactu = {
+    recordHash: "a".repeat(64),
+    previousHash: "",
+    recordTimestamp: NOW,
+    qrUrl: "https://example.invalid/verifactu-test",
+    status: "test_registered" as const,
+    recordType: "alta" as const,
+    environment: "test" as const,
+    tipoFactura: "F1",
+    cuotaTotal: "21.00",
+    importeTotal: "121.00",
+    csv: "TEST-SYNTHETIC-CSV",
+    submittedAt: NOW,
+  };
+  const validSnapshot = buildDocumentSnapshot(issued, PROFILE, {
+    capturedAt: NOW,
+    source: "legacy_backfill",
+    issuer: issued.documentSnapshot!.issuer,
+  });
+  const validPdf = buildDocumentPdfSnapshot(validSnapshot, PROFILE, NOW);
+  const snapshotContent = {
+    ...validSnapshot,
+    fiscalContext: {
+      ...validSnapshot.fiscalContext,
+      verifactu: {
+        enabled: false,
+        environment: "test" as const,
+        optInVersion: 1 as const,
+      },
+    },
+    verifactu,
+  };
+  const documentSnapshot = {
+    ...snapshotContent,
+    snapshotHash: hashDocumentSnapshotWithAlgorithm(
+      snapshotContent,
+      "fnv1a32",
+    ),
+  };
+  const pdfSnapshot = {
+    ...validPdf,
+    contentHash: legacyPdfHash(validPdf, documentSnapshot.snapshotHash),
+  };
+  const document: Document = {
+    ...issued,
+    documentSnapshot,
+    pdfSnapshot,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: ["document_snapshot_semantic_invalid"],
+    },
+    verifactu,
+    verifactuPersistence: "legacy_unverified",
+  };
+  delete document.snapshotSeal;
+  delete document.snapshotIntegrityRequired;
+  const integrity = inspectDocumentSnapshotsIntegrity(document, {
+    requireDocumentSnapshot: true,
+    requirePdfSnapshot: true,
+  });
+  if (
+    integrity.documentSnapshot.status !== "verified" ||
+    integrity.pdfSnapshot.status !== "verified" ||
+    stableStringifySnapshot(integrity.issues) !==
+      stableStringifySnapshot(["document_snapshot_semantic_invalid"])
+  ) {
+    throw new Error("invalid standalone synthetic fixture");
+  }
+  return {
+    document,
+    data: {
+      ...EMPTY_DATA,
+      profile: PROFILE,
+      documents: [document],
+      snapshotIntegrityVersion: 1,
+    },
+  };
+}
+
+function backfillReceiptWorkspace(options: {
+  invoiceSnapshotSource: "issue" | "legacy_backfill";
+  markerMode: "paid" | "legacy_missing";
+  invoiceId?: string;
+  receiptId?: string;
+}): { data: AppData; invoice: Document; receipt: Document } {
+  const invoiceId =
+    options.invoiceId ?? "22222222-2222-4222-8222-222222222222";
+  const receiptId =
+    options.receiptId ?? "33333333-3333-4333-8333-333333333333";
+  const paidInvoice = markDocumentPaid(
+    issueDocument(draftInvoice(invoiceId, "F-TEST-RECEIPT"), PROFILE, NOW),
+    NOW,
+  );
+  const invoiceSnapshot = buildDocumentSnapshot(paidInvoice, PROFILE, {
+    capturedAt: NOW,
+    source: options.invoiceSnapshotSource,
+    issuer: paidInvoice.documentSnapshot!.issuer,
+  });
+  const invoicePdf = buildDocumentPdfSnapshot(invoiceSnapshot, PROFILE, NOW);
+  const invoice: Document = {
+    ...paidInvoice,
+    receiptDocumentId: receiptId,
+    documentSnapshot: invoiceSnapshot,
+    pdfSnapshot: invoicePdf,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      invoiceId,
+      invoiceSnapshot,
+      invoicePdf,
+    ),
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: undefined,
+  };
+  const receiptWithoutSource: Document = {
+    ...draftInvoice(receiptId, "R-TEST-RECEIPT"),
+    type: "recibo",
+    date: paidInvoice.date,
+    client: structuredClone(paidInvoice.client),
+    items: paidInvoice.items.map((item) => ({
+      ...item,
+      id: `receipt-${item.id}`,
+    })),
+    status: "pagado",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    paymentStatus: "paid",
+    paidAt: NOW,
+    issuedAt: NOW,
+    notes: `Pago de la factura ${paidInvoice.number}`,
+  };
+  const receiptSnapshot = buildDocumentSnapshot(
+    receiptWithoutSource,
+    PROFILE,
+    {
+      capturedAt: NOW,
+      source: "legacy_backfill",
+      issuer: invoiceSnapshot.issuer,
+    },
+  );
+  const receiptPdf = buildDocumentPdfSnapshot(receiptSnapshot, PROFILE, NOW);
+  const receipt: Document = {
+    ...receiptWithoutSource,
+    sourceDocumentId: invoiceId,
+    issuer: receiptSnapshot.issuer,
+    documentSnapshot: receiptSnapshot,
+    pdfSnapshot: receiptPdf,
+    snapshotSeal: buildDocumentSnapshotSeal(
+      receiptId,
+      receiptSnapshot,
+      receiptPdf,
+    ),
+    snapshotIntegrityRequired: true,
+    snapshotIntegrity: {
+      status: "blocked",
+      issues: ["document_relationship_invalid"],
+    },
+  };
+  if (options.markerMode === "legacy_missing") {
+    delete invoice.paymentStatus;
+    delete invoice.paidAt;
+    delete receipt.paymentStatus;
+    delete receipt.paidAt;
+  }
+  return {
+    invoice,
+    receipt,
+    data: {
+      ...EMPTY_DATA,
+      profile: PROFILE,
+      documents: [invoice, receipt],
+    },
+  };
+}
+
 describe("app-issued recovery", () => {
   it("MUST PASS: recupera una rectificativa pre-canónica sin fabricar bundle moderno", () => {
     const { data, original, rectification } = rectificationWorkspace();
@@ -394,6 +611,569 @@ describe("app-issued recovery", () => {
     });
   });
 
+  it("MUST PASS: recupera el standalone pre-sello solo con PDF confirmado y conserva toda la evidencia", () => {
+    const { data, document } = standalonePreSealWorkspace();
+    const before = structuredClone(document);
+    const pending = buildAppIssuedDocumentRecoveryPreview(data);
+    expect(pending).toMatchObject({
+      affectedCount: 1,
+      requiredPdfDocumentIds: [document.id],
+      candidates: [
+        {
+          recoveryKind: "pre_seal_snapshot_pdf_gap_v1",
+          members: [
+            {
+              documentId: document.id,
+              role: "standalone_invoice",
+              counterpartDocumentId: null,
+              verifactuDisposition: "preserved_unattested_test_artifact",
+            },
+          ],
+        },
+      ],
+    });
+    expect(pending.candidates[0]?.candidateKey).toMatch(/^sha256:/);
+    expect(
+      inspectDocumentSnapshotsIntegrity(document, {
+        requireDocumentSnapshot: true,
+        requirePdfSnapshot: true,
+      }),
+    ).toMatchObject({
+      documentSnapshot: { status: "verified", algorithm: "fnv1a32" },
+      pdfSnapshot: { status: "verified", algorithm: "fnv1a32" },
+      issues: ["document_snapshot_semantic_invalid"],
+    });
+
+    const evidence = pdfEvidence(data, document);
+    const preview = buildAppIssuedDocumentRecoveryPreview(
+      data,
+      { [document.id]: evidence },
+      { selectedCandidateKeys: [pending.candidates[0]!.candidateKey] },
+    );
+    expect(preview.candidates[0]?.candidateKey).toBe(
+      pending.candidates[0]?.candidateKey,
+    );
+    expect(preview.requiredPdfDocumentIds).toEqual([]);
+
+    const staleData: AppData = {
+      ...data,
+      profile: { ...data.profile, commercialName: "Cambio ajeno posterior" },
+    };
+    expect(
+      applyAppIssuedDocumentRecovery(staleData, preview, REPAIR_NOW),
+    ).toEqual({ status: "blocked", reason: "stale_preview" });
+
+    const applied = applyAppIssuedDocumentRecovery(data, preview, REPAIR_NOW);
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const recovered = applied.data.documents[0]!;
+    expect(recovered.documentSnapshot).toEqual(before.documentSnapshot);
+    expect(recovered.pdfSnapshot).toEqual(before.pdfSnapshot);
+    expect(recovered.snapshotSeal).toBeUndefined();
+    expect(recovered.snapshotIntegrityRequired).toBeUndefined();
+    expect(recovered.snapshotIntegrity).toEqual(before.snapshotIntegrity);
+    expect(recovered.verifactu).toEqual(before.verifactu);
+    expect(recovered.verifactuPersistence).toBe(
+      before.verifactuPersistence,
+    );
+    expect(recovered.appIssuedRecoveryAttestation).toMatchObject({
+      schemaVersion: 2,
+      recoveryKind: "pre_seal_snapshot_pdf_gap_v1",
+      counterpartDocumentId: null,
+      verifactuDisposition: "preserved_unattested_test_artifact",
+    });
+    expect(
+      recovered.appIssuedRecoveryAttestation?.recoveredSnapshot?.verifactu,
+    ).toBeUndefined();
+    expect(inspectAppIssuedDocumentRecovery(recovered)).toMatchObject({
+      ok: true,
+      active: true,
+      kind: "pre_seal_snapshot_pdf_gap_v1",
+    });
+    expect(inspectUsableHistoricalDocumentEvidence(recovered)).toMatchObject({
+      ok: true,
+    });
+    expect(
+      applyAppIssuedDocumentRecovery(
+        applied.data,
+        preview,
+        "2026-07-13T10:30:00.000Z",
+      ),
+    ).toMatchObject({
+      status: "applied",
+      data: applied.data,
+      appliedRepairIds: [],
+    });
+
+    const rollbackPreview = buildAppIssuedDocumentRecoveryRollbackPreview(
+      applied.data,
+      { selectedCandidateKeys: [preview.candidates[0]!.candidateKey] },
+    );
+    expect(rollbackPreview.affectedCount).toBe(1);
+    const staleRollbackData: AppData = {
+      ...applied.data,
+      profile: { ...applied.data.profile, phone: "699999999" },
+    };
+    expect(
+      rollbackAppIssuedDocumentRecovery(
+        staleRollbackData,
+        rollbackPreview,
+        "2026-07-13T11:00:00.000Z",
+      ),
+    ).toEqual({ status: "blocked", reason: "stale_preview" });
+
+    const rolledBack = rollbackAppIssuedDocumentRecovery(
+      applied.data,
+      rollbackPreview,
+      "2026-07-13T11:00:00.000Z",
+    );
+    expect(rolledBack.status).toBe("applied");
+    if (rolledBack.status !== "applied") return;
+    const restored = rolledBack.data.documents[0]!;
+    expect(restored.documentSnapshot).toEqual(before.documentSnapshot);
+    expect(restored.pdfSnapshot).toEqual(before.pdfSnapshot);
+    expect(restored.verifactu).toEqual(before.verifactu);
+    expect(inspectAppIssuedDocumentRecovery(restored)).toMatchObject({
+      ok: true,
+      active: false,
+    });
+    const reSignaled = withDocumentRelationshipIntegritySignals(
+      rolledBack.data.documents,
+    )[0]!;
+    expect(reSignaled.snapshotIntegrity).toEqual({
+      status: "blocked",
+      issues: ["document_snapshot_semantic_invalid"],
+    });
+    expect(reSignaled.documentSnapshot).toEqual(before.documentSnapshot);
+    expect(reSignaled.pdfSnapshot).toEqual(before.pdfSnapshot);
+    expect(reSignaled.verifactu).toEqual(before.verifactu);
+    expect(
+      rollbackAppIssuedDocumentRecovery(
+        rolledBack.data,
+        rollbackPreview,
+        "2026-07-13T12:00:00.000Z",
+      ),
+    ).toMatchObject({ status: "applied", rolledBackRepairIds: [] });
+
+    const conflictingEvidence = {
+      ...evidence,
+      sha256: "d".repeat(64),
+    };
+    const conflictingPreview = buildAppIssuedDocumentRecoveryPreview(
+      rolledBack.data,
+      { [document.id]: conflictingEvidence },
+      { selectedCandidateKeys: [preview.candidates[0]!.candidateKey] },
+    );
+    expect(conflictingPreview.affectedCount).toBe(0);
+    expect(conflictingPreview.manualReview).toContainEqual(
+      expect.objectContaining({
+        documentId: document.id,
+        reasons: expect.arrayContaining(["pdf_evidence_invalid"]),
+      }),
+    );
+
+    const reapplyPreview = buildAppIssuedDocumentRecoveryPreview(
+      rolledBack.data,
+      {},
+      { selectedCandidateKeys: [preview.candidates[0]!.candidateKey] },
+    );
+    expect(reapplyPreview).toMatchObject({
+      affectedCount: 1,
+      requiredPdfDocumentIds: [],
+    });
+    const reapplied = applyAppIssuedDocumentRecovery(
+      rolledBack.data,
+      reapplyPreview,
+      "2026-07-13T13:00:00.000Z",
+    );
+    expect(reapplied.status).toBe("applied");
+    if (reapplied.status !== "applied") return;
+    expect(
+      reapplied.data.documents[0]?.appIssuedRecoveryAttestation?.events.map(
+        (event) => event.action,
+      ),
+    ).toEqual(["applied", "rolled_back", "applied"]);
+    expect(
+      applyAppIssuedDocumentRecovery(
+        reapplied.data,
+        reapplyPreview,
+        "2026-07-13T14:00:00.000Z",
+      ),
+    ).toMatchObject({ status: "applied", appliedRepairIds: [] });
+  });
+
+  it("MUST BLOCK: el standalone exacto no admite VF ausente/diferente, producción/servidor, sello, hash roto ni issues extra", () => {
+    const fixture = standalonePreSealWorkspace();
+    const rehash = (
+      document: Document,
+      snapshot: NonNullable<Document["documentSnapshot"]>,
+    ): Document => {
+      const documentSnapshot = {
+        ...snapshot,
+        snapshotHash: hashDocumentSnapshotWithAlgorithm(
+          snapshot,
+          "fnv1a32",
+        ),
+      };
+      return {
+        ...document,
+        documentSnapshot,
+        pdfSnapshot: {
+          ...document.pdfSnapshot!,
+          contentHash: legacyPdfHash(
+            document.pdfSnapshot!,
+            documentSnapshot.snapshotHash,
+          ),
+        },
+      };
+    };
+    const snapshot = fixture.document.documentSnapshot!;
+    const { verifactu: _removed, ...snapshotWithoutVerifactu } = snapshot;
+    void _removed;
+    const mismatchedSnapshot = rehash(fixture.document, {
+      ...snapshot,
+      verifactu: { ...snapshot.verifactu!, csv: "OTHER-CSV" },
+    });
+    const productionVerifactu = {
+      ...fixture.document.verifactu!,
+      status: "registered" as const,
+      environment: "production" as const,
+    };
+    const production = rehash(
+      { ...fixture.document, verifactu: productionVerifactu },
+      { ...snapshot, verifactu: productionVerifactu },
+    );
+    const extraKeyVerifactu = {
+      ...fixture.document.verifactu!,
+      errorMessage: "campo extra no permitido",
+    };
+    const extraKey = rehash(
+      { ...fixture.document, verifactu: extraKeyVerifactu },
+      { ...snapshot, verifactu: extraKeyVerifactu },
+    );
+    const sealFromAnotherDocument = issueDocument(
+      draftInvoice(
+        "44444444-4444-4444-8444-444444444444",
+        "F-TEST-OTHER",
+      ),
+      PROFILE,
+      NOW,
+    ).snapshotSeal!;
+    const variants: Document[] = [
+      { ...fixture.document, verifactu: undefined },
+      rehash(fixture.document, snapshotWithoutVerifactu),
+      mismatchedSnapshot,
+      {
+        ...fixture.document,
+        verifactuPersistence: "server_confirmed",
+      },
+      production,
+      extraKey,
+      { ...fixture.document, snapshotSeal: sealFromAnotherDocument },
+      {
+        ...fixture.document,
+        documentSnapshot: {
+          ...fixture.document.documentSnapshot!,
+          snapshotHash: "fnv1a32:00000000",
+        },
+      },
+      {
+        ...fixture.document,
+        snapshotIntegrity: {
+          status: "blocked",
+          issues: [
+            "document_snapshot_semantic_invalid",
+            "document_relationship_invalid",
+          ],
+        },
+      },
+      { ...fixture.document, snapshotIntegrityRequired: true },
+    ];
+    for (const document of variants) {
+      expect(
+        buildAppIssuedDocumentRecoveryPreview({
+          ...fixture.data,
+          documents: [document],
+        }).affectedCount,
+      ).toBe(0);
+    }
+  });
+
+  it("MUST PASS: selección única aplica solo el candidato solicitado", () => {
+    const standalone = standalonePreSealWorkspace();
+    const receipt = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "issue",
+      markerMode: "paid",
+    });
+    const data: AppData = {
+      ...standalone.data,
+      documents: [standalone.document, receipt.invoice, receipt.receipt],
+    };
+    const pending = buildAppIssuedDocumentRecoveryPreview(data);
+    expect(pending.candidates).toHaveLength(2);
+    const standaloneKey = pending.candidates.find(
+      (candidate) =>
+        candidate.recoveryKind === "pre_seal_snapshot_pdf_gap_v1",
+    )!.candidateKey;
+    const evidence = pdfEvidence(data, standalone.document);
+    const selected = buildAppIssuedDocumentRecoveryPreview(
+      data,
+      {
+        [standalone.document.id]: evidence,
+        [receipt.receipt.id]: {
+          ...evidence,
+          sha256: "e".repeat(64),
+        },
+      },
+      { selectedCandidateKeys: [standaloneKey] },
+    );
+    expect(selected.scope).toEqual({
+      mode: "selected",
+      candidateKeys: [standaloneKey],
+    });
+    expect(selected.candidates.map((candidate) => candidate.candidateKey)).toEqual([
+      standaloneKey,
+    ]);
+    const applied = applyAppIssuedDocumentRecovery(data, selected, REPAIR_NOW);
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    expect(
+      applied.data.documents.find(
+        (document) => document.id === standalone.document.id,
+      )?.appIssuedRecoveryAttestation,
+    ).toBeDefined();
+    expect(
+      applied.data.documents.find(
+        (document) => document.id === receipt.receipt.id,
+      )?.appIssuedRecoveryAttestation,
+    ).toBeUndefined();
+  });
+
+  it("MUST PASS: recibo legacy_backfill con markers paid conserva bundle y usa el contrato V1", () => {
+    const fixture = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "issue",
+      markerMode: "paid",
+    });
+    const beforeInvoice = structuredClone(fixture.invoice);
+    const beforeReceipt = structuredClone(fixture.receipt);
+    const preview = buildAppIssuedDocumentRecoveryPreview(fixture.data);
+    expect(preview.candidates[0]?.recoveryKind).toBe(
+      "receipt_source_snapshot_gap_v1",
+    );
+    const applied = applyAppIssuedDocumentRecovery(
+      fixture.data,
+      preview,
+      REPAIR_NOW,
+    );
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const invoice = applied.data.documents[0]!;
+    const receipt = applied.data.documents[1]!;
+    expect(invoice).toEqual(beforeInvoice);
+    expect(receipt.documentSnapshot).toEqual(beforeReceipt.documentSnapshot);
+    expect(receipt.pdfSnapshot).toEqual(beforeReceipt.pdfSnapshot);
+    expect(receipt.snapshotSeal).toEqual(beforeReceipt.snapshotSeal);
+    expect(receipt.paymentStatus).toBe("paid");
+    expect(receipt.paidAt).toBe(NOW);
+    expect(receipt.appIssuedRecoveryAttestation).toMatchObject({
+      schemaVersion: 1,
+      recoveryKind: "receipt_source_snapshot_gap_v1",
+    });
+    expect(
+      inspectAppIssuedDocumentRecoveryCollection(applied.data.documents)
+        .validDocumentIds,
+    ).toContain(receipt.id);
+  });
+
+  it("MUST PASS: una atestación V1 persistida conserva huella, colección y rollback tras el upgrade", () => {
+    const fixture = receiptWorkspace();
+    const preview = buildAppIssuedDocumentRecoveryPreview(fixture.data);
+    const applied = applyAppIssuedDocumentRecovery(
+      fixture.data,
+      preview,
+      REPAIR_NOW,
+    );
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const persisted = JSON.parse(JSON.stringify(applied.data)) as AppData;
+    const attestation = persisted.documents.find(
+      (document) => document.id === fixture.receipt.id,
+    )!.appIssuedRecoveryAttestation!;
+    expect(attestation.schemaVersion).toBe(1);
+    expect(attestation.groupFingerprint).toBe(
+      "sha256:e59a119cc5ec642d1ca2031f43903e3db4c4ac6d9f58da935135c7747497e231",
+    );
+    expect(
+      inspectAppIssuedDocumentRecovery(
+        persisted.documents.find(
+          (document) => document.id === fixture.receipt.id,
+        )!,
+      ),
+    ).toMatchObject({ ok: true, active: true });
+    expect(
+      inspectAppIssuedDocumentRecoveryCollection(persisted.documents)
+        .validDocumentIds,
+    ).toContain(fixture.receipt.id);
+    const rollbackPreview = buildAppIssuedDocumentRecoveryRollbackPreview(
+      persisted,
+    );
+    expect(rollbackPreview.affectedCount).toBe(1);
+    expect(
+      rollbackAppIssuedDocumentRecovery(
+        persisted,
+        rollbackPreview,
+        "2026-07-13T14:00:00.000Z",
+      ),
+    ).toMatchObject({ status: "applied" });
+  });
+
+  it("MUST PASS: pareja legacy_backfill sin markers conserva ambos documentos y usa V2", () => {
+    const fixture = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "legacy_backfill",
+      markerMode: "legacy_missing",
+    });
+    const beforeInvoice = structuredClone(fixture.invoice);
+    const beforeReceipt = structuredClone(fixture.receipt);
+    const preview = buildAppIssuedDocumentRecoveryPreview(fixture.data);
+    expect(preview.candidates).toHaveLength(1);
+    expect(preview.candidates[0]?.recoveryKind).toBe(
+      "receipt_source_and_payment_markers_gap_v1",
+    );
+    const applied = applyAppIssuedDocumentRecovery(
+      fixture.data,
+      preview,
+      REPAIR_NOW,
+    );
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const invoice = applied.data.documents[0]!;
+    const receipt = applied.data.documents[1]!;
+    expect(invoice).toEqual(beforeInvoice);
+    expect(receipt.documentSnapshot).toEqual(beforeReceipt.documentSnapshot);
+    expect(receipt.pdfSnapshot).toEqual(beforeReceipt.pdfSnapshot);
+    expect(receipt.snapshotSeal).toEqual(beforeReceipt.snapshotSeal);
+    expect(Object.hasOwn(invoice, "paymentStatus")).toBe(false);
+    expect(Object.hasOwn(invoice, "paidAt")).toBe(false);
+    expect(Object.hasOwn(receipt, "paymentStatus")).toBe(false);
+    expect(Object.hasOwn(receipt, "paidAt")).toBe(false);
+    expect(receipt.appIssuedRecoveryAttestation).toMatchObject({
+      schemaVersion: 2,
+      recoveryKind: "receipt_source_and_payment_markers_gap_v1",
+      verifactuDisposition: "none",
+    });
+    expect(
+      inspectAppIssuedDocumentRecoveryCollection(applied.data.documents)
+        .validDocumentIds,
+    ).toContain(receipt.id);
+
+    const rollbackPreview = buildAppIssuedDocumentRecoveryRollbackPreview(
+      applied.data,
+    );
+    const rolledBack = rollbackAppIssuedDocumentRecovery(
+      applied.data,
+      rollbackPreview,
+      "2026-07-13T11:00:00.000Z",
+    );
+    expect(rolledBack.status).toBe("applied");
+    if (rolledBack.status !== "applied") return;
+    const rolledBackClaim = structuredClone(
+      rolledBack.data.documents[1]?.appIssuedRecoveryAttestation,
+    );
+    const changedCounterpart: AppData = {
+      ...rolledBack.data,
+      documents: rolledBack.data.documents.map((document) =>
+        document.id === fixture.invoice.id
+          ? { ...document, notes: "cambio posterior de contraparte" }
+          : document,
+      ),
+    };
+    const changedPreview = buildAppIssuedDocumentRecoveryPreview(
+      changedCounterpart,
+    );
+    expect(changedPreview.affectedCount).toBe(0);
+    expect(changedPreview.manualReview).toContainEqual(
+      expect.objectContaining({
+        documentId: fixture.receipt.id,
+        reasons: expect.arrayContaining(["recovery_attestation_invalid"]),
+      }),
+    );
+    expect(
+      changedCounterpart.documents[1]?.appIssuedRecoveryAttestation,
+    ).toEqual(rolledBackClaim);
+    const reapplyPreview = buildAppIssuedDocumentRecoveryPreview(
+      rolledBack.data,
+    );
+    expect(reapplyPreview.candidates[0]?.recoveryKind).toBe(
+      "receipt_source_and_payment_markers_gap_v1",
+    );
+    const reapplied = applyAppIssuedDocumentRecovery(
+      rolledBack.data,
+      reapplyPreview,
+      "2026-07-13T12:00:00.000Z",
+    );
+    expect(reapplied.status).toBe("applied");
+    if (reapplied.status !== "applied") return;
+    expect(
+      reapplied.data.documents[1]?.appIssuedRecoveryAttestation?.events.map(
+        (event) => event.action,
+      ),
+    ).toEqual(["applied", "rolled_back", "applied"]);
+    expect(
+      applyAppIssuedDocumentRecovery(
+        reapplied.data,
+        reapplyPreview,
+        "2026-07-13T13:00:00.000Z",
+      ),
+    ).toMatchObject({ status: "applied", appliedRepairIds: [] });
+  });
+
+  it("MUST BLOCK: recibos con markers mixtos, procedencia legacy, prefijo o evidencia VF no entran", () => {
+    const paid = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "issue",
+      markerMode: "paid",
+    });
+    const mixedReceipt = structuredClone(paid.receipt);
+    delete mixedReceipt.paidAt;
+
+    const provenance = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "legacy_backfill",
+      markerMode: "legacy_missing",
+    });
+    provenance.receipt.legacyImportProvenance = {
+      schemaVersion: 2,
+      kind: "external_import",
+      importer: "generic_documents",
+      importedAt: null,
+      provenanceRecordedAt: NOW,
+      issuerOrigin: "unknown_legacy_import",
+      documentStateAtImport: "unknown_legacy_import",
+    };
+
+    const prefixed = backfillReceiptWorkspace({
+      invoiceSnapshotSource: "legacy_backfill",
+      markerMode: "legacy_missing",
+      invoiceId: "pcfacturacion:invoice-test",
+      receiptId: "pcfacturacion:receipt-test",
+    });
+    const withDocumentVerifactu = structuredClone(paid.receipt);
+    withDocumentVerifactu.verifactuPersistence = "legacy_unverified";
+
+    const variants: AppData[] = [
+      { ...paid.data, documents: [paid.invoice, mixedReceipt] },
+      {
+        ...provenance.data,
+        documents: [provenance.invoice, provenance.receipt],
+      },
+      prefixed.data,
+      { ...paid.data, documents: [paid.invoice, withDocumentVerifactu] },
+    ];
+    for (const data of variants) {
+      expect(buildAppIssuedDocumentRecoveryPreview(data).affectedCount).toBe(
+        0,
+      );
+    }
+  });
+
   it("MUST PASS: omite una pareja rectificativa moderna que ya está sana", () => {
     const fixture = rectificationWorkspace();
     const frozenSnapshot = buildDocumentSnapshot(
@@ -541,6 +1321,64 @@ describe("app-issued recovery", () => {
         .find((document) => document.id === rectification.id)
         ?.appIssuedRecoveryAttestation?.events.map((event) => event.action),
     ).toEqual(["applied", "rolled_back", "applied"]);
+  });
+
+  it("MUST BLOCK: no recrea como inicial un claim perdido de una pareja ya revertida", () => {
+    const fixture = rectificationWorkspace();
+    const originalWithoutBundle = structuredClone(fixture.original);
+    delete originalWithoutBundle.documentSnapshot;
+    delete originalWithoutBundle.pdfSnapshot;
+    delete originalWithoutBundle.snapshotSeal;
+    originalWithoutBundle.snapshotIntegrityRequired = true;
+    originalWithoutBundle.snapshotIntegrity = {
+      status: "blocked",
+      issues: [
+        "document_snapshot_missing",
+        "pdf_snapshot_missing",
+        "snapshot_seal_missing",
+        "document_relationship_invalid",
+      ],
+    };
+    const before: AppData = {
+      ...fixture.data,
+      documents: [originalWithoutBundle, fixture.rectification],
+    };
+    const preview = buildAppIssuedDocumentRecoveryPreview(before, {
+      [originalWithoutBundle.id]: pdfEvidence(before, originalWithoutBundle),
+      [fixture.rectification.id]: pdfEvidence(before, fixture.rectification),
+    });
+    expect(preview.candidates[0]?.repairIds).toHaveLength(2);
+    const applied = applyAppIssuedDocumentRecovery(before, preview, REPAIR_NOW);
+    expect(applied.status).toBe("applied");
+    if (applied.status !== "applied") return;
+    const rollbackPreview = buildAppIssuedDocumentRecoveryRollbackPreview(
+      applied.data,
+    );
+    const rolledBack = rollbackAppIssuedDocumentRecovery(
+      applied.data,
+      rollbackPreview,
+      "2026-07-13T11:00:00.000Z",
+    );
+    expect(rolledBack.status).toBe("applied");
+    if (rolledBack.status !== "applied") return;
+
+    const missingOneClaim: AppData = {
+      ...rolledBack.data,
+      documents: rolledBack.data.documents.map((document) => {
+        if (document.id !== originalWithoutBundle.id) return document;
+        const copy = { ...document };
+        delete copy.appIssuedRecoveryAttestation;
+        return copy;
+      }),
+    };
+    const fresh = buildAppIssuedDocumentRecoveryPreview(missingOneClaim);
+    expect(fresh.affectedCount).toBe(0);
+    expect(fresh.manualReview).toContainEqual(
+      expect.objectContaining({
+        documentId: originalWithoutBundle.id,
+        reasons: expect.arrayContaining(["recovery_attestation_invalid"]),
+      }),
+    );
   });
 
   it("MUST BLOCK: una precondición stale no aplica ningún cambio", () => {

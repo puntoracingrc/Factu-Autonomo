@@ -182,7 +182,7 @@ export interface Document {
    * Recuperación explícita y reversible de una incidencia histórica de Factu.
    * No es una importación legacy, un sello de emisión ni evidencia Veri*Factu.
    */
-  appIssuedRecoveryAttestation?: AppIssuedDocumentRecoveryAttestationV1;
+  appIssuedRecoveryAttestation?: AppIssuedDocumentRecoveryAttestation;
   /** Procedencia persistente también para borradores externos todavía editables. */
   legacyImportProvenance?: LegacyImportProvenance;
   /** Snapshot mínimo de configuración PDF congelado al emitir. */
@@ -932,11 +932,29 @@ export interface LegacyImportProvenanceV2 {
 export type LegacyImportProvenance =
   LegacyImportProvenanceV1 | LegacyImportProvenanceV2;
 
+export type AppIssuedDocumentRecoveryKindV1 =
+  | "pre_canonical_rectification_v1"
+  | "receipt_source_snapshot_gap_v1";
+
+export type AppIssuedDocumentRecoveryKindV2 =
+  | "pre_seal_snapshot_pdf_gap_v1"
+  | "receipt_source_and_payment_markers_gap_v1";
+
 export type AppIssuedDocumentRecoveryKind =
-  "pre_canonical_rectification_v1" | "receipt_source_snapshot_gap_v1";
+  | AppIssuedDocumentRecoveryKindV1
+  | AppIssuedDocumentRecoveryKindV2;
 
 export type AppIssuedDocumentRecoveryRole =
-  "original_invoice" | "rectification" | "invoice" | "receipt";
+  | "original_invoice"
+  | "rectification"
+  | "standalone_invoice"
+  | "invoice"
+  | "receipt";
+
+export type AppIssuedDocumentRecoveryVerifactuDispositionV2 =
+  | "none"
+  | "profile_context_only"
+  | "preserved_unattested_test_artifact";
 
 export interface AppIssuedDocumentRecoveryPdfEvidenceV1 {
   kind: "external_pdf_user_confirmed";
@@ -1005,7 +1023,7 @@ export interface AppIssuedDocumentRecoveryEventV1 {
 export interface AppIssuedDocumentRecoveryAttestationV1 {
   schemaVersion: 1;
   kind: "app_issued_document_recovery";
-  recoveryKind: AppIssuedDocumentRecoveryKind;
+  recoveryKind: AppIssuedDocumentRecoveryKindV1;
   repairId: string;
   status: "applied" | "rolled_back";
   documentId: string;
@@ -1022,6 +1040,36 @@ export interface AppIssuedDocumentRecoveryAttestationV1 {
   events: AppIssuedDocumentRecoveryEventV1[];
   attestationHash: string;
 }
+
+/**
+ * V2 añade grupos standalone y declara expresamente cómo se trató cualquier
+ * contexto o artefacto TEST local de Veri*Factu. No eleva ese artefacto a
+ * acreditación ni modifica la evidencia original del documento.
+ */
+export interface AppIssuedDocumentRecoveryAttestationV2 {
+  schemaVersion: 2;
+  kind: "app_issued_document_recovery";
+  recoveryKind: AppIssuedDocumentRecoveryKindV2;
+  repairId: string;
+  status: "applied" | "rolled_back";
+  documentId: string;
+  role: AppIssuedDocumentRecoveryRole;
+  counterpartDocumentId: string | null;
+  groupFingerprint: string;
+  acceptedState: AppIssuedDocumentRecoveryAcceptedStateV1;
+  beforeEvidence: AppIssuedDocumentRecoveryBeforeEvidenceV1;
+  beforeFingerprint: string;
+  afterFingerprint: string;
+  sourcePdfEvidence?: AppIssuedDocumentRecoveryPdfEvidenceV1;
+  recoveredSnapshot?: DocumentSnapshot;
+  verifactuDisposition: AppIssuedDocumentRecoveryVerifactuDispositionV2;
+  events: AppIssuedDocumentRecoveryEventV1[];
+  attestationHash: string;
+}
+
+export type AppIssuedDocumentRecoveryAttestation =
+  | AppIssuedDocumentRecoveryAttestationV1
+  | AppIssuedDocumentRecoveryAttestationV2;
 
 export interface FiscalContextSnapshot {
   vatExempt: boolean;
