@@ -20,6 +20,7 @@ import {
 } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
@@ -31,6 +32,10 @@ import type {
   AeatEnforcementMoneyFact,
   AeatEnforcementMoneyFactsResult,
 } from "@/lib/fiscal-notifications/aeat-enforcement-money-facts";
+import {
+  projectExplicitFieldsReviewViewModelV1,
+  type ExplicitFieldsReviewViewModelV1,
+} from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v1";
 import {
   createBrowserFiscalNotificationLocalReviewStore,
   type FiscalNotificationBrowserLocalReviewStore,
@@ -257,7 +262,8 @@ export function FiscalNotificationIntakeView() {
             obligado, expediente, cuotas u obligaciones.
           </li>
           <li>
-            Los importes impresos se muestran solo durante la revisión actual;
+            Los importes, las categorías de referencia con valor oculto y las
+            fechas impresas se muestran solo durante la revisión actual;
             desaparecen al salir y nunca se guardan en la ficha técnica.
           </li>
           <li>
@@ -293,6 +299,8 @@ function FiscalNotificationReviewWorkspace({
     useState<FiscalNotificationLocalReviewResult | null>(null);
   const [ephemeralMoneyFacts, setEphemeralMoneyFacts] =
     useState<AeatEnforcementMoneyFactsResult | null>(null);
+  const [explicitFieldsReview, setExplicitFieldsReview] =
+    useState<ExplicitFieldsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingSafeReview | null>(null);
@@ -347,6 +355,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(false);
     setResult(null);
     setEphemeralMoneyFacts(null);
+    setExplicitFieldsReview(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
@@ -363,6 +372,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(false);
     setError(null);
     setEphemeralMoneyFacts(null);
+    setExplicitFieldsReview(null);
     clearFileSelection();
   }
 
@@ -388,6 +398,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(true);
     setResult(null);
     setEphemeralMoneyFacts(null);
+    setExplicitFieldsReview(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
@@ -406,8 +417,15 @@ function FiscalNotificationReviewWorkspace({
         return;
       }
       const nextResult = nextAnalysis.technicalReview;
+      const nextExplicitFieldsReview =
+        nextAnalysis.ephemeralEnforcementExplicitFields === null
+          ? null
+          : projectExplicitFieldsReviewViewModelV1(
+              nextAnalysis.ephemeralEnforcementExplicitFields,
+            );
       setResult(nextResult);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
+      setExplicitFieldsReview(nextExplicitFieldsReview);
       setPendingReview({
         reviewId: `review:${reviewUuid}`,
         createdAt: new Date().toISOString(),
@@ -605,6 +623,7 @@ function FiscalNotificationReviewWorkspace({
         <ReviewResult
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
+          explicitFieldsReview={explicitFieldsReview}
         />
       ) : null}
       {reviewGuidance ? (
@@ -665,7 +684,8 @@ function ReviewPersistencePanel({
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             Solo incluye la traza técnica de revisión; nunca el PDF, su texto,
-            su nombre, NIF, CSV, importes ni plazos.
+            su nombre, NIF, CSV, referencias, importes, fechas impresas ni
+            plazos.
           </p>
         </div>
         {canSave ? (
@@ -819,9 +839,11 @@ function InfoTile({
 function ReviewResult({
   result,
   ephemeralMoneyFacts,
+  explicitFieldsReview,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
+  explicitFieldsReview: ExplicitFieldsReviewViewModelV1 | null;
 }) {
   const copy = REASON_COPY[result.reason];
   return (
@@ -918,6 +940,12 @@ function ReviewResult({
 
         {ephemeralMoneyFacts ? (
           <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />
+        ) : null}
+
+        {explicitFieldsReview ? (
+          <FiscalNotificationExplicitFieldsReview
+            viewModel={explicitFieldsReview}
+          />
         ) : null}
 
         <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">

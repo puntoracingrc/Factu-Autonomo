@@ -26,13 +26,19 @@ const guidanceSource = readSource(
   "../../lib/fiscal-notifications/review-guidance.v1.ts",
 );
 const reviewStepsSource = readSource("./FiscalNotificationReviewSteps.tsx");
+const explicitFieldsPanelSource = readSource(
+  "./FiscalNotificationExplicitFieldsReview.tsx",
+);
+const explicitFieldsViewModelSource = readSource(
+  "../../lib/fiscal-notifications/explicit-fields-review-view-model.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
 const browserRepositorySource = readSource(
   "../../lib/fiscal-notifications/browser-local-review-repository.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}`;
+const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -134,6 +140,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workerSource).toContain("extractFiscalNotificationCandidates");
     expect(workerSource).toContain("extractAeatEnforcementMoneyFacts");
     expect(workerSource).toContain(
+      "extractAeatEnforcementExplicitFieldsV1",
+    );
+    expect(workerSource).toContain(
       "projectFiscalNotificationPdfWorkerAnalysis",
     );
     expect(workerSource).not.toContain("pages: documentInput.pages");
@@ -219,6 +228,15 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(analysisSuccess).toContain(
       "nextAnalysis.ephemeralEnforcementMoneyFacts",
     );
+    expect(analysisSuccess).toContain(
+      "nextAnalysis.ephemeralEnforcementExplicitFields",
+    );
+    expect(analysisSuccess).toContain(
+      "projectExplicitFieldsReviewViewModelV1(",
+    );
+    expect(analysisSuccess).toContain(
+      "setExplicitFieldsReview(nextExplicitFieldsReview)",
+    );
     expect(analysisSuccess).toContain("result: nextResult");
     expect(analysisSuccess).not.toContain(".append(");
 
@@ -228,6 +246,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(appendStart).toBeGreaterThan(-1);
     expect(appendPayload).not.toMatch(
       /\b(?:ownerScope|file|filename|documentId|text|bytes|raw|nif|csv|amount|deadline)\b/i,
+    );
+    expect(appendPayload).not.toMatch(
+      /explicit|reference|printedDate|calendarDate/i,
     );
     expect(appendPayload).not.toMatch(/guidance|reviewSteps|officialProcedure/i);
   });
@@ -375,11 +396,11 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Los documentos escaneados quedan pendientes de OCR.",
       "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo guardamos la ficha técnica si tú lo eliges.",
       "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
-      "Solo incluye la traza técnica de revisión; nunca el PDF, su texto, su nombre, NIF, CSV, importes ni plazos.",
+      "Solo incluye la traza técnica de revisión; nunca el PDF, su texto, su nombre, NIF, CSV, referencias, importes, fechas impresas ni plazos.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
       "Reconoce únicamente indicios de providencia de apremio y concesión de aplazamiento o fraccionamiento de la AEAT.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
-      "Los importes impresos se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
+      "Los importes, las categorías de referencia con valor oculto y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
@@ -427,6 +448,87 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const appendPayload = componentSource.slice(appendStart, appendEnd);
     expect(appendPayload).toContain("result: pendingReview.result");
     expect(appendPayload).not.toMatch(/money|amount|fact/i);
+  });
+
+  it("proyecta referencias y fechas a un estado React seguro, efímero y no persistible", () => {
+    expect(componentSource).toContain(
+      "useState<ExplicitFieldsReviewViewModelV1 | null>(null)",
+    );
+    expect(componentSource).toContain(
+      "projectExplicitFieldsReviewViewModelV1(",
+    );
+    expect(componentSource).toContain(
+      "nextAnalysis.ephemeralEnforcementExplicitFields",
+    );
+    expect(componentSource).toContain(
+      "setExplicitFieldsReview(nextExplicitFieldsReview)",
+    );
+    const fileChangeFlow = componentSource.slice(
+      componentSource.indexOf("function handleFileChange"),
+      componentSource.indexOf("function cancelAnalysis"),
+    );
+    const cancelFlow = componentSource.slice(
+      componentSource.indexOf("function cancelAnalysis"),
+      componentSource.indexOf("async function handleSubmit"),
+    );
+    const submitStartFlow = componentSource.slice(
+      componentSource.indexOf("async function handleSubmit"),
+      componentSource.indexOf("try {", componentSource.indexOf("async function handleSubmit")),
+    );
+    for (const flow of [fileChangeFlow, cancelFlow, submitStartFlow]) {
+      expect(flow).toContain("setExplicitFieldsReview(null)");
+    }
+    expect(componentSource.match(/setExplicitFieldsReview\(null\)/g)).toHaveLength(3);
+    expect(componentSource).toContain(
+      "<FiscalNotificationExplicitFieldsReview",
+    );
+    expect(componentSource).toContain("viewModel={explicitFieldsReview}");
+
+    const resultStart = componentSource.indexOf("function ReviewResult");
+    const resultEnd = componentSource.indexOf(
+      "function EphemeralMoneyFactsPanel",
+      resultStart,
+    );
+    const resultPanel = componentSource.slice(resultStart, resultEnd);
+    const moneyIndex = resultPanel.indexOf("<EphemeralMoneyFactsPanel");
+    const explicitIndex = resultPanel.indexOf(
+      "<FiscalNotificationExplicitFieldsReview",
+    );
+    const localGuaranteeIndex = resultPanel.indexOf(
+      "El análisis se ha realizado en este navegador",
+    );
+    expect(moneyIndex).toBeGreaterThan(-1);
+    expect(explicitIndex).toBeGreaterThan(moneyIndex);
+    expect(localGuaranteeIndex).toBeGreaterThan(explicitIndex);
+
+    const pendingContract = componentSource.slice(
+      componentSource.indexOf("interface PendingSafeReview"),
+      componentSource.indexOf("type ReviewPersistenceState"),
+    );
+    expect(pendingContract).not.toMatch(
+      /explicit|reference|printedDate|calendarDate/i,
+    );
+    const appendStart = componentSource.indexOf(".repository.append({");
+    const appendEnd = componentSource.indexOf("});", appendStart);
+    expect(componentSource.slice(appendStart, appendEnd)).not.toMatch(
+      /explicit|reference|printedDate|calendarDate/i,
+    );
+
+    expect(explicitFieldsPanelSource).not.toMatch(
+      /AeatEnforcementExplicitFieldsV1|rawValue|referenceValue|canonicalValue/,
+    );
+    expect(explicitFieldsViewModelSource).toContain(
+      'referenceDisclosure: "CATEGORY_ONLY_VALUE_HIDDEN"',
+    );
+    expect(explicitFieldsViewModelSource).toContain(
+      'persistencePolicy: "DO_NOT_PERSIST"',
+    );
+    expect(compact(manualSource)).toContain(
+      "categorías de referencias con su valor oculto y fechas que figuran bajo etiquetas cerradas",
+    );
+    expect(compact(manualSource)).toContain(
+      "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
+    );
   });
 
   it("mantiene controles y estados accesibles en escritorio y móvil", () => {
