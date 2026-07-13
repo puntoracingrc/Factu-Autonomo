@@ -35,8 +35,8 @@ describe("FiscalModelOfficialVisual", () => {
     },
   );
 
-  it.each(["506", "508", "512", "518"])(
-    "keeps the official document preview when Batch 14 Model %s has a verified thumbnail",
+  it.each(["506", "508", "512", "518", "546", "553"])(
+    "keeps the official document preview when Batch 14/15 Model %s has a verified thumbnail",
     (code) => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
         "OFFICIAL_DOCUMENT_PREVIEW",
@@ -44,8 +44,8 @@ describe("FiscalModelOfficialVisual", () => {
     },
   );
 
-  it.each(["506", "508", "512", "518"])(
-    "keeps the Batch 14 Model %s preview readable without black padding",
+  it.each(["506", "508", "512", "518", "546", "553"])(
+    "keeps the Batch 14/15 Model %s preview readable without black padding",
     (code) => {
       const content = officialContent(code);
       if (!content.thumbnail) throw new Error(`Missing thumbnail for ${code}`);
@@ -90,7 +90,7 @@ describe("FiscalModelOfficialVisual", () => {
 
       expect(pixelRatio(0, 64, nearBlack), code).toBeLessThan(0.05);
       expect(pixelRatio(576, 640, nearBlack), code).toBeLessThan(0.05);
-      expect(pixelRatio(0, 200, visibleInk), code).toBeGreaterThan(0.1);
+      expect(pixelRatio(0, 220, visibleInk), code).toBeGreaterThan(0.1);
       expect(pixelRatio(0, 640, visibleInk), code).toBeGreaterThan(0.1);
     },
   );
@@ -167,6 +167,24 @@ describe("FiscalModelOfficialVisual", () => {
     ["520", "AEAT_BROWSER_FORM"],
   ] as const)(
     "uses the source-backed Batch 14 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
+    ["521", "AEAT_BROWSER_FORM"],
+    ["522", "AEAT_FORM_AND_FILE"],
+    ["523", "AEAT_ELECTRONIC_OFFICE"],
+    ["524", "AEAT_BROWSER_FORM"],
+    ["544", "AEAT_FILE_UPLOAD"],
+    ["545", "AEAT_FILE_UPLOAD"],
+    ["547", "AEAT_FORM_AND_FILE"],
+    ["548", "AEAT_FORM_AND_FILE"],
+  ] as const)(
+    "uses the source-backed Batch 15 visual for Model %s",
     (code, mode) => {
       expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
         mode,

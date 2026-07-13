@@ -261,6 +261,28 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("declaración trabajo alcohol")).toContain("518");
     expect(resultCodes("incidencias operaciones trabajo")).toContain("519");
     expect(resultCodes("resultado operaciones trabajo")).toContain("520");
+    expect(resultCodes("primeras materias entregadas")).toContain("521");
+    expect(resultCodes("productos artículo 108 ter")).toContain("522");
+    expect(resultCodes("beneficio devolución aromas")).toContain("523");
+    expect(
+      resultCodes("solicitud devolución alcohol bebidas alcohólicas"),
+    ).toContain("524");
+    expect(resultCodes("cheque tarjetas gasóleo bonificado")).toContain("544");
+    expect(
+      resultCodes("carburantes relaciones internacionales hidrocarburos"),
+    ).toContain("545");
+    expect(resultCodes("avituallamiento embarcaciones SIANE")).toContain(
+      "546",
+    );
+    expect(resultCodes("abonos detallistas gasóleo bonificado")).toContain(
+      "547",
+    );
+    expect(resultCodes("cuotas repercutidas declaración informativa")).toContain(
+      "548",
+    );
+    expect(
+      resultCodes("fábricas depósitos vino bebidas fermentadas"),
+    ).toContain("553");
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
