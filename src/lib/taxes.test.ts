@@ -1002,6 +1002,44 @@ describe("calculateTaxSummary", () => {
     });
   });
 
+  it("no cuenta presupuestos congelados sin evidencia entre los bloqueos fiscales", () => {
+    const historicalQuotes = ["aceptado", "enviado", "aceptado"].map(
+      (status, index): Document => ({
+        ...invoice(status as Document["status"], 100, {
+          id: `historical-quote-${index + 1}`,
+          type: "presupuesto",
+          number: `P-2024-000${index + 1}`,
+        }),
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+        snapshotIntegrity: {
+          status: "blocked",
+          issues: [
+            "document_snapshot_missing",
+            "pdf_snapshot_missing",
+            "snapshot_seal_missing",
+          ],
+        },
+      }),
+    );
+    const strippedInvoice: Document = {
+      ...issuedInvoice("enviado", 100, { id: "stripped-app-invoice" }),
+      documentSnapshot: undefined,
+      pdfSnapshot: undefined,
+      snapshotSeal: undefined,
+      snapshotIntegrityRequired: undefined,
+      snapshotIntegrity: undefined,
+    };
+
+    expect(
+      calculateTaxSummary([...historicalQuotes, strippedInvoice], []),
+    ).toMatchObject({
+      salesBase: 0,
+      salesIva: 0,
+      integrityBlockedDocuments: 1,
+    });
+  });
+
   it("no pierde el bloqueo si también manipulan el tipo canónico o eliminan la evidencia", () => {
     const issued = issuedInvoice("enviado", 100);
     const bothTypesDisguised: Document = {
