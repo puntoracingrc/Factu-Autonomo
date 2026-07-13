@@ -27,6 +27,54 @@ describe("FiscalModelOfficialVisual", () => {
     );
   });
 
+  it.each([
+    [["BROWSER_FORM"], "SOURCE_DESCRIBED", "AEAT_BROWSER_FORM"],
+    [["FILE_UPLOAD"], "SOURCE_DESCRIBED", "AEAT_FILE_UPLOAD"],
+    [["WEB_SERVICE"], "SOURCE_DESCRIBED", "AEAT_WEB_SERVICE"],
+    [
+      ["BROWSER_FORM", "FILE_UPLOAD"],
+      "SOURCE_DESCRIBED",
+      "AEAT_FORM_AND_FILE",
+    ],
+    [["WEB_SERVICE"], "SOURCE_DESCRIBED_FUTURE", "AEAT_FUTURE_SERVICE"],
+    [
+      ["BROWSER_FORM", "WEB_SERVICE"],
+      "SOURCE_DESCRIBED_HISTORICAL",
+      "AEAT_HISTORICAL_PROCEDURE",
+    ],
+  ] as const)(
+    "renders %s as the source-backed %s visual",
+    (methods, status, expectedMode) => {
+      const content = officialContent("149");
+      expect(
+        resolveFiscalModelOfficialVisualMode({
+          ...content,
+          accessMethods: {
+            methods,
+            status,
+            sourceIds: [content.sources[0].id],
+            semantics: "OFFICIAL_INFORMATION_ONLY",
+          },
+        }),
+      ).toBe(expectedMode);
+    },
+  );
+
+  it("fails closed to the generic procedure visual for an unrepresented channel combination", () => {
+    const content = officialContent("149");
+    expect(
+      resolveFiscalModelOfficialVisualMode({
+        ...content,
+        accessMethods: {
+          methods: ["BROWSER_FORM", "WEB_SERVICE"],
+          status: "SOURCE_DESCRIBED",
+          sourceIds: [content.sources[0].id],
+          semantics: "OFFICIAL_INFORMATION_ONLY",
+        },
+      }),
+    ).toBe("AEAT_ELECTRONIC_OFFICE");
+  });
+
   it("fails closed to neutral official information without a confirmed procedure link", () => {
     const content = officialContent("149");
     const withoutProcedure = {

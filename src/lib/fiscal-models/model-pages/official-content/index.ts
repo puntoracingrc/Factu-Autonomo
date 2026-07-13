@@ -2,6 +2,8 @@ export {
   PUBLIC_AEAT_OFFICIAL_CONTENT_SCHEMA_VERSION_V1,
 } from "./contracts.v1";
 export type {
+  PublicAeatOfficialAccessMethodV1,
+  PublicAeatOfficialAccessMethodsV1,
   PublicAeatOfficialContentAuthorityV1,
   PublicAeatOfficialContentBlockReasonV1,
   PublicAeatOfficialContentDocumentV1,

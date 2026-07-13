@@ -16,6 +16,9 @@ import { PUBLIC_AEAT_BATCH_03_IRPF_DECLARATIONS_CONTENT_V1 } from "./batch-03-ir
 import { PUBLIC_AEAT_BATCH_04_DISPLACED_WORKERS_CONTENT_V1 } from "./batch-04-displaced-workers.release.v1";
 import { PUBLIC_AEAT_BATCH_04_INFORMATION_RETURNS_CONTENT_V1 } from "./batch-04-information-returns.release.v1";
 import { PUBLIC_AEAT_BATCH_04_WORK_RETENTIONS_CONTENT_V1 } from "./batch-04-work-retentions.release.v1";
+import { PUBLIC_AEAT_BATCH_05_FINANCIAL_CHANNELS_CONTENT_V1 } from "./batch-05-financial-channels.release.v1";
+import { PUBLIC_AEAT_BATCH_05_ANNUAL_INFORMATION_CONTENT_V1 } from "./batch-05-annual-information.release.v1";
+import { PUBLIC_AEAT_BATCH_05_PROPERTY_INFORMATION_CONTENT_V1 } from "./batch-05-property-information.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -59,11 +62,31 @@ const EXPECTED_CODES = Object.freeze([
   "159",
   "165",
   "170",
+  "171",
+  "172",
+  "173",
+  "174",
+  "179",
+  "180",
+  "181",
+  "182",
+  "184",
+  "185",
 ] as const);
-const EXPECTED_HISTORICAL_CODES = new Set(["150"]);
+const EXPECTED_HISTORICAL_CODES = new Set(["150", "179"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ACCESS_METHODS = new Set([
+  "BROWSER_FORM",
+  "FILE_UPLOAD",
+  "WEB_SERVICE",
+]);
+const ACCESS_METHOD_STATUSES = new Set([
+  "SOURCE_DESCRIBED",
+  "SOURCE_DESCRIBED_FUTURE",
+  "SOURCE_DESCRIBED_HISTORICAL",
+]);
 const ALLOWED_HOSTS = new Set([
   "sede.agenciatributaria.gob.es",
   "www.boe.es",
@@ -146,6 +169,21 @@ function referencesAreKnown(
         item.sourceIds.length > 0 &&
         item.sourceIds.every((sourceId) => sourceIds.has(sourceId)),
     ) &&
+    (content.accessMethods === undefined ||
+      (content.accessMethods.methods.length > 0 &&
+        new Set(content.accessMethods.methods).size ===
+          content.accessMethods.methods.length &&
+        content.accessMethods.methods.every((method) =>
+          ACCESS_METHODS.has(method),
+        ) &&
+        ACCESS_METHOD_STATUSES.has(content.accessMethods.status) &&
+        content.accessMethods.sourceIds.length > 0 &&
+        new Set(content.accessMethods.sourceIds).size ===
+          content.accessMethods.sourceIds.length &&
+        content.accessMethods.sourceIds.every((sourceId) =>
+          sourceIds.has(sourceId),
+        ) &&
+        content.accessMethods.semantics === "OFFICIAL_INFORMATION_ONLY")) &&
     (content.externalNavigation === null ||
       sourceIds.has(content.externalNavigation.sourceId))
   );
@@ -155,6 +193,9 @@ function contentIsCoherent(
   content: PublicAeatOfficialModelContentV1,
 ): boolean {
   const sourceIds = new Set(content.sources.map((source) => source.id));
+  const sourceById = new Map(
+    content.sources.map((source) => [source.id, source] as const),
+  );
   return (
     OFFICIAL_CODE.test(content.code) &&
     content.releaseId.length > 0 &&
@@ -182,6 +223,14 @@ function contentIsCoherent(
         SHA256.test(source.sourceSha256) &&
         source.verificationStatus === "SOURCE_HASH_CAPTURED",
     ) &&
+    (content.accessMethods === undefined ||
+      (content.accessMethods.sourceIds.every(
+        (sourceId) => sourceById.get(sourceId)?.authority === "AEAT",
+      ) &&
+        (content.accessMethods.status !== "SOURCE_DESCRIBED_HISTORICAL" ||
+          content.lifecycleStatus === "HISTORICAL") &&
+        (content.accessMethods.status !== "SOURCE_DESCRIBED_FUTURE" ||
+          content.lifecycleStatus === "UNDETERMINED"))) &&
     content.faq.length > 0 &&
     referencesAreKnown(content, sourceIds)
   );
@@ -207,6 +256,9 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_04_WORK_RETENTIONS_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_04_DISPLACED_WORKERS_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_04_INFORMATION_RETURNS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_05_FINANCIAL_CHANNELS_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_05_PROPERTY_INFORMATION_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_05_ANNUAL_INFORMATION_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (
