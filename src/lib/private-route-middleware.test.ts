@@ -29,6 +29,7 @@ describe("private route middleware", () => {
     for (const pathname of [
       "/consultor-fiscal",
       "/consultor-fiscal/analisis",
+      "/consultor-fiscal/notificaciones",
       "/ayuda/consultor-fiscal",
     ]) {
       const response = middleware(
@@ -48,12 +49,23 @@ describe("private route middleware", () => {
   it("deja continuar la Beta solo tras activación explícita", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
 
-    const response = middleware(
-      new NextRequest("https://facturacion-autonomos.app/consultor-fiscal"),
-    );
+    for (const pathname of [
+      "/consultor-fiscal",
+      "/consultor-fiscal/notificaciones",
+    ]) {
+      const response = middleware(
+        new NextRequest("https://facturacion-autonomos.app" + pathname),
+      );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.status, pathname).toBe(200);
+      expect(response.headers.get("x-middleware-next"), pathname).toBe("1");
+      expect(response.headers.get("Cache-Control"), pathname).toBe(
+        "no-store, max-age=0",
+      );
+      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
+        "noindex, nofollow, noarchive",
+      );
+    }
   });
 
   it("publica únicamente el índice y las 229 rutas literales informativas", () => {
