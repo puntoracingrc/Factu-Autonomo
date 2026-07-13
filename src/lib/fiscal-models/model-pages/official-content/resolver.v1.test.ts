@@ -88,6 +88,16 @@ const EXPECTED_CODES = [
   "231",
   "232",
   "233",
+  "234",
+  "235",
+  "236",
+  "237",
+  "238",
+  "239",
+  "240",
+  "241",
+  "242",
+  "247",
 ];
 
 describe("public AEAT official model content v1", () => {
@@ -96,7 +106,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(81);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(91);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -140,7 +150,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "234" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "270" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -152,6 +162,30 @@ describe("public AEAT official model content v1", () => {
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
+  });
+
+  it("keeps every Batch 9 page useful and source-backed without evaluating applicability", () => {
+    for (const code of [
+      "234",
+      "235",
+      "236",
+      "237",
+      "238",
+      "239",
+      "240",
+      "241",
+      "242",
+      "247",
+    ]) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.externalNavigation, code).toBeNull();
+    }
   });
 
   it("keeps source provenance complete and internally referenced", () => {
@@ -326,6 +360,37 @@ describe("public AEAT official model content v1", () => {
         methods: ["BROWSER_FORM", "FILE_UPLOAD"],
         status: "SOURCE_DESCRIBED",
       },
+      "234": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "235": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "236": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "237": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "238": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "239": {
+        methods: ["BROWSER_FORM"],
+        status: "SOURCE_DESCRIBED_FUTURE",
+      },
+      "240": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "241": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "242": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "247": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -468,6 +533,127 @@ describe("public AEAT official model content v1", () => {
     expect(model231.data.thumbnail).toBeNull();
   });
 
+  it("preserves the source-backed Batch 9 channel and document distinctions", () => {
+    const model236 = resolvePublicAeatOfficialModelContentV1({ code: "236" });
+    const model239 = resolvePublicAeatOfficialModelContentV1({ code: "239" });
+    const model240 = resolvePublicAeatOfficialModelContentV1({ code: "240" });
+    const model241 = resolvePublicAeatOfficialModelContentV1({ code: "241" });
+    const model242 = resolvePublicAeatOfficialModelContentV1({ code: "242" });
+    const model247 = resolvePublicAeatOfficialModelContentV1({ code: "247" });
+    for (const result of [
+      model236,
+      model239,
+      model240,
+      model241,
+      model242,
+      model247,
+    ]) {
+      expect(result.status).toBe("OFFICIAL_INFORMATION");
+    }
+    if (
+      model236.status !== "OFFICIAL_INFORMATION" ||
+      model239.status !== "OFFICIAL_INFORMATION" ||
+      model240.status !== "OFFICIAL_INFORMATION" ||
+      model241.status !== "OFFICIAL_INFORMATION" ||
+      model242.status !== "OFFICIAL_INFORMATION" ||
+      model247.status !== "OFFICIAL_INFORMATION"
+    ) {
+      return;
+    }
+
+    expect(model236.data.accessMethods).toMatchObject({
+      methods: ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+      status: "SOURCE_DESCRIBED",
+    });
+    const model236Text = JSON.stringify(model236.data);
+    expect(model236Text).toContain("disposición adicional vigésima cuarta");
+    expect(model236Text).toContain("disposición adicional vigésima tercera");
+    expect(model236Text).toContain("no la resuelve");
+    expect(
+      model236.data.sources.find(
+        (source) =>
+          source.id ===
+          "boe.models-234-236.order-hac-342-2021.consolidated-2024-03-22",
+      )?.sourceSha256,
+    ).toBe("e49ba193ee0b2fb71ed3d189905e4d8101e8879c828eacd64807980733b7b185");
+    expect(
+      model236.data.sources.find(
+        (source) => source.id === "boe.cross-border-mechanisms.law-10-2020",
+      )?.sourceSha256,
+    ).toBe("022489ce1497e28d96b1766834694e350b8188ed753bbc3e912e1e17f7701362");
+    expect(model239.data.accessMethods).toMatchObject({
+      methods: ["BROWSER_FORM"],
+      status: "SOURCE_DESCRIBED_FUTURE",
+    });
+    expect(
+      model239.data.sources.find(
+        (source) =>
+          source.id === "boe.model-239.royal-decree-1065-2007-article-49-ter",
+      ),
+    ).toMatchObject({
+      canonicalUrl:
+        "https://www.boe.es/buscar/act.php?id=BOE-A-2007-15984&p=20250402&tn=1#a4-4",
+      officialUpdatedOn: "2025-04-02",
+      sourceSha256:
+        "34a9f6aa791b4b51089751a820cdf9fbb3eee1b51c065ccfef8172e3ea5a1c44",
+    });
+    expect(model239.data.links).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ label: expect.stringMatching(/presentar/i) }),
+      ]),
+    );
+    expect(model240.data.documents).toHaveLength(2);
+    expect(
+      Object.fromEntries(
+        model240.data.sources
+          .filter((source) => source.authority === "BOE")
+          .map((source) => [source.id, source.sourceSha256]),
+      ),
+    ).toMatchObject({
+      "boe.complementary-tax.law-7-2024":
+        "f18a569e552653c83ed9ff1111cf9fe30e98a1c4f3a13dd80ee3f96a66387d20",
+      "boe.complementary-tax.royal-decree-252-2025":
+        "96010894fc7db1b1d347fe263e52aeab7eec5dfe4de7355bee72cc7a91004d34",
+      "boe.models-240-242.order-hac-1198-2025":
+        "db4267865b9db046082376db5ccf9e7d0bf3cb7348f8989286c2d92c7364f30e",
+    });
+    expect(
+      model240.data.sources.find(
+        (source) => source.id === "boe.models-240-242.order-hac-1198-2025",
+      ),
+    ).toMatchObject({
+      canonicalUrl:
+        "https://www.boe.es/buscar/act.php?id=BOE-A-2025-21727&p=20260529&tn=1",
+      officialUpdatedOn: "2026-05-29",
+    });
+    expect(model241.data.documents).toHaveLength(2);
+    expect(
+      model241.data.sources.some((source) =>
+        source.canonicalUrl.includes("agenciatributaria.gob.aeat"),
+      ),
+    ).toBe(false);
+    expect(model242.data.accessMethods).toMatchObject({
+      methods: ["BROWSER_FORM"],
+      status: "SOURCE_DESCRIBED",
+    });
+    expect(model247.data.documents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "FORM",
+          activeContentStatus: "JAVASCRIPT_PRESENT",
+          formStatus: "ACROFORM_PRESENT",
+          freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+          previewSuitability: "FORM_PREVIEW",
+          usePolicy: "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+        }),
+      ]),
+    );
+    expect(model247.data.thumbnail).toMatchObject({
+      pageNumber: 1,
+      provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
+    });
+  });
+
   it("keeps the Model 180 certificate with active content external-only", () => {
     const result = resolvePublicAeatOfficialModelContentV1({ code: "180" });
     expect(result.status).toBe("OFFICIAL_INFORMATION");
@@ -510,6 +696,7 @@ describe("public AEAT official model content v1", () => {
       "200",
       "206",
       "220",
+      "247",
     ]);
     expect(
       result.data.find((entry) => entry.code === "038")?.thumbnail,

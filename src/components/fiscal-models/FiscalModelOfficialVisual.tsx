@@ -76,6 +76,12 @@ export function FiscalModelOfficialVisual({
             "Formulario web y servicio web descritos por la AEAT",
           label: "Web y servicio",
         };
+      case "AEAT_FORM_FILE_AND_WEB_SERVICE":
+        return {
+          accessibleLabel:
+            "Formulario web, carga de fichero y servicio web descritos por la AEAT",
+          label: "Web, fichero y servicio",
+        };
       case "AEAT_FUTURE_CHANNEL":
         return {
           accessibleLabel: "Canal futuro descrito por la AEAT",
@@ -102,6 +108,7 @@ export function FiscalModelOfficialVisual({
 
   const iconClassName = compact ? "h-7 w-7" : "h-7 w-7 sm:h-12 sm:w-12";
   const accentIconClassName = `absolute -bottom-1 -right-2 fill-white text-blue-700 dark:fill-slate-900 dark:text-blue-200 ${compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 sm:h-5 sm:w-5"}`;
+  const secondaryAccentIconClassName = `absolute -bottom-1 -left-2 fill-white text-blue-700 dark:fill-slate-900 dark:text-blue-200 ${compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 sm:h-5 sm:w-5"}`;
   const surfaceClassName =
     mode === "AEAT_HISTORICAL_PROCEDURE"
       ? "from-slate-100 via-white to-slate-200 text-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-800 dark:text-slate-100"
@@ -149,6 +156,12 @@ export function FiscalModelOfficialVisual({
             ) : mode === "AEAT_FORM_AND_WEB_SERVICE" ? (
               <>
                 <Monitor className={iconClassName} />
+                <Code2 className={accentIconClassName} />
+              </>
+            ) : mode === "AEAT_FORM_FILE_AND_WEB_SERVICE" ? (
+              <>
+                <Monitor className={iconClassName} />
+                <FileUp className={secondaryAccentIconClassName} />
                 <Code2 className={accentIconClassName} />
               </>
             ) : mode === "AEAT_FUTURE_CHANNEL" ? (

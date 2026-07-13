@@ -70,6 +70,26 @@ describe("FiscalModelOfficialVisual", () => {
   );
 
   it.each([
+    ["234", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["235", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["236", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["237", "AEAT_BROWSER_FORM"],
+    ["238", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["239", "AEAT_FUTURE_CHANNEL"],
+    ["240", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["241", "AEAT_FORM_FILE_AND_WEB_SERVICE"],
+    ["242", "AEAT_BROWSER_FORM"],
+    ["247", "OFFICIAL_DOCUMENT_PREVIEW"],
+  ] as const)(
+    "uses the source-backed Batch 9 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     ["198", "AEAT_FORM_AND_FILE"],
     ["199", "AEAT_FILE_UPLOAD"],
     ["202", "AEAT_FORM_AND_FILE"],
@@ -100,6 +120,11 @@ describe("FiscalModelOfficialVisual", () => {
       ["BROWSER_FORM", "WEB_SERVICE"],
       "SOURCE_DESCRIBED",
       "AEAT_FORM_AND_WEB_SERVICE",
+    ],
+    [
+      ["BROWSER_FORM", "FILE_UPLOAD", "WEB_SERVICE"],
+      "SOURCE_DESCRIBED",
+      "AEAT_FORM_FILE_AND_WEB_SERVICE",
     ],
     [["WEB_SERVICE"], "SOURCE_DESCRIBED_FUTURE", "AEAT_FUTURE_CHANNEL"],
     [
