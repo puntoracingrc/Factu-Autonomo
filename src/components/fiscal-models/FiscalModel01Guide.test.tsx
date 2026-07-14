@@ -47,9 +47,11 @@ describe("FiscalModel01Guide", () => {
 
   it("keeps the exact public SEO title for Model 01", () => {
     expect(detailPageSource).toContain(
-      '? "Modelo 01 AEAT: solicitud de certificados tributarios"',
+      '"01": "Modelo 01 AEAT: solicitud de certificados tributarios"',
     );
-    expect(detailPageSource).toContain("title: isModel01 ? { absolute: modelTitle }");
+    expect(detailPageSource).toContain(
+      "title: dedicatedSeoTitle ? { absolute: modelTitle }",
+    );
   });
 
   it("keeps every guide source official, registered and traceable", () => {

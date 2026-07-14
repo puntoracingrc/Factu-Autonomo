@@ -52,9 +52,9 @@ const MODEL_01C_CONTENT = {
   applicabilityStatus: "NOT_EVALUATED",
   lifecycleStatus: "UNDETERMINED",
   reviewedOn: REVIEWED_ON,
-  canonicalName: "Solicitud de Certificado de Contratistas y Subcontratistas.",
+  canonicalName: "Certificado de contratistas y subcontratistas",
   summary:
-    "Solicitud de un certificado tributario relativo a contratistas y subcontratistas, según la información oficial de la Agencia Tributaria.",
+    "Guía sencilla del Modelo 01C: para qué sirve, quién debe solicitarlo, cómo identificar al pagador, plazo, duración y acceso al trámite oficial.",
   searchTerms: [
     "certificado de contratistas",
     "certificado de subcontratistas",
@@ -65,6 +65,10 @@ const MODEL_01C_CONTENT = {
     "Ley General Tributaria",
     "certificado positivo",
     "certificado negativo",
+    "pagador identificado",
+    "tres días hábiles",
+    "doce meses",
+    "renovación certificado contratistas",
   ],
   sections: [
     {
@@ -135,7 +139,8 @@ const MODEL_01C_CONTENT = {
       id: "aeat.model-01c.procedure-home.2025-11-21",
       authority: "AEAT",
       kind: "PROCEDURE_HOME",
-      title: "Modelo 01C · Solicitud de Certificado de Contratistas y Subcontratistas",
+      title:
+        "Modelo 01C · Solicitud de Certificado de Contratistas y Subcontratistas",
       canonicalUrl:
         "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G303.shtml",
       officialUpdatedOn: "2025-11-21",
@@ -304,15 +309,13 @@ const MODEL_01C_CONTENT = {
   thumbnail: {
     id: "model-01c-form-preview",
     sourceId: "aeat.model-01c.form-pdf.2026-06-04",
-    publicHref:
-      "/fiscal-models/modelo-01c/formulario-modelo-01c-preview.png",
+    publicHref: "/fiscal-models/modelo-01c/formulario-modelo-01c-preview.png",
     mediaType: "image/png",
     width: 640,
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "2dd0680bcb8f064689139431194089bfe106c49c4877ff623616c85ec3bda494",
+    sha256: "2dd0680bcb8f064689139431194089bfe106c49c4877ff623616c85ec3bda494",
     alt: "Vista previa del formulario oficial del Modelo 01C de la Agencia Tributaria",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
   },
@@ -350,7 +353,8 @@ const MODEL_01C_CONTENT = {
     {
       id: "model-01c-faq-purpose",
       question: "¿Qué información acredita el Modelo 01C?",
-      answer: "La ficha oficial lo vincula a la expedición de un certificado sobre hechos relativos a la situación tributaria en el contexto de contratistas y subcontratistas.",
+      answer:
+        "La ficha oficial lo vincula a la expedición de un certificado sobre hechos relativos a la situación tributaria en el contexto de contratistas y subcontratistas.",
       sourceIds: [
         "aeat.model-01c.procedure-record.2025-11-21",
         "aeat.model-01c.what-certifies.2025-11-21",
@@ -360,7 +364,8 @@ const MODEL_01C_CONTENT = {
     {
       id: "model-01c-faq-results",
       question: "¿Qué resultados puede reflejar el certificado?",
-      answer: "La AEAT describe certificados de carácter positivo y negativo de acuerdo con las circunstancias que consten en la información tributaria certificada.",
+      answer:
+        "La AEAT describe certificados de carácter positivo y negativo de acuerdo con las circunstancias que consten en la información tributaria certificada.",
       sourceIds: [
         "aeat.model-01c.what-certifies.2025-11-21",
         "aeat.model-01c.faq.2025-03-03",
@@ -370,21 +375,24 @@ const MODEL_01C_CONTENT = {
     {
       id: "model-01c-faq-channels",
       question: "¿Qué canales recoge la ficha oficial?",
-      answer: "La ficha del procedimiento enumera la vía telemática y las oficinas de la Agencia Tributaria.",
+      answer:
+        "La ficha del procedimiento enumera la vía telemática y las oficinas de la Agencia Tributaria.",
       sourceIds: ["aeat.model-01c.procedure-record.2025-11-21"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-01c-faq-documents",
       question: "¿Dónde están el formulario y sus instrucciones?",
-      answer: "La página de descarga de la AEAT enlaza el formulario oficial del Modelo 01C y un PDF de instrucciones.",
+      answer:
+        "La página de descarga de la AEAT enlaza el formulario oficial del Modelo 01C y un PDF de instrucciones.",
       sourceIds: ["aeat.model-01c.downloads.2026-06-04"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-01c-faq-legal",
       question: "¿Qué referencias normativas destaca la AEAT?",
-      answer: "La página oficial remite, entre otras normas, al artículo 43.1.f de la Ley General Tributaria y a los artículos 70 a 76 del Real Decreto 1065/2007.",
+      answer:
+        "La página oficial remite, entre otras normas, al artículo 43.1.f de la Ley General Tributaria y a los artículos 70 a 76 del Real Decreto 1065/2007.",
       sourceIds: [
         "aeat.model-01c.procedure-home.2025-11-21",
         "boe.lgt-58-2003.article-43",
@@ -406,10 +414,9 @@ const MODEL_04_CONTENT = {
   applicabilityStatus: "NOT_EVALUATED",
   lifecycleStatus: "UNDETERMINED",
   reviewedOn: REVIEWED_ON,
-  canonicalName:
-    "Solicitud de aplicación del tipo del 4% a vehículos destinados a transportar habitualmente a personas con discapacidad en silla de ruedas o con movilidad reducida",
+  canonicalName: "Solicitud del IVA del 4 % para determinados vehículos",
   summary:
-    "Procedimiento de reconocimiento previo relacionado con la aplicación del tipo reducido de IVA del 4% a determinados vehículos descritos por la AEAT.",
+    "Guía sencilla del Modelo 04: requisitos del IVA del 4 %, documentación, solicitud previa, regla de cuatro años y procedimiento de la AEAT.",
   searchTerms: [
     "IVA 4 por ciento",
     "IVA reducido vehículos",
@@ -420,6 +427,10 @@ const MODEL_04_CONTENT = {
     "autotaxi",
     "autoturismo especial",
     "reconocimiento previo",
+    "antes de comprar vehículo",
+    "regla de cuatro años",
+    "transporte habitual",
+    "seis meses",
   ],
   sections: [
     {
@@ -617,8 +628,7 @@ const MODEL_04_CONTENT = {
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "e84f257c462cdb67519799450f17d5009342d54b953f3c283557b63bebeffd41",
+    sha256: "e84f257c462cdb67519799450f17d5009342d54b953f3c283557b63bebeffd41",
     alt: "Vista previa del formulario oficial del Modelo 04 de la Agencia Tributaria",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
   },
@@ -656,28 +666,32 @@ const MODEL_04_CONTENT = {
     {
       id: "model-04-faq-purpose",
       question: "¿Para qué sirve el Modelo 04?",
-      answer: "La ficha de la AEAT lo identifica como el procedimiento de reconocimiento previo relacionado con la aplicación del tipo reducido de IVA del 4% a determinados vehículos destinados al transporte habitual de personas con discapacidad en silla de ruedas o con movilidad reducida.",
+      answer:
+        "La ficha de la AEAT lo identifica como el procedimiento de reconocimiento previo relacionado con la aplicación del tipo reducido de IVA del 4% a determinados vehículos destinados al transporte habitual de personas con discapacidad en silla de ruedas o con movilidad reducida.",
       sourceIds: ["aeat.model-04.procedure-record.2026-03-02"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-04-faq-channels",
       question: "¿Qué canales enumera la ficha oficial?",
-      answer: "La AEAT enumera la vía telemática, sus oficinas, las oficinas de Correos y los demás lugares recogidos en el artículo 16 de la Ley 39/2015.",
+      answer:
+        "La AEAT enumera la vía telemática, sus oficinas, las oficinas de Correos y los demás lugares recogidos en el artículo 16 de la Ley 39/2015.",
       sourceIds: ["aeat.model-04.procedure-record.2026-03-02"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-04-faq-downloads",
       question: "¿Hay formulario e instrucciones oficiales?",
-      answer: "Sí. La página de descarga de la AEAT publica un formulario PDF y un PDF de instrucciones del Modelo 04.",
+      answer:
+        "Sí. La página de descarga de la AEAT publica un formulario PDF y un PDF de instrucciones del Modelo 04.",
       sourceIds: ["aeat.model-04.downloads.2026-06-04"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-04-faq-legal",
       question: "¿Qué normas destaca la Agencia Tributaria?",
-      answer: "La página del procedimiento remite al artículo 91 de la Ley del IVA y al artículo 26 bis del Reglamento del IVA.",
+      answer:
+        "La página del procedimiento remite al artículo 91 de la Ley del IVA y al artículo 26 bis del Reglamento del IVA.",
       sourceIds: [
         "aeat.model-04.procedure-home.2026-03-25",
         "boe.liva-37-1992.article-91",
