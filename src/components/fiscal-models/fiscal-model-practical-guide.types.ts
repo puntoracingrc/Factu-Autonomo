@@ -1,5 +1,5 @@
 export interface FiscalModelPracticalGuideV1 {
-  readonly code: "01C" | "04";
+  readonly code: "01C" | "04" | "05" | "06";
   readonly intro: readonly string[];
   readonly notices: readonly {
     readonly title: string;
@@ -24,6 +24,14 @@ export interface FiscalModelPracticalGuideV1 {
       readonly title: string;
       readonly paragraphs?: readonly string[];
       readonly bullets?: readonly string[];
+      readonly links?: readonly {
+        readonly label: string;
+        readonly href:
+          | "/consultor-fiscal/modelos/04"
+          | "/consultor-fiscal/modelos/05"
+          | "/consultor-fiscal/modelos/06"
+          | "/consultor-fiscal/modelos/576";
+      }[];
     }[];
     readonly note?: string;
     readonly accordions?: readonly {
@@ -50,9 +58,21 @@ export interface FiscalModelPracticalGuideV1 {
       readonly title: string;
       readonly description: string;
       readonly href:
-        "/consultor-fiscal/modelos/01" | "/consultor-fiscal/modelos/05";
+        | "/consultor-fiscal/modelos/01"
+        | "/consultor-fiscal/modelos/05"
+        | "/consultor-fiscal/modelos/06";
       readonly label: string;
     };
+    readonly additional?: readonly {
+      readonly title: string;
+      readonly description: string;
+      readonly href:
+        | "/consultor-fiscal/modelos/04"
+        | "/consultor-fiscal/modelos/05"
+        | "/consultor-fiscal/modelos/06"
+        | "/consultor-fiscal/modelos/576";
+      readonly label: string;
+    }[];
     readonly conclusion: string;
   };
   readonly pdfNotice: readonly string[];
@@ -64,6 +84,15 @@ export interface FiscalModelPracticalGuideV1 {
     readonly label: string;
     readonly sourceId?: string;
     readonly href?: string;
+  }[];
+  readonly actionGroups?: readonly {
+    readonly title: string;
+    readonly description?: string;
+    readonly links: readonly {
+      readonly label: string;
+      readonly sourceId?: string;
+      readonly href?: string;
+    }[];
   }[];
   readonly legalLinks: readonly {
     readonly label: string;

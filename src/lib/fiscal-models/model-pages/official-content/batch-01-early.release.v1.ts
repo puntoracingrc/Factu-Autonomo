@@ -43,6 +43,33 @@ const PERSONAL_AREA_NAVIGATION = {
   policy: "EXTERNAL_INFORMATIONAL_NAVIGATION_ONLY",
 } as const satisfies PublicAeatOfficialContentExternalNavigationV1;
 
+const HFP_1395_2021_SOURCE = {
+  id: "boe.hfp-1395-2021",
+  authority: "BOE",
+  kind: "LEGAL_TEXT",
+  title: "Orden HFP/1395/2021, de 9 de diciembre",
+  canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2021-20577",
+  officialUpdatedOn: null,
+  capturedOn: REVIEWED_ON,
+  sourceSha256:
+    "f7abeb68a9a83369846c025e45816ceeb35e794b986be46aa8c66adbae0edf48",
+  verificationStatus: "SOURCE_HASH_CAPTURED",
+} as const satisfies PublicAeatOfficialContentSourceV1;
+
+const EXCISE_LAW_SOURCE = {
+  id: "boe.excise-law-38-1992.consolidated.2026-06-30",
+  authority: "BOE",
+  kind: "LEGAL_TEXT",
+  title: "Ley 38/1992, de 28 de diciembre, de Impuestos Especiales",
+  canonicalUrl:
+    "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28741&tn=1&p=20260630",
+  officialUpdatedOn: "2026-06-30",
+  capturedOn: "2026-07-14",
+  sourceSha256:
+    "14dd5b82352b18945ff58d20ee87d07a191e3a222fdc637e5fdaab3a5fd3ecad",
+  verificationStatus: "SOURCE_HASH_CAPTURED",
+} as const satisfies PublicAeatOfficialContentSourceV1;
+
 const MODEL_01C_CONTENT = {
   schemaVersion: PUBLIC_AEAT_OFFICIAL_CONTENT_SCHEMA_VERSION_V1,
   releaseId: PUBLIC_AEAT_OFFICIAL_BATCH_01_EARLY_RELEASE_ID_V1,
@@ -712,19 +739,30 @@ const MODEL_05_CONTENT = {
   sourceVerificationStatus: "VERIFIED",
   applicabilityStatus: "NOT_EVALUATED",
   lifecycleStatus: "UNDETERMINED",
-  reviewedOn: REVIEWED_ON,
+  reviewedOn: "2026-07-14",
   canonicalName:
     "Reconocimiento previo de determinados supuestos de no sujeción, exención o reducción en el Impuesto de Matriculación.",
   summary:
-    "Solicitud de reconocimiento previo de determinados supuestos del Impuesto Especial sobre Determinados Medios de Transporte.",
+    "Guía sencilla del Modelo 05: quién debe presentarlo, supuestos de discapacidad, familia numerosa, taxis, alquiler, documentación, plazos y trámite oficial.",
   searchTerms: [
     "Impuesto de Matriculación",
     "medios de transporte",
+    "Modelo 05",
     "reconocimiento previo",
     "no sujeción",
     "exención",
     "reducción de la base imponible",
     "primera matriculación",
+    "familia numerosa",
+    "reducción 50 por ciento",
+    "vehículos discapacidad ER4",
+    "taxis ER1",
+    "autoescuelas ER2",
+    "alquiler ER3",
+    "embarcaciones ER5",
+    "aeronaves ER6 ER7",
+    "CEM",
+    "Modelo 576",
     "Orden HAC 171 2021",
   ],
   sections: [
@@ -786,7 +824,8 @@ const MODEL_05_CONTENT = {
       id: "aeat.model-05.procedure-home.2026-03-25",
       authority: "AEAT",
       kind: "PROCEDURE_HOME",
-      title: "Modelo 05 · reconocimiento previo en el Impuesto de Matriculación",
+      title:
+        "Modelo 05 · reconocimiento previo en el Impuesto de Matriculación",
       canonicalUrl:
         "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ17.shtml",
       officialUpdatedOn: "2026-03-25",
@@ -839,14 +878,15 @@ const MODEL_05_CONTENT = {
       authority: "BOE",
       kind: "LEGAL_TEXT",
       title: "Orden HAC/171/2021, de 25 de febrero",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2021-3100",
+      canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2021-3100",
       officialUpdatedOn: null,
       capturedOn: REVIEWED_ON,
       sourceSha256:
         "5d9a93bf03902c262330cb927cc930a6c165a7c17a36a388c9c1c99f3f9f49a3",
       verificationStatus: "SOURCE_HASH_CAPTURED",
     },
+    HFP_1395_2021_SOURCE,
+    EXCISE_LAW_SOURCE,
     PERSONAL_AREA_SOURCE,
   ],
   documents: [
@@ -897,28 +937,32 @@ const MODEL_05_CONTENT = {
     {
       id: "model-05-faq-purpose",
       question: "¿Para qué sirve el Modelo 05?",
-      answer: "La AEAT lo presenta como la solicitud de reconocimiento previo de determinados supuestos de no sujeción, exención o reducción de la base imponible en el Impuesto Especial sobre Determinados Medios de Transporte.",
+      answer:
+        "La AEAT lo presenta como la solicitud de reconocimiento previo de determinados supuestos de no sujeción, exención o reducción de la base imponible en el Impuesto Especial sobre Determinados Medios de Transporte.",
       sourceIds: ["aeat.model-05.procedure-record.2026-03-25"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-05-faq-prior",
       question: "¿Qué significa que sea un reconocimiento previo?",
-      answer: "La ficha oficial indica que este modelo reúne supuestos en los que la aplicación solicitada requiere el reconocimiento previo de la Administración tributaria.",
+      answer:
+        "La ficha oficial indica que este modelo reúne supuestos en los que la aplicación solicitada requiere el reconocimiento previo de la Administración tributaria.",
       sourceIds: ["aeat.model-05.procedure-record.2026-03-25"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-05-faq-channels",
       question: "¿Qué canales muestra la ficha del procedimiento?",
-      answer: "La AEAT muestra la presentación por internet y, en el caso concreto de papel impreso generado por su servicio que describe la ficha, sus oficinas.",
+      answer:
+        "La AEAT muestra la presentación por internet y, en el caso concreto de papel impreso generado por su servicio que describe la ficha, sus oficinas.",
       sourceIds: ["aeat.model-05.procedure-record.2026-03-25"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-05-faq-instructions",
       question: "¿Dónde se consultan las instrucciones oficiales?",
-      answer: "La página del procedimiento enlaza directamente un PDF de instrucciones alojado en la Sede de la Agencia Tributaria.",
+      answer:
+        "La página del procedimiento enlaza directamente un PDF de instrucciones alojado en la Sede de la Agencia Tributaria.",
       sourceIds: [
         "aeat.model-05.procedure-home.2026-03-25",
         "aeat.model-05.instructions-pdf.2026-03-25",
@@ -928,7 +972,8 @@ const MODEL_05_CONTENT = {
     {
       id: "model-05-faq-legal",
       question: "¿Qué norma aprueba el Modelo 05?",
-      answer: "El BOE publica la aprobación del modelo mediante la Orden HAC/171/2021, de 25 de febrero.",
+      answer:
+        "El BOE publica la aprobación del modelo mediante la Orden HAC/171/2021, de 25 de febrero.",
       sourceIds: ["boe.hac-171-2021"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
@@ -945,18 +990,29 @@ const MODEL_06_CONTENT = {
   sourceVerificationStatus: "VERIFIED",
   applicabilityStatus: "NOT_EVALUATED",
   lifecycleStatus: "UNDETERMINED",
-  reviewedOn: REVIEWED_ON,
+  reviewedOn: "2026-07-14",
   canonicalName:
     "Impuesto Especial sobre determinados medios de transporte. Exenciones y no sujeción sin reconocimiento previo.",
   summary:
-    "Declaración relativa a exenciones y no sujeciones sin reconocimiento previo en el Impuesto Especial sobre Determinados Medios de Transporte.",
+    "Guía sencilla del Modelo 06: supuestos de no sujeción y exención, claves NS y ET, traslado de residencia, documentación y presentación.",
   searchTerms: [
     "Impuesto de Matriculación",
     "medios de transporte",
+    "Modelo 06",
     "exenciones",
     "no sujeción",
     "sin reconocimiento previo",
     "primera matriculación",
+    "NS1 N1 N2 N3",
+    "NS5 movilidad reducida",
+    "NS7 mixto adaptable",
+    "NS8 embarcaciones",
+    "motos náuticas",
+    "ET4 traslado de residencia",
+    "doce meses residencia",
+    "seis meses uso previo",
+    "borrador Modelo 06",
+    "presentación gestores",
     "CEM",
     "Código Electrónico para la Matriculación",
     "Orden EHA 3851 2007",
@@ -1019,10 +1075,7 @@ const MODEL_06_CONTENT = {
           id: "model-06-details-orders",
           heading: "Órdenes publicadas en el BOE",
           text: "La Orden EHA/3851/2007 aprueba el Modelo 06 y la Orden HFP/1395/2021 modifica, entre otras normas, esa orden de aprobación.",
-          sourceIds: [
-            "boe.eha-3851-2007",
-            "boe.hfp-1395-2021",
-          ],
+          sourceIds: ["boe.eha-3851-2007", "boe.hfp-1395-2021"],
           semantics: "OFFICIAL_INFORMATION_ONLY",
         },
       ],
@@ -1112,27 +1165,15 @@ const MODEL_06_CONTENT = {
       authority: "BOE",
       kind: "LEGAL_TEXT",
       title: "Orden EHA/3851/2007, de 26 de diciembre",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2007-22442",
+      canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2007-22442",
       officialUpdatedOn: null,
       capturedOn: REVIEWED_ON,
       sourceSha256:
         "fbb08fb4178aaf53f0363d74ccaa30d78883329d461ae2ab274b680fd3eed5ef",
       verificationStatus: "SOURCE_HASH_CAPTURED",
     },
-    {
-      id: "boe.hfp-1395-2021",
-      authority: "BOE",
-      kind: "LEGAL_TEXT",
-      title: "Orden HFP/1395/2021, de 9 de diciembre",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2021-20577",
-      officialUpdatedOn: null,
-      capturedOn: REVIEWED_ON,
-      sourceSha256:
-        "f7abeb68a9a83369846c025e45816ceeb35e794b986be46aa8c66adbae0edf48",
-      verificationStatus: "SOURCE_HASH_CAPTURED",
-    },
+    HFP_1395_2021_SOURCE,
+    EXCISE_LAW_SOURCE,
     PERSONAL_AREA_SOURCE,
   ],
   documents: [
@@ -1164,8 +1205,7 @@ const MODEL_06_CONTENT = {
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "c079ada1f4c7de49ac28c15a72bc219afe1b184e26eb6bd65bd373a938c17b77",
+    sha256: "c079ada1f4c7de49ac28c15a72bc219afe1b184e26eb6bd65bd373a938c17b77",
     alt: "Vista previa del formulario oficial del Modelo 06 de la Agencia Tributaria",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_PDF",
   },
@@ -1203,14 +1243,16 @@ const MODEL_06_CONTENT = {
     {
       id: "model-06-faq-purpose",
       question: "¿Para qué sirve el Modelo 06?",
-      answer: "La AEAT lo identifica con determinados supuestos de exención o no sujeción en el Impuesto Especial sobre Determinados Medios de Transporte.",
+      answer:
+        "La AEAT lo identifica con determinados supuestos de exención o no sujeción en el Impuesto Especial sobre Determinados Medios de Transporte.",
       sourceIds: ["aeat.model-06.procedure-record.2026-06-09"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-06-faq-prior",
       question: "¿Requiere reconocimiento previo según la ficha oficial?",
-      answer: "La denominación oficial y el objeto de la ficha especifican que el Modelo 06 se refiere a supuestos sin reconocimiento o concesión previa.",
+      answer:
+        "La denominación oficial y el objeto de la ficha especifican que el Modelo 06 se refiere a supuestos sin reconocimiento o concesión previa.",
       sourceIds: [
         "aeat.model-06.procedure-home.2026-06-29",
         "aeat.model-06.procedure-record.2026-06-09",
@@ -1227,7 +1269,8 @@ const MODEL_06_CONTENT = {
     {
       id: "model-06-faq-form",
       question: "¿Dónde se encuentran el formulario y las instrucciones?",
-      answer: "La Sede de la AEAT publica una página de descarga del formulario PDF y otra página específica con las instrucciones del Modelo 06.",
+      answer:
+        "La Sede de la AEAT publica una página de descarga del formulario PDF y otra página específica con las instrucciones del Modelo 06.",
       sourceIds: [
         "aeat.model-06.downloads.2026-06-09",
         "aeat.model-06.instructions.2026-06-09",
@@ -1237,7 +1280,8 @@ const MODEL_06_CONTENT = {
     {
       id: "model-06-faq-legal",
       question: "¿Qué norma aprueba el Modelo 06?",
-      answer: "La Orden EHA/3851/2007 aprueba el Modelo 06; la Orden HFP/1395/2021 modifica, entre otras disposiciones, esa orden.",
+      answer:
+        "La Orden EHA/3851/2007 aprueba el Modelo 06; la Orden HFP/1395/2021 modifica, entre otras disposiciones, esa orden.",
       sourceIds: ["boe.eha-3851-2007", "boe.hfp-1395-2021"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },

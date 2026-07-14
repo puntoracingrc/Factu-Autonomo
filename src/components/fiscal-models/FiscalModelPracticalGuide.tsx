@@ -288,6 +288,15 @@ export function FiscalModelPracticalGuide({
                     </p>
                   ))}
                   {card.bullets ? <BulletList items={card.bullets} /> : null}
+                  {card.links?.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`mt-3 inline-flex min-h-11 items-center rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                 </Card>
               ))}
             </div>
@@ -389,7 +398,7 @@ export function FiscalModelPracticalGuide({
         >
           {guide.comparison.title}
         </SectionHeading>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card className="dark:border-slate-700 dark:bg-slate-900">
             <h3 className="font-bold text-slate-950 dark:text-slate-100">
               {guide.comparison.current.title}
@@ -412,6 +421,25 @@ export function FiscalModelPracticalGuide({
               {guide.comparison.related.label}
             </Link>
           </Card>
+          {guide.comparison.additional?.map((item) => (
+            <Card
+              key={item.href}
+              className="dark:border-slate-700 dark:bg-slate-900"
+            >
+              <h3 className="font-bold text-slate-950 dark:text-slate-100">
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+                {item.description}
+              </p>
+              <Link
+                href={item.href}
+                className={`mt-3 inline-flex min-h-11 items-center rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+              >
+                {item.label}
+              </Link>
+            </Card>
+          ))}
         </div>
         <p className="rounded-xl bg-slate-100 p-4 text-sm font-semibold leading-6 text-slate-800 dark:bg-slate-800 dark:text-slate-100">
           {guide.comparison.conclusion}
@@ -473,6 +501,32 @@ export function FiscalModelPracticalGuide({
             ))}
           </ul>
         </Card>
+        {guide.actionGroups?.map((group) => (
+          <Card
+            key={group.title}
+            className="dark:border-slate-700 dark:bg-slate-900"
+          >
+            <h3 className="font-bold text-slate-950 dark:text-slate-100">
+              {group.title}
+            </h3>
+            {group.description ? (
+              <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+                {group.description}
+              </p>
+            ) : null}
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
+              {group.links.map((link) => (
+                <li key={link.label}>
+                  <ExternalOfficialLink
+                    href={resolveOfficialHref(content, link)}
+                  >
+                    {link.label}
+                  </ExternalOfficialLink>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ))}
       </section>
 
       <section

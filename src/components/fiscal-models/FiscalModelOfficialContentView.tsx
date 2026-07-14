@@ -16,6 +16,8 @@ import { FiscalModel01Guide } from "./FiscalModel01Guide";
 import { FiscalModelPracticalGuide } from "./FiscalModelPracticalGuide";
 import { MODEL_01C_GUIDE_V1 } from "./model-01c-guide.v1";
 import { MODEL_04_GUIDE_V1 } from "./model-04-guide.v1";
+import { MODEL_05_GUIDE_V1 } from "./model-05-guide.v1";
+import { MODEL_06_GUIDE_V1 } from "./model-06-guide.v1";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -68,6 +70,18 @@ export function FiscalModelOfficialContentView({
   if (content.code === "04") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_04_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "05") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_05_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "06") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_06_GUIDE_V1} />
     );
   }
 
