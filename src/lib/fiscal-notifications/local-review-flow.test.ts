@@ -169,6 +169,60 @@ function analyzeEphemeralForTest(
   );
 }
 
+function scannedRequest() {
+  return Object.freeze({
+    ownerScope: "user:synthetic-review",
+    documentId: "document:synthetic-review",
+    file: new File(["%PDF-1.7 synthetic"], "ignored.pdf", {
+      type: "application/pdf",
+    }),
+  });
+}
+
+function noReadableOcrResult() {
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    ocrVersion: "1.0.0" as const,
+    status: "NO_READABLE_TEXT" as const,
+    pageCount: 1,
+    averageConfidence: null,
+    analysis: null,
+    providerCalled: false as const,
+    executionBoundary: "LOCAL_TESSERACT_WORKER" as const,
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
+    retainedSourceContent: "NONE" as const,
+    requiresHumanReview: true as const,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
+  });
+}
+
+function availableOcrResult(text: string) {
+  const parsed = intake(text).analysis;
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    ocrVersion: "1.0.0" as const,
+    status: "OCR_TEXT_AVAILABLE" as const,
+    pageCount: parsed.pageCount,
+    averageConfidence: 0.93,
+    analysis: Object.freeze({
+      hasText: true as const,
+      pageCount: parsed.pageCount,
+      familyAnalysis: parsed.familyAnalysis,
+      enforcementMoneyFacts: parsed.enforcementMoneyFacts,
+      enforcementExplicitFields: parsed.enforcementExplicitFields,
+      enforcementPartyFacts: parsed.enforcementPartyFacts,
+      deferralGrantFacts: parsed.deferralGrantFacts,
+      offsetAgreementFacts: parsed.offsetAgreementFacts,
+    }),
+    providerCalled: false as const,
+    executionBoundary: "LOCAL_TESSERACT_WORKER" as const,
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
+    retainedSourceContent: "NONE" as const,
+    requiresHumanReview: true as const,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
+  });
+}
+
 describe("fiscal notification local review flow", () => {
   it("returns only a review candidate and never retains source text or File metadata", async () => {
     const text = [
@@ -557,38 +611,28 @@ describe("fiscal notification local review flow", () => {
     });
   });
 
-  it("uses only metadata with the disabled OCR port for a scanned PDF", async () => {
+  it("passes the validated file and integrity metadata to local OCR", async () => {
+    const request = scannedRequest();
     const recognize = vi.fn(async (value: unknown) => {
       expect(value).toEqual({
-        schemaVersion: 1,
         ownerScope: "user:synthetic-review",
         documentId: "document:synthetic-review",
-        mimeType: "application/pdf",
-        byteLength: 2_048,
-        sha256: HASH,
+        file: request.file,
+        expectedByteLength: 2_048,
+        expectedSha256: HASH,
+        expectedPageCount: 1,
       });
-      return Object.freeze({
-        schemaVersion: 1 as const,
-        portVersion: "1.0.0" as const,
-        status: "INFORMATION_PENDING" as const,
-        reason: "OCR_DISABLED" as const,
-        documentInput: null,
-        providerCalled: false as const,
-        executionBoundary: "NONE" as const,
-        retainedSourceContent: "NONE" as const,
-        requiresHumanReview: true as const,
-        materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
-      });
+      return noReadableOcrResult();
     });
 
     const result = await analyzeForTest(
-      {},
+      request,
       dependencies("", { ocrPort: { recognize } }),
     );
 
     expect(result).toMatchObject({
       status: "INFORMATION_PENDING",
-      reason: "OCR_DISABLED",
+      reason: "NO_EXTRACTABLE_TEXT",
       engineId: null,
       engineVersion: null,
       candidates: [],
@@ -598,24 +642,62 @@ describe("fiscal notification local review flow", () => {
     expect(recognize).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps every ephemeral reader empty when OCR is unavailable", async () => {
-    const analysis = await analyzeEphemeralForTest({}, dependencies(""));
+  it("keeps every ephemeral reader empty when local OCR cannot read text", async () => {
+    const analysis = await analyzeEphemeralForTest(
+      scannedRequest(),
+      dependencies("", {
+        ocrPort: { recognize: vi.fn(async () => noReadableOcrResult()) },
+      }),
+    );
 
     expect(analysis).toMatchObject({
       schemaVersion: 6,
       analysisVersion: "6.0.0",
       technicalReview: {
         status: "INFORMATION_PENDING",
-        reason: "OCR_DISABLED",
+        reason: "NO_EXTRACTABLE_TEXT",
       },
       ephemeralEnforcementMoneyFacts: null,
       ephemeralEnforcementExplicitFields: null,
       ephemeralEnforcementPartyFacts: null,
       ephemeralDeferralGrantFacts: null,
       ephemeralOffsetAgreementFacts: null,
+      textAcquisition: {
+        mode: "LOCAL_OCR",
+        averageConfidence: null,
+      },
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    });
+  });
+
+  it("projects a definite OCR family and exposes the read confidence", async () => {
+    const text = [
+      "AGENCIA TRIBUTARIA",
+      "www.agenciatributaria.es",
+      "NOTIFICACIÓN DE PROVIDENCIA DE APREMIO",
+      "IDENTIFICACIÓN DEL DOCUMENTO",
+      "IMPORTE DE LA DEUDA",
+    ].join("\n");
+    const analysis = await analyzeEphemeralForTest(
+      scannedRequest(),
+      dependencies("", {
+        ocrPort: { recognize: vi.fn(async () => availableOcrResult(text)) },
+      }),
+    );
+
+    expect(analysis).toMatchObject({
+      technicalReview: {
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [
+          {
+            familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+            signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+          },
+        ],
+      },
+      textAcquisition: { mode: "LOCAL_OCR", averageConfidence: 0.93 },
     });
   });
 
@@ -656,23 +738,17 @@ describe("fiscal notification local review flow", () => {
 
   it("rejects an OCR outcome that could make providerCalled audit metadata false", async () => {
     const recognize = vi.fn(async () => ({
-      schemaVersion: 1 as const,
-      portVersion: "1.0.0" as const,
-      status: "INFORMATION_PENDING" as const,
-      reason: "OCR_DISABLED" as const,
-      documentInput: null,
+      ...noReadableOcrResult(),
       providerCalled: true as unknown as false,
-      executionBoundary: "NONE" as const,
-      retainedSourceContent: "NONE" as const,
-      requiresHumanReview: true as const,
-      materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
     }));
 
     await expect(
-      analyzeForTest({}, dependencies("", { ocrPort: { recognize } })),
+      analyzeForTest(
+        scannedRequest(),
+        dependencies("", { ocrPort: { recognize } }),
+      ),
     ).rejects.toMatchObject({
-      code: "INVALID_INPUT",
-      path: "ocrOutcome",
+      code: "INVALID_WORKER_RESPONSE",
     });
   });
 

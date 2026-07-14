@@ -37,6 +37,23 @@ describe("fiscal notification primary-act segmentation v1", () => {
     ).toMatchObject({ outcome: "NO_REGISTERED_TITLE", segments: [] });
   });
 
+  it("registers the exact title printed by historical AEAT notifications", () => {
+    expect(
+      segmentFiscalNotificationPrimaryActsV1([
+        page(1, "notificacion de providencia de apremio"),
+      ]),
+    ).toMatchObject({
+      outcome: "PRIMARY_TITLE",
+      segments: [
+        {
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          titleAnchorId: "ENFORCEMENT_ORDER_TITLE",
+          origin: "DOCUMENT_PRIMARY",
+        },
+      ],
+    });
+  });
+
   it("starts an attached segment at the first later registered title", () => {
     expect(
       segmentFiscalNotificationPrimaryActsV1([

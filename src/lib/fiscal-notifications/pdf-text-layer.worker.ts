@@ -3,12 +3,7 @@ import {
   parseFiscalNotificationPdfTextLayerBytes,
   type FiscalNotificationPdfErrorCode,
 } from "./pdf-text-layer-parser";
-import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
-import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
-import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
-import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
-import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
-import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
+import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
 interface FiscalNotificationPdfWorkerScope {
@@ -47,67 +42,18 @@ async function processMessage(value: unknown): Promise<void> {
       documentId: EPHEMERAL_WORKER_DOCUMENT_ID,
       bytes: new Uint8Array(request.bytes),
     });
-    const pageCount = documentInput.pages.length;
-    const hasText = documentInput.pages.some(
-      (page) => page.text.trim().length > 0,
-    );
-    const familyAnalysis = hasText
-      ? extractFiscalNotificationCandidates(documentInput)
-      : null;
-    const enforcementCandidate =
-      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
-      familyAnalysis.candidates.length === 1 &&
-      familyAnalysis.candidates[0]?.familyId ===
-        "AEAT_ENFORCEMENT_ORDER_CANDIDATE" &&
-      familyAnalysis.candidates[0].signalStatus ===
-        "COMPLETE_REQUIRED_ANCHORS" &&
-      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
-    const enforcementMoneyFacts = enforcementCandidate
-      ? extractAeatEnforcementMoneyFacts(documentInput)
-      : null;
-    const enforcementExplicitFields = enforcementCandidate
-      ? extractAeatEnforcementExplicitFieldsV2(documentInput)
-      : null;
-    const enforcementPartyFacts = enforcementCandidate
-      ? extractAeatEnforcementPartyFactsV1(documentInput)
-      : null;
-    const deferralCandidate =
-      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
-      familyAnalysis.candidates.length === 1 &&
-      familyAnalysis.candidates[0]?.familyId ===
-        "AEAT_DEFERRAL_GRANT_CANDIDATE" &&
-      familyAnalysis.candidates[0].signalStatus ===
-        "COMPLETE_REQUIRED_ANCHORS" &&
-      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
-    const deferralGrantFacts = deferralCandidate
-      ? extractAeatDeferralGrantFactsV1(documentInput)
-      : null;
-    const offsetCandidate =
-      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
-      familyAnalysis.candidates.length === 1 &&
-      familyAnalysis.candidates[0]?.familyId ===
-        "AEAT_OFFSET_AGREEMENT_CANDIDATE" &&
-      familyAnalysis.candidates[0].signalStatus ===
-        "COMPLETE_REQUIRED_ANCHORS" &&
-      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
-    const extractedOffsetAgreementFacts = offsetCandidate
-      ? extractAeatOffsetAgreementFactsV1(documentInput)
-      : null;
-    const offsetAgreementFacts =
-      extractedOffsetAgreementFacts?.documentType === "AEAT_OFFSET_AGREEMENT"
-        ? extractedOffsetAgreementFacts
-        : null;
+    const projected = analyzeFiscalNotificationDocumentInput(documentInput);
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
-      textLayerStatus: hasText
+      textLayerStatus: projected.hasText
         ? "TEXT_LAYER_AVAILABLE"
         : "NO_EXTRACTABLE_TEXT",
-      pageCount,
-      familyAnalysis,
-      enforcementMoneyFacts,
-      enforcementExplicitFields,
-      enforcementPartyFacts,
-      deferralGrantFacts,
-      offsetAgreementFacts,
+      pageCount: projected.pageCount,
+      familyAnalysis: projected.familyAnalysis,
+      enforcementMoneyFacts: projected.enforcementMoneyFacts,
+      enforcementExplicitFields: projected.enforcementExplicitFields,
+      enforcementPartyFacts: projected.enforcementPartyFacts,
+      deferralGrantFacts: projected.deferralGrantFacts,
+      offsetAgreementFacts: projected.offsetAgreementFacts,
     });
     workerScope.postMessage({
       type: "RESULT",

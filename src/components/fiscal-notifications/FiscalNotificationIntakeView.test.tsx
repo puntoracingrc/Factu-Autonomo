@@ -22,6 +22,9 @@ const workerSource = readSource(
 const workerContractSource = readSource(
   "../../lib/fiscal-notifications/pdf-worker-analysis-contract.ts",
 );
+const localOcrSource = readSource(
+  "../../lib/fiscal-notifications/local-pdf-ocr.ts",
+);
 const guidanceSource = readSource(
   "../../lib/fiscal-notifications/review-guidance.v1.ts",
 );
@@ -136,7 +139,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("encadena únicamente lector PDF local, reglas deterministas y OCR deshabilitado", () => {
+  it("encadena lector PDF, OCR local y reglas deterministas sin proveedor", () => {
     expect(componentSource).toContain(
       "analyzeFiscalNotificationLocallyWithEphemeralFacts({",
     );
@@ -147,11 +150,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
     expect(flowSource).toContain("readFiscalNotificationPdfTextLayer");
     expect(flowSource).not.toContain("extractFiscalNotificationCandidates");
-    expect(workerSource).toContain("extractFiscalNotificationCandidates");
-    expect(workerSource).toContain("extractAeatEnforcementMoneyFacts");
-    expect(workerSource).toContain(
-      "extractAeatEnforcementExplicitFieldsV2",
-    );
+    expect(workerSource).toContain("analyzeFiscalNotificationDocumentInput");
     expect(workerSource).toContain(
       "projectFiscalNotificationPdfWorkerAnalysis",
     );
@@ -159,18 +158,18 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workerContractSource).toContain(
       'retainedSourceContent: "NONE"',
     );
-    expect(flowSource).toContain("DISABLED_FISCAL_NOTIFICATION_OCR_PORT");
+    expect(flowSource).toContain("recognizeFiscalNotificationPdfLocally");
+    expect(localOcrSource).toContain('createWorker("spa", OEM.LSTM_ONLY');
+    expect(localOcrSource).toContain('workerPath: "/ocr/tesseract-worker.min.js"');
+    expect(localOcrSource).toContain('retainedSourceContent: "NONE"');
+    expect(localOcrSource).not.toMatch(/fetch\s*\(|axios|openai/i);
     expect(flowSource).toContain("PRODUCTION_DEPENDENCIES");
     expect(flowSource).toContain(
       "FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM",
     );
     expect(flowSource).toContain('| "OCR_DISABLED";');
-    expect(flowSource).toContain(
-      "const ocr = await dependencies.ocrPort.recognize({",
-    );
-    expect(flowSource).toContain("assertDisabledOcrOutcome(ocr)");
-    expect(flowSource).toContain("status: ocr.status");
-    expect(flowSource).toContain("reason: ocr.reason");
+    expect(flowSource).toContain("parseFiscalNotificationLocalOcrResult(");
+    expect(flowSource).toContain('mode: "LOCAL_OCR" as const');
     expect(flowSource).toContain("providerCalled: false");
     expect(flowSource).toContain(
       'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
@@ -465,7 +464,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     for (const expected of [
       "El PDF, su texto y su nombre no se suben ni se guardan.",
       "Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente.",
-      "Los documentos escaneados quedan pendientes de OCR.",
+      "Admite PDF con texto o escaneado, hasta 4 MB y 80 páginas. Si es una imagen, ejecuta OCR en este navegador sin subirla.",
       "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo se guardan los campos estructurados que aceptes conservar.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
       "Guarda únicamente campos estructurados visibles y su procedencia: nunca conserva el PDF, su nombre ni el texto completo.",
@@ -475,6 +474,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas impresas pueden guardarse en una ficha estructurada mediante una acción explícita.",
       "Una fecha impresa se presenta como tal: no se convierte por sí sola en fecha de notificación o vencimiento ni activa una acción.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
+      "Lectura OCR local",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
       expect(copy).toContain(expected);

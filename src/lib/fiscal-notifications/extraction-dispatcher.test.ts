@@ -22,6 +22,10 @@ const ENFORCEMENT =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "PROVIDENCIA DE APREMIO\n" +
   "IDENTIFICACIÓN DEL DOCUMENTO\nIMPORTE DE LA DEUDA";
+const HISTORICAL_ENFORCEMENT =
+  "Agencia Tributaria\nwww.agenciatributaria.es\n" +
+  "NOTIFICACIÓN DE PROVIDENCIA DE APREMIO\n" +
+  "IDENTIFICACIÓN DEL DOCUMENTO\nIMPORTE DE LA DEUDA";
 const DEFERRAL =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "CONCESIÓN DEL APLAZAMIENTO / FRACCIONAMIENTO DE DEUDAS SIN GARANTÍA\n" +
@@ -45,6 +49,7 @@ const ROI_REGISTRATION =
 describe("fiscal notification extraction dispatcher", () => {
   it.each([
     [ENFORCEMENT, "AEAT_ENFORCEMENT_ORDER_CANDIDATE"],
+    [HISTORICAL_ENFORCEMENT, "AEAT_ENFORCEMENT_ORDER_CANDIDATE"],
     [DEFERRAL, "AEAT_DEFERRAL_GRANT_CANDIDATE"],
     [OFFSET_AGREEMENT, "AEAT_OFFSET_AGREEMENT_CANDIDATE"],
     [REAL_ESTATE_SEIZURE, "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"],
@@ -187,6 +192,9 @@ describe("fiscal notification extraction dispatcher", () => {
   it.each([
     "sede.agenciatributaria.gob.es",
     "https://sede.agenciatributaria.gob.es",
+    "www.agenciatributaria.es",
+    "http://www.agenciatributaria.es",
+    "https://www.agenciatributaria.es",
   ])("accepts only the explicit normalized official host line: %s", (hostLine) => {
     expect(
       extractFiscalNotificationCandidates(
