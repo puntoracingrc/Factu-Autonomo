@@ -382,6 +382,354 @@ export function sortDocumentsByNumberDesc(documents: Document[]): Document[] {
   return [...documents].sort(compareDocumentsByNumberDesc);
 }
 
+export type InvoiceDocumentNumberSeries = {
+  key: string;
+  label: string;
+  rank: number;
+  explicitYear: number;
+  hasNumber: boolean;
+  sequence: number;
+  exactSequence: string;
+  revision: number;
+  exactRevision: string;
+};
+
+type NumericToken = {
+  raw: string;
+  value: number;
+  index: number;
+};
+
+function numericTokens(value: string): NumericToken[] {
+  return Array.from(value.matchAll(/\d+/g)).map((match) => ({
+    raw: match[0],
+    value: Number(match[0]),
+    index: match.index ?? 0,
+  }));
+}
+
+function looksLikeFourDigitYear(token: NumericToken): boolean {
+  return token.raw.length === 4 && token.value >= 2000 && token.value <= 2100;
+}
+
+function exactUnsignedInteger(raw: string | undefined): string {
+  if (!raw) return "0";
+  return raw.replace(/^0+(?=\d)/, "");
+}
+
+function compareExactUnsignedIntegersDesc(a: string, b: string): number {
+  if (a.length !== b.length) return b.length - a.length;
+  if (a === b) return 0;
+  return a < b ? 1 : -1;
+}
+
+function configuredPrincipalNumberToken(
+  document: Document,
+  numbering?: NumberingSettings,
+): {
+  sequence: NumericToken;
+  explicitYear?: NumericToken;
+  pattern: string;
+} | null {
+  const format =
+    normalizeNumbering(numbering).formats[getDocumentKind(document)];
+  const parts = format.template.split(/(\{year\}|\{num\})/);
+  let hasSequenceCapture = false;
+  let hasYearCapture = false;
+  let regex = "^";
+
+  for (const part of parts) {
+    if (part === "{num}") {
+      regex += hasSequenceCapture ? "\\k<sequence>" : "(?<sequence>\\d+)";
+      hasSequenceCapture = true;
+    } else if (part === "{year}") {
+      regex += hasYearCapture ? "\\k<year>" : "(?<year>\\d{4})";
+      hasYearCapture = true;
+    } else {
+      regex += part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+
+  const match = document.number.match(new RegExp(`${regex}$`));
+  if (!match) return null;
+
+  let cursor = 0;
+  const sequenceRaw = match.groups?.sequence;
+  const yearRaw = match.groups?.year;
+  if (!sequenceRaw) return null;
+
+  let sequence: NumericToken | undefined;
+  let explicitYear: NumericToken | undefined;
+  for (const part of parts) {
+    if (part !== "{num}" && part !== "{year}") {
+      cursor += part.length;
+      continue;
+    }
+
+    const raw = part === "{num}" ? sequenceRaw : (yearRaw ?? "");
+    const token = { raw, value: Number(raw), index: cursor };
+    if (part === "{num}" && !sequence) sequence = token;
+    if (part === "{year}" && !explicitYear) explicitYear = token;
+    cursor += raw.length;
+  }
+
+  return sequence
+    ? {
+        sequence,
+        explicitYear,
+        pattern: format.template
+          .replaceAll("{year}", yearRaw ?? "")
+          .replaceAll("{num}", "…"),
+      }
+    : null;
+}
+
+function principalNumberToken(
+  document: Document,
+  numbering?: NumberingSettings,
+): {
+  sequence?: NumericToken;
+  revision?: NumericToken;
+  explicitYear?: NumericToken;
+  pattern?: string;
+} {
+  const configured = configuredPrincipalNumberToken(document, numbering);
+  if (configured) return configured;
+
+  const tokens = numericTokens(document.number);
+  const canonical = parseDocumentNumber(document.number);
+  if (canonical) {
+    const sequence = [...tokens]
+      .reverse()
+      .find((token) => token.value === canonical.sequence);
+    const explicitYear = tokens.find(
+      (token) => token !== sequence && token.value === canonical.year,
+    );
+    return {
+      sequence,
+      explicitYear,
+    };
+  }
+
+  const lastToken = tokens.at(-1);
+  const beforeLastToken = tokens.at(-2);
+  const beforePreviousCharacter = beforeLastToken
+    ? document.number.slice(0, beforeLastToken.index).at(-1)
+    : undefined;
+  const betweenLastTokens =
+    beforeLastToken && lastToken
+      ? document.number.slice(
+          beforeLastToken.index + beforeLastToken.raw.length,
+          lastToken.index,
+        )
+      : "";
+  const previousLooksEmbeddedInPrefix = Boolean(
+    beforePreviousCharacter && /[\p{L}]/u.test(beforePreviousCharacter),
+  );
+  const suffixYear =
+    lastToken &&
+    beforeLastToken &&
+    looksLikeFourDigitYear(lastToken) &&
+    (!previousLooksEmbeddedInPrefix ||
+      beforeLastToken.raw.length >= 3 ||
+      /[-/]/.test(betweenLastTokens))
+      ? lastToken
+      : undefined;
+  const withoutSuffixYear = suffixYear
+    ? tokens.filter((token) => token !== suffixYear)
+    : tokens;
+  const revisionCandidate = withoutSuffixYear.at(-1);
+  const sequenceBeforeRevision = withoutSuffixYear.at(-2);
+  const decimalRevision = Boolean(
+    revisionCandidate &&
+    sequenceBeforeRevision &&
+    document.number
+      .slice(
+        sequenceBeforeRevision.index + sequenceBeforeRevision.raw.length,
+        revisionCandidate.index,
+      )
+      .trim() === ".",
+  );
+  const revision = decimalRevision ? revisionCandidate : undefined;
+  const withoutRevision = revision
+    ? withoutSuffixYear.filter((token) => token !== revision)
+    : withoutSuffixYear;
+  const lastBaseToken = withoutRevision.at(-1);
+  const prefixYear = withoutRevision.find(
+    (token) => token !== lastBaseToken && looksLikeFourDigitYear(token),
+  );
+  const explicitYear = prefixYear ?? suffixYear;
+  const sequence = (
+    prefixYear
+      ? withoutRevision.filter((token) => token !== prefixYear)
+      : withoutRevision
+  ).at(-1);
+
+  return {
+    sequence,
+    revision,
+    explicitYear,
+  };
+}
+
+function documentNumberSeriesPattern(
+  number: string,
+  sequence: NumericToken | undefined,
+  revision: NumericToken | undefined,
+): string {
+  if (!sequence) return "Sin número definitivo";
+
+  const before = number.slice(0, sequence.index);
+  const sequenceEnd = sequence.index + sequence.raw.length;
+  let after = number.slice(sequenceEnd);
+  if (revision) {
+    const between = number.slice(sequenceEnd, revision.index);
+    after = `${between}x${number.slice(revision.index + revision.raw.length)}`;
+  }
+  return `${before}…${after}`.trim();
+}
+
+function normalizedSeriesKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+}
+
+/**
+ * Contrato visual del listado de facturas. La serie se obtiene exclusivamente
+ * del número persistido. Solo una procedencia legacy persistida recibe la
+ * etiqueta de histórica importada; una reclamación provisional conserva un
+ * bloque explícitamente pendiente. Nunca clasifica ni desbloquea integridad.
+ */
+export function describeInvoiceDocumentSeries(
+  document: Document,
+  numbering?: NumberingSettings,
+): InvoiceDocumentNumberSeries {
+  const token = principalNumberToken(document, numbering);
+  const draft =
+    document.status === "borrador" || isDraftInvoiceNumber(document);
+  const hasNumber = Boolean(token.sequence) && !draft;
+  const rectification = isRectificativa(document);
+  const persistedHistoricalProvenance = Boolean(
+    document.legacyImportProvenance &&
+    document.documentLifecycle === "issued" &&
+    document.integrityLock === "locked" &&
+    !draft,
+  );
+  const protectedHistoricalCandidate =
+    !persistedHistoricalProvenance && hasLegacyImportProtectionClaim(document);
+  const historicalImport = persistedHistoricalProvenance;
+  const pattern =
+    hasNumber && token.pattern
+      ? token.pattern
+      : documentNumberSeriesPattern(
+          document.number,
+          hasNumber ? token.sequence : undefined,
+          token.revision,
+        );
+  const rank = !hasNumber
+    ? 6
+    : historicalImport
+      ? rectification
+        ? 3
+        : 2
+      : protectedHistoricalCandidate
+        ? rectification
+          ? 5
+          : 4
+        : rectification
+          ? 1
+          : 0;
+  const prefix = !hasNumber
+    ? "Borradores sin número definitivo"
+    : historicalImport
+      ? rectification
+        ? "Rectificativas históricas importadas"
+        : "Históricas importadas"
+      : protectedHistoricalCandidate
+        ? rectification
+          ? "Rectificativas protegidas pendientes de revisar"
+          : "Importaciones protegidas pendientes de revisar"
+        : rectification
+          ? "Rectificativas"
+          : "Facturas actuales";
+
+  return {
+    key: `${rank}:${normalizedSeriesKey(pattern)}`,
+    label: hasNumber ? `${prefix} · Serie ${pattern}` : prefix,
+    rank,
+    explicitYear: token.explicitYear?.value ?? 0,
+    hasNumber,
+    sequence: token.sequence?.value ?? 0,
+    exactSequence: exactUnsignedInteger(token.sequence?.raw),
+    revision: token.revision?.value ?? 0,
+    exactRevision: exactUnsignedInteger(token.revision?.raw),
+  };
+}
+
+export function compareInvoicesBySeriesAndNumberDesc(
+  a: Document,
+  b: Document,
+  numbering?: NumberingSettings,
+): number {
+  const seriesA = describeInvoiceDocumentSeries(a, numbering);
+  const seriesB = describeInvoiceDocumentSeries(b, numbering);
+
+  if (seriesA.rank !== seriesB.rank) return seriesA.rank - seriesB.rank;
+  if (seriesA.explicitYear !== seriesB.explicitYear) {
+    return seriesB.explicitYear - seriesA.explicitYear;
+  }
+
+  const bySeries = seriesA.key.localeCompare(seriesB.key, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (bySeries !== 0) return bySeries;
+
+  if (seriesA.hasNumber !== seriesB.hasNumber) {
+    return seriesA.hasNumber ? -1 : 1;
+  }
+  const byExactSequence = compareExactUnsignedIntegersDesc(
+    seriesA.exactSequence,
+    seriesB.exactSequence,
+  );
+  if (byExactSequence !== 0) return byExactSequence;
+  const byExactRevision = compareExactUnsignedIntegersDesc(
+    seriesA.exactRevision,
+    seriesB.exactRevision,
+  );
+  if (byExactRevision !== 0) return byExactRevision;
+
+  const byDate = b.date.localeCompare(a.date);
+  if (byDate !== 0) return byDate;
+
+  const byCreatedAt = b.createdAt.localeCompare(a.createdAt);
+  if (byCreatedAt !== 0) return byCreatedAt;
+
+  const byNumber = b.number.localeCompare(a.number, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (byNumber !== 0) return byNumber;
+
+  if (a.number !== b.number) return a.number < b.number ? 1 : -1;
+
+  const byId = a.id.localeCompare(b.id, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (byId !== 0) return byId;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+export function sortInvoicesBySeriesAndNumberDesc(
+  documents: Document[],
+  numbering?: NumberingSettings,
+): Document[] {
+  return [...documents].sort((a, b) =>
+    compareInvoicesBySeriesAndNumberDesc(a, b, numbering),
+  );
+}
+
 function normalizeSearchAmount(value: string): string {
   return value.replace(/[€\s]/g, "").replace(/\./g, "").replace(",", ".");
 }

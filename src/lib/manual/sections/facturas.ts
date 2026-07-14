@@ -40,7 +40,7 @@ export const facturasSection: ManualSection = {
     {
       title: "3. Listado, PDF y búsqueda",
       paragraphs: [
-        "El listado de facturas está ordenado de más nueva a más antigua y muestra separadores por mes para orientarte al bajar.",
+        "El listado agrupa las facturas por su serie de numeración y ordena cada serie por número, de mayor a menor. Así las facturas actuales, las rectificativas y las históricas importadas no quedan mezcladas.",
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
