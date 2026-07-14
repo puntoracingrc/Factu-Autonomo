@@ -39,6 +39,8 @@ export async function generateMetadata({
         "01": "Modelo 01 AEAT: solicitud de certificados tributarios",
         "01C": "Modelo 01C AEAT: certificado de contratistas y subcontratistas",
         "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
+        "05": "Modelo 05 AEAT: beneficios en el impuesto de matriculación",
+        "06": "Modelo 06 AEAT: exenciones del impuesto de matriculación",
       }[codigo]
     : undefined;
   const modelTitle =
