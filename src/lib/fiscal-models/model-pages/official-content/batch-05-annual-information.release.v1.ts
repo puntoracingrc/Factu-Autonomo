@@ -712,7 +712,7 @@ const MODEL_184_CONTENT = {
   canonicalName:
     "Declaración informativa. Entidades en régimen de atribución de rentas. Declaración anual.",
   summary:
-    "Declaración informativa anual que la AEAT identifica con entidades en régimen de atribución de rentas.",
+    "Declaración anual de comunidades de bienes y otras entidades que atribuyen sus rentas a socios, comuneros o partícipes.",
   searchTerms: [
     "modelo 184",
     "declaración informativa",
@@ -727,6 +727,12 @@ const MODEL_184_CONTENT = {
     "nota informativa modelo 184",
     "Orden HAP 2250 2015",
     "Orden HAC 1430 2025",
+    "comunidades de bienes",
+    "socios comuneros partícipes",
+    "límite 3000 euros",
+    "reparto de rentas",
+    "rentas atribuidas",
+    "relación Modelo 100",
   ],
   sections: [
     {

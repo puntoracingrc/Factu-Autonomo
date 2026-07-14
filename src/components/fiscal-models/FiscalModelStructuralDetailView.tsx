@@ -17,13 +17,16 @@ const focusRing =
 
 const practicalSubtitleByCode: Readonly<Record<string, string>> =
   Object.freeze({
+    "100": "Declaración anual de la Renta del autónomo",
     "111": "Retenciones de nóminas, facturas profesionales y otras rentas",
     "115": "Retenciones por el alquiler de locales y otros inmuebles urbanos",
     "130": "Pago trimestral del IRPF en estimación directa",
     "131": "Pago trimestral del IRPF para autónomos en módulos",
     "180": "Resumen anual de retenciones por alquileres urbanos",
+    "184": "Rentas de comunidades de bienes y otras entidades",
     "190": "Resumen anual de retenciones de nóminas y actividades económicas",
     "303": "Autoliquidación periódica del IVA",
+    "309": "IVA no periódico para operaciones especiales",
     "347": "Declaración anual de operaciones con clientes y proveedores",
     "349": "Operaciones con empresas y profesionales de la Unión Europea",
     "390": "Resumen anual del IVA",
