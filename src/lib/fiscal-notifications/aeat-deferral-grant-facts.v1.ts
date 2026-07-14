@@ -556,9 +556,30 @@ export function extractAeatDeferralGrantFactsV1(
     "MULTIPLE_DISTINCT_GRANTED_TOTALS",
     issues,
   );
-  const frozenSchedules = schedules
-    .filter((schedule) => schedule.installments.length > 0)
-    .map(freezeSchedule);
+  const returnedScheduleIndexes = schedules.flatMap((schedule, index) =>
+    schedule.installments.length > 0 ? [index] : [],
+  );
+  const scheduleIndexMap = new Map(
+    returnedScheduleIndexes.map((sourceIndex, resultIndex) => [
+      sourceIndex,
+      resultIndex,
+    ]),
+  );
+  const frozenSchedules = returnedScheduleIndexes.map((index) =>
+    freezeSchedule(schedules[index]!),
+  );
+  const returnedIssues = issues.map((item) => {
+    if (item.scheduleIndex === null) return item;
+    const mappedScheduleIndex = scheduleIndexMap.get(item.scheduleIndex);
+    return mappedScheduleIndex === undefined
+      ? issue(item.code, item.pageNumbers, null, null)
+      : issue(
+          item.code,
+          item.pageNumbers,
+          mappedScheduleIndex,
+          item.installmentIndex,
+        );
+  });
   const hasFacts =
     Boolean(
       subjectName ||
@@ -567,7 +588,7 @@ export function extractAeatDeferralGrantFactsV1(
         paymentAccount ||
         grantedTotal,
     ) || frozenSchedules.length > 0;
-  const ambiguous = issues.some((item) =>
+  const ambiguous = returnedIssues.some((item) =>
     [
       "MULTIPLE_DISTINCT_SUBJECT_VALUES",
       "MULTIPLE_DISTINCT_EXPEDIENT_VALUES",
@@ -598,7 +619,7 @@ export function extractAeatDeferralGrantFactsV1(
       paymentAccount,
     },
     debtSchedules: frozenSchedules,
-    issues,
+    issues: returnedIssues,
   });
 }
 

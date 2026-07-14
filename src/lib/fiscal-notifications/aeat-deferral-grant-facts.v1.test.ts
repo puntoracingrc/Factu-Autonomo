@@ -319,8 +319,8 @@ describe("AEAT deferral grant explicit facts v1", () => {
         {
           code: "INVALID_PRINTED_DATE",
           pageNumbers: [2],
-          scheduleIndex: 0,
-          installmentIndex: 0,
+          scheduleIndex: null,
+          installmentIndex: null,
         },
         { code: "NO_INSTALLMENT_ROWS" },
       ],
