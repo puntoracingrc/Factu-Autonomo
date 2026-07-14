@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
+import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM } from "./local-review-flow";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
@@ -333,8 +334,8 @@ describe("fiscal notification safe local review repository", () => {
       {
         readPdf: async () =>
           Object.freeze({
-            schemaVersion: 4 as const,
-            adapterVersion: "4.0.0" as const,
+            schemaVersion: 5 as const,
+            adapterVersion: "5.0.0" as const,
             status: "TEXT_LAYER_AVAILABLE" as const,
             sourceContentPolicy:
               "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
@@ -471,6 +472,27 @@ describe("fiscal notification safe local review repository", () => {
                     }),
                   ]),
                 })),
+              enforcementPartyFacts:
+                extractAeatEnforcementPartyFactsV1(Object.freeze({
+                  ownerScope: OWNER_A,
+                  documentId: "document:synthetic-round-trip",
+                  pages: Object.freeze([
+                    Object.freeze({
+                      pageNumber: 1,
+                      text: [
+                        "AGENCIA TRIBUTARIA",
+                        "sede.agenciatributaria.gob.es",
+                        "PROVIDENCIA DE APREMIO",
+                        "IDENTIFICACION DEL DOCUMENTO",
+                        "IMPORTE DE LA DEUDA",
+                        "IDENTIFICACION DEL OBLIGADO AL PAGO",
+                        "NOMBRE / RAZON SOCIAL: PRIVATE PERSON NAME SENTINEL",
+                        "NIF: 12345678Z",
+                      ].join("\n"),
+                      isBlank: false,
+                    }),
+                  ]),
+                })),
             }),
             reviewContext: Object.freeze({
               ownerScope: OWNER_A,
@@ -484,6 +506,7 @@ describe("fiscal notification safe local review repository", () => {
     );
     const actual = analysis.technicalReview;
     expect(JSON.stringify(analysis)).toContain("PRIVATE_REFERENCE_SENTINEL");
+    expect(JSON.stringify(analysis)).toContain("PRIVATE PERSON NAME SENTINEL");
     expect(JSON.stringify(actual)).not.toContain("PRIVATE_REFERENCE_SENTINEL");
 
     const storage = new MemoryStorage();
@@ -507,6 +530,8 @@ describe("fiscal notification safe local review repository", () => {
     expect(serialized).not.toContain("amountCents");
     expect(serialized).not.toContain("ephemeralEnforcementMoneyFacts");
     expect(serialized).not.toContain("PRIVATE_REFERENCE_SENTINEL");
+    expect(serialized).not.toContain("PRIVATE PERSON NAME SENTINEL");
+    expect(serialized).not.toContain("ephemeralEnforcementPartyFacts");
   });
 
   it("accepts historical and current engine versions but rejects a historical trace relabelled current", async () => {

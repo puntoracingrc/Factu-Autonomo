@@ -5,6 +5,7 @@ import {
 } from "./pdf-text-layer-parser";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
+import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
@@ -65,6 +66,9 @@ async function processMessage(value: unknown): Promise<void> {
     const enforcementExplicitFields = enforcementCandidate
       ? extractAeatEnforcementExplicitFieldsV2(documentInput)
       : null;
+    const enforcementPartyFacts = enforcementCandidate
+      ? extractAeatEnforcementPartyFactsV1(documentInput)
+      : null;
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: hasText
         ? "TEXT_LAYER_AVAILABLE"
@@ -73,6 +77,7 @@ async function processMessage(value: unknown): Promise<void> {
       familyAnalysis,
       enforcementMoneyFacts,
       enforcementExplicitFields,
+      enforcementPartyFacts,
     });
     workerScope.postMessage({
       type: "RESULT",

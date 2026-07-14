@@ -9,6 +9,10 @@ import {
   parseAeatEnforcementExplicitFieldsV2,
   type AeatEnforcementExplicitFieldsV2,
 } from "./aeat-enforcement-explicit-fields.v2";
+import {
+  parseAeatEnforcementPartyFactsV1,
+  type AeatEnforcementPartyFactsV1,
+} from "./aeat-enforcement-party-facts.v1";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationExtractionReason,
@@ -23,9 +27,9 @@ import {
 } from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_SCHEMA_VERSION =
-  3 as const;
+  4 as const;
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_VERSION =
-  "3.0.0" as const;
+  "4.0.0" as const;
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
   maxCandidates: 5,
@@ -76,13 +80,14 @@ export interface FiscalNotificationPdfWorkerFamilyAnalysis {
 }
 
 export interface FiscalNotificationPdfWorkerAnalysis {
-  readonly schemaVersion: 3;
-  readonly analysisVersion: "3.0.0";
+  readonly schemaVersion: 4;
+  readonly analysisVersion: "4.0.0";
   readonly textLayerStatus: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly pageCount: number;
   readonly familyAnalysis: FiscalNotificationPdfWorkerFamilyAnalysis | null;
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
+  readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
@@ -95,6 +100,7 @@ export interface ProjectFiscalNotificationPdfWorkerAnalysisInput {
   readonly familyAnalysis: FiscalNotificationExtractionResult | null;
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
+  readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
 }
 
 export class FiscalNotificationPdfWorkerAnalysisError extends Error {
@@ -112,6 +118,7 @@ const ENVELOPE_KEYS = new Set([
   "familyAnalysis",
   "enforcementMoneyFacts",
   "enforcementExplicitFields",
+  "enforcementPartyFacts",
   "sourceContentPolicy",
   "requiresHumanReview",
   "materializationPolicy",
@@ -394,6 +401,7 @@ export function projectFiscalNotificationPdfWorkerAnalysis(
     familyAnalysis,
     enforcementMoneyFacts: input.enforcementMoneyFacts,
     enforcementExplicitFields: input.enforcementExplicitFields,
+    enforcementPartyFacts: input.enforcementPartyFacts,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -408,8 +416,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     const envelope = snapshotRecord(value);
     assertKnownKeys(envelope, ENVELOPE_KEYS);
     if (
-      envelope.schemaVersion !== 3 ||
-      envelope.analysisVersion !== "3.0.0" ||
+      envelope.schemaVersion !== 4 ||
+      envelope.analysisVersion !== "4.0.0" ||
       (envelope.textLayerStatus !== "TEXT_LAYER_AVAILABLE" &&
         envelope.textLayerStatus !== "NO_EXTRACTABLE_TEXT") ||
       !isBoundedPageCount(envelope.pageCount) ||
@@ -431,7 +439,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
       if (
         familyAnalysis !== null ||
         envelope.enforcementMoneyFacts !== null ||
-        envelope.enforcementExplicitFields !== null
+        envelope.enforcementExplicitFields !== null ||
+        envelope.enforcementPartyFacts !== null
       ) {
         throw new FiscalNotificationPdfWorkerAnalysisError();
       }
@@ -445,7 +454,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
         "AEAT_ENFORCEMENT_ORDER_CANDIDATE";
     if (
       enforcementCandidate !== (envelope.enforcementMoneyFacts !== null) ||
-      enforcementCandidate !== (envelope.enforcementExplicitFields !== null)
+      enforcementCandidate !== (envelope.enforcementExplicitFields !== null) ||
+      enforcementCandidate !== (envelope.enforcementPartyFacts !== null)
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
@@ -485,15 +495,29 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
+    const enforcementPartyFacts =
+      envelope.enforcementPartyFacts === null
+        ? null
+        : parseAeatEnforcementPartyFactsV1(
+            envelope.enforcementPartyFacts,
+            pageCount,
+          );
+    if (
+      enforcementPartyFacts !== null &&
+      enforcementPartyFacts.documentType !== "AEAT_ENFORCEMENT_ORDER"
+    ) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
 
     return Object.freeze({
-      schemaVersion: 3 as const,
-      analysisVersion: "3.0.0" as const,
+      schemaVersion: 4 as const,
+      analysisVersion: "4.0.0" as const,
       textLayerStatus: envelope.textLayerStatus,
       pageCount,
       familyAnalysis,
       enforcementMoneyFacts,
       enforcementExplicitFields,
+      enforcementPartyFacts,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
       requiresHumanReview: true as const,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,

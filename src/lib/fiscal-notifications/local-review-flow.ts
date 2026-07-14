@@ -7,6 +7,7 @@ import {
 } from "./disabled-ocr-port";
 import type { AeatEnforcementMoneyFactsResult } from "./aeat-enforcement-money-facts";
 import type { AeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
+import type { AeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationCandidateSignalStatus,
@@ -27,8 +28,8 @@ import type { AdministrativeDocumentType } from "./types";
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_FLOW_VERSION = "1.0.0" as const;
-export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION = 3 as const;
-export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_VERSION = "3.0.0" as const;
+export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION = 4 as const;
+export const FISCAL_NOTIFICATION_LOCAL_ANALYSIS_VERSION = "4.0.0" as const;
 
 export type FiscalNotificationLocalReviewReason =
   | FiscalNotificationExtractionReason
@@ -81,8 +82,8 @@ export interface FiscalNotificationLocalReviewResult {
 }
 
 export interface FiscalNotificationLocalAnalysisResult {
-  readonly schemaVersion: 3;
-  readonly analysisVersion: "3.0.0";
+  readonly schemaVersion: 4;
+  readonly analysisVersion: "4.0.0";
   readonly technicalReview: FiscalNotificationLocalReviewResult;
   readonly ephemeralEnforcementMoneyFacts:
     | AeatEnforcementMoneyFactsResult
@@ -90,6 +91,7 @@ export interface FiscalNotificationLocalAnalysisResult {
   readonly ephemeralEnforcementExplicitFields:
     | AeatEnforcementExplicitFieldsV2
     | null;
+  readonly ephemeralEnforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
@@ -162,6 +164,7 @@ async function analyzeFiscalNotificationWithDependencies(
       }),
       null,
       null,
+      null,
     );
   }
 
@@ -203,6 +206,7 @@ async function analyzeFiscalNotificationWithDependencies(
     }),
     intake.analysis.enforcementMoneyFacts,
     intake.analysis.enforcementExplicitFields,
+    intake.analysis.enforcementPartyFacts,
   );
 }
 
@@ -228,6 +232,7 @@ function freezeAnalysisResult(
   technicalReview: FiscalNotificationLocalReviewResult,
   ephemeralEnforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null,
   ephemeralEnforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null,
+  ephemeralEnforcementPartyFacts: AeatEnforcementPartyFactsV1 | null,
 ): FiscalNotificationLocalAnalysisResult {
   return Object.freeze({
     schemaVersion: FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION,
@@ -235,6 +240,7 @@ function freezeAnalysisResult(
     technicalReview,
     ephemeralEnforcementMoneyFacts,
     ephemeralEnforcementExplicitFields,
+    ephemeralEnforcementPartyFacts,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
     requiresHumanReview: true as const,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,

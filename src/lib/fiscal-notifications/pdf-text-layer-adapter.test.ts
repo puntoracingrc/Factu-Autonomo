@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
   readFiscalNotificationPdfTextLayer,
@@ -66,8 +67,8 @@ function workerAnalysis(
     "TEXT_LAYER_AVAILABLE",
 ) {
   return {
-    schemaVersion: 3,
-    analysisVersion: "3.0.0",
+    schemaVersion: 4,
+    analysisVersion: "4.0.0",
     textLayerStatus: status,
     pageCount: 1,
     familyAnalysis:
@@ -87,6 +88,7 @@ function workerAnalysis(
         : null,
     enforcementMoneyFacts: null,
     enforcementExplicitFields: null,
+    enforcementPartyFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -141,6 +143,9 @@ function visibleFieldsWorkerAnalysis() {
     "Recargo ordinario (20 %): 20,00 EUR",
     "Ingreso a cuenta: 0,00 EUR",
     "Importe total: 120,00 EUR",
+    "IDENTIFICACION DEL OBLIGADO AL PAGO",
+    "NOMBRE / RAZON SOCIAL: PERSONA SINTETICA",
+    "NIF: 12345678Z",
     `Clave de liquidación: ${PRINTED_REFERENCE}`,
     "Fecha de emisión: 10/07/2026",
     PRIVATE_RAW_DOCUMENT_SENTINEL,
@@ -158,6 +163,7 @@ function visibleFieldsWorkerAnalysis() {
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
     enforcementExplicitFields: extractAeatEnforcementExplicitFieldsV2(input),
+    enforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
   });
 }
 
@@ -291,8 +297,8 @@ describe("fiscal notification PDF text-layer adapter", () => {
     const output = await readFiscalNotificationPdfTextLayer(input, deps);
 
     expect(output).toMatchObject({
-      schemaVersion: 4,
-      adapterVersion: "4.0.0",
+      schemaVersion: 5,
+      adapterVersion: "5.0.0",
       status,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: {
@@ -315,6 +321,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
             : null,
         enforcementMoneyFacts: null,
         enforcementExplicitFields: null,
+        enforcementPartyFacts: null,
         retainedSourceContent: "NONE",
       },
       requiresHumanReview: true,
@@ -334,7 +341,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.activeErrorListeners()).toBe(0);
   });
 
-  it("carries exact bounded reference facts ephemerally without raw PDF content", async () => {
+  it("carries exact bounded party and reference facts ephemerally without raw PDF content", async () => {
     const worker = createFakeWorker({
       response: resultMessage(visibleFieldsWorkerAnalysis()),
     });
@@ -359,6 +366,23 @@ describe("fiscal notification PDF text-layer adapter", () => {
       networkPolicy: "NO_NETWORK",
       retainedSourceContent: "NONE",
     });
+    expect(output.analysis.enforcementPartyFacts).toMatchObject({
+      schemaVersion: 1,
+      engineVersion: "1.0.0",
+      documentType: "AEAT_ENFORCEMENT_ORDER",
+      outcome: "FACTS_AVAILABLE",
+      identifiedSubject: {
+        role: "PAYMENT_OBLIGOR",
+        roleSource: "EXPLICIT_SECTION_HEADING",
+        printedName: "PERSONA SINTETICA",
+        printedTaxId: "12345678Z",
+        valueDisclosure: "EPHEMERAL_UI_ONLY",
+      },
+      persistencePolicy: "DO_NOT_PERSIST",
+      networkPolicy: "NO_NETWORK",
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      retainedSourceContent: "NONE",
+    });
     const serialized = JSON.stringify(output.analysis);
     expect(serialized).toContain(PRINTED_REFERENCE);
     expect(serialized).not.toContain(PRIVATE_RAW_DOCUMENT_SENTINEL);
@@ -369,6 +393,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
       Object.isFrozen(
         output.analysis.enforcementExplicitFields?.referenceFacts[0],
       ),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(output.analysis.enforcementPartyFacts?.identifiedSubject),
     ).toBe(true);
   });
 
@@ -398,6 +425,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
       },
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
     });
     expect(JSON.stringify(output.analysis)).not.toMatch(
       /"(?:text|pages|rawValue|nif|csv|amount|deadline)"/iu,
@@ -1051,8 +1079,11 @@ describe("fiscal notification PDF text-layer adapter", () => {
       "familyAnalysis",
       "enforcementMoneyFacts",
       "enforcementExplicitFields",
+      "enforcementPartyFacts",
     ]);
-    const explicitProjection = projection.properties.at(-1);
+    const explicitProjection = projection.properties.find(
+      (property) => property.name?.getText(sourceFile) === "enforcementExplicitFields",
+    );
     expect(
       explicitProjection &&
         ts.isShorthandPropertyAssignment(explicitProjection),
