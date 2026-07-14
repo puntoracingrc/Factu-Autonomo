@@ -8,6 +8,13 @@ import {
   type AdminSyncEntityRow,
 } from "./user-restore";
 import { issueDocument } from "../document-integrity";
+import { appDataToSyncChanges } from "../cloud/diff";
+import {
+  applyTestDocumentRetirement,
+  buildTestDocumentRetirementPreview,
+  testDocumentRetirementExportableDataFingerprint,
+} from "../document-integrity/test-document-retirement";
+import { testDocumentRetirementTenantFingerprintForUserId } from "../test-document-retirement-persistence";
 import {
   EMPTY_DATA,
   type AppData,
@@ -33,6 +40,72 @@ function dataWithCustomers(customers: Customer[]): AppData {
     profile: EMPTY_DATA.profile,
     counters: EMPTY_DATA.counters,
   };
+}
+
+function retirementStates(): { before: AppData; applied: AppData } {
+  const invoice: Document = {
+    id: "synthetic-admin-retirement-invoice",
+    type: "factura",
+    number: "F-2026-0045",
+    date: "2026-07-01",
+    client: { name: "Cliente sintético" },
+    items: [
+      {
+        id: "synthetic-admin-line",
+        description: "Servicio",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "pagado",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    receiptDocumentId: "synthetic-admin-retirement-receipt",
+    createdAt: "2026-07-01T08:00:00.000Z",
+    updatedAt: "2026-07-01T08:00:00.000Z",
+  };
+  const receipt: Document = {
+    ...invoice,
+    id: "synthetic-admin-retirement-receipt",
+    type: "recibo",
+    number: "R-2026-0046",
+    sourceDocumentId: invoice.id,
+    receiptDocumentId: undefined,
+  };
+  const before: AppData = {
+    ...structuredClone(EMPTY_DATA),
+    documents: [invoice, receipt],
+  };
+  const tenant = testDocumentRetirementTenantFingerprintForUserId(
+    "synthetic-admin-user",
+  );
+  const preview = buildTestDocumentRetirementPreview(before, {
+    selectedDocumentIds: [receipt.id],
+    tenantFingerprint: tenant,
+  });
+  const applied = applyTestDocumentRetirement(
+    before,
+    preview,
+    "2026-07-14T07:00:00.000Z",
+    tenant,
+    {
+      filename:
+        "factu-autonomo-backup-antes-retirar-pruebas-2026-07-14-07-00-00.json",
+      createdAt: "2026-07-14T07:00:00.000Z",
+      exportableDataFingerprint:
+        testDocumentRetirementExportableDataFingerprint(before),
+      contentSha256: `sha256:${"e".repeat(64)}`,
+      byteLength: 1_024,
+      disposition: "browser_download_requested",
+    },
+  );
+  if (applied.status !== "applied") {
+    throw new Error(
+      `No se pudo crear el fixture de retiro administrativo: ${applied.status}${"reason" in applied ? `/${applied.reason}` : ""}`,
+    );
+  }
+  return { before, applied: applied.data };
 }
 
 describe("admin user restore", () => {
@@ -230,5 +303,44 @@ describe("admin user restore", () => {
       "counters:counters",
       "workspace_metadata:snapshot_integrity_version",
     ]);
+  });
+
+  it("no convierte la proyección de un lote ya compartido en tombstones ni backlinks cloud", () => {
+    const { before, applied } = retirementStates();
+    const batchChange = appDataToSyncChanges(applied).find(
+      (change) => change.entityType === "document_retirement_batch",
+    )!;
+    const rows: AdminSyncEntityRow[] = [
+      ...before.documents.map((document) => ({
+        entity_type: "document",
+        entity_id: document.id,
+        payload: document,
+        deleted: false,
+        updated_at: document.updatedAt,
+      })),
+      {
+        entity_type: batchChange.entityType,
+        entity_id: batchChange.entityId,
+        payload: batchChange.payload,
+        deleted: false,
+        updated_at: batchChange.updatedAt,
+      },
+    ];
+
+    const changes = buildRestoreChangesFromRows(
+      rows,
+      applied,
+      "2026-07-14T09:00:00.000Z",
+    );
+
+    expect(
+      changes.filter((change) => change.entityType === "document"),
+    ).toEqual([]);
+    expect(
+      changes.filter(
+        (change) => change.entityType === "document_retirement_batch",
+      ),
+    ).toEqual([]);
+    expect(rows.filter((row) => row.entity_type === "document")).toHaveLength(2);
   });
 });

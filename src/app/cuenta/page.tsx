@@ -24,6 +24,7 @@ import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
 import { AppIssuedDocumentRecoveryCard } from "@/components/settings/AppIssuedDocumentRecoveryCard";
 import { ImportedLegacyDocumentRepairCard } from "@/components/settings/ImportedLegacyDocumentRepairCard";
+import { TestDocumentRetirementCard } from "@/components/settings/TestDocumentRetirementCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
@@ -192,6 +193,9 @@ export default function CuentaPage() {
         </div>
         <div id="recuperacion-documentos-factu" className="scroll-mt-24">
           <AppIssuedDocumentRecoveryCard />
+        </div>
+        <div id="mantenimiento-documentos-prueba" className="scroll-mt-24">
+          <TestDocumentRetirementCard />
         </div>
       </AccountSection>
 

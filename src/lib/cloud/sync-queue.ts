@@ -2,6 +2,7 @@ import { hasPendingSyncChanges } from "./incremental";
 import {
   appDataToSyncChanges,
   recurringOccurrenceExclusionSyncChanges,
+  testDocumentRetirementSyncChanges,
   type SyncChange,
 } from "./diff";
 import { getDataTimestamp } from "../storage";
@@ -21,15 +22,16 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
   const pending = data.meta?.pendingChanges ?? [];
   if (pending.length > 0) {
     const exclusions = recurringOccurrenceExclusionSyncChanges(data);
-    if (exclusions.length === 0) return pending;
+    const retirementBatches = testDocumentRetirementSyncChanges(data);
+    if (exclusions.length === 0 && retirementBatches.length === 0) return pending;
     const changes = new Map(
       pending.map((change) => [
         `${change.entityType}:${change.entityId}`,
         change,
       ]),
     );
-    for (const exclusion of exclusions) {
-      changes.set(`${exclusion.entityType}:${exclusion.entityId}`, exclusion);
+    for (const monotonic of [...exclusions, ...retirementBatches]) {
+      changes.set(`${monotonic.entityType}:${monotonic.entityId}`, monotonic);
     }
     return [...changes.values()];
   }
@@ -38,7 +40,10 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
   const updatedAt = new Date().toISOString();
   return appDataToSyncChanges(data).map((change) => ({
     ...change,
-    updatedAt,
+    updatedAt:
+      change.entityType === "document_retirement_batch"
+        ? change.updatedAt
+        : updatedAt,
   }));
 }
 
@@ -54,7 +59,10 @@ export function buildCloudReplacementChanges(
 ): SyncChange[] {
   return appDataToSyncChanges(data).map((change) => ({
     ...change,
-    updatedAt: queuedAt,
+    updatedAt:
+      change.entityType === "document_retirement_batch"
+        ? change.updatedAt
+        : queuedAt,
   }));
 }
 

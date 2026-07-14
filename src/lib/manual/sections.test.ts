@@ -146,6 +146,22 @@ describe("manual sections", () => {
     expect(accountManual).toContain("un caso híbrido queda fuera");
   });
 
+  it("documenta el archivo reversible y gobernado de documentos de prueba", () => {
+    const accountManual = JSON.stringify(getManualSection("cuenta"));
+
+    expect(accountManual).toContain(
+      "Mantenimiento · archivar documentos de prueba",
+    );
+    expect(accountManual).toContain("cuenta owner");
+    expect(accountManual).toContain("nube en **Sincronizado**");
+    expect(accountManual).toContain("nivel MFA de la sesión resuelto");
+    expect(accountManual).toContain("número completo y exacto");
+    expect(accountManual).toContain("copia JSON previa");
+    expect(accountManual).toContain("rollback");
+    expect(accountManual).toContain("no libera la identidad");
+    expect(accountManual).toContain("sincronización inmediata");
+  });
+
   it("documenta la copia automática previa a una restauración durable", () => {
     const accountManual = JSON.stringify(getManualSection("cuenta"));
 

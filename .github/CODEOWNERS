@@ -4,6 +4,7 @@
 /.github/CODEOWNERS                                   @puntoracingrc
 /docs/architecture/ADR-0001-historical-imported-documents.md @puntoracingrc
 /docs/architecture/ADR-0002-app-issued-document-recovery.md @puntoracingrc
+/docs/architecture/ADR-0003-explicit-test-document-retirement.md @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc

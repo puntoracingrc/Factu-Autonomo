@@ -14,11 +14,15 @@ import {
 } from "@/lib/backup";
 import type { BackupRestoreDraft } from "@/lib/backup";
 import { runBackupRestoreWithSafetyCopy } from "@/lib/backup-restore-command";
+import { testDocumentRetirementTenantFingerprintForUserId } from "@/lib/test-document-retirement-persistence";
 
 export function DataOwnershipCard() {
   const { data, getCurrentData, restoreBackupData } = useAppStore();
   const { user, cloudEnabled } = useCloudSync();
   const hasCloudSession = Boolean(user);
+  const expectedRetirementTenantFingerprint = user?.id
+    ? testDocumentRetirementTenantFingerprintForUserId(user.id)
+    : undefined;
   const [backupFeedback, setBackupFeedback] = useState<{
     tone: "success" | "error";
     message: string;
@@ -141,7 +145,12 @@ export function DataOwnershipCard() {
         getCurrent: getCurrentData,
         downloadCurrent: (current) =>
           downloadBackup(current, { purpose: "pre_restore" }),
-        restore: restoreBackupData,
+        restore: (restored, expected) =>
+          restoreBackupData(
+            restored,
+            expected,
+            expectedRetirementTenantFingerprint,
+          ),
       });
 
       if (execution.status === "backup_failed") {

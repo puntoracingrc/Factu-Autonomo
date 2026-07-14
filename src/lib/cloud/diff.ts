@@ -5,6 +5,7 @@ import type {
   RecurringOccurrenceExclusionSyncPayload,
   SyncChange,
   SyncEntityType,
+  TestDocumentRetirementBatchV1,
 } from "../types";
 import { EMPTY_DATA } from "../types";
 import {
@@ -12,6 +13,13 @@ import {
   mergeRecurringExpenseOccurrenceExclusions,
   normalizeRecurringExpense,
 } from "../recurring-expenses";
+import {
+  isValidTestDocumentRetirementBatch,
+  mergeTestDocumentRetirementBatch,
+  projectTestDocumentRetirementHistory,
+  quarantineTestDocumentRetirementPayload,
+  testDocumentRetirementBatchUpdatedAt,
+} from "../test-document-retirement-persistence";
 
 export type { SyncChange, SyncEntityType };
 
@@ -135,10 +143,106 @@ function diffRecurringOccurrenceExclusions(
   });
 }
 
+export function retirementBatchChange(
+  batch: TestDocumentRetirementBatchV1,
+): SyncChange {
+  return {
+    entityType: "document_retirement_batch",
+    entityId: batch.batchId,
+    deleted: false,
+    payload: batch,
+    updatedAt: testDocumentRetirementBatchUpdatedAt(batch),
+  };
+}
+
+export function testDocumentRetirementSyncChanges(data: AppData): SyncChange[] {
+  return (data.testDocumentRetirementBatches ?? [])
+    .filter(isValidTestDocumentRetirementBatch)
+    .map(retirementBatchChange);
+}
+
+function diffTestDocumentRetirementBatches(
+  previous: AppData,
+  next: AppData,
+): SyncChange[] {
+  const previousById = new Map(
+    (previous.testDocumentRetirementBatches ?? [])
+      .filter(isValidTestDocumentRetirementBatch)
+      .map((batch) => [batch.batchId, batch]),
+  );
+  return (next.testDocumentRetirementBatches ?? []).flatMap((batch) => {
+    if (!isValidTestDocumentRetirementBatch(batch)) return [];
+    const before = previousById.get(batch.batchId);
+    if (!before) return [retirementBatchChange(batch)];
+    const merged = mergeTestDocumentRetirementBatch(before, batch);
+    if (!merged || merged.events.length <= before.events.length) return [];
+    return [retirementBatchChange(merged)];
+  });
+}
+
+export function isDerivedTestDocumentRetirementDocumentChange(
+  change: SyncChange,
+  batch: TestDocumentRetirementBatchV1,
+): boolean {
+  if (change.entityType !== "document") return false;
+  if (batch.status === "applied") {
+    if (batch.selectedDocumentIds.includes(change.entityId)) {
+      return change.deleted;
+    }
+    const backlink = batch.backlinkChanges.find(
+      (entry) => entry.documentId === change.entityId,
+    );
+    return Boolean(
+      backlink &&
+        !change.deleted &&
+        stableJson(change.payload) === stableJson(backlink.after),
+    );
+  }
+  const retired = batch.retiredDocuments.find(
+    (entry) => entry.document.id === change.entityId,
+  );
+  if (retired) {
+    return !change.deleted && stableJson(change.payload) === stableJson(retired.document);
+  }
+  const backlink = batch.backlinkChanges.find(
+    (entry) => entry.documentId === change.entityId,
+  );
+  return Boolean(
+    backlink &&
+      !change.deleted &&
+      stableJson(change.payload) === stableJson(backlink.before),
+  );
+}
+
+function suppressDerivedRetirementDocumentChanges(
+  changes: SyncChange[],
+  retirementChanges: readonly SyncChange[],
+): SyncChange[] {
+  const batches = retirementChanges.flatMap((change) =>
+    change.entityType === "document_retirement_batch" &&
+    !change.deleted &&
+    isValidTestDocumentRetirementBatch(change.payload)
+      ? [change.payload]
+      : [],
+  );
+  if (batches.length === 0) return changes;
+  return changes.filter(
+    (change) =>
+      !batches.some((batch) =>
+        isDerivedTestDocumentRetirementDocumentChange(change, batch),
+      ),
+  );
+}
+
 export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
   const timestamp = now();
+  const retirementChanges = diffTestDocumentRetirementBatches(prev, next);
+  const documentChanges = suppressDerivedRetirementDocumentChanges(
+    diffById("document", prev.documents, next.documents, timestamp),
+    retirementChanges,
+  );
   const changes: SyncChange[] = [
-    ...diffById("document", prev.documents, next.documents, timestamp),
+    ...documentChanges,
     ...diffById("customer", prev.customers, next.customers, timestamp),
     ...diffById("expense", prev.expenses, next.expenses, timestamp),
     ...diffById(
@@ -151,6 +255,7 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
     ...diffById("user_reminder", prev.userReminders, next.userReminders, timestamp),
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
     ...diffById("product", prev.products, next.products, timestamp),
+    ...retirementChanges,
   ];
 
   if (stableJson(prev.profile) !== stableJson(next.profile)) {
@@ -187,12 +292,52 @@ export function mergePendingChanges(
   existing: SyncChange[] | undefined,
   incoming: SyncChange[],
 ): SyncChange[] {
+  const retirementChanges = [...(existing ?? []), ...incoming].filter(
+    (change) => change.entityType === "document_retirement_batch",
+  );
+  const safeExisting = suppressDerivedRetirementDocumentChanges(
+    existing ?? [],
+    retirementChanges,
+  );
+  const safeIncoming = suppressDerivedRetirementDocumentChanges(
+    incoming,
+    retirementChanges,
+  );
   const map = new Map<string, SyncChange>();
-  for (const change of existing ?? []) {
+  for (const change of safeExisting) {
+    if (
+      change.entityType === "document_retirement_batch" &&
+      (change.deleted ||
+        !isValidTestDocumentRetirementBatch(change.payload) ||
+        change.payload.batchId !== change.entityId)
+    ) {
+      continue;
+    }
     map.set(`${change.entityType}:${change.entityId}`, change);
   }
-  for (const change of incoming) {
-    map.set(`${change.entityType}:${change.entityId}`, change);
+  for (const change of safeIncoming) {
+    const key = `${change.entityType}:${change.entityId}`;
+    if (change.entityType !== "document_retirement_batch") {
+      map.set(key, change);
+      continue;
+    }
+    if (
+      change.deleted ||
+      !isValidTestDocumentRetirementBatch(change.payload) ||
+      change.payload.batchId !== change.entityId
+    ) {
+      continue;
+    }
+    const current = map.get(key);
+    if (!current || !isValidTestDocumentRetirementBatch(current.payload)) {
+      map.set(key, retirementBatchChange(change.payload));
+      continue;
+    }
+    const merged = mergeTestDocumentRetirementBatch(
+      current.payload,
+      change.payload,
+    );
+    if (merged) map.set(key, retirementBatchChange(merged));
   }
   return [...map.values()];
 }
@@ -250,6 +395,7 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       payload: product,
       updatedAt: product.updatedAt || product.createdAt || timestamp,
     })),
+    ...testDocumentRetirementSyncChanges(data),
     {
       entityType: "profile",
       entityId: "profile",
@@ -274,8 +420,6 @@ export function applySyncChanges(
   data: AppData,
   remoteChanges: SyncChange[],
 ): AppData {
-  let next: AppData = { ...data };
-
   const sorted = [...remoteChanges].sort((a, b) => {
     const aIsExclusion =
       a.entityType === "recurring_occurrence_exclusion" && !a.deleted;
@@ -285,11 +429,45 @@ export function applySyncChanges(
     return a.updatedAt.localeCompare(b.updatedAt);
   });
 
+  const retirementChanges = sorted.filter(
+    (change) => change.entityType === "document_retirement_batch",
+  );
+  let historyCandidate: AppData = { ...data };
+
+  // El lote y sus documentos forman una sola transición lógica. Primero se
+  // valida y fusiona todo el historial append-only; ante un sobre inválido o
+  // divergente no se aplica ningún cambio remoto de la misma descarga.
+  for (const change of retirementChanges) {
+    if (
+      change.deleted ||
+      !isValidTestDocumentRetirementBatch(change.payload) ||
+      change.payload.batchId !== change.entityId
+    ) {
+      return quarantineTestDocumentRetirementPayload(data, change);
+    }
+    const before = historyCandidate.testDocumentRetirementBatches ?? [];
+    const existing = before.find((batch) => batch.batchId === change.entityId);
+    if (existing && !mergeTestDocumentRetirementBatch(existing, change.payload)) {
+      return quarantineTestDocumentRetirementPayload(data, change);
+    }
+    historyCandidate = applyOneChange(historyCandidate, change);
+  }
+
+  let next = historyCandidate;
   for (const change of sorted) {
+    if (change.entityType === "document_retirement_batch") continue;
     next = applyOneChange(next, change);
   }
 
-  return next;
+  const projected = projectTestDocumentRetirementHistory(next);
+  if (projected.status === "blocked") {
+    return quarantineTestDocumentRetirementPayload(data, {
+      reason: projected.reason,
+      batchId: projected.batchId,
+      retirementChanges,
+    });
+  }
+  return projected.data;
 }
 
 function applyOneChange(data: AppData, change: SyncChange): AppData {
@@ -356,6 +534,33 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
         ...data,
         products: applyListChange(data.products, change),
       };
+    case "document_retirement_batch": {
+      if (
+        change.deleted ||
+        !isValidTestDocumentRetirementBatch(change.payload) ||
+        change.payload.batchId !== change.entityId
+      ) {
+        return data;
+      }
+      const batches = data.testDocumentRetirementBatches ?? [];
+      const existingIndex = batches.findIndex(
+        (batch) => batch.batchId === change.entityId,
+      );
+      if (existingIndex === -1) {
+        return {
+          ...data,
+          testDocumentRetirementBatches: [...batches, change.payload],
+        };
+      }
+      const merged = mergeTestDocumentRetirementBatch(
+        batches[existingIndex]!,
+        change.payload,
+      );
+      if (!merged) return data;
+      const nextBatches = [...batches];
+      nextBatches[existingIndex] = merged;
+      return { ...data, testDocumentRetirementBatches: nextBatches };
+    }
     case "profile":
       if (change.deleted) return data;
       return {

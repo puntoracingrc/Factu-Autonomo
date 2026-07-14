@@ -11,7 +11,7 @@ export const BACKUP_SOURCE = "local";
 export const BACKUP_WARNING =
   "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No restaura datos automáticamente. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
 export const BACKUP_SCOPE_NOTICE =
-  "Incluye el perfil, documentos, gastos, recurrencias y fichas maestras de Factu. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
+  "Incluye el perfil, documentos, gastos, recurrencias, fichas maestras y el historial auditable de retiros explícitos de Factu. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
 
 export interface BackupMetadata {
   app: typeof BACKUP_APP_ID;
@@ -34,7 +34,13 @@ interface PortableBackupPayloadV2 {
 }
 
 export type BackupDownloadResult =
-  | { ok: true; filename: string }
+  | {
+      ok: true;
+      filename: string;
+      contentSha256: string;
+      byteLength: number;
+      disposition: "browser_download_requested";
+    }
   | { ok: false; error: string };
 
 export interface BackupImportPreviewCandidate {
@@ -83,7 +89,7 @@ export interface BackupRestoreReadiness {
 
 interface DownloadBackupOptions {
   now?: () => Date;
-  purpose?: "manual" | "pre_restore";
+  purpose?: "manual" | "pre_restore" | "pre_test_retirement";
 }
 
 const UNSAFE_BACKUP_KEY_PATTERN =
@@ -480,13 +486,18 @@ function createPortableBackupPayload(
 
 export function createBackupFilename(
   exportedAt = new Date().toISOString(),
-  purpose: "manual" | "pre_restore" = "manual",
+  purpose: "manual" | "pre_restore" | "pre_test_retirement" = "manual",
 ): string {
   const stamp =
-    purpose === "pre_restore"
+    purpose !== "manual"
       ? exportedAt.slice(0, 19).replaceAll(":", "-").replace("T", "-")
       : exportedAt.slice(0, 10);
-  const purposeSuffix = purpose === "pre_restore" ? "-antes-restaurar" : "";
+  const purposeSuffix =
+    purpose === "pre_restore"
+      ? "-antes-restaurar"
+      : purpose === "pre_test_retirement"
+        ? "-antes-retirar-pruebas"
+        : "";
   return `${BACKUP_FILE_PREFIX}${purposeSuffix}-${stamp}.json`;
 }
 
@@ -569,14 +580,25 @@ export function createBackupBlob(
   data: AppData,
   exportedAt = new Date().toISOString(),
 ): Blob {
-  const payload = createPortableBackupPayload(data, exportedAt);
-  const blob = new Blob([JSON.stringify(payload)], {
+  return createBackupArtifact(data, exportedAt).blob;
+}
+
+function createBackupArtifact(
+  data: AppData,
+  exportedAt: string,
+): { blob: Blob; contentSha256: string; byteLength: number } {
+  const json = JSON.stringify(createPortableBackupPayload(data, exportedAt));
+  const blob = new Blob([json], {
     type: "application/json",
   });
   if (blob.size > MAX_BACKUP_PREVIEW_BYTES) {
     throw new Error("portable_backup_too_large");
   }
-  return blob;
+  return {
+    blob,
+    contentSha256: `sha256:${sha256Hex(json)}`,
+    byteLength: blob.size,
+  };
 }
 
 export function downloadBackup(
@@ -601,14 +623,21 @@ export function downloadBackup(
   let url: string | null = null;
 
   try {
-    const blob = createBackupBlob(data, exportedAt);
+    const artifact = createBackupArtifact(data, exportedAt);
+    const { blob } = artifact;
     url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
     anchor.rel = "noopener";
     anchor.click();
-    return { ok: true, filename };
+    return {
+      ok: true,
+      filename,
+      contentSha256: artifact.contentSha256,
+      byteLength: artifact.byteLength,
+      disposition: "browser_download_requested",
+    };
   } catch {
     return {
       ok: false,

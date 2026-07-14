@@ -68,3 +68,39 @@ La decisión obligatoria y versionada está en
 Esta política solo puede cambiar mediante una decisión explícita de producto y
 una migración versionada. Una auditoría de seguridad no puede eliminarla por
 considerarla menos estricta.
+
+## Retirada explícita de documentos de prueba
+
+La decisión versionada está en
+[`docs/architecture/ADR-0003-explicit-test-document-retirement.md`](docs/architecture/ADR-0003-explicit-test-document-retirement.md).
+
+- Un documento emitido nunca se vuelve borrable mediante el botón genérico ni
+  se relaja `DeletePolicy`. La retirada de pruebas es un flujo distinto,
+  explícito, reversible y ligado a la sesión propietaria sincronizada.
+- La selección se realiza en tiempo de ejecución; están prohibidos emails,
+  tenants, IDs o números de documento codificados en el repositorio.
+- Antes de aplicar o revertir se exige vista previa exacta, generación del JSON
+  vigente con solicitud de descarga, precondición fresca y confirmación tipada.
+  El evento registra hash y tamaño de esos bytes sin afirmar que el sistema
+  operativo haya terminado de guardarlos. El lote conserva
+  documentos y relaciones before/after, eventos append-only y reservas de
+  numeración; nunca renumera ni permite reutilizar identidades retiradas.
+- Solo puede limpiarse el backlink operativo `receiptDocumentId` de una factura
+  superviviente cuando el recibo seleccionado es su única pareja recíproca.
+  Snapshots, PDF snapshots, sellos, hashes, importes, estados, timestamps y
+  cualquier artefacto VeriFactu se archivan byte-semánticamente y no se
+  regeneran ni reinterpretan.
+- Cualquier evidencia VeriFactu confirmada por servidor, registrada en
+  producción o asociada a contexto de producción bloquea la retirada. Un
+  artefacto local de TEST puede conservarse dentro del archivo, pero nunca se
+  presenta como envío a la AEAT.
+- La nube conserva intactas las filas documentales: la retirada se sincroniza
+  como un único overlay versionado y los clientes actuales proyectan el estado
+  activo. No se suben tombstones ni backlinks reescritos. Un cliente antiguo
+  puede seguir mostrando las filas subyacentes hasta actualizarse, pero no debe
+  reinterpretarse esa visualización como pérdida del lote. En clientes
+  compatibles, el único camino de vuelta es el rollback explícito del lote.
+
+Esta excepción solo sirve para retirar datos declarados expresamente como
+pruebas. No es una herramienta para borrar operaciones fiscales reales ni para
+silenciar una incidencia de integridad.
