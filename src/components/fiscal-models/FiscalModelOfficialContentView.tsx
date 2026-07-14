@@ -21,6 +21,10 @@ import { MODEL_037_GUIDE_V1 } from "./model-037-guide.v1";
 import { MODEL_04_GUIDE_V1 } from "./model-04-guide.v1";
 import { MODEL_05_GUIDE_V1 } from "./model-05-guide.v1";
 import { MODEL_06_GUIDE_V1 } from "./model-06-guide.v1";
+import { MODEL_130_GUIDE_V1 } from "./model-130-guide.v1";
+import { MODEL_131_GUIDE_V1 } from "./model-131-guide.v1";
+import { MODEL_303_GUIDE_V1 } from "./model-303-guide.v1";
+import { MODEL_390_GUIDE_V1 } from "./model-390-guide.v1";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -104,6 +108,22 @@ export function FiscalModelOfficialContentView({
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_06_GUIDE_V1} />
     );
+  }
+
+  if (content.code === "130") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_130_GUIDE_V1} />;
+  }
+
+  if (content.code === "131") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_131_GUIDE_V1} />;
+  }
+
+  if (content.code === "303") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_303_GUIDE_V1} />;
+  }
+
+  if (content.code === "390") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_390_GUIDE_V1} />;
   }
 
   const procedureLinks = content.links.filter(

@@ -443,7 +443,7 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("303 IVA")).toEqual(["303"]);
     expect(resultCodes("IVA 303")).toEqual(["303"]);
     expect(resultCodes("modelo A22 plastico")).toEqual(["A22"]);
-    expect(resultCodes("303 intracomunitarias")).toEqual([]);
+    expect(resultCodes("303 intracomunitarias")).toEqual(["303"]);
   });
 
   it("blocks ambiguous queries containing more than one exact model code", () => {

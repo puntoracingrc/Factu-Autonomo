@@ -314,9 +314,9 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(officialVisual).not.toMatch(/\bfetch\s*\(/);
     expect(detail).toContain("FiscalModelOfficialContentView");
     expect(detail).toContain("!enrichedContent");
-    expect(detail).toContain(
-      "enrichedContent?.canonicalName ?? page.canonicalName",
-    );
+    expect(detail).toContain("practicalSubtitleByCode[page.code]");
+    expect(detail).toContain("enrichedContent?.canonicalName ??");
+    expect(detail).toContain("page.canonicalName");
     expect(official).toContain("Documentos oficiales");
     expect(official).toContain("Información, ayuda y procedimiento");
     expect(official).toContain("Preguntas frecuentes");

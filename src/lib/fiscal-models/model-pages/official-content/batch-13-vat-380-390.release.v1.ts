@@ -776,7 +776,7 @@ const MODEL_390_CONTENT = {
   reviewedOn: REVIEWED_ON,
   canonicalName: "IVA. Declaración Resumen Anual",
   summary:
-    "La AEAT identifica el Modelo 390 como la declaración resumen anual del IVA y publica información para un formulario web, un canal mediante fichero, un simulador independiente, instrucciones y un diseño de registro.",
+    "Resumen anual del IVA. Recoge el conjunto del ejercicio y no sustituye las autoliquidaciones del Modelo 303.",
   searchTerms: [
     "modelo 390",
     "IVA",
@@ -788,6 +788,11 @@ const MODEL_390_CONTENT = {
     "instrucciones 2025",
     "diseño de registro",
     "Orden EHA 3111 2009",
+    "exoneración modelo 390",
+    "información anual último 303",
+    "plazo enero modelo 390",
+    "simulador no presenta",
+    "conciliar 303 y 390",
   ],
   sections: [
     {

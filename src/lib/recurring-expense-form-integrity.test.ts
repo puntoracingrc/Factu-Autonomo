@@ -196,7 +196,7 @@ describe("recurring expense form integrity", () => {
       submitStart,
     );
     const replayInbox = newExpenseForm.indexOf(
-      "await markInboxItemProcessed({",
+      "await markInboxItemProcessed()",
       replayGate,
     );
     const totals = newExpenseForm.indexOf(
@@ -216,7 +216,7 @@ describe("recurring expense form integrity", () => {
       durableSave,
     );
     const inbox = newExpenseForm.indexOf(
-      "await markInboxItemProcessed({",
+      "await markInboxItemProcessed()",
       durableSave,
     );
     const navigation = newExpenseForm.indexOf('router.push("/gastos")', inbox);
@@ -279,7 +279,10 @@ describe("recurring expense form integrity", () => {
       "Boolean(blockingDuplicateExpense) || storageStateUnknown",
     );
     expect(newExpenseForm).toContain(
-      "requireConfirmation: durableFixedApplied",
+      "sourceInboxItemId: activeInboxItemId ?? undefined",
+    );
+    expect(newExpenseForm).toContain(
+      "if (activeInboxItemId && !inboxProcessed)",
     );
     expect(newExpenseForm).toContain("if (!response.ok");
     expect(newExpenseForm).toContain(

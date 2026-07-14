@@ -3,6 +3,7 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   canUseExpenseInbox,
   ensureExpenseInboxAlias,
+  getExpenseInboxCopyRecipient,
   getExpenseInboxDeliveryStatus,
   getExpenseInboxItem,
   listExpenseInboxItems,
@@ -57,7 +58,10 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const itemId = url.searchParams.get("id");
     const alias = await ensureExpenseInboxAlias(user.id);
-    const deliveryStatus = await getExpenseInboxDeliveryStatus();
+    const [deliveryStatus, copyRecipient] = await Promise.all([
+      getExpenseInboxDeliveryStatus(),
+      getExpenseInboxCopyRecipient(user.id).catch(() => null),
+    ]);
 
     if (itemId) {
       const item = await getExpenseInboxItem(user.id, itemId);
@@ -67,13 +71,14 @@ export async function GET(request: Request) {
           { status: 404 },
         );
       }
-      return NextResponse.json({ alias, deliveryStatus, item });
+      return NextResponse.json({ alias, deliveryStatus, copyRecipient, item });
     }
 
     const items = await listExpenseInboxItems(user.id);
     return NextResponse.json({
       alias,
       deliveryStatus,
+      copyRecipient,
       items,
       pendingCount: items.filter((item) => item.status === "pending").length,
       errorCount: items.filter((item) => item.status === "error").length,
@@ -140,10 +145,13 @@ export async function PATCH(request: Request) {
     }
 
     const id = typeof body.id === "string" ? body.id : "";
-    const status = body.status === "ignored" ? "ignored" : "processed";
-    if (!id) {
+    const status =
+      body.status === "processed" || body.status === "ignored"
+        ? body.status
+        : null;
+    if (!id || !status) {
       return NextResponse.json(
-        { error: "Falta el identificador." },
+        { error: "Falta el identificador o el estado no es válido." },
         { status: 400 },
       );
     }

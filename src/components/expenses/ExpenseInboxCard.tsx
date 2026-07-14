@@ -9,6 +9,7 @@ import {
   Inbox,
   Loader2,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -16,6 +17,7 @@ import { expenseInboxItemVatView } from "@/components/expenses/expense-vat-ui";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import { closeExpenseInboxItemLocally } from "@/lib/expense-inbox-lifecycle";
 import type { AiUsageMeter } from "@/lib/billing/scan-limits";
 import type {
   ExpenseInboxDeliveryStatus,
@@ -29,6 +31,7 @@ interface ExpenseInboxResponse {
   deliveryStatus?: ExpenseInboxDeliveryStatus;
   items?: ExpenseInboxItem[];
   pendingCount?: number;
+  copyRecipient?: string | null;
   error?: string;
 }
 
@@ -50,12 +53,14 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [copyRecipient, setCopyRecipient] = useState<string | null>(null);
   const [deliveryStatus, setDeliveryStatus] =
     useState<ExpenseInboxDeliveryStatus | null>(null);
   const [usageLabel, setUsageLabel] = useState<string | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rotatingAddress, setRotatingAddress] = useState(false);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +69,7 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
       setAddress("");
       setItems([]);
       setPendingCount(0);
+      setCopyRecipient(null);
       setDeliveryStatus(null);
       setUsageLabel(null);
       return;
@@ -98,6 +104,7 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
       setAddress(body.alias?.address ?? "");
       setItems(body.items ?? []);
       setPendingCount(body.pendingCount ?? 0);
+      setCopyRecipient(body.copyRecipient ?? null);
       setDeliveryStatus(body.deliveryStatus ?? null);
     } catch {
       setError("No se pudo cargar el buzón.");
@@ -146,6 +153,38 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
       setError("No se pudo generar un correo nuevo.");
     } finally {
       setRotatingAddress(false);
+    }
+  }
+
+  async function discardItem(item: ExpenseInboxItem) {
+    const confirmed = window.confirm(
+      "La factura saldrá de pendientes, pero no se borrará ningún gasto ya guardado. ¿Quieres descartarla?",
+    );
+    if (!confirmed) return;
+
+    setDiscardingId(item.id);
+    setError(null);
+    try {
+      const headers = await currentAuthHeaders();
+      const response = await fetch("/api/expense-inbox", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, status: "ignored" }),
+      });
+      const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      if (!response.ok) {
+        setError(body.error ?? "No se pudo descartar la factura.");
+        return;
+      }
+      const closed = closeExpenseInboxItemLocally(items, item.id);
+      setItems(closed.items);
+      if (closed.removedPending) {
+        setPendingCount((count) => Math.max(0, count - 1));
+      }
+    } catch {
+      setError("No se pudo descartar la factura.");
+    } finally {
+      setDiscardingId(null);
     }
   }
 
@@ -251,6 +290,16 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
             publicas o empieza a entrar basura, genera uno nuevo. Se revisan los
             10 primeros adjuntos de cada email.
           </p>
+          <p className="mt-2 text-xs text-slate-600">
+            {copyRecipient ? (
+              <>
+                También enviamos una copia automática desde la app a{" "}
+                <strong>{copyRecipient}</strong>.
+              </>
+            ) : (
+              "Añade un email válido en Datos de empresa para recibir también una copia."
+            )}
+          </p>
           {deliveryStatus && deliveryStatus.state !== "ready" ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <p className="flex gap-2 font-semibold">
@@ -305,14 +354,30 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
                     </p>
                   ) : null}
                 </div>
-                {item.status === "pending" ? (
-                  <Link
-                    href={`/gastos/nuevo?inbox=${item.id}`}
-                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white"
+                <div className="flex shrink-0 items-center gap-2">
+                  {item.status === "pending" ? (
+                    <Link
+                      href={`/gastos/nuevo?inbox=${item.id}`}
+                      className="inline-flex min-h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white"
+                    >
+                      Revisar
+                    </Link>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    onClick={() => void discardItem(item)}
+                    disabled={discardingId === item.id}
+                    title="Descartar del buzón"
+                    aria-label={`Descartar ${title} del buzón`}
                   >
-                    Revisar
-                  </Link>
-                ) : null}
+                    {discardingId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Descartar
+                  </Button>
+                </div>
               </div>
             );
           })}

@@ -44,16 +44,28 @@ export async function generateMetadata({
         "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
         "05": "Modelo 05 AEAT: beneficios en el impuesto de matriculación",
         "06": "Modelo 06 AEAT: exenciones del impuesto de matriculación",
+        "130": "Modelo 130 AEAT: pago trimestral del IRPF",
+        "131": "Modelo 131 AEAT: pago trimestral por módulos",
+        "303": "Modelo 303 AEAT: declaración trimestral del IVA",
+        "390": "Modelo 390 AEAT: resumen anual del IVA",
       }[codigo]
     : undefined;
   const modelTitle =
     dedicatedSeoTitle ?? "Modelo " + result.data.code + " · Modelos AEAT";
+  const dedicatedSeoDescription = isOfficialInformation
+    ? {
+        "130": "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
+        "131": "Guía sencilla del Modelo 131: quién puede tributar por módulos, cálculo, límites de 2026, porcentajes, plazos y presentación.",
+        "303": "Guía sencilla del Modelo 303: quién debe presentarlo, IVA repercutido y deducible, resultados, plazos, Pre303 y corrección de errores.",
+        "390": "Guía sencilla del Modelo 390: quién debe presentarlo, exoneraciones, relación con el Modelo 303, plazo, comprobaciones y trámite oficial.",
+      }[codigo]
+    : undefined;
+  const modelDescription = dedicatedSeoDescription ??
+    (isOfficialInformation ? officialContent.data.summary : result.data.summary);
 
   return {
     title: dedicatedSeoTitle ? { absolute: modelTitle } : modelTitle,
-    description: isOfficialInformation
-      ? officialContent.data.summary
-      : result.data.summary,
+    description: modelDescription,
     alternates: {
       canonical: result.data.href,
     },
@@ -63,7 +75,7 @@ export async function generateMetadata({
     openGraph: isOfficialInformation
       ? {
           title: modelTitle,
-          description: officialContent.data.summary,
+          description: modelDescription,
           url: result.data.href,
           type: "article",
         }

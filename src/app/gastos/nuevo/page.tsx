@@ -95,6 +95,7 @@ import type {
   RecurringExpenseFrequency,
 } from "@/lib/types";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
+import { expenseAlreadySavedFromInbox } from "@/lib/expense-inbox-lifecycle";
 
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
@@ -1049,7 +1050,16 @@ export default function NuevoGastoPage() {
     );
   }
 
-  function removeScanReview(review: PendingExpenseScan) {
+  async function removeScanReview(review: PendingExpenseScan) {
+    if (activeInboxItemId && review.id === activeInboxItemId) {
+      const confirmed = window.confirm(
+        "La factura saldrá de pendientes y no se guardará como gasto. ¿Quieres descartarla?",
+      );
+      if (!confirmed) return;
+      const ignored = await updateActiveInboxItemStatus("ignored");
+      if (!ignored) return;
+    }
+
     setPendingScans((prev) => prev.filter((item) => item.id !== review.id));
     if (activeScanReview?.id !== review.id) return;
 
@@ -1233,6 +1243,10 @@ export default function NuevoGastoPage() {
 
     const expensePayload: Omit<Expense, "id" | "createdAt"> = {
       date: payload.expense.date,
+      sourceInboxItemId:
+        activeInboxItemId && review.id === activeInboxItemId
+          ? activeInboxItemId
+          : undefined,
       supplierId,
       supplierName: resolved.supplierName,
       description: payload.expense.description,
@@ -1257,6 +1271,15 @@ export default function NuevoGastoPage() {
   async function handleSaveReadyScans() {
     if (storageStateUnknown) return;
     if (activeScanReview && businessKind === "fixed") return;
+    if (
+      activeInboxItemId &&
+      expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
+    ) {
+      const closed = await markInboxItemProcessed();
+      if (!closed) return;
+      router.push("/gastos");
+      return;
+    }
     const reviews = [
       ...(activeScanReview && scanFormCollapsed ? [activeScanReview] : []),
       ...pendingScans,
@@ -1272,7 +1295,8 @@ export default function NuevoGastoPage() {
     });
     if (savedReviewIds.size === 0) return;
     if (activeInboxItemId && savedReviewIds.has(activeInboxItemId)) {
-      await markInboxItemProcessed();
+      const closed = await markInboxItemProcessed();
+      if (!closed) return;
     }
     const remaining = reviews.filter((review) => !savedReviewIds.has(review.id));
     setActiveScanReview(null);
@@ -1296,13 +1320,24 @@ export default function NuevoGastoPage() {
 
   async function handleSaveSingleScan(review: PendingExpenseScan) {
     if (storageStateUnknown) return;
+    if (
+      activeInboxItemId &&
+      review.id === activeInboxItemId &&
+      expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
+    ) {
+      const closed = await markInboxItemProcessed();
+      if (!closed) return;
+      router.push("/gastos");
+      return;
+    }
     if (review.id === activeScanReview?.id && businessKind === "fixed") return;
     if (scanReviewStatus(review) !== "ready") return;
     if (review.id === activeScanReview?.id && !scanFormCollapsed) return;
     if (!saveScanPayload(review)) return;
 
     if (activeInboxItemId && review.id === activeInboxItemId) {
-      await markInboxItemProcessed();
+      const closed = await markInboxItemProcessed();
+      if (!closed) return;
     }
 
     const remaining = currentScanReviews.filter((item) => item.id !== review.id);
@@ -1361,9 +1396,9 @@ export default function NuevoGastoPage() {
     return fixedSaveOperationIdRef.current;
   }
 
-  async function markInboxItemProcessed(options?: {
-    requireConfirmation?: boolean;
-  }): Promise<boolean> {
+  async function updateActiveInboxItemStatus(
+    status: "processed" | "ignored",
+  ): Promise<boolean> {
     if (!activeInboxItemId) return true;
     try {
       const headers = await currentAuthHeaders();
@@ -1373,29 +1408,45 @@ export default function NuevoGastoPage() {
           ...headers,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id: activeInboxItemId, status: "processed" }),
+        body: JSON.stringify({ id: activeInboxItemId, status }),
       });
-      if (!response.ok && options?.requireConfirmation) {
+      if (!response.ok) {
         setSaveSubmitError(
-          "El gasto fijo sí quedó guardado, pero no pudimos marcar el documento del buzón como procesado. El formulario sigue abierto: vuelve a pulsar Guardar para reintentar solo ese cierre.",
+          status === "processed"
+            ? "El gasto sí quedó guardado, pero no pudimos cerrar el documento del buzón. El formulario sigue abierto: vuelve a pulsar el botón para reintentar solo ese cierre."
+            : "No pudimos descartar el documento del buzón. Sigue pendiente y no hemos limpiado el formulario.",
         );
         return false;
       }
       setActiveInboxItemId(null);
-      return response.ok;
+      return true;
     } catch {
-      if (options?.requireConfirmation) {
-        setSaveSubmitError(
-          "El gasto fijo sí quedó guardado, pero no pudimos confirmar el cierre del documento del buzón. El formulario sigue abierto: comprueba la conexión y vuelve a pulsar Guardar.",
-        );
-        return false;
-      }
-      throw new Error("expense_inbox_update_failed");
+      setSaveSubmitError(
+        status === "processed"
+          ? "El gasto sí quedó guardado, pero no pudimos confirmar el cierre del documento del buzón. Comprueba la conexión y vuelve a pulsar el botón."
+          : "No pudimos confirmar el descarte. El documento sigue pendiente.",
+      );
+      return false;
     }
+  }
+
+  async function markInboxItemProcessed(): Promise<boolean> {
+    return updateActiveInboxItemStatus("processed");
   }
 
   async function handleSubmit() {
     if (storageStateUnknown) return;
+    if (
+      activeInboxItemId &&
+      expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
+    ) {
+      setSaveSubmitError(null);
+      const inboxProcessed = await markInboxItemProcessed();
+      if (!inboxProcessed) return;
+      setActiveScanReview(null);
+      router.push("/gastos");
+      return;
+    }
     if (activeInboxItemId && currentFixedOperationId) {
       if (fixedOperationInspection.status === "ambiguous") {
         setSaveSubmitError(
@@ -1407,9 +1458,7 @@ export default function NuevoGastoPage() {
         if (fixedSaveInProgressRef.current) return;
         setSaveSubmitError(null);
         fixedSaveInProgressRef.current = true;
-        const inboxProcessed = await markInboxItemProcessed({
-          requireConfirmation: true,
-        });
+        const inboxProcessed = await markInboxItemProcessed();
         if (!inboxProcessed) {
           fixedSaveInProgressRef.current = false;
           return;
@@ -1518,6 +1567,7 @@ export default function NuevoGastoPage() {
         : date;
     const payload: Omit<Expense, "id" | "createdAt"> = {
       date: expenseDate,
+      sourceInboxItemId: activeInboxItemId ?? undefined,
       supplierId,
       supplierName: resolved.supplierName,
       description: description.trim(),
@@ -1538,7 +1588,6 @@ export default function NuevoGastoPage() {
       businessKind,
     };
 
-    let durableFixedApplied = false;
     if (businessKind === "fixed") {
       const recurringPayload = {
         supplierName: resolved.supplierName,
@@ -1616,7 +1665,6 @@ export default function NuevoGastoPage() {
           );
           return;
         }
-        durableFixedApplied = true;
       }
     } else if (editingExpense) {
       updateExpense({
@@ -1631,10 +1679,8 @@ export default function NuevoGastoPage() {
       addExpense(payload);
     }
 
-    const inboxProcessed = await markInboxItemProcessed({
-      requireConfirmation: durableFixedApplied,
-    });
-    if (durableFixedApplied && !inboxProcessed) {
+    const inboxProcessed = await markInboxItemProcessed();
+    if (activeInboxItemId && !inboxProcessed) {
       fixedSaveInProgressRef.current = false;
       return;
     }
@@ -1929,7 +1975,7 @@ export default function NuevoGastoPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => removeScanReview(review)}
+                            onClick={() => void removeScanReview(review)}
                             className="inline-flex min-h-11 w-11 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-bold text-red-700"
                             aria-label={`Quitar ${review.fileName ?? review.payload.expense.description}`}
                             title="Quitar de esta revisión"
@@ -2919,6 +2965,12 @@ export default function NuevoGastoPage() {
           >
             {storageStateUnknown
               ? "Recarga antes de continuar"
+              : activeInboxItemId &&
+                  expenseAlreadySavedFromInbox(
+                    data.expenses,
+                    activeInboxItemId,
+                  )
+                ? "Cerrar documento del buzón"
               : fixedOperationAlreadySaved && activeInboxItemId
                 ? "Cerrar documento del buzón"
                 : blockingDuplicateExpense

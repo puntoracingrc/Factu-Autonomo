@@ -67,8 +67,8 @@ function workerAnalysis(
     "TEXT_LAYER_AVAILABLE",
 ) {
   return {
-    schemaVersion: 5,
-    analysisVersion: "5.0.0",
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
     textLayerStatus: status,
     pageCount: 1,
     familyAnalysis:
@@ -90,6 +90,7 @@ function workerAnalysis(
     enforcementExplicitFields: null,
     enforcementPartyFacts: null,
     deferralGrantFacts: null,
+    offsetAgreementFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -298,8 +299,8 @@ describe("fiscal notification PDF text-layer adapter", () => {
     const output = await readFiscalNotificationPdfTextLayer(input, deps);
 
     expect(output).toMatchObject({
-      schemaVersion: 5,
-      adapterVersion: "5.0.0",
+      schemaVersion: 6,
+      adapterVersion: "6.0.0",
       status,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: {
@@ -993,13 +994,13 @@ describe("fiscal notification PDF text-layer adapter", () => {
       ]);
   });
 
-  it("gates the visible explicit-field extractor inside the Worker before projecting an ephemeral result", () => {
+  it("gates the visible explicit-field extractor in the shared pure analysis before Worker projection", () => {
     const source = readFileSync(
-      new URL("./pdf-text-layer.worker.ts", import.meta.url),
+      new URL("./document-input-analysis.ts", import.meta.url),
       "utf8",
     );
     const sourceFile = ts.createSourceFile(
-      "pdf-text-layer.worker.ts",
+      "document-input-analysis.ts",
       source,
       ts.ScriptTarget.Latest,
       true,
@@ -1025,7 +1026,6 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
     const extractorCalls: ts.CallExpression[] = [];
     let explicitDeclaration: ts.VariableDeclaration | null = null;
-    let projectorCall: ts.CallExpression | null = null;
     const visit = (node: ts.Node): void => {
       if (
         ts.isCallExpression(node) &&
@@ -1040,13 +1040,6 @@ describe("fiscal notification PDF text-layer adapter", () => {
         node.name.text === "enforcementExplicitFields"
       ) {
         explicitDeclaration = node;
-      }
-      if (
-        ts.isCallExpression(node) &&
-        node.expression.getText(sourceFile) ===
-          "projectFiscalNotificationPdfWorkerAnalysis"
-      ) {
-        projectorCall = node;
       }
       ts.forEachChild(node, visit);
     };
@@ -1067,29 +1060,16 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(initializer.whenTrue).toBe(extractorCalls[0]);
     expect(initializer.whenFalse.kind).toBe(ts.SyntaxKind.NullKeyword);
 
-    const capturedProjectorCall = projectorCall as ts.CallExpression | null;
-    expect(capturedProjectorCall).not.toBeNull();
-    const projection = capturedProjectorCall?.arguments[0];
-    expect(projection && ts.isObjectLiteralExpression(projection)).toBe(true);
-    if (!projection || !ts.isObjectLiteralExpression(projection)) return;
-    expect(
-      projection.properties.map((property) => property.name?.getText(sourceFile)),
-    ).toEqual([
-      "textLayerStatus",
-      "pageCount",
-      "familyAnalysis",
-      "enforcementMoneyFacts",
-      "enforcementExplicitFields",
-      "enforcementPartyFacts",
-      "deferralGrantFacts",
-    ]);
-    const explicitProjection = projection.properties.find(
-      (property) => property.name?.getText(sourceFile) === "enforcementExplicitFields",
+    const workerSource = readFileSync(
+      new URL("./pdf-text-layer.worker.ts", import.meta.url),
+      "utf8",
     );
-    expect(
-      explicitProjection &&
-        ts.isShorthandPropertyAssignment(explicitProjection),
-    ).toBe(true);
+    expect(workerSource).toContain(
+      "analyzeFiscalNotificationDocumentInput(documentInput)",
+    );
+    expect(workerSource).toContain(
+      "enforcementExplicitFields: projected.enforcementExplicitFields",
+    );
   });
 
   it("keeps the intake browser-only and free of network, AI and persistence calls", () => {

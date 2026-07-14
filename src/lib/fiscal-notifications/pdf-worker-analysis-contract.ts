@@ -15,6 +15,8 @@ import {
 } from "./aeat-enforcement-party-facts.v1";
 import type { AeatDeferralGrantFactsResultV1 } from "./aeat-deferral-grant-facts.v1";
 import { parseAeatDeferralGrantFactsContractV1 } from "./aeat-deferral-grant-facts.v1-contract";
+import type { AeatOffsetAgreementFactsResultV1 } from "./aeat-offset-agreement-facts.v1";
+import { parseAeatOffsetAgreementFactsContractV1 } from "./aeat-offset-agreement-facts.v1-contract";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationExtractionReason,
@@ -29,9 +31,9 @@ import {
 } from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_SCHEMA_VERSION =
-  5 as const;
+  6 as const;
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_VERSION =
-  "5.0.0" as const;
+  "6.0.0" as const;
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
   maxCandidates: 5,
@@ -82,8 +84,8 @@ export interface FiscalNotificationPdfWorkerFamilyAnalysis {
 }
 
 export interface FiscalNotificationPdfWorkerAnalysis {
-  readonly schemaVersion: 5;
-  readonly analysisVersion: "5.0.0";
+  readonly schemaVersion: 6;
+  readonly analysisVersion: "6.0.0";
   readonly textLayerStatus: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly pageCount: number;
   readonly familyAnalysis: FiscalNotificationPdfWorkerFamilyAnalysis | null;
@@ -91,6 +93,7 @@ export interface FiscalNotificationPdfWorkerAnalysis {
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
   readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
   readonly deferralGrantFacts: AeatDeferralGrantFactsResultV1 | null;
+  readonly offsetAgreementFacts: AeatOffsetAgreementFactsResultV1 | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
@@ -105,6 +108,7 @@ export interface ProjectFiscalNotificationPdfWorkerAnalysisInput {
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
   readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
   readonly deferralGrantFacts?: AeatDeferralGrantFactsResultV1 | null;
+  readonly offsetAgreementFacts?: AeatOffsetAgreementFactsResultV1 | null;
 }
 
 export class FiscalNotificationPdfWorkerAnalysisError extends Error {
@@ -124,6 +128,7 @@ const ENVELOPE_KEYS = new Set([
   "enforcementExplicitFields",
   "enforcementPartyFacts",
   "deferralGrantFacts",
+  "offsetAgreementFacts",
   "sourceContentPolicy",
   "requiresHumanReview",
   "materializationPolicy",
@@ -426,6 +431,7 @@ export function projectFiscalNotificationPdfWorkerAnalysis(
     enforcementExplicitFields: input.enforcementExplicitFields,
     enforcementPartyFacts: input.enforcementPartyFacts,
     deferralGrantFacts: input.deferralGrantFacts ?? null,
+    offsetAgreementFacts: input.offsetAgreementFacts ?? null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -440,8 +446,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     const envelope = snapshotRecord(value);
     assertKnownKeys(envelope, ENVELOPE_KEYS);
     if (
-      envelope.schemaVersion !== 5 ||
-      envelope.analysisVersion !== "5.0.0" ||
+      envelope.schemaVersion !== 6 ||
+      envelope.analysisVersion !== "6.0.0" ||
       (envelope.textLayerStatus !== "TEXT_LAYER_AVAILABLE" &&
         envelope.textLayerStatus !== "NO_EXTRACTABLE_TEXT") ||
       !isBoundedPageCount(envelope.pageCount) ||
@@ -465,7 +471,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
         envelope.enforcementMoneyFacts !== null ||
         envelope.enforcementExplicitFields !== null ||
         envelope.enforcementPartyFacts !== null ||
-        envelope.deferralGrantFacts !== null
+        envelope.deferralGrantFacts !== null ||
+        envelope.offsetAgreementFacts !== null
       ) {
         throw new FiscalNotificationPdfWorkerAnalysisError();
       }
@@ -490,6 +497,14 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
       familyAnalysis.candidates[0]?.familyId ===
         "AEAT_DEFERRAL_GRANT_CANDIDATE";
     if (deferralCandidate !== (envelope.deferralGrantFacts !== null)) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
+    const offsetCandidate =
+      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+      familyAnalysis.candidates.length === 1 &&
+      familyAnalysis.candidates[0]?.familyId ===
+        "AEAT_OFFSET_AGREEMENT_CANDIDATE";
+    if (!offsetCandidate && envelope.offsetAgreementFacts !== null) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
     const amountAnchorPageNumbers = enforcementCandidate
@@ -555,10 +570,23 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
+    const offsetAgreementFacts =
+      envelope.offsetAgreementFacts === null
+        ? null
+        : parseAeatOffsetAgreementFactsContractV1(
+            envelope.offsetAgreementFacts,
+            pageCount,
+          );
+    if (
+      offsetAgreementFacts !== null &&
+      offsetAgreementFacts.documentType !== "AEAT_OFFSET_AGREEMENT"
+    ) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
 
     return Object.freeze({
-      schemaVersion: 5 as const,
-      analysisVersion: "5.0.0" as const,
+      schemaVersion: 6 as const,
+      analysisVersion: "6.0.0" as const,
       textLayerStatus: envelope.textLayerStatus,
       pageCount,
       familyAnalysis,
@@ -566,6 +594,7 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
       enforcementExplicitFields,
       enforcementPartyFacts,
       deferralGrantFacts,
+      offsetAgreementFacts,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
       requiresHumanReview: true as const,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,

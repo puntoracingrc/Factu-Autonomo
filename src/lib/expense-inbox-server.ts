@@ -7,7 +7,13 @@ import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
+import { sendEmail } from "@/lib/email/send";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  buildExpenseInboxCopyEmail,
+  ExpenseInboxCopyDeliveryError,
+  normalizeExpenseInboxCopyRecipient,
+} from "@/lib/expense-inbox-copy";
 import {
   downloadResendAttachment,
   ExpenseInboxDownloadError,
@@ -158,7 +164,13 @@ function profileAliasName(payload: unknown): string {
   return "";
 }
 
-async function aliasBaseForUser(userId: string): Promise<string> {
+function profileEmail(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const email = (payload as Record<string, unknown>).email;
+  return typeof email === "string" ? email : "";
+}
+
+async function profilePayloadForUser(userId: string): Promise<unknown> {
   const admin = ensureAdmin();
   const { data, error } = await admin
     .from("sync_entities")
@@ -169,10 +181,49 @@ async function aliasBaseForUser(userId: string): Promise<string> {
     .eq("deleted", false)
     .maybeSingle();
 
-  if (error) return normalizeExpenseInboxAliasBase(undefined);
-  return normalizeExpenseInboxAliasBase(
-    profileAliasName((data as { payload?: unknown } | null)?.payload),
+  if (error) throw error;
+  return (data as { payload?: unknown } | null)?.payload;
+}
+
+async function aliasBaseForUser(userId: string): Promise<string> {
+  try {
+    return normalizeExpenseInboxAliasBase(
+      profileAliasName(await profilePayloadForUser(userId)),
+    );
+  } catch {
+    return normalizeExpenseInboxAliasBase(undefined);
+  }
+}
+
+export async function getExpenseInboxCopyRecipient(
+  userId: string,
+): Promise<string | null> {
+  return normalizeExpenseInboxCopyRecipient(
+    profileEmail(await profilePayloadForUser(userId)),
+    getExpenseInboxDomain(),
   );
+}
+
+async function sendExpenseInboxCompanyCopy(input: {
+  userId: string;
+  sourceEmailId: string;
+  email: ExpenseInboxInboundEmail;
+}): Promise<void> {
+  const recipientEmail = await getExpenseInboxCopyRecipient(input.userId);
+  if (!recipientEmail) return;
+  const copy = buildExpenseInboxCopyEmail({
+    userId: input.userId,
+    sourceEmailId: input.sourceEmailId,
+    recipientEmail,
+    inboxDomain: getExpenseInboxDomain(),
+    originalFromEmail: input.email.fromEmail,
+    originalSubject: input.email.subject,
+    attachments: input.email.attachments,
+  });
+  if (!copy) return;
+
+  const result = await sendEmail(copy);
+  if (!result.ok) throw new ExpenseInboxCopyDeliveryError(result);
 }
 
 function mapItem(row: ExpenseInboxItemRow): ExpenseInboxItem {
@@ -1176,18 +1227,21 @@ async function processAttachment(input: {
   return scan.data ? "pending" : "error";
 }
 
-async function ingestNormalizedExpenseInboxEmail(
+async function ingestNormalizedExpenseInboxEmailResolved(
   email: ExpenseInboxInboundEmail,
-): Promise<ExpenseInboxIngestResult> {
+): Promise<{ result: ExpenseInboxIngestResult; userId: string | null }> {
   const alias = await resolveUserFromRecipients(email);
   if (!alias) {
     return {
-      accepted: 0,
-      pending: 0,
-      duplicates: 0,
-      ignored: email.attachments.length,
-      errors: 0,
-      message: "No coincide con ningún buzón activo.",
+      userId: null,
+      result: {
+        accepted: 0,
+        pending: 0,
+        duplicates: 0,
+        ignored: email.attachments.length,
+        errors: 0,
+        message: "No coincide con ningún buzón activo.",
+      },
     };
   }
 
@@ -1224,7 +1278,13 @@ async function ingestNormalizedExpenseInboxEmail(
 
   result.ignored += overflow.length;
 
-  return result;
+  return { result, userId: alias.user_id };
+}
+
+async function ingestNormalizedExpenseInboxEmail(
+  email: ExpenseInboxInboundEmail,
+): Promise<ExpenseInboxIngestResult> {
+  return (await ingestNormalizedExpenseInboxEmailResolved(email)).result;
 }
 
 export async function ingestExpenseInboxEmail(
@@ -1346,7 +1406,7 @@ export async function ingestResendExpenseInboxEmail(
     }
   }
 
-  return ingestNormalizedExpenseInboxEmail({
+  const normalizedEmail: ExpenseInboxInboundEmail = {
     ...received.email,
     attachments: [
       ...attachments,
@@ -1356,5 +1416,16 @@ export async function ingestResendExpenseInboxEmail(
         size: attachment.size,
       })),
     ],
-  });
+  };
+  const ingested = await ingestNormalizedExpenseInboxEmailResolved(
+    normalizedEmail,
+  );
+  if (ingested.userId) {
+    await sendExpenseInboxCompanyCopy({
+      userId: ingested.userId,
+      sourceEmailId: received.emailId,
+      email: normalizedEmail,
+    });
+  }
+  return ingested.result;
 }
