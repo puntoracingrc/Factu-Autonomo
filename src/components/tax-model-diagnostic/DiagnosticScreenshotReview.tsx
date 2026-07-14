@@ -379,10 +379,10 @@ export function DiagnosticScreenshotReview({
         />
         <div>
           <h2 id="capturas-aeat" className="font-bold text-slate-950 dark:text-white">
-            ¿Hacienda no te deja descargar? Usa capturas
+            Opción 2 · Capturas de Hacienda
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Entra en Área personal → Mis datos censales y captura los apartados que tengas. Puedes usar solo uno: cualquier dato claro será aprovechable y lo que falte quedará sin rellenar.
+            Si Hacienda no te deja descargar un documento, puedes fotografiar o capturar las pantallas. Puedes usar solo un apartado: cualquier dato claro será aprovechable y lo que falte quedará sin rellenar.
           </p>
         </div>
       </div>
@@ -394,9 +394,20 @@ export function DiagnosticScreenshotReview({
         </p>
       </div>
 
-      <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
-        La pantalla «Mi área personal» solo sirve para llegar: no hace falta subirla.
-      </p>
+      <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-900 dark:bg-slate-900">
+        <h3 className="font-bold text-slate-950 dark:text-white">
+          Cómo encontrar esta información en Hacienda
+        </h3>
+        <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+          <li><strong>1.</strong> Entra en la sede de la Agencia Tributaria y abre <strong>Área personal</strong>.</li>
+          <li><strong>2.</strong> Pulsa <strong>Mis datos censales</strong>.</li>
+          <li><strong>3.</strong> Abre los apartados <strong>Mis actividades económicas</strong>, <strong>Mi situación tributaria</strong> y <strong>Mis obligaciones</strong>.</li>
+          <li><strong>4.</strong> Haz una o varias capturas incluyendo el título, las casillas o la tabla completa, y añádelas abajo en su apartado.</li>
+        </ol>
+        <p className="mt-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+          La pantalla «Mi área personal» solo sirve para llegar: no hace falta subirla.
+        </p>
+      </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         {SLOTS.map((slot) => (

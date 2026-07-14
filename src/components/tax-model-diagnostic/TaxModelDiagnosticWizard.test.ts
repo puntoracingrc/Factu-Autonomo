@@ -31,6 +31,8 @@ describe("tax model diagnostic UI contract", () => {
   it("procesa documentos localmente sin aplicar propuestas automáticamente", () => {
     expect(documents).toContain("readCensusDocumentText");
     expect(documents).toContain("no se guarda el PDF");
+    expect(documents).toContain("Opción 2 · Usar capturas de Hacienda");
+    expect(documents).toContain('href="#capturas-aeat"');
     expect(documents).toContain("He contrastado el documento");
     expect(documents).toContain("userConfirmed: true");
   });
@@ -39,6 +41,9 @@ describe("tax model diagnostic UI contract", () => {
     expect(screenshots).toContain("Mis actividades económicas");
     expect(screenshots).toContain("Mi situación tributaria");
     expect(screenshots).toContain("Mis obligaciones");
+    expect(screenshots).toContain("Cómo encontrar esta información en Hacienda");
+    expect(screenshots).toContain("Área personal");
+    expect(screenshots).toContain("Mis datos censales");
     expect(screenshots).toContain("recognizeAeatScreenshotFiles");
     expect(screenshots).toContain("Las imágenes no se envían ni se guardan");
     expect(screenshots).toContain("Confirmo que las capturas contienen mis datos");
